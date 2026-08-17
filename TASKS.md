@@ -9,7 +9,7 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
-## Sprint 0 — Scaffolding · **DONE**
+## Sprint 0 — Scaffolding · **PARTIAL** (5 of 6 criteria; CI unverified, no remote)
 
 Verify: `make verify`
 

@@ -1,8 +1,12 @@
 # STATE — where this project is right now
 
 **Sprint:** 0 — Scaffolding
-**Status:** COMPLETE
+**Status:** PARTIAL
 **Next:** Sprint 1 — NSE EOD ingest
+
+**Why PARTIAL:** five of six acceptance criteria pass. The sixth — "CI passes on
+a pushed branch" — cannot be checked because there is no GitHub remote. See
+`docs/SPRINT_00_REVIEW.md` question 1.
 
 *Last updated: 2026-08-17. One page, always current. If it is not written here or
 in `TASKS.md`, it did not happen.*
