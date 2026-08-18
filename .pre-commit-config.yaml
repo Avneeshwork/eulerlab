@@ -14,6 +14,20 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  # The docs gate runs in CI and in `make verify`, but both are easy to bypass
+  # by committing without looking. Twice on 2026-08-18 a src/ change was
+  # committed with no docs because `make verify` and `git commit` were run as
+  # separate commands and the red table scrolled past. Enforcing it here makes
+  # the commit itself fail, which is the only check that cannot be skipped by
+  # inattention.
+  - repo: local
+    hooks:
+      - id: docs-check
+        name: docs-check (src/ changes need docs)
+        entry: uv run python tools/docs_check.py --staged-only
+        language: system
+        pass_filenames: false
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -25,3 +39,21 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=512]
       - id: detect-private-key
+
+  # Local hooks. These are the gates that actually catch defects; running them
+  # only in `make verify` means a commit can be made while they are red, which
+  # happened twice on 2026-08-18.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy --strict
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: pytest
+        name: pytest
+        entry: uv run pytest -q
+        language: system
+        pass_filenames: false
+        types: [python]

@@ -40,7 +40,7 @@ Verify: `make verify`
 
 ---
 
-## Sprint 1 — NSE EOD ingest · **TODO**
+## Sprint 1 — NSE EOD ingest · **IN PROGRESS** (backfill running)
 
 Verify: `make ingest-eod FROM=2015-01-01`, then run it again — second run must
 download nothing.
@@ -51,18 +51,39 @@ only the new days.
 
 | ID | Task | Status |
 |---|---|---|
-| T-101 | Research NSE archive URLs + schemas → `docs/RESEARCH/002-nse-archive-schemas.md` | TODO |
-| T-102 | Bhavcopy + F&O bhavcopy downloader into `data/landing/`, gzipped, one file per day | TODO |
-| T-103 | Idempotency: re-run downloads zero files and says so | TODO |
-| T-104 | Resumability: Ctrl-C mid-run, restart, resumes correctly | TODO |
-| T-105 | Rate limiting + retry with backoff | TODO |
-| T-106 | Summary output: date range, fetched, skipped, rows parsed, holidays | TODO |
-| T-107 | Missing-day report distinguishing "market holiday" from "download failed" | TODO |
-| T-108 | Landing zone is immutable — files never modified after write, enforced by test | TODO |
+| T-101 | Research NSE archive URLs + schemas → `docs/RESEARCH/002-nse-eod-sources-and-schemas.md` | DONE |
+| T-109 | Source the trading calendar (holiday vs failed download) — cannot be derived from file absence | TODO — blocks T-107 |
+| T-110 | Handle both bhavcopy formats: legacy (2015→mid-2024) and UDiFF (2024-01→), probing rather than hardcoding the cutover | DONE |
+| T-111 | Cross-validate the two schemas on the Jan–Jul 2024 overlap window where both formats exist | TODO |
+| T-112 | Review NSE's terms on automated archive access before the first full backfill (A-010) | DONE — **terms prohibit it.** Backfill not run |
+| T-113 | Decide a history source given NSE's terms | DONE — operator chose to proceed from the public archive anyway (ADR-006) |
+| T-115 | Run the full 2015→2026 backfill | IN PROGRESS — ~5,800 requests, ~6–7 hours, resumable |
+| T-116 | `make sync-cloud` — mirror the landing zone to Backblaze B2 (ADR-007) | DONE (code) — **unwired**, needs bucket + key |
+| T-117 | Create the B2 bucket and an application key, fill `config/storage.yaml` and `.env` | TODO — operator action, blocks T-118 |
+| T-118 | Run the first full cloud sync and verify every checksum | BLOCKED — needs T-117 |
+| T-102 | Bhavcopy + F&O bhavcopy downloader into `data/landing/`, gzipped, one file per day | DONE |
+| T-103 | Idempotency: re-run downloads zero files and says so | DONE — proven on real data, 20.6s then 1.3s |
+| T-104 | Resumability: Ctrl-C mid-run, restart, resumes correctly | DONE — proven against SIGKILL, stronger than Ctrl-C |
+| T-105 | Rate limiting + retry with backoff | DONE |
+| T-106 | Summary output: date range, fetched, skipped, rows parsed, holidays | DONE |
+| T-107 | Missing-day report distinguishing "market holiday" from "download failed" | DONE — three honest states, never guesses |
+| T-108 | Landing zone is immutable — files never modified after write, enforced by test | DONE — `make check-landing` |
 
 ---
 
-## Sprint 2 — Options chain recorder · **TODO** (do early; lost days are lost forever)
+## Sprint 2 — Options chain recorder · **DEFERRED** (2026-08-18, operator decision)
+
+**Deferred in favour of finishing the equities stack first.** The reasoning
+against deferring is on the record and unchanged: NSE sells no cheap historical
+option-chain data, so every day the recorder is not running is a day that cannot
+be bought back at any price. Measured cost of doing it: full chains at 5s is
+~300-550 MB/day; **near-expiry-only is ~35-65 MB/day**, roughly a tenth, and
+still captures the irreplaceable part. Worth revisiting as a background job.
+
+The blocking research is already done and does not expire — see
+`docs/RESEARCH/003-kite-feasibility-for-the-options-recorder.md`: the recorder
+must be WebSocket-based, because polling the full chains takes 9 seconds against
+a 5-second target.
 
 Verify: `make recorder-status`
 
@@ -82,6 +103,20 @@ Verify: `make recorder-status`
 | T-210 | `docs/RUNBOOKS/recorder.md` | TODO |
 
 ---
+
+## The equities path — next up
+
+With options deferred, sprints 3-6 need **nothing from the operator**: no VPS,
+no new spending, all local computation over data already landed.
+
+| # | Build | Verify by | Status |
+|---|---|---|---|
+| 3 | Security master: instruments, time-versioned lot sizes, calendars | `make check-master` | **NEXT** |
+| 4 | Bitemporal read API + lookahead firewall | `make test-lookahead` | TODO |
+| 5 | Corporate actions + adjustment engine | `make check-adjust` | TODO |
+| 6 | Data quality engine | `make quality` | TODO |
+
+Sprint 7 (options quality) moves to wherever the recorder lands.
 
 ## Sprints 3–14 — seeded scope
 

@@ -15,6 +15,9 @@ Empty rows are good news. A long table is not a problem in itself — an
 | S-003 | `static_ip: null` | `config/deploy.yaml` | Placeholder. The real value is a fixed IP registered with the broker, which cannot be chosen until a VPS and a broker account exist. | Sprint 29 |
 | S-004 | `region: ap-south-1` in the deploy config | `config/deploy.yaml` | Written down as the intended region. No cloud account exists, nothing is provisioned there, nothing validates the string. | Sprint 2 (VPS) |
 
+| S-005 | The minute universe covers 240 of 250 symbols | `config/universe_top250.txt` vs `data/landing/kite_minute/unresolved.jsonl` | 10 symbols do not resolve against Kite's current instrument list. Most are renames (ZOMATO→ETERNAL), but at least two are **demergers** (PEL, TATAMOTORS) which a one-to-one alias cannot express. Left unresolved deliberately rather than mapped by guesswork | Sprint 3 (security master) |
+| S-006 | ~~The minute universe is ranked as of 2024-09-17~~ | — | **Resolved 2026-08-18.** Replaced by `config/universe_top250_union.txt`: the union of the top 250 sampled at each year-end 2021–2026, which is 444 symbols. A single snapshot would have been survivorship-biased whichever date it used — only 168 of 250 names overlap between Sept 2024 and today | done |
+
 ---
 
 ## Not stubs, but worth stating plainly
