@@ -32,9 +32,14 @@ CONFIG = StorageConfig(
 class FakeStore:
     objects: dict[str, tuple[bytes, str]] = field(default_factory=dict)
     puts: list[str] = field(default_factory=list)
+    heads: list[str] = field(default_factory=list)
     fail_on: set[str] = field(default_factory=set)
 
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        return {k: len(v[0]) for k, v in self.objects.items() if k.startswith(prefix)}
+
     def head_sha256(self, key: str) -> str | None:
+        self.heads.append(key)
         found = self.objects.get(key)
         return found[1] if found else None
 
@@ -98,9 +103,10 @@ def test_a_hash_mismatch_is_reported_and_never_overwritten(tmp_path: Path) -> No
     """Something else wrote to our key. Overwriting would destroy the evidence."""
     landing = _landing(tmp_path, days=1)
     entry = next(iter(landing.entries().values()))
-    store = FakeStore({object_key(CONFIG.prefix, entry): (b"different", "deadbeef")})
+    # Same length, different content: only the hash check can catch this.
+    store = FakeStore({object_key(CONFIG.prefix, entry): (b"payload-X", "deadbeef")})
 
-    result = sync(landing, store, CONFIG)
+    result = sync(landing, store, CONFIG, verify=True)
 
     assert result.uploaded == 0
     assert result.mismatched == ["nse/cm/2026/08/2026-08-01_udiff.zip"]
@@ -228,3 +234,50 @@ def test_an_unexpected_error_is_not_swallowed() -> None:
 
     with pytest.raises(ClientError):
         _store_with(DeniedClient(code="InternalError", status=500)).head_sha256("k")
+
+
+# --- listing instead of one HEAD per object ---
+
+
+def test_the_default_sync_does_not_head_every_object(tmp_path: Path) -> None:
+    """One LIST for the bucket, not thousands of round trips."""
+    landing = _landing(tmp_path, days=3)
+    store = FakeStore()
+    sync(landing, store, CONFIG)
+    store.puts.clear()
+
+    sync(landing, store, CONFIG)
+
+    assert store.heads == []
+
+
+def test_verify_mode_does_check_every_hash(tmp_path: Path) -> None:
+    landing = _landing(tmp_path, days=3)
+    store = FakeStore()
+    sync(landing, store, CONFIG)
+    store.heads.clear()
+
+    result = sync(landing, store, CONFIG, verify=True)
+
+    assert len(store.heads) == 3
+    assert result.skipped == 3
+
+
+def test_a_wrong_size_is_caught_without_verify(tmp_path: Path) -> None:
+    landing = _landing(tmp_path, days=1)
+    entry = next(iter(landing.entries().values()))
+    store = FakeStore({object_key(CONFIG.prefix, entry): (b"cut", entry.sha256)})
+
+    result = sync(landing, store, CONFIG)
+
+    assert result.mismatched == ["nse/cm/2026/08/2026-08-01_udiff.zip"]
+
+
+def test_a_same_size_corruption_needs_verify_to_catch(tmp_path: Path) -> None:
+    """Honest about the default's limit: equal length, different bytes."""
+    landing = _landing(tmp_path, days=1)
+    entry = next(iter(landing.entries().values()))
+    store = FakeStore({object_key(CONFIG.prefix, entry): (b"payload-X", "deadbeef")})
+
+    assert sync(landing, store, CONFIG).mismatched == []
+    assert sync(landing, store, CONFIG, verify=True).mismatched != []

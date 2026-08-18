@@ -60,6 +60,27 @@ This also prints the correct `endpoint_url` and `bucket` for
 
 ---
 
+## What the sync actually compares
+
+Two modes, because they answer different questions at very different costs.
+
+| Command | Compares | Cost | Use |
+|---|---|---|---|
+| `make sync-cloud` | object **size** against the manifest | one paginated LIST for the whole bucket — about 3 seconds for thousands of objects | every time |
+| `make sync-cloud VERIFY=1` | recorded **SHA-256** of every object | one request per object — minutes, not seconds | occasional audit |
+
+Size equality is a weak check: it catches truncation and absence, but not a
+corruption that happens to preserve length. The strong check exists and is
+exact; it is simply not something every routine sync should pay for. Same split
+as `make check-landing` for the local copy.
+
+This started as one HEAD per file for *every* sync, which took roughly ten
+minutes against ~1,700 objects and would have been unusable at 5,800. If the
+sync ever feels slow again, check that it is not silently falling back to
+per-object requests.
+
+---
+
 ## "MISMATCHED — in the bucket with a different hash"
 
 An object exists at our key with a SHA-256 that is not the one in the manifest.

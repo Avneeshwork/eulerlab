@@ -17,7 +17,7 @@ help:
 	@echo "  make ingest-eod FROM=2015-01-01 [TO=YYYY-MM-DD]"
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
-	@echo "  make sync-cloud [DRY=1]"
+	@echo "  make sync-cloud [DRY=1] [VERIFY=1]"
 	@echo "                    mirror the landing zone to Backblaze B2"
 
 install:
@@ -55,4 +55,4 @@ check-landing:
 	@uv run python -m eulerlab.ingest.verify_landing
 
 sync-cloud:
-	uv run python -m eulerlab.ingest.sync_cloud $(if $(DRY),--dry-run,)
+	uv run python -m eulerlab.ingest.sync_cloud $(if $(DRY),--dry-run,) $(if $(VERIFY),--verify,)

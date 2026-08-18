@@ -49,6 +49,9 @@ class StorageConfig(BaseModel):
 class ObjectStore(Protocol):
     """The slice of S3 this module needs, so tests need no network."""
 
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        """Every key under prefix, mapped to its size in bytes."""
+
     def head_sha256(self, key: str) -> str | None:
         """Recorded SHA-256 for an object, or None when it is not there."""
 
@@ -100,16 +103,49 @@ def object_key(prefix: str, entry: ManifestEntry) -> str:
     return f"{prefix}{entry.path}" if prefix else entry.path
 
 
-def plan_sync(landing: Landing, store: ObjectStore, config: StorageConfig) -> SyncPlan:
+def plan_sync(
+    landing: Landing,
+    store: ObjectStore,
+    config: StorageConfig,
+    *,
+    verify: bool = False,
+) -> SyncPlan:
+    """Decide what to upload.
+
+    Two modes, because they answer different questions at very different costs.
+
+    Default: one paginated LIST for the whole bucket, then compare sizes. A key
+    that is absent, or present at the wrong size, needs uploading. This is a few
+    requests for thousands of objects.
+
+    ``verify=True``: additionally fetch each object's recorded SHA-256, which is
+    one HEAD per object — thousands of round trips. Size equality is a weak
+    check; it would not notice a same-length corruption. So the strong check
+    exists and is exact, but it is an occasional audit rather than something
+    every sync pays for. Same split as `make check-landing` locally.
+    """
+    remote_sizes = store.list_sizes(config.prefix)
+
     upload: list[ManifestEntry] = []
     present: list[ManifestEntry] = []
     mismatched: list[ManifestEntry] = []
 
     for entry in _sorted_entries(landing):
-        remote = store.head_sha256(object_key(config.prefix, entry))
-        if remote is None:
+        key = object_key(config.prefix, entry)
+        size = remote_sizes.get(key)
+
+        if size is None:
             upload.append(entry)
-        elif remote == entry.sha256:
+            continue
+        if size != entry.size_bytes:
+            mismatched.append(entry)
+            continue
+        if not verify:
+            present.append(entry)
+            continue
+
+        remote_sha = store.head_sha256(key)
+        if remote_sha == entry.sha256:
             present.append(entry)
         else:
             mismatched.append(entry)
@@ -127,9 +163,10 @@ def sync(
     config: StorageConfig,
     *,
     dry_run: bool = False,
+    verify: bool = False,
 ) -> SyncResult:
-    """Upload anything the bucket does not already have, verified by hash."""
-    plan = plan_sync(landing, store, config)
+    """Upload anything the bucket does not already have."""
+    plan = plan_sync(landing, store, config, verify=verify)
     mismatched = [object_key(config.prefix, e) for e in plan.mismatched]
     failed: list[str] = []
 
@@ -176,6 +213,24 @@ class S3ObjectStore:
             aws_secret_access_key=app_key,
         )
         self._bucket = config.bucket
+
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        """One paginated LIST instead of one HEAD per object."""
+        sizes: dict[str, int] = {}
+        token: str | None = None
+        while True:
+            kwargs = {"Bucket": self._bucket, "Prefix": prefix, "MaxKeys": 1000}
+            if token is not None:
+                kwargs["ContinuationToken"] = token
+            response = self._client.list_objects_v2(**kwargs)
+            for item in response.get("Contents", []):
+                key = item.get("Key")
+                size = item.get("Size")
+                if isinstance(key, str) and isinstance(size, int):
+                    sizes[key] = size
+            if not response.get("IsTruncated"):
+                return sizes
+            token = response.get("NextContinuationToken")
 
     def head_sha256(self, key: str) -> str | None:
         """SHA-256 recorded for an object, or None when it genuinely is not there.

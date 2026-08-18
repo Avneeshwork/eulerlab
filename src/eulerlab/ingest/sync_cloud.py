@@ -32,6 +32,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="report what would be uploaded, send nothing",
     )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help=(
+            "compare every object's recorded SHA-256, not just its size. "
+            "One request per object, so slow; run it as an occasional audit."
+        ),
+    )
     args = parser.parse_args(argv)
 
     config = load_storage_config(args.config)
@@ -57,16 +65,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"\nsync-cloud: {exc}")
         return 2
 
+    check = "sha256" if args.verify else "size"
+    print(f"comparing by: {check}")
+
     if args.dry_run:
-        plan = plan_sync(landing, store, config)
+        plan = plan_sync(landing, store, config, verify=args.verify)
         print(f"would upload : {len(plan.upload)}")
         print(f"already there: {len(plan.already_present)}")
         print(f"mismatched   : {len(plan.mismatched)}")
         return 1 if plan.mismatched else 0
 
-    result = sync(landing, store, config)
+    result = sync(landing, store, config, verify=args.verify)
     print(f"uploaded : {result.uploaded}")
-    print(f"skipped  : {result.skipped}  (already present with a matching hash)")
+    print(f"skipped  : {result.skipped}  (already present, matching {check})")
 
     if result.mismatched:
         print("\nMISMATCHED — in the bucket with a different hash, left untouched:")
