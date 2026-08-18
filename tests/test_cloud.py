@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -188,16 +189,20 @@ class DeniedClient:
     def head_object(self, **_: object) -> dict[str, object]:
         from botocore.exceptions import ClientError
 
-        raise ClientError(
-            {"Error": {"Code": self.code}, "ResponseMetadata": {"HTTPStatusCode": self.status}},
-            "HeadObject",
-        )
+        # botocore's real error payload carries more keys than this; boto3-stubs
+        # types it as a TypedDict, so hand it over as a plain mapping.
+        response: Any = {
+            "Error": {"Code": self.code},
+            "ResponseMetadata": {"HTTPStatusCode": self.status},
+        }
+        raise ClientError(response, "HeadObject")
 
 
 def _store_with(client: object) -> S3ObjectStore:
+    """Build the store without __init__, which would demand real credentials."""
     store = S3ObjectStore.__new__(S3ObjectStore)
-    store._client = client  # type: ignore[attr-defined]
-    store._bucket = "eulerdata"  # type: ignore[attr-defined]
+    store._client = client
+    store._bucket = "eulerdata"
     return store
 
 

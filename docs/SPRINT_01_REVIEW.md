@@ -1,14 +1,16 @@
 # Sprint 1 — NSE EOD ingest
 
-**Status:** BLOCKED
-**Branch:** sprint-01-nse-eod-ingest   **Commits:** 3
+**Status:** IN PROGRESS
+**Branch:** sprint-01-nse-eod-ingest   **Commits:** 6
 
-**The one-line version:** the downloader is built, tested and works on real data
-from both archive eras — and I am not running it, because NSE's Terms of Use
-prohibit systematic automated data collection. That needs a decision from you.
+**The one-line version:** the downloader is built, tested, and running the full
+2015→2026 backfill now. It was BLOCKED for part of the sprint on NSE's Terms of
+Use, which prohibit systematic automated collection; you were shown that and
+decided to proceed anyway, recorded as ADR-006.
 
-(I added BLOCKED to the review template. "PARTIAL" would have understated it:
-nothing is half-built. The work is done and deliberately not being used.)
+**Read the credentials section below before anything else.** Four of your live
+credentials reached git history during this sprint, through a mistake of mine.
+They need rotating.
 
 ---
 
@@ -79,6 +81,37 @@ in plain text rather than implying more certainty than it has.
 
 `docs/STUBS.md` is unchanged.
 
+## The credential incident — please read this one
+
+**What happened.** You put real values into `.env.example`. That file is tracked
+and committed; `.env` is the gitignored one. Then commit `afaf099` — mine — swept
+your edit into the repo via `git add -A` without me reading the diff, and I
+pushed it.
+
+**That is my error, not yours.** Using `git add -A` in a repo where you are also
+editing files is precisely how this happens, and I did it repeatedly this sprint
+without once reviewing what I was staging. The `detect-private-key` pre-commit
+hook did not catch it because it recognises PEM private keys, not API tokens.
+
+**What reached the remote**, on `origin/sprint-01-nse-eod-ingest`:
+`ZERODHA_API_KEY`, `ZERODHA_API_SECRET`, `ZERODHA_ACCESS_TOKEN`,
+`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`. The B2 key material was in the working
+tree only and never committed, but it was displayed in the session transcript.
+
+**Rotate all of them.** Deleting a secret from a file does not un-publish it —
+it is in the commit objects, and GitHub keeps dangling objects even after a
+history rewrite. `ZERODHA_ACCESS_TOKEN` is the urgent one: it can place orders.
+
+**What I did.** Moved all real values into `.env` (gitignored, verified), reset
+`.env.example` to empty placeholders, and added `tests/test_no_secrets.py` so
+`make verify` goes red if any value there is ever non-empty again — commented-out
+ones included. HEAD is clean. History is not, and cannot be made so by
+committing.
+
+**Still open:** whether to rewrite the branch history and force-push. Worth doing
+for hygiene, destructive to a pushed branch, and not a substitute for rotating.
+Your call.
+
 ## What I could not verify
 
 - **I could not run the backfill**, so the downloader has never been exercised at
@@ -108,9 +141,13 @@ in plain text rather than implying more certainty than it has.
    four months more than I intended, and the overrun was my error rather than a
    plan. Nothing has been fetched since I read the terms.
 
-## Decisions I need from you
+## Decisions taken during the sprint
 
-1. **How should we source historical EOD data, given NSE prohibits scraping it?**
+1. **Historical EOD source, given NSE prohibits scraping it.** **You chose to
+   proceed from the public archive anyway** (ADR-006). Recorded with the
+   reasoning intact so it reads as a decision rather than an oversight. I kept
+   the 1.5s rate limit and built no evasion tooling — no IP rotation, no
+   identity cycling. For the record, the original options were:
 
    NSE's Terms of Use, read directly today, say: *"User is prohibited to conduct
    any systematic or automated data collection activities (including scraping,
@@ -133,20 +170,28 @@ in plain text rather than implying more certainty than it has.
    - *Option D — A commercial vendor* (TrueData, GDFL). Breaks your two-source
      policy and costs ₹1,000–3,000/mo.
 
-   **My recommendation: A, with B started in parallel.** The licensed portal is
-   the only option that gives authoritative, survivorship-free history without
-   inventing an instrument master. Ask for permission at the same time since it
-   costs nothing but an email. **I would avoid C** unless the portal turns out
-   to be unaffordable: solving the historical-instrument-master problem
-   ourselves is the kind of work that looks cheap and is not.
+   My recommendation had been A. You chose otherwise, which is your call to make
+   and your risk to carry; ADR-006 states that plainly.
 
-2. **What should I do with the 142 files already downloaded?**
-   - *Option A — Keep them.* They were fetched during development, before the
-     terms were read, and they are useful as test fixtures.
-   - *Option B — Delete them.*
+2. **The 142 development-era files: kept.**
 
-   **My recommendation: A**, and stop there — no further fetching regardless of
-   what you choose in question 1. If you would rather they were gone, one
+3. **Cloud storage: Backblaze B2** (ADR-007). `make sync-cloud` mirrors the
+   landing zone over the S3 API, so the same code serves B2, R2, S3 or Wasabi.
+   It is a mirror rather than the write path — adding a network write to each of
+   ~5,800 downloads would multiply the ways a multi-hour backfill can die.
+   Integrity is checked with our own SHA-256 in object metadata, not the ETag,
+   which is MD5 only for simple uploads.
+
+## Still needed from you
+
+1. **Rotate the four leaked credentials.** See the section above.
+2. **Recreate the B2 application key.** The current one has `writeFiles`,
+   `deleteFiles` and `listBuckets` but **no `readFiles` or `listFiles`**. It
+   needs read access, or the sync cannot tell "already uploaded" from "not
+   allowed to look" — and `deleteFiles` should be off, since the landing zone is
+   append-only and the sync never deletes. Runbook:
+   `docs/RUNBOOKS/cloud-sync.md`.
+3. **Say whether to rewrite git history** to purge the secrets from the commits. If you would rather they were gone, one
    command removes them.
 
 ## Reading added for you
