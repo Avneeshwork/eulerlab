@@ -12,6 +12,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "boto3-stubs>=1.43.73",
     "mypy>=1.11",
     "pre-commit>=3.8",
     "pytest>=8.3",
@@ -73,8 +74,3 @@ testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-q --strict-markers"
 filterwarnings = ["error"]
-
-[dependency-groups]
-dev = [
-    "boto3-stubs>=1.43.73",
-]

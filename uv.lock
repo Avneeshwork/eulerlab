@@ -168,6 +168,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "boto3-stubs" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -175,14 +176,10 @@ dev = [
     { name = "types-pyyaml" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "boto3-stubs" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.43.73" },
+    { name = "boto3-stubs", marker = "extra == 'dev'", specifier = ">=1.43.73" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.8" },
     { name = "pydantic", specifier = ">=2.9" },
@@ -192,9 +189,6 @@ requires-dist = [
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
 ]
 provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "boto3-stubs", specifier = ">=1.43.73" }]
 
 [[package]]
 name = "filelock"
