@@ -272,6 +272,62 @@ class S3ObjectStore:
         )
 
 
+@dataclass(frozen=True)
+class TreeSyncResult:
+    uploaded: int
+    skipped: int
+    failed: list[str]
+
+    @property
+    def ok(self) -> bool:
+        return not self.failed
+
+
+def sync_directory(
+    root: Path,
+    store: ObjectStore,
+    *,
+    prefix: str,
+    pattern: str = "**/*",
+    dry_run: bool = False,
+) -> TreeSyncResult:
+    """Mirror an arbitrary directory tree, comparing by size.
+
+    The bhavcopy landing zone records a SHA-256 per file in its manifest, so
+    `sync()` can verify against it. Other trees — the Kite minute bars, written
+    as Parquet per chunk — have no such record, so the hash is computed at
+    upload time and stored as object metadata. That still gives future runs
+    something exact to verify against, it just cannot verify retrospectively.
+
+    Comparison for *what to upload* is by size, which is one LIST call for the
+    whole tree rather than one HEAD per file.
+    """
+    remote = store.list_sizes(prefix)
+    local = sorted(p for p in root.glob(pattern) if p.is_file())
+
+    uploaded = skipped = 0
+    failed: list[str] = []
+
+    for path in local:
+        key = f"{prefix}{path.relative_to(root).as_posix()}"
+        size = path.stat().st_size
+        if remote.get(key) == size:
+            skipped += 1
+            continue
+        if dry_run:
+            uploaded += 1
+            continue
+        try:
+            payload = path.read_bytes()
+            store.put(key, payload, sha256_of(payload))
+        except Exception as exc:  # one bad object must not stop the tree
+            failed.append(f"{path.relative_to(root)}: {exc}")
+            continue
+        uploaded += 1
+
+    return TreeSyncResult(uploaded=uploaded, skipped=skipped, failed=failed)
+
+
 def load_storage_config(path: Path) -> StorageConfig:
     import yaml
 

@@ -10,9 +10,11 @@ from eulerlab.ingest.cloud import (
     InsufficientCapabilities,
     MissingCredentials,
     S3ObjectStore,
+    SyncResult,
     load_storage_config,
     plan_sync,
     sync,
+    sync_directory,
 )
 from eulerlab.ingest.landing import Landing
 
@@ -26,6 +28,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Mirror the landing zone to S3-compatible object storage.",
     )
     parser.add_argument("--landing", type=Path, default=DEFAULT_LANDING)
+    parser.add_argument(
+        "--minute",
+        type=Path,
+        default=Path("data/landing/kite_minute"),
+        help="Kite minute-bar tree to mirror as well",
+    )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument(
         "--dry-run",
@@ -78,6 +86,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     result = sync(landing, store, config, verify=args.verify)
     print(f"uploaded : {result.uploaded}")
     print(f"skipped  : {result.skipped}  (already present, matching {check})")
+
+    if args.minute.exists():
+        print(f"\nminute bars from {args.minute}:")
+        tree = sync_directory(
+            args.minute, store, prefix=f"{config.prefix}kite_minute/", dry_run=args.dry_run
+        )
+        print(f"  uploaded : {tree.uploaded}")
+        print(f"  skipped  : {tree.skipped}")
+        if tree.failed:
+            print(f"  FAILED   : {len(tree.failed)}")
+            for problem in tree.failed[:10]:
+                print(f"    {problem}")
+            result = SyncResult(
+                result.uploaded, result.skipped, result.mismatched, [*result.failed, *tree.failed]
+            )
 
     if result.mismatched:
         print("\nMISMATCHED — in the bucket with a different hash, left untouched:")

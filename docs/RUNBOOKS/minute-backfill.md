@@ -55,9 +55,20 @@ exist *today*. Usually this is a **rename**, not a delisting. Observed on
 `SAMMAANCAP`, `TATAMOTORS` → `TMPV`, `PEL` → `PPLPHARMA`, `SWANENERGY` →
 `SWANCORP`, `HBLPOWER` → `HBLENGINE`.
 
-The data is not lost; we asked under the wrong name. The fix is the security
-master's symbol-change map (Sprint 3), after which those symbols re-resolve and
-a plain re-run fetches them.
+**Do not hand-write an alias map to "fix" these.** That was attempted on
+2026-08-18 and produced a wrong answer within minutes: `PEL` was matched to
+`PPLPHARMA`, but Piramal Enterprises *demerged* — the dump contains both
+`PPLPHARMA` and `PIRAMALFIN`. `TATAMOTORS` is the same shape: only `TMPV`
+exists in the dump, and the commercial-vehicles half is not under any obvious
+name.
+
+A demerger splits one company's history into two. A one-to-one alias cannot
+represent that, and forcing one would silently attach the wrong company's five
+years of minute bars to the old symbol — an error that no test would catch,
+because the data would look perfectly well-formed.
+
+The correct fix is the security master (Sprint 3), which models corporate
+actions properly. Until then these stay unresolved and visible.
 
 **This is the whole reason the file exists.** Had these been skipped silently,
 five years of minute data would be missing Tata Motors and Zomato with no error

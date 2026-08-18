@@ -39,3 +39,21 @@ repos:
       - id: check-added-large-files
         args: [--maxkb=512]
       - id: detect-private-key
+
+  # Local hooks. These are the gates that actually catch defects; running them
+  # only in `make verify` means a commit can be made while they are red, which
+  # happened twice on 2026-08-18.
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy --strict
+        entry: uv run mypy
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: pytest
+        name: pytest
+        entry: uv run pytest -q
+        language: system
+        pass_filenames: false
+        types: [python]

@@ -281,3 +281,81 @@ def test_a_same_size_corruption_needs_verify_to_catch(tmp_path: Path) -> None:
 
     assert sync(landing, store, CONFIG).mismatched == []
     assert sync(landing, store, CONFIG, verify=True).mismatched != []
+
+
+# --- mirroring an arbitrary tree (the Kite minute bars) ---
+
+
+def test_a_directory_tree_uploads_then_skips(tmp_path: Path) -> None:
+    from eulerlab.ingest.cloud import sync_directory
+
+    root = tmp_path / "minute"
+    (root / "HDFCBANK").mkdir(parents=True)
+    (root / "HDFCBANK" / "a.parquet").write_bytes(b"aaa")
+    (root / "HDFCBANK" / "b.parquet").write_bytes(b"bbbb")
+    store = FakeStore()
+
+    first = sync_directory(root, store, prefix="nse/kite_minute/")
+    second = sync_directory(root, store, prefix="nse/kite_minute/")
+
+    assert first.uploaded == 2
+    assert second.uploaded == 0
+    assert second.skipped == 2
+    assert "nse/kite_minute/HDFCBANK/a.parquet" in store.objects
+
+
+def test_tree_sync_reuploads_when_size_differs(tmp_path: Path) -> None:
+    from eulerlab.ingest.cloud import sync_directory
+
+    root = tmp_path / "minute"
+    root.mkdir()
+    (root / "a.parquet").write_bytes(b"aaa")
+    store = FakeStore({"p/a.parquet": (b"different-length", "x")})
+
+    assert sync_directory(root, store, prefix="p/").uploaded == 1
+
+
+def test_tree_sync_dry_run_sends_nothing(tmp_path: Path) -> None:
+    from eulerlab.ingest.cloud import sync_directory
+
+    root = tmp_path / "m"
+    root.mkdir()
+    (root / "a.parquet").write_bytes(b"aaa")
+    store = FakeStore()
+
+    result = sync_directory(root, store, prefix="p/", dry_run=True)
+
+    assert result.uploaded == 1
+    assert store.puts == []
+
+
+def test_tree_sync_records_the_hash_as_metadata(tmp_path: Path) -> None:
+    from eulerlab.ingest.cloud import sync_directory
+    from eulerlab.ingest.landing import sha256_of
+
+    root = tmp_path / "m"
+    root.mkdir()
+    (root / "a.parquet").write_bytes(b"payload")
+    store = FakeStore()
+
+    sync_directory(root, store, prefix="p/")
+
+    # No manifest hash exists for these, so it is computed at upload time --
+    # which still gives future runs something exact to verify against.
+    assert store.objects["p/a.parquet"][1] == sha256_of(b"payload")
+
+
+def test_one_unreadable_file_does_not_stop_the_tree(tmp_path: Path) -> None:
+    from eulerlab.ingest.cloud import sync_directory
+
+    root = tmp_path / "m"
+    root.mkdir()
+    (root / "good.parquet").write_bytes(b"ok")
+    (root / "bad.parquet").write_bytes(b"nope")
+    store = FakeStore(fail_on={"p/bad.parquet"})
+
+    result = sync_directory(root, store, prefix="p/")
+
+    assert result.uploaded == 1
+    assert len(result.failed) == 1
+    assert not result.ok
