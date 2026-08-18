@@ -1,0 +1,12 @@
+# Where the landing zone is mirrored for durability.
+#
+# Local disk is the working copy; this is the second copy that survives the
+# laptop. Credentials never live here - they come from .env (see .env.example).
+#
+# Backblaze B2 speaks the S3 API, so the same code serves B2, R2, S3 or Wasabi;
+# only endpoint_url changes. See ADR-007.
+
+provider: b2
+endpoint_url: https://s3.us-west-004.backblazeb2.com  # replace with your bucket's region
+bucket: eulerlab-landing                              # replace with your bucket name
+prefix: nse/

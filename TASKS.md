@@ -40,7 +40,7 @@ Verify: `make verify`
 
 ---
 
-## Sprint 1 — NSE EOD ingest · **BLOCKED** (code done; source licence needed)
+## Sprint 1 — NSE EOD ingest · **IN PROGRESS** (backfill running)
 
 Verify: `make ingest-eod FROM=2015-01-01`, then run it again — second run must
 download nothing.
@@ -56,8 +56,11 @@ only the new days.
 | T-110 | Handle both bhavcopy formats: legacy (2015→mid-2024) and UDiFF (2024-01→), probing rather than hardcoding the cutover | DONE |
 | T-111 | Cross-validate the two schemas on the Jan–Jul 2024 overlap window where both formats exist | TODO |
 | T-112 | Review NSE's terms on automated archive access before the first full backfill (A-010) | DONE — **terms prohibit it.** Backfill not run |
-| T-113 | **Decide a licensed history source** — NSE Data & Analytics portal, written NSE permission, or Kite + a historical instrument master | BLOCKED — operator decision, review Q1 |
-| T-114 | Solve the historical instrument-master problem if Kite becomes the history source (its instrument dump is a current snapshot) | TODO — only if T-113 picks Kite |
+| T-113 | Decide a history source given NSE's terms | DONE — operator chose to proceed from the public archive anyway (ADR-006) |
+| T-115 | Run the full 2015→2026 backfill | IN PROGRESS — ~5,800 requests, ~6–7 hours, resumable |
+| T-116 | `make sync-cloud` — mirror the landing zone to Backblaze B2 (ADR-007) | DONE (code) — **unwired**, needs bucket + key |
+| T-117 | Create the B2 bucket and an application key, fill `config/storage.yaml` and `.env` | TODO — operator action, blocks T-118 |
+| T-118 | Run the first full cloud sync and verify every checksum | BLOCKED — needs T-117 |
 | T-102 | Bhavcopy + F&O bhavcopy downloader into `data/landing/`, gzipped, one file per day | DONE |
 | T-103 | Idempotency: re-run downloads zero files and says so | DONE — proven on real data, 20.6s then 1.3s |
 | T-104 | Resumability: Ctrl-C mid-run, restart, resumes correctly | DONE — proven against SIGKILL, stronger than Ctrl-C |

@@ -32,7 +32,7 @@ code that rests on one of these.
 | ID | Claim | Resolution |
 |---|---|---|
 | A-000 | `docs/quant_platform_playbook.md` exists and is the reference design | **Resolved 2026-08-17.** Operator supplied the file; it is committed. Sprint 0 opened without it and did not depend on it. |
-| A-010 | NSE's terms permit automated downloading of its public archive files | **Resolved 2026-08-18 — FALSE.** The Terms of Use prohibit *"any systematic or automated data collection activities (including scraping, data mining, data extraction and data harvesting)"*. Read directly at `nseindia.com/static/nse-terms-of-use`. robots.txt is permissive but does not override written terms. The 11-year backfill is therefore **not run**; see research note 002 addendum and the Sprint 1 review. |
+| A-010 | NSE's terms permit automated downloading of its public archive files | **Resolved 2026-08-18 — FALSE.** The Terms of Use prohibit *"any systematic or automated data collection activities (including scraping, data mining, data extraction and data harvesting)"*. Read directly at `nseindia.com/static/nse-terms-of-use`. robots.txt is permissive but does not override written terms. **Superseded by ADR-006:** the operator was shown this and decided to proceed anyway, knowingly. The prohibition is real and unchanged; what changed is that the risk has been accepted and recorded rather than overlooked. |
 | A-004 | The CI workflow is correct | **Resolved 2026-08-18.** Pushed to `Avneeshwork/eulerlab`; run 32088448395 passed all five gates in 13s. The all-zero `DOCS_CHECK_BASE` that GitHub sends for a new branch exercised the fallback path in `docs_check.py`, which behaved as designed. |
 
 ---

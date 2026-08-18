@@ -1,13 +1,14 @@
 # STATE — where this project is right now
 
 **Sprint:** 1 — NSE EOD ingest
-**Status:** BLOCKED
-**Next:** Sprint 1 completion, once a licensed history source is chosen
+**Status:** IN PROGRESS
+**Next:** Sprint 2 — options chain recorder
 
-**Why BLOCKED:** the downloader is built, tested and working. It is not being
-run, because NSE's Terms of Use prohibit systematic automated data collection.
-An operator decision on a licensed source is needed. See
-`docs/SPRINT_01_REVIEW.md`.
+**Unblocked 2026-08-18.** NSE's Terms of Use prohibit systematic automated
+collection; the operator was shown this and decided to proceed regardless. The
+decision and its reasoning are recorded in ADR-006 so it reads as a choice, not
+an oversight. The full 2015→2026 backfill is running now, rate-limited at 1.5s
+between requests, with no evasion tooling.
 
 *Last updated: 2026-08-18 (Sprint 1). One page, always current. If it is not written here or
 in `TASKS.md`, it did not happen.*
@@ -39,12 +40,13 @@ in `TASKS.md`, it did not happen.*
   checksum intact; the next run resumed and fetched exactly what was missing.
 - **`make check-landing`** re-hashes every landed file against the manifest,
   turning the immutability claim into a two-second check.
+- **`make sync-cloud`** mirrors the landing zone to Backblaze B2, verified by
+  our own SHA-256 rather than the ETag. Built and tested against a fake store;
+  **not yet run**, because it needs a B2 account and key (see below).
 - **Holidays are never guessed.** A failure is FAILED, a 404 is ABSENT, and
   ABSENT is classified by cross-checking both segments — one segment missing
   while the other landed is flagged as an ANOMALY, not silently called a
   holiday.
-
-**But it is not being run.** See the status note above.
 
 ## What does not exist yet
 
@@ -74,9 +76,14 @@ plan. All three are logged in `docs/STUBS.md`:
 
 ## Known issues
 
-- **The NSE backfill is blocked on terms, not on code.** A-010 resolved FALSE:
-  NSE prohibits systematic automated collection. 142 files (31 MB) were
-  downloaded during development before the terms were read; nothing since.
+- **The NSE backfill runs against NSE's stated terms.** A-010 resolved FALSE
+  and was then knowingly accepted by the operator (ADR-006). Not a defect, but
+  the single most important thing a future reader should know about how this
+  data was obtained.
+- **The B2 mirror is unwired.** `config/storage.yaml` has placeholder bucket and
+  endpoint values, and `.env` has no `B2_KEY_ID` / `B2_APP_KEY`. Until the
+  operator creates the bucket and key, the landing zone is one copy on one
+  laptop.
 - **Most market-structure facts are still unverified.** A-001 to A-003, A-005
   to A-008, A-011, A-012 in `docs/ASSUMPTIONS.md` still rest on the reference
   playbook rather than primary sources.
@@ -90,5 +97,6 @@ decided and land before Sprint 2:
 |---|---|---|
 | Zerodha Kite Connect | ₹500/mo | Decided (ADR-004). Account not yet confirmed |
 | Mumbai VPS | ₹500–900/mo | Decided. Not yet provisioned |
+| Backblaze B2 | under ₹100/mo | Decided (ADR-007). Bucket not yet created |
 
-Committed run rate once both are live: **₹1,000–1,400/mo.**
+Committed run rate once all three are live: **₹1,100–1,500/mo.**
