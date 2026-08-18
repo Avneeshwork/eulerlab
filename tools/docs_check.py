@@ -8,6 +8,10 @@ current uncommitted working tree. It is deliberately dumb — it cannot tell goo
 documentation from bad. What it prevents is the specific failure mode where six
 sprints of code accumulate and nobody can say why any of it is the way it is.
 
+Two modes. ``--staged-only`` checks just the change being committed, which is
+what the pre-commit hook wants. The default walks the whole branch, which is
+what ``make verify`` and CI want.
+
 BASE is, in order of preference:
   1. ``$DOCS_CHECK_BASE`` (CI sets this to the PR base SHA)
   2. the merge-base with ``main``, when on a branch other than ``main``
@@ -103,6 +107,24 @@ def _commit_files(repo: Path, sha: str) -> list[str]:
     return [line for line in out.splitlines() if line]
 
 
+def _staged_files(repo: Path) -> list[str]:
+    out = _git(repo, "diff", "--cached", "--name-only")
+    return [line for line in out.splitlines() if line]
+
+
+def check_staged(repo: Path = REPO_ROOT) -> list[Violation]:
+    """Check only what is about to be committed.
+
+    This is the pre-commit hook's entry point, and it deliberately ignores
+    history. The full-range check cannot be used at commit time: it inspects
+    commits already made, so a single earlier violation would block every
+    subsequent commit including the one fixing it. Ask "is *this* change
+    documented" here, and "is the branch clean" in `make verify` and CI.
+    """
+    violation = check_change("staged changes", _staged_files(repo))
+    return [violation] if violation else []
+
+
 def _worktree_files(repo: Path) -> list[str]:
     out = _git(repo, "status", "--porcelain")
     files: list[str] = []
@@ -139,8 +161,9 @@ def collect_violations(repo: Path = REPO_ROOT) -> list[Violation]:
 
 
 def main() -> int:
+    staged_only = "--staged-only" in sys.argv
     try:
-        violations = collect_violations()
+        violations = check_staged() if staged_only else collect_violations()
     except subprocess.CalledProcessError as exc:
         print(f"docs-check: git failed: {exc.stderr or exc}", file=sys.stderr)
         return 1

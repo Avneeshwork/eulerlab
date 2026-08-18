@@ -110,3 +110,31 @@ def test_check_change_flags_nested_source_paths() -> None:
 def test_nested_markdown_outside_docs_is_not_a_doc() -> None:
     # src/eulerlab/NOTES.md must not let a code change through.
     assert check_change("x", ["src/eulerlab/a.py", "src/eulerlab/NOTES.md"]) is not None
+
+
+def test_staged_only_ignores_history(repo: Path) -> None:
+    """The pre-commit hook must not be blocked by an earlier bad commit.
+
+    Checking full history at commit time is circular: one undocumented commit
+    would block every later commit, including the one adding the missing docs.
+    """
+    from tools.docs_check import check_staged
+
+    _write(repo, "src/eulerlab/bad.py")
+    _commit(repo, "feat: undocumented")  # a violation now in history
+
+    _write(repo, "src/eulerlab/good.py")
+    _write(repo, "docs/good.md")
+    _git(repo, "add", "-A")
+
+    assert collect_violations(repo)  # the branch is dirty...
+    assert check_staged(repo) == []  # ...but this change is fine
+
+
+def test_staged_only_still_catches_an_undocumented_change(repo: Path) -> None:
+    from tools.docs_check import check_staged
+
+    _write(repo, "src/eulerlab/thing.py")
+    _git(repo, "add", "-A")
+
+    assert len(check_staged(repo)) == 1
