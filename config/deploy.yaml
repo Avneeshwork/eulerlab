@@ -1,0 +1,12 @@
+# Where the system runs.
+#
+# Sprint 0: nothing deploys. These keys are placeholders.
+#
+# static_ip must be a real, registered, fixed address before any live order:
+# Indian brokers whitelist one or two static IPs per client, which rules out
+# consumer broadband and ephemeral cloud IPs. Filled in at Sprint 29.
+# See docs/COMPLIANCE_DEFERRED.md.
+
+environment: dev
+region: ap-south-1   # Mumbai — nearest region to Indian brokers and exchanges
+static_ip: null      # placeholder

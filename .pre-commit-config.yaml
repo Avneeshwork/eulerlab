@@ -1,0 +1,27 @@
+# Installed by `make install`. These run on commit; the same checks run in CI,
+# so a hook that passes locally is a commit that passes CI.
+
+# The three documents below are operator-supplied reference material. They are
+# read-only source, not our prose — no hook may rewrite them, not even to strip
+# a trailing space.
+exclude: '^docs/(quant_platform_playbook|AI_BUILD_PLAN|sprint_01_kickoff)\.md$'
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.5
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=512]
+      - id: detect-private-key

@@ -1,0 +1,12 @@
+# Execution limits.
+#
+# Sprint 0: nothing enforces this. The EMS that reads it arrives around Sprint 19.
+# The key exists now because a governor added after the EMS is a redesign, and a
+# governor added before it is one line of YAML. See docs/COMPLIANCE_DEFERRED.md.
+#
+# The SEBI retail algo framework treats roughly 10 orders/sec/exchange/client as
+# the boundary of the registered-algo regime. Default well below it, and treat
+# crossing it as a business decision rather than an accident.
+# UNVERIFIED against the primary circular — see docs/ASSUMPTIONS.md (A-001).
+
+max_orders_per_second: 5
