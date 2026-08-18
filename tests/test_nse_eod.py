@@ -255,3 +255,31 @@ def test_report_admits_when_it_has_no_holiday_list() -> None:
     day = date(2026, 8, 14)
     summary = _summary(DayOutcome(day, Segment.CM, DayStatus.ABSENT))
     assert "no NSE holiday list was available" in render(summary, frozenset(), day, day)
+
+
+def test_ctrl_c_returns_a_partial_summary_not_a_traceback(tmp_path: Path) -> None:
+    """An interrupt is not a crash and not data loss."""
+
+    @dataclass
+    class Interrupting:
+        calls: list[str] = field(default_factory=list)
+
+        def get(self, url: str, *, timeout: float) -> tuple[int, bytes]:
+            self.calls.append(url)
+            if len(self.calls) > 2:
+                raise KeyboardInterrupt
+            return 200, make_zip(2)
+
+    landing = Landing(tmp_path)
+    summary = ingest(
+        start=date(2026, 8, 10),
+        end=date(2026, 8, 14),
+        landing=landing,
+        fetcher=_fetcher(Interrupting()),  # type: ignore[arg-type]
+    )
+
+    assert summary.interrupted
+    assert summary.count(DayStatus.DOWNLOADED) == 2
+    # Whatever landed before the interrupt is complete and resumable.
+    assert landing.verify() == []
+    assert "resume" in render(summary, frozenset(), date(2026, 8, 10), date(2026, 8, 14)).lower()

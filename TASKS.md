@@ -40,7 +40,7 @@ Verify: `make verify`
 
 ---
 
-## Sprint 1 — NSE EOD ingest · **TODO**
+## Sprint 1 — NSE EOD ingest · **BLOCKED** (code done; source licence needed)
 
 Verify: `make ingest-eod FROM=2015-01-01`, then run it again — second run must
 download nothing.
@@ -53,16 +53,18 @@ only the new days.
 |---|---|---|
 | T-101 | Research NSE archive URLs + schemas → `docs/RESEARCH/002-nse-eod-sources-and-schemas.md` | DONE |
 | T-109 | Source the trading calendar (holiday vs failed download) — cannot be derived from file absence | TODO — blocks T-107 |
-| T-110 | Handle both bhavcopy formats: legacy (2015→mid-2024) and UDiFF (2024-01→), probing rather than hardcoding the cutover | TODO |
+| T-110 | Handle both bhavcopy formats: legacy (2015→mid-2024) and UDiFF (2024-01→), probing rather than hardcoding the cutover | DONE |
 | T-111 | Cross-validate the two schemas on the Jan–Jul 2024 overlap window where both formats exist | TODO |
-| T-112 | Review NSE's terms on automated archive access before the first full backfill (A-010) | TODO — **before any bulk run** |
-| T-102 | Bhavcopy + F&O bhavcopy downloader into `data/landing/`, gzipped, one file per day | TODO |
-| T-103 | Idempotency: re-run downloads zero files and says so | TODO |
-| T-104 | Resumability: Ctrl-C mid-run, restart, resumes correctly | TODO |
-| T-105 | Rate limiting + retry with backoff | TODO |
-| T-106 | Summary output: date range, fetched, skipped, rows parsed, holidays | TODO |
-| T-107 | Missing-day report distinguishing "market holiday" from "download failed" | TODO |
-| T-108 | Landing zone is immutable — files never modified after write, enforced by test | TODO |
+| T-112 | Review NSE's terms on automated archive access before the first full backfill (A-010) | DONE — **terms prohibit it.** Backfill not run |
+| T-113 | **Decide a licensed history source** — NSE Data & Analytics portal, written NSE permission, or Kite + a historical instrument master | BLOCKED — operator decision, review Q1 |
+| T-114 | Solve the historical instrument-master problem if Kite becomes the history source (its instrument dump is a current snapshot) | TODO — only if T-113 picks Kite |
+| T-102 | Bhavcopy + F&O bhavcopy downloader into `data/landing/`, gzipped, one file per day | DONE |
+| T-103 | Idempotency: re-run downloads zero files and says so | DONE — proven on real data, 20.6s then 1.3s |
+| T-104 | Resumability: Ctrl-C mid-run, restart, resumes correctly | DONE — proven against SIGKILL, stronger than Ctrl-C |
+| T-105 | Rate limiting + retry with backoff | DONE |
+| T-106 | Summary output: date range, fetched, skipped, rows parsed, holidays | DONE |
+| T-107 | Missing-day report distinguishing "market holiday" from "download failed" | DONE — three honest states, never guesses |
+| T-108 | Landing zone is immutable — files never modified after write, enforced by test | DONE — `make check-landing` |
 
 ---
 

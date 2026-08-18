@@ -1,6 +1,6 @@
 # Sprint NN — <title>
 
-**Status:** COMPLETE | PARTIAL | FAILED
+**Status:** COMPLETE | PARTIAL | BLOCKED | FAILED
 **Branch:** sprint-NN-slug   **Commits:** N
 
 > If the status is not COMPLETE, the first line of the next section says why.

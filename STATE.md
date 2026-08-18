@@ -1,10 +1,15 @@
 # STATE — where this project is right now
 
-**Sprint:** 0 — Scaffolding
-**Status:** COMPLETE
-**Next:** Sprint 1 — NSE EOD ingest
+**Sprint:** 1 — NSE EOD ingest
+**Status:** BLOCKED
+**Next:** Sprint 1 completion, once a licensed history source is chosen
 
-*Last updated: 2026-08-18. One page, always current. If it is not written here or
+**Why BLOCKED:** the downloader is built, tested and working. It is not being
+run, because NSE's Terms of Use prohibit systematic automated data collection.
+An operator decision on a licensed source is needed. See
+`docs/SPRINT_01_REVIEW.md`.
+
+*Last updated: 2026-08-18 (Sprint 1). One page, always current. If it is not written here or
 in `TASKS.md`, it did not happen.*
 
 ---
@@ -23,9 +28,27 @@ in `TASKS.md`, it did not happen.*
   request at `github.com/Avneeshwork/eulerlab` (private). First run: green in
   13 seconds.
 
+## What actually works, added in Sprint 1
+
+- **`make ingest-eod FROM=... TO=...`** downloads NSE equity and F&O bhavcopy
+  into an immutable landing zone. Both archive formats handled (legacy 2015 →
+  mid-2024, UDiFF 2024 →), verified against real files from both eras.
+- **Re-running downloads nothing.** Proven on real data: 20.6s first run,
+  1.3s second, zero re-fetches.
+- **Survives a hard kill.** SIGKILL mid-run left zero partial files and every
+  checksum intact; the next run resumed and fetched exactly what was missing.
+- **`make check-landing`** re-hashes every landed file against the manifest,
+  turning the immutability claim into a two-second check.
+- **Holidays are never guessed.** A failure is FAILED, a 404 is ABSENT, and
+  ABSENT is classified by cross-checking both segments — one segment missing
+  while the other landed is flagged as an ANOMALY, not silently called a
+  holiday.
+
+**But it is not being run.** See the status note above.
+
 ## What does not exist yet
 
-No market data. No downloader. No database. No security master. No backtester.
+No usable market-data history. No database. No security master. No backtester.
 No strategy. Nothing connects to a broker, and nothing trades. Sprint 0 built the
 harness that makes every later sprint checkable in two minutes — that is all.
 
@@ -51,9 +74,12 @@ plan. All three are logged in `docs/STUBS.md`:
 
 ## Known issues
 
-- **Nothing is verified against a primary source yet.** Every market-structure
-  fact in the docs came from `docs/quant_platform_playbook.md` and carries a
-  recheck date in `docs/ASSUMPTIONS.md`. Sprint 1 starts fixing that.
+- **The NSE backfill is blocked on terms, not on code.** A-010 resolved FALSE:
+  NSE prohibits systematic automated collection. 142 files (31 MB) were
+  downloaded during development before the terms were read; nothing since.
+- **Most market-structure facts are still unverified.** A-001 to A-003, A-005
+  to A-008, A-011, A-012 in `docs/ASSUMPTIONS.md` still rest on the reference
+  playbook rather than primary sources.
 
 ## Money being spent
 

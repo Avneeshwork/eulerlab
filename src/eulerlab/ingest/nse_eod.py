@@ -82,6 +82,14 @@ class DayOutcome:
 class Summary:
     outcomes: list[DayOutcome] = field(default_factory=list)
 
+    interrupted: bool = False
+    """True when the operator pressed Ctrl-C.
+
+    An interrupted run is not a failed run: everything already written is
+    valid and the manifest is the resume point. Saying so plainly stops a
+    partial backfill from looking like data loss.
+    """
+
     def count(self, status: DayStatus) -> int:
         return sum(1 for o in self.outcomes if o.status is status)
 
@@ -194,9 +202,14 @@ def ingest(
     include_weekends: bool = False,
 ) -> Summary:
     summary = Summary()
-    for trade_date in business_days(start, end, include_weekends=include_weekends):
-        for segment in segments:
-            summary.outcomes.append(fetch_day(fetcher, landing, trade_date, segment))
+    try:
+        for trade_date in business_days(start, end, include_weekends=include_weekends):
+            for segment in segments:
+                summary.outcomes.append(fetch_day(fetcher, landing, trade_date, segment))
+    except KeyboardInterrupt:
+        # Ctrl-C must not look like a crash. Every file already landed is
+        # complete and recorded; the next run picks up from the manifest.
+        summary.interrupted = True
     return summary
 
 
@@ -243,7 +256,14 @@ def render(summary: Summary, holidays: frozenset[date], start: date, end: date) 
         lines.append("  'likely' rather than confirmed. That is a gap in corroboration,")
         lines.append("  not evidence that the data is wrong.")
 
+    if summary.interrupted:
+        lines.append("")
+        lines.append("  INTERRUPTED by Ctrl-C. Everything above is safely landed.")
+        lines.append("  Re-run the same command to resume from where it stopped.")
+
     verdict = "CLEAN" if not failed and not anomalies else "NEEDS ATTENTION"
+    if summary.interrupted:
+        verdict = "PARTIAL — resume by re-running"
     lines.append("")
     lines.append(f"Result: {verdict}")
     return "\n".join(lines)
@@ -290,6 +310,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     holidays = load_holidays(args.landing.parent / "reference")
     print(render(summary, holidays, args.start, args.end))
+    if summary.interrupted:
+        return 130  # conventional exit code for SIGINT
     return 1 if summary.count(DayStatus.FAILED) else 0
 
 

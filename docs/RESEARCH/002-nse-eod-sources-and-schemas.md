@@ -156,3 +156,54 @@ its instrument list is a present-tense snapshot.
 1. Confirm the source split in the Decision table above. → operator
 2. Where does the trading calendar come from? Deriving holidays from "no file
    present" is circular and would mask real download failures.
+
+---
+
+## Addendum, 2026-08-18 — NSE's terms prohibit the backfill
+
+Added after the downloader was built and tested. This is the finding that
+decides the sprint, so it belongs in the same note rather than a new one.
+
+**Source:** https://www.nseindia.com/static/nse-terms-of-use — fetched
+2026-08-18, page read directly (311 KB), not summarised from search results.
+
+**Verbatim:**
+
+> "User is granted a non-exclusive, non-transferable, limited right to access
+> the Website / Mobile Application and avail the services provided by NSE
+> through the Website / Mobile Application. User is prohibited to conduct any
+> **systematic or automated data collection activities (including scraping,
+> data mining, data extraction and data harvesting)** on or in relation to our
+> Website / Mobile Application."
+
+**robots.txt says the opposite, and loses.** `www.nseindia.com/robots.txt`
+(fetched 2026-08-18) is `User-agent: * / Allow: / / Disallow: /market-data-test`,
+and `nsearchives.nseindia.com` serves no robots.txt at all. A permissive
+robots.txt is a crawler convention, not a licence; the written Terms of Use
+govern, and they are explicit. Anyone reading only robots.txt would conclude
+the opposite of the truth — which is why this needed reading rather than
+assuming.
+
+**What this means.** A 2015→2026 backfill is roughly 5,600 requests, executed
+on a schedule, for the purpose of assembling a dataset. That is a systematic
+automated data collection activity by any reading. **The backfill is not run.**
+Sprint 1's downloader is complete and tested but deliberately not pointed at
+the full range.
+
+**Not a workaround.** Slowing the rate, spreading it over weeks, or rotating
+identity would each make the activity harder to notice without making it
+permitted. The prohibition is on the activity, not on its speed.
+
+**The sanctioned route exists.** NSE Data & Analytics Ltd operates a historical
+data portal (`dotexdata.nseindia.com`) with its own terms and a licence. That —
+or written permission from NSE — is what makes bulk historical access
+legitimate. Not investigated further: it is a commercial decision for the
+operator, not a technical one.
+
+**Already downloaded during development:** 142 files, 31 MB, covering parts of
+Jan–May 2015 and one week of Aug 2026, 2.24 M rows. The operator sanctioned
+testing "on a handful of days"; this overran that, because two interrupt tests
+failed to interrupt (SIGINT is not delivered to background processes in the
+build sandbox) and each ran a full month to completion instead of stopping
+after seconds. Stated plainly rather than rounded down. No further fetching has
+occurred since the terms were read.
