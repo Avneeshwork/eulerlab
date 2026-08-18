@@ -24,10 +24,14 @@ help:
 	@echo "                    backfill 1-minute candles for config/universe_top250.txt"
 	@echo "  make sync-cloud [DRY=1] [VERIFY=1]"
 	@echo "                    mirror the landing zone to Backblaze B2"
+	@echo "  make restore-local [--segment cm] pull pruned files back from B2"
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
 	@echo "  make sync-and-prune"
 	@echo "                    sync then prune - the normal way to run these two"
+	@echo "  make ingest-fundamentals [LIMIT=n]"
+	@echo "                    fetch screener.in fundamentals for the universe"
+	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 
 install:
 	uv sync --extra dev
@@ -76,7 +80,27 @@ ingest-minute:
 sync-cloud:
 	uv run python -m eulerlab.ingest.sync_cloud $(if $(DRY),--dry-run,) $(if $(VERIFY),--verify,)
 
+restore-local:
+	uv run python -m eulerlab.ingest.restore_local $(ARGS)
+
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)
 
 sync-and-prune: sync-cloud prune-local
+
+ingest-fundamentals:
+	uv run python -m eulerlab.fundamentals.backfill $(if $(LIMIT),--limit $(LIMIT),)
+
+# One command to keep every dataset current, safe to schedule. Each step is
+# idempotent: already-current data costs nothing, so re-running is cheap and
+# a missed day self-heals on the next run.
+daily:
+	@echo "== EOD bhavcopy =="
+	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
+	@echo "== participant OI =="
+	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
+	@echo "== fundamentals =="
+	-uv run python -m eulerlab.fundamentals.backfill
+	@echo "== sync and prune =="
+	$(MAKE) sync-cloud
+	$(MAKE) prune-local

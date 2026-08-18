@@ -263,6 +263,12 @@ class S3ObjectStore:
         value = metadata.get(SHA_METADATA_KEY)
         return value if isinstance(value, str) else None
 
+    def get(self, key: str) -> bytes:
+        """Download one object's bytes. Used by restore-local."""
+        response = self._client.get_object(Bucket=self._bucket, Key=key)
+        body: bytes = response["Body"].read()
+        return body
+
     def put(self, key: str, payload: bytes, sha256: str) -> None:
         self._client.put_object(
             Bucket=self._bucket,

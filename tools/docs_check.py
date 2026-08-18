@@ -47,7 +47,13 @@ def _git(repo: Path, *args: str) -> str:
         text=True,
         check=True,
     )
-    return result.stdout.strip()
+    # rstrip only. `git status --porcelain` encodes an unstaged change as
+    # " M path" with a leading space, and a full .strip() eats that space on
+    # the FIRST line only - so the first unstaged file silently lost a
+    # character from its path ("docs/x.md" -> "ocs/x.md") and stopped being
+    # recognised as documentation. Every other line was unaffected, which is
+    # why it went unnoticed from Sprint 0 until an audit on 2026-08-18.
+    return result.stdout.rstrip("\n")
 
 
 def _ref_exists(repo: Path, ref: str) -> bool:

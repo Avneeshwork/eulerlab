@@ -29,10 +29,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--landing", type=Path, default=DEFAULT_LANDING)
     parser.add_argument(
-        "--minute",
+        "--landing-root",
         type=Path,
-        default=Path("data/landing/kite_minute"),
-        help="Kite minute-bar tree to mirror as well",
+        default=Path("data/landing"),
+        help="root under which every dataset tree is discovered and mirrored",
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument(
@@ -76,21 +76,34 @@ def main(argv: Sequence[str] | None = None) -> int:
     check = "sha256" if args.verify else "size"
     print(f"comparing by: {check}")
 
+    # NB: dry-run must NOT return early here. It did once, which meant it
+    # reported only on the nse tree and printed a reassuring "would upload: 0"
+    # while thousands of files in other trees were unsynced.
     if args.dry_run:
         plan = plan_sync(landing, store, config, verify=args.verify)
         print(f"would upload : {len(plan.upload)}")
         print(f"already there: {len(plan.already_present)}")
         print(f"mismatched   : {len(plan.mismatched)}")
-        return 1 if plan.mismatched else 0
+        result = SyncResult(0, len(plan.already_present), [], [])
+    else:
+        result = sync(landing, store, config, verify=args.verify)
+        print(f"uploaded : {result.uploaded}")
+        print(f"skipped  : {result.skipped}  (already present, matching {check})")
 
-    result = sync(landing, store, config, verify=args.verify)
-    print(f"uploaded : {result.uploaded}")
-    print(f"skipped  : {result.skipped}  (already present, matching {check})")
-
-    if args.minute.exists():
-        print(f"\nminute bars from {args.minute}:")
+    # Every dataset tree under the landing root is mirrored, discovered rather
+    # than listed. Hardcoding each one meant a new dataset was silently never
+    # backed up until someone noticed - which happened twice (participant OI,
+    # then fundamentals). Discovery makes forgetting impossible.
+    others = sorted(
+        d for d in args.landing_root.iterdir() if d.is_dir() and d.name != args.landing.name
+    )
+    for tree_root in others:
+        print(f"\n{tree_root.name} from {tree_root}:")
         tree = sync_directory(
-            args.minute, store, prefix=f"{config.prefix}kite_minute/", dry_run=args.dry_run
+            tree_root,
+            store,
+            prefix=f"{config.prefix}{tree_root.name}/",
+            dry_run=args.dry_run,
         )
         print(f"  uploaded : {tree.uploaded}")
         print(f"  skipped  : {tree.skipped}")

@@ -110,3 +110,38 @@ def test_bytes_freed_matches_deleted_file_sizes(tmp_path: Path) -> None:
     result = plan_and_prune(tmp_path, store, prefix="nse/", dry_run=False)
 
     assert result.bytes_freed == 12
+
+
+# --- the key scheme must match sync_cloud's, or pruning silently misbehaves ---
+
+
+def test_nse_tree_keys_sit_directly_under_the_prefix(tmp_path: Path) -> None:
+    from eulerlab.ingest.prune_local import _remote_key
+
+    path = tmp_path / "nse" / "cm" / "2026" / "08" / "a.zip"
+    assert _remote_key(path, tmp_path, "nse/") == "nse/cm/2026/08/a.zip"
+
+
+def test_other_trees_are_namespaced_by_directory_name(tmp_path: Path) -> None:
+    from eulerlab.ingest.prune_local import _remote_key
+
+    assert (
+        _remote_key(tmp_path / "kite_minute" / "HDFCBANK" / "a.parquet", tmp_path, "nse/")
+        == "nse/kite_minute/HDFCBANK/a.parquet"
+    )
+    assert (
+        _remote_key(tmp_path / "fundamentals" / "RELIANCE" / "a.parquet", tmp_path, "nse/")
+        == "nse/fundamentals/RELIANCE/a.parquet"
+    )
+
+
+def test_a_new_dataset_tree_gets_a_sensible_key_without_code_changes(tmp_path: Path) -> None:
+    """Adding a dataset must not require editing the key function.
+
+    Forgetting to register a new tree is how fundamentals ended up with zero
+    objects in the bucket while looking fine locally.
+    """
+    from eulerlab.ingest.prune_local import _remote_key
+
+    key = _remote_key(tmp_path / "options_chains" / "NIFTY" / "x.parquet", tmp_path, "nse/")
+    assert key == "nse/options_chains/NIFTY/x.parquet"
