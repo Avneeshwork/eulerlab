@@ -129,6 +129,30 @@ make sync-cloud DRY=1
 It prints one section per dataset tree. If a dataset you expect is not listed,
 it is not being mirrored.
 
+## A tail of files never gets uploaded
+
+**Symptom.** Sync reports success, but a dataset is still short in B2 — and
+running sync again uploads more, then stops short again.
+
+**Cause.** `sync-cloud` is a single pass. If a backfill is still writing files,
+the pass finishes and exits while the producer keeps going, so there is always
+a tail. Nothing is wrong; the pass simply ended before the data did.
+
+**Fix.**
+
+```bash
+make sync-until-complete
+```
+
+It waits for any running backfill to finish, then loops sync until a pass
+uploads zero — the only reliable "done" signal — and prunes at the end.
+
+**Why this exists.** The earlier disk watchdog lived in the scratchpad rather
+than the repo, and its loop condition only watched the minute and OI backfills.
+It exited while the fundamentals backfill was still producing, stranding a tail
+and leaving nothing scheduled to collect it. `tools/sync_until_complete.sh` is
+version controlled and watches every backfill pattern.
+
 ## Prevention
 
 `tests/test_no_secrets.py` fails the build if any value in `.env.example` is

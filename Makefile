@@ -27,6 +27,8 @@ help:
 	@echo "  make restore-local [--segment cm] pull pruned files back from B2"
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
+	@echo "  make sync-until-complete"
+	@echo "                    loop sync until every tree is mirrored, then prune"
 	@echo "  make sync-and-prune"
 	@echo "                    sync then prune - the normal way to run these two"
 	@echo "  make ingest-fundamentals [LIMIT=n]"
@@ -85,6 +87,9 @@ restore-local:
 
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)
+
+sync-until-complete:
+	@./tools/sync_until_complete.sh
 
 sync-and-prune: sync-cloud prune-local
 
