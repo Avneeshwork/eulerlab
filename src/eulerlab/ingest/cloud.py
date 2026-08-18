@@ -59,6 +59,16 @@ class MissingCredentials(RuntimeError):
     """Set B2_KEY_ID and B2_APP_KEY in .env before syncing."""
 
 
+class InsufficientCapabilities(RuntimeError):
+    """The key cannot read back what it writes, so nothing can be verified.
+
+    A write-only key sounds safer but breaks this sync in a way that hides
+    itself: every existence check fails, every object looks absent, and the
+    sync silently re-uploads the entire landing zone on every run while
+    reporting success. Failing loudly is the only honest option.
+    """
+
+
 @dataclass(frozen=True)
 class SyncPlan:
     """What a sync would do. Produced before anything is uploaded."""
@@ -168,10 +178,32 @@ class S3ObjectStore:
         self._bucket = config.bucket
 
     def head_sha256(self, key: str) -> str | None:
+        """SHA-256 recorded for an object, or None when it genuinely is not there.
+
+        "Not there" and "not allowed to look" are different answers and must
+        never be conflated: treating a permission error as absence turns an
+        idempotent sync into a full re-upload that reports success.
+        """
+        from botocore.exceptions import ClientError
+
         try:
             response = self._client.head_object(Bucket=self._bucket, Key=key)
-        except Exception:  # any failure to find it means "upload it"
-            return None
+        except ClientError as exc:
+            status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+            if status == 404 or code in {"404", "NoSuchKey", "NotFound"}:
+                return None
+            if status in {401, 403} or code in {"AccessDenied", "403", "unauthorized"}:
+                msg = (
+                    f"the B2 key cannot read {self._bucket!r} (got {code or status}). "
+                    "It needs the readFiles and listFiles capabilities as well as "
+                    "writeFiles, otherwise nothing can be verified and every sync "
+                    "re-uploads everything. Recreate the application key with read "
+                    "access to the bucket."
+                )
+                raise InsufficientCapabilities(msg) from exc
+            raise
+
         metadata = response.get("Metadata") or {}
         value = metadata.get(SHA_METADATA_KEY)
         return value if isinstance(value, str) else None

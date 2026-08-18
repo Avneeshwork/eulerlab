@@ -7,6 +7,6 @@
 # only endpoint_url changes. See ADR-007.
 
 provider: b2
-endpoint_url: https://s3.us-west-004.backblazeb2.com  # replace with your bucket's region
-bucket: eulerlab-landing                              # replace with your bucket name
+endpoint_url: https://s3.us-west-004.backblazeb2.com   # confirmed via b2_authorize_account, 2026-08-18
+bucket: eulerdata                                      # confirmed: the key is scoped to this bucket
 prefix: nse/

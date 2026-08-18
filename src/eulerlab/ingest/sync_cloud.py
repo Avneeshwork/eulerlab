@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from eulerlab.ingest.cloud import (
+    InsufficientCapabilities,
     MissingCredentials,
     S3ObjectStore,
     load_storage_config,
@@ -49,6 +50,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     print(f"target: {config.provider} {config.bucket}/{config.prefix} @ {config.endpoint_url}")
+
+    try:
+        _ = store.head_sha256(f"{config.prefix}__preflight_probe__")
+    except InsufficientCapabilities as exc:
+        print(f"\nsync-cloud: {exc}")
+        return 2
 
     if args.dry_run:
         plan = plan_sync(landing, store, config)

@@ -173,3 +173,53 @@ def test_the_committed_storage_config_parses() -> None:
     assert config.endpoint_url.startswith("https://")
     # Secrets must never appear in a committed config file.
     assert "key" not in config.model_dump_json().lower().replace("key_id", "")
+
+
+# --- a key that cannot read back what it writes ---
+
+
+@dataclass
+class DeniedClient:
+    """Mimics botocore raising AccessDenied, as a write-only B2 key does."""
+
+    code: str = "AccessDenied"
+    status: int = 403
+
+    def head_object(self, **_: object) -> dict[str, object]:
+        from botocore.exceptions import ClientError
+
+        raise ClientError(
+            {"Error": {"Code": self.code}, "ResponseMetadata": {"HTTPStatusCode": self.status}},
+            "HeadObject",
+        )
+
+
+def _store_with(client: object) -> S3ObjectStore:
+    store = S3ObjectStore.__new__(S3ObjectStore)
+    store._client = client  # type: ignore[attr-defined]
+    store._bucket = "eulerdata"  # type: ignore[attr-defined]
+    return store
+
+
+def test_a_write_only_key_fails_loudly_instead_of_re_uploading_everything() -> None:
+    """The bug this guards: AccessDenied read as 'absent' makes every sync a
+    full re-upload that reports success."""
+    from eulerlab.ingest.cloud import InsufficientCapabilities
+
+    with pytest.raises(InsufficientCapabilities, match="readFiles"):
+        _store_with(DeniedClient()).head_sha256("nse/x.zip")
+
+
+def test_a_genuinely_missing_object_is_still_none() -> None:
+    assert _store_with(DeniedClient(code="404", status=404)).head_sha256("nse/x.zip") is None
+
+
+def test_nosuchkey_is_treated_as_missing() -> None:
+    assert _store_with(DeniedClient(code="NoSuchKey", status=404)).head_sha256("k") is None
+
+
+def test_an_unexpected_error_is_not_swallowed() -> None:
+    from botocore.exceptions import ClientError
+
+    with pytest.raises(ClientError):
+        _store_with(DeniedClient(code="InternalError", status=500)).head_sha256("k")
