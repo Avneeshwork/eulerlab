@@ -40,9 +40,14 @@ in `TASKS.md`, it did not happen.*
   checksum intact; the next run resumed and fetched exactly what was missing.
 - **`make check-landing`** re-hashes every landed file against the manifest,
   turning the immutability claim into a two-second check.
-- **`make sync-cloud`** mirrors the landing zone to Backblaze B2, verified by
-  our own SHA-256 rather than the ETag. Built and tested against a fake store;
-  **not yet run**, because it needs a B2 account and key (see below).
+- **`make sync-cloud`** mirrors the landing zone to Backblaze B2. Planning is
+  one paginated LIST (~3s for thousands of objects); `VERIFY=1` does the exact
+  SHA-256 comparison as an occasional audit. Running against bucket `eulerdata`.
+- **`make kite-login`** obtains a Kite access token. The login needs a password
+  and 2FA on Zerodha's page, so it stays the operator's job; the helper does
+  only the exchange that follows, locally, and writes the token to a gitignored
+  `.kite_session.json` at mode 0600. Tokens expire at 06:00 IST daily, which is
+  why they are not kept in `.env`.
 - **Holidays are never guessed.** A failure is FAILED, a 404 is ABSENT, and
   ABSENT is classified by cross-checking both segments — one segment missing
   while the other landed is flagged as an ANOMALY, not silently called a
