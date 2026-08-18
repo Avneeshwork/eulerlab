@@ -101,6 +101,34 @@ has `listFiles`.
 
 ---
 
+## A dataset has zero objects in the bucket
+
+**Symptom.** Everything looks fine locally, `make sync-cloud` reports success,
+but a whole dataset is missing from B2.
+
+**Cause, seen twice.** `sync_cloud` used to mirror a hardcoded list of trees.
+Adding a new dataset without also registering it there meant it was silently
+never backed up — participant-OI hit this, then fundamentals hit it again with
+757 files and zero objects in the bucket.
+
+**Fixed.** Trees are now *discovered* under `data/landing/`, so a new dataset
+is mirrored automatically. There is no list to forget to update.
+
+**Related and worse:** `--dry-run` used to return before the tree loop ran, so
+it reported `would upload: 0` on the `nse` tree alone and looked perfectly
+clean while 10,176 files across two other trees were unsynced. A check that
+reassures you while the thing it checks is broken is worse than no check at
+all. Dry-run now covers every tree.
+
+**How to confirm coverage yourself:**
+
+```bash
+make sync-cloud DRY=1
+```
+
+It prints one section per dataset tree. If a dataset you expect is not listed,
+it is not being mirrored.
+
 ## Prevention
 
 `tests/test_no_secrets.py` fails the build if any value in `.env.example` is

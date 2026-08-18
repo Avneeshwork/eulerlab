@@ -37,13 +37,22 @@ SKIP_NAMES = frozenset({"manifest.jsonl", "unresolved.jsonl"})
 
 
 def _remote_key(path: Path, root: Path, prefix: str) -> str:
-    """Mirror sync_cloud's / sync_directory's key scheme, so a match here is a
-    match there. kite_minute is its own subtree with an extra path segment.
+    """Mirror sync_cloud's key scheme exactly, so a match here is a match there.
+
+    The `nse` tree is the historical special case: its objects sit directly
+    under the prefix (``nse/cm/...``) because it was the first and the bucket
+    prefix is already ``nse/``. Every other dataset tree is namespaced by its
+    directory name (``nse/kite_minute/...``, ``nse/fundamentals/...``).
+
+    These two functions must agree. If they drift, prune-local either deletes a
+    file it cannot find in the bucket (it will not - it keeps unmatched files)
+    or keeps everything forever. The first is impossible by construction here;
+    the second is merely wasteful, which is the right way round.
     """
     rel = path.relative_to(root)
-    if rel.parts and rel.parts[0] == "kite_minute":
-        return f"{prefix}{rel.as_posix()}"
-    return f"{prefix}{path.relative_to(root / 'nse').as_posix()}"
+    if rel.parts and rel.parts[0] == "nse":
+        return f"{prefix}{path.relative_to(root / 'nse').as_posix()}"
+    return f"{prefix}{rel.as_posix()}"
 
 
 @dataclass(frozen=True)

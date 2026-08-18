@@ -138,3 +138,33 @@ def test_staged_only_still_catches_an_undocumented_change(repo: Path) -> None:
     _git(repo, "add", "-A")
 
     assert len(check_staged(repo)) == 1
+
+
+def test_an_unstaged_first_file_keeps_its_full_path(repo: Path) -> None:
+    """`git status --porcelain` writes " M path" for unstaged changes.
+
+    _git() used to .strip() the whole stdout, which ate the leading space on
+    the first line only — so the first unstaged file lost a character from its
+    path ("docs/x.md" -> "ocs/x.md") and stopped counting as documentation.
+    Every later line was fine, which is exactly why it survived from Sprint 0
+    until an audit found it.
+    """
+    from tools.docs_check import _worktree_files
+
+    _write(repo, "docs/note.md", "hello\n")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "docs: note")
+
+    # Modify it without staging -> porcelain emits " M docs/note.md"
+    (repo / "docs" / "note.md").write_text("changed\n", encoding="utf-8")
+
+    assert "docs/note.md" in _worktree_files(repo)
+
+
+def test_an_unstaged_doc_change_satisfies_the_gate(repo: Path) -> None:
+    """The bug's real consequence: a legitimate doc edit was not seen."""
+    _write(repo, "src/eulerlab/thing.py")
+    _write(repo, "docs/why.md")
+    _git(repo, "add", "src/eulerlab/thing.py")  # code staged, doc left unstaged
+
+    assert collect_violations(repo) == []
