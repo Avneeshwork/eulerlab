@@ -1,14 +1,10 @@
 # STATE — where this project is right now
 
 **Sprint:** 0 — Scaffolding
-**Status:** PARTIAL
+**Status:** COMPLETE
 **Next:** Sprint 1 — NSE EOD ingest
 
-**Why PARTIAL:** five of six acceptance criteria pass. The sixth — "CI passes on
-a pushed branch" — cannot be checked because there is no GitHub remote. See
-`docs/SPRINT_00_REVIEW.md` question 1.
-
-*Last updated: 2026-08-17. One page, always current. If it is not written here or
+*Last updated: 2026-08-18. One page, always current. If it is not written here or
 in `TASKS.md`, it did not happen.*
 
 ---
@@ -23,7 +19,9 @@ in `TASKS.md`, it did not happen.*
 - **Typed config loading.** `config/*.yaml` is parsed into frozen Pydantic models
   with `extra="forbid"`, so a misspelled key is a startup error, not a silently
   ignored setting.
-- **CI** runs the same five gates on every push and pull request.
+- **CI runs and passes.** The same five gates run on every push and pull
+  request at `github.com/Avneeshwork/eulerlab` (private). First run: green in
+  13 seconds.
 
 ## What does not exist yet
 
@@ -42,15 +40,29 @@ plan. All three are logged in `docs/STUBS.md`:
 | `max_orders_per_second: 5` | `config/execution.yaml` | Sprint 19 |
 | `static_ip: null` | `config/deploy.yaml` | Sprint 29 |
 
+## Decisions taken (2026-08-18)
+
+| Decision | Choice | Recorded in |
+|---|---|---|
+| Repository | Private GitHub repo `Avneeshwork/eulerlab`, CI verified green | this file |
+| Sprint 2 live data source | Zerodha Kite Connect only, ₹500/mo | ADR-004 |
+| Sprint 1 EOD history range | From 2015-01-01 | `TASKS.md` T-102 |
+| Sprint 2 hosting | Mumbai VPS before Sprint 2, not the laptop | `TASKS.md` T-202 |
+
 ## Known issues
 
-- **No GitHub remote.** `.github/workflows/ci.yml` is written but has never run.
-  It is unverified until the repo is pushed. See `docs/SPRINT_00_REVIEW.md` Q1.
 - **Nothing is verified against a primary source yet.** Every market-structure
   fact in the docs came from `docs/quant_platform_playbook.md` and carries a
   recheck date in `docs/ASSUMPTIONS.md`. Sprint 1 starts fixing that.
 
 ## Money being spent
 
-₹0/month. No VPS, no data subscription, no cloud account. The first recurring
-cost is the Sprint 2 VPS (~₹500–900/mo) and it is not yet provisioned.
+**₹0/month today.** Nothing is provisioned or subscribed yet. Two costs are
+decided and land before Sprint 2:
+
+| Cost | Amount | Status |
+|---|---|---|
+| Zerodha Kite Connect | ₹500/mo | Decided (ADR-004). Account not yet confirmed |
+| Mumbai VPS | ₹500–900/mo | Decided. Not yet provisioned |
+
+Committed run rate once both are live: **₹1,000–1,400/mo.**

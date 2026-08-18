@@ -52,14 +52,15 @@ Recorded as ADR-001.
 
 ## What I could not verify
 
-- **CI has never run.** The GitHub Actions workflow is written against
-  `astral-sh/setup-uv@v5` and `actions/checkout@v4` but has not executed once,
-  because there is no remote. Its correctness is currently an assumption
-  (`docs/ASSUMPTIONS.md`, A-004).
+- ~~CI has never run.~~ **Resolved 2026-08-18**, after this note was written:
+  the repo was pushed to `Avneeshwork/eulerlab` and CI passed all five gates in
+  13 seconds. The first run warned that `actions/checkout@v4` and
+  `astral-sh/setup-uv@v5` target a deprecated Node runtime; both were bumped
+  (v7 and v10 respectively), which is worth knowing — action versions pinned
+  from memory rather than checked go stale silently.
 - Whether the operator's machine is the machine that will eventually run the
   scheduled jobs, or whether that is the Sprint 2 VPS. Not yet decided.
 
 ## Open questions
 
-- Does the operator want a private GitHub repo now (needed to verify CI) or
-  later? → Sprint 0 review, question 1.
+- ~~Private GitHub repo now or later?~~ Answered: now, private, done.

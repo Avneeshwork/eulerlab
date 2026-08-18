@@ -1,12 +1,12 @@
 # Sprint 0 — Scaffolding
 
-**Status:** PARTIAL
-**Branch:** sprint-00-scaffolding   **Commits:** 5
+**Status:** COMPLETE
+**Branch:** sprint-00-scaffolding   **Commits:** 8
+**Repo:** `github.com/Avneeshwork/eulerlab` (private)
 
-**Why PARTIAL and not COMPLETE:** one of the six acceptance criteria is unmet —
-*"CI passes on a pushed branch."* There is no GitHub remote, so
-`.github/workflows/ci.yml` has never executed. Everything else is done and
-verified. This is question 1 below, and it is a one-minute fix once you decide.
+All six acceptance criteria pass. This review was first written as PARTIAL,
+because CI had never run; you approved the push, CI ran green, and the last
+criterion closed. The history of that is left visible rather than tidied away.
 
 ---
 
@@ -27,8 +27,11 @@ verified. This is question 1 below, and it is a one-minute fix once you decide.
   that switches a safety limit off without anyone noticing.
 - **`STATE.md` is machine-readable.** The next session can resume from it without
   guessing. If it ever drifts into unparseable prose, `make verify` goes red.
-- **CI is written** and runs the same five gates on every push and pull request.
-  Unverified until pushed — see above.
+- **CI runs and passes.** Five gates on every push and pull request. First run:
+  green in 13 seconds. One thing genuinely worth knowing — GitHub sends an
+  all-zero base SHA for a brand-new branch, which would have broken a naive
+  docs-check; the fallback path handled it, and that path is now exercised for
+  real rather than only in theory.
 
 Nothing trades. There is no market data, no downloader, no database, no
 backtester, no strategy, no broker connection. Sprint 0 built the thing that
@@ -80,10 +83,6 @@ Full list with detail: `docs/STUBS.md`.
 
 ## What I could not verify
 
-- **CI has never run.** The workflow is written against the documented interfaces
-  of `actions/checkout@v4` and `astral-sh/setup-uv@v5`. I have not seen it
-  execute once. Until it does, "CI enforces the gates" is an assumption, logged
-  as A-004.
 - **Every market-structure fact in this repo is unverified.** Lot sizes, expiry
   days, settlement rules, the ~10 orders/sec regulatory threshold — all of it
   currently comes from `docs/quant_platform_playbook.md`, which states in its own
@@ -95,55 +94,41 @@ Full list with detail: `docs/STUBS.md`.
 - **I have not tested the pre-commit hooks on a failing case.** They passed on
   clean files. I did not deliberately introduce a lint error to watch a commit
   get blocked, the way I did for docs-check.
+- **Kite Connect's rate limits are unchecked.** Sprint 2 assumes a 5-second
+  full-chain snapshot is permitted. I have not read Kite's API documentation to
+  confirm it. Logged as A-008, and it is the first task of Sprint 2 — before any
+  recorder code, because if it is false the design changes.
 
-## Decisions I need from you
+## Decisions you made
 
-1. **Create a private GitHub repo now?** This is the only thing standing between
-   Sprint 0 and COMPLETE.
-   *Option A:* I run `gh repo create` for a private repo and push the branch —
-   CI runs, we find out whether the workflow actually works, and I close the last
-   criterion in Sprint 1.
-   *Option B:* stay local; CI stays unverified indefinitely.
-   **My recommendation: A.** A CI config that has never run is not a safety net,
-   it is a comment. It costs a minute now and it is the only unverified piece of
-   Sprint 0. I have not done it already because pushing code to a hosted service
-   is your call, not mine — say the word and it's done.
+All four answered on 2026-08-18. Recorded in `STATE.md`; the data-source choice
+also got an ADR because it is the project's first recurring cost.
 
-2. **How far back should Sprint 1 pull NSE end-of-day data?**
-   *Option A:* from 2015-01-01 (the kickoff document's example, ~11 years).
-   *Option B:* from 2010, for a longer sample covering more regimes.
-   *Option C:* from 2020, faster to get running.
-   **My recommendation: A.** 2015 gives enough history for meaningful regime
-   subsampling without a multi-hour first download. It is also cheap to extend
-   later — the downloader is idempotent, so widening the range re-fetches only
-   the new days.
+1. **Private GitHub repo — yes.** Created at `Avneeshwork/eulerlab`, both
+   branches pushed, CI green on run `32088448395`. This closed the last Sprint 0
+   criterion. While there, I bumped `actions/checkout` v4→v7 and
+   `astral-sh/setup-uv` v5→v10 — the first run warned that both were pinned to a
+   deprecated Node runtime.
 
-3. **Which live data source for the Sprint 2 options recorder?** The kickoff doc
-   says I'd ask this in the Sprint 1 review, but I'm asking now because broker
-   account approval has lead time and every day the recorder isn't running is
-   option-chain history that cannot be bought later at any price.
-   *Option A:* Dhan — free API.
-   *Option B:* Zerodha Kite Connect — ₹500/mo, best documented.
-   *Option C:* both — ₹500/mo total.
-   **My recommendation: C if you already hold both accounts, otherwise B.** Two
-   independent sources let each one check the other, and cross-source
-   disagreement is the single most effective data-bug detector there is — it
-   catches the vendor errors that otherwise show up months later disguised as
-   alpha. If you hold neither account, start the applications this week
-   regardless of which you pick.
+2. **NSE end-of-day history from 2015-01-01.** ~11 years. Extending later is
+   cheap because the downloader is idempotent.
 
-4. **Do you want the Mumbai VPS provisioned before Sprint 2, or should I plan
-   Sprint 2 to run the recorder on your laptop first?**
-   *Option A:* VPS (~₹500–900/mo) before Sprint 2.
-   *Option B:* laptop first, move to the VPS later.
-   **My recommendation: A.** The recorder must run unattended 09:15–15:30 IST
-   every trading day, and a laptop that sleeps, loses wifi, or gets closed
-   produces a history with holes in it. Holes are the one defect you cannot
-   repair afterwards. ₹500/mo is the cheapest insurance in this entire project.
+3. **Zerodha Kite Connect only, ₹500/mo.** Recorded as ADR-004. You declined the
+   two-source option; noted as an accepted trade-off, not an oversight — a single
+   feed has nothing to cross-check against, so vendor errors will have to be
+   caught by the no-arbitrage checks in Sprint 7 instead of by disagreement
+   between sources. Adding Dhan later costs nothing but integration work, and
+   ADR-004 records the trigger for revisiting: the quality engine flagging
+   anomalies one source cannot adjudicate.
+   **Two things need you before Sprint 2:** a Kite Connect account with an API
+   key issued (this has lead time — start it now), and confirmation that Kite
+   permits a 5-second full-chain snapshot. I will check the second myself as
+   Sprint 2's first task.
 
-Questions 1 and 3 block progress. Questions 2 and 4 I can proceed on with my
-recommended defaults if you'd rather not decide now — say "go with your
-defaults" and I'll note the choice in `STATE.md`.
+4. **Mumbai VPS before Sprint 2.** Not yet provisioned — that is an action for
+   you. ~₹500–900/mo.
+
+**Committed run rate once both are live: ₹1,000–1,400/mo.** Today it is ₹0.
 
 ## Reading added for you
 

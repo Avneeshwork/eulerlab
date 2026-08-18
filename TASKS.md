@@ -9,7 +9,7 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
-## Sprint 0 — Scaffolding · **PARTIAL** (5 of 6 criteria; CI unverified, no remote)
+## Sprint 0 — Scaffolding · **COMPLETE**
 
 Verify: `make verify`
 
@@ -31,7 +31,7 @@ Verify: `make verify`
 **Acceptance criteria** (from the kickoff doc):
 
 - [x] `make verify` runs and prints a green table
-- [ ] **CI passes on a pushed branch** — blocked, no remote yet (see review Q1)
+- [x] **CI passes on a pushed branch** — run 32088448395, all five gates green in 13s
 - [x] A `src/` change with no doc change makes `docs-check` fail — tested
       deliberately, and permanently in `tests/test_docs_check.py`
 - [x] `STATE.md` describes reality in under one page
@@ -44,6 +44,10 @@ Verify: `make verify`
 
 Verify: `make ingest-eod FROM=2015-01-01`, then run it again — second run must
 download nothing.
+
+**Decided 2026-08-18:** history starts at **2015-01-01** (~11 years). Cheap to
+extend later — the downloader is idempotent, so widening the range re-fetches
+only the new days.
 
 | ID | Task | Status |
 |---|---|---|
@@ -64,8 +68,10 @@ Verify: `make recorder-status`
 
 | ID | Task | Status |
 |---|---|---|
-| T-201 | **Decide the live data source** — Dhan (free) / Kite (₹500/mo) / both | BLOCKED — operator decision, review Q3 |
-| T-202 | Provision a Mumbai-region VPS | BLOCKED — operator action |
+| T-201 | **Decide the live data source** | DONE — Zerodha Kite Connect only, ₹500/mo (ADR-004) |
+| T-211 | **Verify Kite permits a 5s full-chain snapshot** against its documented rate limits — A-008 | TODO — **first task of Sprint 2, before any recorder code** |
+| T-212 | Confirm Kite Connect account + API key issued | TODO — operator action, has lead time |
+| T-202 | Provision a Mumbai-region VPS (~₹500–900/mo) | TODO — operator action. Decided 2026-08-18: VPS, not the laptop. A laptop that sleeps or drops wifi puts unrepairable holes in the history |
 | T-203 | Snapshot Nifty (NSE) + Sensex (BSE) chains every 5s, 09:15–15:30 IST, trading days | TODO |
 | T-204 | Parquet, partitioned by date, **both** exchange timestamp and receive timestamp per row | TODO |
 | T-205 | systemd unit, auto-restart on crash | TODO |
@@ -104,7 +110,9 @@ attribution · 29–30 compliance sprint · 31 first micro-live capital (1–2%)
 
 | ID | Item | Status |
 |---|---|---|
-| T-013 | Push to a private GitHub repo so CI actually runs | BLOCKED — operator decision, review Q1 |
+| T-013 | Push to a private GitHub repo so CI actually runs | DONE — `Avneeshwork/eulerlab`, private |
+| T-017 | Bump `actions/checkout` v4→v7 and `astral-sh/setup-uv` v5→v10 (Node 20 deprecation warning on first run) | DONE |
 | T-014 | Verify the ~10 OPS SEBI threshold against the primary circular (A-001) | TODO — Sprint 29, or sooner if convenient |
+| T-018 | Add Dhan as a second free feed for cross-reconciliation | DEFERRED — revisit when the quality engine (Sprint 6–7) flags anomalies a single source cannot adjudicate (ADR-004) |
 | T-015 | Verify current Nifty/Sensex lot sizes and expiry days against NSE/BSE circulars (A-002, A-003) | TODO — blocking for Sprint 3 |
 | T-016 | `mandate.yaml` + `gates.py` — operator-owned, written **with** the operator | TODO — Sprint 14 |
