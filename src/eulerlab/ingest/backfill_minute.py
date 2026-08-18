@@ -21,7 +21,7 @@ from eulerlab.ingest.kite_minute import (
 )
 
 DEFAULT_ROOT = Path("data/landing/kite_minute")
-DEFAULT_UNIVERSE = Path("config/universe_top250.txt")
+DEFAULT_UNIVERSE = Path("config/universe_top250_union.txt")
 SESSION_FILE = Path(".kite_session.json")
 
 MIN_INTERVAL_S = 0.34

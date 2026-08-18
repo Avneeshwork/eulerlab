@@ -127,7 +127,17 @@ def candles_to_table(candles: list[list[object]]) -> pa.Table:
 
 
 RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
-MAX_ATTEMPTS = 4
+
+MAX_ATTEMPTS = 3
+BACKOFF_BASE_S = 1.0
+BACKOFF_CAP_S = 5.0
+"""Deliberately impatient.
+
+A failed chunk is not lost: it is absent from the manifest, so the next run
+fetches it. That makes waiting expensive and pointless. Measured on 2026-08-18:
+307 transient DNS failures at ~14s of backoff each cost roughly 70 minutes and
+dropped throughput from 3/sec to 0.1/sec. Fail fast, record it, sweep it up on
+the next pass."""
 
 
 class KiteHistorical:
@@ -171,7 +181,8 @@ class KiteHistorical:
                 last = f"{type(exc).__name__}: {exc}"
 
             if attempt < MAX_ATTEMPTS:
-                time.sleep(min(2.0 * (2.0 ** (attempt - 1)), 20.0) * (0.5 + self._random.random()))
+                delay = min(BACKOFF_BASE_S * (2.0 ** (attempt - 1)), BACKOFF_CAP_S)
+                time.sleep(delay * (0.5 + self._random.random()))
 
         msg = f"{last} after {MAX_ATTEMPTS} attempts"
         raise KiteError(msg)

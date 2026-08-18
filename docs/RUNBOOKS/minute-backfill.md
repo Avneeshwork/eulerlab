@@ -79,6 +79,41 @@ Re-run; only the missing chunks are retried.
 
 ---
 
+## It is crawling, and `unresolved.jsonl` is full of URLError
+
+**Symptom (seen 2026-08-18).** Throughput collapsed to ~0.1 chunks/sec against a
+3/sec target, with hundreds of
+`URLError: [Errno 8] nodename nor servname provided, or not known`.
+
+**Diagnosis.** That is **DNS failing locally**, not Kite refusing anything. DNS
+tested clean moments later, so it is transient flakiness on the machine or its
+network.
+
+**Why it hurt so much.** The retry policy was patient — 4 attempts backing off
+up to 20s — so each transient failure cost ~14 seconds of sleeping. 307 failures
+burned roughly 70 minutes doing nothing.
+
+**Fix (applied).** The policy is now deliberately impatient: 3 attempts, 1s
+base, 5s cap. A failed chunk is *not lost* — it is simply absent from the
+manifest, so the next run fetches it. Waiting is therefore expensive and
+pointless. Throughput went from 0.11/sec to 1.20/sec.
+
+**The general lesson:** retry patience should scale with how expensive a retry
+is to replace. When the work is idempotent and resumable, failing fast and
+sweeping up later beats waiting.
+
+## Why the universe is a union, not a snapshot
+
+`config/universe_top250_union.txt` is the union of the top 250 by turnover
+sampled at each year-end from 2021 to 2026 — 444 symbols, not 250.
+
+A single snapshot is survivorship-biased whichever date you pick. Measured:
+only **168 of 250** names are in both the Sept-2024 and Aug-2026 lists. Using
+today's list gives five years of history for today's winners; using an old one
+misses everything that has since become liquid (`ETERNAL`, `SWIGGY`, `TMPV`).
+
+The union costs 1.8x the download and removes the choice entirely.
+
 ## How long should it take?
 
 240 symbols x 31 chunks (60 days each) = ~7,440 requests at 3/sec ≈ **42 minutes**.
