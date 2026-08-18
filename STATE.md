@@ -1,117 +1,73 @@
 # STATE — where this project is right now
 
-**Sprint:** 1 — NSE EOD ingest
+**Sprint:** 1 — data foundation (EOD, minute, OI, fundamentals)
 **Status:** IN PROGRESS
-**Next:** Sprint 3 — security master (Sprint 2 deferred, see TASKS.md)
+**Next:** Sprint 3 — security master
 
-**Unblocked 2026-08-18.** NSE's Terms of Use prohibit systematic automated
-collection; the operator was shown this and decided to proceed regardless. The
-decision and its reasoning are recorded in ADR-006 so it reads as a choice, not
-an oversight. The full 2015→2026 backfill is running now, rate-limited at 1.5s
-between requests, with no evasion tooling.
-
-*Last updated: 2026-08-18 (Sprint 1). One page, always current. If it is not written here or
-in `TASKS.md`, it did not happen.*
+*Last updated: 2026-08-18 20:30 IST. One page, always current. If it is not
+written here or in `TASKS.md`, it did not happen.*
 
 ---
 
-## What actually works today
+## Datasets — what actually exists
 
-- **`make verify`** runs five gates — lint, types, tests, docs-check, state — and
-  prints one table. This is the only command needed to check the repo is sound.
-- **The docs gate has teeth.** A commit that changes `src/` without changing any
-  documentation fails. Proven by tests in `tests/test_docs_check.py`, which build
-  throwaway git repositories and confirm both the pass and the fail case.
-- **Typed config loading.** `config/*.yaml` is parsed into frozen Pydantic models
-  with `extra="forbid"`, so a misspelled key is a startup error, not a silently
-  ignored setting.
-- **CI runs and passes.** The same five gates run on every push and pull
-  request at `github.com/Avneeshwork/eulerlab` (private). First run: green in
-  13 seconds.
-
-## What actually works, added in Sprint 1
-
-- **`make ingest-eod FROM=... TO=...`** downloads NSE equity and F&O bhavcopy
-  into an immutable landing zone. Both archive formats handled (legacy 2015 →
-  mid-2024, UDiFF 2024 →), verified against real files from both eras.
-- **Re-running downloads nothing.** Proven on real data: 20.6s first run,
-  1.3s second, zero re-fetches.
-- **Survives a hard kill.** SIGKILL mid-run left zero partial files and every
-  checksum intact; the next run resumed and fetched exactly what was missing.
-- **`make check-landing`** re-hashes every landed file against the manifest,
-  turning the immutability claim into a two-second check.
-- **`make sync-cloud`** mirrors the landing zone to Backblaze B2. Planning is
-  one paginated LIST (~3s for thousands of objects); `VERIFY=1` does the exact
-  SHA-256 comparison as an occasional audit. Running against bucket `eulerdata`.
-- **`make ingest-minute`** backfills 1-minute candles from Kite for the top-250
-  universe. Chunked at 60 days (Kite's measured limit), rate limited to 3 req/s,
-  Parquet per symbol per chunk, resumable from its own manifest. Symbols Kite
-  cannot resolve are written to `unresolved.jsonl` rather than skipped quietly —
-  those are the survivorship holes, and their size is the point.
-- **Universe selection** derives the tradable set from our own bhavcopy turnover
-  rather than a published index list, and refuses any lookback window with a
-  hole in it. See ADR-008.
-- **`make prune-local`** deletes local landing files once B2 confirms an exact-size copy exists; the manifest is never edited, so a pruned file stays recorded as landed. `make sync-and-prune` runs both together — the normal way to run them. See ADR-010.
-- **`make kite-login`** obtains a Kite access token. The login needs a password
-  and 2FA on Zerodha's page, so it stays the operator's job; the helper does
-  only the exchange that follows, locally, and writes the token to a gitignored
-  `.kite_session.json` at mode 0600. Tokens expire at 06:00 IST daily, which is
-  why they are not kept in `.env`.
-- **Holidays are never guessed.** A failure is FAILED, a 404 is ABSENT, and
-  ABSENT is classified by cross-checking both segments — one segment missing
-  while the other landed is flagged as an ANOMALY, not silently called a
-  holiday.
-
-## What does not exist yet
-
-No usable market-data history. No database. No security master. No backtester.
-No strategy. Nothing connects to a broker, and nothing trades. Sprint 0 built the
-harness that makes every later sprint checkable in two minutes — that is all.
-
-## What is faked or reserved
-
-Three compliance placeholders exist as config and schema only, per the build
-plan. All three are logged in `docs/STUBS.md`:
-
-| Placeholder | Where | Real in |
+| Dataset | State | Where |
 |---|---|---|
-| `algo_id` field on an `Order` model | `src/eulerlab/schemas.py` | Sprint 19 |
-| `max_orders_per_second: 5` | `config/execution.yaml` | Sprint 19 |
-| `static_ip: null` | `config/deploy.yaml` | Sprint 29 |
+| NSE EOD bhavcopy (cash + F&O) | **COMPLETE** — 5,736 files, 2015-01-01 → 2026-08-17 | `data/landing/nse/{cm,fo}/`, mirrored to B2 |
+| Participant-wise F&O OI | **COMPLETE** — 1,632 weekdays, 2020-01-01 → today | `data/landing/nse/participant_oi/` |
+| Kite 1-minute bars | **COMPLETE** — 12,755 chunks, 411 symbols, 173M bars, 5 years | `data/landing/kite_minute/` |
+| screener.in fundamentals | **IN PROGRESS** — ~184 of 2,702 companies | `data/landing/fundamentals/` |
+| Options chains / tick data | **NOT STARTED** — deferred by the operator | — |
 
-## Decisions taken (2026-08-18)
+Local disk holds a working subset only; the full copy lives in B2 bucket
+`eulerdata`. Files are pruned locally after B2 confirms them (ADR-010) and can
+be pulled back with `make restore-local`.
 
-| Decision | Choice | Recorded in |
-|---|---|---|
-| Repository | Private GitHub repo `Avneeshwork/eulerlab`, CI verified green | this file |
-| Sprint 2 live data source | Zerodha Kite Connect only, ₹500/mo | ADR-004 |
-| Sprint 1 EOD history range | From 2015-01-01 | `TASKS.md` T-102 |
-| Sprint 2 hosting | Mumbai VPS before Sprint 2, not the laptop | `TASKS.md` T-202 |
+## Commands that work today
 
-## Known issues
+```bash
+make verify                      # five gates, the only check that matters
+make daily                       # refresh EOD + OI + fundamentals, sync, prune
+make ingest-eod FROM=2015-01-01  # bhavcopy backfill (idempotent, resumable)
+make ingest-oi FROM=2020-01-01   # participant-wise OI
+make ingest-minute               # Kite 1-minute bars
+make ingest-fundamentals         # screener.in fundamentals
+make kite-login                  # Kite token (expires 06:00 IST daily)
+make sync-cloud / prune-local / restore-local / check-landing
+```
 
-- **The NSE backfill runs against NSE's stated terms.** A-010 resolved FALSE
-  and was then knowingly accepted by the operator (ADR-006). Not a defect, but
-  the single most important thing a future reader should know about how this
-  data was obtained.
-- **Credentials leaked into git history and were rotated.** `ZERODHA_API_SECRET`
-  and `TELEGRAM_BOT_TOKEN` are new as of 2026-08-18, verified as differing from
-  the leaked values. The old ones remain in the history of
-  `sprint-01-nse-eod-ingest`; a history rewrite is still an open question, but
-  the live exposure is closed. See the Sprint 1 review.
-- **Most market-structure facts are still unverified.** A-001 to A-003, A-005
-  to A-008, A-011, A-012 in `docs/ASSUMPTIONS.md` still rest on the reference
-  playbook rather than primary sources.
+## Running background jobs (2026-08-18 evening)
 
-## Money being spent
+- `fundamentals.backfill` — ~2,700 companies, ~110 min total
+- `sync_cloud` — mirroring to B2
+- `disk_watchdog.sh` (in the scratchpad) — syncs and prunes when disk drops
+  below 3 GB, halts downloaders below 1 GB. Not yet part of the repo.
 
-**₹0/month today.** Nothing is provisioned or subscribed yet. Two costs are
-decided and land before Sprint 2:
+## Known issues and open questions
+
+- **Disk is the binding constraint.** The machine has ~5 GB free of 228 GB;
+  most of that is unrelated to this project. A backfill crashed on ENOSPC once
+  already. The watchdog mitigates but does not solve it.
+- **10 minute-backfill symbols unresolved** — renames and demergers
+  (ZOMATO→ETERNAL, TATAMOTORS→TMPV). Deliberately not fixed by a hand-written
+  alias map, because a demerger splits one history into two and an alias cannot
+  express that. Sprint 3 handles it. See `docs/STUBS.md` S-005.
+- **Three datasets are collected against site terms**, knowingly: NSE
+  (ADR-006), Trendlyne (ADR-009, not yet built), screener.in (ADR-011). Each is
+  a recorded operator decision with the clause quoted, not an oversight.
+- **No consensus/forecast data exists** for Indian macro or earnings, so
+  "surprise" is not computable. Flagged in research notes 004 and 005; may be
+  the binding constraint on event-driven strategies.
+- **Credentials leaked into git history and were rotated** (2026-08-18). Live
+  exposure closed; a history rewrite is still an open question.
+- **Most market-structure facts remain unverified** — see `docs/ASSUMPTIONS.md`.
+
+## Money
 
 | Cost | Amount | Status |
 |---|---|---|
-| Zerodha Kite Connect | ₹500/mo | **Active** — subscription taken 2026-08-18 |
-| Backblaze B2 | under ₹100/mo | **Active** — bucket `eulerdata`, mirroring |
-| Mumbai VPS | ₹500–900/mo | **Deferred** — only the options recorder needs it |
+| Zerodha Kite Connect | ₹500/mo | Active |
+| Backblaze B2 | under ₹100/mo | Active, bucket `eulerdata` |
+| Mumbai VPS | ₹500–900/mo | Deferred — only the options recorder needs it |
 
-**Current run rate: ~₹600/mo.** The VPS is not needed for the equities work.
+**Run rate: ~₹600/mo.**
