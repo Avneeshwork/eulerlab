@@ -51,6 +51,7 @@ in `TASKS.md`, it did not happen.*
 - **Universe selection** derives the tradable set from our own bhavcopy turnover
   rather than a published index list, and refuses any lookback window with a
   hole in it. See ADR-008.
+- **`make prune-local`** deletes local landing files once B2 confirms an exact-size copy exists; the manifest is never edited, so a pruned file stays recorded as landed. `make sync-and-prune` runs both together — the normal way to run them. See ADR-010.
 - **`make kite-login`** obtains a Kite access token. The login needs a password
   and 2FA on Zerodha's page, so it stays the operator's job; the helper does
   only the exchange that follows, locally, and writes the token to a gitignored
