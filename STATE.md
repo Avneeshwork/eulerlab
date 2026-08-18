@@ -2,7 +2,7 @@
 
 **Sprint:** 1 — NSE EOD ingest
 **Status:** IN PROGRESS
-**Next:** Sprint 2 — options chain recorder
+**Next:** Sprint 3 — security master (Sprint 2 deferred, see TASKS.md)
 
 **Unblocked 2026-08-18.** NSE's Terms of Use prohibit systematic automated
 collection; the operator was shown this and decided to proceed regardless. The
@@ -80,10 +80,11 @@ plan. All three are logged in `docs/STUBS.md`:
   and was then knowingly accepted by the operator (ADR-006). Not a defect, but
   the single most important thing a future reader should know about how this
   data was obtained.
-- **The B2 mirror is unwired.** `config/storage.yaml` has placeholder bucket and
-  endpoint values, and `.env` has no `B2_KEY_ID` / `B2_APP_KEY`. Until the
-  operator creates the bucket and key, the landing zone is one copy on one
-  laptop.
+- **Credentials leaked into git history and were rotated.** `ZERODHA_API_SECRET`
+  and `TELEGRAM_BOT_TOKEN` are new as of 2026-08-18, verified as differing from
+  the leaked values. The old ones remain in the history of
+  `sprint-01-nse-eod-ingest`; a history rewrite is still an open question, but
+  the live exposure is closed. See the Sprint 1 review.
 - **Most market-structure facts are still unverified.** A-001 to A-003, A-005
   to A-008, A-011, A-012 in `docs/ASSUMPTIONS.md` still rest on the reference
   playbook rather than primary sources.
@@ -95,8 +96,8 @@ decided and land before Sprint 2:
 
 | Cost | Amount | Status |
 |---|---|---|
-| Zerodha Kite Connect | ₹500/mo | Decided (ADR-004). Account not yet confirmed |
-| Mumbai VPS | ₹500–900/mo | Decided. Not yet provisioned |
-| Backblaze B2 | under ₹100/mo | Decided (ADR-007). Bucket not yet created |
+| Zerodha Kite Connect | ₹500/mo | **Active** — subscription taken 2026-08-18 |
+| Backblaze B2 | under ₹100/mo | **Active** — bucket `eulerdata`, mirroring |
+| Mumbai VPS | ₹500–900/mo | **Deferred** — only the options recorder needs it |
 
-Committed run rate once all three are live: **₹1,100–1,500/mo.**
+**Current run rate: ~₹600/mo.** The VPS is not needed for the equities work.

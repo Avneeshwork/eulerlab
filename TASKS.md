@@ -71,7 +71,19 @@ only the new days.
 
 ---
 
-## Sprint 2 — Options chain recorder · **TODO** (do early; lost days are lost forever)
+## Sprint 2 — Options chain recorder · **DEFERRED** (2026-08-18, operator decision)
+
+**Deferred in favour of finishing the equities stack first.** The reasoning
+against deferring is on the record and unchanged: NSE sells no cheap historical
+option-chain data, so every day the recorder is not running is a day that cannot
+be bought back at any price. Measured cost of doing it: full chains at 5s is
+~300-550 MB/day; **near-expiry-only is ~35-65 MB/day**, roughly a tenth, and
+still captures the irreplaceable part. Worth revisiting as a background job.
+
+The blocking research is already done and does not expire — see
+`docs/RESEARCH/003-kite-feasibility-for-the-options-recorder.md`: the recorder
+must be WebSocket-based, because polling the full chains takes 9 seconds against
+a 5-second target.
 
 Verify: `make recorder-status`
 
@@ -91,6 +103,20 @@ Verify: `make recorder-status`
 | T-210 | `docs/RUNBOOKS/recorder.md` | TODO |
 
 ---
+
+## The equities path — next up
+
+With options deferred, sprints 3-6 need **nothing from the operator**: no VPS,
+no new spending, all local computation over data already landed.
+
+| # | Build | Verify by | Status |
+|---|---|---|---|
+| 3 | Security master: instruments, time-versioned lot sizes, calendars | `make check-master` | **NEXT** |
+| 4 | Bitemporal read API + lookahead firewall | `make test-lookahead` | TODO |
+| 5 | Corporate actions + adjustment engine | `make check-adjust` | TODO |
+| 6 | Data quality engine | `make quality` | TODO |
+
+Sprint 7 (options quality) moves to wherever the recorder lands.
 
 ## Sprints 3–14 — seeded scope
 
