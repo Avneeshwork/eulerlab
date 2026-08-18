@@ -136,12 +136,26 @@ def rank_by_liquidity(
             raise DiscontiguousWindow(msg)
 
     turnovers: dict[str, list[float]] = defaultdict(list)
+    absent = 0
     for entry in window:
         path = landing.root / entry.path
         if not path.exists():
+            # Pruned to B2 (ADR-010). Counted, then reported below - silently
+            # ranking on whatever happens to remain on disk would produce a
+            # confident, wrong universe, which is worse than an error.
+            absent += 1
             continue
         for symbol, value in read_turnover(path.read_bytes()).items():
             turnovers[symbol].append(value)
+
+    if absent:
+        msg = (
+            f"{absent} of {len(window)} files in the window are not on local disk. "
+            f"They were pruned to B2 after upload (ADR-010). Ranking on the "
+            f"remainder would give a confident but wrong universe. Restore them "
+            f"first, or rank as_of a date whose files are still local."
+        )
+        raise DiscontiguousWindow(msg)
 
     ranked = [
         Ranked(symbol=symbol, median_turnover=median(values), days_seen=len(values))

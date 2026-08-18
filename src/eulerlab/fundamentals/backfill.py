@@ -21,7 +21,7 @@ from eulerlab.fundamentals.screener_fetch import (
 from eulerlab.ingest.kite_minute import read_universe
 
 DEFAULT_ROOT = Path("data/landing/fundamentals")
-DEFAULT_UNIVERSE = Path("config/universe_top250_union.txt")
+DEFAULT_UNIVERSE = Path("config/universe_all_liquid.txt")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

@@ -24,6 +24,7 @@ help:
 	@echo "                    backfill 1-minute candles for config/universe_top250.txt"
 	@echo "  make sync-cloud [DRY=1] [VERIFY=1]"
 	@echo "                    mirror the landing zone to Backblaze B2"
+	@echo "  make restore-local [--segment cm] pull pruned files back from B2"
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
 	@echo "  make sync-and-prune"
@@ -78,6 +79,9 @@ ingest-minute:
 
 sync-cloud:
 	uv run python -m eulerlab.ingest.sync_cloud $(if $(DRY),--dry-run,) $(if $(VERIFY),--verify,)
+
+restore-local:
+	uv run python -m eulerlab.ingest.restore_local $(ARGS)
 
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)

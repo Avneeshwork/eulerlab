@@ -45,6 +45,25 @@ _WS = re.compile(r"\s+")
 
 
 @dataclass(frozen=True)
+class Profile:
+    """Page-level facts that are not part of any statement table.
+
+    Sector and index membership matter more than they look: without a sector
+    tag, a "momentum" factor is frequently an unintended sector bet, and
+    sector-neutralising is the standard fix. Index membership here is *today\'s*
+    membership — screener shows current constituents, not history — so it is
+    only point-in-time in the sense that repeated dated snapshots build a
+    membership history going forward. It must never be applied backwards.
+    """
+
+    name: str | None = None
+    sectors: tuple[str, ...] = ()
+    indices: tuple[str, ...] = ()
+    ratios: tuple[tuple[str, str], ...] = ()
+    """The header summary: Market Cap, Stock P/E, Book Value, Dividend Yield..."""
+
+
+@dataclass(frozen=True)
 class Cell:
     """One value: which statement, which line item, which period."""
 
@@ -179,3 +198,67 @@ def parse_page(page: str) -> list[Cell]:
 def company_name(page: str) -> str | None:
     match = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
     return _text(match.group(1)) if match else None
+
+
+# Screener renders index tags and sector tags with the same CSS class, so they
+# are separated by name. Anything matching a known index family is an index;
+# the rest is sector/industry classification.
+_INDEX_MARKERS = ("nifty", "bse ", "sensex", "dollex")
+
+
+def _looks_like_index(tag: str) -> bool:
+    lowered = tag.lower()
+    return any(marker in lowered for marker in _INDEX_MARKERS)
+
+
+def parse_top_ratios(page: str) -> tuple[tuple[str, str], ...]:
+    """The header summary block: Market Cap, Stock P/E, Book Value, ROCE...
+
+    Kept as (label, raw) string pairs rather than parsed floats. These mix
+    currencies, percentages and ranges ("High / Low 1,612 / 1,250"), so
+    coercing them here would either lose information or invent a schema; the
+    consumer decides what it wants.
+    """
+    start = page.find('id="top-ratios"')
+    if start == -1:
+        return ()
+    block = page[start : start + 6000]
+    pairs: list[tuple[str, str]] = []
+    for item in re.finditer(r"<li[^>]*>(.*?)</li>", block, re.S):
+        name_match = re.search(r'class="name"[^>]*>(.*?)<', item.group(1), re.S)
+        if name_match is None:
+            continue
+        label = _text(name_match.group(1)).rstrip(":").strip()
+        value = _text(item.group(1))
+        if label and value.startswith(label):
+            value = value[len(label) :].strip()
+        if label:
+            pairs.append((label, value))
+    return tuple(pairs)
+
+
+def parse_profile(page: str) -> Profile:
+    """Name, sector/industry tags, index membership and header ratios."""
+    tags: list[str] = []
+    sectors: list[str] = []
+    start = page.find('id="peers"')
+    if start != -1:
+        block = page[start : start + 4000]
+        # Sector hierarchy is a breadcrumb of /market/ links carrying a title
+        # attribute ("Broad Sector" -> "Sector" -> "Industry"), ordered broad
+        # to narrow. Keeping the order preserves the hierarchy.
+        for match in re.finditer(r'<a[^>]+href="/market/[^"]*"[^>]*>(.*?)</a>', block, re.S):
+            sector = _text(match.group(1))
+            if sector and sector not in sectors:
+                sectors.append(sector)
+        for match in re.finditer(r'class="tag[^"]*"[^>]*>(.*?)</a>', block, re.S):
+            tag = _text(match.group(1))
+            if tag and tag not in tags:
+                tags.append(tag)
+
+    return Profile(
+        name=company_name(page),
+        sectors=tuple(sectors),
+        indices=tuple(t for t in tags if _looks_like_index(t)),
+        ratios=parse_top_ratios(page),
+    )

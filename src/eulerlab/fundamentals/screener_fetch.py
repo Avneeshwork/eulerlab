@@ -20,14 +20,14 @@ import random
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from eulerlab.fundamentals.screener_parse import Cell, company_name, parse_page
+from eulerlab.fundamentals.screener_parse import Cell, Profile, parse_page, parse_profile
 
 BASE_URL = "https://www.screener.in/company/{symbol}/"
 CONSOLIDATED_URL = "https://www.screener.in/company/{symbol}/consolidated/"
@@ -59,6 +59,7 @@ class Fetched:
     consolidated: bool
     cells: list[Cell]
     html_bytes: int
+    profile: Profile = field(default_factory=Profile)
 
 
 class ScreenerClient:
@@ -110,16 +111,43 @@ class ScreenerClient:
             page = self._get(BASE_URL.format(symbol=symbol))
             cells = parse_page(page)
             consolidated = False
+        profile = parse_profile(page)
         return Fetched(
             symbol=symbol,
-            name=company_name(page),
+            name=profile.name,
             consolidated=consolidated,
             cells=cells,
             html_bytes=len(page),
+            profile=profile,
         )
 
 
+def _profile_cells(fetched: Fetched) -> list[Cell]:
+    """Flatten profile facts into the same (section, label, period, value) shape.
+
+    Sector, index membership and the header ratios have no reporting period, so
+    they carry the fetch date as their period: they describe what was true when
+    we looked, not what was true for some quarter.
+    """
+    out: list[Cell] = []
+    for index, name in enumerate(fetched.profile.sectors):
+        out.append(Cell("sector", f"level_{index + 1}", "", None, name))
+    for name in fetched.profile.indices:
+        out.append(Cell("index_membership", name, "", None, name))
+    for label, raw in fetched.profile.ratios:
+        out.append(Cell("top_ratios", label, "", None, raw))
+    return out
+
+
 def cells_to_table(fetched: Fetched, knowledge_time: str) -> pa.Table:
+    fetched = Fetched(
+        symbol=fetched.symbol,
+        name=fetched.name,
+        consolidated=fetched.consolidated,
+        cells=[*fetched.cells, *_profile_cells(fetched)],
+        html_bytes=fetched.html_bytes,
+        profile=fetched.profile,
+    )
     return pa.table(
         {
             "symbol": pa.array([fetched.symbol] * len(fetched.cells), pa.string()),

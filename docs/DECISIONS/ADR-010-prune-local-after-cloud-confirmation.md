@@ -31,6 +31,14 @@ the bucket size matches exactly. Not uploaded yet, or uploaded at a different
 size, and it stays untouched. The one-off cleanup run on 2026-08-18 found 5,168
 confirmed of 14,894 local files, zero size mismatches, and freed 1.83 GB.
 
+**Restoring is the other half.** Pruning is only safe if restoring is easy, and
+it is not easy if it does not exist — so `make restore-local` pulls files back
+from B2 and verifies each against the manifest SHA-256 before writing. This was
+not hypothetical: on 2026-08-18 the universe builder returned zero symbols
+because the bhavcopy files it reads had been pruned, and 74 files had to be
+restored to rebuild it. `rank_by_liquidity` now raises rather than silently
+ranking on whatever remains locally.
+
 **Cost if wrong.** Low. Worst case a file is kept locally longer than
 necessary, which is the safe direction to be wrong in. The dangerous
 direction — deleting something not actually in the bucket — is prevented by
