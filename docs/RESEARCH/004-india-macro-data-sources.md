@@ -146,3 +146,74 @@ Three steps, cheapest and most valuable first:
 - Consensus/forecast data for any Indian indicator. Without it, "surprise" is
   not computable, and surprise is what moves prices. This may be the binding
   constraint on macro-event strategies and is worth settling early.
+
+---
+
+## Addendum, 2026-08-18 — third-party FII/DII sources
+
+Checked at the operator's request: StockEdge, 5paisa, Moneycontrol, Trendlyne,
+Groww, Chartink, BSE.
+
+### A trap in NSE's own endpoint, worth more than any of them
+
+`nseindia.com/api/fiidiiTradeReact` **accepts a `?date=` parameter and silently
+ignores it.** Asked for 14-08-2026, 10-07-2026 and 15-01-2024, it returned
+17-Aug-2026 data every time — HTTP 200, valid JSON, correct schema, wrong day.
+
+A naive backfill looping over five years of dates would write ~1,250 files that
+all contain the same day's numbers, with no error raised anywhere and every file
+passing a schema check. **Any date-parameterised endpoint must be tested by
+comparing the returned date against the requested one** before it is trusted;
+status codes and schema validity prove nothing here.
+
+This also settles it: NSE publishes no historical FII/DII cash archive.
+
+### What the third parties actually have
+
+| Platform | Finding |
+|---|---|
+| **Trendlyne** | Deepest archive — page references years back to **2011**, server-rendered rather than JS |
+| **Groww** | ~31 days, in a clean `__NEXT_DATA__` JSON payload |
+| **StockEdge** | A JavaScript app; raw HTML has no data. Three guessed API paths all 404 |
+| **Moneycontrol** | 301 redirect; not pursued |
+| **5paisa** | 404 on the FII/DII path |
+| **BSE** | Three guessed API endpoints all 302 to an error page. BSE does publish this data; the right path was not found |
+
+### Terms: this is a different question from ADR-006
+
+`robots.txt` on Trendlyne, Groww and StockEdge blocks only specific bots or
+unrelated paths — none blanket-disallows. **That is not permission**, which is
+exactly the lesson from NSE, where robots.txt said `Allow: /` while the Terms of
+Use prohibited automated collection.
+
+Trendlyne's terms, read directly at `trendlyne.com/terms/` on 2026-08-18:
+
+> "You may not resell, redistribute, broadcast or transfer the information **or
+> use the information in a searchable, machine-readable database** unless
+> separately and specifically authorized in writing by trendlyne.com prior to
+> such use."
+
+**This is a stronger and more specific prohibition than NSE's, and it is a
+different kind of case.** NSE's FII/DII numbers are a public market record that
+NSE itself publishes; ADR-006 accepted the risk of collecting public data
+against a general anti-scraping clause. Trendlyne's *archive* of those numbers
+is the product they built and sell, and their clause names our exact intended
+use — putting it in a machine-readable database.
+
+ADR-006 should not be read as covering this. It is a separate decision, and it
+has not been taken.
+
+Worth noting the clause itself contemplates permission: "unless separately and
+specifically authorized in writing". For a single-operator research use, asking
+costs an email.
+
+### Clean routes that need no new decision
+
+1. **NSE participant-wise F&O OI** — daily, historical to at least 2020,
+   official, and already inside ADR-006's accepted scope. Richer than cash
+   FII/DII anyway: it splits positioning by FII/DII/Pro/Client across futures
+   and options, long and short.
+2. **Daily capture of FII/DII cash from NSE going forward** — one request per
+   day, the same thing a person visiting the page does.
+3. **BSE** — an official second source. The endpoint needs finding, which is
+   work rather than a decision.
