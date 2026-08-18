@@ -23,6 +23,12 @@ Local disk holds a working subset only; the full copy lives in B2 bucket
 `eulerdata`. Files are pruned locally after B2 confirms them (ADR-010) and can
 be pulled back with `make restore-local`.
 
+## Architecture
+
+`docs/ARCHITECTURE.md` — diagrams of the fetch/landing/cloud pipeline, the
+atomic write path, the prune/restore loop, and the module map. Reflects what is
+built, not what is planned.
+
 ## Commands that work today
 
 ```bash
