@@ -26,8 +26,11 @@ Knowing the size of the hole is the whole point.
 from __future__ import annotations
 
 import csv
+import http.client
 import io
 import json
+import random
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -123,24 +126,55 @@ def candles_to_table(candles: list[list[object]]) -> pa.Table:
     )
 
 
+RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+MAX_ATTEMPTS = 4
+
+
 class KiteHistorical:
-    """Thin authenticated client. One request per call, no retries here."""
+    """Thin authenticated client with bounded retries.
 
-    def __init__(self, api_key: str, access_token: str) -> None:
+    Every transport failure is converted to ``KiteError``. That matters more
+    than it sounds: a 5-hour backfill died after 41 of 240 symbols because a
+    truncated response raised ``http.client.IncompleteRead``, which is neither
+    an ``HTTPError`` nor a ``URLError`` and so escaped the caller's handler and
+    aborted the whole run. One bad packet must cost one chunk, never the job.
+    """
+
+    def __init__(self, api_key: str, access_token: str, *, seed: int = 0) -> None:
         self._auth = f"token {api_key}:{access_token}"
+        self._random = random.Random(seed)
 
-    def _get(self, url: str, timeout: float = 60.0) -> bytes:
+    def _once(self, url: str, timeout: float) -> bytes:
         request = urllib.request.Request(
             url, headers={"X-Kite-Version": "3", "Authorization": self._auth}
         )
-        try:
-            with urllib.request.urlopen(request, timeout=timeout) as response:
-                data: bytes = response.read()
-                return data
-        except urllib.error.HTTPError as exc:
-            body = exc.read().decode("utf-8", errors="replace")[:200]
-            msg = f"http {exc.code}: {body}"
-            raise KiteError(msg) from exc
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            data: bytes = response.read()
+            return data
+
+    def _get(self, url: str, timeout: float = 60.0) -> bytes:
+        last = ""
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            try:
+                return self._once(url, timeout)
+            except urllib.error.HTTPError as exc:
+                body = exc.read().decode("utf-8", errors="replace")[:200]
+                last = f"http {exc.code}: {body}"
+                if exc.code not in RETRYABLE_STATUS:
+                    raise KiteError(last) from exc
+            except (
+                http.client.HTTPException,  # IncompleteRead, BadStatusLine, ...
+                urllib.error.URLError,
+                TimeoutError,
+                OSError,
+            ) as exc:
+                last = f"{type(exc).__name__}: {exc}"
+
+            if attempt < MAX_ATTEMPTS:
+                time.sleep(min(2.0 * (2.0 ** (attempt - 1)), 20.0) * (0.5 + self._random.random()))
+
+        msg = f"{last} after {MAX_ATTEMPTS} attempts"
+        raise KiteError(msg)
 
     def instruments(self) -> dict[str, int]:
         return parse_instruments(self._get(INSTRUMENTS_URL, timeout=120.0))

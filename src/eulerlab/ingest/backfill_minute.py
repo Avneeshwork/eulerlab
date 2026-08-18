@@ -99,6 +99,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             failed += 1
             store.mark_unresolvable(chunk.symbol, f"{chunk.start}: {exc}")
             continue
+        except Exception as exc:  # nothing unforeseen may abort a multi-hour run
+            failed += 1
+            store.mark_unresolvable(
+                chunk.symbol, f"{chunk.start}: unexpected {type(exc).__name__}: {exc}"
+            )
+            continue
 
         table = candles_to_table(candles)
         store.write(chunk, table)
