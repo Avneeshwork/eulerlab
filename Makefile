@@ -18,6 +18,8 @@ help:
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
 	@echo "  make kite-login   obtain a Kite access token (expires 6 AM daily)"
+	@echo "  make ingest-oi FROM=2020-01-01 [TO=...]"
+	@echo "                    backfill NSE participant-wise F&O open interest"
 	@echo "  make ingest-minute [YEARS=5] [LIMIT=n]"
 	@echo "                    backfill 1-minute candles for config/universe_top250.txt"
 	@echo "  make sync-cloud [DRY=1] [VERIFY=1]"
@@ -59,6 +61,10 @@ check-landing:
 
 kite-login:
 	@uv run python -m eulerlab.broker.kite_login
+
+ingest-oi:
+	@test -n "$(FROM)" || (echo "usage: make ingest-oi FROM=2020-01-01 [TO=2026-08-18]"; exit 2)
+	uv run python -m eulerlab.ingest.backfill_oi --from $(FROM) $(if $(TO),--to $(TO),)
 
 ingest-minute:
 	uv run python -m eulerlab.ingest.backfill_minute $(if $(YEARS),--years $(YEARS),) $(if $(LIMIT),--limit $(LIMIT),)

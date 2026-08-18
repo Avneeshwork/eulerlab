@@ -89,17 +89,19 @@ def sha256_of(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def relative_path(trade_date: date, segment: str, file_format: str) -> Path:
-    """Layout: <segment>/<YYYY>/<MM>/<YYYY-MM-DD>_<format>.zip
+def relative_path(trade_date: date, segment: str, file_format: str, suffix: str = "zip") -> Path:
+    """Layout: <segment>/<YYYY>/<MM>/<YYYY-MM-DD>_<format>.<suffix>
 
     Partitioned by month so a directory listing stays usable across 11 years,
-    and named by ISO date so lexical order is chronological order.
+    and named by ISO date so lexical order is chronological order. The suffix
+    varies because not every source ships zipped — NSE's participant-OI report
+    is a bare CSV.
     """
     return Path(
         segment.lower(),
         f"{trade_date.year:04d}",
         f"{trade_date.month:02d}",
-        f"{trade_date.isoformat()}_{file_format.lower()}.zip",
+        f"{trade_date.isoformat()}_{file_format.lower()}.{suffix}",
     )
 
 
@@ -161,6 +163,7 @@ class Landing:
         payload: bytes,
         rows: int,
         inner_name: str,
+        suffix: str = "zip",
     ) -> ManifestEntry:
         """Write bytes atomically, make them read-only, and record them.
 
@@ -169,7 +172,7 @@ class Landing:
         re-fetches it) but never a manifest row with no file (which would make
         a re-run skip data it does not have).
         """
-        rel = relative_path(trade_date, segment, file_format)
+        rel = relative_path(trade_date, segment, file_format, suffix)
         target = self.root / rel
         target.parent.mkdir(parents=True, exist_ok=True)
 
