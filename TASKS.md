@@ -51,7 +51,11 @@ only the new days.
 
 | ID | Task | Status |
 |---|---|---|
-| T-101 | Research NSE archive URLs + schemas → `docs/RESEARCH/002-nse-archive-schemas.md` | TODO |
+| T-101 | Research NSE archive URLs + schemas → `docs/RESEARCH/002-nse-eod-sources-and-schemas.md` | DONE |
+| T-109 | Source the trading calendar (holiday vs failed download) — cannot be derived from file absence | TODO — blocks T-107 |
+| T-110 | Handle both bhavcopy formats: legacy (2015→mid-2024) and UDiFF (2024-01→), probing rather than hardcoding the cutover | TODO |
+| T-111 | Cross-validate the two schemas on the Jan–Jul 2024 overlap window where both formats exist | TODO |
+| T-112 | Review NSE's terms on automated archive access before the first full backfill (A-010) | TODO — **before any bulk run** |
 | T-102 | Bhavcopy + F&O bhavcopy downloader into `data/landing/`, gzipped, one file per day | TODO |
 | T-103 | Idempotency: re-run downloads zero files and says so | TODO |
 | T-104 | Resumability: Ctrl-C mid-run, restart, resumes correctly | TODO |
