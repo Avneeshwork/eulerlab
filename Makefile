@@ -18,6 +18,8 @@ help:
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
 	@echo "  make kite-login   obtain a Kite access token (expires 6 AM daily)"
+	@echo "  make ingest-minute [YEARS=5] [LIMIT=n]"
+	@echo "                    backfill 1-minute candles for config/universe_top250.txt"
 	@echo "  make sync-cloud [DRY=1] [VERIFY=1]"
 	@echo "                    mirror the landing zone to Backblaze B2"
 
@@ -57,6 +59,9 @@ check-landing:
 
 kite-login:
 	@uv run python -m eulerlab.broker.kite_login
+
+ingest-minute:
+	uv run python -m eulerlab.ingest.backfill_minute $(if $(YEARS),--years $(YEARS),) $(if $(LIMIT),--limit $(LIMIT),)
 
 sync-cloud:
 	uv run python -m eulerlab.ingest.sync_cloud $(if $(DRY),--dry-run,) $(if $(VERIFY),--verify,)

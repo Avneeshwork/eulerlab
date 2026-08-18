@@ -43,6 +43,14 @@ in `TASKS.md`, it did not happen.*
 - **`make sync-cloud`** mirrors the landing zone to Backblaze B2. Planning is
   one paginated LIST (~3s for thousands of objects); `VERIFY=1` does the exact
   SHA-256 comparison as an occasional audit. Running against bucket `eulerdata`.
+- **`make ingest-minute`** backfills 1-minute candles from Kite for the top-250
+  universe. Chunked at 60 days (Kite's measured limit), rate limited to 3 req/s,
+  Parquet per symbol per chunk, resumable from its own manifest. Symbols Kite
+  cannot resolve are written to `unresolved.jsonl` rather than skipped quietly —
+  those are the survivorship holes, and their size is the point.
+- **Universe selection** derives the tradable set from our own bhavcopy turnover
+  rather than a published index list, and refuses any lookback window with a
+  hole in it. See ADR-008.
 - **`make kite-login`** obtains a Kite access token. The login needs a password
   and 2FA on Zerodha's page, so it stays the operator's job; the helper does
   only the exchange that follows, locally, and writes the token to a gitignored

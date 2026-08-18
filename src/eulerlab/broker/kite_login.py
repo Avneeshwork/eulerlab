@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from eulerlab.broker.kite_session import (
     SESSION_FILE,
     SessionError,
@@ -13,6 +15,8 @@ from eulerlab.broker.kite_session import (
     login_url,
     save,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _env(name: str) -> str:
@@ -24,6 +28,8 @@ def _env(name: str) -> str:
 
 
 def main() -> int:
+    load_dotenv(REPO_ROOT / ".env")
+
     api_key = _env("ZERODHA_API_KEY")
     api_secret = _env("ZERODHA_API_SECRET")
 

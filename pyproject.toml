@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "boto3>=1.43.73",
     "kiteconnect>=5.2.1",
+    "pyarrow>=25.0.1",
     "pydantic>=2.9",
+    "python-dotenv>=1.2.3",
     "pyyaml>=6.0",
 ]
 
@@ -16,6 +18,7 @@ dev = [
     "boto3-stubs>=1.43.73",
     "mypy>=1.11",
     "pre-commit>=3.8",
+    "pyarrow-stubs>=20.0.0.20260625",
     "pytest>=8.3",
     "ruff>=0.6",
     "types-pyyaml>=6.0",
