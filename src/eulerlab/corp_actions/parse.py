@@ -88,6 +88,46 @@ class ParsedComponent:
             return self.face_value_from / self.face_value_to
         return None
 
+    def rights_multiplier(self, *, cum_price: float, face_value: float | None) -> float | None:
+        """`P / TERP` — the same "divide old prices by it" sense as above.
+
+        A rights issue is not free, so unlike a bonus its dilution cannot be
+        read off the ratio: it depends how far below market the issue price
+        sits. The theoretical ex-rights price is
+
+            TERP = (B*P + A*S) / (A + B)
+
+        for entitlement A:B at issue price S with cum price P. NSE states the
+        same thing as `(P-E)/P`; the two are algebraically identical, and
+        research note 010 shows the expansion. Note NSE's factor is the
+        *reciprocal* of this one — theirs is <= 1 and multiplies, ours is >= 1
+        and divides, matching `bonus_split_multiplier`. Mixing the two senses
+        inverts the adjustment, which is why only one convention is used here.
+
+        `S` is face value plus premium, an Indian-market convention validated
+        against Reliance's 2020 issue (research note 010).
+
+        Returns None when the numbers are missing, or when `S >= P`: rights
+        priced at or above market confer no benefit, nobody subscribes, and
+        NSE makes no adjustment. Producing a factor there would adjust prices
+        the wrong way.
+        """
+        if self.kind is not Kind.RIGHTS:
+            return None
+        if self.ratio_new is None or not self.ratio_held:
+            return None
+        if self.rights_premium is None or face_value is None:
+            return None
+        issue_price = face_value + self.rights_premium
+        if issue_price >= cum_price or cum_price <= 0:
+            return None
+        terp = (self.ratio_held * cum_price + self.ratio_new * issue_price) / (
+            self.ratio_held + self.ratio_new
+        )
+        if terp <= 0:
+            return None
+        return cum_price / terp
+
 
 def _to_float(text: str) -> float | None:
     """NSE's own data is occasionally malformed (`"62..50"` was observed live).
@@ -172,6 +212,9 @@ class CorporateAction:
     ex_date: date
     components: tuple[ParsedComponent, ...]
     raw_subject: str
+    face_value: float | None = None
+    """From the feed's `faceVal`. Needed only by rights: the issue price is
+    face value plus the stated premium (research note 010)."""
 
     @property
     def unparsed(self) -> tuple[ParsedComponent, ...]:
@@ -218,6 +261,7 @@ def parse_rows(rows: list[dict[str, object]]) -> tuple[list[CorporateAction], in
                 ex_date=ex_date,
                 components=tuple(parse_subject(subject)),
                 raw_subject=subject,
+                face_value=_to_float(str(row.get("faceVal") or "").strip()),
             )
         )
     return actions, skipped

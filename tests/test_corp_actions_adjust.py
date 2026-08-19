@@ -192,3 +192,128 @@ def test_total_return_includes_bonus_and_dividend_together() -> None:
     store = build_total_return_factor_store(actions, lambda isin, d: 100.0)
     factor = factor_as_of(store, as_of=FAR_FUTURE, isin=ISIN, price_date=date(2020, 1, 1))
     assert factor == pytest.approx(2.0 * (1.0 / 0.95))
+
+
+# --- rights issues: research note 010, NSE's formula as P/TERP ---
+
+
+def _rights(
+    isin: str, ex_date: date, new: int, held: int, premium: float, face_value: float | None = 10.0
+) -> CorporateAction:
+    return CorporateAction(
+        isin=isin,
+        symbol="X",
+        ex_date=ex_date,
+        components=(
+            ParsedComponent(
+                Kind.RIGHTS, "Rights", ratio_new=new, ratio_held=held, rights_premium=premium
+            ),
+        ),
+        raw_subject=f"Rights {new}:{held} @ Premium Rs {premium}",
+        face_value=face_value,
+    )
+
+
+def test_a_rights_multiplier_matches_the_worked_terp_example() -> None:
+    """1:1 at issue price 50 with cum price 100.
+
+    TERP = (1*100 + 1*50)/2 = 75, so the factor is 100/75. NSE would state
+    this as 0.75; ours is the reciprocal by convention (note 010).
+    """
+    component = ParsedComponent(
+        Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=1, rights_premium=40.0
+    )
+    # issue price = face value 10 + premium 40 = 50
+    assert component.rights_multiplier(cum_price=100.0, face_value=10.0) == pytest.approx(100 / 75)
+
+
+def test_the_reliance_2020_rights_issue_price_is_face_value_plus_premium() -> None:
+    """Reliance's 2020 issue was 1:15 at Rs 1,257; the feed says faceVal 10,
+    premium 1247. Validating the rule the multiplier depends on."""
+    component = ParsedComponent(
+        Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=15, rights_premium=1247.0
+    )
+    cum = 1500.0
+    terp = (15 * cum + 1 * 1257.0) / 16
+    assert component.rights_multiplier(cum_price=cum, face_value=10.0) == pytest.approx(cum / terp)
+
+
+def test_a_rights_issue_dilutes_less_than_a_bonus_of_the_same_ratio() -> None:
+    """The economic point of the whole formula: a 1:1 bonus is free and halves
+    the price, a 1:1 rights issue is paid for and dilutes far less."""
+    bonus = ParsedComponent(Kind.BONUS, "Bonus", ratio_new=1, ratio_held=1)
+    rights = ParsedComponent(Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=1, rights_premium=80.0)
+    rights_factor = rights.rights_multiplier(cum_price=100.0, face_value=10.0)
+    assert rights_factor is not None
+    assert bonus.bonus_split_multiplier == 2.0
+    assert 1.0 < rights_factor < 2.0
+
+
+def test_rights_priced_above_market_produce_no_adjustment() -> None:
+    """Nobody subscribes at a premium to market, so there is no benefit and
+    NSE makes no adjustment. A factor here would move prices the wrong way."""
+    component = ParsedComponent(
+        Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=1, rights_premium=200.0
+    )
+    assert component.rights_multiplier(cum_price=100.0, face_value=10.0) is None
+
+
+def test_rights_with_no_face_value_cannot_be_priced() -> None:
+    """Issue price is face value + premium; without face value there is no
+    issue price, and guessing one would misprice the dilution."""
+    component = ParsedComponent(
+        Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=1, rights_premium=40.0
+    )
+    assert component.rights_multiplier(cum_price=100.0, face_value=None) is None
+
+
+def test_an_at_par_rights_issue_uses_face_value_as_the_issue_price() -> None:
+    """ "At Par" parses to premium 0.0, so issue price is face value alone."""
+    component = ParsedComponent(
+        Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=1, rights_premium=0.0
+    )
+    terp = (1 * 100.0 + 1 * 10.0) / 2
+    assert component.rights_multiplier(cum_price=100.0, face_value=10.0) == pytest.approx(
+        100 / terp
+    )
+
+
+def test_a_bonus_multiplier_is_not_produced_for_a_rights_component() -> None:
+    """The two must never be confused - a rights issue read as a bonus would
+    over-dilute badly."""
+    component = ParsedComponent(
+        Kind.RIGHTS, "Rights", ratio_new=1, ratio_held=1, rights_premium=40.0
+    )
+    assert component.bonus_split_multiplier is None
+
+
+def test_rights_are_omitted_when_no_close_price_lookup_is_given() -> None:
+    """The price store stays buildable without market data; it simply has no
+    rights in it, which is why the lookup is an explicit argument."""
+    store = build_price_factor_store([_rights(ISIN, date(2020, 6, 1), 1, 1, 40.0)])
+    assert len(store) == 0
+
+
+def test_rights_are_included_when_a_close_price_lookup_is_given() -> None:
+    store = build_price_factor_store(
+        [_rights(ISIN, date(2020, 6, 1), 1, 1, 40.0)], lambda isin, d: 100.0
+    )
+    factor = factor_as_of(store, as_of=FAR_FUTURE, isin=ISIN, price_date=date(2020, 1, 1))
+    assert factor == pytest.approx(100 / 75)
+
+
+def test_rights_appear_in_the_total_return_store_too() -> None:
+    """A rights issue changes the share count, so it belongs in both series."""
+    store = build_total_return_factor_store(
+        [_rights(ISIN, date(2020, 6, 1), 1, 1, 40.0)], lambda isin, d: 100.0
+    )
+    factor = factor_as_of(store, as_of=FAR_FUTURE, isin=ISIN, price_date=date(2020, 1, 1))
+    assert factor == pytest.approx(100 / 75)
+
+
+def test_a_rights_issue_is_still_behind_the_firewall() -> None:
+    store = build_price_factor_store(
+        [_rights(ISIN, date(2020, 6, 1), 1, 1, 40.0)], lambda isin, d: 100.0
+    )
+    as_of = session_close("2020-05-31")
+    assert factor_as_of(store, as_of=as_of, isin=ISIN, price_date=date(2020, 1, 1)) == 1.0

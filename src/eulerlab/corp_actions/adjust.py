@@ -16,10 +16,17 @@ coming, it only makes today's price comparable to yesterday's.
 
 **Two series, kept separate, never merged**:
 
-- *Price-adjusted* — bonuses and splits only. Answers "what would this
-  instrument's price series look like if share counts had never changed?"
+- *Price-adjusted* — share-count changes only: bonuses, splits, and rights.
+  Answers "what would this instrument's price series look like if the share
+  count had never changed?"
 - *Total-return* — price-adjusted, plus dividends reinvested at the close
   before the ex-date. Answers "what return did a holder actually earn?"
+
+Bonus and split are pure ratio arithmetic. Rights are not: a rights issue is
+a *purchase* at a set price, so the dilution depends how far below market that
+price sits, and computing it needs the cum-date close. That is why the
+price-adjusted builder takes an optional close-price lookup — without one it
+still produces bonuses and splits, and simply has no rights in it.
 
 Conflating them is the classic mistake: a price-adjusted-only series
 understates return by omitting dividends, and a naive total-return
@@ -52,23 +59,78 @@ def _action_event_time(action: CorporateAction) -> datetime:
     return session_close(action.ex_date.isoformat())
 
 
-def build_price_factor_store(actions: Sequence[CorporateAction]) -> BitemporalStore:
-    """Bonuses and splits only. Needs no price data — pure ratio arithmetic.
+def _fold(
+    action: CorporateAction,
+    *,
+    close_price_lookup: ClosePriceLookup | None,
+    include_dividends: bool,
+) -> float | None:
+    """Combine one action's components into a single multiplier, or None.
 
-    One Record per action, keyed by ISIN, valued at the combined multiplier of
-    every bonus/split component in that action (an action can bundle both,
-    e.g. "Bonus 1:1 / Face Value Split").
+    One row can bundle several actions on the same ex-date ("Bonus 1:1 / Face
+    Value Split ..."), so the components multiply together. Returns None when
+    nothing in the row produced a usable factor, so the caller can skip it
+    rather than store a meaningless 1.0.
+    """
+    multiplier = 1.0
+    found = False
+
+    # The cum price is shared by rights and dividends and costs a lookup, so
+    # it is fetched at most once per action rather than once per component.
+    cum_price: float | None = None
+    looked_up = False
+
+    def cum() -> float | None:
+        nonlocal cum_price, looked_up
+        if not looked_up:
+            looked_up = True
+            cum_price = (
+                close_price_lookup(action.isin, action.ex_date) if close_price_lookup else None
+            )
+        return cum_price
+
+    for component in action.components:
+        if component.kind in (Kind.BONUS, Kind.SPLIT):
+            m = component.bonus_split_multiplier
+            if m is not None:
+                multiplier *= m
+                found = True
+
+        elif component.kind is Kind.RIGHTS and close_price_lookup is not None:
+            price = cum()
+            if price is not None:
+                m = component.rights_multiplier(cum_price=price, face_value=action.face_value)
+                if m is not None:
+                    multiplier *= m
+                    found = True
+
+        elif include_dividends and component.kind is Kind.DIVIDEND:
+            amount = component.dividend_amount
+            price = cum()
+            if amount is not None and price is not None and price > amount:
+                multiplier *= 1.0 / (1.0 - amount / price)
+                found = True
+
+    return multiplier if found else None
+
+
+def build_price_factor_store(
+    actions: Sequence[CorporateAction], close_price_lookup: ClosePriceLookup | None = None
+) -> BitemporalStore:
+    """Bonuses, splits, and — when a close-price lookup is supplied — rights.
+
+    Bonus and split need no market data at all, just ratio arithmetic, so the
+    lookup is optional and this store can be built cheaply without touching
+    price history. A rights issue is different: it is a *purchase* at a set
+    price, so its dilution depends how far below market that price sits, and
+    it cannot be computed from the ratio alone (research note 010). Omitting
+    the lookup silently omits rights, which is why it is an explicit argument
+    rather than a hidden default.
     """
     store = BitemporalStore()
     for action in actions:
-        multiplier = 1.0
-        found = False
-        for component in action.components:
-            m = component.bonus_split_multiplier
-            if component.kind in (Kind.BONUS, Kind.SPLIT) and m is not None:
-                multiplier *= m
-                found = True
-        if found:
+        multiplier = _fold(action, close_price_lookup=close_price_lookup, include_dividends=False)
+        if multiplier is not None:
             when = _action_event_time(action)
             store.append(Record(when, when, action.isin, multiplier))
     return store
@@ -77,7 +139,8 @@ def build_price_factor_store(actions: Sequence[CorporateAction]) -> BitemporalSt
 def build_total_return_factor_store(
     actions: Sequence[CorporateAction], close_price_lookup: ClosePriceLookup
 ) -> BitemporalStore:
-    """Bonuses, splits, and dividends reinvested at the pre-ex-date close.
+    """Everything in the price factor, plus dividends reinvested at the close
+    before the ex-date.
 
     A dividend's multiplier is `1 / (1 - dividend / prev_close)`: back-adjusted
     prices before the ex-date are divided by it, which is the same as scaling
@@ -92,19 +155,8 @@ def build_total_return_factor_store(
     """
     store = BitemporalStore()
     for action in actions:
-        multiplier = 1.0
-        found = False
-        for component in action.components:
-            m = component.bonus_split_multiplier
-            if component.kind in (Kind.BONUS, Kind.SPLIT) and m is not None:
-                multiplier *= m
-                found = True
-            elif component.kind is Kind.DIVIDEND and component.dividend_amount is not None:
-                prev_close = close_price_lookup(action.isin, action.ex_date)
-                if prev_close and prev_close > component.dividend_amount:
-                    multiplier *= 1.0 / (1.0 - component.dividend_amount / prev_close)
-                    found = True
-        if found:
+        multiplier = _fold(action, close_price_lookup=close_price_lookup, include_dividends=True)
+        if multiplier is not None:
             when = _action_event_time(action)
             store.append(Record(when, when, action.isin, multiplier))
     return store

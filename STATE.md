@@ -40,13 +40,30 @@ restored with `make restore-local`.
   Sprint 4's `BitemporalStore`, so `factor_as_of` cannot include an action
   the caller could not yet have known (ADR-016: knowledge_time is
   conservatively each action's own ex-date, since the feed's announcement-date
-  field was null on every row checked). Price-adjustment (bonus + split) run
-  against the full real dataset; a 1:1 TCS bonus confirmed against its real
-  ISIN. Total-return (dividends reinvested) is built and unit-tested but its
-  full 11-year run needs a close-price index this session did not build
-  (S-010).
-- **`eulerlab.corp_actions.prices`** — the close-price index for the dividend
-  factor, streaming cash bhavcopy from B2 the same way `build_master` does.
+  field was null on every row checked). Covers bonus, split, **rights**
+  (`P/TERP`, research note 010) and dividends. A 1:1 TCS bonus confirmed
+  against its real ISIN; the rights formula validated against Reliance's 2020
+  issue.
+- **`eulerlab.corp_actions.prices`** — the close-price index, streaming cash
+  bhavcopy from B2. Joins on `InstrumentId`, never the raw ISIN, and caches
+  every fetched day to disk so the expensive pull happens once.
+- **`make build-factors`** — builds and persists both factor series. One full
+  run completed (2,121 files, 3m30s).
+
+### Two defects this sprint found
+
+**The ISIN join was wrong, and it failed quietly.** The corporate-actions feed
+and the bhavcopy disagree about trailing ISIN serials for the same company on
+the same day — on 2017-11-21 the feed called Aurobindo Pharma `INE406A01029`
+while the bhavcopy called it `INE406A01037`. Joining on the full string lost
+**21.9% of all price lookups**, surfacing as a plausible-looking "78% coverage"
+rather than an error. Fixed by joining on `InstrumentId` (ADR-012), which is
+precisely what that id exists for, and regression-tested.
+
+**One full build costs 85% of a day's B2 free tier.** 2,121 downloads against
+a 2,500/day Class B cap. Running the build twice in one session exhausted it
+outright. The close-price index is now cached and resumable, so the pull
+happens once ever — see `docs/RUNBOOKS/b2-transaction-cap.md`.
 
 ## Sprint 4 — what is built
 
@@ -141,11 +158,14 @@ original. Unrecoverable, so it is carried in the type.
 - **NSE corporate-actions feed ingested and wired to the adjustment engine**
   (Sprint 5). Still **silent on mergers that delist the target** — Sprint 3's
   succession model remains the source of truth there.
-- **Rights-issue price effect is parsed but not adjusted** (S-011): the
-  correct formula needs the issue price, not just the ratio.
-- **Total-return factor build for the full 11-year history was not run**
-  (S-010): correctness is unit-tested; the real run needs a ~2.2 GB
-  close-price index streamed from B2.
+- **The persisted factor files must be rebuilt** (S-012). The one completed
+  full run used the defective raw-ISIN join. The output was deleted rather
+  than left on disk, so nothing can read an incomplete factor set. Re-running
+  is blocked until the B2 daily cap resets: `make build-factors`.
+- **The rights formula came from a broker's summary, not the NSE circular**
+  (A-015). Cross-checked algebraically against the standard TERP identity and
+  validated on Reliance's 2020 issue, so confidence is medium-high, but the
+  primary source has not been read.
 
 ## Money
 

@@ -231,3 +231,32 @@ def test_unparsed_components_are_visible_on_the_action() -> None:
     ]
     actions, _ = parse_rows(rows)
     assert len(actions[0].unparsed) == 1
+
+
+# --- face value, needed to price a rights issue ---
+
+
+def test_face_value_is_captured_from_the_feed() -> None:
+    """Rights issue price is face value + premium, so faceVal is not
+    decoration - without it a rights issue cannot be adjusted at all."""
+    rows: list[dict[str, object]] = [
+        {
+            "isin": "INE002A01018",
+            "symbol": "RELIANCE",
+            "exDate": "13-May-2020",
+            "subject": " Rights 1:15 @ Premium Rs 1247",
+            "faceVal": "10",
+        }
+    ]
+    actions, _ = parse_rows(rows)
+    assert actions[0].face_value == 10.0
+    assert actions[0].components[0].rights_premium == 1247.0
+
+
+def test_a_missing_face_value_is_none_not_zero() -> None:
+    """Zero face value would silently make the issue price the bare premium."""
+    rows: list[dict[str, object]] = [
+        {"isin": "INE000A01001", "symbol": "X", "exDate": "05-Jan-2015", "subject": "Bonus 1:1"}
+    ]
+    actions, _ = parse_rows(rows)
+    assert actions[0].face_value is None
