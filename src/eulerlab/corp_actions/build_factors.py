@@ -29,6 +29,7 @@ from eulerlab.corp_actions.prices import (
     CACHE_PATH as CLOSE_CACHE,
 )
 from eulerlab.corp_actions.prices import (
+    TransactionCapExceeded,
     build_close_index,
     cash_entries,
     close_price_lookup,
@@ -174,7 +175,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         if done % 200 == 0 or done == total:
             print(f"  {done:,}/{total:,}")
 
-    index = build_close_index(entries, needed=needed, progress=progress)
+    try:
+        index = build_close_index(entries, needed=needed, progress=progress)
+    except TransactionCapExceeded as exc:
+        # Expected and self-healing, so it reports rather than raising: a
+        # traceback would imply a defect and bury the fact that the partial
+        # download was saved.
+        print(f"\n{exc}")
+        return 2
     lookup = close_price_lookup(index)
 
     price_store = build_price_factor_store(actions, lookup)

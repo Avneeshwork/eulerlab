@@ -2,7 +2,16 @@
 
 ## Symptom
 
-Any B2 download fails with:
+`make build-factors` stops with:
+
+```
+B2 daily download cap reached after 1,840 of 2,121 files.
+Everything fetched so far is saved in data/derived/close_index.jsonl; re-running
+tomorrow resumes from there and re-downloads nothing.
+See docs/RUNBOOKS/b2-transaction-cap.md.
+```
+
+Other B2 commands, which do not yet special-case this, surface the raw error:
 
 ```
 botocore.errorfactory.AccessDenied: An error occurred (AccessDenied) when
@@ -12,7 +21,10 @@ transaction (Class B) cap exceeded.
 
 Listing still works, which makes it look like a permissions problem on
 specific objects. It is not — `list_objects_v2` is a Class C transaction and
-has its own separate allowance.
+has its own separate allowance. `sync-cloud`'s preflight probe is a Class B
+request, so under a cap it reports "the B2 key cannot read the bucket (got
+403)" and blames capabilities. If that message appears and the key worked
+earlier the same day, suspect the cap first.
 
 ## Diagnosis
 
@@ -38,9 +50,10 @@ about 2,000, expect to use most of the day's allowance.
 
 ## Fix
 
-**Wait for the daily reset** (B2 caps reset on a rolling 24-hour basis), then
-re-run. The run is resumable and cached, so nothing already downloaded is
-fetched again:
+**Wait for the daily reset**, then re-run. Measured on 2026-08-19: the cap did
+*not* release within a few hours of being hit, so it is a daily boundary
+rather than a rolling window — plan on trying again the next day. The run is
+resumable and cached, so nothing already downloaded is fetched again:
 
 ```bash
 make build-factors

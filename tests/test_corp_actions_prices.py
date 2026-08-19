@@ -7,10 +7,15 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from collections.abc import Iterator
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from eulerlab.corp_actions.prices import (
+    TransactionCapExceeded,
+    _stop_cleanly_on_cap,
     build_close_index,
     close_price_lookup,
     instrument_key,
@@ -159,3 +164,53 @@ def test_an_empty_day_is_marked_so_it_is_not_refetched_forever(tmp_path: Path) -
 
 def test_no_cache_file_yet_is_not_an_error(tmp_path: Path) -> None:
     assert build_close_index([], cache_path=tmp_path / "absent.jsonl") == {}
+
+
+# --- the daily cap is an expected condition, not a crash ---
+
+
+class _CapExceeded(Exception):
+    """Shaped like boto's error, which is identified by message text."""
+
+    def __str__(self) -> str:
+        return (
+            "An error occurred (AccessDenied) when calling the GetObject operation: "
+            "Cannot download file, download bandwidth or transaction (Class B) cap exceeded."
+        )
+
+
+def _results_then_cap(n_ok: int) -> Iterator[tuple[str, bytes]]:
+    for i in range(n_ok):
+        yield (f"2020-01-{i + 1:02d}", b"")
+    raise _CapExceeded
+
+
+def test_the_cap_becomes_a_clear_error_not_a_boto_traceback() -> None:
+    with pytest.raises(TransactionCapExceeded, match="daily download cap"):
+        list(_stop_cleanly_on_cap(_results_then_cap(0), 2121))
+
+
+def test_the_message_says_how_much_was_saved() -> None:
+    """The one fact that matters when this fires is that work was not lost."""
+    with pytest.raises(TransactionCapExceeded, match=r"after 3 of 2,121 files"):
+        list(_stop_cleanly_on_cap(_results_then_cap(3), 2121))
+
+
+def test_results_before_the_cap_are_still_yielded() -> None:
+    """They must reach the consumer, which is what writes them to the cache."""
+    produced = []
+    with pytest.raises(TransactionCapExceeded):
+        for item in _stop_cleanly_on_cap(_results_then_cap(2), 10):
+            produced.append(item)
+    assert len(produced) == 2
+
+
+def test_an_unrelated_error_is_not_swallowed() -> None:
+    """Only the cap is special-cased; a real bug must still surface as itself."""
+
+    def boom() -> Iterator[tuple[str, bytes]]:
+        yield from ()  # a generator that produces nothing, then fails
+        raise ValueError("something genuinely wrong")
+
+    with pytest.raises(ValueError, match="genuinely wrong"):
+        list(_stop_cleanly_on_cap(boom(), 10))

@@ -30,7 +30,7 @@ import csv
 import io
 import json
 import zipfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 from pathlib import Path
 
@@ -89,6 +89,49 @@ def parse_prev_closes(payload: bytes) -> dict[str, float]:
 
 
 CACHE_PATH = Path("data/derived/close_index.jsonl")
+
+
+class TransactionCapExceeded(RuntimeError):
+    """B2's daily download allowance is spent.
+
+    A distinct type because this is an expected, self-healing condition, not a
+    defect: the operator has done nothing wrong and there is nothing to debug.
+    A twenty-line boto traceback implies otherwise and buries the one fact
+    that matters, which is that the work already done was saved.
+    """
+
+
+def _is_cap_error(exc: BaseException) -> bool:
+    return "cap exceeded" in str(exc).lower()
+
+
+def _stop_cleanly_on_cap(
+    results: Iterator[tuple[str, bytes]], total: int
+) -> Iterator[tuple[str, bytes]]:
+    """Yield fetch results, converting the cap error into a clear message.
+
+    Once the cap is hit every remaining request fails the same way, so
+    stopping is correct — there is nothing to retry until tomorrow.
+
+    The count is exact rather than approximate: the consumer writes each day
+    to the cache and flushes before asking for the next, so when this raises
+    on item N+1 exactly N days are durably cached.
+    """
+    yielded = 0
+    try:
+        for item in results:
+            yield item
+            yielded += 1
+    except Exception as exc:
+        if not _is_cap_error(exc):
+            raise
+        msg = (
+            f"B2 daily download cap reached after {yielded:,} of {total:,} files.\n"
+            f"Everything fetched so far is saved in {CACHE_PATH}; re-running "
+            f"tomorrow resumes from there and re-downloads nothing.\n"
+            f"See docs/RUNBOOKS/b2-transaction-cap.md."
+        )
+        raise TransactionCapExceeded(msg) from exc
 
 
 def _read_cache(path: Path) -> tuple[dict[tuple[str, str], float], set[str]]:
@@ -169,7 +212,8 @@ def build_close_index(
     done = 0
     try:
         with cf.ThreadPoolExecutor(max_workers=max_workers) as pool:
-            for trade_date, body in pool.map(fetch, remaining):
+            results = pool.map(fetch, remaining)
+            for trade_date, body in _stop_cleanly_on_cap(results, len(remaining)):
                 for key_isin, prev_close in parse_prev_closes(body).items():
                     key = (key_isin, trade_date)
                     if needed is None or key in needed:
