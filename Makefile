@@ -47,6 +47,8 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make backtest-fast STRAT=rank FEATURE=momentum_12_1 [COMPARE=1]"
+	@echo "                    Tier A vectorised backtest (screening only)"
 	@echo "  make ic FEATURE=momentum_12_1 [HORIZON=21] [ALL=1]"
 	@echo "                    information coefficient tear sheet"
 	@echo "  make build-panel [FROM=2023-01-01]  adjusted price panel for features"
@@ -147,6 +149,9 @@ check-costs:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+backtest-fast:
+	@uv run python -m eulerlab.backtest.report $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),) $(if $(COMPARE),--compare,)
 
 ic:
 	@uv run python -m eulerlab.features.tearsheet $(if $(FEATURE),--feature $(FEATURE),) $(if $(HORIZON),--horizon $(HORIZON),) $(if $(ALL),--all,)
