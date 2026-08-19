@@ -27,6 +27,7 @@ help:
 	@echo "  make restore-local [--segment cm] pull pruned files back from B2"
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
+	@echo "  make sync-supervisor  keep the mirror complete, restart sync if it dies"
 	@echo "  make sync-until-complete"
 	@echo "                    loop sync until every tree is mirrored, then prune"
 	@echo "  make sync-and-prune"
@@ -90,6 +91,9 @@ prune-local:
 
 sync-until-complete:
 	@./tools/sync_until_complete.sh
+
+sync-supervisor:
+	@./tools/sync_supervisor.sh
 
 sync-and-prune: sync-cloud prune-local
 

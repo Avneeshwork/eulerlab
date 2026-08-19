@@ -153,6 +153,21 @@ It exited while the fundamentals backfill was still producing, stranding a tail
 and leaving nothing scheduled to collect it. `tools/sync_until_complete.sh` is
 version controlled and watches every backfill pattern.
 
+## The sync died and nothing restarted it
+
+`sync-until-complete` loops until a pass uploads nothing, but the process
+itself can be killed — a crash, a full disk, or simply the session ending.
+Nothing inside it survives that.
+
+```bash
+make sync-supervisor
+```
+
+Checks every three minutes. If no sync is running and files are still
+outstanding, it starts one; if local and B2 agree, it exits. It compares actual
+bucket keys against local files rather than trusting a log line, so "complete"
+means verified rather than reported.
+
 ## Prevention
 
 `tests/test_no_secrets.py` fails the build if any value in `.env.example` is
