@@ -34,6 +34,47 @@
 
 ## The result, and how much to believe it
 
+The full sweep of all ten features produced **zero** results indistinguishable
+from noise, and seven with |t| > 3.
+
+**That is a warning, not a success.** Genuine feature research kills most
+candidates; a sweep that kills none is measuring something other than ten
+separate effects. So I checked, by correlating the features' period-by-period
+IC series — and they collapse into **three** groups:
+
+| group | members | internal correlation |
+|---|---|---|
+| stability | low_volatility, max_drawdown, price_to_52w_high | +0.86 to +0.95 |
+| liquidity / size | turnover_liquidity, illiquidity_amihud, small_size | 0.61 to 0.94 |
+| momentum | momentum_12_1, momentum_6_1 | +0.79 |
+
+Seven "significant" features are therefore about **three** observations, and
+plausibly one story: large, liquid, stable stocks outperformed over this
+window. Counting them as seven would overstate the evidence in the direction
+that flatters.
+
+`make ic ALL=1` now prints that arithmetic automatically
+(`features/independence.py`), so it cannot depend on someone remembering to
+check.
+
+| feature | mean IC | t | reading |
+|---|---|---|---|
+| low_volatility | +0.063 | +5.78 | cluster: stability |
+| illiquidity_amihud | +0.043 | +5.69 | cluster: liquidity |
+| momentum_12_1 | +0.052 | +5.40 | cluster: momentum |
+| max_drawdown | +0.063 | +5.30 | cluster: stability |
+| turnover_liquidity | +0.034 | +4.97 | cluster: liquidity |
+| price_to_52w_high | +0.059 | +4.82 | cluster: stability |
+| small_size | −0.043 | −4.74 | cluster: liquidity (inverted) |
+| momentum_6_1 | +0.025 | +2.89 | cluster: momentum |
+| volume_trend | +0.010 | +2.39 | weak |
+| reversal_1m | +0.016 | +2.16 | weak |
+
+`small_size` scoring **−4.74** is worth noting: the sign says *larger* stocks
+did better, which is the opposite of the documented long-run size premium and
+is exactly what a 2023–2026 large-cap-led market looks like. It was included
+as a deliberately weak proxy and it behaved like one.
+
 `momentum_12_1` — buy what has been rising for a year — scored a
 t-statistic of **+5.40**, positive in each of 2024, 2025 and 2026.
 
@@ -90,9 +131,10 @@ make ic          # lists the ten features and the trial count
   will not.
 - **The true significance of the t-statistics.** The overlap correction is
   described but not applied; doing it properly is part of Sprint 13's battery.
-- **Whether the ten features are independent.** They are almost certainly not
-  — momentum_12_1 and momentum_6_1 must correlate heavily — so treating ten
-  positive results as ten pieces of evidence would be badly wrong.
+- ~~Whether the ten features are independent.~~ **Measured: they are not.**
+  Ten features are about three findings; see the table above. This was the
+  single most important thing the sweep revealed and it would have been easy
+  to miss by reading only the per-feature sheets.
 
 ## Decisions I need from you
 

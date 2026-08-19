@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
-from eulerlab.features import trials
+from eulerlab.features import independence, trials
 from eulerlab.features.ic import ICResult, evaluate
 from eulerlab.features.library import BY_NAME, LIBRARY
 from eulerlab.features.panel import read_panel, trading_days
@@ -95,8 +95,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"panel: {len(rows):,} rows, {len(days):,} days, {days[0]} to {days[-1]}")
 
     chosen = LIBRARY if args.all else (BY_NAME[args.feature],)
+    collected: list[ICResult] = []
     for feature in chosen:
         result = evaluate(rows, feature, horizon=args.horizon, step=args.step)
+        collected.append(result)
         print(render(result, step=args.step))
         total = trials.append(
             trials.Trial(
@@ -112,6 +114,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         print(f"\ntrial logged; {total:,} configurations evaluated in total")
+
+    if len(collected) > 1:
+        # Printed automatically, because the first full sweep produced ten
+        # features with zero noise results and that needed explaining rather
+        # than celebrating.
+        print(independence.render(collected))
     return 0
 
 
