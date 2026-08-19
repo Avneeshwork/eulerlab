@@ -13,7 +13,7 @@ written here or in `TASKS.md`, it did not happen.*
 
 | Dataset | State | Coverage |
 |---|---|---|
-| NSE EOD bhavcopy (cash + F&O) | **COMPLETE** | 5,736 files, 2015-01-01 → 2026-08-17 |
+| NSE EOD bhavcopy (cash + F&O) | **COMPLETE** | 5,737 files, 2015-01-01 → 2026-08-17. One known source gap: no F&O for 2021-03-30 (S-009) |
 | Participant-wise F&O OI | **COMPLETE** | 1,639 days, 2020 → today, **zero gaps** |
 | Kite 1-minute bars | **COMPLETE** | 13,499 chunks, 420 symbols, **184M bars**, 5 years |
 | screener.in fundamentals | **COMPLETE** | 2,352 companies (328 no data, 22 404s — mostly ETFs) |
