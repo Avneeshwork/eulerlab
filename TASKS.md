@@ -9,6 +9,19 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 11 — Tier B event-driven backtester (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1101 | Order/Fill/Rejection/Portfolio vocabulary | DONE — `backtest/events.py` |
+| T-1102 | Event-driven engine, same `Strategy` unadapted | DONE — `backtest/event_driven.py` |
+| T-1103 | Deterministic client order ids + `algo_id` from day one | DONE — retry cannot double-send |
+| T-1104 | Reconciliation against Tier A | DONE — **8.05e-16 relative over 1,587 days** |
+| T-1105 | `make backtest` | DONE — runs both and reconciles every time |
+| T-1106 | Extend panel to 2015 | DONE — 1,841 days; **overturned Sprint 10's conclusion** |
+| T-1107 | Re-run the Sprint 8 IC sweep on the 11-year panel | OPEN — all Sprint 8 conclusions used the 3-year window |
+| T-1108 | Limit/stop orders, partial fills | OPEN — lifecycle supports them; nothing needs them yet |
+
 ## Sprint 10 — Tier A vectorised backtester (COMPLETE 2026-08-19)
 
 | ID | Task | Status |
