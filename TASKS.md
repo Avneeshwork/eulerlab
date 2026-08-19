@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 10 — Tier A vectorised backtester (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1001 | One `Strategy` interface, engine never learns a strategy name | DONE — ADR-021 |
+| T-1002 | Vectorised engine, next-bar fills, one cost path | DONE — `backtest/vector.py` |
+| T-1003 | `cost_mode` realistic/replication | DONE — borrowed from the reference system |
+| T-1004 | Buy-and-hold control | DONE — +10.1% ann., -20.0% DD; the engine's sanity anchor |
+| T-1005 | `make backtest-fast` | DONE — ~25s |
+| T-1006 | Fix silent zero-valuation of non-trading holdings | DONE — had manufactured a -50% drawdown |
+| T-1007 | Liquidity screen on rank strategies | DONE — default off so the naive result stays visible |
+| T-1008 | Market impact model | OPEN — deferred to Tier B where fills are explicit |
+| T-1009 | Extend panel to 2015 before interpreting drawdowns | OPEN — now blocking interpretation (T-807) |
+
 ## Sprint 9 — cost model (PARTIAL 2026-08-19)
 
 | ID | Task | Status |

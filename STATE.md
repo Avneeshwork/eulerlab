@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 9 — cost model
-**Status:** PARTIAL — built and internally consistent; the acceptance gate needs your real contract notes
-**Next:** Sprint 10 — Tier A vectorised backtester
+**Sprint:** 10 — Tier A vectorised backtester
+**Status:** COMPLETE
+**Next:** Sprint 11 — Tier B event-driven backtester, sharing `Strategy` unchanged
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,36 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 10 — what is built
+
+- **`eulerlab.backtest.strategy`** — the one `Strategy` interface. A strategy
+  is handed a `MarketView` ending at its decision date and returns target
+  weights. It cannot fetch data, place orders, or express a cost, so there is
+  exactly one cost path *structurally* (ADR-021).
+- **`eulerlab.backtest.vector`** — Tier A. Next-bar fills, costs from Sprint 9,
+  and a published list of what it cannot model.
+- **`make backtest-fast`** — ~25s, `COMPARE=1` runs both cost modes.
+
+### The finding: a strong IC is not a strategy
+
+| | annualised | max drawdown |
+|---|---|---|
+| buy and hold (top 30 liquid) | **+10.1%** | **-20.0%** |
+| momentum_12_1 (IC t=+5.40) | +3.0% | -42.2% |
+| same, liquidity-screened | +1.2% | -38.2% |
+
+IC ranks the whole cross-section equally, including names nobody could own —
+the unfiltered top 30 held **SPYL on ₹49,839 of daily turnover**. A portfolio
+has to actually hold things.
+
+### The bug, caught by disbelief rather than by a test
+
+The first run showed -13.1% with a **-50% drawdown**, implausible for a
+long-only book in a rising market. Holdings whose instrument did not print
+that day were valued at **nothing** and restored the next day; 31 of 400
+symbols have such gaps. Now marked at last known price, while still refusing
+to *trade* an instrument that did not print. Corrected return: +7.8%.
 
 ## Sprint 9 — what is built
 
