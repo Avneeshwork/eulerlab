@@ -28,6 +28,8 @@ help:
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
 	@echo "  make build-master   build and persist the security master from B2"
+	@echo "  make test-lookahead the adversarial firewall suite"
+	@echo "  make provenance   show which data is point-in-time and which is not"
 	@echo "  make check-master   security master acceptance checks"
 	@echo "  make sync-supervisor  keep the mirror complete, restart sync if it dies"
 	@echo "  make sync-until-complete"
@@ -36,6 +38,16 @@ help:
 	@echo "                    sync then prune - the normal way to run these two"
 	@echo "  make ingest-fundamentals [LIMIT=n]"
 	@echo "                    fetch screener.in fundamentals for the universe"
+	@echo "  make ingest-corp-actions [FROM_YEAR=2015] [TO_YEAR=2026]"
+	@echo "                    fetch NSE dividends, bonuses, splits, rights"
+	@echo "  make check-adjust   adjustment engine acceptance checks"
+	@echo "  make reconcile [DAYS=n]  bhavcopy vs Kite minute bars, two vendors"
+	@echo "  make quality-options [DAYS=n] [UNDERLYING=NIFTY]"
+	@echo "                    option-chain no-arbitrage checks"
+	@echo "  make quality [ROWS=n] [LIMIT=n]"
+	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make build-factors  build price + total-return adjustment factors"
+	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 
 install:
@@ -94,6 +106,12 @@ prune-local:
 build-master:
 	uv run python -m eulerlab.master.build_master $(if $(DAILY),--cadence daily,)
 
+provenance:
+	@uv run python -m eulerlab.bitemporal.provenance $(if $(MANIFEST),--manifest $(MANIFEST),)
+
+test-lookahead:
+	@uv run pytest tests/test_lookahead.py tests/test_provenance.py tests/test_survivorship.py --no-header -q
+
 check-master:
 	@uv run python -m eulerlab.master.check
 
@@ -107,6 +125,24 @@ sync-and-prune: sync-cloud prune-local
 
 ingest-fundamentals:
 	uv run python -m eulerlab.fundamentals.backfill $(if $(LIMIT),--limit $(LIMIT),)
+
+ingest-corp-actions:
+	uv run python -m eulerlab.corp_actions.feed $(if $(FROM_YEAR),--from-year $(FROM_YEAR),) $(if $(TO_YEAR),--to-year $(TO_YEAR),)
+
+reconcile:
+	@uv run python -m eulerlab.quality.reconcile_run $(if $(DAYS),--days $(DAYS),) $(if $(SYMBOLS),--symbols $(SYMBOLS),)
+
+quality-options:
+	@uv run python -m eulerlab.options.run $(if $(DAYS),--days $(DAYS),) $(if $(UNDERLYING),--underlying $(UNDERLYING),) $(if $(UNTRADED),--include-untraded,)
+
+quality:
+	@uv run python -m eulerlab.quality.run $(if $(ROWS),--rows $(ROWS),) $(if $(LIMIT),--limit $(LIMIT),) $(if $(SUPPRESSED),--show-suppressed,)
+
+check-adjust:
+	@uv run python -m eulerlab.corp_actions.check
+
+build-factors:
+	uv run python -m eulerlab.corp_actions.build_factors $(if $(LIMIT_FILES),--limit-files $(LIMIT_FILES),)
 
 # One command to keep every dataset current, safe to schedule. Each step is
 # idempotent: already-current data costs nothing, so re-running is cheap and

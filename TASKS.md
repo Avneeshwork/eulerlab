@@ -9,6 +9,66 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 7 — options quality (PARTIAL 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-701 | Option chain model from F&O bhavcopy, both eras | DONE — reuses Sprint 3 contract identity |
+| T-702 | Put-call parity against the same-expiry future | DONE — forward implied from the chain, no rate assumed |
+| T-703 | Strike monotonicity, butterfly convexity, intrinsic bounds | DONE — hard inequalities, not thresholds |
+| T-704 | Calendar inversion check | DONE — WARN only; European futures options do not guarantee the textbook inequality |
+| T-705 | Own IV via Black-76, bisection | DONE — 25 tests, round-trip at every moneyness |
+| T-706 | Theil-Sen fit so one bad quote cannot hide itself | DONE — ADR-018; OLS was silently returning no findings |
+| T-707 | `make quality-options` | DONE — cap path verified end to end |
+| T-708 | Run against real F&O chains | DONE — 2 days NIFTY; **forward fit validated to 2.5pts of the actual future on 24,400 (0.01%)**; 56 lower-bound ERRORs on deep-ITM stale marks |
+| T-709 | Calibrate the options tolerances | DONE — note 012. Absolute Rs 1.00 flagged 45.95% of pairs; now 2% of forward. Findings 3,161 → 782 |
+| T-710 | Diagnose the DAYS=5 segfault | DONE — not reproducible in 3 runs; memory ruled out (106 MB/day). S-014 kept open honestly |
+| T-711 | Build a labelled set of known-bad rows so thresholds can be optimised, not just calibrated | OPEN — note 012 |
+
+## Sprint 6 — data quality engine (PARTIAL 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-601 | MAD-based robust statistics | DONE — ADR-017, note 011, measured not asserted |
+| T-602 | Manifest checks: coverage, gaps, staleness, duplicates | DONE — zero B2 cost, runs under the cap |
+| T-603 | Row checks: OHLC invariants, turnover, extreme moves, spikes, stale runs | DONE (code+tests) — not yet run on real prices |
+| T-604 | Cross-source reconciliation: bhavcopy vs Kite minute bars | DONE (code+tests) — not yet run on real data |
+| T-605 | Suppression by STUBS id, never by threshold | DONE — pinned per date/symbol so a new defect still reports |
+| T-606 | `make quality` report with counts by severity | DONE — 0 errors on the free checks |
+| T-607 | Run `make quality ROWS=...` against real prices | DONE — 634,453 symbol-days; noise cut 6,892 → 740 findings |
+| T-608 | Run the cross-source reconciliation against real data | DONE — `make reconcile`; **2 disagreements in 240 symbol-days**, median vendor difference 0.181% |
+| T-609 | Calibrate the spike threshold | DONE — measured on 632,133 symbol-days: old 5.0 was the *99th percentile* of ordinary trading (1.04% flagged). Now 15.0 = p99.9 |
+| T-611 | Add ETF/fund corporate actions | OPEN — S-013, found by the quality engine |
+
+## Sprint 5 — corporate actions and adjustment engine (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-501 | Ingest the NSE corporate-actions feed, 2015-2026 | DONE — 12 years, 25,713 actions, real B2-synced |
+| T-502 | Parse free-text `subject` into typed dividend/bonus/split/rights | DONE — 94.3% parse rate on real data, `parse.py` |
+| T-503 | Price-adjustment factor engine (bonus + split) | DONE — run against full real dataset, `adjust.py` |
+| T-504 | Total-return factor engine (+ dividends reinvested) | DONE, unit-tested — S-010: full historical run not executed this session |
+| T-505 | Wire the adjustment engine through Sprint 4's bitemporal firewall | DONE — `factor_as_of` requires `as_of`, ADR-016 |
+| T-506 | Rights-issue price effect | DONE — `P/TERP`, research note 010, A-015, 11 tests |
+| T-507 | Source real corporate-action announcement dates (tighten knowledge_time past ex-date) | OPEN — ADR-016 |
+| T-508 | `make build-factors` — cached, resumable full factor build | DONE — one full run completed in 3m30s |
+| T-509 | Join corporate actions to bhavcopy on `InstrumentId`, not raw ISIN | DONE — was losing 21.9% of price lookups; regression-tested |
+| T-510 | Re-run `make build-factors` after the ISIN-join fix | DONE — coverage 78.1% → **98.1%**, +3,073 dividend factors |
+| T-511 | Read the NSE circular itself for the rights formula (currently a broker's summary) | OPEN — A-015 |
+| T-512 | `make check-adjust` — the build plan's stated Sprint 5 acceptance gate | DONE — 6 checks green, 1 skipped pending S-012 |
+
+## Sprint 4 — lookahead firewall (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-401 | Bitemporal read API, `as_of` required and keyword-only | DONE — ADR-014 |
+| T-402 | Adversarial test suite against the firewall | DONE — 36 tests, `make test-lookahead` |
+| T-403 | Wire the store to real landing-zone manifests | DONE — found the download-time defect |
+| T-404 | Separate knowledge time from receipt time | DONE — ADR-015, `make provenance` |
+| T-405 | Point-in-time universe guard (survivorship) | DONE — `bitemporal/universe.py` |
+| T-406 | Source the real NSE publication hour per segment | OPEN — A-014, before Sprint 9 or any intraday work |
+| T-407 | Persist the store to Parquet when a dataset exceeds memory | OPEN — no measured need yet |
+
 ## Sprint 0 — Scaffolding · **COMPLETE**
 
 Verify: `make verify`
@@ -174,5 +234,5 @@ attribution · 29–30 compliance sprint · 31 first micro-live capital (1–2%)
 
 | T-314 | Persist the master with a build stamp | DONE — JSONL, deterministic, `make build-master` |
 | T-315 | Broker symbology map (internal id ↔ Kite token) | DONE — 71.9% of mappable equities; residual is SME listings absent from the main board |
-| T-316 | Ingest SME-platform listings so the broker map reaches 100% | TODO — Sprint 4+ |
+| T-316 | Ingest SME-platform listings so the broker map reaches 100% | **SKIPPED** — operator decision 2026-08-19. SME names are illiquid and outside the tradable universe; 71.9% coverage of main-board equities is the intended scope, not a shortfall |
 | T-317 | Run `make build-master --cadence daily` once, to catch renames that reverse inside a month | TODO |
