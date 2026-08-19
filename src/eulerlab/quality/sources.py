@@ -83,6 +83,7 @@ def bars_from_bhavcopy(payload: bytes, trade_date: date) -> Iterator[Bar]:
                     continue
                 open_, high, low, close = (p for p in prices if p is not None)
                 yield Bar(
+                    isin=_first(row, ISIN_FIELDS),
                     symbol=symbol,
                     day=trade_date,
                     open=open_,
