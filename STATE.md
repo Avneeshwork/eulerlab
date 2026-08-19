@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 3 — security master
-**Status:** COMPLETE
-**Next:** Sprint 4 — bitemporal read API and lookahead firewall
+**Sprint:** 4 — bitemporal read API and lookahead firewall
+**Status:** IN PROGRESS
+**Next:** Sprint 5 — corporate actions and adjustment engine
 
 *Last updated: 2026-08-19 07:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*

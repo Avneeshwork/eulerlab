@@ -174,5 +174,5 @@ attribution · 29–30 compliance sprint · 31 first micro-live capital (1–2%)
 
 | T-314 | Persist the master with a build stamp | DONE — JSONL, deterministic, `make build-master` |
 | T-315 | Broker symbology map (internal id ↔ Kite token) | DONE — 71.9% of mappable equities; residual is SME listings absent from the main board |
-| T-316 | Ingest SME-platform listings so the broker map reaches 100% | TODO — Sprint 4+ |
+| T-316 | Ingest SME-platform listings so the broker map reaches 100% | **SKIPPED** — operator decision 2026-08-19. SME names are illiquid and outside the tradable universe; 71.9% coverage of main-board equities is the intended scope, not a shortfall |
 | T-317 | Run `make build-master --cadence daily` once, to catch renames that reverse inside a month | TODO |
