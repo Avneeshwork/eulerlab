@@ -1,0 +1,19 @@
+[
+  {
+    "_comment": "Copy this file to config/contract_notes.json and replace with real figures from your broker's contract notes. Every field is a line from the note itself. `make check-costs` compares the model against these to the paisa.",
+    "note_id": "example-not-real",
+    "trade_date": "2026-08-14",
+    "segment": "equity_delivery",
+    "side": "buy",
+    "price": "1500.00",
+    "quantity": 100,
+    "actual": {
+      "brokerage": "0.00",
+      "stt": "150.00",
+      "stamp_duty": "22.50",
+      "exchange_txn": "4.46",
+      "sebi_fee": "0.15",
+      "gst": "0.80"
+    }
+  }
+]
