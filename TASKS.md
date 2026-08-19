@@ -20,8 +20,9 @@ plan — they are listed here as scope only, not as tasks.
 | T-705 | Own IV via Black-76, bisection | DONE — 25 tests, round-trip at every moneyness |
 | T-706 | Theil-Sen fit so one bad quote cannot hide itself | DONE — ADR-018; OLS was silently returning no findings |
 | T-707 | `make quality-options` | DONE — cap path verified end to end |
-| T-708 | **Run against real F&O chains** | BLOCKED — B2 daily cap, same as T-510 and T-607 |
-| T-709 | Calibrate PARITY_SLACK against the measured settlement-price spread | OPEN — needs T-708 first |
+| T-708 | Run against real F&O chains | DONE — 2 days NIFTY; **forward fit validated to 2.5pts of the actual future on 24,400 (0.01%)**; 56 lower-bound ERRORs on deep-ITM stale marks |
+| T-709 | Calibrate PARITY_SLACK against the measured settlement-price spread | OPEN — T-708 done, calibration not yet run |
+| T-710 | Diagnose the DAYS=5 segfault | OPEN — S-014 |
 
 ## Sprint 6 — data quality engine (PARTIAL 2026-08-19)
 
@@ -33,9 +34,10 @@ plan — they are listed here as scope only, not as tasks.
 | T-604 | Cross-source reconciliation: bhavcopy vs Kite minute bars | DONE (code+tests) — not yet run on real data |
 | T-605 | Suppression by STUBS id, never by threshold | DONE — pinned per date/symbol so a new defect still reports |
 | T-606 | `make quality` report with counts by severity | DONE — 0 errors on the free checks |
-| T-607 | **Run `make quality ROWS=...` against real prices** | BLOCKED — B2 daily cap, same as T-510 |
+| T-607 | Run `make quality ROWS=...` against real prices | DONE — 634,453 symbol-days; noise cut 6,892 → 740 findings |
 | T-608 | **Run the cross-source reconciliation against real data** | BLOCKED — needs minute parquet from B2 |
-| T-609 | Calibrate the spike threshold against known-bad rows | OPEN — no labelled set exists yet (note 011) |
+| T-609 | Calibrate the spike threshold | DONE — measured on 632,133 symbol-days: old 5.0 was the *99th percentile* of ordinary trading (1.04% flagged). Now 15.0 = p99.9 |
+| T-611 | Add ETF/fund corporate actions | OPEN — S-013, found by the quality engine |
 
 ## Sprint 5 — corporate actions and adjustment engine (COMPLETE 2026-08-19)
 
@@ -50,7 +52,7 @@ plan — they are listed here as scope only, not as tasks.
 | T-507 | Source real corporate-action announcement dates (tighten knowledge_time past ex-date) | OPEN — ADR-016 |
 | T-508 | `make build-factors` — cached, resumable full factor build | DONE — one full run completed in 3m30s |
 | T-509 | Join corporate actions to bhavcopy on `InstrumentId`, not raw ISIN | DONE — was losing 21.9% of price lookups; regression-tested |
-| T-510 | **Re-run `make build-factors` after the ISIN-join fix** | BLOCKED — B2 daily download cap; S-012, runbook `b2-transaction-cap.md` |
+| T-510 | Re-run `make build-factors` after the ISIN-join fix | DONE — coverage 78.1% → **98.1%**, +3,073 dividend factors |
 | T-511 | Read the NSE circular itself for the rights formula (currently a broker's summary) | OPEN — A-015 |
 | T-512 | `make check-adjust` — the build plan's stated Sprint 5 acceptance gate | DONE — 6 checks green, 1 skipped pending S-012 |
 

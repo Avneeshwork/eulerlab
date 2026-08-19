@@ -1,10 +1,10 @@
 # STATE — where this project is right now
 
 **Sprint:** 7 — options quality
-**Status:** PARTIAL — built and tested; three sprints' worth of real-data runs are queued behind the B2 daily cap
-**Next:** the 2026-08-20 scheduled run (S-012, T-607/608, T-708), then Sprint 8
+**Status:** COMPLETE — the cap lifted and all three queued real-data runs executed
+**Next:** Sprint 8 — feature library and IC harness
 
-*Last updated: 2026-08-19 18:05 IST. One page, always current. If it is not
+*Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
 
 ---
@@ -40,6 +40,27 @@ assumed — Sprint 2's recorder has still never run (ADR-018).
 - **`eulerlab.options.iv`** — Black-76 with bisection. Returns None rather
   than clamping when no volatility fits, because that is itself the finding.
 - **`make quality-options`**.
+
+### First contact with real data
+
+The cap lifted, so all three queued runs executed. What they showed:
+
+- **S-012 rebuilt: coverage 78.1% → 98.1%**, recovering **3,073 dividend
+  factors** the raw-ISIN join had silently dropped. `make check-adjust` is now
+  **7/7 green**, and its series check validates **40 of 40 real 1:1 bonuses
+  showing the expected ~2x raw price drop**.
+- **The spike threshold was badly wrong and is now measured.** 5.0 flagged
+  **1.042% of 632,133 real symbol-days** — a z of 5.1 is merely the *99th
+  percentile of ordinary trading*, because equity returns are fat-tailed.
+  Recalibrated to 15.0 (p99.9). Total findings fell 6,892 → 740.
+- **The options forward fit is validated against reality**: the implied
+  forward landed **2.5 points from the actual futures price on 24,400**
+  (0.01%). So the 56 lower-bound ERRORs are real stale settlement marks on
+  deep-ITM strikes, not an artefact of my own fit.
+- **The quality engine found a real gap in our own data (S-013).** GROWWGOLD,
+  BANKNIFTY1 and CONS all fell ~90.1% on 2026-02-27 — a 1:10 unit split — and
+  **none appear in the corporate-actions feed at all**, because it is queried
+  with `index=equities`. Any ETF backtest would see a phantom -90% crash.
 
 ### The defect this sprint found
 
@@ -140,6 +161,27 @@ happens once ever — see `docs/RUNBOOKS/b2-transaction-cap.md`.
   before the list was computed. Closes the survivorship half of the firewall.
 - **`make test-lookahead`** — 36 adversarial tests. **`make provenance`** — the
   vintage table.
+
+### First contact with real data
+
+The cap lifted, so all three queued runs executed. What they showed:
+
+- **S-012 rebuilt: coverage 78.1% → 98.1%**, recovering **3,073 dividend
+  factors** the raw-ISIN join had silently dropped. `make check-adjust` is now
+  **7/7 green**, and its series check validates **40 of 40 real 1:1 bonuses
+  showing the expected ~2x raw price drop**.
+- **The spike threshold was badly wrong and is now measured.** 5.0 flagged
+  **1.042% of 632,133 real symbol-days** — a z of 5.1 is merely the *99th
+  percentile of ordinary trading*, because equity returns are fat-tailed.
+  Recalibrated to 15.0 (p99.9). Total findings fell 6,892 → 740.
+- **The options forward fit is validated against reality**: the implied
+  forward landed **2.5 points from the actual futures price on 24,400**
+  (0.01%). So the 56 lower-bound ERRORs are real stale settlement marks on
+  deep-ITM strikes, not an artefact of my own fit.
+- **The quality engine found a real gap in our own data (S-013).** GROWWGOLD,
+  BANKNIFTY1 and CONS all fell ~90.1% on 2026-02-27 — a 1:10 unit split — and
+  **none appear in the corporate-actions feed at all**, because it is queried
+  with `index=equities`. Any ETF backtest would see a phantom -90% crash.
 
 ### The defect this sprint found in our own data
 

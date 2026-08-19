@@ -19,9 +19,11 @@ import concurrent.futures as cf
 import json
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import date
+from dataclasses import replace
+from datetime import date, timedelta
 from pathlib import Path
 
+from eulerlab.corp_actions.build_factors import load_actions
 from eulerlab.quality.findings import Finding, Report, Severity
 from eulerlab.quality.manifest_checks import LANDING_ROOT, run_manifest_checks
 from eulerlab.quality.row_checks import Bar, run_row_checks
@@ -85,6 +87,31 @@ def _load_bars(paths: Sequence[tuple[str, str]], *, workers: int = 8) -> tuple[l
     return bars, ""
 
 
+def _corporate_action_days() -> set[tuple[str, date]]:
+    """(symbol, day) for every known corporate action, +/- one day.
+
+    Sprint 5 already knows why most large price moves happened. Without this,
+    the extreme-move check reports every split and bonus as a suspicious jump
+    - measured on 250 real days, 97 of 235 findings were actions we had
+    recorded all along. Reporting a known event as an anomaly is how a report
+    trains its reader to skim.
+
+    The one-day window absorbs the ordinary disagreement between an ex-date
+    and the session the price actually gapped on.
+    """
+    try:
+        actions, _ = load_actions(Path("data/landing/nse"))
+    except (OSError, ValueError):
+        return set()
+    out: set[tuple[str, date]] = set()
+    for action in actions:
+        if not action.symbol:
+            continue
+        for offset in (-1, 0, 1):
+            out.add((action.symbol, action.ex_date + timedelta(days=offset)))
+    return out
+
+
 def _row_findings(bars: Sequence[Bar]) -> list[Finding]:
     """Row checks need one instrument's history in order, so bars are grouped
     by symbol before checking — a spike is only meaningful against the same
@@ -93,10 +120,32 @@ def _row_findings(bars: Sequence[Bar]) -> list[Finding]:
     for bar in bars:
         by_symbol[bar.symbol].append(bar)
 
+    known = _corporate_action_days()
+
     out: list[Finding] = []
     for symbol in sorted(by_symbol):
         history = sorted(by_symbol[symbol], key=lambda b: b.day)
-        out.extend(run_row_checks(history))
+        for finding in run_row_checks(history):
+            if (
+                finding.check == "extreme-move"
+                and finding.symbol
+                and finding.day
+                and (finding.symbol, finding.day) in known
+            ):
+                # Explained, so it is context rather than a problem. Kept at
+                # INFO rather than dropped: a reader comparing the two counts
+                # can see how much of the market's movement we can account
+                # for, and a sudden fall in that ratio is itself a signal.
+                out.append(
+                    replace(
+                        finding,
+                        severity=Severity.INFO,
+                        check="extreme-move-explained",
+                        detail=finding.detail.split(";")[0] + "; matches a known corporate action",
+                    )
+                )
+            else:
+                out.append(finding)
     return out
 
 

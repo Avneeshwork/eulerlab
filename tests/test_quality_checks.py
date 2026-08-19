@@ -365,3 +365,53 @@ def test_an_unused_suppression_is_visible_in_the_type() -> None:
     """Suppressions carry their reason so a reader can judge them without
     hunting through STUBS.md."""
     assert all(isinstance(k, Suppression) and k.reason for k in KNOWN)
+
+
+# --- rights entitlements are a different instrument, not an anomaly ---
+
+
+def test_a_rights_entitlement_is_excluded_from_extreme_moves() -> None:
+    """ACME-RE is the tradeable *right* to subscribe, not the share. It is
+    nearly worthless by construction and 0.05 -> 0.03 is -40% and completely
+    normal. 52 of 235 real findings were these."""
+    bar = Bar(
+        symbol="ACME-RE",
+        day=date(2020, 6, 1),
+        open=0.05,
+        high=0.05,
+        low=0.03,
+        close=0.03,
+        prev_close=0.05,
+    )
+    assert check_extreme_moves([bar]) == []
+
+
+def test_numbered_rights_entitlements_are_also_excluded() -> None:
+    """Observed in real data as -RE1 and -RE2, not just -RE. A suffix test
+    that only matched -RE left them all in the report."""
+    for symbol in ("ACME-RE1", "ACME-RE2", "ACME-E1"):
+        bar = Bar(
+            symbol=symbol,
+            day=date(2020, 6, 1),
+            open=0.05,
+            high=0.05,
+            low=0.03,
+            close=0.03,
+            prev_close=0.05,
+        )
+        assert check_extreme_moves([bar]) == [], symbol
+
+
+def test_an_ordinary_symbol_is_not_mistaken_for_a_rights_entitlement() -> None:
+    """The pattern must not swallow real companies whose names end in E."""
+    for symbol in ("NHPC", "ONGC", "APOLLOTYRE", "RE", "ACMERE"):
+        bar = Bar(
+            symbol=symbol,
+            day=date(2020, 6, 1),
+            open=100.0,
+            high=100.0,
+            low=40.0,
+            close=40.0,
+            prev_close=100.0,
+        )
+        assert check_extreme_moves([bar]), symbol

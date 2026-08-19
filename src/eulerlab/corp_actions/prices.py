@@ -44,6 +44,7 @@ from eulerlab.master.identity import InstrumentId, NotAnIsin
 SYMBOL_FIELDS = ("TckrSymb", "SYMBOL")
 ISIN_FIELDS = ("ISIN",)
 PREV_CLOSE_FIELDS = ("PrvsClsgPric", "PREVCLOSE")
+CLOSE_FIELDS = ("ClsPric", "CLOSE")
 
 
 def _first(row: dict[str, str], names: tuple[str, ...]) -> str:
@@ -85,6 +86,34 @@ def parse_prev_closes(payload: bytes) -> dict[str, float]:
                         out[key] = float(prev)
                     except ValueError:
                         continue
+    return out
+
+
+def parse_closes(payload: bytes) -> dict[str, tuple[float, float]]:
+    """One cash bhavcopy -> {instrument_key: (previous_close, close)}.
+
+    Both closes, unlike `parse_prev_closes`, because validating a corporate
+    action against real prices needs the cum-date close *and* the ex-date
+    close to see the drop the adjustment is supposed to remove.
+    """
+    out: dict[str, tuple[float, float]] = {}
+    with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+        names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
+        if not names:
+            return out
+        with archive.open(names[0]) as handle:
+            text = io.TextIOWrapper(handle, encoding="utf-8", errors="replace")
+            for raw in csv.DictReader(text):
+                row = {(k or "").strip(): (v or "").strip() for k, v in raw.items()}
+                key = instrument_key(_first(row, ISIN_FIELDS))
+                prev = _first(row, PREV_CLOSE_FIELDS)
+                close = _first(row, CLOSE_FIELDS)
+                if not (key and prev and close):
+                    continue
+                try:
+                    out[key] = (float(prev), float(close))
+                except ValueError:
+                    continue
     return out
 
 

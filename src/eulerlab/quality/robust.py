@@ -56,15 +56,36 @@ MAD_TO_SIGMA = 1.4826
 flagged relative to each other.
 """
 
-DEFAULT_THRESHOLD = 5.0
+DEFAULT_THRESHOLD = 15.0
 """Robust z above which a point is called a spike.
 
-Deliberately wider than the 3.5 that Iglewicz and Hoaglin suggest for outlier
-labelling. This is financial data: genuine 3.5-sigma daily moves happen
-several times a year in Indian equities, and a check that fires on every real
-market event is a check the operator learns to ignore. 5.0 is chosen to catch
-data corruption rather than market drama, and it is a parameter, not a
-constant, because the right value differs per series.
+**Measured, not chosen.** The first value was 5.0, reasoned from Iglewicz and
+Hoaglin's 3.5 plus a margin for market drama. Run against 632,133 real
+symbol-days it flagged **1.042% of them** — one in every ninety-six ordinary
+trading days — because daily equity returns are strongly fat-tailed and a
+MAD-based scale on them is small. A z of 5.1 turns out to be merely the 99th
+percentile of normal trading.
+
+The empirical distribution over those 632,133 symbol-days:
+
+| threshold | flagged | share of days |
+|---|---|---|
+| 5  | 6,588 | 1.042% |
+| 8  | 2,158 | 0.341% |
+| 10 | 1,229 | 0.194% |
+| **15** | **631** | **0.100%** |
+| 20 | 283 | 0.045% |
+
+15.0 is the **99.9th percentile** — one symbol-day in a thousand, about 2.5 a
+day across the whole market, which a person can actually read. It is stated
+as a quantile rather than a round number because there is no labelled set of
+known-bad rows to optimise against, so the honest claim is "rarer than 999 of
+1000 ordinary days for this same instrument", not "correct".
+
+This is a calibration against a measured distribution, not a widening to make
+findings disappear. The distinction matters and is the project rule: known
+defects are suppressed by name against a STUBS id, never by moving a
+threshold. Re-measure if the universe changes materially.
 """
 
 

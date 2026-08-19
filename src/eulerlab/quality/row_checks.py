@@ -21,6 +21,7 @@ index, a restored local file, or a test fixture without knowing the difference.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -147,6 +148,22 @@ def daily_returns(bars: Sequence[Bar]) -> list[tuple[Bar, float]]:
     return out
 
 
+_RIGHTS_ENTITLEMENT = re.compile(r"-(RE|E)\d*$", re.IGNORECASE)
+"""Rights-entitlement lines: ACME-RE, ACME-RE1, ACME-E1.
+
+A separate, temporary instrument representing the *right* to subscribe, not
+the share. It is nearly worthless by construction, expires within weeks, and
+routinely moves tens of percent on a fraction of a rupee - 0.05 to 0.03 is
+-40% and entirely normal. Measured: 52 of 235 extreme-move findings were
+these. They are excluded rather than suppressed by id, because there is
+nothing anomalous to record - the check simply does not apply to them.
+"""
+
+
+def is_rights_entitlement(symbol: str) -> bool:
+    return bool(_RIGHTS_ENTITLEMENT.search(symbol))
+
+
 def check_extreme_moves(bars: Sequence[Bar], dataset: str = "nse") -> list[Finding]:
     """Single-day moves too large to be an ordinary market event.
 
@@ -166,7 +183,7 @@ def check_extreme_moves(bars: Sequence[Bar], dataset: str = "nse") -> list[Findi
             ),
         )
         for bar, ret in daily_returns(bars)
-        if abs(ret) > MAX_SANE_DAILY_MOVE
+        if abs(ret) > MAX_SANE_DAILY_MOVE and not is_rights_entitlement(bar.symbol)
     ]
 
 
