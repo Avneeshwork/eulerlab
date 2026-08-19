@@ -21,8 +21,9 @@ plan — they are listed here as scope only, not as tasks.
 | T-706 | Theil-Sen fit so one bad quote cannot hide itself | DONE — ADR-018; OLS was silently returning no findings |
 | T-707 | `make quality-options` | DONE — cap path verified end to end |
 | T-708 | Run against real F&O chains | DONE — 2 days NIFTY; **forward fit validated to 2.5pts of the actual future on 24,400 (0.01%)**; 56 lower-bound ERRORs on deep-ITM stale marks |
-| T-709 | Calibrate PARITY_SLACK against the measured settlement-price spread | OPEN — T-708 done, calibration not yet run |
-| T-710 | Diagnose the DAYS=5 segfault | OPEN — S-014 |
+| T-709 | Calibrate the options tolerances | DONE — note 012. Absolute Rs 1.00 flagged 45.95% of pairs; now 2% of forward. Findings 3,161 → 782 |
+| T-710 | Diagnose the DAYS=5 segfault | DONE — not reproducible in 3 runs; memory ruled out (106 MB/day). S-014 kept open honestly |
+| T-711 | Build a labelled set of known-bad rows so thresholds can be optimised, not just calibrated | OPEN — note 012 |
 
 ## Sprint 6 — data quality engine (PARTIAL 2026-08-19)
 
@@ -35,7 +36,7 @@ plan — they are listed here as scope only, not as tasks.
 | T-605 | Suppression by STUBS id, never by threshold | DONE — pinned per date/symbol so a new defect still reports |
 | T-606 | `make quality` report with counts by severity | DONE — 0 errors on the free checks |
 | T-607 | Run `make quality ROWS=...` against real prices | DONE — 634,453 symbol-days; noise cut 6,892 → 740 findings |
-| T-608 | **Run the cross-source reconciliation against real data** | BLOCKED — needs minute parquet from B2 |
+| T-608 | Run the cross-source reconciliation against real data | DONE — `make reconcile`; **2 disagreements in 240 symbol-days**, median vendor difference 0.181% |
 | T-609 | Calibrate the spike threshold | DONE — measured on 632,133 symbol-days: old 5.0 was the *99th percentile* of ordinary trading (1.04% flagged). Now 15.0 = p99.9 |
 | T-611 | Add ETF/fund corporate actions | OPEN — S-013, found by the quality engine |
 

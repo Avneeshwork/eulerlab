@@ -77,12 +77,34 @@ def test_the_forward_and_discount_are_recovered_from_the_chain() -> None:
 
 
 def test_a_broken_parity_is_found() -> None:
+    """The planted error must exceed 2% of the forward, which is the measured
+    p99.6 of the real residual distribution - 400 points on a 20,000 index."""
     chain = clean_chain()
     k = Decimal("20000.0")
-    chain.calls[k] = _quote(20000.0, Right.CALL, chain.calls[k].price + 300)
+    chain.calls[k] = _quote(20000.0, Right.CALL, chain.calls[k].price + 900)
     findings = check_put_call_parity(chain)
     assert findings
     assert findings[0].check == "put-call-parity"
+
+
+def test_a_residual_inside_the_measured_tolerance_is_not_flagged() -> None:
+    """300 points on a 20,000 forward is 1.5% - inside the p99 of what real
+    settlement prices actually do, so flagging it would be noise."""
+    chain = clean_chain()
+    k = Decimal("20000.0")
+    chain.calls[k] = _quote(20000.0, Right.CALL, chain.calls[k].price + 300)
+    assert check_put_call_parity(chain) == []
+
+
+def test_the_parity_slack_scales_with_the_underlying() -> None:
+    """The correction this calibration made. An absolute rupee slack is 0.2%
+    on a 24,000 index and 50% on a Rs 100 stock; measured on real data an
+    absolute Rs 1.00 flagged 45.95% of all traded pairs."""
+    from eulerlab.options.arbitrage import MIN_PARITY_SLACK, PARITY_SLACK_FRACTION
+
+    assert PARITY_SLACK_FRACTION * 20000.0 > MIN_PARITY_SLACK
+    # A cheap underlying still gets at least tick-scale slack.
+    assert max(PARITY_SLACK_FRACTION * 10.0, MIN_PARITY_SLACK) == MIN_PARITY_SLACK
 
 
 def test_a_call_more_expensive_at_a_higher_strike_is_found() -> None:

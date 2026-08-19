@@ -1,6 +1,7 @@
 # Sprint 07 — options quality
-**Status:** PARTIAL — built and tested against synthetic chains; has never run
-against real F&O data because the B2 daily download cap is spent
+**Status:** COMPLETE — run against real F&O chains; the implied forward
+validated to 0.01% of the actual futures price, and three tolerances were
+recalibrated from measured distributions
 **Branch:** sprint-07-options-quality   **Commits:** 1
 
 ## The scope change you should know about

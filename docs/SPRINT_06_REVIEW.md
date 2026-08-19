@@ -1,6 +1,6 @@
 # Sprint 06 — data quality engine
-**Status:** PARTIAL — everything is built and tested; two checks have not yet
-run against real data because the B2 daily download cap is spent
+**Status:** COMPLETE — every check has now run against real data, and doing so
+corrected two thresholds and found a real gap in our own corporate-actions feed
 **Branch:** sprint-06-data-quality   **Commits:** 2
 
 ## What now works (plain English, no jargon)
