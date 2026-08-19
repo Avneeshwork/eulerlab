@@ -1,7 +1,7 @@
 # Sprint 3 — Security master
 
 **Status:** COMPLETE
-**Branch:** sprint-03-security-master   **Commits:** 14
+**Branch:** sprint-03-security-master   **Commits:** 16
 
 All acceptance criteria pass. `make check-master` is green on six checks, and
 every one of them is capable of failing — the tests assert that, because a
@@ -82,16 +82,20 @@ names, and 3,328 instruments persisted.
 
 ## A fifth mistake, caught by CI
 
-The `persisted` check depended on `data/master/instruments.json`, but `data/`
-is gitignored — so it passed locally and failed in CI, where the file does not
-exist. That directly contradicted the stated reason for choosing JSON over
-Parquet: *diffable in git review*. An artefact nothing can review is not
-diffable.
+The `persisted` check depended on `data/master/instruments.jsonl`, but `data/`
+is gitignored — so it passed locally and failed in CI.
 
-The master is now committed. It is 1.4 MB of curated output, not raw data, and
-downstream code joins on it — so a fresh clone can resolve symbols without
-rebuilding from B2, and a change to any instrument's history shows up in
-review.
+Committing the artefact hit the large-file hook (1,360 KB against a 512 KB
+limit). Switching to JSONL *appeared* to save only 8 KB, which I reported as
+proof the size was real content. **That was wrong**: the `save()` rewrite had
+silently not applied, so the writer still emitted indented JSON while `load()`
+already expected JSONL. The two halves disagreed, which is why the file came
+back unreadable. Once `save()` actually changed, the master is 992 KB.
+
+The conclusion held anyway, for a better reason: the master is *build output*,
+not source. It stays gitignored, is rebuilt by `make build-master`, and the
+check now reports "not built here" rather than failing — a red CI that says
+nothing about correctness only teaches people to ignore CI.
 
 ## Decisions you made
 
