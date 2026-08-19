@@ -118,7 +118,27 @@ no new spending, all local computation over data already landed.
 
 Sprint 7 (options quality) moves to wherever the recorder lands.
 
-## Sprints 3–14 — seeded scope
+## Sprint 3 — security master · **PARTIAL**
+
+Verify: `make verify` (the sprint's own `make check-master` is not built yet)
+
+| ID | Task | Status |
+|---|---|---|
+| T-301 | Internal instrument id, measured not assumed (ADR-012) | DONE |
+| T-302 | Time-versioned registry, `at(as_of)` returns what was true then | DONE |
+| T-303 | Build from bhavcopy, streaming from B2 | DONE |
+| T-304 | Symbol-change map from ISIN continuity — 580 renames | DONE |
+| T-305 | Succession model: rename / merger / demerger / cancellation (ADR-013) | DONE |
+| T-306 | Fix the BE-series lookup bug (4 false delistings) | DONE |
+| T-307 | Refetch minute bars for 24 recovered symbols | DONE — 420 symbols, 184M bars |
+| T-308 | **F&O composite key** (symbol, expiry, strike, right) — no ISIN in F&O bhavcopy | TODO |
+| T-309 | **Trading calendar from evidence**, not weekday rules | TODO |
+| T-310 | **`make check-master`** — zero unmapped symbols + point-in-time query test | TODO |
+| T-311 | Verify lot-size history against a known past value (A-002) | TODO |
+| T-312 | Resolve TATACOFFEE ratio (sources disagree: 3:10 vs 14:55) | TODO — do not guess |
+| T-313 | Research DHANI, JPASSOCIAT successions | TODO |
+
+## Sprints 4–14 — seeded scope
 
 | # | Build | Verify by | Status |
 |---|---|---|---|
