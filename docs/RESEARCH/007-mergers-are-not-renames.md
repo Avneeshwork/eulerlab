@@ -107,7 +107,40 @@ so the series are not continuous and it is not a rename either.
 `SuccessionKind.CANCELLATION` was added for this. Like a merger it requires a
 ratio and does not continue the price series.
 
-### Still unresolved, and why
+### The last two, resolved 2026-08-19
+
+Both supplied by the operator and verified against our own data.
+
+**`DHANI`** — Dhani Services amalgamated into Yaari Digital Integrated
+Services, which renamed to **Indiabulls Limited** on 2025-10-17. Ticker today
+is `IBULLSLTD` (ISIN `INE126M01010`), confirmed present in the 2026-08-14
+bhavcopy. NCLT approval 2025-08-29, scheme effective 2025-10-14, record date
+2025-10-28.
+
+**The per-share ratio is not recorded, because it was not published in the
+sources checked.** Indiabulls allotted 1,924,301,572 shares to Dhani holders,
+but without Dhani's outstanding share count that does not give a ratio. The
+110:100 figure widely reported belongs to *Indiabulls Enterprises*, a different
+entity in the same 17-company scheme — using it for Dhani would be a plausible
+and wrong number.
+
+This forced a model change: `terms_pending`. "Merged into X, terms unknown" and
+"no idea what happened" are different states, and collapsing them loses
+information. The event is recorded so the instrument is not mistaken for a live
+listing, while `convert_quantity` *refuses* rather than returning the original
+quantity — which would silently understate the position by whatever the real
+ratio turns out to be.
+
+**`JPASSOCIAT`** — Jaiprakash Associates, delisted from both NSE and BSE during
+Corporate Insolvency Resolution Process. **No successor security exists**, so a
+position is written off rather than carried across.
+
+This needed a fifth kind, `DELISTING`: no successor, no ratio permitted, and
+`convert_quantity` returns zero. Distinct from a merger (position becomes
+something else) and from a cancellation (another class of the same issuer
+survives).
+
+### Previously unresolved, and why
 
 - **`TATACOFFEE`** — sources disagree on the ratio. One states 3 TCPL per 10
   Tata Coffee; another 14 per 55 (0.300 vs 0.255). The event was a demerger

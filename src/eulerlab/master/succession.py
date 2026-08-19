@@ -58,6 +58,17 @@ class SuccessionKind(StrEnum):
     DEMERGER = "demerger"
     """Split into several entities. The price series ends and several begin."""
 
+    DELISTING = "delisting"
+    """The security ceased to exist with no successor at all.
+
+    Jaiprakash Associates was delisted from both exchanges while in Corporate
+    Insolvency Resolution Process. Holders received no successor security, so
+    there is nothing to convert a position into — it is written off, not
+    carried across. Distinct from a merger, where a position becomes something
+    else, and from a cancellation, where another class of the same issuer
+    survives.
+    """
+
 
 @dataclass(frozen=True)
 class Succession:
@@ -78,14 +89,30 @@ class Succession:
     """Where the terms came from. These are facts about the world and need a
     citation, per the project's truth rules."""
 
+    terms_pending: bool = False
+    """The event is confirmed but its exchange ratio is not yet established.
+
+    Recording the event without the terms is strictly better than leaving it
+    unresolved: "merged into X, ratio unknown" and "we have no idea what
+    happened" are different states, and conflating them loses information. A
+    position still cannot be carried across — `convert_quantity` refuses —
+    but the instrument is no longer mistaken for a live listing.
+    """
+
     def __post_init__(self) -> None:
         needs_ratio = self.kind in (
             SuccessionKind.MERGER,
             SuccessionKind.DEMERGER,
             SuccessionKind.CANCELLATION,
         )
-        if needs_ratio and self.ratio is None:
-            msg = f"{self.kind} {self.predecessor}->{self.successor} needs a ratio"
+        if needs_ratio and self.ratio is None and not self.terms_pending:
+            msg = (
+                f"{self.kind} {self.predecessor}->{self.successor} needs a ratio, "
+                f"or terms_pending=True if the event is known but the terms are not"
+            )
+            raise ValueError(msg)
+        if self.kind is SuccessionKind.DELISTING and self.ratio is not None:
+            msg = "a delisting has no successor to exchange into, so no ratio"
             raise ValueError(msg)
         if self.kind is SuccessionKind.RENAME and self.ratio is not None:
             msg = "a rename exchanges nothing, so it must not carry a ratio"
@@ -102,7 +129,17 @@ class Succession:
         return self.kind is SuccessionKind.RENAME
 
     def convert_quantity(self, shares: float) -> float:
-        """Shares held after the event, for carrying a position across it."""
+        """Shares held after the event, for carrying a position across it.
+
+        Refuses when the terms are unknown rather than silently returning the
+        original quantity, which would understate a position by whatever the
+        real ratio turned out to be.
+        """
+        if self.kind is SuccessionKind.DELISTING:
+            return 0.0
+        if self.terms_pending:
+            msg = f"{self.predecessor}->{self.successor} terms unknown; cannot convert"
+            raise ValueError(msg)
         if self.ratio is None:
             return shares
         return shares * float(self.ratio)
@@ -153,6 +190,26 @@ KNOWN_SUCCESSIONS: tuple[Succession, ...] = (
         ratio=Fraction(100, 172),
         source="TV18/E18 amalgamation into Network18; NCLT effective 2024-10-03, "
         "100 Network18 per 172 TV18",
+    ),
+    Succession(
+        predecessor="DHANI",
+        successor="IBULLSLTD",
+        kind=SuccessionKind.MERGER,
+        effective=date(2025, 10, 14),
+        terms_pending=True,
+        source="Dhani Services amalgamated into Yaari Digital, renamed Indiabulls Ltd "
+        "2025-10-17. NCLT 2025-08-29, effective 2025-10-14, record date 2025-10-28. "
+        "1,924,301,572 shares allotted to Dhani holders, but the per-share ratio was "
+        "not published in the sources checked - the 110:100 figure reported is for "
+        "Indiabulls Enterprises, a different entity in the same 17-company scheme.",
+    ),
+    Succession(
+        predecessor="JPASSOCIAT",
+        successor="",
+        kind=SuccessionKind.DELISTING,
+        effective=date(2024, 6, 28),
+        source="Jaiprakash Associates delisted from NSE and BSE during Corporate "
+        "Insolvency Resolution Process. No successor security; holders written off.",
     ),
     Succession(
         predecessor="PEL",

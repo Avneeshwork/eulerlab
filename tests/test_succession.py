@@ -123,3 +123,47 @@ def test_mindtree_and_tv18_and_pel_terms() -> None:
 def test_no_succession_is_recorded_without_a_source() -> None:
     for s in KNOWN_SUCCESSIONS:
         assert len(s.source) > 20, f"{s.predecessor} source is too thin to verify"
+
+
+# --- delisting with no successor, and known events with unknown terms ---
+
+
+def test_an_insolvency_delisting_has_no_successor() -> None:
+    """JPASSOCIAT was delisted in CIRP. Holders received nothing."""
+    jp = next(s for s in KNOWN_SUCCESSIONS if s.predecessor == "JPASSOCIAT")
+    assert jp.kind is SuccessionKind.DELISTING
+    assert jp.successor == ""
+    assert jp.convert_quantity(1000) == 0.0
+
+
+def test_a_delisting_may_not_carry_a_ratio() -> None:
+    with pytest.raises(ValueError, match="no successor to exchange into"):
+        Succession("X", "", SuccessionKind.DELISTING, date(2024, 1, 1), ratio=Fraction(1))
+
+
+def test_a_known_merger_with_unknown_terms_is_recorded_not_dropped() -> None:
+    """'Merged into X, ratio unknown' and 'no idea what happened' differ.
+
+    DHANI merged into Indiabulls Ltd on a known date, but the per-share ratio
+    was not published in the sources checked. Recording the event keeps the
+    instrument from being mistaken for a live listing.
+    """
+    dhani = next(s for s in KNOWN_SUCCESSIONS if s.predecessor == "DHANI")
+    assert dhani.kind is SuccessionKind.MERGER
+    assert dhani.successor == "IBULLSLTD"
+    assert dhani.terms_pending
+    assert dhani.ratio is None
+
+
+def test_converting_across_unknown_terms_refuses_rather_than_guessing() -> None:
+    """Returning the original quantity would understate the position silently."""
+    dhani = next(s for s in KNOWN_SUCCESSIONS if s.predecessor == "DHANI")
+    with pytest.raises(ValueError, match="terms unknown"):
+        dhani.convert_quantity(100)
+
+
+def test_a_merger_still_needs_a_ratio_unless_terms_are_pending() -> None:
+    with pytest.raises(ValueError, match="needs a ratio"):
+        Succession("A", "B", SuccessionKind.MERGER, date(2024, 1, 1))
+    ok = Succession("A", "B", SuccessionKind.MERGER, date(2024, 1, 1), terms_pending=True)
+    assert ok.ratio is None

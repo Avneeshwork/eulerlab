@@ -62,7 +62,9 @@ restored with `make restore-local`.
 - **`TATACOFFEE` succession deliberately unrecorded.** Sources give 3:10 and
   14:55 for a demerger-plus-amalgamation. Guessing would misprice every
   position carried across it.
-- **`DHANI`, `JPASSOCIAT` unresolved.** Not researched individually.
+- **All 34 minute-bar symbols are now resolved.** `DHANI` merged into
+  `IBULLSLTD` (terms not published — recorded as `terms_pending`), and
+  `JPASSOCIAT` was delisted in insolvency with no successor.
 - **Three datasets are collected against site terms**, knowingly and on the
   record: NSE (ADR-006), Trendlyne (ADR-009, not built), screener.in (ADR-011).
 - **No consensus/forecast data exists** for Indian macro or earnings, so
