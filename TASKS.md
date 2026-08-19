@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 9 — cost model (PARTIAL 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-901 | Research Indian transaction costs from sources | DONE — research note 013, every rate sourced and dated |
+| T-902 | Time-versioned rate schedule | DONE — ADR-020; futures STT 4x across the window |
+| T-903 | Itemised per-leg cost model | DONE — sides modelled, GST on fees not turnover |
+| T-904 | Resolve A-005 (STT on exercise) | DONE — **the playbook was wrong since 2019**; both rules implemented |
+| T-905 | `make check-costs` acceptance gate | DONE — 4 green, 1 PARTIAL pending contract notes |
+| T-906 | **Reconcile against 20 real contract notes** | BLOCKED — needs the operator; `config/contract_notes.example.json` is ready |
+| T-907 | Slippage and square-root impact | OPEN — deferred to meet the backtester |
+| T-908 | Verify pre-2024 F&O rates were contemporaneous | OPEN — A-016 |
+| T-909 | Verify the rest of A-005 (cash settlement, physical delivery) | OPEN |
+
 ## Sprint 8 — feature library and IC harness (COMPLETE 2026-08-19)
 
 | ID | Task | Status |

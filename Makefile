@@ -40,6 +40,7 @@ help:
 	@echo "                    fetch screener.in fundamentals for the universe"
 	@echo "  make ingest-corp-actions [FROM_YEAR=2015] [TO_YEAR=2026]"
 	@echo "                    fetch NSE dividends, bonuses, splits, rights"
+	@echo "  make check-costs    transaction cost model acceptance checks"
 	@echo "  make check-adjust   adjustment engine acceptance checks"
 	@echo "  make reconcile [DAYS=n]  bhavcopy vs Kite minute bars, two vendors"
 	@echo "  make quality-options [DAYS=n] [UNDERLYING=NIFTY]"
@@ -140,6 +141,9 @@ quality-options:
 
 quality:
 	@uv run python -m eulerlab.quality.run $(if $(ROWS),--rows $(ROWS),) $(if $(LIMIT),--limit $(LIMIT),) $(if $(SUPPRESSED),--show-suppressed,)
+
+check-costs:
+	@uv run python -m eulerlab.costs.check
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check

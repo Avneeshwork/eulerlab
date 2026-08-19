@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 8 — feature library and IC harness
-**Status:** COMPLETE
-**Next:** Sprint 9 — cost model (brokerage, STT, stamp duty, GST, impact)
+**Sprint:** 9 — cost model
+**Status:** PARTIAL — built and internally consistent; the acceptance gate needs your real contract notes
+**Next:** Sprint 10 — Tier A vectorised backtester
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,30 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 9 — what is built
+
+- **`eulerlab.costs.schedule`** — rates keyed by effective date, because they
+  changed inside our backtest window: futures STT 0.0125% → 0.02% → 0.05%.
+  Refuses to answer for a date before the schedule rather than silently using
+  later rates (ADR-020).
+- **`eulerlab.costs.model`** — itemised per leg, in `Decimal`. STT sell-side
+  for intraday/futures, stamp duty buy-side only, GST on brokerage plus
+  exchange charges rather than turnover.
+- **`make check-costs`** — 4 green, 1 PARTIAL awaiting real contract notes.
+
+### A-005 was wrong, and used to be right
+
+The playbook said STT on option exercise is charged on notional. True until
+2019-08-31, false since — it is charged on **intrinsic value** now. On the
+published example that is **₹3.75 versus ₹1,084.38** on a ₹2,500 profit, 43%
+of it. Both rules are implemented and selected by trade date, because the old
+one governs 2015 to mid-2019 of our own history.
+
+**What Sprint 9 needs from the operator:** real contract notes. The gate is
+written and gitignored at `config/contract_notes.json`; five would make it
+meaningful. Every rate currently comes from secondary sources (A-016) because
+NSE's own pages would not fetch.
 
 ## Sprint 8 — what is built
 
