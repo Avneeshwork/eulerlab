@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 10 — Tier A vectorised backtester
+**Sprint:** 11 — Tier B event-driven backtester
 **Status:** COMPLETE
-**Next:** Sprint 11 — Tier B event-driven backtester, sharing `Strategy` unchanged
+**Next:** Sprint 12 — backtester self-tests, the most important gate in the project
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,40 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 11 — what is built
+
+- **`eulerlab.backtest.events`** — Order, Fill, Rejection, Position, Portfolio.
+  Deterministic client order ids and `algo_id` present from day one.
+- **`eulerlab.backtest.event_driven`** — Tier B. The **same `Strategy` object**
+  Tier A runs, unadapted.
+- **`make backtest`** — runs Tier B and reconciles against Tier A every time.
+
+### The two engines agree to machine epsilon
+
+Over 1,587 days the curves differ by **8.05e-16 relative**. That makes
+CLAUDE.md's "one interface" rule an executable claim. Tier B also records what
+Tier A can only skip: on the momentum run, **2,837 orders → 2,129 fills + 708
+rejections**.
+
+### Sprint 10's conclusion was wrong, and is corrected
+
+The panel now covers 2015-2026 rather than 2023-2026:
+
+| window | | annualised | max drawdown |
+|---|---|---|---|
+| 2023-2026 | buy & hold | +10.1% | -20.0% |
+| | momentum_12_1 | +3.0% | -42.2% |
+| **2016-2026** | buy & hold | +7.3% | -41.9% |
+| | **momentum_12_1** | **+18.4%** | **-31.6%** |
+
+Sprint 10 said "a strong IC is not a strategy". Over eleven years momentum
+beats buy-and-hold by eleven points a year with a *smaller* drawdown. Its own
+review had listed "three years is one regime" as an unverified limitation and
+then drew a headline that depended on it. Corrected in place.
+
+**Consequence: every Sprint 8 conclusion used the 3-year panel** and should be
+re-run (T-1107).
 
 ## Sprint 10 — what is built
 

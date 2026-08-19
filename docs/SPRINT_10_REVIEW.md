@@ -1,6 +1,28 @@
 # Sprint 10 — Tier A vectorised backtester
-**Status:** COMPLETE
+**Status:** COMPLETE — **but its headline conclusion was wrong and is corrected below**
 **Branch:** sprint-10-tier-a-backtester
+
+## CORRECTION (2026-08-19, Sprint 11)
+
+This review concluded that "a strong IC did not produce a good strategy". That
+conclusion was drawn from a **three-year panel**, and it does not survive
+eleven years. Same engine, same costs, same strategy:
+
+| window | | annualised | max drawdown |
+|---|---|---|---|
+| 2023–2026 | buy & hold | +10.1% | −20.0% |
+| | momentum_12_1 | +3.0% | −42.2% |
+| **2016–2026** | buy & hold | +7.3% | −41.9% |
+| | **momentum_12_1** | **+18.4%** | **−31.6%** |
+
+Over eleven years momentum beats buy-and-hold by **eleven percentage points a
+year with a smaller drawdown**. The three-year window was simply a bad one for
+momentum, and I drew a confident conclusion from it anyway.
+
+The uncomfortable part: this review itself said "three years is one regime"
+and listed it under what could not be verified — and then stated a conclusion
+that depended on exactly that. Naming a limitation is not the same as
+respecting it. Everything below is left unedited apart from this box.
 
 ## The result that matters
 
