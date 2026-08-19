@@ -49,6 +49,11 @@ restored with `make restore-local`.
   every fetched day to disk so the expensive pull happens once.
 - **`make build-factors`** — builds and persists both factor series. One full
   run completed (2,121 files, 3m30s).
+- **`make check-adjust`** — the build plan's acceptance gate for this sprint.
+  Every factor is **recomputed independently from the raw feed text** by
+  arithmetic that shares no code with the engine, so a ratio read backwards is
+  caught rather than confirmed. 6 checks green; the price-series reproduction
+  is SKIP until S-012 supplies the close-price cache.
 
 ### Two defects this sprint found
 

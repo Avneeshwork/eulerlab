@@ -40,6 +40,7 @@ help:
 	@echo "                    fetch screener.in fundamentals for the universe"
 	@echo "  make ingest-corp-actions [FROM_YEAR=2015] [TO_YEAR=2026]"
 	@echo "                    fetch NSE dividends, bonuses, splits, rights"
+	@echo "  make check-adjust   adjustment engine acceptance checks"
 	@echo "  make build-factors  build price + total-return adjustment factors"
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
@@ -122,6 +123,9 @@ ingest-fundamentals:
 
 ingest-corp-actions:
 	uv run python -m eulerlab.corp_actions.feed $(if $(FROM_YEAR),--from-year $(FROM_YEAR),) $(if $(TO_YEAR),--to-year $(TO_YEAR),)
+
+check-adjust:
+	@uv run python -m eulerlab.corp_actions.check
 
 build-factors:
 	uv run python -m eulerlab.corp_actions.build_factors $(if $(LIMIT_FILES),--limit-files $(LIMIT_FILES),)

@@ -24,6 +24,7 @@ plan — they are listed here as scope only, not as tasks.
 | T-509 | Join corporate actions to bhavcopy on `InstrumentId`, not raw ISIN | DONE — was losing 21.9% of price lookups; regression-tested |
 | T-510 | **Re-run `make build-factors` after the ISIN-join fix** | BLOCKED — B2 daily download cap; S-012, runbook `b2-transaction-cap.md` |
 | T-511 | Read the NSE circular itself for the rights formula (currently a broker's summary) | OPEN — A-015 |
+| T-512 | `make check-adjust` — the build plan's stated Sprint 5 acceptance gate | DONE — 6 checks green, 1 skipped pending S-012 |
 
 ## Sprint 4 — lookahead firewall (COMPLETE 2026-08-19)
 

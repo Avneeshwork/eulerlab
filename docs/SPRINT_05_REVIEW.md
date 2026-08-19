@@ -1,6 +1,7 @@
 # Sprint 05 — corporate actions and adjustment engine
 **Status:** COMPLETE, with one build to re-run (S-012)
-**Branch:** sprint-05-corporate-actions   **Commits:** 2
+**Acceptance gate:** `make check-adjust` — 6 green, 1 skipped
+**Branch:** sprint-05-corporate-actions   **Commits:** 5
 
 ## What now works (plain English, no jargon)
 
@@ -76,6 +77,16 @@ cap resets. That is S-012 and it is one command.
 ```bash
 make verify          # expect: all green, 397 tests
 ```
+
+```bash
+make check-adjust
+```
+
+Expected output: a table of 6 PASS rows and 1 SKIP. This is the build plan's
+stated gate for this sprint. It re-derives every bonus, split and rights
+factor from the original NSE text using arithmetic that shares no code with
+the engine — a check that compared the engine to itself would pass even if the
+parser read every ratio backwards.
 
 ```bash
 make ingest-corp-actions
