@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 6 — data quality engine (PARTIAL 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-601 | MAD-based robust statistics | DONE — ADR-017, note 011, measured not asserted |
+| T-602 | Manifest checks: coverage, gaps, staleness, duplicates | DONE — zero B2 cost, runs under the cap |
+| T-603 | Row checks: OHLC invariants, turnover, extreme moves, spikes, stale runs | DONE (code+tests) — not yet run on real prices |
+| T-604 | Cross-source reconciliation: bhavcopy vs Kite minute bars | DONE (code+tests) — not yet run on real data |
+| T-605 | Suppression by STUBS id, never by threshold | DONE — pinned per date/symbol so a new defect still reports |
+| T-606 | `make quality` report with counts by severity | DONE — 0 errors on the free checks |
+| T-607 | **Run `make quality ROWS=...` against real prices** | BLOCKED — B2 daily cap, same as T-510 |
+| T-608 | **Run the cross-source reconciliation against real data** | BLOCKED — needs minute parquet from B2 |
+| T-609 | Calibrate the spike threshold against known-bad rows | OPEN — no labelled set exists yet (note 011) |
+
 ## Sprint 5 — corporate actions and adjustment engine (COMPLETE 2026-08-19)
 
 | ID | Task | Status |

@@ -41,7 +41,8 @@ help:
 	@echo "  make ingest-corp-actions [FROM_YEAR=2015] [TO_YEAR=2026]"
 	@echo "                    fetch NSE dividends, bonuses, splits, rights"
 	@echo "  make check-adjust   adjustment engine acceptance checks"
-	@echo "  make quality [LIMIT=n] data quality report, counts by severity"
+	@echo "  make quality [ROWS=n] [LIMIT=n]"
+	@echo "                    data quality report; ROWS=n also checks price rows"
 	@echo "  make build-factors  build price + total-return adjustment factors"
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
@@ -126,7 +127,7 @@ ingest-corp-actions:
 	uv run python -m eulerlab.corp_actions.feed $(if $(FROM_YEAR),--from-year $(FROM_YEAR),) $(if $(TO_YEAR),--to-year $(TO_YEAR),)
 
 quality:
-	@uv run python -m eulerlab.quality.run $(if $(LIMIT),--limit $(LIMIT),) $(if $(SUPPRESSED),--show-suppressed,)
+	@uv run python -m eulerlab.quality.run $(if $(ROWS),--rows $(ROWS),) $(if $(LIMIT),--limit $(LIMIT),) $(if $(SUPPRESSED),--show-suppressed,)
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check

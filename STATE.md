@@ -1,10 +1,10 @@
 # STATE — where this project is right now
 
-**Sprint:** 5 — corporate actions and adjustment engine
-**Status:** COMPLETE
-**Next:** Sprint 6 — TBD
+**Sprint:** 6 — data quality engine
+**Status:** PARTIAL — row checks built and tested, not yet run against real prices (B2 cap)
+**Next:** finish Sprint 6 row run + S-012, then Sprint 7
 
-*Last updated: 2026-08-19 12:10 IST. One page, always current. If it is not
+*Last updated: 2026-08-19 18:05 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
 
 ---
@@ -23,6 +23,34 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 6 — what is built
+
+- **`eulerlab.quality.robust`** — MAD-based outlier detection. Two measured
+  facts drove it (ADR-017, research note 011): a 3-sigma rule **cannot fire**
+  on a series of 10 points, because the largest achievable z-score is
+  `(n-1)/sqrt(n)` = 2.85; and a stdev score for the same outlier varies 5x
+  with history length while the robust score does not move at all.
+- **`eulerlab.quality.manifest_checks`** — coverage, gaps, staleness,
+  duplicate keys, empty files. **Zero B2 downloads**, so these run under the
+  daily cap.
+- **`eulerlab.quality.row_checks`** — OHLC invariants (ERROR, absolute),
+  turnover consistency, extreme moves, MAD spikes, stale-price runs.
+- **`eulerlab.quality.reconcile`** — bhavcopy close vs Kite's aggregated
+  minute bar. Built and tested; **not yet run** against real data.
+- **`make quality`** — free checks. **`make quality ROWS=n`** adds row checks
+  at one B2 download per file.
+
+### What it found in its own first run
+
+Three defects in the engine itself, each caught by a test rather than review:
+a blanket suppression that hid the 3 real S-007 gaps along with the 1,052
+benign ones; an extreme-move threshold of 0.60 that could not catch the
+unadjusted 1:1 bonus its own docstring named (-50%); and MAD collapsing to
+zero on an imbalanced bimodal series, flagging 9 of 19 rows at infinite score.
+
+In the data: 2 byte-identical re-landings from the S-009 probe. The check now
+splits on hash — identical bytes INFO, differing bytes under one key ERROR.
 
 ## Sprint 5 — what is built
 
