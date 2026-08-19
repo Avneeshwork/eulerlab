@@ -26,6 +26,7 @@ code that rests on one of these.
 
 ---
 
+| A-014 | NSE publishes the EOD bhavcopy and participant-OI files on the evening of the trade date, by 20:00 IST | **Not sourced from any NSE circular.** One measurement bounds it: our single same-day capture of participant OI was fetched at 19:09 IST on 2026-08-18, so that feed at least is out by then. The other segments have no same-day capture and therefore no evidence at all | Low on the hour, high on the day | Before any intraday strategy, or Sprint 9 | Every backtest's `knowledge_time`. Mitigated three ways: the assumed hour is deliberately late, so the error withholds data rather than leaking it; `from_manifest_row` raises if a file was fetched before its assumed publication, which is how the wrong hour was found; and a daily strategy is unaffected by the hour entirely |
 ## Resolved
 
 | ID | Claim | Resolution |

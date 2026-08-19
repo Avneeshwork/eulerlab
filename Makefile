@@ -29,6 +29,7 @@ help:
 	@echo "                    delete local files B2 has confirmed (frees disk)"
 	@echo "  make build-master   build and persist the security master from B2"
 	@echo "  make test-lookahead the adversarial firewall suite"
+	@echo "  make provenance   show which data is point-in-time and which is not"
 	@echo "  make check-master   security master acceptance checks"
 	@echo "  make sync-supervisor  keep the mirror complete, restart sync if it dies"
 	@echo "  make sync-until-complete"
@@ -94,6 +95,9 @@ prune-local:
 
 build-master:
 	uv run python -m eulerlab.master.build_master $(if $(DAILY),--cadence daily,)
+
+provenance:
+	@uv run python -m eulerlab.bitemporal.provenance $(if $(MANIFEST),--manifest $(MANIFEST),)
 
 test-lookahead:
 	@uv run pytest tests/test_lookahead.py -v --no-header -q
