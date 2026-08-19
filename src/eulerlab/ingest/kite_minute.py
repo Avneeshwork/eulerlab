@@ -79,16 +79,40 @@ def chunks_for(symbol: str, token: int, start: date, end: date) -> Iterator[Chun
         cursor = stop + timedelta(days=1)
 
 
+SERIES_SUFFIXES = ("-BE", "-BZ", "-SM", "-ST", "-IT")
+"""NSE appends the series to the tradingsymbol for anything outside plain EQ.
+
+A stock moved to trade-for-trade surveillance becomes `RELINFRA-BE` in Kite
+while the bhavcopy still calls it `RELINFRA`. Matching the bare ticker missed
+four symbols and reported them as delisted, which was a false negative that
+looked exactly like a real one.
+"""
+
+
 def parse_instruments(payload: bytes, exchange: str = "NSE") -> dict[str, int]:
-    """Symbol → instrument_token for one exchange's tradable equities."""
+    """Symbol → instrument_token for one exchange's tradable equities.
+
+    Keys on the *bare* ticker, so a symbol carrying a series suffix in Kite
+    still resolves from the plain name the bhavcopy uses. The unsuffixed
+    listing wins when both exist, since that is the ordinary-segment line.
+    """
     text = io.StringIO(payload.decode("utf-8", errors="replace"))
     mapping: dict[str, int] = {}
+    suffixed: dict[str, int] = {}
     for row in csv.DictReader(text):
         if row.get("exchange") != exchange or row.get("instrument_type") != "EQ":
             continue
         symbol, token = row.get("tradingsymbol"), row.get("instrument_token")
-        if symbol and token and token.isdigit():
+        if not symbol or not token or not token.isdigit():
+            continue
+        for suffix in SERIES_SUFFIXES:
+            if symbol.endswith(suffix):
+                suffixed.setdefault(symbol[: -len(suffix)], int(token))
+                break
+        else:
             mapping[symbol] = int(token)
+    for bare, token in suffixed.items():
+        mapping.setdefault(bare, token)
     return mapping
 
 

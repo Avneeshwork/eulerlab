@@ -65,6 +65,59 @@ and are now recorded as such. They remain **correctly absent from the
 minute-bar backfill** — there is no history to fetch under the successor's
 name — but a portfolio holding them can now be carried across the event.
 
+## Resolution of all 11 unresolved symbols
+
+Researched 2026-08-19. **Four were never delisted at all** — that was a bug in
+our code, not a fact about the world.
+
+### Four false delistings: the BE-series bug
+
+`RELINFRA`, `STLTECH`, `DIACABS`, `MTARTECH` are listed today. They trade in
+the **BE (trade-for-trade) series**, and Kite names those `TICKER-BE` on NSE
+while the bhavcopy uses the bare ticker. `parse_instruments` matched the bare
+name only, so all four were reported "not in Kite's current instrument list" —
+a false negative indistinguishable from a real delisting.
+
+Fixed: the lookup now strips known series suffixes (`-BE`, `-BZ`, `-SM`, `-ST`,
+`-IT`) and prefers the plain listing when both exist. All four now resolve and
+their minute history has been fetched.
+
+**This is the more valuable finding of the two.** A wrong alias produces
+visibly wrong data; this produced a *silently missing* instrument that looked
+like a legitimate corporate event.
+
+### Five genuine successions, now recorded with terms
+
+| Symbol | Event | Effective | Ratio | Source |
+|---|---|---|---|---|
+| `MINDTREE` | merged into LTI (→ LTIM → LTM) | 2022-11-14 | 73 : 100 | record date 2022-11-24 |
+| `TV18BRDCST` | merged into NETWORK18 | 2024-10-03 | 100 : 172 | NCLT-sanctioned |
+| `TATAMTRDVR` | **cancellation** into TATAMOTORS | 2024-09-01 | 7 : 10 | DVR conversion record date |
+| `PEL` | merged into PIRAMALFIN | 2025-09-23 | 1 : 1 | PEL delisted, 1-for-1 allotment |
+| `TATACOFFEE` | merged into TATACONSUM | 2024-01-01 | **disputed** | see below |
+
+### A fourth category was needed
+
+`TATAMTRDVR` is neither a rename nor a merger. Tata Motors DVR ('A' ordinary)
+shares were **cancelled** and converted into ordinary shares of the *same*
+company at 7 per 10. No second company is involved and the issuer survives, so
+it is not a merger; but DVR shares traded at a persistent discount to ordinary,
+so the series are not continuous and it is not a rename either.
+
+`SuccessionKind.CANCELLATION` was added for this. Like a merger it requires a
+ratio and does not continue the price series.
+
+### Still unresolved, and why
+
+- **`TATACOFFEE`** — sources disagree on the ratio. One states 3 TCPL per 10
+  Tata Coffee; another 14 per 55 (0.300 vs 0.255). The event was a demerger
+  *plus* an amalgamation, so these are plausibly two legs of one scheme rather
+  than a contradiction. **Not recorded until the split is understood** —
+  guessing a ratio silently misprices every position carried across it.
+- **`DHANI`**, **`JPASSOCIAT`**, **`DIACABS`** (as a historical symbol) — not
+  researched individually. `JPASSOCIAT` is in insolvency proceedings, which is
+  a suspension rather than a succession, but that is unconfirmed.
+
 ## What I could not verify
 
 - Terms for the remaining 11 (DHANI, DIACABS, JPASSOCIAT, MINDTREE, MTARTECH,

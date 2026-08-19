@@ -85,3 +85,41 @@ def test_every_known_succession_cites_a_source() -> None:
 def test_demergers_also_require_a_ratio() -> None:
     with pytest.raises(ValueError, match="needs a ratio"):
         Succession("PEL", "PPLPHARMA", SuccessionKind.DEMERGER, date(2022, 10, 19))
+
+
+# --- cancellation: a share class extinguished within the same company ---
+
+
+def test_a_cancellation_ends_the_price_series() -> None:
+    """Tata Motors DVR was not a rename to TATAMOTORS.
+
+    DVR shares traded at a persistent discount to ordinary, so the two series
+    are not continuous. Aliasing them would splice a discounted series onto a
+    full-price one.
+    """
+    dvr = next(s for s in KNOWN_SUCCESSIONS if s.predecessor == "TATAMTRDVR")
+    assert dvr.kind is SuccessionKind.CANCELLATION
+    assert not dvr.continues_price_series
+
+
+def test_dvr_conversion_ratio_matches_the_announcement() -> None:
+    dvr = next(s for s in KNOWN_SUCCESSIONS if s.predecessor == "TATAMTRDVR")
+    assert dvr.effective == date(2024, 9, 1)
+    assert dvr.convert_quantity(1000) == pytest.approx(700.0)  # 7 ordinary per 10 DVR
+
+
+def test_a_cancellation_requires_a_ratio() -> None:
+    with pytest.raises(ValueError, match="needs a ratio"):
+        Succession("X", "Y", SuccessionKind.CANCELLATION, date(2024, 1, 1))
+
+
+def test_mindtree_and_tv18_and_pel_terms() -> None:
+    by = {s.predecessor: s for s in KNOWN_SUCCESSIONS}
+    assert by["MINDTREE"].convert_quantity(100) == pytest.approx(73.0)
+    assert by["TV18BRDCST"].convert_quantity(172) == pytest.approx(100.0)
+    assert by["PEL"].convert_quantity(500) == pytest.approx(500.0)  # 1-for-1
+
+
+def test_no_succession_is_recorded_without_a_source() -> None:
+    for s in KNOWN_SUCCESSIONS:
+        assert len(s.source) > 20, f"{s.predecessor} source is too thin to verify"

@@ -93,3 +93,39 @@ def test_landed_file_keeps_the_csv_suffix(tmp_path: Path) -> None:
     fetch_day(_fetcher(Serve(REAL)), landing, date(2026, 8, 14))
     entry = next(iter(landing.entries().values()))
     assert entry.path.endswith(".csv")
+
+
+# --- series-suffixed tickers must still resolve ---
+
+
+def test_a_series_suffixed_symbol_resolves_from_its_bare_ticker() -> None:
+    """NSE renames a surveillance-listed stock to TICKER-BE in Kite.
+
+    Four symbols (RELINFRA, STLTECH, DIACABS, MTARTECH) were reported as
+    delisted because the lookup matched the bare ticker only. They were listed
+    the whole time, in the BE series.
+    """
+    from eulerlab.ingest.kite_minute import parse_instruments
+
+    csv_text = (
+        b"instrument_token,tradingsymbol,name,exchange,instrument_type\n"
+        b"111,RELINFRA-BE,Reliance Infra,NSE,EQ\n"
+        b"222,RELIANCE,Reliance,NSE,EQ\n"
+    )
+
+    mapping = parse_instruments(csv_text)
+
+    assert mapping["RELINFRA"] == 111
+    assert mapping["RELIANCE"] == 222
+
+
+def test_a_plain_listing_wins_over_a_suffixed_one() -> None:
+    from eulerlab.ingest.kite_minute import parse_instruments
+
+    csv_text = (
+        b"instrument_token,tradingsymbol,name,exchange,instrument_type\n"
+        b"111,ACME-BE,Acme,NSE,EQ\n"
+        b"222,ACME,Acme,NSE,EQ\n"
+    )
+
+    assert parse_instruments(csv_text)["ACME"] == 222

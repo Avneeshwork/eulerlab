@@ -38,6 +38,17 @@ from fractions import Fraction
 
 
 class SuccessionKind(StrEnum):
+    CANCELLATION = "cancellation"
+    """The security class was extinguished and converted into another class of
+    the *same* company. Tata Motors DVR ('A' ordinary shares) were cancelled on
+    2024-09-01, holders receiving 7 ordinary shares per 10 DVR shares.
+
+    Distinct from a merger: no other company is involved, the issuer survives,
+    and only this share class disappears. Distinct from a rename: the price
+    series ends, because DVR shares traded at a persistent discount to
+    ordinary and the two series are not continuous.
+    """
+
     RENAME = "rename"
     """Same entity, same ISIN. The price series continues unbroken."""
 
@@ -68,7 +79,11 @@ class Succession:
     citation, per the project's truth rules."""
 
     def __post_init__(self) -> None:
-        needs_ratio = self.kind in (SuccessionKind.MERGER, SuccessionKind.DEMERGER)
+        needs_ratio = self.kind in (
+            SuccessionKind.MERGER,
+            SuccessionKind.DEMERGER,
+            SuccessionKind.CANCELLATION,
+        )
         if needs_ratio and self.ratio is None:
             msg = f"{self.kind} {self.predecessor}->{self.successor} needs a ratio"
             raise ValueError(msg)
@@ -111,5 +126,41 @@ KNOWN_SUCCESSIONS: tuple[Succession, ...] = (
         effective=date(2024, 10, 1),
         ratio=Fraction(155, 100),
         source="IDFC FIRST Bank merger disclosure; NCLT order 2024-09-25, 155 per 100",
+    ),
+    Succession(
+        predecessor="MINDTREE",
+        successor="LTIM",
+        kind=SuccessionKind.MERGER,
+        effective=date(2022, 11, 14),
+        ratio=Fraction(73, 100),
+        source="LTI-Mindtree amalgamation; record date 2022-11-24, 73 LTI per 100 Mindtree. "
+        "LTI was subsequently renamed LTIM, then LTM.",
+    ),
+    Succession(
+        predecessor="TATAMTRDVR",
+        successor="TATAMOTORS",
+        kind=SuccessionKind.CANCELLATION,
+        effective=date(2024, 9, 1),
+        ratio=Fraction(7, 10),
+        source="Tata Motors DVR conversion; record date 2024-09-01, 7 ordinary per 10 DVR. "
+        "'A' ordinary shares cancelled thereafter.",
+    ),
+    Succession(
+        predecessor="TV18BRDCST",
+        successor="NETWORK18",
+        kind=SuccessionKind.MERGER,
+        effective=date(2024, 10, 3),
+        ratio=Fraction(100, 172),
+        source="TV18/E18 amalgamation into Network18; NCLT effective 2024-10-03, "
+        "100 Network18 per 172 TV18",
+    ),
+    Succession(
+        predecessor="PEL",
+        successor="PIRAMALFIN",
+        kind=SuccessionKind.MERGER,
+        effective=date(2025, 9, 23),
+        ratio=Fraction(1, 1),
+        source="Piramal Enterprises merged into Piramal Finance; PEL delisted 2025-09-23, "
+        "1-for-1 allotment",
     ),
 )
