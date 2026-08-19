@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
 **Sprint:** 3 — security master
-**Status:** PARTIAL
-**Next:** persist the registries, then Sprint 4
+**Status:** COMPLETE
+**Next:** Sprint 4 — bitemporal read API and lookahead firewall
 
 *Last updated: 2026-08-19 07:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -52,11 +52,12 @@ restored with `make restore-local`.
   sizes. Built from 140 monthly F&O snapshots: 2.29M contracts, 385
   underlyings, 5.7M contract-days.
 
-## Sprint 3 — what is NOT built
-
-- **Nothing persists the built registries.** Both are rebuilt in memory from
-  B2 each time, which takes a couple of minutes. Fine now, wrong later.
-- **Broker symbology mapping** (internal id ↔ Kite token) is not modelled.
+- **`eulerlab.master.store`** — the master persisted as diffable JSON with a
+  build stamp. Deterministic: two builds of the same data are byte-identical.
+- **`eulerlab.master.broker_map`** — internal id ↔ Kite token, resolved through
+  the master *as of a date* because tokens are reused. Filters bonds and ETF
+  NAV feeds, which Kite files under `instrument_type=EQ`.
+- **`make build-master`** / **`make check-master`** — build and verify.
 
 ## Data issues fixed this session
 

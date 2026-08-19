@@ -27,6 +27,7 @@ help:
 	@echo "  make restore-local [--segment cm] pull pruned files back from B2"
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
+	@echo "  make build-master   build and persist the security master from B2"
 	@echo "  make check-master   security master acceptance checks"
 	@echo "  make sync-supervisor  keep the mirror complete, restart sync if it dies"
 	@echo "  make sync-until-complete"
@@ -89,6 +90,9 @@ restore-local:
 
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)
+
+build-master:
+	uv run python -m eulerlab.master.build_master $(if $(DAILY),--cadence daily,)
 
 check-master:
 	@uv run python -m eulerlab.master.check

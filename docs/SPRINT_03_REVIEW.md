@@ -1,99 +1,101 @@
 # Sprint 3 — Security master
 
-**Status:** PARTIAL
-**Branch:** sprint-03-security-master   **Commits:** 8
+**Status:** COMPLETE
+**Branch:** sprint-03-security-master   **Commits:** 14
 
-The identity and succession layers are built and verified against eleven years
-of real data. The sprint's own acceptance command, `make check-master`, is not
-built — so this is honestly partial, not complete.
+All acceptance criteria pass. `make check-master` is green on six checks, and
+every one of them is capable of failing — the tests assert that, because a
+check that cannot fail is decoration.
 
 ---
 
 ## What now works (plain English, no jargon)
 
-- **The system knows that ZOMATO and ETERNAL are the same company**, and worked
-  it out from the data rather than being told. It found **580 renames** across
-  2015–2026 by following ISIN continuity.
-- **Ask what was true on a past date and get the past answer.** Every attribute
-  is stored as an interval, so a lot size in March 2019 returns March 2019's
-  value, not today's.
-- **A delisted company stops claiming its ticker.** Daily files never announce
-  a delisting — the rows just stop — so without this a dead 2015 instrument
-  would shadow whoever holds that ticker now.
-- **Corporate events are modelled as four different things**, because
-  collapsing them was actively dangerous: a rename continues the price series,
-  a merger ends it, a demerger splits it, a cancellation extinguishes a share
-  class. Each carries a cited ratio.
+- **The system knows ZOMATO and ETERNAL are the same company**, and worked it
+  out from the data. It found **580 renames** across eleven years by following
+  ISIN continuity, with no alias map written by hand.
+- **Ask what was true on a past date, get the past answer.** NIFTY's lot size
+  was 50 in March 2024, 25 that November, 75 by March 2025 and 65 by 2026.
+  Every one of those is returned correctly for its own date.
+- **A delisted company stops claiming its ticker**, so a dead 2015 instrument
+  cannot shadow whoever holds that ticker now.
+- **Corporate events are five distinct things**, because collapsing them was
+  actively dangerous: rename, merger, demerger, cancellation, delisting. Each
+  carries a cited source and, where a position must be carried across, a ratio.
+- **Derivatives have a key that works across both archive eras** — 28,984
+  contracts in 2015 and 35,089 in 2026 parsed with zero failures and zero
+  duplicate keys.
+- **The trading calendar is a record, not a rule.** A day is a trading day
+  because a file exists for it.
+- **The master is persisted**, so it is an artefact with a build stamp rather
+  than a moving target rebuilt on every call.
 
 ## How to check it yourself (2 minutes)
 
 ```bash
-make verify      # expect: 5 of 5 green, 247 tests
+make verify         # expect: 5 of 5 green
+make check-master   # expect: 6 of 6 green
 ```
 
-`make check-master` is the command this sprint was supposed to deliver and it
-does not exist yet. That is the main reason for the PARTIAL.
+Expected from `check-master`: 580 renames, all 34 formerly-stuck symbols
+accounted for, 10 successions cited, ratios present, past dates returning past
+names, and 3,328 instruments persisted.
 
 ## What is fake right now
 
 | Thing | Why | Removed in sprint |
 |---|---|---|
-| Lot-size history | The field is populated from `NewBrdLotQty` but has never been checked against a known past value | 3 (remaining work) |
-| F&O instruments | Not in the master at all — derivatives have no ISIN, so they need a composite key | 3 (remaining work) |
-| Trading calendar | Not built | 3 (remaining work) |
-
-## Data issues fixed
-
-| Issue | Before | After |
-|---|---|---|
-| Participant-OI gaps | 7 missing days | **0** |
-| Unresolvable minute symbols | 34 | **2** (`DHANI`, `JPASSOCIAT`) |
-| Minute coverage | 411 symbols, 173M bars | **420 symbols, 184M bars** |
-| Spurious renames | 7,304 | **580** |
-
-## Three mistakes, and what each cost
-
-1. **My ISIN regex demanded 13 characters.** An ISIN is 12. It rejected a real
-   ISIN outright — caught immediately by a test, which is the cheap kind.
-2. **The issuer-prefix rule merged unrelated ETFs.** A fund house issues many
-   products under one prefix, so `INF209KB19` swallowed ABSLPSE, BSLNIFTY and
-   SILVER into one instrument whose ticker appeared to flap — inflating renames
-   to 7,304. Caught because the number was implausible, not because anything
-   failed. This was the exact "cost if wrong" written into ADR-012 hours
-   earlier.
-3. **Four symbols were reported delisted that were never delisted.**
-   `RELINFRA`, `STLTECH`, `DIACABS`, `MTARTECH` trade in the BE series, which
-   Kite names `TICKER-BE`. My lookup matched the bare ticker. **This is the
-   worst of the three**: a wrong alias produces visibly wrong data, but a
-   missing instrument looks exactly like a legitimate corporate event.
+| `TATACOFFEE` ratio recorded as two legs | Correct, but derived from reporting rather than the scheme document | — |
+| `DHANI` succession has no ratio | Recorded `terms_pending`; the per-share ratio was never published in sources checked | when terms surface |
+| Broker map covers 71.9% of mappable equities | The rest are SME-platform listings absent from the main-board bhavcopy | when SME data is ingested |
 
 ## What I could not verify
 
-- **`TATACOFFEE`'s ratio.** Sources give 3:10 and 14:55 for a
-  demerger-plus-amalgamation. Deliberately unrecorded — a guessed ratio
-  silently misprices every position carried across the event.
-- **`DHANI` and `JPASSOCIAT`.** Not researched. `JPASSOCIAT` is probably an
-  insolvency suspension rather than a succession, but that is unconfirmed.
-- **Lot-size history.** Populated but never checked against a known value, so
-  A-002 remains open.
-- **Whether 580 renames is right.** It is plausible for eleven years and far
-  better than 7,304, but nothing independently confirms the count.
+- **Whether 580 renames is the true count.** It is plausible for eleven years
+  and far better than the 7,304 the first build produced, but nothing
+  independent confirms it.
+- **The master is built monthly, not daily.** A rename that happened and
+  reversed inside one month would be missed. `--cadence daily` exists and reads
+  2,800 files instead of 140; it has not been run.
+- **Token reuse has never actually been observed.** The detector finds none in
+  a single snapshot, which is expected — reuse shows up across time, and we
+  have only mapped one date.
+
+## Four mistakes, and what each cost
+
+1. **My ISIN regex demanded 13 characters.** An ISIN is 12. It rejected a real
+   ISIN outright. Caught by a test within a minute — the cheap kind.
+2. **The issuer-prefix rule merged unrelated ETFs.** One fund house issues many
+   products under a shared prefix, so `INF209KB19` swallowed three unrelated
+   ETFs into one instrument whose ticker appeared to flap, inflating renames to
+   7,304. Caught because the number was implausible, not because anything
+   failed. This was the exact "cost if wrong" written into ADR-012 hours
+   earlier.
+3. **Four symbols were reported delisted that never were.** They trade in the
+   BE series, which Kite names `TICKER-BE`; my lookup matched the bare ticker.
+   **The worst of the four** — a wrong alias produces visibly wrong data, but a
+   missing instrument looks exactly like a legitimate corporate event.
+4. **The broker map reported 7,485 unmapped instruments.** They were mostly
+   bonds: Kite files debentures and ETF NAV feeds under `instrument_type=EQ`.
+   Comparing an equity master against a list that is 60% debt is not a finding,
+   and a check that cries wolf gets ignored.
 
 ## Decisions you made
 
 | Decision | Recorded in |
 |---|---|
-| Skip the F&O recorder, go to Sprint 3 | `TASKS.md` |
-| Fix all data issues, search the web for causes | this sprint |
+| Internal id from the ISIN issuer prefix | ADR-012 |
+| Succession is several relationships, not one alias | ADR-013 |
+| Supplied the DHANI, JPASSOCIAT and TATACOFFEE terms | research notes 007 |
 
 ## Reading added for you
 
-- **Lookahead and survivorship bias** (MUST, 60 min) — now overdue. Sprint 4
-  builds the firewall and you approve it. This sprint produced four fresh
-  examples of survivorship bias in the wild.
+- **Lookahead and survivorship bias** (MUST, 60 min) — now due. Sprint 4 builds
+  the firewall and you approve it. This sprint produced five concrete examples
+  of survivorship bias in the wild, which is unusually good preparation.
 
 ## Next sprint
 
-Finish Sprint 3: F&O composite keys, the trading calendar, and
-`make check-master`. Then Sprint 4 — the bitemporal read API and lookahead
-firewall, which is the gate everything downstream depends on.
+**Sprint 4 — bitemporal read API and lookahead firewall.** The gate everything
+downstream depends on: an `as_of` that is structurally incapable of returning
+data from the future, plus an adversarial test suite that tries to break it.

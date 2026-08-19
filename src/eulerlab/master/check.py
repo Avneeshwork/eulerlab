@@ -139,6 +139,29 @@ def check_point_in_time_query() -> Check:
     return Check("point-in-time", True, "past dates return past names")
 
 
+def check_master_is_persisted() -> Check:
+    """A master rebuilt from B2 on every call is a moving target.
+
+    Two callers building at different moments could see different histories,
+    which is not a property a join key may have.
+    """
+    from eulerlab.master.store import MASTER_PATH, load
+
+    if not MASTER_PATH.exists():
+        return Check("persisted", False, f"{MASTER_PATH} missing — run `make build-master`")
+    try:
+        registry, stamp = load(MASTER_PATH)
+    except (ValueError, KeyError) as exc:
+        return Check("persisted", False, f"unreadable: {exc}")
+    if len(registry) == 0:
+        return Check("persisted", False, "master is empty")
+    return Check(
+        "persisted",
+        True,
+        f"{len(registry)} instruments, built {stamp.built_at[:10]} from {stamp.source_files} files",
+    )
+
+
 def run() -> list[Check]:
     symbol_map = load(RENAMES_PATH) if RENAMES_PATH.exists() else None
     return [
@@ -147,6 +170,7 @@ def run() -> list[Check]:
         check_successions_are_sourced(),
         check_ratios_present_where_required(),
         check_point_in_time_query(),
+        check_master_is_persisted(),
     ]
 
 
