@@ -1,7 +1,7 @@
 # STATE — where this project is right now
 
 **Sprint:** 1 — data foundation (EOD, minute, OI, fundamentals)
-**Status:** IN PROGRESS
+**Status:** COMPLETE
 **Next:** Sprint 3 — security master
 
 *Last updated: 2026-08-18 20:30 IST. One page, always current. If it is not
@@ -16,7 +16,7 @@ written here or in `TASKS.md`, it did not happen.*
 | NSE EOD bhavcopy (cash + F&O) | **COMPLETE** — 5,736 files, 2015-01-01 → 2026-08-17 | `data/landing/nse/{cm,fo}/`, mirrored to B2 |
 | Participant-wise F&O OI | **COMPLETE** — 1,632 weekdays, 2020-01-01 → today | `data/landing/nse/participant_oi/` |
 | Kite 1-minute bars | **COMPLETE** — 12,755 chunks, 411 symbols, 173M bars, 5 years | `data/landing/kite_minute/` |
-| screener.in fundamentals | **IN PROGRESS** — ~184 of 2,702 companies | `data/landing/fundamentals/` |
+| screener.in fundamentals | **COMPLETE** — 2,352 companies (328 no data, 22 404s, mostly ETFs) | `data/landing/fundamentals/` |
 | Options chains / tick data | **NOT STARTED** — deferred by the operator | — |
 
 Local disk holds a working subset only; the full copy lives in B2 bucket
