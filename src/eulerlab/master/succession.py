@@ -191,6 +191,28 @@ KNOWN_SUCCESSIONS: tuple[Succession, ...] = (
         source="TV18/E18 amalgamation into Network18; NCLT effective 2024-10-03, "
         "100 Network18 per 172 TV18",
     ),
+    # Tata Coffee was ONE scheme with TWO legs, which is why sources appeared to
+    # disagree (3:10 vs 14:55). They sum exactly: 1/22 + 14/55 = 3/10. Recording
+    # both legs rather than the total keeps the structure visible, and a holder
+    # carried across the event gets the sum.
+    Succession(
+        predecessor="TATACOFFEE",
+        successor="TATACONSUM",
+        kind=SuccessionKind.DEMERGER,
+        effective=date(2024, 1, 1),
+        ratio=Fraction(1, 22),
+        source="Plantation undertaking to TCPL Beverages and Foods; "
+        "1 TCPL per 22 Tata Coffee. Leg 1 of 2.",
+    ),
+    Succession(
+        predecessor="TATACOFFEE",
+        successor="TATACONSUM",
+        kind=SuccessionKind.MERGER,
+        effective=date(2024, 1, 1),
+        ratio=Fraction(14, 55),
+        source="Amalgamation of the remaining extraction and branded business; "
+        "14 TCPL per 55 Tata Coffee. Leg 2 of 2. Legs sum to 3/10.",
+    ),
     Succession(
         predecessor="DHANI",
         successor="IBULLSLTD",

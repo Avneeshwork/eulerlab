@@ -2,7 +2,7 @@
 
 **Sprint:** 3 — security master
 **Status:** PARTIAL
-**Next:** finish Sprint 3 (F&O keys, calendar, `make check-master`), then Sprint 4
+**Next:** trading calendar, then Sprint 4
 
 *Last updated: 2026-08-19 07:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -38,14 +38,19 @@ restored with `make restore-local`.
 - **`eulerlab.master.succession`** — four relationship kinds with cited terms
   (ADR-013): rename, merger, demerger, cancellation.
 
+- **`eulerlab.master.derivatives`** — the F&O composite key (underlying,
+  expiry, strike, right), since derivatives carry no ISIN in either era.
+  Validated on real files: 28,984 contracts in 2015 and 35,089 in 2026, zero
+  unparsed rows and zero duplicate keys.
+- **`make check-master`** — 5 acceptance checks, all green.
+
 ## Sprint 3 — what is NOT built
 
-- **F&O instrument keys.** Derivatives have no ISIN in the bhavcopy and need a
-  composite key (symbol, expiry, strike, right). Not started.
 - **Trading calendar from evidence.** Not started.
-- **`make check-master`.** The sprint's acceptance command does not exist yet.
 - **Lot-size history.** The registry has the field and the builder populates it
-  from `NewBrdLotQty`, but it is unverified against a known past value.
+  from `NewBrdLotQty`, but it is unverified against a known past value (A-002).
+- **Derivatives are not yet folded into the registry.** The key exists and
+  parses; nothing builds a contract registry from it yet.
 
 ## Data issues fixed this session
 

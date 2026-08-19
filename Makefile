@@ -27,6 +27,7 @@ help:
 	@echo "  make restore-local [--segment cm] pull pruned files back from B2"
 	@echo "  make prune-local [DRY=1]"
 	@echo "                    delete local files B2 has confirmed (frees disk)"
+	@echo "  make check-master   security master acceptance checks"
 	@echo "  make sync-supervisor  keep the mirror complete, restart sync if it dies"
 	@echo "  make sync-until-complete"
 	@echo "                    loop sync until every tree is mirrored, then prune"
@@ -88,6 +89,9 @@ restore-local:
 
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)
+
+check-master:
+	@uv run python -m eulerlab.master.check
 
 sync-until-complete:
 	@./tools/sync_until_complete.sh

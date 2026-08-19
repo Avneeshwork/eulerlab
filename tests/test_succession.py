@@ -167,3 +167,23 @@ def test_a_merger_still_needs_a_ratio_unless_terms_are_pending() -> None:
         Succession("A", "B", SuccessionKind.MERGER, date(2024, 1, 1))
     ok = Succession("A", "B", SuccessionKind.MERGER, date(2024, 1, 1), terms_pending=True)
     assert ok.ratio is None
+
+
+def test_tata_coffee_legs_sum_to_the_reported_total() -> None:
+    """Two sources appeared to disagree (3:10 vs 14:55). They did not.
+
+    Tata Coffee was one scheme with two legs — a demerger of the plantation
+    business and an amalgamation of the rest. 1/22 + 14/55 = 3/10 exactly, so
+    the 'conflict' was one source quoting a leg and another the total.
+    """
+    legs = [s for s in KNOWN_SUCCESSIONS if s.predecessor == "TATACOFFEE"]
+    assert len(legs) == 2
+    ratios = [leg.ratio for leg in legs]
+    assert all(r is not None for r in ratios)
+    total = sum((r for r in ratios if r is not None), start=Fraction(0))
+    assert total == Fraction(3, 10)
+
+
+def test_a_holder_carried_across_tata_coffee_gets_both_legs() -> None:
+    legs = [s for s in KNOWN_SUCCESSIONS if s.predecessor == "TATACOFFEE"]
+    assert sum(leg.convert_quantity(1000) for leg in legs) == pytest.approx(300.0)
