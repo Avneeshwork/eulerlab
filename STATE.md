@@ -2,7 +2,7 @@
 
 **Sprint:** 3 — security master
 **Status:** PARTIAL
-**Next:** trading calendar, then Sprint 4
+**Next:** persist the registries, then Sprint 4
 
 *Last updated: 2026-08-19 07:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -44,13 +44,19 @@ restored with `make restore-local`.
   unparsed rows and zero duplicate keys.
 - **`make check-master`** — 5 acceptance checks, all green.
 
+- **`eulerlab.master.calendar`** — trading days from evidence, never a weekday
+  rule. Built from the manifest: 2,869 trading days, zero long gaps, and it
+  correctly flags 2021-03-30 as SUSPECT (cash traded, F&O did not) rather than
+  guessing whether that was a holiday or a missing file.
+- **`eulerlab.master.contracts`** — derivative registry with time-versioned lot
+  sizes. Built from 140 monthly F&O snapshots: 2.29M contracts, 385
+  underlyings, 5.7M contract-days.
+
 ## Sprint 3 — what is NOT built
 
-- **Trading calendar from evidence.** Not started.
-- **Lot-size history.** The registry has the field and the builder populates it
-  from `NewBrdLotQty`, but it is unverified against a known past value (A-002).
-- **Derivatives are not yet folded into the registry.** The key exists and
-  parses; nothing builds a contract registry from it yet.
+- **Nothing persists the built registries.** Both are rebuilt in memory from
+  B2 each time, which takes a couple of minutes. Fine now, wrong later.
+- **Broker symbology mapping** (internal id ↔ Kite token) is not modelled.
 
 ## Data issues fixed this session
 
