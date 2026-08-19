@@ -9,6 +9,21 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 8 — feature library and IC harness (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-801 | Adjusted price panel, cached and resumable | DONE — 892 days, 3,331 symbols, 2.0M rows; joins on InstrumentId |
+| T-802 | Ten seed features, pure functions of their own history | DONE — signs normalised so higher is always better |
+| T-803 | Rank-IC harness through the lookahead firewall | DONE — ADR-019 |
+| T-804 | Harness calibrated at both ends | DONE — oracle feature scores exactly 1.0, noise ~0 |
+| T-805 | Tear sheet with t-stat, hit rate, per-year breakdown | DONE — `make ic`, 75s |
+| T-806 | Append-only trial counter | DONE — started now, not in Sprint 13, per ADR-019 |
+| T-807 | Extend the panel to 2015 | OPEN — ~1,980 B2 downloads; 2023-2026 is almost all bull market |
+| T-808 | Factor neutralisation (size, liquidity) | OPEN — the assigned reading covers it; harness does not do it yet |
+| T-809 | Fundamental features | OPEN — screener.in data has no per-field knowledge_time |
+| T-810 | Apply the overlap correction to the t-statistic | OPEN — described in the tear sheet, not applied; part of Sprint 13 |
+
 ## Sprint 7 — options quality (PARTIAL 2026-08-19)
 
 | ID | Task | Status |

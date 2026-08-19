@@ -68,6 +68,10 @@ class Bar:
     prev_close: float | None = None
     volume: float = 0.0
     turnover: float | None = None
+    isin: str = ""
+    """Carried so a Bar can be joined to anything keyed by instrument rather
+    than by ticker. A ticker is not a join key (ADR-012); leaving this off is
+    how the panel silently applied no adjustment at all."""
 
 
 def check_ohlc_invariants(bars: Sequence[Bar], dataset: str = "nse") -> list[Finding]:

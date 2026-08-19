@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 7 — options quality
-**Status:** COMPLETE — the cap lifted and all three queued real-data runs executed
-**Next:** Sprint 8 — feature library and IC harness
+**Sprint:** 8 — feature library and IC harness
+**Status:** COMPLETE
+**Next:** Sprint 9 — cost model (brokerage, STT, stamp duty, GST, impact)
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,39 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 8 — what is built
+
+The first sprint about *prediction* rather than *correctness*.
+
+- **`eulerlab.features.panel`** — adjusted price panel, cached and resumable.
+  892 days, 3,331 symbols, 2.0M rows. Joins factors on `InstrumentId`; the
+  ticker-vs-ISIN version would have applied **no adjustment at all** and said
+  nothing.
+- **`eulerlab.features.library`** — ten seed features, each a pure function of
+  one symbol's own history, so a feature physically cannot see past its
+  evaluation date. Signs normalised so higher is always better.
+- **`eulerlab.features.ic`** — rank IC through the firewall. Calibrated at
+  both ends: an oracle feature that *is* the forward return scores exactly
+  1.0, and noise scores ~0. Without those anchors a middle number is
+  meaningless.
+- **`eulerlab.features.trials`** — the append-only trial counter, started here
+  rather than at Sprint 13 because a count that begins late undercounts in the
+  flattering direction (ADR-019).
+- **`make ic FEATURE=...`** — tear sheet in ~75s.
+
+**Result:** `momentum_12_1` scores t=+5.40, positive in all three years. That
+is a **sanity check, not a discovery** — 12-month momentum is among the most
+documented effects in global equities, so finding it means the harness works.
+The panel covers 2023-2026, which is almost entirely a bull market, and the
+overlapping cross-sections inflate the t-statistic. Nothing here is evidence
+of tradeable edge until it meets Sprint 9's costs.
+
+**A pattern worth naming**, now that it has appeared three times: MAD over
+standard deviation (ADR-017), Theil-Sen over least squares (ADR-018), and rank
+over Pearson (ADR-019). Every estimator in this codebase that touches market
+data needs a non-zero breakdown point, because the data reliably contains
+points that would otherwise dominate it.
 
 ## Sprint 7 — what is built
 

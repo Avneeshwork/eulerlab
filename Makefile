@@ -46,6 +46,9 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make ic FEATURE=momentum_12_1 [HORIZON=21] [ALL=1]"
+	@echo "                    information coefficient tear sheet"
+	@echo "  make build-panel [FROM=2023-01-01]  adjusted price panel for features"
 	@echo "  make build-factors  build price + total-return adjustment factors"
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
@@ -140,6 +143,12 @@ quality:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+ic:
+	@uv run python -m eulerlab.features.tearsheet $(if $(FEATURE),--feature $(FEATURE),) $(if $(HORIZON),--horizon $(HORIZON),) $(if $(ALL),--all,)
+
+build-panel:
+	@uv run python -m eulerlab.features.build_panel $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),)
 
 build-factors:
 	uv run python -m eulerlab.corp_actions.build_factors $(if $(LIMIT_FILES),--limit-files $(LIMIT_FILES),)
