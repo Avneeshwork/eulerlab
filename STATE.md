@@ -1,10 +1,10 @@
 # STATE — where this project is right now
 
 **Sprint:** 4 — bitemporal read API and lookahead firewall
-**Status:** IN PROGRESS
+**Status:** COMPLETE
 **Next:** Sprint 5 — corporate actions and adjustment engine
 
-*Last updated: 2026-08-19 07:40 IST. One page, always current. If it is not
+*Last updated: 2026-08-19 10:20 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
 
 ---
@@ -22,6 +22,33 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 4 — what is built
+
+- **`eulerlab.bitemporal.store`** — the research read API. `as_of` is required
+  and keyword-only, filtering happens inside `query`, and no public reader
+  returns unfiltered rows. `Record` is frozen and both timestamps must be
+  tz-aware (ADR-014).
+- **`eulerlab.bitemporal.provenance`** — separates *when a fact became
+  knowable* from *when we downloaded it*. These were the same field until this
+  sprint, and the gap between them has a median of 1,820 days (ADR-015).
+- **`eulerlab.bitemporal.universe`** — refuses a universe list on any date
+  before the list was computed. Closes the survivorship half of the firewall.
+- **`make test-lookahead`** — 36 adversarial tests. **`make provenance`** — the
+  vintage table.
+
+### The defect this sprint found in our own data
+
+Every manifest row's `knowledge_time` holds the **download** time, not the
+publication time. Filtering a backtest on it returns zero rows for all eleven
+years — and the tempting fix for an empty frame is to loosen the filter, which
+is a leak. Now derived from the trade date instead, with the download time kept
+as `receipt_time` for pipeline auditing.
+
+Only **4 of 7,378** NSE files are true point-in-time captures. The rest are
+`Vintage.FINAL`: correct timing, but the content is whatever the archive serves
+today. If NSE ever corrected a file, we hold the correction and no trace of the
+original. Unrecoverable, so it is carried in the type.
 
 ## Sprint 3 — what is built
 
@@ -82,6 +109,10 @@ restored with `make restore-local`.
 - **No consensus/forecast data exists** for Indian macro or earnings, so
   "surprise" is not computable (research notes 004, 005).
 - **Most market-structure facts remain unverified** — see `docs/ASSUMPTIONS.md`.
+- **The publication hour is assumed, not sourced** (A-014). Deliberately late
+  at 20:00 IST so the error withholds data rather than leaking it; participant
+  OI is bounded to 19:09 by one same-day capture. Daily strategies are
+  unaffected either way.
 - **NSE corporate-actions feed found** (research note 008): systematic for
   dividends/splits/bonus/rights keyed by ISIN, and **silent on mergers that
   delist the target**. Sprint 5 should use it.

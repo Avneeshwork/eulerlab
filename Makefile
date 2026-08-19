@@ -100,7 +100,7 @@ provenance:
 	@uv run python -m eulerlab.bitemporal.provenance $(if $(MANIFEST),--manifest $(MANIFEST),)
 
 test-lookahead:
-	@uv run pytest tests/test_lookahead.py -v --no-header -q
+	@uv run pytest tests/test_lookahead.py tests/test_provenance.py tests/test_survivorship.py --no-header -q
 
 check-master:
 	@uv run python -m eulerlab.master.check

@@ -9,6 +9,18 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 4 — lookahead firewall (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-401 | Bitemporal read API, `as_of` required and keyword-only | DONE — ADR-014 |
+| T-402 | Adversarial test suite against the firewall | DONE — 36 tests, `make test-lookahead` |
+| T-403 | Wire the store to real landing-zone manifests | DONE — found the download-time defect |
+| T-404 | Separate knowledge time from receipt time | DONE — ADR-015, `make provenance` |
+| T-405 | Point-in-time universe guard (survivorship) | DONE — `bitemporal/universe.py` |
+| T-406 | Source the real NSE publication hour per segment | OPEN — A-014, before Sprint 9 or any intraday work |
+| T-407 | Persist the store to Parquet when a dataset exceeds memory | OPEN — no measured need yet |
+
 ## Sprint 0 — Scaffolding · **COMPLETE**
 
 Verify: `make verify`
