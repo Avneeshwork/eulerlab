@@ -1,10 +1,10 @@
 # STATE — where this project is right now
 
-**Sprint:** 4 — bitemporal read API and lookahead firewall
+**Sprint:** 5 — corporate actions and adjustment engine
 **Status:** COMPLETE
-**Next:** Sprint 5 — corporate actions and adjustment engine
+**Next:** Sprint 6 — TBD
 
-*Last updated: 2026-08-19 10:20 IST. One page, always current. If it is not
+*Last updated: 2026-08-19 12:10 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
 
 ---
@@ -17,11 +17,36 @@ written here or in `TASKS.md`, it did not happen.*
 | Participant-wise F&O OI | **COMPLETE** | 1,639 days, 2020 → today, **zero gaps** |
 | Kite 1-minute bars | **COMPLETE** | 13,499 chunks, 420 symbols, **184M bars**, 5 years |
 | screener.in fundamentals | **COMPLETE** | 2,352 companies (328 no data, 22 404s — mostly ETFs) |
+| NSE corporate actions | **COMPLETE** | 12 years, 2015–2026, 25,713 actions, 94.3% parsed |
 | Options chains / tick data | **NOT STARTED** | deferred by the operator three times |
 
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 5 — what is built
+
+- **`eulerlab.corp_actions.feed`** — backfills NSE's corporate-actions API
+  (research note 008), one file per year. Verified the date parameters are
+  honoured (unlike the FII/DII feed) and no pagination limit exists at this
+  scale (research note 009). Run for real: 12 years landed, synced to B2.
+- **`eulerlab.corp_actions.parse`** — turns free-text `subject` strings into
+  typed dividend/bonus/split/rights components. Handles compound subjects
+  ("Bonus 1:1 / Face Value Split..."), NSE's own typos (`"62..50"`, `"Rs-
+  70"`), and never guesses a ratio it cannot read — 94.3% of price-relevant
+  clauses parsed on the real 25,713-action dataset; the rest are genuinely
+  amount-less announcements ("Interest Payment") with nothing to extract.
+- **`eulerlab.corp_actions.adjust`** — back-adjustment factors built through
+  Sprint 4's `BitemporalStore`, so `factor_as_of` cannot include an action
+  the caller could not yet have known (ADR-016: knowledge_time is
+  conservatively each action's own ex-date, since the feed's announcement-date
+  field was null on every row checked). Price-adjustment (bonus + split) run
+  against the full real dataset; a 1:1 TCS bonus confirmed against its real
+  ISIN. Total-return (dividends reinvested) is built and unit-tested but its
+  full 11-year run needs a close-price index this session did not build
+  (S-010).
+- **`eulerlab.corp_actions.prices`** — the close-price index for the dividend
+  factor, streaming cash bhavcopy from B2 the same way `build_master` does.
 
 ## Sprint 4 — what is built
 
@@ -113,9 +138,14 @@ original. Unrecoverable, so it is carried in the type.
   at 20:00 IST so the error withholds data rather than leaking it; participant
   OI is bounded to 19:09 by one same-day capture. Daily strategies are
   unaffected either way.
-- **NSE corporate-actions feed found** (research note 008): systematic for
-  dividends/splits/bonus/rights keyed by ISIN, and **silent on mergers that
-  delist the target**. Sprint 5 should use it.
+- **NSE corporate-actions feed ingested and wired to the adjustment engine**
+  (Sprint 5). Still **silent on mergers that delist the target** — Sprint 3's
+  succession model remains the source of truth there.
+- **Rights-issue price effect is parsed but not adjusted** (S-011): the
+  correct formula needs the issue price, not just the ratio.
+- **Total-return factor build for the full 11-year history was not run**
+  (S-010): correctness is unit-tested; the real run needs a ~2.2 GB
+  close-price index streamed from B2.
 
 ## Money
 

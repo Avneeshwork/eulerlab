@@ -38,6 +38,8 @@ help:
 	@echo "                    sync then prune - the normal way to run these two"
 	@echo "  make ingest-fundamentals [LIMIT=n]"
 	@echo "                    fetch screener.in fundamentals for the universe"
+	@echo "  make ingest-corp-actions [FROM_YEAR=2015] [TO_YEAR=2026]"
+	@echo "                    fetch NSE dividends, bonuses, splits, rights"
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 
 install:
@@ -115,6 +117,9 @@ sync-and-prune: sync-cloud prune-local
 
 ingest-fundamentals:
 	uv run python -m eulerlab.fundamentals.backfill $(if $(LIMIT),--limit $(LIMIT),)
+
+ingest-corp-actions:
+	uv run python -m eulerlab.corp_actions.feed $(if $(FROM_YEAR),--from-year $(FROM_YEAR),) $(if $(TO_YEAR),--to-year $(TO_YEAR),)
 
 # One command to keep every dataset current, safe to schedule. Each step is
 # idempotent: already-current data costs nothing, so re-running is cheap and

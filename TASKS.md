@@ -9,6 +9,19 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 5 — corporate actions and adjustment engine (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-501 | Ingest the NSE corporate-actions feed, 2015-2026 | DONE — 12 years, 25,713 actions, real B2-synced |
+| T-502 | Parse free-text `subject` into typed dividend/bonus/split/rights | DONE — 94.3% parse rate on real data, `parse.py` |
+| T-503 | Price-adjustment factor engine (bonus + split) | DONE — run against full real dataset, `adjust.py` |
+| T-504 | Total-return factor engine (+ dividends reinvested) | DONE, unit-tested — S-010: full historical run not executed this session |
+| T-505 | Wire the adjustment engine through Sprint 4's bitemporal firewall | DONE — `factor_as_of` requires `as_of`, ADR-016 |
+| T-506 | Rights-issue price effect | OPEN — S-011, needs issue price + market price, not just ratio |
+| T-507 | Source real corporate-action announcement dates (tighten knowledge_time past ex-date) | OPEN — ADR-016 |
+| T-508 | Run `build_close_index` for the full 2015-2026 range and execute the total-return build | OPEN — S-010 |
+
 ## Sprint 4 — lookahead firewall (COMPLETE 2026-08-19)
 
 | ID | Task | Status |
