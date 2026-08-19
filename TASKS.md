@@ -23,6 +23,7 @@ plan — they are listed here as scope only, not as tasks.
 | T-808 | Factor neutralisation (size, liquidity) | OPEN — the assigned reading covers it; harness does not do it yet |
 | T-809 | Fundamental features | OPEN — screener.in data has no per-field knowledge_time |
 | T-810 | Apply the overlap correction to the t-statistic | OPEN — described in the tear sheet, not applied; part of Sprint 13 |
+| T-811 | Independence clustering of the IC sweep | DONE — 10 features are ~3 findings; printed automatically |
 
 ## Sprint 7 — options quality (PARTIAL 2026-08-19)
 
