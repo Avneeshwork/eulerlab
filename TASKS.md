@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 7 — options quality (PARTIAL 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-701 | Option chain model from F&O bhavcopy, both eras | DONE — reuses Sprint 3 contract identity |
+| T-702 | Put-call parity against the same-expiry future | DONE — forward implied from the chain, no rate assumed |
+| T-703 | Strike monotonicity, butterfly convexity, intrinsic bounds | DONE — hard inequalities, not thresholds |
+| T-704 | Calendar inversion check | DONE — WARN only; European futures options do not guarantee the textbook inequality |
+| T-705 | Own IV via Black-76, bisection | DONE — 25 tests, round-trip at every moneyness |
+| T-706 | Theil-Sen fit so one bad quote cannot hide itself | DONE — ADR-018; OLS was silently returning no findings |
+| T-707 | `make quality-options` | DONE — cap path verified end to end |
+| T-708 | **Run against real F&O chains** | BLOCKED — B2 daily cap, same as T-510 and T-607 |
+| T-709 | Calibrate PARITY_SLACK against the measured settlement-price spread | OPEN — needs T-708 first |
+
 ## Sprint 6 — data quality engine (PARTIAL 2026-08-19)
 
 | ID | Task | Status |

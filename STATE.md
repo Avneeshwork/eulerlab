@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 6 — data quality engine
-**Status:** PARTIAL — row checks built and tested, not yet run against real prices (B2 cap)
-**Next:** finish Sprint 6 row run + S-012, then Sprint 7
+**Sprint:** 7 — options quality
+**Status:** PARTIAL — built and tested; three sprints' worth of real-data runs are queued behind the B2 daily cap
+**Next:** the 2026-08-20 scheduled run (S-012, T-607/608, T-708), then Sprint 8
 
 *Last updated: 2026-08-19 18:05 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,35 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 7 — what is built
+
+Runs on **EOD F&O bhavcopy chains**, not the intraday chains the build plan
+assumed — Sprint 2's recorder has still never run (ADR-018).
+
+- **`eulerlab.options.chain`** — one day's chain per (underlying, expiry) from
+  either archive era, reusing Sprint 3's contract identity unchanged. Every
+  quote carries `traded`, because NSE computes a settlement price for strikes
+  that never traded and a violation there measures NSE's model, not the market.
+- **`eulerlab.options.arbitrage`** — put-call parity, strike monotonicity,
+  butterfly convexity, intrinsic bounds, calendar inversion. Hard inequalities
+  rather than tuned thresholds. The forward *and* discount factor are implied
+  from the chain, so no risk-free rate is invented.
+- **`eulerlab.options.iv`** — Black-76 with bisection. Returns None rather
+  than clamping when no volatility fits, because that is itself the finding.
+- **`make quality-options`**.
+
+### The defect this sprint found
+
+The forward fit is the benchmark every parity and intrinsic check measures
+against. With ordinary least squares, one call planted at ₹1 against a ₹1,000
+intrinsic skewed the fit until the discount factor left its plausible range —
+so the fit returned None and the check reported **nothing at all**. The
+corruption hid by destroying the instrument meant to detect it.
+
+This is exactly the standard-deviation failure from Sprint 6 wearing different
+clothes, and it takes the same answer: Theil-Sen, whose breakdown point is
+29% rather than zero.
 
 ## Sprint 6 — what is built
 
