@@ -118,7 +118,27 @@ no new spending, all local computation over data already landed.
 
 Sprint 7 (options quality) moves to wherever the recorder lands.
 
-## Sprints 3–14 — seeded scope
+## Sprint 3 — security master · **COMPLETE**
+
+Verify: `make verify` and `make check-master` (6 of 6)
+
+| ID | Task | Status |
+|---|---|---|
+| T-301 | Internal instrument id, measured not assumed (ADR-012) | DONE |
+| T-302 | Time-versioned registry, `at(as_of)` returns what was true then | DONE |
+| T-303 | Build from bhavcopy, streaming from B2 | DONE |
+| T-304 | Symbol-change map from ISIN continuity — 580 renames | DONE |
+| T-305 | Succession model: rename / merger / demerger / cancellation (ADR-013) | DONE |
+| T-306 | Fix the BE-series lookup bug (4 false delistings) | DONE |
+| T-307 | Refetch minute bars for 24 recovered symbols | DONE — 420 symbols, 184M bars |
+| T-308 | F&O composite key (symbol, expiry, strike, right) | DONE — 28,984 contracts in 2015 and 35,089 in 2026 parsed, zero failures, zero duplicate keys |
+| T-309 | Trading calendar from evidence, not weekday rules | DONE — 2,869 trading days; flags 2021-03-30 SUSPECT rather than guessing |
+| T-310 | `make check-master` | DONE — 6 checks, all green, each capable of failing |
+| T-311 | Verify lot-size history against a known past value (A-002) | DONE — NIFTY 50/25/75/65 read from our own bhavcopy; A-002 resolved |
+| T-312 | Resolve TATACOFFEE ratio | DONE — one scheme, two legs: 1/22 + 14/55 = 3/10 exactly. Sources never disagreed |
+| T-313 | Research DHANI, JPASSOCIAT successions | DONE — DHANI→IBULLSLTD (terms_pending), JPASSOCIAT delisted in insolvency |
+
+## Sprints 4–14 — seeded scope
 
 | # | Build | Verify by | Status |
 |---|---|---|---|
@@ -151,3 +171,8 @@ attribution · 29–30 compliance sprint · 31 first micro-live capital (1–2%)
 | T-018 | Add Dhan as a second free feed for cross-reconciliation | DEFERRED — revisit when the quality engine (Sprint 6–7) flags anomalies a single source cannot adjudicate (ADR-004) |
 | T-015 | Verify current Nifty/Sensex lot sizes and expiry days against NSE/BSE circulars (A-002, A-003) | TODO — blocking for Sprint 3 |
 | T-016 | `mandate.yaml` + `gates.py` — operator-owned, written **with** the operator | TODO — Sprint 14 |
+
+| T-314 | Persist the master with a build stamp | DONE — JSONL, deterministic, `make build-master` |
+| T-315 | Broker symbology map (internal id ↔ Kite token) | DONE — 71.9% of mappable equities; residual is SME listings absent from the main board |
+| T-316 | Ingest SME-platform listings so the broker map reaches 100% | TODO — Sprint 4+ |
+| T-317 | Run `make build-master --cadence daily` once, to catch renames that reverse inside a month | TODO |

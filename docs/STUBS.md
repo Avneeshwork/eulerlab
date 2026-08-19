@@ -18,6 +18,10 @@ Empty rows are good news. A long table is not a problem in itself — an
 | S-005 | The minute universe covers 240 of 250 symbols | `config/universe_top250.txt` vs `data/landing/kite_minute/unresolved.jsonl` | 10 symbols do not resolve against Kite's current instrument list. Most are renames (ZOMATO→ETERNAL), but at least two are **demergers** (PEL, TATAMOTORS) which a one-to-one alias cannot express. Left unresolved deliberately rather than mapped by guesswork | Sprint 3 (security master) |
 | S-006 | ~~The minute universe is ranked as of 2024-09-17~~ | — | **Resolved 2026-08-18.** Replaced by `config/universe_top250_union.txt`: the union of the top 250 sampled at each year-end 2021–2026, which is 444 symbols. A single snapshot would have been survivorship-biased whichever date it used — only 168 of 250 names overlap between Sept 2024 and today | done |
 
+| S-007 | 3 minute-bar chunks are empty mid-history | `BCG` 2025-01-30→05-29, `FORCEMOT` 2023-12-07→2024-02-04 | **Not a fetch failure.** Re-queried Kite directly for the exact windows: 0 bars returned, while a control window for the same symbol returned 6,855. The data is absent at source. Both symbols traded on NSE around those dates per bhavcopy, so this is a Kite coverage gap, not a delisting | needs a second intraday source |
+| S-009 | 2021-03-30 has cash bhavcopy but no F&O | `data/landing/nse/fo/2021/03/` | NSE returns 404 for the F&O file on that date while cash exists. Re-attempted 2026-08-19 and confirmed absent at source, not a fetch failure. The cash file for 2020-12-03 had the mirror-image gap and **was** recoverable, so this is a genuine one-off source absence rather than a systematic problem | not fixable from this source |
+| S-008 | 1,055 minute chunks contain 0 bars | `data/landing/kite_minute/` | Overwhelmingly legitimate: 70 symbols listed after 2021, so their early chunks predate the listing (VAML's first data is 2026-05-25). Only the 3 in S-007 are gaps after data starts | not a defect |
+
 ---
 
 ## Not stubs, but worth stating plainly

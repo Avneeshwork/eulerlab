@@ -1,0 +1,3500 @@
+{
+  "renames": [
+    {
+      "old": "3IINFOTECH",
+      "new": "3IINFOLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-11-01"
+    },
+    {
+      "old": "4THDIM",
+      "new": "GVPTECH",
+      "changed_after": "2022-10-03",
+      "changed_by": "2023-08-01"
+    },
+    {
+      "old": "8KMILES",
+      "new": "SECURKLOUD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-02-01"
+    },
+    {
+      "old": "AARVEEDEN",
+      "new": "VGL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "ABMINTLTD",
+      "new": "ABMINTLLTD",
+      "changed_after": "2017-02-01",
+      "changed_by": "2021-10-01"
+    },
+    {
+      "old": "ACRYSIL",
+      "new": "CARYSIL",
+      "changed_after": "2021-02-01",
+      "changed_by": "2022-12-01"
+    },
+    {
+      "old": "ADANIGAS",
+      "new": "ATGL",
+      "changed_after": "2018-12-03",
+      "changed_by": "2021-02-01"
+    },
+    {
+      "old": "ADANITRANS",
+      "new": "ADANIENSOL",
+      "changed_after": "2015-08-03",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "ADHUNIKIND",
+      "new": "INCREDIBLE",
+      "changed_after": "2016-07-01",
+      "changed_by": "2021-06-01"
+    },
+    {
+      "old": "ADI",
+      "new": "PRIVISCL",
+      "changed_after": "2015-06-01",
+      "changed_by": "2017-02-01"
+    },
+    {
+      "old": "ADLABS",
+      "new": "IMAGICAA",
+      "changed_after": "2015-05-04",
+      "changed_by": "2020-05-04"
+    },
+    {
+      "old": "ADORWELD",
+      "new": "ADOR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-05-02"
+    },
+    {
+      "old": "AEGISCHEM",
+      "new": "AEGISLOG",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-07-01"
+    },
+    {
+      "old": "AFL",
+      "new": "INSPIRISYS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-11-01"
+    },
+    {
+      "old": "AGCNET",
+      "new": "BBOX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "AHL",
+      "new": "AFSL",
+      "changed_after": "2023-01-02",
+      "changed_by": "2025-04-01"
+    },
+    {
+      "old": "AHMEDFORGE",
+      "new": "METALFORGE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-06-01"
+    },
+    {
+      "old": "AIL",
+      "new": "GVPIL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-10-03"
+    },
+    {
+      "old": "AIONJSW",
+      "new": "JSWISPL",
+      "changed_after": "2018-10-01",
+      "changed_by": "2020-11-02"
+    },
+    {
+      "old": "AKZOINDIA",
+      "new": "JSWDULUX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2026-05-04"
+    },
+    {
+      "old": "ALLSEC",
+      "new": "ALLDIGI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-10-01"
+    },
+    {
+      "old": "ALOKTEXT",
+      "new": "ALOKINDS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-03-02"
+    },
+    {
+      "old": "ALSTOMT&D",
+      "new": "GVT&D",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-10-03"
+    },
+    {
+      "old": "AMARAJABAT",
+      "new": "ARE&M",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-11-01"
+    },
+    {
+      "old": "AMIORG",
+      "new": "ACUTAAS",
+      "changed_after": "2021-10-01",
+      "changed_by": "2025-06-02"
+    },
+    {
+      "old": "AMIRCHAND",
+      "new": "AEROPLANE",
+      "changed_after": "2026-05-04",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AMTEKINDIA",
+      "new": "CASTEXTECH",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-07-01"
+    },
+    {
+      "old": "ANANDAMRUB",
+      "new": "BALAXI",
+      "changed_after": "2015-12-01",
+      "changed_by": "2017-11-01"
+    },
+    {
+      "old": "ANDHRACEMT",
+      "new": "ACL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-06-01"
+    },
+    {
+      "old": "ANDPAPER",
+      "new": "ANDHRAPAP",
+      "changed_after": "2020-02-03",
+      "changed_by": "2020-04-01"
+    },
+    {
+      "old": "ANGELBRKG",
+      "new": "ANGELONE",
+      "changed_after": "2020-11-02",
+      "changed_by": "2021-12-01"
+    },
+    {
+      "old": "ARISINFRA",
+      "new": "ARIS",
+      "changed_after": "2025-07-01",
+      "changed_by": "2026-03-02"
+    },
+    {
+      "old": "ARROWCOAT",
+      "new": "ARROWGREEN",
+      "changed_after": "2015-06-01",
+      "changed_by": "2016-06-01"
+    },
+    {
+      "old": "ARVINFRA",
+      "new": "ARVSMART",
+      "changed_after": "2015-09-01",
+      "changed_by": "2017-01-02"
+    },
+    {
+      "old": "ASHIKA",
+      "new": "ASHIKAG",
+      "changed_after": "2026-05-04",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "ASIAN-RE",
+      "new": "ASIAN-RE1",
+      "changed_after": "2021-10-01",
+      "changed_by": "2022-05-02"
+    },
+    {
+      "old": "ATFL",
+      "new": "SUNDROP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-04-01"
+    },
+    {
+      "old": "ATLANTA",
+      "new": "ATLANTAA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "AVANTI",
+      "new": "AVANTIFEED",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-05-04"
+    },
+    {
+      "old": "AXISBNKETF",
+      "new": "BNKETFAXIS",
+      "changed_after": "2020-12-01",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISCETF",
+      "new": "CONSUMAXIS",
+      "changed_after": "2021-10-01",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISGOLD",
+      "new": "GOLDAXIS",
+      "changed_after": "2020-08-03",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISHCETF",
+      "new": "HEALTHAXIS",
+      "changed_after": "2021-06-01",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISILVER",
+      "new": "SILVERAXIS",
+      "changed_after": "2022-10-03",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISNIFTY",
+      "new": "NIFTYAXIS",
+      "changed_after": "2020-08-03",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISTECETF",
+      "new": "ITAXIS",
+      "changed_after": "2021-04-01",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXISVALUE",
+      "new": "VALUEAXIS",
+      "changed_after": "2025-04-01",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "AXSENSEX",
+      "new": "SENSEXAXIS",
+      "changed_after": "2023-04-03",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "BAFNAPHARM",
+      "new": "BAFNAPH",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-03-02"
+    },
+    {
+      "old": "BAJAJCORP",
+      "new": "BAJAJCON",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-02-01"
+    },
+    {
+      "old": "BANKETFADD",
+      "new": "BANKADD",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "BARBEQUE",
+      "new": "UFBL",
+      "changed_after": "2021-05-03",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "BARTRONICS",
+      "new": "ASMS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-03-01"
+    },
+    {
+      "old": "BHAGYNAGAR",
+      "new": "BHAGYANGR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-06-01"
+    },
+    {
+      "old": "BHARATIWIN",
+      "new": "ICICIB22",
+      "changed_after": "2017-12-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "BHARTISHIP",
+      "new": "BHARATIDIL",
+      "changed_after": "2016-01-01",
+      "changed_by": "2016-03-01"
+    },
+    {
+      "old": "BHUSANSTL",
+      "new": "TATASTLBSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-01-01"
+    },
+    {
+      "old": "BINANIIND",
+      "new": "BILVYAPAR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-08-01"
+    },
+    {
+      "old": "BINDALAGRO",
+      "new": "OSWALGREEN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-06-01"
+    },
+    {
+      "old": "BIRLAERIC",
+      "new": "BIRLACABLE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-10-03"
+    },
+    {
+      "old": "BOROSIL",
+      "new": "BORORENEW",
+      "changed_after": "2018-06-01",
+      "changed_by": "2020-03-02"
+    },
+    {
+      "old": "BURGERKING",
+      "new": "RBA",
+      "changed_after": "2021-01-01",
+      "changed_by": "2022-03-02"
+    },
+    {
+      "old": "CADILAHC",
+      "new": "ZYDUSLIFE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-04-01"
+    },
+    {
+      "old": "CAPTRU-RE",
+      "new": "CAPTRU-RE1",
+      "changed_after": "2025-07-01",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "CAREERP",
+      "new": "CPCAP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-04-01"
+    },
+    {
+      "old": "CEBBCO",
+      "new": "JWL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-07-01"
+    },
+    {
+      "old": "CENTURYTEX",
+      "new": "ABREL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-11-01"
+    },
+    {
+      "old": "CESCVENT",
+      "new": "RPSGVENT",
+      "changed_after": "2019-02-01",
+      "changed_by": "2021-02-01"
+    },
+    {
+      "old": "CLNINDIA",
+      "new": "SUDARCOLOR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-04-03"
+    },
+    {
+      "old": "COMPUAGE",
+      "new": "COMPINFO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-08-01"
+    },
+    {
+      "old": "COSMOFILMS",
+      "new": "COSMOFIRST",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-08-01"
+    },
+    {
+      "old": "CREATIVE",
+      "new": "CNL",
+      "changed_after": "2019-09-03",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "CROMPGREAV",
+      "new": "CGPOWER",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-04-03"
+    },
+    {
+      "old": "CURATECH",
+      "new": "CURAA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-04-01"
+    },
+    {
+      "old": "DAAWAT",
+      "new": "LTFOODS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-12-01"
+    },
+    {
+      "old": "DALALSTCOM",
+      "new": "KEEPLEARN",
+      "changed_after": "2021-04-01",
+      "changed_by": "2022-05-02"
+    },
+    {
+      "old": "DEEPIND",
+      "new": "DEEPENR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-10-01"
+    },
+    {
+      "old": "DHANVARSHA",
+      "new": "TRU",
+      "changed_after": "2022-06-01",
+      "changed_by": "2022-09-01"
+    },
+    {
+      "old": "DHARAMSI",
+      "new": "DMCC",
+      "changed_after": "2021-12-01",
+      "changed_by": "2022-12-01"
+    },
+    {
+      "old": "DHFL",
+      "new": "PIRAMALFIN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-12-01"
+    },
+    {
+      "old": "DIAPOWER",
+      "new": "DIACABS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-10-03"
+    },
+    {
+      "old": "DIGJAMLTD",
+      "new": "DIGJAMLMTD",
+      "changed_after": "2016-08-01",
+      "changed_by": "2021-11-01"
+    },
+    {
+      "old": "DOLAT",
+      "new": "DOLATALGO",
+      "changed_after": "2019-09-03",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "DOLPHINOFF",
+      "new": "DOLPHIN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "DPL",
+      "new": "DVL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-02-01"
+    },
+    {
+      "old": "DSPBANKETF",
+      "new": "BANKADD",
+      "changed_after": "2023-02-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPGOLDETF",
+      "new": "GOLDADD",
+      "changed_after": "2023-06-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPITETF",
+      "new": "ITADD",
+      "changed_after": "2023-08-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPN50ETF",
+      "new": "NIFTYADD",
+      "changed_after": "2022-01-03",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPNEWETF",
+      "new": "EQUAL50ADD",
+      "changed_after": "2021-12-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPPSBKETF",
+      "new": "PSUBANKADD",
+      "changed_after": "2023-09-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPPVBKETF",
+      "new": "PVTBANKADD",
+      "changed_after": "2023-09-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPQ50ETF",
+      "new": "MIDQ50ADD",
+      "changed_after": "2022-01-03",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPSENXETF",
+      "new": "SENSEXADD",
+      "changed_after": "2023-09-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DSPSILVETF",
+      "new": "SILVERADD",
+      "changed_after": "2022-09-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "DYNATECH",
+      "new": "DUCON",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-06-01"
+    },
+    {
+      "old": "EBIXFOREX",
+      "new": "DELPHIFX",
+      "changed_after": "2020-05-04",
+      "changed_by": "2021-09-01"
+    },
+    {
+      "old": "EMAMIINFRA",
+      "new": "EMAMIREAL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-12-03"
+    },
+    {
+      "old": "ESL",
+      "new": "ELECTROSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-07-02"
+    },
+    {
+      "old": "ESSELPACK",
+      "new": "EPL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-11-02"
+    },
+    {
+      "old": "ESSEN-RE",
+      "new": "ESSEN-RE3",
+      "changed_after": "2022-06-01",
+      "changed_by": "2022-12-01"
+    },
+    {
+      "old": "ESSEN-RE1",
+      "new": "ESSEN-RE3",
+      "changed_after": "2022-12-01",
+      "changed_by": "2026-06-01"
+    },
+    {
+      "old": "EXCEL",
+      "new": "LANDSMILL",
+      "changed_after": "2015-06-01",
+      "changed_by": "2026-05-04"
+    },
+    {
+      "old": "EXCELINFO",
+      "new": "LANDSMILL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-06-01"
+    },
+    {
+      "old": "FAGBEARING",
+      "new": "SCHAEFFLER",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-08-01"
+    },
+    {
+      "old": "FAIRCHEM",
+      "new": "PRIVISCL",
+      "changed_after": "2017-02-01",
+      "changed_by": "2020-11-02"
+    },
+    {
+      "old": "FCEL",
+      "new": "FCONSUMER",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-11-01"
+    },
+    {
+      "old": "FEDDERLOYD",
+      "new": "FEDDERELEC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-07-03"
+    },
+    {
+      "old": "FINANTECH",
+      "new": "63MOONS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-02-01"
+    },
+    {
+      "old": "FORTUNEFIN",
+      "new": "THEINVEST",
+      "changed_after": "2017-09-01",
+      "changed_by": "2018-08-01"
+    },
+    {
+      "old": "FRL",
+      "new": "FEL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-06-01"
+    },
+    {
+      "old": "FRLDVR",
+      "new": "FELDVR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-06-01"
+    },
+    {
+      "old": "G5",
+      "new": "MOGSEC",
+      "changed_after": "2021-01-01",
+      "changed_by": "2021-07-01"
+    },
+    {
+      "old": "GAL",
+      "new": "SHAH",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "GAMMNINFRA",
+      "new": "AJRINFRA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-09-01"
+    },
+    {
+      "old": "GANESHHOUC",
+      "new": "GANESHHOU",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "GARWALLROP",
+      "new": "GARFIBRES",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-09-03"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2023-10-03",
+      "changed_by": "2023-10-03"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-01-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-02-01",
+      "changed_by": "2024-02-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-03-01",
+      "changed_by": "2024-03-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-04-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-05-02",
+      "changed_by": "2024-05-02"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-06-03",
+      "changed_by": "2024-06-03"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-07-01",
+      "changed_by": "2024-07-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-08-01",
+      "changed_by": "2024-08-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-09-02",
+      "changed_by": "2024-10-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-11-01",
+      "changed_by": "2024-11-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2024-12-02",
+      "changed_by": "2024-12-02"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-01-01",
+      "changed_by": "2025-01-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-02-03",
+      "changed_by": "2025-03-03"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-04-01",
+      "changed_by": "2025-04-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-05-02",
+      "changed_by": "2025-05-02"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-06-02",
+      "changed_by": "2025-06-02"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-07-01",
+      "changed_by": "2025-07-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-08-01",
+      "changed_by": "2025-08-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-09-01",
+      "changed_by": "2025-09-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-10-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-11-03",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2025-12-01",
+      "changed_by": "2025-12-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-01-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-02-02",
+      "changed_by": "2026-02-02"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-03-02",
+      "changed_by": "2026-03-02"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-04-01",
+      "changed_by": "2026-04-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-05-04",
+      "changed_by": "2026-05-04"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-06-01",
+      "changed_by": "2026-06-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-07-01",
+      "changed_by": "2026-07-01"
+    },
+    {
+      "old": "GATECH",
+      "new": "GATECHDVR",
+      "changed_after": "2026-08-03",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "GATECH-RE",
+      "new": "GACMDVR-RE",
+      "changed_after": "2024-08-01",
+      "changed_by": "2024-08-01"
+    },
+    {
+      "old": "GATI",
+      "new": "ACLGATI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-12-01"
+    },
+    {
+      "old": "GEOJITBNPP",
+      "new": "GEOJITFSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-04-03"
+    },
+    {
+      "old": "GEPIL",
+      "new": "GVPIL",
+      "changed_after": "2016-10-03",
+      "changed_by": "2025-09-01"
+    },
+    {
+      "old": "GET&D",
+      "new": "GVT&D",
+      "changed_after": "2016-10-03",
+      "changed_by": "2024-12-02"
+    },
+    {
+      "old": "GISOLUTION",
+      "new": "TPHQ",
+      "changed_after": "2015-02-02",
+      "changed_by": "2023-11-01"
+    },
+    {
+      "old": "GLS",
+      "new": "ALIVUS",
+      "changed_after": "2021-09-01",
+      "changed_by": "2025-02-03"
+    },
+    {
+      "old": "GMRINFRA",
+      "new": "GMRAIRPORT",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-01-01"
+    },
+    {
+      "old": "GODHA",
+      "new": "AURIGROW",
+      "changed_after": "2021-01-01",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "GOLDETFADD",
+      "new": "GOLDADD",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "GOLDINFRA",
+      "new": "OLECTRA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-08-01"
+    },
+    {
+      "old": "GOLDIWIN",
+      "new": "ICICIGOLD",
+      "changed_after": "2016-08-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "GOLDSHARE",
+      "new": "GOLDBETA",
+      "changed_after": "2021-04-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "GREEN-RE",
+      "new": "GREEN-RE1",
+      "changed_after": "2023-09-01",
+      "changed_by": "2024-09-02"
+    },
+    {
+      "old": "GREENFIRE",
+      "new": "EQUIPPP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-09-03"
+    },
+    {
+      "old": "GUJFLUORO",
+      "new": "GFLLIMITED",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-08-01"
+    },
+    {
+      "old": "GUJGASLTD",
+      "new": "GUJENERGY",
+      "changed_after": "2015-10-01",
+      "changed_by": "2026-07-01"
+    },
+    {
+      "old": "GULFCORP",
+      "new": "GOCLCORP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-12-01"
+    },
+    {
+      "old": "HBANKETF",
+      "new": "HDFCNIFBAN",
+      "changed_after": "2020-09-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "HBLPOWER",
+      "new": "HBLENGINE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-01-01"
+    },
+    {
+      "old": "HBSTOCK",
+      "new": "HBSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-08-01"
+    },
+    {
+      "old": "HCIL",
+      "new": "HSCL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-09-01"
+    },
+    {
+      "old": "HDFCMFGETF",
+      "new": "HDFCGOLD",
+      "changed_after": "2021-03-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "HDFCNIFETF",
+      "new": "HDFCNIFTY",
+      "changed_after": "2021-03-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "HDFCSENETF",
+      "new": "HDFCSENSEX",
+      "changed_after": "2021-03-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "HEUBACHIND",
+      "new": "SUDARCOLOR",
+      "changed_after": "2023-04-03",
+      "changed_by": "2026-02-02"
+    },
+    {
+      "old": "HEXAWARE",
+      "new": "HEXT",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-03-03"
+    },
+    {
+      "old": "HIL",
+      "new": "BIRLANU",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-05-02"
+    },
+    {
+      "old": "HINDUJAVEN",
+      "new": "NDLVENTURE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-12-02"
+    },
+    {
+      "old": "HITACHIHOM",
+      "new": "BOSCH-HCIL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-10-03"
+    },
+    {
+      "old": "HITECHPLAS",
+      "new": "HITECHCORP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-06-01"
+    },
+    {
+      "old": "HOTELEELA",
+      "new": "HLVLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-02-03"
+    },
+    {
+      "old": "HOTELRUGBY",
+      "new": "UNIVAFOODS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-01-02"
+    },
+    {
+      "old": "HOVS",
+      "new": "HGM",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "HSIL",
+      "new": "AGI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "HYDROS&S",
+      "new": "KINGFA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-12-01"
+    },
+    {
+      "old": "IBREALEST",
+      "new": "EMBDL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-08-01"
+    },
+    {
+      "old": "IBSEC",
+      "new": "DHANI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-04-01"
+    },
+    {
+      "old": "IBULHSGFIN",
+      "new": "SAMMAANCAP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-08-01"
+    },
+    {
+      "old": "IBULISL",
+      "new": "IBULLSLTD",
+      "changed_after": "2018-07-02",
+      "changed_by": "2021-01-01"
+    },
+    {
+      "old": "IBVENTURES",
+      "new": "DHANI",
+      "changed_after": "2015-04-01",
+      "changed_by": "2020-11-02"
+    },
+    {
+      "old": "IBWSL",
+      "new": "IBULLSLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-05-02"
+    },
+    {
+      "old": "ICICI10GS",
+      "new": "GSEC10IETF",
+      "changed_after": "2023-01-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICI500",
+      "new": "BSE500IETF",
+      "changed_after": "2021-11-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICI5GSEC",
+      "new": "GSEC5IETF",
+      "changed_after": "2022-04-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIALPLV",
+      "new": "ALPL30IETF",
+      "changed_after": "2020-09-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIAUTO",
+      "new": "AUTOIETF",
+      "changed_after": "2022-02-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIBANKN",
+      "new": "BANKIETF",
+      "changed_after": "2022-10-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIBANKP",
+      "new": "PVTBANIETF",
+      "changed_after": "2019-09-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICICOMMO",
+      "new": "COMMOIETF",
+      "changed_after": "2023-01-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICICONSU",
+      "new": "CONSUMIETF",
+      "changed_after": "2021-12-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIFIN",
+      "new": "FINIETF",
+      "changed_after": "2022-12-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIFMCG",
+      "new": "FMCGIETF",
+      "changed_after": "2021-09-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIGOLD",
+      "new": "GOLDIETF",
+      "changed_after": "2018-12-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIINFRA",
+      "new": "INFRAIETF",
+      "changed_after": "2022-09-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICILIQ",
+      "new": "LIQUIDIETF",
+      "changed_after": "2018-12-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICILOVOL",
+      "new": "LOWVOLIETF",
+      "changed_after": "2018-05-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIM150",
+      "new": "MIDCAPIETF",
+      "changed_after": "2020-02-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIMCAP",
+      "new": "MIDSELIETF",
+      "changed_after": "2018-05-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIMOM30",
+      "new": "MOM30IETF",
+      "changed_after": "2022-09-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICINF100",
+      "new": "NIF100IETF",
+      "changed_after": "2018-05-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICINIFTY",
+      "new": "NIFTYIETF",
+      "changed_after": "2018-05-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICINV20",
+      "new": "NV20IETF",
+      "changed_after": "2018-05-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICINXT50",
+      "new": "NEXT50IETF",
+      "changed_after": "2018-12-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIPHARM",
+      "new": "HEALTHIETF",
+      "changed_after": "2021-06-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICIQTY30",
+      "new": "QUAL30IETF",
+      "changed_after": "2023-09-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICISENSX",
+      "new": "SENSEXIETF",
+      "changed_after": "2018-05-02",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICISILVE",
+      "new": "SILVERIETF",
+      "changed_after": "2022-02-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICICITECH",
+      "new": "ITIETF",
+      "changed_after": "2022-10-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "ICNX100",
+      "new": "NIF100IETF",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-08-01"
+    },
+    {
+      "old": "IDBIGOLD",
+      "new": "LICMFGOLD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-08-01"
+    },
+    {
+      "old": "IDFCBANK",
+      "new": "IDFCFIRSTB",
+      "changed_after": "2015-12-01",
+      "changed_by": "2019-02-01"
+    },
+    {
+      "old": "IGOLD",
+      "new": "ICICIGOLD",
+      "changed_after": "2016-07-01",
+      "changed_by": "2016-08-01"
+    },
+    {
+      "old": "IIFLSEC",
+      "new": "IIFLCAPS",
+      "changed_after": "2019-10-01",
+      "changed_by": "2025-01-01"
+    },
+    {
+      "old": "IIFLWAM",
+      "new": "360ONE",
+      "changed_after": "2019-10-01",
+      "changed_by": "2023-02-01"
+    },
+    {
+      "old": "INDO-RE",
+      "new": "INDO-RE2",
+      "changed_after": "2023-02-01",
+      "changed_by": "2025-12-01"
+    },
+    {
+      "old": "INDOSOLAR",
+      "new": "WAAREEINDO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-08-01"
+    },
+    {
+      "old": "INEOSSTYRO",
+      "new": "STYRENIX",
+      "changed_after": "2016-05-02",
+      "changed_by": "2023-02-01"
+    },
+    {
+      "old": "INFIBEAM",
+      "new": "CCAVENUE",
+      "changed_after": "2016-05-02",
+      "changed_by": "2026-03-02"
+    },
+    {
+      "old": "INFRATEL",
+      "new": "INDUSTOWER",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-01-01"
+    },
+    {
+      "old": "INIFTY",
+      "new": "NIFTYIETF",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-08-01"
+    },
+    {
+      "old": "INTEGRA",
+      "new": "ESSENTIA",
+      "changed_after": "2015-12-01",
+      "changed_by": "2022-05-02"
+    },
+    {
+      "old": "IPAPPM",
+      "new": "ANDHRAPAP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-02-03"
+    },
+    {
+      "old": "ISENSEX",
+      "new": "SENSEXIETF",
+      "changed_after": "2015-02-02",
+      "changed_by": "2016-09-01"
+    },
+    {
+      "old": "ITDCEM",
+      "new": "CEMPRO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "ITETFADD",
+      "new": "ITADD",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "JCHAC",
+      "new": "BOSCH-HCIL",
+      "changed_after": "2016-10-03",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "JTLINFRA",
+      "new": "JTLIND",
+      "changed_after": "2022-01-03",
+      "changed_by": "2022-12-01"
+    },
+    {
+      "old": "JUBILANT",
+      "new": "JUBLPHARMA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-03-01"
+    },
+    {
+      "old": "JUMPNET",
+      "new": "WINPRO",
+      "changed_after": "2019-09-03",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "KALPATPOWR",
+      "new": "KPIL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "KARDA",
+      "new": "DHARAN",
+      "changed_after": "2018-04-02",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "KAVVERITEL",
+      "new": "KAVDEFENCE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-07-01"
+    },
+    {
+      "old": "KBCGLOBAL",
+      "new": "DHARAN",
+      "changed_after": "2022-01-03",
+      "changed_by": "2025-07-01"
+    },
+    {
+      "old": "KEERTI",
+      "new": "GTECJAINX",
+      "changed_after": "2020-12-01",
+      "changed_by": "2023-10-03"
+    },
+    {
+      "old": "KEYCORPSER",
+      "new": "KEYFINSERV",
+      "changed_after": "2015-12-01",
+      "changed_by": "2019-07-01"
+    },
+    {
+      "old": "KIL",
+      "new": "KAMDHENU",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-04-01"
+    },
+    {
+      "old": "KOTAKALPHA",
+      "new": "ALPHA",
+      "changed_after": "2022-01-03",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKBKETF",
+      "new": "BANKNIFTY1",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKCONS",
+      "new": "CONS",
+      "changed_after": "2022-09-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKGOLD",
+      "new": "GOLD1",
+      "changed_after": "2021-08-02",
+      "changed_by": "2024-05-02"
+    },
+    {
+      "old": "KOTAKIT",
+      "new": "IT",
+      "changed_after": "2021-04-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKLIQ",
+      "new": "LIQUID1",
+      "changed_after": "2023-02-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKLOVOL",
+      "new": "LOWVOL1",
+      "changed_after": "2022-04-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKMID50",
+      "new": "MIDCAP",
+      "changed_after": "2022-03-02",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKMNC",
+      "new": "MNC",
+      "changed_after": "2022-09-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKNIFTY",
+      "new": "NIFTY1",
+      "changed_after": "2017-08-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKNV20",
+      "new": "NV20",
+      "changed_after": "2016-02-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKPSUBK",
+      "new": "PSUBANK",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-04-01"
+    },
+    {
+      "old": "KOTAKSILVE",
+      "new": "SILVER1",
+      "changed_after": "2023-01-02",
+      "changed_by": "2024-05-02"
+    },
+    {
+      "old": "KPIGLOBAL",
+      "new": "KPIGREEN",
+      "changed_after": "2021-08-02",
+      "changed_by": "2022-05-02"
+    },
+    {
+      "old": "KPIT",
+      "new": "BSOFT",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-03-01"
+    },
+    {
+      "old": "KRITIIND",
+      "new": "KRITI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-11-01"
+    },
+    {
+      "old": "KSBPUMPS",
+      "new": "KSB",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-11-01"
+    },
+    {
+      "old": "L&TFH",
+      "new": "LTF",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-05-02"
+    },
+    {
+      "old": "LAXMIMACH",
+      "new": "LMW",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-11-01"
+    },
+    {
+      "old": "LICNMFET",
+      "new": "LICNETFGSC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-01-01"
+    },
+    {
+      "old": "LINCPEN",
+      "new": "LINC",
+      "changed_after": "2015-04-01",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "LLOYDELENG",
+      "new": "LEEL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-07-03"
+    },
+    {
+      "old": "LOGIXMICRO",
+      "new": "IZMO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-06-01"
+    },
+    {
+      "old": "LOWVOLIWIN",
+      "new": "LOWVOLIETF",
+      "changed_after": "2017-09-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "LSIL",
+      "new": "LLOYDSENGG",
+      "changed_after": "2016-08-01",
+      "changed_by": "2023-11-01"
+    },
+    {
+      "old": "LTI",
+      "new": "LTM",
+      "changed_after": "2016-08-01",
+      "changed_by": "2023-01-02"
+    },
+    {
+      "old": "LTIM",
+      "new": "LTM",
+      "changed_after": "2023-01-02",
+      "changed_by": "2026-03-02"
+    },
+    {
+      "old": "LYCOS",
+      "new": "BCG",
+      "changed_after": "2015-06-01",
+      "changed_by": "2018-11-01"
+    },
+    {
+      "old": "LYPSAGEMS",
+      "new": "AURUS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2026-08-03"
+    },
+    {
+      "old": "M&MFIN-RE",
+      "new": "M&MFIN-RE1",
+      "changed_after": "2020-08-03",
+      "changed_by": "2025-06-02"
+    },
+    {
+      "old": "M100",
+      "new": "MOM100",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-07-01"
+    },
+    {
+      "old": "M50",
+      "new": "MOM50",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-07-01"
+    },
+    {
+      "old": "MAESGETF",
+      "new": "ESG",
+      "changed_after": "2020-12-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MAFSETF",
+      "new": "BFSI",
+      "changed_after": "2021-09-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MAGMA",
+      "new": "POONAWALLA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-09-01"
+    },
+    {
+      "old": "MAGOLDETF",
+      "new": "GOLDETF",
+      "changed_after": "2023-03-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MAGS813ETF",
+      "new": "GSEC10YEAR",
+      "changed_after": "2023-05-02",
+      "changed_by": "2023-10-03"
+    },
+    {
+      "old": "MAHINDCIE",
+      "new": "CIEINDIA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "MAJESCO",
+      "new": "AURUM",
+      "changed_after": "2015-09-01",
+      "changed_by": "2021-11-01"
+    },
+    {
+      "old": "MAM150ETF",
+      "new": "MIDCAPETF",
+      "changed_after": "2022-04-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MAMFGETF",
+      "new": "MAKEINDIA",
+      "changed_after": "2022-03-02",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MAN50ETF",
+      "new": "NIFTYETF",
+      "changed_after": "2018-12-03",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MANAKINDST",
+      "new": "BKMINDST",
+      "changed_after": "2015-04-01",
+      "changed_by": "2017-12-01"
+    },
+    {
+      "old": "MANDHANA",
+      "new": "GBGLOBAL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-07-01"
+    },
+    {
+      "old": "MANV30F",
+      "new": "LOWVOL",
+      "changed_after": "2023-04-03",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MANXT50",
+      "new": "NEXT50",
+      "changed_after": "2020-02-03",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MASILVER",
+      "new": "SILVERAG",
+      "changed_after": "2023-07-03",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "MAX",
+      "new": "MFSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-03-01"
+    },
+    {
+      "old": "MAXWELL",
+      "new": "VIPCLOTHNG",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-01-02"
+    },
+    {
+      "old": "MCDOWELL-N",
+      "new": "UNITDSPR",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-07-01"
+    },
+    {
+      "old": "MEGASOFT",
+      "new": "SIGMAADV",
+      "changed_after": "2015-01-01",
+      "changed_by": "2026-03-02"
+    },
+    {
+      "old": "MERCK",
+      "new": "PGHL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-07-01"
+    },
+    {
+      "old": "MFL",
+      "new": "EPIGRAL",
+      "changed_after": "2021-09-01",
+      "changed_by": "2023-10-03"
+    },
+    {
+      "old": "MIC",
+      "new": "MICEL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "MICROSEC",
+      "new": "HEALTHX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-12-01"
+    },
+    {
+      "old": "MIDCAPIWIN",
+      "new": "MIDSELIETF",
+      "changed_after": "2016-08-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "MIL",
+      "new": "GBGLOBAL",
+      "changed_after": "2019-07-01",
+      "changed_by": "2019-12-02"
+    },
+    {
+      "old": "MINDAIND",
+      "new": "UNOMINDA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-09-01"
+    },
+    {
+      "old": "MIRCELECTR",
+      "new": "ONIDA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2026-07-01"
+    },
+    {
+      "old": "MODISNME",
+      "new": "MODISONLTD",
+      "changed_after": "2021-05-03",
+      "changed_by": "2022-09-01"
+    },
+    {
+      "old": "MOHOTAMILL",
+      "new": "MOHOTAIND",
+      "changed_after": "2017-08-01",
+      "changed_by": "2018-01-01"
+    },
+    {
+      "old": "MONNETISPA",
+      "new": "JSWISPL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-10-01"
+    },
+    {
+      "old": "MOTHERSUMI",
+      "new": "MOTHERSON",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-07-01"
+    },
+    {
+      "old": "MRO-TEK",
+      "new": "UMIYA-MRO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-05-02"
+    },
+    {
+      "old": "MUDRA",
+      "new": "ELAND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-04-01"
+    },
+    {
+      "old": "NAGAAGRI",
+      "new": "NACLIND",
+      "changed_after": "2017-05-02",
+      "changed_by": "2017-10-03"
+    },
+    {
+      "old": "NBVENTURES",
+      "new": "NAVA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-08-01"
+    },
+    {
+      "old": "NCPSESDL24",
+      "new": "SDL24BEES",
+      "changed_after": "2020-12-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFAUTO",
+      "new": "AUTOBEES",
+      "changed_after": "2022-02-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFCONSUM",
+      "new": "CONSUMBEES",
+      "changed_after": "2019-11-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFDIVOPP",
+      "new": "DIVOPPBEES",
+      "changed_after": "2019-11-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFGILT5Y",
+      "new": "GILT5YBEES",
+      "changed_after": "2021-05-03",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFIT",
+      "new": "ITBEES",
+      "changed_after": "2020-07-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFLTGILT",
+      "new": "LTGILTBEES",
+      "changed_after": "2019-11-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFMID150",
+      "new": "MID150BEES",
+      "changed_after": "2019-11-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFNIF100",
+      "new": "NIF100BEES",
+      "changed_after": "2019-11-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFNV20",
+      "new": "NV20BEES",
+      "changed_after": "2020-01-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFPHARMA",
+      "new": "PHARMABEES",
+      "changed_after": "2021-08-02",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFSDL26",
+      "new": "SDL26BEES",
+      "changed_after": "2021-04-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NETFSILVER",
+      "new": "SILVERBEES",
+      "changed_after": "2022-03-02",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "NEYVELILIG",
+      "new": "NLCINDIA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-09-01"
+    },
+    {
+      "old": "NGCT",
+      "new": "SPCENET",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-02-01"
+    },
+    {
+      "old": "NIF100IWIN",
+      "new": "NIF100IETF",
+      "changed_after": "2016-08-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "NIF10GETF",
+      "new": "GILT10BETA",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "NIF5GETF",
+      "new": "GILT5BETA",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "NIFITETF",
+      "new": "ITBETA",
+      "changed_after": "2024-02-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "NIFMID150",
+      "new": "MIDCAPBETA",
+      "changed_after": "2023-10-03",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "NIFTY50ADD",
+      "new": "NIFTYADD",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "NIFTYIWIN",
+      "new": "NIFTYIETF",
+      "changed_after": "2016-08-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "NIITTECH",
+      "new": "COFORGE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-09-01"
+    },
+    {
+      "old": "NIRVIKARA",
+      "new": "BALKRISHNA",
+      "changed_after": "2015-08-03",
+      "changed_by": "2016-10-03"
+    },
+    {
+      "old": "NTL",
+      "new": "NEUEON",
+      "changed_after": "2017-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "NV20IWIN",
+      "new": "NV20IETF",
+      "changed_after": "2016-10-03",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "NXTDIGITAL",
+      "new": "NDLVENTURE",
+      "changed_after": "2019-12-02",
+      "changed_by": "2023-06-01"
+    },
+    {
+      "old": "OCLINDIA",
+      "new": "DALBHARAT",
+      "changed_after": "2019-01-01",
+      "changed_by": "2019-02-01"
+    },
+    {
+      "old": "OMMETALS",
+      "new": "OMINFRAL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-03-01"
+    },
+    {
+      "old": "ORCHIDCHEM",
+      "new": "ORCHPHARMA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-01-01"
+    },
+    {
+      "old": "ORCHIDPHAR",
+      "new": "ORCHPHARMA",
+      "changed_after": "2016-01-01",
+      "changed_by": "2021-01-01"
+    },
+    {
+      "old": "ORIENTABRA",
+      "new": "ORIENTCER",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-08-01"
+    },
+    {
+      "old": "ORIENTREF",
+      "new": "RHIM",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-08-02"
+    },
+    {
+      "old": "ORTINLAB",
+      "new": "ORTINGLOBE",
+      "changed_after": "2021-04-01",
+      "changed_by": "2024-10-01"
+    },
+    {
+      "old": "ORTINLABSS",
+      "new": "ORTINGLOBE",
+      "changed_after": "2015-09-01",
+      "changed_by": "2021-04-01"
+    },
+    {
+      "old": "PALRED",
+      "new": "PALREDTEC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-11-02"
+    },
+    {
+      "old": "PALREDTECH",
+      "new": "PALREDTEC",
+      "changed_after": "2015-11-02",
+      "changed_by": "2016-06-01"
+    },
+    {
+      "old": "PAPERPROD",
+      "new": "HUHTAMAKI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-12-01"
+    },
+    {
+      "old": "PDSMFL",
+      "new": "PDSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-03-02"
+    },
+    {
+      "old": "PDUMJEIND",
+      "new": "3PLAND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-06-01"
+    },
+    {
+      "old": "PDUMJEPULP",
+      "new": "AMJLAND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-02-01"
+    },
+    {
+      "old": "PERIATEA",
+      "new": "PKTEA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-11-02"
+    },
+    {
+      "old": "PFRL",
+      "new": "ABFRL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-02-01"
+    },
+    {
+      "old": "PHILIPCARB",
+      "new": "PCBL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-02-01"
+    },
+    {
+      "old": "PILANIINV",
+      "new": "PILANIINVS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-01-01"
+    },
+    {
+      "old": "PILIND",
+      "new": "PILITA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-10-01"
+    },
+    {
+      "old": "PIPAVAVDOC",
+      "new": "SWANDEF",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-04-01"
+    },
+    {
+      "old": "PITTILAM",
+      "new": "PITTIENG",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-07-02"
+    },
+    {
+      "old": "PONDYOXIDE",
+      "new": "POCL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-04-03"
+    },
+    {
+      "old": "PRAKASHCON",
+      "new": "SETUINFRA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-08-01"
+    },
+    {
+      "old": "PRISMCEM",
+      "new": "PRSMJOHNSN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-06-01"
+    },
+    {
+      "old": "PROINDIA",
+      "new": "EQUIPPP",
+      "changed_after": "2021-06-01",
+      "changed_by": "2021-12-01"
+    },
+    {
+      "old": "PROSEED",
+      "new": "EQUIPPP",
+      "changed_after": "2018-09-03",
+      "changed_by": "2021-06-01"
+    },
+    {
+      "old": "PROZONINTU",
+      "new": "PROZONER",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "PSUBANKICI",
+      "new": "PSUBNKIETF",
+      "changed_after": "2023-04-03",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "PVR",
+      "new": "PVRINOX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-06-01"
+    },
+    {
+      "old": "RAIREKMOH",
+      "new": "MOHOTAIND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-08-01"
+    },
+    {
+      "old": "RAJOIL",
+      "new": "ROML",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-12-01"
+    },
+    {
+      "old": "RAJRAYON",
+      "new": "RAJRILTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-04-01"
+    },
+    {
+      "old": "RDEL",
+      "new": "SWANDEF",
+      "changed_after": "2016-04-01",
+      "changed_by": "2017-10-03"
+    },
+    {
+      "old": "RELCNX100",
+      "new": "NIF100BEES",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "RELCONS",
+      "new": "CONSUMBEES",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "RELDIVOPP",
+      "new": "DIVOPPBEES",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "RELGRNIFTY",
+      "new": "IVZINNIFTY",
+      "changed_after": "2015-03-02",
+      "changed_by": "2016-07-01"
+    },
+    {
+      "old": "RELIGAREGO",
+      "new": "IVZINGOLD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-07-01"
+    },
+    {
+      "old": "RELNV20",
+      "new": "NETFNV20",
+      "changed_after": "2015-07-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "RETFMID150",
+      "new": "MID150BEES",
+      "changed_after": "2019-03-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "REVATHI",
+      "new": "SEMAC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-10-03"
+    },
+    {
+      "old": "REVATHIEQU",
+      "new": "RVTH",
+      "changed_after": "2024-10-01",
+      "changed_by": "2024-12-02"
+    },
+    {
+      "old": "RJL",
+      "new": "RGL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-05-02"
+    },
+    {
+      "old": "RNAM",
+      "new": "NAM-INDIA",
+      "changed_after": "2017-12-01",
+      "changed_by": "2020-02-03"
+    },
+    {
+      "old": "RNAVAL",
+      "new": "SWANDEF",
+      "changed_after": "2017-10-03",
+      "changed_by": "2025-02-03"
+    },
+    {
+      "old": "RRSLGETF",
+      "new": "LTGILTBEES",
+      "changed_after": "2016-08-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "RTNINFRA",
+      "new": "RTNINDIA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-05-03"
+    },
+    {
+      "old": "RUCHI",
+      "new": "PATANJALI",
+      "changed_after": "2020-02-03",
+      "changed_by": "2022-08-01"
+    },
+    {
+      "old": "RUCHISOYA",
+      "new": "PATANJALI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-02-03"
+    },
+    {
+      "old": "SABTN",
+      "new": "AQYLON",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-05-02"
+    },
+    {
+      "old": "SABTNL",
+      "new": "AQYLON",
+      "changed_after": "2024-05-02",
+      "changed_by": "2026-03-02"
+    },
+    {
+      "old": "SAH",
+      "new": "AERONEU",
+      "changed_after": "2023-02-01",
+      "changed_by": "2025-09-01"
+    },
+    {
+      "old": "SAHPETRO",
+      "new": "GULFPETRO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-06-01"
+    },
+    {
+      "old": "SALONACOT",
+      "new": "SALONA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-07-01"
+    },
+    {
+      "old": "SASTASUNDR",
+      "new": "HEALTHX",
+      "changed_after": "2016-12-01",
+      "changed_by": "2026-05-04"
+    },
+    {
+      "old": "SATINDLTD",
+      "new": "AEROENTER",
+      "changed_after": "2022-12-01",
+      "changed_by": "2025-07-01"
+    },
+    {
+      "old": "SBIGETS",
+      "new": "SETFGOLD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-12-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2017-11-01",
+      "changed_by": "2017-11-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2017-12-01",
+      "changed_by": "2017-12-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-01-01",
+      "changed_by": "2018-01-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-02-01",
+      "changed_by": "2018-02-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-03-01",
+      "changed_by": "2018-03-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-05-02",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-06-01",
+      "changed_by": "2018-06-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-07-02",
+      "changed_by": "2018-07-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-08-01",
+      "changed_by": "2018-08-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-09-03",
+      "changed_by": "2018-09-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-10-01",
+      "changed_by": "2018-10-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-11-01",
+      "changed_by": "2018-11-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2018-12-03",
+      "changed_by": "2018-12-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-01-01",
+      "changed_by": "2019-01-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-02-01",
+      "changed_by": "2019-02-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-03-01",
+      "changed_by": "2019-03-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-04-01",
+      "changed_by": "2019-04-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-05-02",
+      "changed_by": "2019-05-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-06-03",
+      "changed_by": "2019-06-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-07-01",
+      "changed_by": "2019-07-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-08-01",
+      "changed_by": "2019-08-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-09-03",
+      "changed_by": "2019-09-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-10-01",
+      "changed_by": "2019-10-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-11-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2019-12-02",
+      "changed_by": "2019-12-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-01-01",
+      "changed_by": "2020-01-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-02-03",
+      "changed_by": "2020-02-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-03-02",
+      "changed_by": "2020-03-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-04-01",
+      "changed_by": "2020-04-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-05-04",
+      "changed_by": "2020-05-04"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-06-01",
+      "changed_by": "2020-06-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-07-01",
+      "changed_by": "2020-08-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-09-01",
+      "changed_by": "2020-11-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2020-12-01",
+      "changed_by": "2020-12-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2021-01-01",
+      "changed_by": "2021-02-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2021-03-01",
+      "changed_by": "2021-03-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2021-04-01",
+      "changed_by": "2021-05-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2021-06-01",
+      "changed_by": "2021-08-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2021-09-01",
+      "changed_by": "2021-11-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2021-12-01",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2022-02-01",
+      "changed_by": "2022-05-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2022-06-01",
+      "changed_by": "2022-08-01"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2022-09-01",
+      "changed_by": "2022-10-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2022-11-01",
+      "changed_by": "2023-01-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2023-02-01",
+      "changed_by": "2023-04-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2023-05-02",
+      "changed_by": "2023-05-02"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2023-06-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "SCAPDVR",
+      "new": "GATECHDVR",
+      "changed_after": "2023-08-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "SEINV",
+      "new": "PAISALO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-02-01"
+    },
+    {
+      "old": "SELAN",
+      "new": "ANTELOPUS",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "SELMCL",
+      "new": "SELMC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2021-11-01"
+    },
+    {
+      "old": "SENSEXIWIN",
+      "new": "SENSEXIETF",
+      "changed_after": "2016-09-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "SEPOWER",
+      "new": "SAMPANN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "SEQUENT",
+      "new": "VIYASH",
+      "changed_after": "2016-04-01",
+      "changed_by": "2026-02-02"
+    },
+    {
+      "old": "SETFBANK",
+      "new": "SETFNIFBK",
+      "changed_after": "2015-05-04",
+      "changed_by": "2016-01-01"
+    },
+    {
+      "old": "SETFNIFJR",
+      "new": "SETFNN50",
+      "changed_after": "2015-04-01",
+      "changed_by": "2015-12-01"
+    },
+    {
+      "old": "SETFNIFTY",
+      "new": "SETFNIF50",
+      "changed_after": "2015-08-03",
+      "changed_by": "2015-12-01"
+    },
+    {
+      "old": "SEZAL",
+      "new": "SEJALLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "SGLTL",
+      "new": "SETL",
+      "changed_after": "2025-02-03",
+      "changed_by": "2026-02-02"
+    },
+    {
+      "old": "SHIL",
+      "new": "HINDWAREAP",
+      "changed_after": "2020-01-01",
+      "changed_by": "2022-07-01"
+    },
+    {
+      "old": "SHIV-VANI",
+      "new": "SVOGL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-11-02"
+    },
+    {
+      "old": "SHIVTEX",
+      "new": "SHIVATEX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-01-01"
+    },
+    {
+      "old": "SHREYAS",
+      "new": "TRANSWORLD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-11-01"
+    },
+    {
+      "old": "SHRIRAMEPC",
+      "new": "SEPC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-04-01"
+    },
+    {
+      "old": "SICAL",
+      "new": "SICALLOG",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-11-01"
+    },
+    {
+      "old": "SIGNET",
+      "new": "SIGIND",
+      "changed_after": "2015-04-01",
+      "changed_by": "2018-09-03"
+    },
+    {
+      "old": "SIGNETIND",
+      "new": "SIGIND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-04-01"
+    },
+    {
+      "old": "SILGO-RE",
+      "new": "SILGO-RE1",
+      "changed_after": "2024-03-01",
+      "changed_by": "2026-02-02"
+    },
+    {
+      "old": "SILVERETF",
+      "new": "SILVERBETA",
+      "changed_after": "2023-05-02",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "SILVRETF",
+      "new": "SILVERAG",
+      "changed_after": "2023-09-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "SITICABLE",
+      "new": "SITINET",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-09-01"
+    },
+    {
+      "old": "SKSMICRO",
+      "new": "BHARATFIN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-07-01"
+    },
+    {
+      "old": "SMLISUZU",
+      "new": "SMLMAH",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-12-01"
+    },
+    {
+      "old": "SMSLIFE",
+      "new": "HALEOSLABS",
+      "changed_after": "2017-09-01",
+      "changed_by": "2025-12-01"
+    },
+    {
+      "old": "SONAMCLOCK",
+      "new": "SONAMLTD",
+      "changed_after": "2022-05-02",
+      "changed_by": "2023-12-01"
+    },
+    {
+      "old": "SONASTEER",
+      "new": "JTEKTINDIA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "SORILHOLD",
+      "new": "IBULLSLTD",
+      "changed_after": "2017-05-02",
+      "changed_by": "2018-07-02"
+    },
+    {
+      "old": "SPENTEX",
+      "new": "CLCIND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2026-02-02"
+    },
+    {
+      "old": "SPHEREGSL",
+      "new": "ADROITINFO",
+      "changed_after": "2015-11-02",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "SPICEMOBI",
+      "new": "DIGISPICE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-09-03"
+    },
+    {
+      "old": "SPYL",
+      "new": "SHEKHAWATI",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-10-01"
+    },
+    {
+      "old": "SQSBFSI",
+      "new": "EXPLEOSOL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-05-02"
+    },
+    {
+      "old": "SRTRANSFIN",
+      "new": "SHRIRAMFIN",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-01-02"
+    },
+    {
+      "old": "SSLT",
+      "new": "VEDL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-06-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2016-08-01",
+      "changed_by": "2017-11-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2017-11-01",
+      "changed_by": "2017-12-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2017-12-01",
+      "changed_by": "2018-01-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-01-01",
+      "changed_by": "2018-02-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-02-01",
+      "changed_by": "2018-03-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-03-01",
+      "changed_by": "2018-05-02"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-05-02",
+      "changed_by": "2018-06-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-06-01",
+      "changed_by": "2018-07-02"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-07-02",
+      "changed_by": "2018-08-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-08-01",
+      "changed_by": "2018-09-03"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-09-03",
+      "changed_by": "2018-10-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-10-01",
+      "changed_by": "2018-11-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-11-01",
+      "changed_by": "2018-12-03"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2018-12-03",
+      "changed_by": "2019-01-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-01-01",
+      "changed_by": "2019-02-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-02-01",
+      "changed_by": "2019-03-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-03-01",
+      "changed_by": "2019-04-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-04-01",
+      "changed_by": "2019-05-02"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-05-02",
+      "changed_by": "2019-06-03"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-06-03",
+      "changed_by": "2019-07-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-07-01",
+      "changed_by": "2019-08-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-08-01",
+      "changed_by": "2019-09-03"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-09-03",
+      "changed_by": "2019-10-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-10-01",
+      "changed_by": "2019-11-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-11-01",
+      "changed_by": "2019-12-02"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2019-12-02",
+      "changed_by": "2020-01-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-01-01",
+      "changed_by": "2020-02-03"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-02-03",
+      "changed_by": "2020-03-02"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-03-02",
+      "changed_by": "2020-04-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-04-01",
+      "changed_by": "2020-05-04"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-05-04",
+      "changed_by": "2020-06-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-06-01",
+      "changed_by": "2020-07-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-08-03",
+      "changed_by": "2020-09-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-11-02",
+      "changed_by": "2020-12-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2020-12-01",
+      "changed_by": "2021-01-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2021-02-01",
+      "changed_by": "2021-03-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2021-03-01",
+      "changed_by": "2021-04-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2021-05-03",
+      "changed_by": "2021-06-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2021-08-02",
+      "changed_by": "2021-09-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2021-11-01",
+      "changed_by": "2021-12-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2022-01-03",
+      "changed_by": "2022-02-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2022-05-02",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2022-08-01",
+      "changed_by": "2022-09-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2022-10-03",
+      "changed_by": "2022-11-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2023-01-02",
+      "changed_by": "2023-02-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2023-04-03",
+      "changed_by": "2023-05-02"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2023-05-02",
+      "changed_by": "2023-06-01"
+    },
+    {
+      "old": "STAMPEDE",
+      "new": "GATECHDVR",
+      "changed_after": "2023-07-03",
+      "changed_by": "2023-08-01"
+    },
+    {
+      "old": "STOREONE",
+      "new": "SORILINFRA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-02-01"
+    },
+    {
+      "old": "STRTECH",
+      "new": "STLTECH",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-11-02"
+    },
+    {
+      "old": "STYABS",
+      "new": "STYRENIX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-05-02"
+    },
+    {
+      "old": "SUBEX",
+      "new": "SUBEXLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-12-01"
+    },
+    {
+      "old": "SUJANATWR",
+      "new": "NEUEON",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-03-01"
+    },
+    {
+      "old": "SUNCLAYLTD",
+      "new": "TVSHLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-09-01"
+    },
+    {
+      "old": "SUNDARMHLD",
+      "new": "TSFINV",
+      "changed_after": "2018-04-02",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "SUPPETRO",
+      "new": "SPLPETRO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-06-01"
+    },
+    {
+      "old": "SUVENPHAR",
+      "new": "COHANCE",
+      "changed_after": "2020-04-01",
+      "changed_by": "2025-06-02"
+    },
+    {
+      "old": "SWANENERGY",
+      "new": "SWANCORP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-10-01"
+    },
+    {
+      "old": "TANTIACONS",
+      "new": "TICL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-11-01"
+    },
+    {
+      "old": "TATAGLOBAL",
+      "new": "TATACONSUM",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-03-02"
+    },
+    {
+      "old": "TATAMOTORS",
+      "new": "TMPV",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "TATASPONGE",
+      "new": "TATASTLLP",
+      "changed_after": "2015-01-01",
+      "changed_by": "2019-09-03"
+    },
+    {
+      "old": "TCLCONS",
+      "new": "TICL",
+      "changed_after": "2023-11-01",
+      "changed_by": "2025-03-03"
+    },
+    {
+      "old": "THEBYKE",
+      "new": "BYKE",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-05-04"
+    },
+    {
+      "old": "TIDEWATER",
+      "new": "VEEDOL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-11-01"
+    },
+    {
+      "old": "TIFIN",
+      "new": "CHOLAHLDNG",
+      "changed_after": "2017-10-03",
+      "changed_by": "2019-05-02"
+    },
+    {
+      "old": "TIL-RE",
+      "new": "TIL-RE1",
+      "changed_after": "2024-05-02",
+      "changed_by": "2026-04-01"
+    },
+    {
+      "old": "TIMESGTY",
+      "new": "TEAMGTY",
+      "changed_after": "2015-01-01",
+      "changed_by": "2025-09-01"
+    },
+    {
+      "old": "TIPSINDLTD",
+      "new": "TIPSMUSIC",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-10-01"
+    },
+    {
+      "old": "TMRVL",
+      "new": "HEADSUP",
+      "changed_after": "2017-01-02",
+      "changed_by": "2022-08-01"
+    },
+    {
+      "old": "TRIL",
+      "new": "TARIL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-09-02"
+    },
+    {
+      "old": "TUBEINVEST",
+      "new": "CHOLAHLDNG",
+      "changed_after": "2015-01-01",
+      "changed_by": "2017-10-03"
+    },
+    {
+      "old": "TWL",
+      "new": "TITAGARH",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-07-03"
+    },
+    {
+      "old": "UCALFUEL",
+      "new": "UCAL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2023-08-01"
+    },
+    {
+      "old": "UJAAS",
+      "new": "UEL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-06-03"
+    },
+    {
+      "old": "URAVI",
+      "new": "URAVIDEF",
+      "changed_after": "2023-08-01",
+      "changed_by": "2025-02-03"
+    },
+    {
+      "old": "UTIBANKETF",
+      "new": "BANKBETA",
+      "changed_after": "2021-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "UTINEXT50",
+      "new": "NEXT50BETA",
+      "changed_after": "2021-04-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "UTINIFTETF",
+      "new": "NIFTYBETA",
+      "changed_after": "2023-10-03",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "UTISENSETF",
+      "new": "SENSEXBETA",
+      "changed_after": "2015-10-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "UTISXN50",
+      "new": "SNXT50BETA",
+      "changed_after": "2021-03-01",
+      "changed_by": "2026-01-01"
+    },
+    {
+      "old": "UTTAMVALUE",
+      "new": "UVSL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-07-01"
+    },
+    {
+      "old": "VICEROY",
+      "new": "VHLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-06-03"
+    },
+    {
+      "old": "VIDHIDYE",
+      "new": "VIDHIING",
+      "changed_after": "2016-04-01",
+      "changed_by": "2017-03-01"
+    },
+    {
+      "old": "VIKASGLOB",
+      "new": "VIKASECO",
+      "changed_after": "2015-01-01",
+      "changed_by": "2016-01-01"
+    },
+    {
+      "old": "VIKASMCORP",
+      "new": "VIKASLIFE",
+      "changed_after": "2019-06-03",
+      "changed_by": "2021-06-01"
+    },
+    {
+      "old": "VIPUL",
+      "new": "VIPULLTD",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-05-04"
+    },
+    {
+      "old": "VISASTEEL",
+      "new": "VISACHROME",
+      "changed_after": "2015-01-01",
+      "changed_by": "2026-06-01"
+    },
+    {
+      "old": "WABCOINDIA",
+      "new": "ZFCVINDIA",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-04-01"
+    },
+    {
+      "old": "WEIZFOREX",
+      "new": "DELPHIFX",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-05-04"
+    },
+    {
+      "old": "WELPROJ",
+      "new": "WELENT",
+      "changed_after": "2015-01-01",
+      "changed_by": "2015-07-01"
+    },
+    {
+      "old": "WELSPUNIND",
+      "new": "WELSPUNLIV",
+      "changed_after": "2015-01-01",
+      "changed_by": "2024-01-01"
+    },
+    {
+      "old": "WELSYNTEX",
+      "new": "AYMSYNTEX",
+      "changed_after": "2015-09-01",
+      "changed_by": "2016-03-01"
+    },
+    {
+      "old": "WFL",
+      "new": "WEL",
+      "changed_after": "2022-02-01",
+      "changed_by": "2023-02-01"
+    },
+    {
+      "old": "WORTH",
+      "new": "WORTHPERI",
+      "changed_after": "2020-09-01",
+      "changed_by": "2025-11-03"
+    },
+    {
+      "old": "YAARI",
+      "new": "IBULLSLTD",
+      "changed_after": "2022-01-03",
+      "changed_by": "2025-12-01"
+    },
+    {
+      "old": "YAARII",
+      "new": "IBULLSLTD",
+      "changed_after": "2021-01-01",
+      "changed_by": "2022-01-03"
+    },
+    {
+      "old": "ZENITHBIR",
+      "new": "ZENITHSTL",
+      "changed_after": "2015-01-01",
+      "changed_by": "2020-09-01"
+    },
+    {
+      "old": "ZOMATO",
+      "new": "ETERNAL",
+      "changed_after": "2021-08-02",
+      "changed_by": "2025-05-02"
+    },
+    {
+      "old": "ZUARIGLOB",
+      "new": "ZUARIIND",
+      "changed_after": "2015-01-01",
+      "changed_by": "2022-08-01"
+    }
+  ],
+  "unresolved": [
+    "DHANI",
+    "DIACABS",
+    "HDFC",
+    "IDFC",
+    "JPASSOCIAT",
+    "MINDTREE",
+    "MTARTECH",
+    "PEL",
+    "RELINFRA",
+    "STLTECH",
+    "TATACOFFEE",
+    "TATAMTRDVR",
+    "TV18BRDCST"
+  ],
+  "note": "Derived from ISIN continuity in the security master, not hand-written. 'unresolved' means no successor could be established from the data - usually a delisting or a demerger, which is one-to-many and cannot be an alias."
+}

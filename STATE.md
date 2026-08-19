@@ -1,72 +1,90 @@
 # STATE — where this project is right now
 
-**Sprint:** 1 — data foundation (EOD, minute, OI, fundamentals)
-**Status:** IN PROGRESS
-**Next:** Sprint 3 — security master
+**Sprint:** 3 — security master
+**Status:** COMPLETE
+**Next:** Sprint 4 — bitemporal read API and lookahead firewall
 
-*Last updated: 2026-08-18 20:30 IST. One page, always current. If it is not
+*Last updated: 2026-08-19 07:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
 
 ---
 
-## Datasets — what actually exists
+## Datasets — what exists
 
-| Dataset | State | Where |
+| Dataset | State | Coverage |
 |---|---|---|
-| NSE EOD bhavcopy (cash + F&O) | **COMPLETE** — 5,736 files, 2015-01-01 → 2026-08-17 | `data/landing/nse/{cm,fo}/`, mirrored to B2 |
-| Participant-wise F&O OI | **COMPLETE** — 1,632 weekdays, 2020-01-01 → today | `data/landing/nse/participant_oi/` |
-| Kite 1-minute bars | **COMPLETE** — 12,755 chunks, 411 symbols, 173M bars, 5 years | `data/landing/kite_minute/` |
-| screener.in fundamentals | **IN PROGRESS** — ~184 of 2,702 companies | `data/landing/fundamentals/` |
-| Options chains / tick data | **NOT STARTED** — deferred by the operator | — |
+| NSE EOD bhavcopy (cash + F&O) | **COMPLETE** | 5,737 files, 2015-01-01 → 2026-08-17. One known source gap: no F&O for 2021-03-30 (S-009) |
+| Participant-wise F&O OI | **COMPLETE** | 1,639 days, 2020 → today, **zero gaps** |
+| Kite 1-minute bars | **COMPLETE** | 13,499 chunks, 420 symbols, **184M bars**, 5 years |
+| screener.in fundamentals | **COMPLETE** | 2,352 companies (328 no data, 22 404s — mostly ETFs) |
+| Options chains / tick data | **NOT STARTED** | deferred by the operator three times |
 
-Local disk holds a working subset only; the full copy lives in B2 bucket
-`eulerdata`. Files are pruned locally after B2 confirms them (ADR-010) and can
-be pulled back with `make restore-local`.
+Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
+working subset only; files are pruned after B2 confirms them (ADR-010) and
+restored with `make restore-local`.
 
-## Architecture
+## Sprint 3 — what is built
 
-`docs/ARCHITECTURE.md` — diagrams of the fetch/landing/cloud pipeline, the
-atomic write path, the prune/restore loop, and the module map. Reflects what is
-built, not what is planned.
+- **`eulerlab.master.identity`** — the internal id. Company equity (`INE`) keys
+  on the ISIN *issuer prefix*; fund units (`INF`) key on the full ISIN. Both
+  rules are measured, not assumed (research note 006, ADR-012).
+- **`eulerlab.master.registry`** — time-versioned attributes. `at(as_of)`
+  returns what was true then. Resolution is bounded by the observation window,
+  so a delisted instrument stops claiming its ticker.
+- **`eulerlab.master.build`** — folds bhavcopy into the registry, streaming
+  from B2 rather than restoring to disk.
+- **`eulerlab.master.symbology`** — 580 renames derived from ISIN continuity,
+  written to `config/symbol_renames.json`.
+- **`eulerlab.master.succession`** — four relationship kinds with cited terms
+  (ADR-013): rename, merger, demerger, cancellation.
 
-## Commands that work today
+- **`eulerlab.master.derivatives`** — the F&O composite key (underlying,
+  expiry, strike, right), since derivatives carry no ISIN in either era.
+  Validated on real files: 28,984 contracts in 2015 and 35,089 in 2026, zero
+  unparsed rows and zero duplicate keys.
+- **`make check-master`** — 5 acceptance checks, all green.
 
-```bash
-make verify                      # five gates, the only check that matters
-make daily                       # refresh EOD + OI + fundamentals, sync, prune
-make ingest-eod FROM=2015-01-01  # bhavcopy backfill (idempotent, resumable)
-make ingest-oi FROM=2020-01-01   # participant-wise OI
-make ingest-minute               # Kite 1-minute bars
-make ingest-fundamentals         # screener.in fundamentals
-make kite-login                  # Kite token (expires 06:00 IST daily)
-make sync-cloud / prune-local / restore-local / check-landing
-```
+- **`eulerlab.master.calendar`** — trading days from evidence, never a weekday
+  rule. Built from the manifest: 2,869 trading days, zero long gaps, and it
+  correctly flags 2021-03-30 as SUSPECT (cash traded, F&O did not) rather than
+  guessing whether that was a holiday or a missing file.
+- **`eulerlab.master.contracts`** — derivative registry with time-versioned lot
+  sizes. Built from 140 monthly F&O snapshots: 2.29M contracts, 385
+  underlyings, 5.7M contract-days.
 
-## Running background jobs (2026-08-18 evening)
+- **`eulerlab.master.store`** — the master persisted as diffable JSON with a
+  build stamp. Deterministic: two builds of the same data are byte-identical.
+- **`eulerlab.master.broker_map`** — internal id ↔ Kite token, resolved through
+  the master *as of a date* because tokens are reused. Filters bonds and ETF
+  NAV feeds, which Kite files under `instrument_type=EQ`.
+- **`make build-master`** / **`make check-master`** — build and verify.
 
-- `fundamentals.backfill` — ~2,700 companies, ~110 min total
-- `sync_cloud` — mirroring to B2
-- `disk_watchdog.sh` (in the scratchpad) — syncs and prunes when disk drops
-  below 3 GB, halts downloaders below 1 GB. Not yet part of the repo.
+## Data issues fixed this session
+
+| Issue | Resolution |
+|---|---|
+| 7 participant-OI days missing | Files existed; transient failures. All recovered, zero gaps |
+| 34 minute symbols unresolved | 21 renames auto-resolved from ISIN continuity and refetched |
+| 4 more "delisted" | **Were never delisted** — BE-series lookup bug in `parse_instruments`. Fixed, fetched |
+| 5 successions | Recorded with cited terms and ratios |
+| 7,304 spurious renames | Fund units were merging under a shared issuer prefix. Fixed → 580 |
 
 ## Known issues and open questions
 
-- **Disk is the binding constraint.** The machine has ~5 GB free of 228 GB;
-  most of that is unrelated to this project. A backfill crashed on ENOSPC once
-  already. The watchdog mitigates but does not solve it.
-- **10 minute-backfill symbols unresolved** — renames and demergers
-  (ZOMATO→ETERNAL, TATAMOTORS→TMPV). Deliberately not fixed by a hand-written
-  alias map, because a demerger splits one history into two and an alias cannot
-  express that. Sprint 3 handles it. See `docs/STUBS.md` S-005.
-- **Three datasets are collected against site terms**, knowingly: NSE
-  (ADR-006), Trendlyne (ADR-009, not yet built), screener.in (ADR-011). Each is
-  a recorded operator decision with the clause quoted, not an oversight.
+- **`TATACOFFEE` succession deliberately unrecorded.** Sources give 3:10 and
+  14:55 for a demerger-plus-amalgamation. Guessing would misprice every
+  position carried across it.
+- **All 34 minute-bar symbols are now resolved.** `DHANI` merged into
+  `IBULLSLTD` (terms not published — recorded as `terms_pending`), and
+  `JPASSOCIAT` was delisted in insolvency with no successor.
+- **Three datasets are collected against site terms**, knowingly and on the
+  record: NSE (ADR-006), Trendlyne (ADR-009, not built), screener.in (ADR-011).
 - **No consensus/forecast data exists** for Indian macro or earnings, so
-  "surprise" is not computable. Flagged in research notes 004 and 005; may be
-  the binding constraint on event-driven strategies.
-- **Credentials leaked into git history and were rotated** (2026-08-18). Live
-  exposure closed; a history rewrite is still an open question.
+  "surprise" is not computable (research notes 004, 005).
 - **Most market-structure facts remain unverified** — see `docs/ASSUMPTIONS.md`.
+- **NSE corporate-actions feed found** (research note 008): systematic for
+  dividends/splits/bonus/rights keyed by ISIN, and **silent on mergers that
+  delist the target**. Sprint 5 should use it.
 
 ## Money
 
@@ -77,3 +95,13 @@ make sync-cloud / prune-local / restore-local / check-landing
 | Mumbai VPS | ₹500–900/mo | Deferred — only the options recorder needs it |
 
 **Run rate: ~₹600/mo.**
+
+## Resuming in a new session
+
+Read `CLAUDE.md`, `STATE.md`, `TASKS.md`. Then
+`docs/RUNBOOKS/resuming-in-a-new-session.md` explains the handoff, and
+`docs/ARCHITECTURE.md` has diagrams of what is built.
+
+**The Kite token expires at 06:00 IST daily** — `make kite-login` before any
+Kite work. Background jobs do not survive a session; check with
+`pgrep -fl "backfill_|sync_"`.
