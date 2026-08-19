@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 1 — data foundation (EOD, minute, OI, fundamentals)
-**Status:** COMPLETE
-**Next:** Sprint 3 — security master
+**Sprint:** 3 — security master
+**Status:** IN PROGRESS
+**Next:** Sprint 4 — bitemporal read API and lookahead firewall
 
 *Last updated: 2026-08-18 20:30 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
