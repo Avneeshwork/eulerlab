@@ -27,6 +27,7 @@ from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+from eulerlab.env import load_env
 from eulerlab.ingest.landing import Landing, ManifestEntry, sha256_of
 
 SHA_METADATA_KEY = "sha256"
@@ -198,6 +199,7 @@ class S3ObjectStore:
     """boto3-backed store. Constructed only when credentials are present."""
 
     def __init__(self, config: StorageConfig) -> None:
+        load_env()
         key_id = os.environ.get(KEY_ID_ENV, "").strip()
         app_key = os.environ.get(APP_KEY_ENV, "").strip()
         if not key_id or not app_key:

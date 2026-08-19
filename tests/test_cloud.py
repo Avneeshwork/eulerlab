@@ -168,8 +168,15 @@ def test_plan_separates_the_three_cases(tmp_path: Path) -> None:
 
 
 def test_missing_credentials_is_a_clear_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deleting the variables is not enough on its own: `S3ObjectStore` now
+    loads `.env` before reading them, and this developer machine has a real
+    `.env`. The loader is stubbed so the test exercises what it claims to —
+    the behaviour when no credentials exist anywhere — rather than passing or
+    failing depending on whose machine it runs on.
+    """
     monkeypatch.delenv("B2_KEY_ID", raising=False)
     monkeypatch.delenv("B2_APP_KEY", raising=False)
+    monkeypatch.setattr("eulerlab.ingest.cloud.load_env", lambda: {})
     with pytest.raises(MissingCredentials, match="B2_KEY_ID"):
         S3ObjectStore(CONFIG)
 

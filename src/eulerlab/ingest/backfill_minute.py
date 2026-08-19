@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from datetime import date, timedelta
 from pathlib import Path
 
+from eulerlab.env import load_env, require
 from eulerlab.ingest.kite_minute import (
     Chunk,
     KiteError,
@@ -33,6 +34,7 @@ def _access_token() -> str:
         token = json.loads(SESSION_FILE.read_text(encoding="utf-8")).get("access_token")
         if isinstance(token, str) and token:
             return token
+    load_env()
     env = os.environ.get("ZERODHA_ACCESS_TOKEN", "").strip()
     if env:
         return env
@@ -59,7 +61,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.limit:
         symbols = symbols[: args.limit]
 
-    client = KiteHistorical(os.environ["ZERODHA_API_KEY"], _access_token())
+    client = KiteHistorical(require("ZERODHA_API_KEY"), _access_token())
     store = MinuteStore(args.root)
 
     print(f"universe   : {args.universe} ({len(symbols)} symbols)")

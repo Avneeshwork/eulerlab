@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import concurrent.futures as cf
 import json
-import os
 from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
 import boto3
 
+from eulerlab.env import require
 from eulerlab.master.build import BuildStats, observe_day
 from eulerlab.master.registry import Registry
 from eulerlab.master.store import MASTER_PATH, BuildStamp, save
@@ -25,8 +25,8 @@ def _client() -> object:
     return boto3.client(
         "s3",
         endpoint_url="https://s3.us-west-004.backblazeb2.com",
-        aws_access_key_id=os.environ["B2_KEY_ID"],
-        aws_secret_access_key=os.environ["B2_APP_KEY"],
+        aws_access_key_id=require("B2_KEY_ID"),
+        aws_secret_access_key=require("B2_APP_KEY"),
     )
 
 

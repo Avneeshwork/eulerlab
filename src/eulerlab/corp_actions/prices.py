@@ -29,7 +29,6 @@ import concurrent.futures as cf
 import csv
 import io
 import json
-import os
 import zipfile
 from collections.abc import Callable, Sequence
 from datetime import date
@@ -38,6 +37,7 @@ from pathlib import Path
 import boto3
 
 from eulerlab.corp_actions.adjust import ClosePriceLookup
+from eulerlab.env import require
 from eulerlab.ingest.landing import ManifestEntry
 from eulerlab.master.identity import InstrumentId, NotAnIsin
 
@@ -153,8 +153,8 @@ def build_close_index(
     client = boto3.client(
         "s3",
         endpoint_url="https://s3.us-west-004.backblazeb2.com",
-        aws_access_key_id=os.environ["B2_KEY_ID"],
-        aws_secret_access_key=os.environ["B2_APP_KEY"],
+        aws_access_key_id=require("B2_KEY_ID"),
+        aws_secret_access_key=require("B2_APP_KEY"),
     )
 
     def fetch(entry: ManifestEntry) -> tuple[str, bytes]:
