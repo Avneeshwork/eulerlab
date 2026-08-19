@@ -63,10 +63,26 @@ class InstrumentId:
 
     @classmethod
     def from_isin(cls, isin: str) -> InstrumentId:
+        """Derive the internal id, which depends on the security type.
+
+        **Company equity (INE...)** keys on the issuer prefix, so a face-value
+        reissue keeps one identity instead of splitting a price history in two.
+
+        **Fund and ETF units (INF...)** key on the *full* ISIN. A fund house
+        issues many distinct products under one issuer prefix — `INF209KB19`
+        alone covers ABSLPSE, BSLNIFTY and SILVER, which are three different
+        instruments that merely share a sponsor. Applying the prefix rule to
+        them merged unrelated ETFs into a single instrument whose ticker
+        appeared to flap between names, inflating the rename count from a few
+        hundred to 7,304. Measured: 75 prefixes held more than one ticker on a
+        single day, and every one of them was INF.
+        """
         cleaned = (isin or "").strip().upper()
         if not ISIN_RE.match(cleaned):
             msg = f"not a well-formed Indian ISIN: {isin!r}"
             raise NotAnIsin(msg)
+        if not cleaned.startswith("INE"):
+            return cls(issuer=cleaned)
         return cls(issuer=cleaned[:ISSUER_PREFIX_LEN])
 
 

@@ -78,6 +78,35 @@ ZOMATO/ETERNAL ticker history:
 
 The registry rediscovered the rename from the data alone, with no alias map.
 
+## A third finding: the rule is right for equity, wrong for funds
+
+Building the full map produced **7,304 renames** from ~400 renamed instruments —
+about 18 ticker changes each, which is flapping, not renaming.
+
+Cause: a fund house issues many distinct products under one ISIN issuer prefix.
+`INF209KB19` alone covers `ABSLPSE`, `BSLNIFTY` and `SILVER` — three unrelated
+ETFs sharing a sponsor. The prefix rule merged them into a single instrument
+whose ticker appeared to alternate between names.
+
+Measured: **75 issuer prefixes held more than one ticker on a single day, and
+every one of them was `INF`.** No `INE` prefix collided.
+
+So the rule is type-dependent:
+
+| ISIN type | Key | Why |
+|---|---|---|
+| `INE...` company equity | issuer prefix | A reissue is the same company; keying on the full ISIN would split one price history in two |
+| `INF...` fund / ETF unit | **full ISIN** | One sponsor issues many products; the prefix is not an identity |
+
+The asymmetry is deliberate. For funds we cannot distinguish a reissue from a
+new product, so we do not guess — over-splitting is the safer error, because a
+split history is visible while a merged one is silently wrong.
+
+After the fix: **580 renames**, which is plausible for eleven years.
+
+This is the failure mode ADR-012 recorded under "cost if wrong", and it
+materialised within an hour of the decision being written.
+
 ## What I could not verify
 
 - **Demergers are not yet modelled.** PEL → PPLPHARMA + PIRAMALFIN is

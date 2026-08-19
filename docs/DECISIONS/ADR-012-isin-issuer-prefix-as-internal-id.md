@@ -27,6 +27,14 @@ which is why `check-master` asserts prefix uniqueness against observed ISINs
 rather than trusting the rule. The reverse error, splitting one company in two,
 is what a full-ISIN key would have caused for 139 instruments.
 
+**Amended 2026-08-19, same day.** The rule applies to `INE` company equity
+only. Fund and ETF units (`INF`) key on the full ISIN, because one sponsor
+issues many products under a single prefix — 75 prefixes held multiple tickers
+on one day, all of them `INF`. Applying the prefix rule to funds merged
+unrelated ETFs and inflated the rename count from 580 to 7,304. The "cost if
+wrong" above materialised within the hour; it was caught because the rename
+count was implausible, not because anything failed.
+
 **Known incompleteness.** Demergers are one-to-many (PEL → PPLPHARMA +
 PIRAMALFIN) and the successors have different issuer prefixes, so this rule
 cannot express them. They remain unlinked, which is honest rather than wrong,
