@@ -80,6 +80,19 @@ names, and 3,328 instruments persisted.
    Comparing an equity master against a list that is 60% debt is not a finding,
    and a check that cries wolf gets ignored.
 
+## A fifth mistake, caught by CI
+
+The `persisted` check depended on `data/master/instruments.json`, but `data/`
+is gitignored — so it passed locally and failed in CI, where the file does not
+exist. That directly contradicted the stated reason for choosing JSON over
+Parquet: *diffable in git review*. An artefact nothing can review is not
+diffable.
+
+The master is now committed. It is 1.4 MB of curated output, not raw data, and
+downstream code joins on it — so a fresh clone can resolve symbols without
+rebuilding from B2, and a change to any instrument's history shows up in
+review.
+
 ## Decisions you made
 
 | Decision | Recorded in |
