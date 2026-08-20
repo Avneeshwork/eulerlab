@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eleven times this project was wrong
+## Twelve times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -97,6 +97,21 @@ run merely to check the command still worked. It logged trial #19 — a second
 evaluation of an already-killed hypothesis — and moved the noise bar from
 Sharpe 1.83 to 1.88 permanently, for every future candidate. There is no
 un-spend function and there should not be (T-2609).
+
+**12. CI was red for five consecutive merges while the project reported
+itself green.** (2026-08-20) `make verify` passed locally and `STATE.md` said
+7 of 7, but every CI run since PR #20 — the workbench sprint — had failed. CI
+installs `uv sync --extra dev`, which omits the optional `web` extra, so mypy
+could not resolve the `fastapi` import in `src/eulerlab/api/server.py`; the
+unresolved module turned all eight route decorators untyped and the type gate
+failed. It passed on this machine only because fastapi happened to be
+installed in the local venv. **The local pass was an artefact of the
+developer's environment, which is the exact failure mode CI exists to catch.**
+Two things were wrong at once: the workflow did not install what the type gate
+needed, and nobody read the CI result because the local one was green. Fixed
+by installing the extra in CI. Worth noting separately: `server.py` still has
+no test coverage — no test in the suite imports it — so the type gate was the
+only thing checking that file at all.
 
 ---
 
