@@ -1,0 +1,259 @@
+"""The Tweezer Bottom setup, and the bracket that executes it.
+
+Built from hand-made candles, because the minute store is mirrored to B2 and
+pruned locally (S-023). Every test states the shape it is constructing, so a
+failure points at a rule rather than at data.
+"""
+
+from __future__ import annotations
+
+import random
+from datetime import datetime, timedelta
+
+import pytest
+
+from eulerlab.intraday import bracket
+from eulerlab.intraday.tweezer import IST, Candle, Plan, Rejected, Rules, detect
+
+START = datetime(2024, 6, 3, 9, 15, tzinfo=IST)
+RULES = Rules()
+
+
+def _bar(i: int, o: float, h: float, low: float, c: float) -> Candle:
+    return Candle(ts=START + timedelta(minutes=i), open=o, high=h, low=low, close=c, volume=1000.0)
+
+
+def _downtrend(n: int = 140, start: float = 200.0, up: float = 0.26, seed: int = 7) -> list[Candle]:
+    """A choppy decline that satisfies every context filter at once.
+
+    Deliberately not a straight line. A monotonic decline pins ADX at 100 (every
+    bar is purely directional) and drives RSI to zero, so it fails the 25-50 and
+    25-40 bands and could never produce a setup. The two-down-one-up rhythm with
+    seeded jitter puts RSI near 31 and ADX near 41 — inside both — which is what
+    a real pullback looks like and what the filters were written for.
+    """
+    rng = random.Random(seed)
+    out: list[Candle] = []
+    price = start
+    for i in range(n):
+        previous = price
+        price = price - 0.30 if i % 3 != 2 else price + up
+        high = max(previous, price) + rng.uniform(0.02, 0.6)
+        low = min(previous, price) - rng.uniform(0.02, 0.6)
+        out.append(_bar(i, previous, high, low, price))
+    return out
+
+
+def _with_pattern(base: list[Candle]) -> list[Candle]:
+    """Append a valid tweezer: bearish C1, bullish C2, lows matching exactly."""
+    n = len(base)
+    last = base[-1].close
+    bottom = last - 1.0
+    c1 = _bar(n, last, last + 0.05, bottom, bottom + 0.25)
+    c2 = _bar(n + 1, bottom + 0.05, bottom + 1.5, bottom, bottom + 1.3)
+    return [*base, c1, c2]
+
+
+# --- the pattern ------------------------------------------------------------
+
+
+def test_a_clean_setup_produces_a_plan() -> None:
+    result = detect(_with_pattern(_downtrend()), RULES, equity=1_000_000.0)
+    assert isinstance(result, Plan), getattr(result, "reason", result)
+    assert result.entry > result.stop
+    assert result.target_1 == pytest.approx(result.entry + 2 * result.r)
+    assert result.target_2 == pytest.approx(result.entry + 3 * result.r)
+
+
+def test_entry_is_the_high_of_the_first_candle() -> None:
+    window = _with_pattern(_downtrend())
+    result = detect(window, RULES, equity=1_000_000.0)
+    assert isinstance(result, Plan)
+    assert result.entry == pytest.approx(window[-2].high)
+
+
+def test_the_stop_sits_below_the_pattern_low() -> None:
+    window = _with_pattern(_downtrend())
+    result = detect(window, RULES, equity=1_000_000.0)
+    assert isinstance(result, Plan)
+    assert result.stop < min(window[-1].low, window[-2].low)
+
+
+def test_a_bullish_first_candle_is_refused() -> None:
+    window = _downtrend()
+    n = len(window)
+    last = window[-1].close
+    bottom = last - 1.0
+    window.append(_bar(n, bottom + 0.25, last + 0.05, bottom, last))  # bullish C1
+    window.append(_bar(n + 1, bottom + 0.05, bottom + 1.5, bottom, bottom + 1.3))
+    result = detect(window, RULES, equity=1_000_000.0)
+    assert isinstance(result, Rejected)
+    assert result.reason == "c1 not bearish"
+
+
+def test_lows_that_do_not_match_are_refused() -> None:
+    window = _downtrend()
+    n = len(window)
+    last = window[-1].close
+    bottom = last - 1.0
+    window.append(_bar(n, last, last + 0.05, bottom, bottom + 0.25))
+    # C2's low sits 0.6 lower — about 0.33%, outside the 0.15% tolerance. Kept
+    # small on purpose: a bigger gap widens C2's range until the body-ratio rule
+    # fires first, and the test would pass for the wrong reason.
+    window.append(_bar(n + 1, bottom + 0.05, bottom + 1.5, bottom - 0.6, bottom + 1.35))
+    result = detect(window, RULES, equity=1_000_000.0)
+    assert isinstance(result, Rejected)
+    assert result.reason == "lows do not match"
+
+
+def test_an_uptrend_is_refused() -> None:
+    rising = [
+        _bar(i, 100.0 + i * 0.2, 100.4 + i * 0.2, 99.8 + i * 0.2, 100.2 + i * 0.2)
+        for i in range(140)
+    ]
+    result = detect(_with_pattern(rising), RULES, equity=1_000_000.0)
+    assert isinstance(result, Rejected)
+    assert result.reason in {"not in a downtrend", "not at support", "RSI outside band"}
+
+
+def test_too_little_history_is_refused_as_warmup() -> None:
+    result = detect(_downtrend(n=10), RULES, equity=1_000_000.0)
+    assert isinstance(result, Rejected)
+    assert result.reason == "warmup"
+
+
+def test_a_rejection_says_which_rule_and_the_value() -> None:
+    """'No trade' and 'no trade because ADX was 51' are different facts, and
+    only the second says whether the filter is doing anything."""
+    window = _with_pattern(_downtrend())
+    tight = Rules(adx_min=99.0, adx_max=100.0)
+    result = detect(window, tight, equity=1_000_000.0)
+    assert isinstance(result, Rejected)
+    assert result.reason == "trend strength outside band"
+    assert "ADX" in result.detail
+
+
+def test_size_rounds_to_zero_on_tiny_capital() -> None:
+    result = detect(_with_pattern(_downtrend()), RULES, equity=100.0)
+    assert isinstance(result, Rejected)
+    assert result.reason == "size rounds to zero"
+
+
+def test_the_window_cannot_see_past_the_signal_candle() -> None:
+    """The firewall property. Truncating the future must not change the plan."""
+    window = _with_pattern(_downtrend())
+    a = detect(window, RULES, equity=1_000_000.0)
+    b = detect(list(window), RULES, equity=1_000_000.0)
+    assert a == b
+
+
+def test_detection_is_deterministic() -> None:
+    window = _with_pattern(_downtrend())
+    assert detect(window, RULES, equity=5e5) == detect(window, RULES, equity=5e5)
+
+
+# --- the bracket ------------------------------------------------------------
+
+
+def _plan(entry: float = 100.0, stop: float = 99.0) -> Plan:
+    r = entry - stop
+    return Plan(
+        signal_ts=START,
+        entry=entry,
+        stop=stop,
+        target_1=entry + 2 * r,
+        target_2=entry + 3 * r,
+        r=r,
+        shares_1=50,
+        shares_2=50,
+        risk_pct=1.0,
+    )
+
+
+def test_an_order_that_never_triggers_never_fills() -> None:
+    flat = [_bar(i, 98.0, 98.5, 97.5, 98.0) for i in range(1, 30)]
+    trade = bracket.run(_plan(), flat, RULES)
+    assert not trade.filled
+    assert trade.net_pnl() == 0.0
+
+
+def test_a_gap_through_the_trigger_fills_at_the_open_not_the_trigger() -> None:
+    """The trigger price was never available. Filling there would be a
+    fabricated fill in the flattering direction."""
+    bars = [_bar(1, 99.0, 99.5, 98.5, 99.0), _bar(2, 103.0, 104.0, 102.5, 103.5)]
+    bars += [_bar(i, 103.5, 104.0, 103.0, 103.5) for i in range(3, 20)]
+    trade = bracket.run(_plan(), bars, RULES)
+    assert trade.filled
+    assert trade.entry_price == pytest.approx(103.0)
+
+
+def test_an_ambiguous_bar_is_resolved_against_us() -> None:
+    """One minute whose range holds both the stop and a target. The engine
+    cannot know which came first, so it takes the stop."""
+    bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
+    bars.append(_bar(3, 100.4, 102.5, 98.0, 99.0))  # hits target 1 AND the stop
+    bars += [_bar(i, 99.0, 99.2, 98.8, 99.0) for i in range(4, 12)]
+    trade = bracket.run(_plan(), bars, RULES)
+    assert trade.filled
+    assert trade.exits[0].reason == "stop"
+    assert trade.net_pnl() < 0
+
+
+def test_the_position_is_closed_before_the_session_ends() -> None:
+    bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
+    bars += [_bar(i, 100.4, 100.6, 100.2, 100.4) for i in range(3, 15)]
+    trade = bracket.run(_plan(), bars, RULES)
+    assert trade.filled
+    assert trade.exits[-1].reason == "session end"
+    assert trade.shares_exited == trade.plan.shares
+
+
+def test_the_first_target_fills_and_moves_the_stop_to_breakeven() -> None:
+    bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
+    bars.append(_bar(3, 100.4, 102.2, 100.3, 102.0))  # target 1 at 102
+    bars.append(_bar(4, 102.0, 102.1, 99.5, 99.8))  # back through entry
+    bars += [_bar(i, 99.8, 100.0, 99.6, 99.8) for i in range(5, 12)]
+    trade = bracket.run(_plan(), bars, RULES)
+    reasons = [e.reason for e in trade.exits]
+    assert "target 1" in reasons
+    assert "breakeven stop" in reasons
+
+
+def test_both_targets_can_fill() -> None:
+    bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
+    bars.append(_bar(3, 100.4, 102.2, 100.3, 102.0))
+    bars.append(_bar(4, 102.0, 103.5, 101.9, 103.2))
+    bars += [_bar(i, 103.2, 103.4, 103.0, 103.2) for i in range(5, 12)]
+    trade = bracket.run(_plan(), bars, RULES)
+    reasons = [e.reason for e in trade.exits]
+    assert "target 1" in reasons and "target 2" in reasons
+    assert trade.shares_exited == trade.plan.shares
+    assert trade.net_pnl() > 0
+
+
+def test_costs_are_charged_on_both_legs() -> None:
+    bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
+    bars += [_bar(i, 100.4, 100.6, 100.2, 100.4) for i in range(3, 10)]
+    trade = bracket.run(_plan(), bars, RULES)
+    assert trade.costs > 0
+    assert trade.net_pnl() < trade.gross_pnl()
+
+
+def test_costs_use_the_candles_own_date_not_today() -> None:
+    """Rates are time-versioned. Pricing a historical trade at today's rates
+    would be wrong in a way no total-based assertion would catch."""
+    old = datetime(2016, 6, 3, 9, 15, tzinfo=IST)
+    bars = [
+        Candle(
+            ts=old + timedelta(minutes=i), open=100.0, high=100.5, low=99.9, close=100.2, volume=1.0
+        )
+        for i in range(1, 10)
+    ]
+    trade = bracket.run(_plan(), bars, RULES)
+    assert trade.filled
+    assert trade.costs > 0
+
+
+def test_r_multiple_is_zero_when_nothing_was_risked() -> None:
+    plan = Plan(START, 100.0, 100.0, 100.0, 100.0, 0.0, 0, 0, 0.0)
+    assert bracket.Trade(plan=plan).r_multiple() == 0.0

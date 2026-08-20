@@ -9,6 +9,25 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Tweezer Bottom — intraday candlestick strategy (2026-08-20)
+
+Operator-supplied rules. Verify: `uv run pytest tests/test_intraday_tweezer.py`
+
+| ID | Task | Status |
+|---|---|---|
+| T-3201 | Indicators written by hand, not `pandas_ta` | DONE — no new dependency; every primitive tested against a hand-computed value |
+| T-3202 | Wilder smoothing kept distinct from an EMA | DONE — 1/n not 2/(n+1); a test pins it |
+| T-3203 | Pattern detector, Steps 1-8 exactly | DONE — `intraday/tweezer.py` |
+| T-3204 | Bracket executor, Steps 9-10 | DONE — stop-entry, TP1/TP2, breakeven, trailing, session close |
+| T-3205 | Ambiguous bars resolved against us | DONE — a bar holding both stop and target takes the STOP |
+| T-3206 | Rejections name the rule and the value | DONE — "no trade" and "ADX was 51" are different facts |
+| T-3207 | Panel carries OHLC | DONE — optional, falls back to a flat bar (S-024) |
+| T-3208 | **Never run on real data** | OPEN — S-023; needs minute data restored from B2 |
+| T-3209 | Not a `Strategy` subclass | OPEN by design — intraday, conditional entry, bracket exit and risk-based sizing cannot be target weights |
+| T-3210 | Rebuild the panel with OHLC | OPEN — 2,869 B2 downloads, over the 2,500/day cap; needs two days or a raised cap |
+
+---
+
 ## Integrated from TradeMaster (2026-08-20)
 
 Source: `~/Documents/TradeMaster_Avneesh` (2CentsCapital). Verify: `make montecarlo`.
