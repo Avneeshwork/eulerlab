@@ -50,9 +50,17 @@ worth registering) and T-1407 (exercise the gate's PROMOTE path, which has
 never been taken).
 
 **Before generating hypotheses, run `make scout PROPOSE=n`.** Every one raises
-the statistical bar for all of them. At 17 logged trials a candidate must
-already beat Sharpe 1.83 from pure noise; the best this project has produced is
-1.27. The guardrail is not the gate — the gate sees one candidate at a time —
+the statistical bar for all of them. At **19 logged trials** a candidate must
+already beat **Sharpe 1.88** from pure noise; the best this project has produced
+is 1.27.
+
+Two of those 19 were spent on the same dead hypothesis. Entry #19 was logged on
+2026-08-20 by running `make gate H=H-0001` purely to check the command still
+worked — a re-evaluation of a strategy the gate had already killed, which bought
+nothing and moved the bar from 1.83 to 1.88 for every future candidate
+(T-2609). **`make gate` and `make validate` write to the ledger. Do not run
+either to "check something".** `make acceptance` exists partly so there is a
+safe way to test the system end to end without spending anything. The guardrail is not the gate — the gate sees one candidate at a time —
 it is the counter, which sees the whole search (ADR-026).
 
 **4. Two decisions waiting on the operator:** T-1408, formally mark H-0001
@@ -100,11 +108,18 @@ is 0.00. If that ever becomes non-zero, the two paths have drifted and that is
 the thing to fix, not to explain.
 
 ```bash
+make acceptance                              # every sprint's capability, ~4 min
 make chaos                                   # 11 scenarios, seconds
 make attribution FRICTIONLESS=1 DAYS=800     # gap must be exactly 0.00, ~6 min
 make reconcile-book                          # our positions vs the broker's
 make kill-status                             # is trading stopped, and why
 ```
+
+`make acceptance` is the end-to-end companion to `make verify`. `verify` asks
+whether the repository is healthy; `acceptance` asks whether each sprint's
+capability still works against the real data — a distinction that matters,
+because every unit test can pass while the panel is missing or the security
+master is stale. **Nothing in it spends a trial**, by design.
 
 ## Derived artefacts: what exists locally, and how to rebuild it
 

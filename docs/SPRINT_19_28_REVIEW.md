@@ -76,6 +76,14 @@ make reconcile-book
 ```
 Expected: `no breaks`, `0 orders still UNKNOWN`.
 
+```bash
+make acceptance
+```
+Expected: a table of every sprint's capability, all green. This is the
+end-to-end companion to `make verify` — `verify` proves the repository is
+healthy, `acceptance` proves each sprint still works against the real data.
+Nothing in it spends a trial.
+
 ---
 
 ## What is fake right now
@@ -128,6 +136,33 @@ Tier B engine so backtest and paper build orders with one implementation, and
 the fill step became a pluggable `Executor` for the same reason. Both were
 verified by the golden file still matching byte for byte — the refactors changed
 no behaviour.
+
+---
+
+## A mistake I made, and what it cost
+
+Testing end to end, I ran `make gate H=H-0001` to check the command still
+worked. It does — and it **logged a trial**. The gate writes to the
+hash-chained trial ledger on every run, so a hypothesis the gate had already
+killed was evaluated a second time. The count went 18 → 19 and the
+noise-alone bar went from Sharpe 1.83 to **1.88**, permanently, for every
+future candidate.
+
+There is no un-spend function and there should not be. What I have done
+instead:
+
+- Recorded it as T-2609 rather than leaving it in a commit message.
+- Written `make acceptance`, an end-to-end suite that deliberately excludes
+  **every command that writes to the ledger**, with the reason in its
+  docstring. `make gate-acceptance` stands in for the gate: it feeds three
+  overfit strategies through the same logic and only *reads* the trial count.
+- Put a line in `STATE.md`: `make gate` and `make validate` are not commands to
+  run to "check something".
+
+The cost is small in absolute terms and the mechanism worked exactly as
+designed — the ledger made an expensive action visible instead of silent.
+That is the point of it, and it is why this is written down here rather than
+smoothed over.
 
 ---
 

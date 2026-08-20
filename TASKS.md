@@ -53,6 +53,8 @@ Verify: `make verify` (7 of 7) · `make chaos` (11 of 11) ·
 | T-2606 | `ACKNOWLEDGED` / `PARTIALLY_FILLED` exercised by a real venue | OPEN — modelled and unit-tested, never produced by the paper broker (S-016) |
 | T-2607 | Kill-switch limits set from an observed distribution | OPEN — A-018; needs ~4 weeks of paper history |
 | T-2608 | Decide whether `config/killswitch.yaml` becomes operator-owned | OPEN — operator decision, question 1 in the review |
+| T-2609 | **A trial was spent by accident during end-to-end testing** | RECORDED — running `make gate H=H-0001` to check the command still works logged ledger entry #19, a second evaluation of an already-killed hypothesis. The count went 18 -> 19 and the noise bar went Sharpe 1.83 -> 1.88, for every future candidate. There is no un-spend function and there should not be. `make acceptance` therefore excludes every command that writes to the ledger, and says so in its docstring |
+| T-2610 | `make acceptance` — every sprint's capability on the real data | DONE — distinct from `make verify`, which only proves the repository is healthy |
 
 ---
 
