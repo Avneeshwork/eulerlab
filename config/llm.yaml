@@ -1,0 +1,52 @@
+# Language-model providers. Every one speaks the same OpenAI-compatible
+# interface: POST {base_url}/chat/completions with {model, messages}.
+#
+# NO KEYS IN THIS FILE. `api_key_var` names an environment variable; the value
+# lives in .env, which is gitignored. A key here would be a secret in the repo.
+#
+# The model does not decide anything. It drafts a strategy specification which
+# is then validated by code, shown to you, and only run if you say so. A weaker
+# model gives a worse first draft; it cannot give a wrong backtest result.
+#
+# # ASSUMPTION: the free tiers below are advertised by their providers and are
+# # NOT verified here. Quotas change without notice. See docs/ASSUMPTIONS.md
+# # (A-019). The only entry with genuinely no quota is `ollama`, because it runs
+# # on your own machine.
+
+default: ollama
+
+providers:
+  - name: ollama
+    base_url: http://localhost:11434/v1
+    model: qwen2.5-coder:7b
+    free: true
+    note: "Local. No key, no quota, nothing leaves the machine. Install from ollama.com, then `ollama pull qwen2.5-coder:7b`."
+    temperature: 0.1
+
+  - name: ollama-small
+    base_url: http://localhost:11434/v1
+    model: llama3.2:3b
+    free: true
+    note: "Local and smaller. Use if the 7b model is slow on this machine."
+    temperature: 0.1
+
+  - name: openrouter-free
+    base_url: https://openrouter.ai/api/v1
+    model: meta-llama/llama-3.3-70b-instruct:free
+    api_key_var: OPENROUTER_API_KEY
+    free: true
+    note: "Hosted. Models with a `:free` suffix are rate-limited, not unlimited. Sends your prompt to a third party."
+
+  - name: groq
+    base_url: https://api.groq.com/openai/v1
+    model: llama-3.3-70b-versatile
+    api_key_var: GROQ_API_KEY
+    free: true
+    note: "Hosted, free tier with per-minute limits. Sends your prompt to a third party."
+
+  - name: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+    api_key_var: OPENAI_API_KEY
+    free: false
+    note: "Paid. Listed so the interface is complete, not because anything needs it."

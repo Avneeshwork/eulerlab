@@ -81,6 +81,35 @@ Backblaze allows **2,500 downloads/day free**. Everything data-related is
 already downloaded and cached — see `docs/RUNBOOKS/b2-transaction-cap.md`
 before starting anything that fetches.
 
+## The workbench: authoring strategies by hand, by code, or by model
+
+`make workbench` starts a Next.js UI on :3000 and a FastAPI service on :8000.
+Three ways in — describe in English, compose from the feature library, or write
+`weights(view)` directly — all producing the same `Strategy` object that
+`make backtest` uses.
+
+**Pasted code runs in a sandbox, not `exec`** (ADR-032). ADR-027 still stands:
+executing arbitrary Python would discard Sprint 4's firewall. The sandbox
+removes *reach* instead — allowlisted AST, allowlisted attribute names, and
+builtins with no `open`, `getattr`, `eval` or `__import__`. 35 adversarial
+tests, each a named escape technique. What it does **not** defend against is
+CPU exhaustion (S-021).
+
+**The model is the least trusted component.** It drafts a specification that
+code then validates; a hallucinated feature name is refused by name. Default
+provider is local Ollama — free, no key, no quota (ADR-033). Not installed on
+this machine, so the Describe tab reports that; Compose and Code work anyway.
+
+**The API cannot spend a trial and has no route to the gate.** A web interface
+makes running things cheap, which is exactly what would let someone burn fifty
+trials in an afternoon by clicking.
+
+**`docs/ARCHITECTURE.md` is the document to hand a newcomer.** Components, data
+flow, and the actual mathematics — bitemporal queries, adjustment factors,
+TERP, MAD, IC, CPCV purge/embargo, expected-max-Sharpe, DSR, PBO, MinBTL, the
+Indian cost stack — each matched to the implementation rather than quoted from
+a textbook.
+
 ## The order path is live in paper mode only
 
 **There is no live broker adapter and nothing here has met a real market.**
@@ -108,6 +137,7 @@ is 0.00. If that ever becomes non-zero, the two paths have drifted and that is
 the thing to fix, not to explain.
 
 ```bash
+make workbench                               # the UI on :3000 + API on :8000
 make acceptance                              # every sprint's capability, ~4 min
 make chaos                                   # 11 scenarios, seconds
 make attribution FRICTIONLESS=1 DAYS=800     # gap must be exactly 0.00, ~6 min
