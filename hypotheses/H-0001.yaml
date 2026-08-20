@@ -1,0 +1,52 @@
+# The first hypothesis put through the battery.
+#
+# Written as a spec rather than prose (CLAUDE.md's research protocol) so the
+# claim is fixed *before* the evidence is gathered. A hypothesis that can be
+# reworded after seeing the result is not a hypothesis.
+
+id: H-0001
+title: Cross-sectional 12-1 momentum in Indian equities
+status: under_validation
+
+claim: >
+  Ranking NSE equities by their trailing twelve-month return, skipping the most
+  recent month, and holding the top decile equal-weighted, earns a positive
+  risk-adjusted return net of Indian transaction costs.
+
+rationale: >
+  Twelve-month momentum is among the most widely documented cross-sectional
+  effects in global equities. The skip-a-month construction exists because
+  one-month reversal points the opposite way, so an unskipped twelve-month
+  return blends a signal with its own opposite.
+
+# Configurations the selection procedure may choose among. PBO measures whether
+# *choosing* among these is picking noise, so the list must be fixed in advance
+# — adding a configuration after seeing results is the overfitting this is
+# meant to detect.
+configurations:
+  - {feature: momentum_12_1, top_n: 20, rebalance: 21}
+  - {feature: momentum_12_1, top_n: 30, rebalance: 21}
+  - {feature: momentum_12_1, top_n: 50, rebalance: 21}
+  - {feature: momentum_12_1, top_n: 30, rebalance: 63}
+  - {feature: momentum_6_1,  top_n: 30, rebalance: 21}
+
+red_flags:
+  - >
+    Momentum is a crowded, well-known effect. If it shows an implausibly high
+    Sharpe here, suspect the harness before believing the market.
+  - >
+    The unfiltered version buys microcaps. Sprint 10 measured the top 30 holding
+    a name on Rs 49,839 of daily turnover, where the fill price the engine
+    assumes is fiction. Any result depending on those names is not investable.
+  - >
+    Momentum crashes. The effect is known to fail sharply in market rebounds
+    after a crash, which a Sharpe ratio averaged over eleven years hides.
+  - >
+    Sprint 10 concluded the opposite on three years of data. The result is
+    window-dependent, and eleven years is still only one history.
+
+holdout:
+  # Reserved and NOT read. CLAUDE.md: read exactly once, by the operator's
+  # action. `make validate` refuses to touch anything after this date.
+  starts: 2025-01-01
+  status: unread

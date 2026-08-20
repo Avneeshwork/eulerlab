@@ -44,6 +44,9 @@ class RankAndHold(Strategy):
         """
         suffix = f", >Rs{min_turnover:,.0f}" if min_turnover else ""
         self.name = f"rank_and_hold({self.feature.name}, top{top_n}{suffix})"
+        # A little headroom over the feature's declared minimum: some features
+        # need a few extra rows to compute returns from prices.
+        self.lookback = self.feature.min_history + 10
 
     def target_weights(self, view: MarketView) -> dict[str, float]:
         scored: list[tuple[float, str]] = []
@@ -79,6 +82,7 @@ class BuyAndHold(Strategy):
     def __init__(self, top_n: int = 30) -> None:
         self.top_n = top_n
         self.name = f"buy_and_hold(top{top_n})"
+        self.lookback = 2  # only ever reads the latest row
 
     def target_weights(self, view: MarketView) -> dict[str, float]:
         liquid: list[tuple[float, str]] = []

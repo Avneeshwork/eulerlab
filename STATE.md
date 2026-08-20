@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 12 — backtester self-tests
-**Status:** COMPLETE — `make verify` is now 6 of 6, including the engine gate
-**Next:** Sprint 13 — overfitting battery (CPCV, Deflated Sharpe, PBO, trial counter)
+**Sprint:** 13 — overfitting battery
+**Status:** COMPLETE. **H-0001 does not survive it** — that is the sprint working
+**Next:** Sprint 14 — promotion gate as code, pre-registration, locked holdout
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,38 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 13 — what is built
+
+- **`eulerlab.validation.cpcv`** — purged, embargoed, combinatorial CV. 15
+  paths, with the no-leakage property asserted on every one.
+- **`eulerlab.validation.statistics`** — Deflated Sharpe, PBO, MinBTL. Every
+  one takes the trial count as a **required** argument; defaulting it is the
+  most flattering silent assumption available.
+- **`eulerlab.validation.ledger`** — hash-chained trial log. The battery
+  **refuses to print anything** if the chain is broken (ADR-023).
+- **`eulerlab.validation.holdout`** — 2025+ reserved and never read; the panel
+  is truncated once at the top so nothing downstream can peek.
+- **`hypotheses/H-0001.yaml`** — claim, configurations and red flags fixed
+  before the evidence.
+- **`make validate H=H-0001`** — hash-signed evidence pack.
+
+### H-0001 does not survive
+
+| | |
+|---|---|
+| **PBO** | **53.3%** — worse than a coin flip |
+| **Deflated Sharpe** | ≤ 0.021 (0.95 is the bar) |
+| best real Sharpe | 1.01 |
+| expected best from **13 worthless strategies** | **1.70** |
+
+The best real result is *below* what searching this hard would produce from
+pure noise. Sprint 10 said momentum was no good, Sprint 11 said it was
+excellent, Sprint 13 says it is indistinguishable from luck. Confidence should
+track the strength of the test, not the appeal of the result.
+
+**Red flag found late:** two configurations show excess kurtosis of **+101 and
++161**. A Sharpe ratio on tails that fat is close to meaningless. T-1310.
 
 ## Sprint 12 — what is built
 
