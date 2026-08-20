@@ -275,6 +275,7 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
             "costs": round(costs, 2),
             "period": [curve_days[0].isoformat(), curve_days[-1].isoformat()],
             "warmup": warmup,
+            "noise_bar": round(price_search(0, available_years=11.4).bar_after, 3),
             "caveats": _caveats(request, stats.sharpe),
         }
         job.status, job.message = "done", "complete"

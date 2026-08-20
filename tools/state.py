@@ -19,13 +19,11 @@ STATE_PATH = REPO_ROOT / "STATE.md"
 
 @dataclass(frozen=True)
 class State:
-    sprint: int
-    title: str
     status: str
     next_up: str
 
     def summary(self) -> str:
-        return f"Sprint {self.sprint} {self.status.lower()}, next: {self.next_up}"
+        return f"{self.status} | next: {self.next_up}"
 
 
 class StateParseError(ValueError):
@@ -41,19 +39,16 @@ def _field(text: str, label: str) -> str:
 
 
 def read_state(path: Path = STATE_PATH) -> State:
+    """Read the two lines that must always be true.
+
+    The sprint number used to be parsed here too. It was dropped when the
+    build plan's sprints finished: a field that can only ever hold one value
+    is not state, and keeping it would have meant STATE.md carrying a number
+    nobody updates. Status and next step are the two things a cold session
+    genuinely needs.
+    """
     text = path.read_text(encoding="utf-8")
-    sprint_line = _field(text, "Sprint")
-    # Hyphen, em dash (u2014) or en dash (u2013) may separate number from title.
-    match = re.match(r"(\d+)\s*[-\u2014\u2013]?\s*(.*)", sprint_line)
-    if match is None:
-        msg = f"cannot read a sprint number from '**Sprint:** {sprint_line}'"
-        raise StateParseError(msg)
-    return State(
-        sprint=int(match.group(1)),
-        title=match.group(2).strip(),
-        status=_field(text, "Status"),
-        next_up=_field(text, "Next"),
-    )
+    return State(status=_field(text, "Status"), next_up=_field(text, "Next"))
 
 
 def main() -> int:
