@@ -153,7 +153,15 @@ class TweezerRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    symbols: list[str] = Field(default_factory=lambda: ["RELIANCE", "TCS", "INFY"])
+    universe: str = "nifty50"
+    """`nifty50` / `nifty100` / `nifty250`, or empty to use `symbols`.
+
+    These are liquidity-ranked slices of our own turnover history, NOT index
+    membership (ADR-008): a published constituent list exists only as it stands
+    today, so applying one across history is survivorship bias.
+    """
+
+    symbols: list[str] = Field(default_factory=list)
     start: str = "2024-01-01"
     end: str = "2024-06-30"
     equity: float = Field(default=1_000_000.0, gt=0)
@@ -435,16 +443,33 @@ def _run_tweezer(job: Job, request: TweezerRequest) -> None:
         job.status = "running"
         start, end = date.fromisoformat(request.start), date.fromisoformat(request.end)
         rules = Rules()
+        names = (
+            tweezer_scan.universe(request.universe)
+            if request.universe
+            else [s.strip().upper() for s in request.symbols if s.strip()]
+        )
         symbols: list[dict[str, Any]] = []
         trades: list[dict[str, Any]] = []
         rejections: dict[str, int] = {}
         candles = sessions = 0
 
-        for name in request.symbols[:10]:
-            job.message = f"scanning {name}"
-            result = tweezer_scan.scan_symbol(
-                name, start=start, end=end, rules=rules, equity=request.equity
-            )
+        done = 0
+
+        def note(result: tweezer_scan.ScanResult, index: int, total: int) -> None:
+            nonlocal done
+            done = index
+            job.message = f"scanned {index}/{total} — {result.symbol}"
+
+        for result in tweezer_scan.scan_many(
+            names,
+            start=start,
+            end=end,
+            rules=rules,
+            equity=request.equity,
+            workers=8,
+            on_done=note,
+        ):
+            name = result.symbol
             candles += result.candles
             sessions += result.sessions
             for reason, count in result.rejections.items():
@@ -493,6 +518,14 @@ def _run_tweezer(job: Job, request: TweezerRequest) -> None:
             "wins": wins,
             "net_pnl": round(sum(t["net_pnl"] for t in trades), 2),
             "period": [request.start, request.end],
+            "universe": request.universe or f"{len(names)} named symbols",
+            "universe_note": (
+                "Liquidity-ranked from our own turnover history, not index membership "
+                "(ADR-008). A published constituent list exists only as it stands today, "
+                "so using one across history would be survivorship bias."
+                if request.universe
+                else ""
+            ),
             "caveats": _tweezer_caveats(filled, candles),
         }
         job.status = "done"
@@ -532,8 +565,13 @@ def _tweezer_caveats(filled: int, candles: int) -> list[str]:
 @app.post("/api/tweezer")
 def tweezer(request: TweezerRequest) -> dict[str, Any]:
     """Start an intraday scan. Returns immediately with a job id."""
-    if not request.symbols:
-        return {"ok": False, "error": "pick at least one symbol"}
+    if not request.universe and not request.symbols:
+        return {"ok": False, "error": "pick a universe or name at least one symbol"}
+    if request.universe and request.universe not in tweezer_scan.UNIVERSES:
+        return {
+            "ok": False,
+            "error": f"unknown universe; try {', '.join(sorted(tweezer_scan.UNIVERSES))}",
+        }
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job

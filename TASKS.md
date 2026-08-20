@@ -24,10 +24,11 @@ Operator-supplied rules. Verify: `uv run pytest tests/test_intraday_tweezer.py`
 | T-3207 | Panel carries OHLC | DONE — optional, falls back to a flat bar (S-024) |
 | T-3208 | ~~Never run on real data~~ | DONE — reads B2 directly; `make tweezer` |
 | T-3211 | `restore_local` cannot see minute data | DONE — it walks the NSE manifest, which never covered `kite_minute`; `intraday/store.py` reads B2 directly |
-| T-3212 | **The setup is extremely rare** | OPEN — 2 setups in 136,740 candles (3 symbols, 6 months). 0.15% low tolerance on minute bars is very tight. Widen it or accept the frequency, but 2 trades can never be evidence |
+| T-3212 | **The setup is extremely rare** | OPEN — 2 setups in 136,740 candles (3 symbols, 6 months). 0.15% low tolerance on minute bars is very tight. T-3214 makes scanning a wider universe possible; the wider run itself has not been executed, so this is still evidence-free |
 | T-3213 | Tweezer in the workbench UI | DONE — its own surface, not a tab beside the daily engine |
 | T-3209 | Not a `Strategy` subclass | OPEN by design — intraday, conditional entry, bracket exit and risk-based sizing cannot be target weights |
 | T-3210 | Rebuild the panel with OHLC | OPEN — 2,869 B2 downloads. **The cap is not a blocker** — the operator confirmed B2 is effectively unmetered; just run it |
+| T-3214 | Scan a whole universe, not 3 hand-picked symbols | DONE — `--universe nifty50\|nifty100\|nifty250` (ADR-008 liquidity ranking, not index membership) added to `intraday/scan.py`, `make tweezer`, and the workbench `/api/tweezer` route; `scan_many` threads the B2 reads since the work is I/O-bound, not CPU-bound. A symbol with no minute data is reported and skipped rather than failing the whole run. **Widening the universe still has not been run** — T-3212 stays OPEN until it has |
 
 ---
 

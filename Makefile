@@ -70,7 +70,8 @@ help:
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo ""
 	@echo "  -- order path (sprints 19-28) --"
-	@echo "  make tweezer [SYMBOLS=A,B FROM=... TO=...]  intraday Tweezer Bottom scan"
+	@echo "  make tweezer [UNIVERSE=nifty50|nifty100|nifty250] [DAY=YYYY-MM-DD]"
+	@echo "                    intraday Tweezer Bottom scan; defaults to nifty50"
 	@echo "  make montecarlo [FEATURE=... DAYS=n]  drawdown path risk + Sharpe interval"
 	@echo "  make chaos        kill it mid-order and check it tells the truth"
 	@echo "  make kill-status  is the kill switch tripped, and why"
@@ -227,7 +228,7 @@ acceptance:
 	@uv run python tools/acceptance.py $(if $(ALL),--all,)
 
 tweezer:
-	@uv run python -m eulerlab.intraday.scan $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(PRUNE),--prune,)
+	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
 
 montecarlo:
 	@uv run python -m eulerlab.validation.montecarlo_run $(if $(FEATURE),--feature $(FEATURE),) $(if $(DAYS),--days $(DAYS),) $(if $(SIMS),--simulations $(SIMS),)
