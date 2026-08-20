@@ -26,12 +26,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     root = Path(args.dir)
+    # The header prints before the early exit on purpose. A fresh clone has no
+    # journal, and a caller checking this command's output needs to be able to
+    # tell "the book is empty" from "the command did not run".
+    print(f"book: {root}")
     if not (root / "orders.jsonl").exists():
-        print(f"no journal at {root / 'orders.jsonl'}. Run `make paper` first.")
+        print("no journal yet — nothing has traded. Run `make paper` to create one.")
+        print("\nreconciliation: nothing to compare")
         return 0
 
     oms = runner.fresh_oms(root)
-    print(f"book: {root}")
     print(f"orders on record: {len(oms.states()):,}")
 
     problems = verify_replay(Journal(root / "orders.jsonl"))

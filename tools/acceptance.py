@@ -53,9 +53,16 @@ class Check:
     what: str
     command: Sequence[str]
     expect: str
-    """A string that must appear in the output. Checking the exit code alone
-    would pass a command that ran, printed a failure and exited 0 — which is
-    exactly what a partially-working data pipeline does."""
+    """A string that must appear in the output, **on top of** a zero exit code.
+
+    Both, because each alone lets a real failure through. An exit code alone
+    passes a command that ran, printed a failure and exited 0 — which is what
+    a half-working data pipeline does. A string alone passes a command that
+    crashed after printing its happy line, and it is easy to get wrong: the
+    first version of this file looked for "passed" in `make test-lookahead`,
+    whose pytest invocation is quiet and prints only dots, so a fully green
+    suite was reported FAIL. Empty means the exit code is the whole check,
+    which is right for pytest and wrong for almost everything else."""
 
     costly: str = ""
     """Non-empty means skipped by default, and this says why."""
@@ -66,7 +73,7 @@ CHECKS: tuple[Check, ...] = (
         "4",
         "lookahead firewall",
         ("make", "test-lookahead"),
-        "passed",
+        "",  # pytest is quiet here; its exit code is the authoritative answer
     ),
     Check(
         "3",
@@ -106,7 +113,7 @@ CHECKS: tuple[Check, ...] = (
         "14",
         "promotion gate kills overfit strategies",
         ("make", "gate-acceptance"),
-        "gate-acceptance",
+        "all 3 overfit strategies were killed",
     ),
     Check(
         "15-18",
@@ -146,7 +153,25 @@ CHECKS: tuple[Check, ...] = (
         "momentum_12_1",
         costly="~2 min over the real panel",
     ),
+    Check(
+        "7",
+        "options no-arbitrage checks",
+        ("make", "quality-options", "DAYS=3"),
+        "",
+        costly="needs F&O files from B2 — they are pruned locally (2,500/day cap)",
+    ),
 )
+"""Sprint 11 (the Tier B engine) has no row of its own on purpose: its
+acceptance is that the two engines reconcile, and `test-engine` already checks
+that as one of its ten. A second command running both engines over the full
+panel would take minutes to re-answer a question already answered.
+
+Sprints 1, 2 and 10 are absent for different reasons. Sprint 1's ingest is
+verified by `check-landing`, which re-hashes local files — and the landing zone
+is pruned to Backblaze, so there is little left locally to hash. Sprint 2's
+options recorder was never deployed to a VPS (see `STATE.md`). Sprint 10's Tier
+A engine is covered by the reconciliation above.
+"""
 
 
 @dataclass(frozen=True)
@@ -171,13 +196,17 @@ def run_one(check: Check) -> Outcome:
     elapsed = time.monotonic() - started
     output = (completed.stdout + completed.stderr).strip()
 
-    if check.expect not in output:
+    if completed.returncode != 0:
         tail = next((ln for ln in reversed(output.splitlines()) if ln.strip()), "")
-        return Outcome(check, "FAIL", tail[:90] or "no output", elapsed, output)
+        return Outcome(check, "FAIL", f"exit {completed.returncode}: {tail[:70]}", elapsed, output)
+    if check.expect and check.expect not in output:
+        return Outcome(
+            check, "FAIL", f"exited 0 but never printed {check.expect!r}", elapsed, output
+        )
 
     summary = next(
-        (ln.strip() for ln in reversed(output.splitlines()) if check.expect in ln),
-        check.expect,
+        (ln.strip() for ln in reversed(output.splitlines()) if check.expect and check.expect in ln),
+        "exit 0",
     )
     return Outcome(check, "PASS", summary[:90], elapsed, "")
 

@@ -23,6 +23,19 @@ and say "next sprint".
 If anything is red, [docs/RUNBOOKS/verify-is-red.md](docs/RUNBOOKS/verify-is-red.md)
 says what to do — mostly: paste the output back and stop.
 
+```bash
+make acceptance
+```
+
+The other question, when you want it: does each sprint's capability still work
+against the real data? `verify` proves the repository is healthy; `acceptance`
+proves the system is. Takes a few minutes and spends nothing.
+
+**Two commands cost something and are not run casually.** `make gate` and
+`make validate` each write a trial to a permanent, hash-chained ledger, and
+every trial raises the statistical bar for every future strategy. Neither is
+in `verify` or `acceptance`, deliberately.
+
 ## Setup, once
 
 ```bash

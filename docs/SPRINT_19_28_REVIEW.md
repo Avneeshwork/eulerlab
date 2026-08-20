@@ -139,6 +139,31 @@ no behaviour.
 
 ---
 
+## The acceptance suite's first run failed on its own checks
+
+Worth recording because it is the more common kind of bug and the harder one to
+notice. The first `make acceptance` run reported **2 of 11 red**. Neither was a
+real failure:
+
+- **Sprint 4, lookahead firewall** — the check looked for the word "passed" in
+  the output. That target runs pytest quietly, so a fully green suite prints
+  only dots. A passing system was reported as broken.
+- **Sprint 14, promotion gate** — the check looked for a string that appears
+  nowhere in the command's output. The gate had in fact killed all three
+  overfit strategies, which is exactly the required result.
+
+Both checks now require **a zero exit code and** the marker string, because
+each alone lets something through: an exit code alone passes a command that
+prints a failure and exits 0, and a marker alone is easy to get wrong in the
+direction shown above. Where a command's exit code is genuinely authoritative
+(pytest), the marker is left empty and that is stated rather than faked with a
+string that always matches.
+
+A false red is not harmless. It is the failure mode that trains an operator to
+ignore the suite.
+
+---
+
 ## A mistake I made, and what it cost
 
 Testing end to end, I ran `make gate H=H-0001` to check the command still
