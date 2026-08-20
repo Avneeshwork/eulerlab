@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EquityChart } from '@/components/EquityChart';
+import { TweezerPanel } from '@/components/TweezerPanel';
 import { api, pct, rupees } from '@/lib/api';
 import type { Health, Job, Library, Provider, Result, StrategyInput } from '@/lib/api';
 
@@ -9,6 +10,10 @@ type Tab = 'describe' | 'compose' | 'code';
 
 export default function Page() {
   const [tab, setTab] = useState<Tab>('compose');
+  // Daily and intraday are separate surfaces, not another tab in the same card.
+  // A Tweezer scan has no Sharpe and no equity curve of target weights; sitting
+  // it beside them would invite a comparison that is not meaningful.
+  const [surface, setSurface] = useState<'daily' | 'intraday'>('daily');
   const [library, setLibrary] = useState<Library | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -128,8 +133,30 @@ export default function Page() {
         )}
       </header>
 
+      <div className="surface-switch" role="tablist" aria-label="Which engine">
+        <button
+          role="tab"
+          aria-selected={surface === 'daily'}
+          onClick={() => setSurface('daily')}
+        >
+          Daily cross-section
+          <span>rank the market, hold the top N</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={surface === 'intraday'}
+          onClick={() => setSurface('intraday')}
+        >
+          Intraday patterns
+          <span>Tweezer Bottom on minute bars</span>
+        </button>
+      </div>
+
       {problem && <div className="note bad" style={{ marginBottom: 16 }}>{problem}</div>}
 
+      {surface === 'intraday' && <TweezerPanel />}
+
+      {surface === 'daily' && (
       <div className="grid">
         <div>
           <div className="card">
@@ -395,6 +422,7 @@ export default function Page() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

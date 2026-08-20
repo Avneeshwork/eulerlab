@@ -22,9 +22,12 @@ Operator-supplied rules. Verify: `uv run pytest tests/test_intraday_tweezer.py`
 | T-3205 | Ambiguous bars resolved against us | DONE — a bar holding both stop and target takes the STOP |
 | T-3206 | Rejections name the rule and the value | DONE — "no trade" and "ADX was 51" are different facts |
 | T-3207 | Panel carries OHLC | DONE — optional, falls back to a flat bar (S-024) |
-| T-3208 | **Never run on real data** | OPEN — S-023; needs minute data restored from B2 |
+| T-3208 | ~~Never run on real data~~ | DONE — reads B2 directly; `make tweezer` |
+| T-3211 | `restore_local` cannot see minute data | DONE — it walks the NSE manifest, which never covered `kite_minute`; `intraday/store.py` reads B2 directly |
+| T-3212 | **The setup is extremely rare** | OPEN — 2 setups in 136,740 candles (3 symbols, 6 months). 0.15% low tolerance on minute bars is very tight. Widen it or accept the frequency, but 2 trades can never be evidence |
+| T-3213 | Tweezer in the workbench UI | DONE — its own surface, not a tab beside the daily engine |
 | T-3209 | Not a `Strategy` subclass | OPEN by design — intraday, conditional entry, bracket exit and risk-based sizing cannot be target weights |
-| T-3210 | Rebuild the panel with OHLC | OPEN — 2,869 B2 downloads, over the 2,500/day cap; needs two days or a raised cap |
+| T-3210 | Rebuild the panel with OHLC | OPEN — 2,869 B2 downloads. **The cap is not a blocker** — the operator confirmed B2 is effectively unmetered; just run it |
 
 ---
 

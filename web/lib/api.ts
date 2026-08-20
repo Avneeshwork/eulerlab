@@ -120,10 +120,64 @@ export const api = {
   backtest: (input: StrategyInput & { days: number; tier: 'A' | 'B'; starting_cash: number }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/backtest', input),
   job: (id: string) => get<Job>(`/api/jobs/${id}`),
+  tweezer: (input: { symbols: string[]; start: string; end: string }) =>
+    post<{ ok: boolean; job?: string; error?: string }>('/api/tweezer', input),
 };
+
+// A Tweezer job returns a different result shape from a backtest job, so it is
+// read through its own accessor rather than widening `Job.result`.
+export type TweezerJob = Omit<Job, 'result'> & { result: TweezerResult };
+
+export const tweezerJob = (id: string) => get<TweezerJob>(`/api/jobs/${id}`);
 
 export const pct = (value: number) =>
   `${value >= 0 ? '+' : ''}${(value * 100).toFixed(2)}%`;
 
 export const rupees = (value: number) =>
   `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+
+// --- Tweezer Bottom -------------------------------------------------------
+// A separate shape from BacktestResult on purpose. Tweezer is intraday with a
+// conditional entry and a bracket exit; it has no equity curve of target
+// weights and no Sharpe, and pretending otherwise would invite comparison
+// between two things that are not comparable.
+
+export type TweezerExit = { reason: string; price: number; shares: number };
+
+export type TweezerTrade = {
+  symbol: string;
+  entry_ts: string | null;
+  entry: number;
+  stop: number;
+  target_1: number;
+  target_2: number;
+  risk_pct: number;
+  shares: number;
+  net_pnl: number;
+  r_multiple: number;
+  exits: TweezerExit[];
+};
+
+export type TweezerSymbol = {
+  symbol: string;
+  sessions: number;
+  candles: number;
+  setups: number;
+  filled: number;
+  net_pnl: number;
+  costs: number;
+};
+
+export type TweezerResult = {
+  symbols: TweezerSymbol[];
+  trades: TweezerTrade[];
+  rejections: [string, number][];
+  candles: number;
+  sessions: number;
+  setups: number;
+  filled: number;
+  wins: number;
+  net_pnl: number;
+  period: [string, string];
+  caveats: string[];
+};

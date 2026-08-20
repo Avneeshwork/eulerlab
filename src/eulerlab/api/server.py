@@ -38,7 +38,7 @@ from typing import Any, Literal
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
@@ -47,6 +47,8 @@ from eulerlab.backtest.strategy import Strategy
 from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
+from eulerlab.intraday import scan as tweezer_scan
+from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
 from eulerlab.validation import montecarlo
@@ -138,6 +140,23 @@ JOBS_LOCK = threading.Lock()
 
 
 # --- request models ---------------------------------------------------------
+
+
+class TweezerRequest(BaseModel):
+    """An intraday Tweezer Bottom scan.
+
+    Separate from `BacktestRequest` on purpose. Tweezer is not a `Strategy` and
+    does not go through the daily engine — it has a conditional stop-entry, a
+    bracket exit and risk-based sizing, none of which a target weight can hold.
+    Sharing a request model would imply they are interchangeable.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    symbols: list[str] = Field(default_factory=lambda: ["RELIANCE", "TCS", "INFY"])
+    start: str = "2024-01-01"
+    end: str = "2024-06-30"
+    equity: float = Field(default=1_000_000.0, gt=0)
 
 
 class DraftRequest(BaseModel):
@@ -408,6 +427,117 @@ def backtest(request: BacktestRequest) -> dict[str, Any]:
         JOBS[job.id] = job
     thread = threading.Thread(target=_run_backtest, args=(job, request), daemon=True)
     thread.start()
+    return {"ok": True, "job": job.id}
+
+
+def _run_tweezer(job: Job, request: TweezerRequest) -> None:
+    try:
+        job.status = "running"
+        start, end = date.fromisoformat(request.start), date.fromisoformat(request.end)
+        rules = Rules()
+        symbols: list[dict[str, Any]] = []
+        trades: list[dict[str, Any]] = []
+        rejections: dict[str, int] = {}
+        candles = sessions = 0
+
+        for name in request.symbols[:10]:
+            job.message = f"scanning {name}"
+            result = tweezer_scan.scan_symbol(
+                name, start=start, end=end, rules=rules, equity=request.equity
+            )
+            candles += result.candles
+            sessions += result.sessions
+            for reason, count in result.rejections.items():
+                rejections[reason] = rejections.get(reason, 0) + count
+            symbols.append(
+                {
+                    "symbol": name,
+                    "sessions": result.sessions,
+                    "candles": result.candles,
+                    "setups": result.plans,
+                    "filled": len(result.filled),
+                    "net_pnl": round(result.net_pnl(), 2),
+                    "costs": round(result.costs(), 2),
+                }
+            )
+            for trade in result.filled:
+                trades.append(
+                    {
+                        "symbol": name,
+                        "entry_ts": trade.entry_ts.isoformat() if trade.entry_ts else None,
+                        "entry": round(trade.entry_price, 2),
+                        "stop": round(trade.plan.stop, 2),
+                        "target_1": round(trade.plan.target_1, 2),
+                        "target_2": round(trade.plan.target_2, 2),
+                        "risk_pct": round(trade.plan.risk_pct, 2),
+                        "shares": trade.plan.shares,
+                        "net_pnl": round(trade.net_pnl(), 2),
+                        "r_multiple": round(trade.r_multiple(), 2),
+                        "exits": [
+                            {"reason": e.reason, "price": round(e.price, 2), "shares": e.shares}
+                            for e in trade.exits
+                        ],
+                    }
+                )
+
+        filled = sum(s["filled"] for s in symbols)
+        wins = sum(1 for t in trades if t["net_pnl"] > 0)
+        job.result = {
+            "symbols": symbols,
+            "trades": trades,
+            "rejections": sorted(rejections.items(), key=lambda kv: -kv[1])[:10],
+            "candles": candles,
+            "sessions": sessions,
+            "setups": sum(s["setups"] for s in symbols),
+            "filled": filled,
+            "wins": wins,
+            "net_pnl": round(sum(t["net_pnl"] for t in trades), 2),
+            "period": [request.start, request.end],
+            "caveats": _tweezer_caveats(filled, candles),
+        }
+        job.status = "done"
+        job.message = "complete"
+    except Exception as exc:
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+    finally:
+        job.finished = time.time()
+
+
+def _tweezer_caveats(filled: int, candles: int) -> list[str]:
+    """What the number on screen does not mean.
+
+    Returned with the result rather than written into the page, so the warning
+    travels with the figure instead of being a paragraph someone can style away.
+    """
+    out = [
+        "This is one hand-picked symbol set over one hand-picked window. "
+        "It is not a validated result and spent no trial.",
+        "Where a single minute's range contains both the stop and a target, the "
+        "engine takes the STOP. It cannot know which came first.",
+        "Fills assume the whole order goes through at one price. Real intraday "
+        "liquidity is not modelled, and market impact is not modelled anywhere (T-907).",
+    ]
+    if filled == 0:
+        out.insert(0, "No orders filled. Every number below is zero because nothing traded.")
+    elif filled < 20:
+        out.insert(
+            0,
+            f"Only {filled} trade(s) filled in {candles:,} candles. A win rate over "
+            f"so few trades is noise — it would take dozens before it meant anything.",
+        )
+    return out
+
+
+@app.post("/api/tweezer")
+def tweezer(request: TweezerRequest) -> dict[str, Any]:
+    """Start an intraday scan. Returns immediately with a job id."""
+    if not request.symbols:
+        return {"ok": False, "error": "pick at least one symbol"}
+    job = Job(id=uuid.uuid4().hex[:12])
+    with JOBS_LOCK:
+        JOBS[job.id] = job
+    threading.Thread(target=_run_tweezer, args=(job, request), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 

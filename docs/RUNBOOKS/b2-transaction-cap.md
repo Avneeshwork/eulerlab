@@ -1,3 +1,11 @@
+> **Correction, 2026-08-20.** The operator confirmed there is no meaningful
+> transaction limit on their B2 account. The 2,500/day figure below is the free
+> tier's *billing threshold*, not a quota — B2 charges a small amount beyond it
+> rather than refusing service. This runbook had been treated as a hard wall and
+> was deferring real work: a panel rebuild was left undone and the Tweezer
+> strategy shipped unvalidated because restoring minute data "would need pacing".
+> **Do not pace data work around this.** Restore, rebuild and backfill freely.
+
 # Backblaze B2 daily transaction cap
 
 ## Symptom
