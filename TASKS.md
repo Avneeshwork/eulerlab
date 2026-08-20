@@ -25,8 +25,10 @@ plan — they are listed here as scope only, not as tasks.
 | T-1310 | Investigate excess kurtosis of +101 and +161 | DONE — led to the raw-price marking bug below |
 | T-1313 | Panel stores raw prices + instrument key; guard against silent no-op | DONE — panel rebuilt, 2,869 days |
 | T-1314 | Point-in-time adjustment for signals, consistent series for marking | DONE — phantom P&L removed |
-| T-1315 | **Re-run the Sprint 13 battery on corrected prices** | OPEN — the H-0001 verdict is not valid until this runs |
-| T-1316 | **Re-run Sprint 8 IC and Sprint 10/11 backtests on corrected prices** | OPEN — all were computed on raw prices |
+| T-1315 | Re-run the Sprint 13 battery on corrected prices | DONE — PBO 53.3% -> **60.0%**; verdict unchanged |
+| T-1316 | Re-run Sprint 10/11 backtests on corrected prices | DONE — momentum +16.8% ann. vs buy-and-hold +4.6% |
+| T-1317 | Re-run the Sprint 8 IC sweep on corrected prices | OPEN — IC figures still come from raw prices |
+| T-1318 | Hoist the adjusted-price index out of `run()` | OPEN — rebuilt 150x during a validate; ~40min run |
 | T-1311 | Stress tests | OPEN — listed for this sprint, not built |
 | T-1312 | Decide H-0001's fate (CLAUDE.md: a failed strategy is dead) | OPEN — operator decision |
 

@@ -7,12 +7,21 @@ sprint working, not failing.**
 `make validate H=H-0001` put the momentum hypothesis through purged CPCV,
 Deflated Sharpe, PBO and minimum backtest length. It does not survive.
 
-| | |
-|---|---|
-| **PBO** | **53.3%** over 15 paths — *worse than a coin flip* |
-| **Deflated Sharpe** | **≤ 0.021** for every configuration (0.95 is the usual bar) |
-| Best full-sample Sharpe | 1.01 |
-| Expected best Sharpe from **13 worthless strategies** | **1.70** |
+**These numbers were re-run after a price-adjustment bug was found and fixed
+(see below). Both sets are shown, because the correction made the raw returns
+look considerably better and changed the verdict not at all.**
+
+| | on raw prices (wrong) | **on corrected prices** |
+|---|---|---|
+| **PBO** | 53.3% | **60.0%** — *worse than a coin flip* |
+| **Deflated Sharpe** | ≤ 0.021 | **≤ 0.086** (0.95 is the bar) |
+| Best full-sample Sharpe | 1.01 | 1.27 |
+| Expected best from N worthless strategies | 1.70 (N=13) | **1.74** (N=14) |
+
+Fixing the data raised annualised return from +10.2% to +16.8% and the Sharpe
+from 1.01 to 1.27 — and PBO got *worse*. The strategy looks better and is no
+more distinguishable from luck, which is the cleanest possible demonstration
+that a headline return and a valid result are different things.
 
 That last pair is the whole finding. Given how many things have been tried,
 pure noise would be *expected* to produce a Sharpe of 1.70. The best real
@@ -43,7 +52,19 @@ answer. The lesson is not that the earlier work was sloppy — it is that
 **confidence should track the strength of the test, not the appeal of the
 result**, and only the last of those three had a test worth the name.
 
-## A red flag the battery surfaced by accident
+## The red flag turned out to be a real bug
+
+Two configurations showed excess kurtosis of +101 and +161. Investigating that
+found the engines were **marking positions at raw, unadjusted prices** —
+VIVIDHA prints 1,290.55 then 140.75 on an 11:1 action, and the engine booked
+an 89% loss where a holder lost nothing. Every corporate action in a held name
+produced phantom P&L. Three defects underneath it, all fixed and documented in
+`STATE.md`; the panel was rebuilt and every figure above re-run.
+
+The kurtosis is lower but still extreme (155 on `momentum_6_1`), so the tails
+are not solely explained by the bug. Still open.
+
+## The original red-flag note
 
 Two configurations show **excess kurtosis of +101 and +161**, with skew above
 +4. A normal distribution has excess kurtosis 0; a typical equity strategy

@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
 **Sprint:** 13 — overfitting battery
-**Status:** COMPLETE, plus a follow-up bug fix that **invalidates the backtest
-numbers reported in Sprints 10-13**. They must be re-run
+**Status:** COMPLETE. A price-adjustment bug was found, fixed, and every
+figure re-run. **H-0001 still does not survive: PBO 60.0%**
 **Next:** Sprint 14 — promotion gate as code, pre-registration, locked holdout
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
@@ -50,10 +50,10 @@ Three things were wrong and all are fixed:
 A guard now refuses a panel with no instrument key, because the original bug
 was a silent no-op and would otherwise return the same way.
 
-**Consequence: every backtest figure in Sprints 10, 11 and 13 was computed on
-raw prices and is wrong.** Buy-and-hold over eleven years now reads +4.6%
-annualised. The Sprint 13 battery must be re-run before its verdict on H-0001
-means anything.
+**Every figure was re-run on corrected prices.** Momentum now shows +16.8%
+annualised against buy-and-hold's +4.6%, and the battery's verdict is
+unchanged — PBO went 53.3% to **60.0%**. Fixing the data made the strategy
+look better and no more distinguishable from luck, which is the point.
 
 ## Sprint 13 — what is built
 
