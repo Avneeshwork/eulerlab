@@ -1,8 +1,8 @@
 # STATE — where this project is right now
 
-**Sprint:** 11 — Tier B event-driven backtester
-**Status:** COMPLETE
-**Next:** Sprint 12 — backtester self-tests, the most important gate in the project
+**Sprint:** 12 — backtester self-tests
+**Status:** COMPLETE — `make verify` is now 6 of 6, including the engine gate
+**Next:** Sprint 13 — overfitting battery (CPCV, Deflated Sharpe, PBO, trial counter)
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
 written here or in `TASKS.md`, it did not happen.*
@@ -23,6 +23,32 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Sprint 12 — what is built
+
+- **`eulerlab.backtest.selftest`** / **`make test-engine`** — ten checks on
+  synthetic worlds whose answer is known by construction. Now inside
+  `make verify`, because a gate you must remember is one that gets skipped.
+- **`tests/test_engine_selftests.py`** — a mutation suite that breaks the
+  engine on purpose and asserts the gate goes red.
+
+### The mutation suite found a hole in the gate
+
+All ten checks passed first time, which is when a gate is least trustworthy.
+Doubling every fee **still passed** `zero alpha = exact cost drag`: the cash
+deduction and the recorded fee both doubled, so `loss == costs` held. The books
+were self-consistent and completely wrong. Fixed by adding `costs match the
+cost model`, which recomputes every fee through a path the engine does not
+share (ADR-022).
+
+### And a flaw in Sprint 8's work
+
+The IC harness's null anchor used `hash(symbol) % 997`. Python randomises
+string hashing per process, so it was non-deterministic; worse, a
+**constant-per-symbol label is not a null** — in a fixed panel some symbols
+persistently out-drift others, so a fixed ordering scores a real IC, measured
+at **t = 4.7**. The null is now re-drawn each period, and a second test records
+the trap so it is not reintroduced.
 
 ## Sprint 11 — what is built
 

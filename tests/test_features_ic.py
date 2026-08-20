@@ -79,13 +79,30 @@ def test_a_feature_that_is_the_forward_return_scores_a_perfect_ic() -> None:
 
 
 def test_a_feature_that_cannot_know_anything_scores_about_zero() -> None:
-    """The lower anchor. A constant-per-symbol arbitrary label carries no
-    information about the future, so its IC must be indistinguishable from
-    zero. If this came out positive the harness would be leaking."""
+    """The lower anchor: a true null must score indistinguishably from zero.
+
+    Getting this fixture right took two corrections, both instructive.
+
+    The first version used `hash(symbol) % 997`. Python randomises string
+    hashing per process, so the test was non-deterministic — it passed or
+    failed depending on `PYTHONHASHSEED`, which violates the project's
+    determinism rule and made it worthless as an anchor.
+
+    The second problem is subtler and matters more. A label that is *constant
+    per symbol* is **not** a null signal. In any fixed panel some symbols
+    persistently out-drift others, so a fixed cross-sectional ordering can
+    align with them and score a genuine, repeatable IC — measured at t = 4.7
+    here. A real null has to be re-drawn each period, which is what the seeded
+    per-date shuffle below does.
+    """
     rows = _panel()
 
     def arbitrary(history):  # type: ignore[no-untyped-def]
-        return float(hash(history[-1].symbol) % 997)
+        last = history[-1]
+        # Deterministic, and re-drawn every period so it cannot align with
+        # whichever symbols happen to drift up over the sample.
+        rng = random.Random(f"{last.symbol}|{last.day.isoformat()}")
+        return rng.random()
 
     result = evaluate(
         rows, Feature("arbitrary", arbitrary, "noise", 1), horizon=5, step=10, min_names=30
@@ -93,6 +110,32 @@ def test_a_feature_that_cannot_know_anything_scores_about_zero() -> None:
     assert result.n > 0
     assert abs(result.mean_ic) < 0.15
     assert abs(result.t_stat) < 3.0
+
+
+def test_a_constant_per_symbol_label_is_not_a_null_signal() -> None:
+    """Records the trap directly, so the fixture above is not quietly
+    'simplified' back into it later.
+
+    A fixed ordering that happens to match which symbols drift up scores a
+    persistent IC. It is not evidence of a leak in the harness — the harness is
+    reporting a real correlation — but it is useless as a null anchor.
+    """
+    rows = _panel()
+    ordering = {f"SYM{s:03d}": float(s) for s in range(60)}
+
+    def fixed_label(history):  # type: ignore[no-untyped-def]
+        return ordering[history[-1].symbol]
+
+    result = evaluate(
+        rows,
+        Feature("fixed", fixed_label, "constant per symbol", 1),
+        horizon=5,
+        step=10,
+        min_names=30,
+    )
+    # No assertion on the sign or size - the point is only that this construct
+    # can carry signal, so it must not be used as the null.
+    assert result.n > 0
 
 
 # --- the firewall property ---
