@@ -47,6 +47,7 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make scout [PROPOSE=n]   what would searching cost? then draft cards"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
 	@echo "  make validate H=H-0001  overfitting battery: CPCV, DSR, PBO, MinBTL"
@@ -155,6 +156,9 @@ check-costs:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+scout:
+	@uv run python -m eulerlab.research.scout $(if $(PROPOSE),--propose $(PROPOSE),) $(if $(DRAFT),--draft "$(DRAFT)",) $(if $(SOURCE),--source $(SOURCE),)
 
 gate-acceptance:
 	@uv run python -m eulerlab.validation.gate_acceptance $(if $(SYMBOLS),--symbols $(SYMBOLS),)

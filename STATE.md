@@ -1,9 +1,10 @@
 # STATE — where this project is right now
 
-**Sprint:** 14 — promotion gate
-**Status:** COMPLETE. Its first act was to **kill H-0001**, the project's only
-candidate. Three deliberately overfit strategies were also killed.
-**Next:** Sprints 15-18 — the research agent loop
+**Sprint:** 15 — paper scout and hypothesis cards
+**Status:** COMPLETE. The scout prices a search before running it, and the
+arithmetic is unwelcome: **20 more hypotheses would raise the bar to Sharpe
+2.16 when our best ever is 1.27.**
+**Next:** Sprint 16 — codegen, turning a registered card into a `Strategy`
 
 *Last updated: 2026-08-19. One page, always current. If it is not written here
 or in `TASKS.md`, it did not happen.*
@@ -29,10 +30,16 @@ without an explicit instruction in that session. `mandate.yaml` holds every
 threshold and no logic; `gates.py` holds logic and no thresholds, and a test
 enforces that.
 
-**3. The next work is Sprints 15-18 — the research agent loop** (paper scout,
-hypothesis cards, codegen, critic, orchestrator). Everything built so far
-exists to make that loop safe: the gate is what stops an agent generating a
-hundred strategies a month from being a machine for losing money efficiently.
+**3. The next work is Sprint 16 — codegen**, turning a registered hypothesis
+card into a runnable `Strategy`. Generated code must use the same interface as
+everything else and get no privileged data access, so Sprint 4's firewall
+applies to it unchanged.
+
+**Before generating hypotheses, run `make scout PROPOSE=n`.** Every one raises
+the statistical bar for all of them. At 17 logged trials a candidate must
+already beat Sharpe 1.83 from pure noise; the best this project has produced is
+1.27. The guardrail is not the gate — the gate sees one candidate at a time —
+it is the counter, which sees the whole search (ADR-026).
 
 **4. Two decisions waiting on the operator:** T-1408, formally mark H-0001
 killed — the gate has already returned KILL and the ledger records it. And
@@ -94,6 +101,19 @@ Read this before trusting any number produced before today.
   thin name is optimistic.
 
 ---
+
+## Sprint 15 — what is built
+
+- **`eulerlab.research.budget`** — `make scout PROPOSE=n` prices a search
+  before it runs and refuses one the history could not support afterwards.
+- **`eulerlab.research.card`** — hypothesis cards as specs. Red flags that are
+  hedges ("markets can change") are rejected; a card must name a number, a
+  mechanism, or a finding from this project. Cards never overwrite and ids are
+  never recycled, because the trial ledger refers to them.
+- **`hypotheses/H-0002.yaml`** — low-volatility anomaly, drafted from real NSE
+  literature (research note 014). **Draft, not registered.** Its own red flags
+  argue against it: the supporting Sprint 8 t-statistic of +5.78 came from raw
+  prices on a 3-year panel and cannot be cited (T-1317).
 
 ## Sprint 14 — what is built
 
