@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -70,6 +70,7 @@ help:
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo ""
 	@echo "  -- order path (sprints 19-28) --"
+	@echo "  make montecarlo [FEATURE=... DAYS=n]  drawdown path risk + Sharpe interval"
 	@echo "  make chaos        kill it mid-order and check it tells the truth"
 	@echo "  make kill-status  is the kill switch tripped, and why"
 	@echo "  make kill-stop REASON=\"...\"   stop trading now"
@@ -223,6 +224,9 @@ workbench:
 
 acceptance:
 	@uv run python tools/acceptance.py $(if $(ALL),--all,)
+
+montecarlo:
+	@uv run python -m eulerlab.validation.montecarlo_run $(if $(FEATURE),--feature $(FEATURE),) $(if $(DAYS),--days $(DAYS),) $(if $(SIMS),--simulations $(SIMS),)
 
 chaos:
 	@uv run python -m eulerlab.oms.chaos

@@ -49,6 +49,7 @@ from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
+from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
 from eulerlab.validation.statistics import sharpe_stats
 
@@ -239,7 +240,22 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
         total = equity[-1] / request.starting_cash - 1.0
         years = len(equity) / 252.0
 
+        resampled = None
+        if len(returns) >= 30:
+            # Costs nothing: this is arithmetic on a result already computed,
+            # so it spends no trial and adds no backtest.
+            simulated = montecarlo.run(returns, simulations=400)
+            resampled = {
+                "drawdown_p05": simulated.drawdown.p05,
+                "drawdown_p50": simulated.drawdown.p50,
+                "sharpe_p05": simulated.sharpe.p05,
+                "sharpe_p95": simulated.sharpe.p95,
+                "drawdown_is_understated": simulated.drawdown_is_understated,
+                "sharpe_could_be_zero": simulated.sharpe_could_be_zero,
+            }
+
         job.result = {
+            "resampled": resampled,
             "label": draft.label(),
             "mode": request.mode,
             "tier": request.tier,

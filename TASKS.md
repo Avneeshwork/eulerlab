@@ -9,6 +9,24 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Integrated from TradeMaster (2026-08-20)
+
+Source: `~/Documents/TradeMaster_Avneesh` (2CentsCapital). Verify: `make montecarlo`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3101 | Monte Carlo resampling added to the battery | DONE — ADR-034; the battery had no path-risk test |
+| T-3102 | Resample returns, not prices | DONE — holds decisions fixed; costs no backtest |
+| T-3103 | Shuffle and bootstrap reported separately | DONE — shuffling cannot move the Sharpe; a test asserts it |
+| T-3104 | Unit bug: drawdowns stored as percentages | DONE — printed -2258.9% and inverted the verdict; now stored as fractions |
+| T-3105 | Costs no trial | DONE — resampling an existing result evaluates nothing new |
+| T-3106 | momentum_12_1 bootstrap 5th percentile is -0.96 | OPEN — over 700 days the data cannot rule out zero edge |
+| T-3107 | Kelly position sizing from TradeMaster's risk_management | OPEN — EulerLab is equal-weight only; next candidate to port |
+| T-3108 | Walk-forward optimiser (`playground/wfo.py`) | OPEN — CPCV covers most of this; evaluate overlap before porting |
+| T-3109 | TradeMaster broker adapters | OPEN — relevant to Sprint 29; patterns only, not code (it wraps backtesting.py) |
+
+---
+
 ## The workbench — UI, AI authoring, documentation (COMPLETE 2026-08-20)
 
 Not a numbered sprint in the build plan; requested by the operator. Verify:

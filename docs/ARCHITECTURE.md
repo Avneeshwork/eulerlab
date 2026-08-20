@@ -544,6 +544,36 @@ charges that actually dominate) were untouched. It reported 95% of Sharpe
 surviving 5× costs, which was not a fact about the strategy. The multiplier now
 applies to the total of every charge.
 
+## 5.6a Monte Carlo resampling: order versus luck
+
+Two questions the rest of the battery does not ask, and they need **different**
+operations (ADR-034):
+
+**Shuffle** — reorder the same returns. Mean and standard deviation are
+unchanged, so the Sharpe is *identical in every path*; reporting a distribution
+of it would be reporting nothing. What changes is the equity path, because a
+drawdown depends entirely on the order losses arrive in:
+
+```
+    max_drawdown  =  min over t of  ( E_t / max(E_1..E_t) − 1 )
+```
+
+If the realised drawdown is **shallower** than the median reshuffled path, the
+backtest simply has not met its bad ordering yet.
+
+**Bootstrap** — resample with replacement. This *does* move the mean and the
+standard deviation, giving a genuine confidence interval on the edge.
+
+> Measured on `momentum_12_1` over 700 days: observed Sharpe **0.11**, bootstrap
+> 5th percentile **−0.96**. The data cannot rule out that there is no edge at
+> all.
+
+Both assume returns are **exchangeable**. Real returns cluster — a crash is a
+run of bad days, not bad days sprinkled evenly — and shuffling breaks up
+exactly the clustering that produces the worst drawdowns. So this is a **lower
+bound** on risk, never the whole of it. Neither test spends a trial, because
+resampling an existing result evaluates nothing new.
+
 ## 5.7 The trial ledger: a counter that cannot be quietly edited
 
 Every strategy configuration evaluated appends one entry to
