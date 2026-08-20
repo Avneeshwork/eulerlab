@@ -9,6 +9,18 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 15 — paper scout and hypothesis cards (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1501 | `make scout` prices a search before running it | DONE — ADR-026; 20 more hypotheses moves the bar 1.83 -> 2.16 |
+| T-1502 | Hypothesis cards as specs with mandatory red flags | DONE — hedges rejected by the validator |
+| T-1503 | Cards refuse to overwrite; ids never recycled | DONE — a pre-registration is not rewritten |
+| T-1504 | A card without a real source is refused | DONE — CLAUDE.md forbids inventing one |
+| T-1505 | H-0002 drafted from real NSE literature | DONE — research note 014; **draft, not registered** |
+| T-1506 | Decide how many hypotheses the loop should generate | OPEN — operator; 20 makes the bar 2.16 vs our best 1.27 |
+| T-1507 | Register H-0002, or wait for T-1317 | OPEN — operator; its own red flags argue for waiting |
+
 ## Sprint 14 — promotion gate (COMPLETE 2026-08-19)
 
 | ID | Task | Status |

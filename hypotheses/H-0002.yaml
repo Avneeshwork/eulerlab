@@ -1,0 +1,43 @@
+id: H-0002
+title: Low-volatility anomaly in Indian equities
+status: draft
+claim: Ranking NSE equities by the inverse of their trailing three-month return dispersion
+  and holding the lowest-volatility decile equal-weighted earns a positive risk-adjusted
+  return net of Indian transaction costs, over the 2015-2024 in-sample period.
+rationale: Multiple studies of the NSE report low-risk portfolios outperforming high-risk
+  ones across large, mid and small caps, persisting after controlling for size, value
+  and momentum. Sprint 8's own low_volatility feature scored an IC t-statistic of
+  +5.78, but on raw prices and a three-year panel, so that figure is not evidence.
+source:
+  url: https://research-advances.org/index.php/RAJMSS/article/view/289
+  fetched: '2026-08-19'
+configurations:
+- feature: low_volatility
+  top_n: 30
+  rebalance: 21
+- feature: low_volatility
+  top_n: 50
+  rebalance: 21
+- feature: low_volatility
+  top_n: 30
+  rebalance: 63
+- feature: max_drawdown
+  top_n: 30
+  rebalance: 21
+red_flags:
+- Sprint 13 measured low_volatility, max_drawdown and price_to_52w_high as one cluster
+  with internal IC correlation of +0.86 to +0.95. These four configurations are therefore
+  closer to one finding than four, and PBO should be read accordingly.
+- Sprint 8's supporting t-statistic of +5.78 was computed on raw, unadjusted prices
+  and a 2023-2026 panel. Both defects are now fixed and the figure has not been recomputed
+  (T-1317), so it must not be cited as evidence for this card.
+- Low-volatility portfolios concentrate in large, liquid names, which is exactly the
+  cohort that returned only +4.6% annualised in the 2016-2026 buy-and-hold control.
+  The anomaly may not survive against that specific benchmark rather than against
+  zero.
+- The trial ledger already stands at 17 entries, so a candidate must beat a Sharpe
+  of 1.83 from pure noise. Momentum's best real Sharpe was 1.27, and low volatility
+  is not expected to be stronger.
+holdout:
+  starts: '2025-01-01'
+  status: unread
