@@ -48,7 +48,11 @@ def test_double_charging_costs_is_caught(monkeypatch: pytest.MonkeyPatch) -> Non
     def doubled(*args: object, **kwargs: object) -> float:
         return original(*args, **kwargs) * 2  # type: ignore[arg-type]
 
-    monkeypatch.setattr(event_driven, "_costs_for", doubled)
+    # Patched on `vector`, which is where the single cost path actually
+    # lives. Every engine and every executor resolves it there at call
+    # time, so one patch reaches all of them - which is itself the check
+    # that there is only one cost path.
+    monkeypatch.setattr(vector, "_costs_for", doubled)
 
     # The zero-alpha identity does NOT catch this, and that is the point.
     # Both the cash deduction and the recorded fill.cost double, so
@@ -72,7 +76,7 @@ def test_skipping_the_cost_on_sells_is_caught(monkeypatch: pytest.MonkeyPatch) -
             return 0.0
         return original(day, price, quantity, side, brokerage)  # type: ignore[arg-type]
 
-    monkeypatch.setattr(event_driven, "_costs_for", buy_only)
+    monkeypatch.setattr(vector, "_costs_for", buy_only)
     # Cash conservation still holds (fills agree with cash), but the zero-alpha
     # identity is unaffected too - so this must be caught by comparing against
     # an engine that charges correctly.

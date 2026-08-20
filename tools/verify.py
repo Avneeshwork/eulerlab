@@ -133,7 +133,40 @@ def check_engine() -> Result:
     return Result(name, False, "FAIL", summary or "self-tests failed", output)
 
 
-CHECKS = (check_lint, check_types, check_tests, check_docs, check_engine, check_state)
+def check_chaos() -> Result:
+    """The OMS chaos scenarios.
+
+    Beside `engine` in the mandatory set for the same reason. The engine gate
+    protects every number the research side produces; this one protects every
+    order the execution side sends. Both are fast, both need no network and no
+    real data, and both are the kind of check that gets skipped on exactly the
+    day it would have caught something.
+    """
+    name = "chaos"
+    completed = subprocess.run(
+        [sys.executable, "-m", "eulerlab.oms.chaos"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+        env={**os.environ, "NO_COLOR": "1"},
+    )
+    output = (completed.stdout + completed.stderr).strip()
+    summary = next((ln for ln in reversed(output.splitlines()) if ln.startswith("chaos ")), "")
+    if completed.returncode == 0:
+        return Result(name, True, "PASS", summary.replace("chaos OK: ", ""), "")
+    return Result(name, False, "FAIL", summary or "chaos scenarios failed", output)
+
+
+CHECKS = (
+    check_lint,
+    check_types,
+    check_tests,
+    check_docs,
+    check_engine,
+    check_chaos,
+    check_state,
+)
 
 
 def main() -> int:

@@ -35,20 +35,20 @@ from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
+from functools import partial
 from zoneinfo import ZoneInfo
 
 from eulerlab.backtest.events import Fill as EventFill
 from eulerlab.backtest.events import (
     Order,
-    OrderType,
     Portfolio,
     Rejection,
-    client_order_id,
+    plan_orders,
+    target_quantities,
 )
+from eulerlab.backtest.execution import Executor, SimulatedExecutor
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
-from eulerlab.backtest.vector import _costs_for
 from eulerlab.costs.model import Brokerage
-from eulerlab.costs.schedule import Side
 from eulerlab.features.panel import (
     PanelRow,
     assert_adjustable,
@@ -107,6 +107,7 @@ def run(
     warmup: int = 253,
     adjusted_index: dict[str, dict[date, float]] | None = None,
     cost_multiplier: float = 1.0,
+    executor: Executor | None = None,
 ) -> TierBResult:
     """Run `strategy` event by event.
 
@@ -241,6 +242,9 @@ def run(
         position = bisect_right(days_, day) - 1
         return price_index[symbol][days_[position]] if position >= 0 else None
 
+    engine: Executor = executor or SimulatedExecutor(
+        cost_mode=cost_mode, brokerage=brokerage, cost_multiplier=cost_multiplier
+    )
     portfolio = Portfolio(cash=starting_cash)
     result = TierBResult(
         strategy=strategy.describe(), starting_cash=starting_cash, cost_mode=cost_mode
@@ -263,66 +267,36 @@ def run(
             }
             equity = portfolio.equity(marks)
 
-            desired: dict[str, int] = {}
-            for symbol, weight in targets.items():
-                price = traded_price(symbol, fill_day)
-                if price and price > 0:
-                    desired[symbol] = int((equity * weight) / price)
+            desired = target_quantities(equity, targets, partial(traded_price, day=fill_day))
 
             # --- create orders ---
-            orders: list[Order] = []
-            for symbol in sorted(set(portfolio.holdings()) | set(desired)):
-                delta = desired.get(symbol, 0) - portfolio.holdings().get(symbol, 0)
-                if delta == 0:
-                    continue
-                sequence += 1
-                orders.append(
-                    Order(
-                        client_order_id=client_order_id(
-                            strategy.describe(), today, symbol, sequence
-                        ),
-                        strategy_id=strategy.describe(),
-                        signal_day=today,
-                        symbol=symbol,
-                        side=Side.BUY if delta > 0 else Side.SELL,
-                        quantity=abs(delta),
-                        order_type=OrderType.MARKET_ON_CLOSE,
-                    )
-                )
+            # `plan_orders` is shared verbatim with paper trading and live.
+            # Two implementations of "what do I have to trade to get there"
+            # would put a difference of our own making into every reality-gap
+            # report, which is the one number that must be about the market.
+            orders: list[Order]
+            orders, sequence = plan_orders(
+                strategy_id=strategy.describe(),
+                signal_day=today,
+                holdings=portfolio.holdings(),
+                desired=desired,
+                seq_start=sequence,
+            )
             result.orders.extend(orders)
 
             # --- fill or reject ---
+            # The executor is the only part of this loop that paper trading
+            # replaces. Everything above it — the view, the weights, the
+            # sizing, the orders — is shared code, so any difference between a
+            # backtest and a paper run is the executor's doing and nothing else.
             for order in orders:
-                price = traded_price(order.symbol, fill_day)
-                if price is None or price <= 0:
-                    # Modelled, not assumed away: an instrument that did not
-                    # print cannot be traded, and live would have rejected it.
-                    portfolio.rejections.append(
-                        Rejection(
-                            client_order_id=order.client_order_id,
-                            day=fill_day,
-                            symbol=order.symbol,
-                            reason="no trade on fill day",
-                        )
-                    )
+                outcome = engine.execute(
+                    order, day=fill_day, price=traded_price(order.symbol, fill_day)
+                )
+                if isinstance(outcome, Rejection):
+                    portfolio.rejections.append(outcome)
                     continue
-                cost = (
-                    0.0
-                    if cost_mode == "replication"
-                    else _costs_for(fill_day, price, order.quantity, order.side, brokerage)
-                    * cost_multiplier
-                )
-                portfolio.apply(
-                    EventFill(
-                        client_order_id=order.client_order_id,
-                        day=fill_day,
-                        symbol=order.symbol,
-                        side=order.side,
-                        quantity=order.quantity,
-                        price=price,
-                        cost=cost,
-                    )
-                )
+                portfolio.apply(outcome)
 
         # --- mark to market ---
         marks = {

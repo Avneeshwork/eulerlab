@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state
+.PHONY: help install verify test lint fmt types docs-check state chaos paper attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -62,6 +62,17 @@ help:
 	@echo "  make build-panel [FROM=2023-01-01]  adjusted price panel for features"
 	@echo "  make build-factors  build price + total-return adjustment factors"
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
+	@echo ""
+	@echo "  -- order path (sprints 19-28) --"
+	@echo "  make chaos        kill it mid-order and check it tells the truth"
+	@echo "  make kill-status  is the kill switch tripped, and why"
+	@echo "  make kill-stop REASON=\"...\"   stop trading now"
+	@echo "  make paper [FEATURE=... DAYS=n SLIPPAGE=25]"
+	@echo "                    run a strategy through the OMS against a paper broker"
+	@echo "  make attribution [FRICTIONLESS=1]"
+	@echo "                    reality gap: paper vs the backtest that authorised it"
+	@echo "  make reconcile-book  broker positions vs ours; the broker wins"
+	@echo ""
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 
 install:
@@ -194,6 +205,25 @@ build-factors:
 # One command to keep every dataset current, safe to schedule. Each step is
 # idempotent: already-current data costs nothing, so re-running is cheap and
 # a missed day self-heals on the next run.
+chaos:
+	@uv run python -m eulerlab.oms.chaos
+
+kill-status:
+	@uv run python -m eulerlab.oms.killswitch
+
+kill-stop:
+	@test -n "$(REASON)" || (echo 'usage: make kill-stop REASON="why"'; exit 2)
+	@uv run python -m eulerlab.oms.killswitch --trip "$(REASON)"
+
+paper:
+	@uv run python -m eulerlab.paper.runner $(if $(FEATURE),--feature $(FEATURE),) $(if $(DAYS),--days $(DAYS),) $(if $(SLIPPAGE),--slippage-bps $(SLIPPAGE),) $(if $(TOP_N),--top-n $(TOP_N),) $(if $(RESET),--reset,)
+
+attribution:
+	@uv run python -m eulerlab.paper.attribution $(if $(FEATURE),--feature $(FEATURE),) $(if $(DAYS),--days $(DAYS),) $(if $(SLIPPAGE),--slippage-bps $(SLIPPAGE),) $(if $(FRICTIONLESS),--frictionless,)
+
+reconcile-book:
+	@uv run python -m eulerlab.oms.book
+
 daily:
 	@echo "== EOD bhavcopy =="
 	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)

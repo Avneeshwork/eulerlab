@@ -9,6 +9,53 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprints 19-28 — the order path (COMPLETE 2026-08-20)
+
+Verify: `make verify` (7 of 7) · `make chaos` (11 of 11) ·
+`make attribution FRICTIONLESS=1 DAYS=800` (gap must be exactly 0.00)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1901 | Order state machine as a table, not `if` statements | DONE — ADR-028 |
+| T-1902 | `UNKNOWN` is a real state; only a query leaves it | DONE — asserted over the whole table, not over examples |
+| T-1903 | `UNSENT` distinct from `REJECTED` | DONE — one the exchange never saw, one it refused |
+| T-1904 | A broker can reject synchronously inside the send | DONE — `INTENT -> REJECTED`; **found by a failing test, the table was missing it** |
+| T-2001 | Write-ahead journal: intent fsynced before the network call | DONE — ADR-029 |
+| T-2002 | Torn final line dropped, mid-file corruption raises | DONE — a damaged journal must never read as an empty one |
+| T-2003 | Sequence numbers detect a deleted event | DONE — chose this over a hash chain; see the module docstring |
+| T-2004 | Idempotent submit on the deterministic client order id | DONE — two-deep: our records, then the broker's duplicate rejection |
+| T-2005 | Recovery makes every non-terminal order `UNKNOWN`, then asks | DONE — including `ACKNOWLEDGED`, which is a stale cache after a crash |
+| T-2006 | A broker denying an order we have fills for is a BREAK, not a resolution | DONE — refuses both readings, escalates to a human |
+| T-2101 | Rate governor: a sliding window, not a token bucket | DONE — a bucket permits 10 inside 200ms across a boundary |
+| T-2102 | `max_orders_per_second` read from config, not a literal | DONE — a test asserts it comes from `config/execution.yaml` |
+| T-2103 | Injected clock so the limit is testable without sleeping | DONE — 37 sends checked against every one-second window |
+| T-2201 | Reconciler: four break kinds, worst first | DONE — `broker_only` is the dangerous one |
+| T-2202 | Reconciliation places no orders, ever | DONE — ADR-030; there is no flag to enable it |
+| T-2203 | Local positions derived from the journal, not from memory | DONE — the comparison must be against post-restart state |
+| T-2301 | Kill switch: anything may trip, almost nothing may clear | DONE |
+| T-2302 | No importable reset function; clearing needs `KILLSWITCH_TOKEN` | DONE — test asserts no other module in `src/` names the variable |
+| T-2303 | Automatic limits: loss, order count, rejections, position, unresolved | DONE — `config/killswitch.yaml` |
+| T-2304 | The first trip reason survives later trips | DONE — later ones are consequences of having stopped |
+| T-2305 | An unreadable trip file still reads as tripped | DONE — failing to parse must never mean "clear" |
+| T-2401 | `BrokerAdapter` protocol; three send outcomes, three exception types | DONE — `BrokerUnreachable` is the honest default |
+| T-2402 | `PaperBroker` with its own durable state file | DONE — a dict inside the OMS would make every reconciliation test circular |
+| T-2403 | Fault injection: recorded-then-raised vs raised-without-recording | DONE — identical at the call site, opposite truths |
+| T-2404 | Chaos suite, two scenarios `SIGKILL` a real subprocess | DONE — `make chaos`, 11 of 11, and in `make verify` |
+| T-2501 | `plan_orders` extracted so backtest and paper share one implementation | DONE — golden file unchanged, so the refactor moved no behaviour |
+| T-2502 | Fill step is a pluggable `Executor` | DONE — ADR-031; paper is the same loop with one component swapped |
+| T-2503 | A frictionless paper run reproduces the backtest **exactly** | DONE — `gap == 0.00`, asserted as equality not tolerance |
+| T-2504 | An ambiguous send is resolved mid-run, not at next start-up | DONE — **found by a failing test**; a timeout now costs nothing |
+| T-2601 | Reality-gap decomposition into five named causes | DONE — `make attribution` |
+| T-2602 | The decomposition closes to the paisa | DONE — checked against 0.01 rupees, not 10% |
+| T-2603 | State plainly that the residual is an identity, not a measurement | DONE — S-018; both books are ours |
+| T-2604 | Live reality-gap residual under 10% | **NOT DONE — impossible before Sprint 29.** Needs a real counterparty. The machinery exists and is verified against a case where the true answer is known |
+| T-2605 | Live Kite order adapter | OPEN — deliberately deferred; decision question 2 in the review |
+| T-2606 | `ACKNOWLEDGED` / `PARTIALLY_FILLED` exercised by a real venue | OPEN — modelled and unit-tested, never produced by the paper broker (S-016) |
+| T-2607 | Kill-switch limits set from an observed distribution | OPEN — A-018; needs ~4 weeks of paper history |
+| T-2608 | Decide whether `config/killswitch.yaml` becomes operator-owned | OPEN — operator decision, question 1 in the review |
+
+---
+
 ## Sprints 16-18 — the research agent loop (COMPLETE 2026-08-19)
 
 | ID | Task | Status |

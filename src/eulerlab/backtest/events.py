@@ -19,6 +19,7 @@ week.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
@@ -167,3 +168,70 @@ class Portfolio:
 
     def holdings(self) -> dict[str, int]:
         return {s: p.quantity for s, p in self.positions.items() if p.quantity}
+
+
+def target_quantities(
+    equity: float,
+    targets: Mapping[str, float],
+    price_of: Callable[[str], float | None],
+) -> dict[str, int]:
+    """Weights into share counts, truncated toward zero.
+
+    Truncated rather than rounded, and that is a real choice: rounding up can
+    ask for more capital than the portfolio has, which live would reject and a
+    backtest would happily fill. Erring small is the direction that cannot
+    invent buying power.
+
+    A symbol with no price is left out entirely. It cannot be sized, and
+    guessing a price here would put a made-up number at the root of a position.
+    """
+    out: dict[str, int] = {}
+    for symbol, weight in targets.items():
+        price = price_of(symbol)
+        if price and price > 0:
+            out[symbol] = int((equity * weight) / price)
+    return out
+
+
+def plan_orders(
+    *,
+    strategy_id: str,
+    signal_day: date,
+    holdings: Mapping[str, int],
+    desired: Mapping[str, int],
+    seq_start: int = 0,
+    algo_id: str | None = None,
+) -> tuple[list[Order], int]:
+    """The difference between what is held and what is wanted, as orders.
+
+    Extracted from the Tier B engine so that the backtest, paper trading and
+    live share **one** implementation. `CLAUDE.md` requires the `Strategy`
+    interface to be identical across all three; the translation from a
+    strategy's intent into orders has to be identical too, or the reality-gap
+    report in Sprint 26 ends up measuring a difference we wrote ourselves.
+
+    Symbols are sorted so the sequence numbers — and therefore the client
+    order ids — are deterministic. Returns the new sequence counter, which the
+    caller carries forward: the id must be unique across a whole run, not just
+    within one rebalance.
+    """
+    orders: list[Order] = []
+    sequence = seq_start
+    for symbol in sorted(set(holdings) | set(desired)):
+        delta = desired.get(symbol, 0) - holdings.get(symbol, 0)
+        if delta == 0:
+            continue
+        sequence += 1
+        orders.append(
+            Order(
+                client_order_id=client_order_id(strategy_id, signal_day, symbol, sequence),
+                strategy_id=strategy_id,
+                signal_day=signal_day,
+                symbol=symbol,
+                side=Side.BUY if delta > 0 else Side.SELL,
+                quantity=abs(delta),
+                order_type=OrderType.MARKET_ON_CLOSE,
+                algo_id=algo_id,
+            )
+        )
+    return orders, sequence

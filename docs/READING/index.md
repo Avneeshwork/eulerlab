@@ -94,3 +94,34 @@ which is supposed to be permanent?
 Sprint 2 is the options chain recorder. It needs a VPS and a data source
 decision, not reading. Every day it is not running is a day of option-chain
 history that cannot be bought back at any price.
+
+## MUST READ before Sprints 29–31 (going live)
+
+- **Idempotency and deterministic identifiers** — 20 min
+  Why: Sprints 19–28 make a retry safe by deriving the order id from what the
+  order *means* rather than from a counter. You need to be able to say why that
+  works, because it is the property that stops a network hiccup from
+  double-sending real money.
+  Test yourself: why does re-running the same rebalance twice place no second
+  order, and what would break that?
+
+- **Order state machines, and why a timeout is neither success nor failure** —
+  25 min
+  Why: the single most important idea in the order path. A send has three
+  outcomes, not two, and both two-outcome readings cost money in opposite
+  directions.
+  Test yourself: your broker times out on a buy. Name the cost of assuming it
+  failed, and the cost of assuming it worked.
+
+## SHOULD READ this month
+
+- **Implementation shortfall** — 30 min
+  Why: `make attribution` is a simplified form of it. Right now it decomposes
+  paper against backtest, where both books are ours and the residual is an
+  identity. Once a real broker is on the other side, the same report becomes a
+  real measurement, and you will want to know what the components mean.
+
+- **Write-ahead logging** — 20 min
+  Why: explains why the order journal writes and fsyncs the *intent* before
+  talking to the broker, and why reversing those two lines is the one change
+  that makes a crash unrecoverable.
