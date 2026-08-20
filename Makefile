@@ -47,6 +47,7 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make research [CRITIC=H-0002]  the loop: cards, critic, gate verdicts"
 	@echo "  make scout [PROPOSE=n]   what would searching cost? then draft cards"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
@@ -156,6 +157,9 @@ check-costs:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+research:
+	@uv run python -m eulerlab.research.orchestrator $(if $(CRITIC),--critic $(CRITIC),) $(if $(LIBRARY),--library,)
 
 scout:
 	@uv run python -m eulerlab.research.scout $(if $(PROPOSE),--propose $(PROPOSE),) $(if $(DRAFT),--draft "$(DRAFT)",) $(if $(SOURCE),--source $(SOURCE),)

@@ -1,10 +1,10 @@
 # STATE — where this project is right now
 
-**Sprint:** 15 — paper scout and hypothesis cards
-**Status:** COMPLETE. The scout prices a search before running it, and the
-arithmetic is unwelcome: **20 more hypotheses would raise the bar to Sharpe
-2.16 when our best ever is 1.27.**
-**Next:** Sprint 16 — codegen, turning a registered card into a `Strategy`
+**Sprint:** 16-18 — the research agent loop
+**Status:** COMPLETE. **Sprints 0-18 are all done.** The loop runs
+card -> critic -> codegen and deliberately stops before registration.
+**Next:** Sprints 19-24 — OMS/EMS, order state machine, reconciler, kill
+switches, first broker adapter in paper mode
 
 *Last updated: 2026-08-19. One page, always current. If it is not written here
 or in `TASKS.md`, it did not happen.*
@@ -30,10 +30,10 @@ without an explicit instruction in that session. `mandate.yaml` holds every
 threshold and no logic; `gates.py` holds logic and no thresholds, and a test
 enforces that.
 
-**3. The next work is Sprint 16 — codegen**, turning a registered hypothesis
-card into a runnable `Strategy`. Generated code must use the same interface as
-everything else and get no privileged data access, so Sprint 4's firewall
-applies to it unchanged.
+**3. The next work is Sprints 19-24 — OMS/EMS**, the order state machine,
+idempotent client IDs, the reconciler, kill switches, and a first broker
+adapter in paper mode. Sprint 11's `Order` already carries `algo_id` and
+deterministic client order ids for exactly this.
 
 **Before generating hypotheses, run `make scout PROPOSE=n`.** Every one raises
 the statistical bar for all of them. At 17 logged trials a candidate must
@@ -101,6 +101,29 @@ Read this before trusting any number produced before today.
   thin name is optimistic.
 
 ---
+
+## Sprints 16-18 — what is built
+
+```
+card -> critic -> codegen -> [operator registers] -> battery -> gate
+       free      free                               ~40 min    seconds
+```
+
+- **`research.codegen`** — composes vetted primitives, **never writes Python**
+  (ADR-027). Executing generated source would discard Sprint 4's firewall.
+  The cost: no novel strategy shapes without a hand-written primitive.
+- **`research.critic`** — objects *before* a trial is spent, reading only the
+  card and the ledger. No check consults price data: peeking at performance
+  then deciding whether to "officially" test is how a trial gets laundered.
+  **Advisory only** — it cannot kill anything.
+- **`research.orchestrator`** — `make research`, the weekly report. Gate
+  verdicts are read from the ledger so the report cannot drift from evidence.
+
+**The loop stops at registration.** An agent that could originate a hypothesis
+*and* decide it was worth testing would be selecting on its own output.
+
+Note for honesty: the critic raised **no blocker** on H-0001, which the gate
+then killed (T-1608). One data point, in the unhelpful direction.
 
 ## Sprint 15 — what is built
 

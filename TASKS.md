@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprints 16-18 — the research agent loop (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1601 | Codegen composes vetted primitives, never writes Python | DONE — ADR-027; `exec` would discard Sprint 4's firewall |
+| T-1602 | An unknown primitive raises rather than being skipped | DONE — else a card is judged on a different set than it registered |
+| T-1603 | Critic reviews before a trial is spent, reading no price data | DONE — outcome-peeking is how a trial gets laundered |
+| T-1604 | Critic is advisory and cannot kill | DONE — heuristics must not hold a veto |
+| T-1605 | Orchestrator weekly report: tested, passed, killed, and **why** | DONE — `make research` |
+| T-1606 | Gate verdicts read from the ledger, not tracked separately | DONE — the report cannot drift from the evidence |
+| T-1607 | New strategy shapes need hand-written primitives | OPEN by design — the brake is intentional |
+| T-1608 | Critic raised no blocker on H-0001, which the gate killed | OPEN — one data point, wrong direction; revisit after more reach the gate |
+| T-1609 | Run the loop end to end on a registered hypothesis | OPEN — needs T-1317 first; the critic objects to H-0002 |
+
 ## Sprint 15 — paper scout and hypothesis cards (COMPLETE 2026-08-19)
 
 | ID | Task | Status |
