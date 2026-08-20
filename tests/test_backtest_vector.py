@@ -34,6 +34,7 @@ def _panel(n_symbols: int = 60, n_days: int = 300, drift: float = 0.0005) -> lis
                     close=price,
                     volume=1000.0,
                     turnover=1_000_000.0 - s,
+                    isin=f"TEST{s:06d}",
                 )
             )
     return rows
@@ -229,9 +230,17 @@ def test_a_holding_is_marked_at_its_last_known_price_when_it_does_not_trade() ->
     for d in range(300):
         day = START + timedelta(days=d)
         # ANCHOR trades every day; GAPPY skips a stretch in the middle.
-        rows.append(PanelRow(day=day, symbol="ANCHOR", close=100.0, volume=1.0, turnover=9e9))
+        rows.append(
+            PanelRow(
+                day=day, symbol="ANCHOR", close=100.0, volume=1.0, turnover=9e9, isin="TESTKEY"
+            )
+        )
         if not (250 <= d < 260):
-            rows.append(PanelRow(day=day, symbol="GAPPY", close=100.0, volume=1.0, turnover=8e9))
+            rows.append(
+                PanelRow(
+                    day=day, symbol="GAPPY", close=100.0, volume=1.0, turnover=8e9, isin="TESTKEY"
+                )
+            )
 
     result = run(rows, _Constant(["ANCHOR", "GAPPY"]), warmup=200, rebalance_every=10_000)
     assert result.equity
@@ -246,9 +255,17 @@ def test_an_instrument_that_did_not_trade_cannot_be_traded() -> None:
     rows: list[PanelRow] = []
     for d in range(300):
         day = START + timedelta(days=d)
-        rows.append(PanelRow(day=day, symbol="ANCHOR", close=100.0, volume=1.0, turnover=9e9))
+        rows.append(
+            PanelRow(
+                day=day, symbol="ANCHOR", close=100.0, volume=1.0, turnover=9e9, isin="TESTKEY"
+            )
+        )
         if d < 250:
-            rows.append(PanelRow(day=day, symbol="HALTED", close=100.0, volume=1.0, turnover=8e9))
+            rows.append(
+                PanelRow(
+                    day=day, symbol="HALTED", close=100.0, volume=1.0, turnover=8e9, isin="TESTKEY"
+                )
+            )
 
     result = run(rows, _Constant(["ANCHOR", "HALTED"]), warmup=260, rebalance_every=10)
     assert all(f.symbol != "HALTED" for f in result.fills)
@@ -265,10 +282,24 @@ def test_a_turnover_floor_excludes_untradeable_names() -> None:
     for d in range(300):
         day = START + timedelta(days=d)
         rows.append(
-            PanelRow(day=day, symbol="LIQUID", close=100.0 * (1.002**d), volume=1.0, turnover=9e9)
+            PanelRow(
+                day=day,
+                symbol="LIQUID",
+                close=100.0 * (1.002**d),
+                volume=1.0,
+                turnover=9e9,
+                isin="TESTL",
+            )
         )
         rows.append(
-            PanelRow(day=day, symbol="THIN", close=100.0 * (1.01**d), volume=1.0, turnover=50_000.0)
+            PanelRow(
+                day=day,
+                symbol="THIN",
+                close=100.0 * (1.01**d),
+                volume=1.0,
+                turnover=50_000.0,
+                isin="TESTT",
+            )
         )
 
     strategy = RankAndHold("momentum_12_1", top_n=5, min_names=1, min_turnover=1e6)

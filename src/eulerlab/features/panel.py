@@ -6,10 +6,22 @@ against a 2,500/day cap. It is therefore built **once and cached**, exactly
 like the close index in `corp_actions/prices.py`, and every feature and every
 IC run afterwards costs nothing.
 
-**Prices are adjusted, not raw.** A feature computed on raw prices sees a 1:1
-bonus as a 50% crash, so momentum would score it as the worst stock in the
-market on the day nothing happened to its holders. Sprint 5's factors are
-applied on the way in, which is the whole reason that sprint came first.
+**Prices here are RAW, and that is deliberate — but it was a bug first.**
+
+The original version tried to bake adjustment in at write time, calling
+`factor_as_of(as_of=<the row's own day>, price_date=<the same day>)`. Those two
+conditions are mutually exclusive: a factor exists only for actions knowable by
+`as_of`, and applies only to prices dated *before* the action. With both set to
+the same day the divisor was **always 1.0**, so the panel was unadjusted while
+this docstring claimed otherwise. Measured: TCS on 2018-01-15 got divisor 1.000
+where the correct back-adjustment is 2.000 (1:1 bonus, ex 2018-05-31).
+
+The deeper reason it could not work is that **a static panel cannot hold
+point-in-time adjusted prices at all.** The right adjustment depends on the
+date you are standing on: a strategy deciding on 2018-01-15 must not see prices
+adjusted for a bonus that goes ex in May. So the panel stores what the exchange
+printed, and adjustment happens where `as_of` is known — in
+`MarketView` construction, per decision date. See `backtest/strategy.py`.
 
 **The panel is stored long, not wide.** One row per symbol-date rather than a
 matrix, because the universe changes: symbols list, delist, and get renamed,
@@ -29,7 +41,6 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from eulerlab.bitemporal.store import BitemporalStore, Record
-from eulerlab.corp_actions.adjust import factor_as_of
 from eulerlab.corp_actions.build_factors import PRICE_FACTORS
 from eulerlab.corp_actions.prices import instrument_key
 from eulerlab.quality.sources import bars_from_bhavcopy
@@ -46,8 +57,12 @@ class PanelRow:
     day: date
     symbol: str
     close: float
+    """RAW exchange close. Adjustment is applied per decision date when a
+    `MarketView` is built, never here — see the module docstring."""
     volume: float
     turnover: float
+    isin: str = ""
+    """Internal instrument key, for joining to corporate-action factors."""
 
     def key(self) -> tuple[date, str]:
         return (self.day, self.symbol)
@@ -115,10 +130,33 @@ def read_panel(path: Path = PANEL_PATH) -> list[PanelRow]:
                 close=row["c"],
                 volume=row["v"],
                 turnover=row["t"],
+                isin=row.get("i", row.get("isin", "")),
             )
         )
     out.sort(key=lambda r: (r.day, r.symbol))
     return out
+
+
+class UnadjustablePanel(RuntimeError):
+    """The panel predates the ISIN column, so it cannot be adjusted."""
+
+
+def assert_adjustable(rows: Sequence[PanelRow], *, sample: int = 5000) -> None:
+    """Fail loudly if the panel cannot be joined to corporate actions.
+
+    Without an instrument key there is nothing to look a factor up by, so the
+    adjustment silently does nothing — which is precisely the bug this whole
+    change exists to remove. Returning quietly here would reintroduce it one
+    layer up, so a panel written before the ISIN column raises instead.
+    """
+    checked = rows[:sample]
+    if checked and not any(r.isin for r in checked):
+        msg = (
+            "this panel carries no instrument key, so corporate-action factors "
+            "cannot be applied and every price is raw. It was written before the "
+            "ISIN column existed. Rebuild it: `make build-panel FROM=2015-01-01`."
+        )
+        raise UnadjustablePanel(msg)
 
 
 def cached_days(path: Path = PANEL_PATH) -> set[str]:
@@ -166,7 +204,6 @@ def build(
         trade_date, key = item
         return trade_date, client.get_object(Bucket="eulerdata", Key=f"nse/{key}")["Body"].read()
 
-    factors = load_price_factor_store()
     path.parent.mkdir(parents=True, exist_ok=True)
     written = 0
     note = ""
@@ -176,23 +213,14 @@ def build(
             with cf.ThreadPoolExecutor(max_workers=max_workers) as pool:
                 for trade_date, payload in pool.map(fetch, wanted):
                     day = date.fromisoformat(trade_date)
-                    # The factor is applied as of the day itself: a strategy
-                    # standing on that date knows only the actions already
-                    # ex-dated, which is exactly what factor_as_of enforces.
-                    as_of = datetime.combine(day, datetime.max.time(), tzinfo=IST)
                     for bar in bars_from_bhavcopy(payload, day):
-                        key = instrument_key(bar.isin)
-                        divisor = (
-                            factor_as_of(factors, as_of=as_of, isin=key, price_date=day)
-                            if key
-                            else 1.0
-                        )
                         handle.write(
                             json.dumps(
                                 {
                                     "d": trade_date,
                                     "s": bar.symbol,
-                                    "c": round(bar.close / divisor, 6),
+                                    "c": round(bar.close, 6),
+                                    "isin": instrument_key(bar.isin) or "",
                                     "v": bar.volume,
                                     "t": bar.turnover or 0.0,
                                 },

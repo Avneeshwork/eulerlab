@@ -69,6 +69,7 @@ def flat_world(*, n_symbols: int = 20, n_days: int = 320, price: float = 100.0) 
             close=price,
             volume=10_000.0,
             turnover=1e9,
+            isin=f"TEST{s:06d}",
         )
         for s in range(n_symbols)
         for d in range(n_days)
@@ -96,6 +97,7 @@ def alpha_world(
                     close=price,
                     volume=10_000.0,
                     turnover=1e9,
+                    isin=f"TEST{s:06d}",
                 )
             )
     return rows

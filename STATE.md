@@ -1,7 +1,8 @@
 # STATE — where this project is right now
 
 **Sprint:** 13 — overfitting battery
-**Status:** COMPLETE. **H-0001 does not survive it** — that is the sprint working
+**Status:** COMPLETE. A price-adjustment bug was found, fixed, and every
+figure re-run. **H-0001 still does not survive: PBO 60.0%**
 **Next:** Sprint 14 — promotion gate as code, pre-registration, locked holdout
 
 *Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
@@ -23,6 +24,36 @@ written here or in `TASKS.md`, it did not happen.*
 Everything is mirrored to Backblaze B2 bucket `eulerdata`. Local disk holds a
 working subset only; files are pruned after B2 confirms them (ADR-010) and
 restored with `make restore-local`.
+
+## Follow-up: positions were marked at raw prices
+
+Chasing Sprint 13's kurtosis red flag found a bug that matters more than the
+sprint did. **The engines valued holdings using unadjusted prices.** VIVIDHA
+prints 1,290.55 and then 140.75 the next day on an 11:1 action; a holder's
+share count rises by the same factor and they lose nothing, but the engine
+holds a fixed integer, so it booked an 89% loss. Every corporate action in a
+held name produced phantom P&L.
+
+Three things were wrong and all are fixed:
+
+1. **The panel claimed to be adjusted and was not.** It called
+   `factor_as_of(as_of=<the row's day>, price_date=<the same day>)`, whose two
+   conditions are mutually exclusive, so the divisor was always 1.0. Measured:
+   TCS on 2018-01-15 got 1.000 where 2.000 is correct.
+2. **A static panel cannot hold point-in-time adjusted prices** — the right
+   adjustment depends on the date you stand on. Signals now adjust per
+   decision date, in `MarketView`.
+3. **Marking needs the opposite**: a *consistent* series, or a position's
+   value jumps when the adjustment updates rather than on the ex-date. Money
+   uses a uniformly back-adjusted series; signals use point-in-time.
+
+A guard now refuses a panel with no instrument key, because the original bug
+was a silent no-op and would otherwise return the same way.
+
+**Every figure was re-run on corrected prices.** Momentum now shows +16.8%
+annualised against buy-and-hold's +4.6%, and the battery's verdict is
+unchanged — PBO went 53.3% to **60.0%**. Fixing the data made the strategy
+look better and no more distinguishable from luck, which is the point.
 
 ## Sprint 13 — what is built
 
