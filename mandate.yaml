@@ -1,0 +1,74 @@
+# THE MANDATE — operator-owned. Written once in Sprint 14, then hands off.
+#
+# CLAUDE.md: "gates.py and mandate.yaml are operator-owned. You may propose
+# changes in a review; you may not edit them without an explicit instruction in
+# that session."
+#
+# This file is deliberately only numbers and prose. All logic lives in
+# gates.py, so changing what the gate demands never requires changing code —
+# and so a threshold cannot be quietly relaxed inside a refactor.
+#
+# Every threshold below is a REFUSAL condition. The gate's default answer is
+# no. That asymmetry is the point: the cost of wrongly killing a good strategy
+# is a missed opportunity, and the cost of wrongly promoting a bad one is
+# money. Those are not symmetric and the numbers should not pretend they are.
+
+version: 1
+owner: operator
+last_reviewed: 2026-08-19
+
+statistical:
+  # Probability the true Sharpe exceeds zero, after correcting for how many
+  # configurations have ever been evaluated. 0.95 is the conventional bar.
+  min_deflated_sharpe_probability: 0.95
+
+  # Probability of backtest overfitting. Above 0.25 means selecting on past
+  # performance is substantially picking noise; above 0.50 is worse than
+  # choosing at random.
+  max_pbo: 0.25
+
+  # The t > 3 rule. With many trials, t > 2 is routine noise.
+  min_t_statistic: 3.0
+
+  # The backtest must be at least this many times longer than the minimum
+  # length implied by the trial count. 1.0 means "exactly long enough", which
+  # leaves no margin.
+  min_backtest_length_ratio: 1.5
+
+robustness:
+  # Fraction of the base Sharpe that must survive each stress test.
+  min_sharpe_retained_at_2x_costs: 0.60
+  min_sharpe_retained_dropping_best_names: 0.60
+
+  # The weakest regime must retain this fraction of the base Sharpe. A
+  # strategy that works in one half of the history and not the other has not
+  # been shown to work; it has been shown to have worked.
+  min_sharpe_retained_worst_regime: 0.50
+
+  # No stress test may turn the result negative, whatever the retained fraction.
+  allow_any_negative_stress: false
+
+process:
+  # The hypothesis must have been registered, with red flags, before the
+  # evidence existed. A claim written after seeing results is not a claim.
+  require_pre_registration: true
+
+  # The evidence pack must carry a matching hash. An unsigned pack could have
+  # been edited after the run.
+  require_signed_evidence: true
+
+  # The trial ledger's hash chain must verify. Every statistic above divides
+  # by the trial count, so an unverifiable count makes them all meaningless.
+  require_intact_trial_ledger: true
+
+  # The holdout may be read exactly once, by the operator's action, and only
+  # after everything above has passed. It is the last evidence the project has
+  # and it cannot be regenerated.
+  holdout_reads_permitted: 1
+
+notes: >
+  A strategy that fails this gate is dead. It is not tuned and resubmitted, and
+  the gate is not argued with — that rule exists precisely for the moment when
+  the result is unwelcome and a reason to make an exception is available.
+  Resubmitting the same idea under a new hypothesis id is visible in the trial
+  ledger and is the thing this whole apparatus exists to prevent.

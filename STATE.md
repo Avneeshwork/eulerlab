@@ -1,10 +1,9 @@
 # STATE — where this project is right now
 
-**Sprint:** 13 — overfitting battery
-**Status:** COMPLETE — including the stress tests the spec required. A
-price-adjustment bug was found and fixed, and every figure re-run.
-**H-0001 still does not survive: PBO 60.0%, DSR 0.086.**
-**Next:** Sprint 14 — promotion gate as code, pre-registration, locked holdout
+**Sprint:** 14 — promotion gate
+**Status:** COMPLETE. Its first act was to **kill H-0001**, the project's only
+candidate. Three deliberately overfit strategies were also killed.
+**Next:** Sprints 15-18 — the research agent loop
 
 *Last updated: 2026-08-19. One page, always current. If it is not written here
 or in `TASKS.md`, it did not happen.*
@@ -24,18 +23,22 @@ Expect 6 of 6 green and ~740 tests. The `engine` row is the backtester
 self-test gate; if it is red, stop and fix that before running any strategy,
 because every number downstream depends on it.
 
-**2. The next piece of work is Sprint 14 — the promotion gate.** The plan was
-presented and approved but no code was written. Scope, in one line: `gates.py`
-plus `mandate.yaml` (both **operator-owned** — propose changes, never edit
-without instruction), pre-registration enforced, holdout readable exactly once
-with the single read recorded in state, a kill written permanently to the
-ledger, and three deliberately-overfit strategies as the acceptance test, all
-of which must be killed.
+**2. `mandate.yaml` and `src/eulerlab/gates.py` are OPERATOR-OWNED.** Sprint 14
+wrote them once. From here: propose changes in a review, never edit them
+without an explicit instruction in that session. `mandate.yaml` holds every
+threshold and no logic; `gates.py` holds logic and no thresholds, and a test
+enforces that.
 
-**3. The one decision waiting on the operator** is T-1312: H-0001 has a
-complete evidence pack against it (PBO 60%, DSR ≤ 0.086, Sharpe 0.49 vs 1.48
-across regimes). `CLAUDE.md` says a strategy that fails the gate is dead. It
-should be Sprint 14's first real test case.
+**3. The next work is Sprints 15-18 — the research agent loop** (paper scout,
+hypothesis cards, codegen, critic, orchestrator). Everything built so far
+exists to make that loop safe: the gate is what stops an agent generating a
+hundred strategies a month from being a machine for losing money efficiently.
+
+**4. Two decisions waiting on the operator:** T-1408, formally mark H-0001
+killed — the gate has already returned KILL and the ledger records it. And
+T-1407, exercise the gate's PROMOTE path with a known-good synthetic
+candidate, because it has never promoted anything and a check that has only
+fired one way is half-tested.
 
 **Costly commands, so you do not run them by accident:**
 
@@ -91,6 +94,27 @@ Read this before trusting any number produced before today.
   thin name is optimistic.
 
 ---
+
+## Sprint 14 — what is built
+
+- **`mandate.yaml`** — **operator-owned.** Every threshold, no logic.
+- **`src/eulerlab/gates.py`** — **operator-owned.** All logic, no thresholds; a
+  test asserts no threshold literal appears in it (ADR-025).
+- **`make gate H=H-0001`** — PROMOTE or KILL with every reason.
+- **`make gate-acceptance`** — three deliberately overfit strategies; all must
+  be killed, and are.
+
+**The gate's first act was to kill H-0001**: DSR 0.086 against a 0.95 bar, PBO
+60% against 25%, and no stress data in its pack. The project's only candidate
+is dead, and `CLAUDE.md` says it is not tuned and resubmitted.
+
+**Honest weakness found by the acceptance test itself:** `RegimeFit`, built to
+fail the regime check, *passed* it at 76% retained. The stress splits at the
+panel midpoint (2020-10-23) while the defect starts 2021-01-01, so three
+months of live signal sit in the half meant to be broken. It was killed by the
+statistical rules instead. Recorded as T-1404 rather than patched, because
+fixing a test after seeing what slipped past it is how a gate gets tuned to
+the cases in front of it.
 
 ## Datasets — what exists
 
