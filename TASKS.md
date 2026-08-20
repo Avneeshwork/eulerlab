@@ -9,6 +9,23 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 13 — overfitting battery (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1301 | CPCV with purge + embargo | DONE — 15 paths, leakage asserted per path |
+| T-1302 | Deflated Sharpe, MinBTL, expected-max-Sharpe | DONE — all take the trial count as required |
+| T-1303 | PBO | DONE — **53.3%, worse than a coin flip** |
+| T-1304 | Tamper-evident trial ledger | DONE — ADR-023; battery refuses to report on a broken chain |
+| T-1305 | Holdout reserved and structurally unreachable | DONE — 2025+ never read |
+| T-1306 | `hypotheses/H-0001.yaml` with red flags declared in advance | DONE |
+| T-1307 | `make validate` + hash-signed evidence pack | DONE — JSON not PDF |
+| T-1308 | Fix the leakage check (condemned 14 of 15 correct paths) | DONE — measured the filtered timeline, not the real one |
+| T-1309 | 14x engine speedup via strategy-declared lookback | DONE — 95s to 6.9s, byte-identical output |
+| T-1310 | **Investigate excess kurtosis of +101 and +161** | OPEN — Sharpe on tails that fat is near-meaningless |
+| T-1311 | Stress tests | OPEN — listed for this sprint, not built |
+| T-1312 | Decide H-0001's fate (CLAUDE.md: a failed strategy is dead) | OPEN — operator decision |
+
 ## Sprint 12 — backtester self-tests (COMPLETE 2026-08-19)
 
 | ID | Task | Status |

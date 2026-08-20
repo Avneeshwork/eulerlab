@@ -74,6 +74,20 @@ class Strategy(ABC):
 
     name: str = "unnamed"
 
+    lookback: int | None = None
+    """How many trailing rows per symbol this strategy actually needs.
+
+    `None` means "everything", which is the safe default but is rarely true and
+    is expensive: measured on the real panel, building a full-history view for
+    4,002 symbols costs 0.84s, and a backtest rebalances ~100 times. Handing a
+    feature 2,869 days when it looks back 253 wastes more than 90% of that.
+
+    Declared by the strategy rather than inferred by the engine, because the
+    engine must never learn a strategy's internals (ADR-021). A strategy that
+    understates it will silently see less history than it needs, so the value
+    belongs with the code that knows the answer.
+    """
+
     @abstractmethod
     def target_weights(self, view: MarketView) -> dict[str, float]:
         """Desired portfolio weights on `view.as_of`.

@@ -164,6 +164,24 @@ def run(
         symbol: [row.day for row in rows_] for symbol, rows_ in histories.items()
     }
 
+    lookback = strategy.lookback
+
+    def _view_history(today: date) -> dict[str, list[PanelRow]]:
+        """Rows up to `today`, capped at the strategy's declared lookback.
+
+        Sliced by bisect on the pre-sorted day list rather than filtered, and
+        capped rather than complete: handing a 253-day feature 2,869 days of
+        history was costing ~90% of the run time for data it never reads.
+        """
+        out: dict[str, list[PanelRow]] = {}
+        for symbol, rows_ in histories.items():
+            end = bisect_right(ordered_days[symbol], today)
+            if end == 0:
+                continue
+            start = max(0, end - lookback) if lookback else 0
+            out[symbol] = rows_[start:end]
+        return out
+
     def traded_price(symbol: str, day: date) -> float | None:
         """The price if the symbol actually traded that day, else None.
 
@@ -211,13 +229,7 @@ def run(
         fill_day = days[index + 1]
 
         if (index - warmup) % rebalance_every == 0:
-            view = MarketView(
-                as_of=today,
-                history={
-                    symbol: [r for r in rows_ if r.day <= today]
-                    for symbol, rows_ in histories.items()
-                },
-            )
+            view = MarketView(as_of=today, history=_view_history(today))
             targets = normalise(strategy.target_weights(view), gross_cap=gross_cap)
             equity = portfolio_value(today)
 

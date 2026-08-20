@@ -47,6 +47,7 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make validate H=H-0001  overfitting battery: CPCV, DSR, PBO, MinBTL"
 	@echo "  make test-engine    engine self-tests  <- the most important gate"
 	@echo "  make backtest STRAT=rank FEATURE=momentum_12_1"
 	@echo "                    Tier B event-driven + reconciliation against Tier A"
@@ -152,6 +153,9 @@ check-costs:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+validate:
+	@uv run python -m eulerlab.validation.run $(if $(H),--hypothesis $(H),)
 
 test-engine:
 	@uv run python -m eulerlab.backtest.selftest $(if $(UPDATE),--update-golden,)
