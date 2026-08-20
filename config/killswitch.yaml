@@ -1,0 +1,20 @@
+# Automatic kill-switch limits.
+#
+# Every value here is a count or a rupee amount you can check by hand against
+# the day's activity. That is deliberate: a limit whose breach cannot be
+# confirmed independently is a limit nobody trusts at the moment it fires.
+#
+# These are starting values chosen to be conservative against the 1-2% of
+# capital that Sprint 31 puts at risk, NOT measured against anything. Once a
+# paper run has a few weeks of history, the loss limit in particular should be
+# set from the observed daily distribution rather than from a round number.
+# See docs/ASSUMPTIONS.md (A-018).
+#
+# Tripping is cheap and reversible; clearing needs KILLSWITCH_TOKEN and a
+# human. Err on the side of stopping.
+
+max_daily_loss: 10000.0          # rupees, realised + unrealised
+max_orders_per_day: 200
+max_consecutive_rejections: 5    # a run of these means something is misconfigured
+max_position_notional: 500000.0  # rupees in any single name
+max_unresolved_orders: 3         # orders stuck in UNKNOWN: the broker link is unhealthy

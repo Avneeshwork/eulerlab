@@ -1,12 +1,16 @@
 # STATE — where this project is right now
 
-**Sprint:** 16-18 — the research agent loop
-**Status:** COMPLETE. **Sprints 0-18 are all done.** The loop runs
-card -> critic -> codegen and deliberately stops before registration.
-**Next:** Sprints 19-24 — OMS/EMS, order state machine, reconciler, kill
-switches, first broker adapter in paper mode
+**Sprint:** 28 — the order path: OMS, EMS, reconciler, kill switches, paper trading
+**Status:** COMPLETE — sprints 0-28 all done, every code sprint in the build plan
+**Next:** Sprint 29-30 compliance, which is the operator's work, not a coding task
 
-*Last updated: 2026-08-19. One page, always current. If it is not written here
+Sprints 19-28 were built as one block: paper trading cannot be built without an
+OMS, and an OMS with nothing driving it cannot be tested end to end. Sprints
+29-30 need a static IP registered with the broker, confirmation of the algo
+framework, and a CA review of F&O business income and STCG/LTCG treatment —
+none of which is code. Then Sprint 31, first micro-live capital at 1-2%.
+
+*Last updated: 2026-08-20. One page, always current. If it is not written here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -20,9 +24,13 @@ Read `CLAUDE.md`, then this file, then `TASKS.md`. Then:
 ```bash
 make verify
 ```
-Expect 6 of 6 green and ~740 tests. The `engine` row is the backtester
-self-test gate; if it is red, stop and fix that before running any strategy,
-because every number downstream depends on it.
+Expect **7 of 7 green and ~922 tests**. Two rows are gates rather than
+hygiene, and both block everything downstream if red:
+
+- **`engine`** — the backtester self-tests. If red, no strategy number can be
+  believed.
+- **`chaos`** — the OMS crash-recovery scenarios. If red, no order can be
+  believed. Two of its eleven scenarios `SIGKILL` a real subprocess mid-order.
 
 **2. `mandate.yaml` and `src/eulerlab/gates.py` are OPERATOR-OWNED.** Sprint 14
 wrote them once. From here: propose changes in a review, never edit them
@@ -30,15 +38,29 @@ without an explicit instruction in that session. `mandate.yaml` holds every
 threshold and no logic; `gates.py` holds logic and no thresholds, and a test
 enforces that.
 
-**3. The next work is Sprints 19-24 — OMS/EMS**, the order state machine,
-idempotent client IDs, the reconciler, kill switches, and a first broker
-adapter in paper mode. Sprint 11's `Order` already carries `algo_id` and
-deterministic client order ids for exactly this.
+**3. There is no code sprint left to start.** Sprints 29-30 are compliance
+and belong to the operator: registering a static IP, confirming the broker's
+algo framework, wiring `algo_id` end to end, and a CA review of F&O business
+income and STCG/LTCG treatment. See `docs/COMPLIANCE_DEFERRED.md`. Do not
+invent progress on these — none of them is a coding task.
+
+**The two things I can do on the operator's word** are T-1317 (re-run Sprint
+8's IC sweep on corrected prices, which is cheap and settles whether H-0002 is
+worth registering) and T-1407 (exercise the gate's PROMOTE path, which has
+never been taken).
 
 **Before generating hypotheses, run `make scout PROPOSE=n`.** Every one raises
-the statistical bar for all of them. At 17 logged trials a candidate must
-already beat Sharpe 1.83 from pure noise; the best this project has produced is
-1.27. The guardrail is not the gate — the gate sees one candidate at a time —
+the statistical bar for all of them. At **19 logged trials** a candidate must
+already beat **Sharpe 1.88** from pure noise; the best this project has produced
+is 1.27.
+
+Two of those 19 were spent on the same dead hypothesis. Entry #19 was logged on
+2026-08-20 by running `make gate H=H-0001` purely to check the command still
+worked — a re-evaluation of a strategy the gate had already killed, which bought
+nothing and moved the bar from 1.83 to 1.88 for every future candidate
+(T-2609). **`make gate` and `make validate` write to the ledger. Do not run
+either to "check something".** `make acceptance` exists partly so there is a
+safe way to test the system end to end without spending anything. The guardrail is not the gate — the gate sees one candidate at a time —
 it is the counter, which sees the whole search (ADR-026).
 
 **4. Two decisions waiting on the operator:** T-1408, formally mark H-0001
@@ -58,6 +80,46 @@ fired one way is half-tested.
 Backblaze allows **2,500 downloads/day free**. Everything data-related is
 already downloaded and cached — see `docs/RUNBOOKS/b2-transaction-cap.md`
 before starting anything that fetches.
+
+## The order path is live in paper mode only
+
+**There is no live broker adapter and nothing here has met a real market.**
+The only adapter is `PaperBroker`, a simulator that fills at a price we hand
+it with slippage we choose (S-015). What Sprints 19-28 verify is that the
+order path, the crash recovery and the accounting are correct — not anything
+about execution.
+
+Three properties are worth knowing before touching this code:
+
+- **Intent is fsynced before the network call** (ADR-029). Reversing those two
+  lines is the one change that makes a crash unrecoverable, because an order at
+  the exchange with no local record is invisible to reconciliation forever.
+- **`UNKNOWN` is only left by asking the broker** (ADR-028). There is no event
+  in the transition table that means "give up and assume", and a test asserts
+  that over the whole table. Do not add one.
+- **The reconciler never places an order** (ADR-030). It corrects our record.
+  A break means we do not know what happened, and trading on that doubles the
+  position exactly when the cause is a fill we missed.
+
+Paper trading is `event_driven.run` with a different `Executor` plugged in,
+not a second loop (ADR-031). A frictionless paper run reproduces the backtest
+**exactly** — measured on the real panel over 546 days and 829 trades, the gap
+is 0.00. If that ever becomes non-zero, the two paths have drifted and that is
+the thing to fix, not to explain.
+
+```bash
+make acceptance                              # every sprint's capability, ~4 min
+make chaos                                   # 11 scenarios, seconds
+make attribution FRICTIONLESS=1 DAYS=800     # gap must be exactly 0.00, ~6 min
+make reconcile-book                          # our positions vs the broker's
+make kill-status                             # is trading stopped, and why
+```
+
+`make acceptance` is the end-to-end companion to `make verify`. `verify` asks
+whether the repository is healthy; `acceptance` asks whether each sprint's
+capability still works against the real data — a distinction that matters,
+because every unit test can pass while the panel is missing or the security
+master is stale. **Nothing in it spends a trial**, by design.
 
 ## Derived artefacts: what exists locally, and how to rebuild it
 
@@ -99,6 +161,20 @@ Read this before trusting any number produced before today.
   price-adjustment fix, so the fat tails are not fully explained (T-1310).
 - **Market impact is not modelled at all** (T-907). Any result involving a
   thin name is optimistic.
+- **The reality-gap residual is an identity, not a measurement** (S-018).
+  Both books are ours, so the decomposition closes to zero by arithmetic. The
+  build plan's "residual under 10%" is about explaining a *live* shortfall and
+  cannot exist before Sprint 29. Do not quote the residual as evidence that
+  execution is understood.
+- **The paper cost figure is our own model on both sides** (S-017), so the
+  "cost model error" term of the reality gap is structurally zero. T-906 is
+  what would give it meaning.
+- **The kill-switch limits are round numbers, not measured** (A-018, S-020).
+  They fire correctly at the levels configured; whether those levels are right
+  is unknown until there are a few weeks of paper P&L to look at.
+- **`ACKNOWLEDGED` and `PARTIALLY_FILLED` have never been produced by a real
+  venue** (S-016). They are in the state machine and unit-tested; the paper
+  broker fills everything instantly and completely.
 
 ---
 
