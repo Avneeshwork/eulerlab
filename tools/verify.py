@@ -109,7 +109,31 @@ def check_state() -> Result:
     return _script_check("state", "state.py", "OK")
 
 
-CHECKS = (check_lint, check_types, check_tests, check_docs, check_state)
+def check_engine() -> Result:
+    """The backtester self-tests.
+
+    In `make verify` rather than beside it because the build plan calls this
+    the most important gate in the project, and a gate you have to remember to
+    run separately is one that gets skipped on the day it would have caught
+    something. It is fast — synthetic worlds, no network, no real data — so
+    there is no cost to making it mandatory.
+    """
+    name = "engine"
+    completed = subprocess.run(
+        [sys.executable, "-m", "eulerlab.backtest.selftest"],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    output = (completed.stdout + completed.stderr).strip()
+    summary = next((ln for ln in reversed(output.splitlines()) if ln.startswith("test-engine")), "")
+    if completed.returncode == 0:
+        return Result(name, True, "PASS", summary.replace("test-engine OK: ", ""), "")
+    return Result(name, False, "FAIL", summary or "self-tests failed", output)
+
+
+CHECKS = (check_lint, check_types, check_tests, check_docs, check_engine, check_state)
 
 
 def main() -> int:

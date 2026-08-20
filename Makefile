@@ -47,6 +47,7 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make test-engine    engine self-tests  <- the most important gate"
 	@echo "  make backtest STRAT=rank FEATURE=momentum_12_1"
 	@echo "                    Tier B event-driven + reconciliation against Tier A"
 	@echo "  make backtest-fast STRAT=rank FEATURE=momentum_12_1 [COMPARE=1]"
@@ -151,6 +152,9 @@ check-costs:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+test-engine:
+	@uv run python -m eulerlab.backtest.selftest $(if $(UPDATE),--update-golden,)
 
 backtest:
 	@uv run python -m eulerlab.backtest.compare $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),)

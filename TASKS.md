@@ -9,6 +9,21 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 12 — backtester self-tests (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1201 | Accounting invariants checked per event | DONE |
+| T-1202 | Zero alpha = exact cost drag | DONE — loses Rs 78,113.65, matching fees to the paisa |
+| T-1203 | Known-alpha recovery | DONE — recovers 67.4% of a planted 67.8% |
+| T-1204 | Determinism, both engines | DONE |
+| T-1205 | Golden file on a synthetic world | DONE — stable as real data grows |
+| T-1206 | Mutation suite: prove every check can fail | DONE — **found a hole in the gate** |
+| T-1207 | Independent cost recomputation | DONE — added because doubling fees passed the cost-drag check |
+| T-1208 | `make verify` runs the engine gate | DONE — now 6 of 6 |
+| T-1209 | Fix Sprint 8's null anchor | DONE — was non-deterministic *and* not a true null (t=4.7) |
+| T-1210 | Property-based testing (Hypothesis) | OPEN — the assigned reading; example-based tests only find imagined bugs |
+
 ## Sprint 11 — Tier B event-driven backtester (COMPLETE 2026-08-19)
 
 | ID | Task | Status |
