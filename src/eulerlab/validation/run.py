@@ -37,7 +37,7 @@ from eulerlab.backtest.strategies import RankAndHold
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.validation import holdout as holdout_mod
-from eulerlab.validation import ledger
+from eulerlab.validation import ledger, stress
 from eulerlab.validation.cpcv import cpcv_splits, leakage_check
 from eulerlab.validation.statistics import (
     deflated_sharpe,
@@ -152,6 +152,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--test-blocks", type=int, default=2)
     parser.add_argument("--horizon", type=int, default=21)
     parser.add_argument("--embargo", type=int, default=5)
+    parser.add_argument("--no-stress", action="store_true")
     args = parser.parse_args(argv)
 
     # --- 1. the ledger must be trustworthy before anything else runs ---
@@ -242,6 +243,30 @@ def main(argv: Sequence[str] | None = None) -> int:
     for note in notes:
         print(f"  {note}")
 
+    # --- 4b. stress tests: not "is this significant" but "when does it break" ---
+    stress_rows: list[dict[str, object]] = []
+    if not args.no_stress:
+        best_config = max(
+            hypothesis.configurations,
+            key=lambda c: next(
+                (r["full_sample_sharpe"] for r in rows_out if r["configuration"] == _label(c)), 0.0
+            ),
+        )
+        best_strategy, best_rebalance = _strategy_for(best_config)
+        print(f"\nstress-testing the strongest configuration: {_label(best_config)}")
+        stressed = stress.run_all(rows, best_strategy, rebalance=best_rebalance)
+        print(stress.render(stressed))
+        stress_rows = [
+            {
+                "test": r.name,
+                "base_sharpe": round(r.base, 4),
+                "stressed_sharpe": round(r.stressed, 4),
+                "survives": r.survives,
+                "detail": r.detail,
+            }
+            for r in stressed
+        ]
+
     # --- 5. running the battery is itself a trial ---
     entry = ledger.append(
         kind="validation",
@@ -285,6 +310,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "pbo": {"value": round(pbo.pbo, 4), "verdict": pbo.verdict},
         "min_backtest_length_years": round(min_years, 2),
         "available_years": round(have_years, 2),
+        "stress_tests": stress_rows,
         "notes": notes,
         "ledger_entry": entry.entry_hash,
     }

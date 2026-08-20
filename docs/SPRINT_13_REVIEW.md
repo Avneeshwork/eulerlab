@@ -130,6 +130,38 @@ any of it ran. **The line to read is PBO.** Above 50% means the selection
 procedure is picking noise, and no Sharpe ratio printed above it should change
 that conclusion.
 
+## Stress tests: when does it break?
+
+The spec listed these and the first pass of this sprint shipped without them.
+Run on the strongest configuration:
+
+| test | Sharpe kept | reading |
+|---|---|---|
+| costs ×2 | 97% | robust to cost error |
+| costs ×3 | 93% | |
+| costs ×5 | 86% | edge survives 5× the modelled cost |
+| slower signal (proxy) | 117% | *improves* when traded less often |
+| drop best 5 names | 91% | not a handful of lucky stocks |
+| **first half** (2015–2020) | **45%** | **Sharpe 0.49** |
+| **second half** (2020–2026) | 136% | Sharpe 1.48 |
+
+The cost and concentration results are genuinely reassuring. **The regime
+split is not.** The same strategy scores 0.49 in the first half and 1.48 in
+the second — three times the risk-adjusted return depending on which half you
+look at. That is precisely the red flag declared in `H-0001.yaml` before any
+of this ran, and precisely why Sprint 10 and Sprint 11 reached opposite
+conclusions from different windows.
+
+It also corroborates the PBO of 60%: if performance depends this heavily on
+the period, then choosing configurations on past performance should not
+generalise, and it does not.
+
+**The cost test was wrong first.** It scaled only brokerage, which defaults to
+zero on delivery, so "costs ×5" quietly meant "add a fee that did not exist"
+while STT and stamp duty — the charges that dominate — went untouched. It
+reported 95% surviving 5× costs, which was not a fact about the strategy. Now
+the multiplier applies to the total of every charge.
+
 ## What is fake right now
 
 | Thing | Why | Removed when |

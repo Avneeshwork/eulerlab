@@ -105,6 +105,8 @@ def run(
     cost_mode: str = "realistic",
     brokerage: Brokerage | None = None,
     warmup: int = 253,
+    adjusted_index: dict[str, dict[date, float]] | None = None,
+    cost_multiplier: float = 1.0,
 ) -> TierBResult:
     """Run `strategy` event by event.
 
@@ -157,9 +159,11 @@ def run(
             out[row.day] = row.close / cumulative
         return out
 
-    price_index: dict[str, dict[date, float]] = {
-        symbol: _adjusted(rows_) for symbol, rows_ in histories.items()
-    }
+    price_index: dict[str, dict[date, float]] = (
+        adjusted_index
+        if adjusted_index is not None
+        else {symbol: _adjusted(rows_) for symbol, rows_ in histories.items()}
+    )
     ordered_days: dict[str, list[date]] = {
         symbol: [row.day for row in rows_] for symbol, rows_ in histories.items()
     }
@@ -306,6 +310,7 @@ def run(
                     0.0
                     if cost_mode == "replication"
                     else _costs_for(fill_day, price, order.quantity, order.side, brokerage)
+                    * cost_multiplier
                 )
                 portfolio.apply(
                     EventFill(

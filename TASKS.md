@@ -28,8 +28,9 @@ plan — they are listed here as scope only, not as tasks.
 | T-1315 | Re-run the Sprint 13 battery on corrected prices | DONE — PBO 53.3% -> **60.0%**; verdict unchanged |
 | T-1316 | Re-run Sprint 10/11 backtests on corrected prices | DONE — momentum +16.8% ann. vs buy-and-hold +4.6% |
 | T-1317 | Re-run the Sprint 8 IC sweep on corrected prices | OPEN — IC figures still come from raw prices |
-| T-1318 | Hoist the adjusted-price index out of `run()` | OPEN — rebuilt 150x during a validate; ~40min run |
-| T-1311 | Stress tests | OPEN — listed for this sprint, not built |
+| T-1318 | Hoist the adjusted-price index out of `run()` | DONE — but only 1.6s of 16s; the loop dominates |
+| T-1319 | Parallelise the CPCV sweep | OPEN — 150 independent backtests, ~40min serial |
+| T-1311 | Stress tests | DONE — costs, staleness, concentration, regime. **Regime split: Sharpe 0.49 vs 1.48** |
 | T-1312 | Decide H-0001's fate (CLAUDE.md: a failed strategy is dead) | OPEN — operator decision |
 
 ## Sprint 12 — backtester self-tests (COMPLETE 2026-08-19)
