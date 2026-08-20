@@ -116,6 +116,39 @@ class BacktestResult:
         return out
 
 
+def build_adjusted_index(rows: Sequence[PanelRow]) -> dict[str, dict[date, float]]:
+    """Back-adjusted close prices per symbol, built once.
+
+    Hoisted out of `run()` because it depends only on the panel, and a
+    validation sweep calls `run()` 150 times. Rebuilding it each call turned
+    `make validate` into a forty-minute command for work that is identical
+    every time.
+    """
+    histories = by_symbol(rows)
+    events: dict[str, list[tuple[date, float]]] = {}
+    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
+        events.setdefault(record.key, []).append((record.event_time.date(), record.value))
+    for series in events.values():
+        series.sort()
+
+    index: dict[str, dict[date, float]] = {}
+    for symbol, rows_ in histories.items():
+        actions = events.get(rows_[-1].isin, []) if rows_ else []
+        if not actions:
+            index[symbol] = {row.day: row.close for row in rows_}
+            continue
+        out: dict[date, float] = {}
+        cumulative = 1.0
+        cursor = len(actions) - 1
+        for row in reversed(rows_):
+            while cursor >= 0 and actions[cursor][0] > row.day:
+                cumulative *= actions[cursor][1]
+                cursor -= 1
+            out[row.day] = row.close / cumulative
+        index[symbol] = out
+    return index
+
+
 def _costs_for(
     day: date, price: float, quantity: int, side: Side, brokerage: Brokerage | None
 ) -> float:
@@ -141,6 +174,8 @@ def run(
     cost_mode: str = "realistic",
     brokerage: Brokerage | None = None,
     warmup: int = 253,
+    adjusted_index: dict[str, dict[date, float]] | None = None,
+    cost_multiplier: float = 1.0,
 ) -> BacktestResult:
     """Run the strategy over the panel.
 
@@ -207,9 +242,11 @@ def run(
             out[row.day] = row.close / cumulative
         return out
 
-    price_index: dict[str, dict[date, float]] = {
-        symbol: _adjusted(rows_) for symbol, rows_ in histories.items()
-    }
+    price_index: dict[str, dict[date, float]] = (
+        adjusted_index
+        if adjusted_index is not None
+        else {symbol: _adjusted(rows_) for symbol, rows_ in histories.items()}
+    )
     ordered_days: dict[str, list[date]] = {
         symbol: [row.day for row in rows_] for symbol, rows_ in histories.items()
     }
@@ -345,7 +382,7 @@ def run(
                 cost = (
                     0.0
                     if cost_mode == "replication"
-                    else _costs_for(fill_day, price, quantity, side, brokerage)
+                    else _costs_for(fill_day, price, quantity, side, brokerage) * cost_multiplier
                 )
                 cash -= delta * price
                 cash -= cost

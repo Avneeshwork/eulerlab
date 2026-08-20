@@ -68,7 +68,11 @@ look better and no more distinguishable from luck, which is the point.
   is truncated once at the top so nothing downstream can peek.
 - **`hypotheses/H-0001.yaml`** — claim, configurations and red flags fixed
   before the evidence.
-- **`make validate H=H-0001`** — hash-signed evidence pack.
+- **`eulerlab.validation.stress`** — costs, signal staleness, concentration,
+  regime. Robust to 5x costs and to dropping its best five names; **not robust
+  across regimes: Sharpe 0.49 in 2015-2020 against 1.48 in 2020-2026**, which
+  corroborates the 60% PBO.
+- **`make validate H=H-0001`** — hash-signed evidence pack, stress tests included.
 
 ### H-0001 does not survive
 
