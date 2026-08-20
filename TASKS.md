@@ -9,6 +9,29 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## The workbench — UI, AI authoring, documentation (COMPLETE 2026-08-20)
+
+Not a numbered sprint in the build plan; requested by the operator. Verify:
+`make verify` (7 of 7) · `make workbench` then author a strategy three ways.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3001 | Sandbox: pasted code runs without discarding the lookahead firewall | DONE — ADR-032; allowlisted AST + attributes + builtins |
+| T-3002 | Every classic escape closed and individually tested | DONE — 35 adversarial tests, deny-by-default |
+| T-3003 | Unavailable names refused at submit, not as a NameError mid-run | DONE — name resolution in `check()` |
+| T-3004 | Provider-agnostic model client; default local and free | DONE — ADR-033; Ollama, no key, no quota |
+| T-3005 | Model output validated before it can run | DONE — hallucinated features refused by name |
+| T-3006 | FastAPI service reusing the engine unchanged | DONE — optional `web` extra, not a core dependency |
+| T-3007 | The API cannot spend a trial or reach the gate | DONE — no ledger-writing route exists |
+| T-3008 | Caveats travel in the payload, not the page | DONE — a result without its warnings is the worst artefact here |
+| T-3009 | Next.js workbench: describe / compose / code | DONE — `make workbench` |
+| T-3010 | `docs/ARCHITECTURE.md` — components and mathematics for a newcomer | DONE — 949 lines, every formula matched to the implementation |
+| T-3011 | Sandbox has no CPU limit | OPEN by design — S-021; external timeout is the real protection |
+| T-3012 | Ollama not installed on this machine | OPEN — Describe tab reports it; Compose and Code work regardless (S-022) |
+| T-3013 | Web UI has no authentication | OPEN — binds to localhost only; revisit before it leaves this machine |
+
+---
+
 ## Sprints 19-28 — the order path (COMPLETE 2026-08-20)
 
 Verify: `make verify` (7 of 7) · `make chaos` (11 of 11) ·

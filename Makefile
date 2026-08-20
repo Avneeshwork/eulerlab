@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance chaos paper attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -8,6 +8,11 @@ help:
 	@echo "  make install      create the venv and install pre-commit hooks (once)"
 	@echo "  make verify       run every gate and print the table   <- the one you need"
 	@echo "  make acceptance [ALL=1]  every sprint's capability, on the real data"
+	@echo ""
+	@echo "  -- the workbench --"
+	@echo "  make api          start the strategy API on :8000"
+	@echo "  make ui           start the web interface on :3000 (needs make api)"
+	@echo "  make workbench    both at once"
 	@echo "  make test         pytest only"
 	@echo "  make lint         ruff check + format check"
 	@echo "  make fmt          apply ruff fixes and formatting"
@@ -206,6 +211,16 @@ build-factors:
 # One command to keep every dataset current, safe to schedule. Each step is
 # idempotent: already-current data costs nothing, so re-running is cheap and
 # a missed day self-heals on the next run.
+api:
+	uv run --extra web uvicorn eulerlab.api.server:app --port 8000 --reload
+
+ui:
+	cd web && npm install --silent && npm run dev
+
+workbench:
+	@echo "starting the API on :8000 and the UI on :3000"
+	@$(MAKE) -j2 api ui
+
 acceptance:
 	@uv run python tools/acceptance.py $(if $(ALL),--all,)
 

@@ -14,6 +14,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The API that backs the web UI. An optional extra rather than a core
+# dependency: everything in `make verify` runs without it, and a headless
+# machine doing an overnight backfill has no reason to install a web server.
+web = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
 dev = [
     "boto3-stubs>=1.43.73",
     "mypy>=1.11",
