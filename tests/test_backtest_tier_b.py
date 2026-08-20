@@ -34,6 +34,7 @@ def _panel(n_symbols: int = 30, n_days: int = 320, drift: float = 0.0008) -> lis
                     close=price,
                     volume=1000.0,
                     turnover=1e9 - s,
+                    isin=f"TEST{s:06d}",
                 )
             )
     return rows
@@ -99,9 +100,17 @@ def test_tier_b_records_rejections_that_tier_a_can_only_skip() -> None:
     rows: list[PanelRow] = []
     for d in range(320):
         day = START + timedelta(days=d)
-        rows.append(PanelRow(day=day, symbol="ALWAYS", close=100.0, volume=1.0, turnover=9e9))
+        rows.append(
+            PanelRow(
+                day=day, symbol="ALWAYS", close=100.0, volume=1.0, turnover=9e9, isin="TESTKEY"
+            )
+        )
         if d % 7 != 3:
-            rows.append(PanelRow(day=day, symbol="PATCHY", close=100.0, volume=1.0, turnover=8e9))
+            rows.append(
+                PanelRow(
+                    day=day, symbol="PATCHY", close=100.0, volume=1.0, turnover=8e9, isin="TESTKEY"
+                )
+            )
 
     class Both(Strategy):
         name = "both"

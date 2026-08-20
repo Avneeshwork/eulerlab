@@ -22,7 +22,11 @@ plan — they are listed here as scope only, not as tasks.
 | T-1307 | `make validate` + hash-signed evidence pack | DONE — JSON not PDF |
 | T-1308 | Fix the leakage check (condemned 14 of 15 correct paths) | DONE — measured the filtered timeline, not the real one |
 | T-1309 | 14x engine speedup via strategy-declared lookback | DONE — 95s to 6.9s, byte-identical output |
-| T-1310 | **Investigate excess kurtosis of +101 and +161** | OPEN — Sharpe on tails that fat is near-meaningless |
+| T-1310 | Investigate excess kurtosis of +101 and +161 | DONE — led to the raw-price marking bug below |
+| T-1313 | Panel stores raw prices + instrument key; guard against silent no-op | DONE — panel rebuilt, 2,869 days |
+| T-1314 | Point-in-time adjustment for signals, consistent series for marking | DONE — phantom P&L removed |
+| T-1315 | **Re-run the Sprint 13 battery on corrected prices** | OPEN — the H-0001 verdict is not valid until this runs |
+| T-1316 | **Re-run Sprint 8 IC and Sprint 10/11 backtests on corrected prices** | OPEN — all were computed on raw prices |
 | T-1311 | Stress tests | OPEN — listed for this sprint, not built |
 | T-1312 | Decide H-0001's fate (CLAUDE.md: a failed strategy is dead) | OPEN — operator decision |
 
