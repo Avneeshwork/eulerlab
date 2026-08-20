@@ -1,12 +1,94 @@
 # STATE — where this project is right now
 
 **Sprint:** 13 — overfitting battery
-**Status:** COMPLETE. A price-adjustment bug was found, fixed, and every
-figure re-run. **H-0001 still does not survive: PBO 60.0%**
+**Status:** COMPLETE — including the stress tests the spec required. A
+price-adjustment bug was found and fixed, and every figure re-run.
+**H-0001 still does not survive: PBO 60.0%, DSR 0.086.**
 **Next:** Sprint 14 — promotion gate as code, pre-registration, locked holdout
 
-*Last updated: 2026-08-19 21:40 IST. One page, always current. If it is not
-written here or in `TASKS.md`, it did not happen.*
+*Last updated: 2026-08-19. One page, always current. If it is not written here
+or in `TASKS.md`, it did not happen.*
+
+---
+
+## START HERE IF YOU ARE A NEW SESSION
+
+Read `CLAUDE.md`, then this file, then `TASKS.md`. Then:
+
+**1. Prove the repository is healthy before believing anything in it.**
+
+```bash
+make verify
+```
+Expect 6 of 6 green and ~740 tests. The `engine` row is the backtester
+self-test gate; if it is red, stop and fix that before running any strategy,
+because every number downstream depends on it.
+
+**2. The next piece of work is Sprint 14 — the promotion gate.** The plan was
+presented and approved but no code was written. Scope, in one line: `gates.py`
+plus `mandate.yaml` (both **operator-owned** — propose changes, never edit
+without instruction), pre-registration enforced, holdout readable exactly once
+with the single read recorded in state, a kill written permanently to the
+ledger, and three deliberately-overfit strategies as the acceptance test, all
+of which must be killed.
+
+**3. The one decision waiting on the operator** is T-1312: H-0001 has a
+complete evidence pack against it (PBO 60%, DSR ≤ 0.086, Sharpe 0.49 vs 1.48
+across regimes). `CLAUDE.md` says a strategy that fails the gate is dead. It
+should be Sprint 14's first real test case.
+
+**Costly commands, so you do not run them by accident:**
+
+| command | cost |
+|---|---|
+| `make validate H=H-0001` | ~40 min, 150 backtests (T-1319 would parallelise) |
+| `make build-panel FROM=2015-01-01` | ~2,900 B2 downloads; the panel is already built |
+| `make build-factors` | ~2,121 B2 downloads; already built and cached |
+
+Backblaze allows **2,500 downloads/day free**. Everything data-related is
+already downloaded and cached — see `docs/RUNBOOKS/b2-transaction-cap.md`
+before starting anything that fetches.
+
+## Derived artefacts: what exists locally, and how to rebuild it
+
+All of `data/` is gitignored, so a fresh clone has **none** of this. Rebuilding
+costs Backblaze downloads against a 2,500/day cap, so check before deleting
+anything.
+
+| file | size | rebuild | cost |
+|---|---|---|---|
+| `price_panel.jsonl` | 540 MB | `make build-panel FROM=2015-01-01` | ~2,900 downloads, ~25 min |
+| `price_factors.jsonl` | 0.1 MB | `make build-factors` | ~2,121 downloads, ~4 min |
+| `total_return_factors.jsonl` | 2.3 MB | same command | — |
+| `close_index.jsonl` | 0.8 MB | same command (its cache) | — |
+| `trial_ledger.jsonl` | small | **never rebuild** | hash-chained; regenerating destroys the audit trail |
+| `evidence/H-0001.json` | small | `make validate H=H-0001` | ~40 min |
+
+`trial_ledger.jsonl` is the one file that must not be recreated. It is the
+denominator of every multiple-testing correction, it is hash-chained so edits
+are detectable, and `CLAUDE.md` says never reset it. If it is missing, say so
+rather than starting a fresh one — a chain that begins late understates the
+trial count in the flattering direction.
+
+## What is known to be WRONG or unverified
+
+Read this before trusting any number produced before today.
+
+- **Sprint 8's IC figures were computed on raw, unadjusted prices** and have
+  not been re-run (T-1317). Its conclusion that "ten features are really three
+  findings" also used the 3-year panel, not the 11-year one.
+- **Sprint 10's review states a conclusion its own data does not support.**
+  It is corrected in place at the top of the file; the body is left as
+  written.
+- **The cost model has never met a real contract note** (T-906). Every rate
+  comes from a secondary source (A-016). This is the cheapest verification
+  available in the project and it needs the operator: copy
+  `config/contract_notes.example.json` to `config/contract_notes.json` and
+  fill in real figures.
+- **Excess kurtosis of ~155 remains** on one configuration after the
+  price-adjustment fix, so the fat tails are not fully explained (T-1310).
+- **Market impact is not modelled at all** (T-907). Any result involving a
+  thin name is optimistic.
 
 ---
 
