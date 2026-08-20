@@ -113,6 +113,20 @@ by installing the extra in CI. Worth noting separately: `server.py` still has
 no test coverage — no test in the suite imports it — so the type gate was the
 only thing checking that file at all.
 
+**And the type failure was hiding two test failures.** Types runs before Tests
+in the workflow, so once mypy passed, two tests failed in CI that had always
+passed locally. Both read the real `data/derived/trial_ledger.jsonl`, which is
+gitignored: 19 trials here, zero in CI. `test_no_history_makes_a_trial_
+unaffordable` was the dangerous one — it takes a `tmp_path` and **looks**
+hermetic, but the affordability rule it asserts is computed against the ambient
+ledger, and on an empty one the bar is Sharpe 0.00 and nothing is ever
+unaffordable. It now pins the trial count explicitly. The other,
+`test_the_gate_verdict_is_read_from_the_ledger`, genuinely asserts accumulated
+project state rather than code behaviour, so it skips when the ledger is absent
+and is marked as belonging with `make acceptance`. **The general lesson is that
+a green gate downstream of a red one proves nothing** — five merges of "verify
+is 7 of 7" covered a suite that CI had not actually finished running.
+
 ---
 
 ## What the project has actually concluded

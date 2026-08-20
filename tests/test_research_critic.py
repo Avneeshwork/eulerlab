@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
-from eulerlab.research import critic
+from eulerlab.research import budget, critic
 
 
 def _card(tmp_path: Path, **overrides: object) -> Path:
@@ -45,7 +46,21 @@ def test_a_single_configuration_is_blocked(tmp_path: Path) -> None:
     assert any("PBO" in o.detail for o in review.blockers)
 
 
-def test_no_history_makes_a_trial_unaffordable(tmp_path: Path) -> None:
+def test_no_history_makes_a_trial_unaffordable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pinned to a trial count, because the ambient ledger is not test input.
+
+    This read the real `data/derived/trial_ledger.jsonl`, which is gitignored:
+    it passed here on 19 trials and failed in CI on an empty ledger, where the
+    bar is Sharpe 0.00 and *nothing* is ever unaffordable. The dependency was
+    invisible — the test takes a `tmp_path` and looks hermetic.
+
+    19 is the count at the time of writing. The assertion is about the rule,
+    not the number: given a search already this large, a tenth of a year of
+    history cannot support another trial.
+    """
+    monkeypatch.setattr(budget, "ledger_count", lambda: 19)
     assert not critic.review(_card(tmp_path), available_years=0.1).worth_testing
 
 
