@@ -9,6 +9,19 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Sprint 14 — promotion gate (COMPLETE 2026-08-19)
+
+| ID | Task | Status |
+|---|---|---|
+| T-1401 | `mandate.yaml` — operator-owned thresholds, no logic | DONE — **hands off from here** |
+| T-1402 | `gates.py` — logic only, no thresholds | DONE — ADR-025; a test asserts no literal thresholds |
+| T-1403 | Acceptance: 3 overfit strategies, all killed | DONE — noise, regime, lookahead; all KILLED |
+| T-1404 | The regime stress can be slipped past | OPEN — `RegimeFit` retained 76%; split is at the midpoint only |
+| T-1405 | Holdout: one read, refused on KILL and when spent | DONE — no un-spend function exists |
+| T-1406 | Gate decisions written to the trial ledger | DONE — a resubmission under a new id is visible |
+| T-1407 | Exercise the PROMOTE path with a known-good synthetic candidate | OPEN — the gate has never promoted anything |
+| T-1408 | Formally mark H-0001 killed | OPEN — operator decision; the gate has said KILL |
+
 ## Sprint 13 — overfitting battery (COMPLETE 2026-08-19)
 
 | ID | Task | Status |

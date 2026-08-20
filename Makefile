@@ -47,6 +47,8 @@ help:
 	@echo "                    option-chain no-arbitrage checks"
 	@echo "  make quality [ROWS=n] [LIMIT=n]"
 	@echo "                    data quality report; ROWS=n also checks price rows"
+	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
+	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
 	@echo "  make validate H=H-0001  overfitting battery: CPCV, DSR, PBO, MinBTL"
 	@echo "  make test-engine    engine self-tests  <- the most important gate"
 	@echo "  make backtest STRAT=rank FEATURE=momentum_12_1"
@@ -153,6 +155,12 @@ check-costs:
 
 check-adjust:
 	@uv run python -m eulerlab.corp_actions.check
+
+gate-acceptance:
+	@uv run python -m eulerlab.validation.gate_acceptance $(if $(SYMBOLS),--symbols $(SYMBOLS),)
+
+gate:
+	@uv run python -m eulerlab.gate_run $(if $(H),--hypothesis $(H),) $(if $(READ_HOLDOUT),--read-holdout $(READ_HOLDOUT),)
 
 validate:
 	@uv run python -m eulerlab.validation.run $(if $(H),--hypothesis $(H),)
