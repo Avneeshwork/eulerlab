@@ -64,6 +64,36 @@ class PanelRow:
     isin: str = ""
     """Internal instrument key, for joining to corporate-action factors."""
 
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    """RAW exchange open/high/low, same convention as `close`.
+
+    Optional, and zero means "not recorded". The panel stored only the close
+    until candlestick strategies needed the shape of the bar, and the file is
+    2,869 days of append-only JSONL rebuilt one B2 download per day — against
+    a 2,500/day free-tier cap. Making these required would have invalidated
+    the whole cached panel at once (see RUNBOOKS/b2-transaction-cap.md), so
+    they default to zero and `ohlc()` falls back to the close.
+
+    Use `ohlc()` rather than reading these directly; a strategy that reads
+    `row.high` on an older row silently gets 0.0 and computes nonsense."""
+
+    def ohlc(self) -> tuple[float, float, float, float]:
+        """Open, high, low, close — falling back to a flat bar at the close.
+
+        A flat bar is the honest degradation: it says "this day had no recorded
+        range", which makes every candle-shape test fail rather than pass on a
+        fabricated body. Silently inventing a range would turn missing data
+        into signals."""
+        if self.high <= 0.0 or self.low <= 0.0:
+            return (self.close, self.close, self.close, self.close)
+        return (self.open or self.close, self.high, self.low, self.close)
+
+    def has_range(self) -> bool:
+        """True when this row carries a real intraday range."""
+        return self.high > 0.0 and self.low > 0.0 and self.high >= self.low
+
     def key(self) -> tuple[date, str]:
         return (self.day, self.symbol)
 
@@ -131,6 +161,9 @@ def read_panel(path: Path = PANEL_PATH) -> list[PanelRow]:
                 volume=row["v"],
                 turnover=row["t"],
                 isin=row.get("i", row.get("isin", "")),
+                open=row.get("o", 0.0),
+                high=row.get("h", 0.0),
+                low=row.get("l", 0.0),
             )
         )
     out.sort(key=lambda r: (r.day, r.symbol))
@@ -220,6 +253,9 @@ def build(
                                     "d": trade_date,
                                     "s": bar.symbol,
                                     "c": round(bar.close, 6),
+                                    "o": round(bar.open, 6),
+                                    "h": round(bar.high, 6),
+                                    "l": round(bar.low, 6),
                                     "isin": instrument_key(bar.isin) or "",
                                     "v": bar.volume,
                                     "t": bar.turnover or 0.0,
@@ -276,4 +312,7 @@ def iter_rows(path: Path = PANEL_PATH) -> Iterator[PanelRow]:
                 close=row["c"],
                 volume=row["v"],
                 turnover=row["t"],
+                open=row.get("o", 0.0),
+                high=row.get("h", 0.0),
+                low=row.get("l", 0.0),
             )
