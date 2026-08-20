@@ -1,6 +1,8 @@
 # CLAUDE.md — operating rules for this repository
 
-**Read this file, then `STATE.md`, then `TASKS.md`, at the start of every session. Before writing any code, state the sprint goal and your plan in 5 bullets and wait for the operator's approval.**
+**Read this file, then `README.md`, then `STATE.md`, then `TASKS.md`, at the start of every session. Before writing any code, state the goal and your plan in 5 bullets and wait for the operator's approval.**
+
+The build plan's sprints are finished. Work is now task-driven from `TASKS.md`, not sprint-driven, so there are no new `SPRINT_NN_REVIEW.md` files — the eighteen that existed are consolidated into `docs/HISTORY.md`.
 
 ---
 
@@ -27,7 +29,7 @@ If a piece of work can't be verified that way, it isn't finished.
 
 **Start**
 1. Read `CLAUDE.md`, `STATE.md`, `TASKS.md`.
-2. Identify the current sprint and its acceptance criteria.
+2. Identify the task and how it will be verified.
 3. State the goal and a 5-bullet plan. **Stop and wait for approval.**
 
 **During**
@@ -37,10 +39,12 @@ If a piece of work can't be verified that way, it isn't finished.
 - Work on a branch named `sprint-NN-short-name`.
 
 **End**
-1. Update `STATE.md` (current sprint, what works, what's next, known issues).
+1. Update `STATE.md` — and keep it **one page**. It is a summary, not a log.
 2. Update `TASKS.md` (statuses, new tasks discovered).
-3. Write `docs/SPRINT_NN_REVIEW.md` from the template.
-4. Append any new reading topics to `docs/READING/index.md`.
+3. If the work changed how the system behaves, update `docs/ARCHITECTURE.md`.
+4. If it proved something earlier wrong, add it to `docs/HISTORY.md`. That file
+   is the project's memory of its own errors and is more valuable than the
+   record of its successes.
 5. Commit. Tell the operator the single command to run.
 
 **If out of context mid-sprint:** stop cleanly. Write an honest partial review stating exactly what is done and what is not. Update the ledger. Commit. Never overstate progress.
@@ -95,45 +99,31 @@ A commit touching `src/` with no corresponding documentation change fails CI.
 | Decision record | `docs/DECISIONS/ADR-NNN-slug.md` | At the moment a choice is made | 5 lines: context, options, choice, why, cost if wrong |
 | Research note | `docs/RESEARCH/NNN-slug.md` | Whenever you search the web to answer a design question | Question, sources (URL + date), findings, decision, confidence, open questions |
 | Runbook | `docs/RUNBOOKS/slug.md` | First time something breaks | Symptom, diagnosis, fix, prevention |
-| Sprint review | `docs/SPRINT_NN_REVIEW.md` | End of every sprint | Use the template exactly |
+| Correction | `docs/HISTORY.md` | Whenever something earlier is proved wrong | What was believed, what is true, which numbers are now invalid |
 | Event log | `docs/EVENTS/YYYY-MM.md` | Any exchange/regulatory change found by the monitor | Date, source, what changed, what it breaks |
 
 ---
 
-## Sprint review template
+## The five documents
 
-```markdown
-# Sprint NN — <title>
-**Status:** COMPLETE | PARTIAL | FAILED
-**Branch:** sprint-NN-slug   **Commits:** N
+They do not overlap. Put a fact in exactly one of them.
 
-## What now works (plain English, no jargon)
--
+| Question | Document |
+|---|---|
+| How does it work, and what is the maths? | `docs/ARCHITECTURE.md` |
+| Where is the project right now? | `STATE.md` — **one page** |
+| What is still open? | `TASKS.md` |
+| What was built, and what did it get wrong? | `docs/HISTORY.md` |
+| What are the rules for working here? | `CLAUDE.md` |
 
-## How to check it yourself (2 minutes)
-```bash
-make verify          # expect: all green
-<one specific command showing the new capability>
-```
-Expected output: <exact thing they should see>
+Supporting records keep their existing roles: `docs/STUBS.md` (what is fake),
+`docs/ASSUMPTIONS.md` (what is unverified, with recheck dates),
+`docs/DECISIONS/` (why), `docs/RESEARCH/` (what sources said),
+`docs/RUNBOOKS/` (what to do when it breaks).
 
-## What is fake right now
-| Thing | Why | Removed in sprint |
-|---|---|---|
-
-## What I could not verify
--
-
-## Decisions I need from you
-1. **<question>** — Option A: … Option B: … My recommendation: … because …
-
-## Reading added for you
-- **<topic>** (MUST/SHOULD/LATER, N min) — needed for sprint NN because …
-
-## Next sprint
-```
-
----
+**Generated files are not documentation.** `web/public/architecture.html` is
+built from `docs/ARCHITECTURE.md` by `tools/render_architecture.py` and is
+gitignored. Never edit it; never commit it.
 
 ## Research protocol
 

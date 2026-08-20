@@ -318,16 +318,71 @@ export default function Page() {
                 <h2>Numbers</h2>
                 <p className="sub">Same cost model as every other figure in this project.</p>
                 <div className="metrics">
-                  <Metric k="Total return" v={pct(result.total_return)} sign={result.total_return} />
-                  <Metric k="Annualised" v={pct(result.annualised)} sign={result.annualised} />
-                  <Metric k="Sharpe" v={result.sharpe.toFixed(2)} sign={result.sharpe} />
-                  <Metric k="Max drawdown" v={pct(result.max_drawdown)} sign={-1} />
+                  <Metric k="Total return" v={pct(result.total_return)} sign={result.total_return} help="Change in portfolio value over the whole period, after costs." />
+                  <Metric k="Annualised" v={pct(result.annualised)} sign={result.annualised} help="The same return expressed as a per-year rate, so periods of different lengths compare." />
+                  <Metric k="Sharpe" v={result.sharpe.toFixed(2)} sign={result.sharpe} help="Return per unit of volatility, annualised. Higher is steadier, not necessarily larger." />
+                  <Metric k="Max drawdown" v={pct(result.max_drawdown)} sign={-1} help="The worst peak-to-trough fall along the way. What you would have had to sit through." />
                   <Metric k="Final equity" v={rupees(result.final_equity)} />
-                  <Metric k="Costs paid" v={rupees(result.costs)} />
+                  <Metric k="Costs paid" v={rupees(result.costs)} help="Brokerage, STT, stamp duty, GST and exchange fees — the same model used everywhere in this project." />
                   <Metric k="Fills" v={String(result.fills)} />
-                  <Metric k="Rejected" v={String(result.rejections)} />
+                  <Metric k="Rejected" v={String(result.rejections)} help="Orders the engine refused because the stock did not trade that day. Real, not assumed away." />
                 </div>
               </div>
+
+              <Verdict sharpe={result.sharpe} bar={result.noise_bar} />
+
+              {result.resampled && (
+                <div className="card">
+                  <h2>If history had gone differently</h2>
+                  <p className="sub">
+                    The same returns, resampled 400 times. Two different questions, because
+                    reordering returns cannot change a Sharpe ratio &mdash; only the path.
+                  </p>
+                  <div className="metrics">
+                    <Metric
+                      k="Drawdown, typical reorder"
+                      v={pct(result.resampled.drawdown_p50)}
+                      sign={-1}
+                      help="Shuffling the order of the same daily returns. Half of the reorderings were worse than this."
+                    />
+                    <Metric
+                      k="Drawdown, unlucky reorder"
+                      v={pct(result.resampled.drawdown_p05)}
+                      sign={-1}
+                      help="The 5th percentile. One reordering in twenty was at least this bad."
+                    />
+                    <Metric
+                      k="Sharpe, low end"
+                      v={result.resampled.sharpe_p05.toFixed(2)}
+                      sign={result.resampled.sharpe_p05}
+                      help="Bootstrap 5th percentile. Resampling with replacement, which — unlike shuffling — does move the Sharpe."
+                    />
+                    <Metric
+                      k="Sharpe, high end"
+                      v={result.resampled.sharpe_p95.toFixed(2)}
+                      sign={result.resampled.sharpe_p95}
+                      help="Bootstrap 95th percentile."
+                    />
+                  </div>
+                  {result.resampled.sharpe_could_be_zero && (
+                    <div className="note bad" style={{ marginTop: 12 }}>
+                      The low end is at or below zero. <strong>This data cannot rule out that
+                      there is no edge at all.</strong>
+                    </div>
+                  )}
+                  {result.resampled.drawdown_is_understated && (
+                    <div className="note warn" style={{ marginTop: 12 }}>
+                      The realised drawdown was shallower than a typical reordering. History was
+                      kind about the order losses arrived in; that is luck, not robustness.
+                    </div>
+                  )}
+                  <p className="footnote">
+                    Both assume returns are interchangeable. Real losses cluster, and shuffling
+                    breaks up exactly the clustering that causes the worst drawdowns &mdash; so
+                    treat this as a floor on the risk, not the whole of it.
+                  </p>
+                </div>
+              )}
 
               <div className="card">
                 <h2>What this does not mean</h2>
@@ -344,12 +399,47 @@ export default function Page() {
   );
 }
 
-function Metric({ k, v, sign }: { k: string; v: string; sign?: number }) {
+function Metric({ k, v, sign, help }: { k: string; v: string; sign?: number; help?: string }) {
   const cls = sign === undefined ? '' : sign > 0 ? ' pos' : sign < 0 ? ' neg' : '';
   return (
     <div className="metric">
-      <div className="k">{k}</div>
+      <div className="k">
+        {k}
+        {help && <span className="help" tabIndex={0} role="note" aria-label={help} data-tip={help}>?</span>}
+      </div>
       <div className={`v${cls}`}>{v}</div>
+    </div>
+  );
+}
+
+// The single most useful thing the interface can say. A Sharpe on its own reads
+// as good or bad against nothing; against the bar that 19 logged trials have
+// already raised, it reads as what it is.
+function Verdict({ sharpe, bar }: { sharpe: number; bar: number }) {
+  const clears = sharpe >= bar;
+  const frac = Math.max(0, Math.min(1, sharpe / Math.max(bar, 0.01)));
+  return (
+    <div className={`card verdict ${clears ? 'over' : 'under'}`}>
+      <h2>{clears ? 'Above the noise bar — and still probably noise' : 'Below the noise bar'}</h2>
+      <p className="sub">
+        This project has logged enough trials that a strategy must reach Sharpe {bar.toFixed(2)}
+        {' '}before beating it means anything. Try enough ideas and the best of them looks good
+        by chance alone.
+      </p>
+      <div className="bar">
+        <div className="fill" style={{ width: `${frac * 100}%` }} />
+        <div className="bar-mark" style={{ left: '100%' }} />
+      </div>
+      <div className="bar-legend">
+        <span>this strategy <strong>{sharpe.toFixed(2)}</strong></span>
+        <span>noise bar <strong>{bar.toFixed(2)}</strong></span>
+      </div>
+      {clears && (
+        <p className="footnote">
+          Clearing the bar is necessary, not sufficient. It says the result is not obviously
+          explained by how much has been searched &mdash; nothing more.
+        </p>
+      )}
     </div>
   );
 }

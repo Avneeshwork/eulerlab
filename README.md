@@ -1,69 +1,66 @@
 # EulerLab
 
-A quant research and execution platform. Single operator, single-person capital,
-optimised for correctness and low cost rather than scale.
+A quant research and execution platform for Indian equity markets, built for
+one person trading their own capital. It downloads market history, cleans it,
+turns it into features, tests strategies against it, subjects the survivors to
+statistics designed to catch self-deception, and — if anything survives — places
+the orders.
 
-Markets in rollout order: India equities → India index options → US equities →
-US options → crypto → FX.
-
-**Nothing here trades.** See [STATE.md](STATE.md) for what actually works today.
+**Most of the code exists to make a good-looking backtest harder to produce,
+not easier.** If you try twenty meaningless strategies, the best of them will
+still look excellent. That fact shapes nearly every design decision here.
 
 ---
 
-## For the operator
+## Start here
 
 ```bash
-make verify
+make install     # once
+make verify      # 7 checks, ~998 tests — expect all green
+make workbench   # the UI on :3000
 ```
 
-That is the whole job. It prints one table; green means the repo is sound.
-Then read the latest `docs/SPRINT_NN_REVIEW.md`, answer any numbered questions,
-and say "next sprint".
+---
 
-If anything is red, [docs/RUNBOOKS/verify-is-red.md](docs/RUNBOOKS/verify-is-red.md)
-says what to do — mostly: paste the output back and stop.
+## The five documents, and what each is for
 
-```bash
-make acceptance
-```
+They do not overlap. If you are looking for something, this table says where it
+is.
 
-The other question, when you want it: does each sprint's capability still work
-against the real data? `verify` proves the repository is healthy; `acceptance`
-proves the system is. Takes a few minutes and spends nothing.
-
-**Two commands cost something and are not run casually.** `make gate` and
-`make validate` each write a trial to a permanent, hash-chained ledger, and
-every trial raises the statistical bar for every future strategy. Neither is
-in `verify` or `acceptance`, deliberately.
-
-## Setup, once
-
-```bash
-make install
-```
-
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
-
-## Where things are
-
-| File | What it is |
+| Question | Document |
 |---|---|
-| [CLAUDE.md](CLAUDE.md) | Operating rules. Read at the start of every session |
-| [STATE.md](STATE.md) | One page: where the project is right now |
-| [TASKS.md](TASKS.md) | The ledger — every task, its status, the command that proves it |
-| [docs/AI_BUILD_PLAN.md](docs/AI_BUILD_PLAN.md) | How this gets built, and how it is verified |
-| [docs/quant_platform_playbook.md](docs/quant_platform_playbook.md) | The reference design |
-| [docs/GLOSSARY.md](docs/GLOSSARY.md) | Plain English for every term used in a review |
-| [docs/STUBS.md](docs/STUBS.md) | Everything currently fake |
-| [docs/ASSUMPTIONS.md](docs/ASSUMPTIONS.md) | Everything unverified, with recheck dates |
+| **How does it work, and what is the maths?** | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| **Where is the project right now?** | [`STATE.md`](STATE.md) — one page |
+| **What is still open?** | [`TASKS.md`](TASKS.md) |
+| **What was built, and what did it get wrong?** | [`docs/HISTORY.md`](docs/HISTORY.md) |
+| **What are the rules for working here?** | [`CLAUDE.md`](CLAUDE.md) |
 
-## The three rules
+Supporting records: [`docs/STUBS.md`](docs/STUBS.md) (everything currently
+fake), [`docs/ASSUMPTIONS.md`](docs/ASSUMPTIONS.md) (everything unverified, with
+recheck dates), [`docs/DECISIONS/`](docs/DECISIONS) (why each choice was made),
+[`docs/RESEARCH/`](docs/RESEARCH) (what sources actually said),
+[`docs/RUNBOOKS/`](docs/RUNBOOKS) (what to do when something breaks).
 
-1. **The repo is the memory.** If it is not in `STATE.md` or `TASKS.md`, it did
-   not happen.
-2. **The brake is built before the accelerator.** The lookahead firewall and the
-   engine self-tests come before any strategy work; the kill switches come
-   before the first live order.
-3. **The gate is code, and it is the operator's.** `gates.py` and `mandate.yaml`
-   are written once, with the operator. After that a strategy that fails the
-   gate is dead — no tuning, no resubmission, no arguing with the gate.
+---
+
+## The three rules that keep it honest
+
+1. **The repository is the memory.** If it is not in `STATE.md` or `TASKS.md`,
+   it did not happen.
+2. **The brake is built before the accelerator.** The lookahead firewall and
+   the engine self-tests came before any strategy work; the kill switches came
+   before any order path.
+3. **The gate is operator-owned.** `mandate.yaml` and `src/eulerlab/gates.py`
+   hold the promotion criteria. A strategy that fails is dead — it is not tuned
+   and resubmitted.
+
+---
+
+## Where it actually stands
+
+19 trials logged. A candidate must clear **Sharpe 1.88** from noise alone; the
+best result this project has produced is **1.27**. The gate has killed
+everything it has ever seen. **No capital has been traded.**
+
+That is not a failure state — it is the apparatus working. But nothing here
+should be read as evidence that the system has found an edge.
