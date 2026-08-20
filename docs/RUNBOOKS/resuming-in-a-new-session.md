@@ -1,3 +1,24 @@
+# Resuming in a new session
+
+**The current answer lives in `STATE.md`, under "START HERE IF YOU ARE A
+NEW SESSION".** It names the next task, the decision waiting on the
+operator, which commands are expensive, and which existing numbers are
+known to be wrong. Read that first; this file is the general procedure
+behind it and changes far less often.
+
+Two things that have caught this project out repeatedly and are worth
+knowing before you touch anything:
+
+- **A conclusion from an earlier sprint may have been overturned by a
+  later one.** It has happened three times. `STATE.md` lists what is
+  currently believed to be wrong; prefer it over any sprint review.
+- **Almost every dataset is already downloaded and cached.** Rebuilding
+  costs Backblaze transactions against a daily cap that has been hit
+  twice. Check `STATE.md`'s artefact table before running anything that
+  fetches.
+
+---
+
 # Runbook — resuming work in a fresh session
 
 **Symptom.** The previous session ran out of context, crashed, or you are
