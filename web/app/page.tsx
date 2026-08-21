@@ -2,18 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EquityChart } from '@/components/EquityChart';
+import { FleetTable } from '@/components/FleetTable';
+import { InstrumentPicker } from '@/components/InstrumentPicker';
+import { RunComposer } from '@/components/RunComposer';
 import { TweezerPanel } from '@/components/TweezerPanel';
 import { api, pct, rupees } from '@/lib/api';
-import type { Health, Job, Library, Provider, Result, StrategyInput } from '@/lib/api';
+import type { Fleet, Health, Job, Library, Provider, Result, StrategyInput } from '@/lib/api';
 
 type Tab = 'describe' | 'compose' | 'code';
 
 export default function Page() {
   const [tab, setTab] = useState<Tab>('compose');
-  // Daily and intraday are separate surfaces, not another tab in the same card.
-  // A Tweezer scan has no Sharpe and no equity curve of target weights; sitting
-  // it beside them would invite a comparison that is not meaningful.
-  const [surface, setSurface] = useState<'daily' | 'intraday'>('daily');
+  // The fleet is the primary surface (ADR-037). Authoring is demoted from being
+  // the whole application to one action within it — at a hundred strategies the
+  // list IS the application, and a form that authors one is a detail of it.
+  //
+  // Daily and intraday stay separate surfaces rather than tabs in one card: a
+  // Tweezer scan has no Sharpe and no equity curve of target weights, and
+  // sitting it beside them invites a comparison that is not meaningful.
+  const [surface, setSurface] = useState<'fleet' | 'daily' | 'intraday'>('fleet');
+  const [fleet, setFleet] = useState<Fleet | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [batch, setBatch] = useState('nifty50');
+  const [instrumentCount, setInstrumentCount] = useState(0);
   const [library, setLibrary] = useState<Library | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
@@ -46,6 +57,7 @@ export default function Page() {
       setInput((prev) => (prev.source ? prev : { ...prev, source: l.example_code }));
     }).catch(() => setProblem('Cannot reach the API. Is `make api` running on :8000?'));
     api.health().then(setHealth).catch(() => undefined);
+    api.fleet().then(setFleet).catch(() => undefined);
     api.providers().then((p) => {
       setProviders(p.providers);
       const preferred = p.providers.find((x) => x.is_default) ?? p.providers.find((x) => x.ready);
@@ -139,7 +151,15 @@ export default function Page() {
         )}
       </header>
 
-      <div className="surface-switch" role="tablist" aria-label="Which engine">
+      <div className="surface-switch" role="tablist" aria-label="Which surface">
+        <button
+          role="tab"
+          aria-selected={surface === 'fleet'}
+          onClick={() => setSurface('fleet')}
+        >
+          Fleet
+          <span>every strategy, and what the evidence says</span>
+        </button>
         <button
           role="tab"
           aria-selected={surface === 'daily'}
@@ -159,6 +179,42 @@ export default function Page() {
       </div>
 
       {problem && <div className="note bad" style={{ marginBottom: 16 }}>{problem}</div>}
+
+      {surface === 'fleet' && (
+        <div className="fleet-layout">
+          {fleet ? (
+            <FleetTable
+              fleet={fleet}
+              selected={selected}
+              onToggle={(id) =>
+                setSelected((prev) => {
+                  const next = new Set(prev);
+                  // Selection is explicit and counted. When the action spends
+                  // trials permanently, a select-all that quietly includes rows
+                  // nobody looked at is the kind of bug that costs something
+                  // irreversible.
+                  if (next.has(id)) next.delete(id);
+                  else next.add(id);
+                  return next;
+                })
+              }
+            />
+          ) : (
+            <div className="card">
+              <h2>Fleet</h2>
+              <p className="sub">Reading the registry…</p>
+            </div>
+          )}
+          <div className="fleet-side">
+            <RunComposer
+              strategies={Array.from(selected)}
+              instruments={instrumentCount}
+              batch={batch}
+            />
+            <InstrumentPicker batch={batch} onBatch={setBatch} onCount={setInstrumentCount} />
+          </div>
+        </div>
+      )}
 
       {surface === 'intraday' && <TweezerPanel />}
 

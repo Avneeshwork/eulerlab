@@ -47,7 +47,12 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 | T-3305 | **σ_SR still unmeasured** — needs 5 distinct validated hypotheses | OPEN — the project has 1. Until then the bar rests on an assumption, and at σ_SR ≤ 0.68 the best-ever 1.27 would clear it |
 | T-3306 | ADR-035: count trials by family, control FDR not FWER | OPEN — **operator decision.** `mandate.yaml` and `gates.py` untouched. At 1,000 trials the flat counter demands Sharpe 3.26 |
 | T-3307 | Effective-N estimator has no primary source | OPEN — A-020. Direction sourced (Harvey/Liu/Zhu §4); the specific method is not |
-| T-3308 | `strategies/` package + registry, one file per strategy | TODO — next |
+| T-3308 | `strategies/` package + registry | DONE — `src/eulerlab/strategies/`. Declarations only; it runs nothing. **Stage is derived from the ledger, never stored** — `forward_testing` and `live` are unreachable because no mechanism produces them, and a test asserts no strategy can reach them |
+| T-3314 | Fleet console: list, instruments, run pricing | DONE — `/api/fleet`, `/api/capabilities`, `/api/instruments`, `/api/run/price`; `FleetTable`, `InstrumentPicker`, `RunComposer`. Fleet is now the default surface; authoring demoted to one action within it |
+| T-3315 | Every Sharpe drawn against the bar, never bare | DONE — sorting by Sharpe stays possible and warns that it is the selection procedure PBO measures. Unmeasured sorts last, never as zero |
+| T-3316 | Capability matrix: declared ≠ supported | DONE — `strategies/catalog.py` reads real paths. **Caught a bug in itself**: first version checked `panel.parquet` while the panel is `price_panel.jsonl`, so it reported "not built" for 540 MB on disk. Regression-tested |
+| T-3317 | The batch runner behind the composer | OPEN — the cost screen exists first, deliberately. "Run" explains that and does nothing else |
+| T-3318 | Result cache, so `cached` is measured not entered | OPEN — the composer's cached count is a what-if control and says so |
 | T-3309 | RM/TM as seams between `target_weights()` and order planning | TODO — `Strategy` itself must not change |
 | T-3310 | `EventStrategy` for intraday/bracket shapes (Tweezer is not a `Strategy`) | TODO — T-3209 is the same gap |
 | T-3311 | Forward-test as an explicit per-strategy stage | TODO — `paper/runner.py` already is the mechanism; the stage is untracked |

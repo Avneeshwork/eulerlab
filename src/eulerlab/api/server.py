@@ -51,6 +51,8 @@ from eulerlab.intraday import scan as tweezer_scan
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
+from eulerlab.strategies import catalog
+from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
 from eulerlab.validation.ledger import sharpe_dispersion
@@ -375,6 +377,135 @@ def health() -> dict[str, Any]:
         "noise_bar_sigma_measured": dispersion.usable,
         "noise_bar_sigma": dispersion.sigma,
         "noise_bar_note": dispersion.reason,
+    }
+
+
+@app.get("/api/fleet")
+def fleet() -> dict[str, Any]:
+    """Every registered strategy, with whatever the ledger knows about it.
+
+    `sharpe` is null for a strategy that has never been evaluated, and the
+    console must render that as "not measured" rather than as zero. `bar` is
+    returned alongside so every Sharpe can be drawn against it — a bare Sharpe
+    in a list invites sorting descending and taking the top, which is exactly
+    the selection procedure PBO measures as overfitting.
+    """
+    bar = price_search(0, available_years=11.4).bar_after
+    dispersion = sharpe_dispersion()
+    return {
+        "bar": round(bar, 3),
+        "bar_sigma_measured": dispersion.usable,
+        "bar_note": dispersion.reason,
+        "strategies": [
+            {
+                "id": row.declaration.id,
+                "title": row.declaration.title,
+                "summary": row.declaration.summary,
+                "kind": row.declaration.kind,
+                "shape": row.declaration.shape,
+                "asset_class": row.declaration.asset_class.value,
+                "timeframe": row.declaration.timeframe.value,
+                "emits": row.declaration.emits.value,
+                "lookback": row.declaration.lookback,
+                "risk_manager": row.declaration.risk_manager,
+                "trade_manager": row.declaration.trade_manager,
+                "is_strategy_subclass": row.declaration.is_strategy_subclass,
+                "stage": row.stage.value,
+                "sharpe": row.sharpe,
+                "trials": row.trials,
+                "clears_bar": row.sharpe is not None and row.sharpe >= bar,
+            }
+            for row in strategy_fleet()
+        ],
+    }
+
+
+@app.get("/api/capabilities")
+def capabilities() -> dict[str, Any]:
+    """Which (asset class, timeframe) pairs have data behind them.
+
+    Reported so the console can refuse an unsupported combination rather than
+    running it and returning nothing. An empty result reads as "no trades
+    found"; the truth is "never measured" (ADR-037).
+    """
+    return {
+        "matrix": [
+            {
+                "asset_class": c.asset_class.value,
+                "timeframe": c.timeframe.value,
+                "supported": c.supported,
+                "detail": c.detail,
+            }
+            for c in catalog.capabilities()
+        ]
+    }
+
+
+@app.get("/api/instruments")
+def instruments(q: str = "", batch: str = "", limit: int = 60) -> dict[str, Any]:
+    """Search instruments, optionally inside a named batch."""
+    try:
+        found = catalog.search(q, batch=batch, limit=limit)
+    except (ValueError, FileNotFoundError) as exc:
+        return {"ok": False, "error": str(exc), "instruments": []}
+    return {
+        "ok": True,
+        "batches": sorted(catalog.UNIVERSE_FILES),
+        "batch_caveat": catalog.UNIVERSE_CAVEAT,
+        "instruments": [
+            {
+                "symbol": i.symbol,
+                "asset_class": i.asset_class.value,
+                "has_daily": i.has_daily,
+                "has_minute": i.has_minute,
+                "rank": i.rank,
+            }
+            for i in found
+        ],
+    }
+
+
+class PriceRunRequest(BaseModel):
+    """What a proposed batch would cost."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    configurations: int = Field(default=1, ge=0)
+    cached: int = Field(default=0, ge=0)
+    """How many of them have already been evaluated on this data version."""
+
+
+@app.post("/api/run/price")
+def price_run(request: PriceRunRequest) -> dict[str, Any]:
+    """What this batch does to the bar, before it is allowed to run.
+
+    The single most important response in this interface. A console makes
+    running things cheap, which is exactly what would let someone spend fifty
+    trials in an afternoon by clicking — so the cost is stated first, in the
+    unit that is actually spent, and it cannot be undone.
+
+    A cached configuration spends nothing: re-running an unchanged strategy
+    against unchanged data evaluates nothing new (ADR-036). A new one always
+    spends, however small the parameter change.
+    """
+    new = max(request.configurations - request.cached, 0)
+    before = price_search(0, available_years=11.4).bar_after
+    after = price_search(new, available_years=11.4).bar_after
+    return {
+        "logged": trial_count(),
+        "configurations": request.configurations,
+        "cached": request.cached,
+        "new_trials": new,
+        "bar_before": round(before, 3),
+        "bar_after": round(after, 3),
+        "irreversible": new > 0,
+        "note": (
+            f"{request.cached} of {request.configurations} are cached and spend nothing. "
+            f"The remaining {new} are new evaluations and are permanent — every future "
+            f"candidate must clear the higher bar. There is no un-spend."
+            if new
+            else "Every configuration in this batch is cached. This run spends no trial."
+        ),
     }
 
 

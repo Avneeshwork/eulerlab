@@ -98,6 +98,71 @@ export type StrategyInput = {
   min_turnover: number;
 };
 
+// --- the fleet ------------------------------------------------------------
+
+export type Stage = 'registered' | 'backtested' | 'forward_testing' | 'live' | 'retired';
+
+export type FleetStrategy = {
+  id: string;
+  title: string;
+  summary: string;
+  kind: string;
+  shape: string;
+  asset_class: string;
+  timeframe: string;
+  emits: string;
+  lookback: number;
+  risk_manager: string;
+  trade_manager: string;
+  is_strategy_subclass: boolean;
+  stage: Stage;
+  // null means never measured. It is NOT zero and must never render as zero.
+  sharpe: number | null;
+  trials: number;
+  clears_bar: boolean;
+};
+
+export type Fleet = {
+  bar: number;
+  bar_sigma_measured: boolean;
+  bar_note: string;
+  strategies: FleetStrategy[];
+};
+
+export type Capability = {
+  asset_class: string;
+  timeframe: string;
+  supported: boolean;
+  detail: string;
+};
+
+export type Instrument = {
+  symbol: string;
+  asset_class: string;
+  has_daily: boolean;
+  has_minute: boolean;
+  rank: number;
+};
+
+export type InstrumentList = {
+  ok: boolean;
+  error?: string;
+  batches: string[];
+  batch_caveat: string;
+  instruments: Instrument[];
+};
+
+export type RunPrice = {
+  logged: number;
+  configurations: number;
+  cached: number;
+  new_trials: number;
+  bar_before: number;
+  bar_after: number;
+  irreversible: boolean;
+  note: string;
+};
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: 'no-store' });
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -117,6 +182,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const api = {
   health: () => get<Health>('/api/health'),
   library: () => get<Library>('/api/library'),
+  fleet: () => get<Fleet>('/api/fleet'),
+  capabilities: () => get<{ matrix: Capability[] }>('/api/capabilities'),
+  instruments: (q: string, batch: string) =>
+    get<InstrumentList>(`/api/instruments?q=${encodeURIComponent(q)}&batch=${encodeURIComponent(batch)}`),
+  priceRun: (configurations: number, cached: number) =>
+    post<RunPrice>('/api/run/price', { configurations, cached }),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>
     post<{ ok: boolean; label?: string; error?: string }>('/api/validate', input),
