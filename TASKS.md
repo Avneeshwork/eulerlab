@@ -80,6 +80,24 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 
 ---
 
+## Crypto — minute bars, top 20 by volume (2026-08-21)
+
+Operator asked for 5 years of minute data for up to 20 coins. Verify: `make crypto VERIFY=1`
+
+| ID | Task | Status |
+|---|---|---|
+| T-3401 | Bulk archive, not ccxt | DONE — 5y of 1m bars for 20 coins is ~52,000 paginated REST calls; `data.binance.vision` is ~1,200 monthly ZIPs. ccxt is installed and remains right for the recent gap, not for the backfill |
+| T-3402 | Universe measured, not listed | DONE — ranked by Binance USDT quote volume, then **filtered to coins that actually have history 5 years back**, probed against the archive. Ranking by today's volume alone returned XPL/PUMP/ACE (listed last year) and RLUSD (a stablecoin) |
+| T-3403 | Stablecoins and leveraged tokens excluded | DONE — a stablecoin's USDT pair is an exchange rate between two claims on the same dollar, not a coin; `UP`/`DOWN`/`BULL`/`BEAR` are derivatives of a coin |
+| T-3404 | `knowledge_time` is the bar's close | DONE — no publication lag in crypto, but a strategy at 10:00 is still *inside* the 10:00 bar. open + 1 minute |
+| T-3405 | Completeness is exactly checkable | DONE — no holidays and no close means 1,440 bars a day exactly, so a missing minute is unambiguously missing. `verify_month` |
+| T-3406 | Header rows and microsecond timestamps | DONE — Binance ships a header on newer months only, and switched open_time from ms to microseconds in 2025. Both detected rather than assumed; a wrong unit puts the month in 1970 |
+| T-3407 | **The universe is survivorship-biased** | OPEN — these are the coins that survived to today *with volume today*; the 2021 top 20 included names now delisted. `config/universe_crypto.txt` says so in its header. Fixable once enough archive is landed to rank as-of a date (the ADR-008 approach) |
+| T-3408 | The current month is not in the archive | OPEN — the monthly dump lags, so "up to today" is really "up to last month-end". `recent_gap()` names the window; filling it is what ccxt is for |
+| T-3409 | Crypto costs are unverified | OPEN — A-006: 30% VDA tax, 1% TDS, no loss set-off, all from a secondary source. **This decides whether high-turnover crypto is viable at all**, so it is a cost input, not paperwork |
+
+---
+
 ## Integrated from TradeMaster (2026-08-20)
 
 Source: `~/Documents/TradeMaster_Avneesh` (2CentsCapital). Verify: `make montecarlo`.

@@ -85,9 +85,30 @@ def capabilities() -> list[Capability]:
         Capability(
             AssetClass.OPTIONS, Timeframe.MINUTE, False, "the chain recorder was never built"
         ),
-        Capability(AssetClass.CRYPTO, Timeframe.DAILY, False, "no data"),
+        Capability(
+            AssetClass.CRYPTO,
+            Timeframe.MINUTE,
+            Path("data/landing/crypto").exists(),
+            _crypto_detail(),
+        ),
+        Capability(
+            AssetClass.CRYPTO,
+            Timeframe.DAILY,
+            Path("data/landing/crypto").exists(),
+            "resampled from the minute archive",
+        ),
         Capability(AssetClass.FX, Timeframe.DAILY, False, "no data"),
     ]
+
+
+def _crypto_detail() -> str:
+    """Measured from disk, like every other row in this table."""
+    root = Path("data/landing/crypto")
+    if not root.exists():
+        return "no data — run `make crypto`"
+    symbols = [p for p in root.iterdir() if p.is_dir()]
+    months = sum(1 for _ in root.glob("*/*.jsonl.gz"))
+    return f"{len(symbols)} symbols, {months} symbol-months of 1m bars (Binance archive)"
 
 
 def universe(name: str) -> list[str]:

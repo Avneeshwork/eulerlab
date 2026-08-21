@@ -277,6 +277,11 @@ mf-ingest:
 morningstar:
 	@uv run python -m eulerlab.ingest.morningstar_run $(if $(PACE),--pace $(PACE),) $(if $(NOJOIN),--no-join,)
 
+# Minute-level crypto from Binance's bulk archive. NOT ccxt: five years of 1m
+# bars for 20 coins is ~52,000 paginated REST calls versus ~1,200 monthly ZIPs.
+crypto:
+	@uv run python -m eulerlab.ingest.crypto_backfill $(if $(COINS),--coins $(COINS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(VERIFY),--verify,) $(if $(UNIVERSE),--universe-only,)
+
 # Install / inspect the launchd job that actually runs `make daily`.
 schedule:
 	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)
