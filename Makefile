@@ -282,6 +282,11 @@ morningstar:
 crypto:
 	@uv run python -m eulerlab.ingest.crypto_backfill $(if $(COINS),--coins $(COINS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(VERIFY),--verify,) $(if $(UNIVERSE),--universe-only,)
 
+# Is the archive worth trusting? Internal coherence always; the Coinbase
+# cross-check needs `uv sync --extra crypto`.
+check-crypto:
+	@uv run python -m eulerlab.quality.crypto_check $(if $(NOCROSS),--no-cross,) $(if $(SYMBOLS),--symbols $(SYMBOLS),)
+
 # Install / inspect the launchd job that actually runs `make daily`.
 schedule:
 	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)

@@ -94,6 +94,9 @@ Operator asked for 5 years of minute data for up to 20 coins. Verify: `make cryp
 | T-3406 | Header rows and microsecond timestamps | DONE — Binance ships a header on newer months only, and switched open_time from ms to microseconds in 2025. Both detected rather than assumed; a wrong unit puts the month in 1970 |
 | T-3407 | **The universe is survivorship-biased** | OPEN — these are the coins that survived to today *with volume today*; the 2021 top 20 included names now delisted. `config/universe_crypto.txt` says so in its header. Fixable once enough archive is landed to rank as-of a date (the ADR-008 approach) |
 | T-3408 | The current month is not in the archive | OPEN — the monthly dump lags, so "up to today" is really "up to last month-end". `recent_gap()` names the window; filling it is what ccxt is for |
+| T-3410 | **Is Binance a good source? Verified.** | DONE — `make check-crypto`. Median close difference vs Coinbase on the same minutes: **BTC 0.048%, ETH 0.048%, XRP 0.087%** — tighter than this project's own equity vendor comparison (0.181%, T-608). Zero OHLC/ordering/positivity violations across 360 symbol-months |
+| T-3411 | Kraken silently ignores `since` | RECORDED — asked for 2024-01-01 it returns **2026** bars with no error. A cross-check that trusted it would report a ~70% "disagreement" that is a timestamp bug in the reference, read as "Binance is wrong". Every comparison now verifies timestamps before comparing prices, and such a venue is reported **unusable**, not disagreeing |
+| T-3412 | BNB has no independent reference | OPEN — Coinbase does not list BNB, so it cannot be cross-checked. Reported as unusable rather than silently skipped. Same will apply to any Binance-only listing |
 | T-3409 | Crypto costs are unverified | OPEN — A-006: 30% VDA tax, 1% TDS, no loss set-off, all from a secondary source. **This decides whether high-turnover crypto is viable at all**, so it is a cost input, not paperwork |
 
 ---

@@ -159,3 +159,140 @@ def test_a_corrupt_archive_raises_rather_than_returning_nothing(bad: str) -> Non
     failure, not an empty month — so it must raise rather than return []."""
     with pytest.raises(zipfile.BadZipFile):
         crypto.parse_month(bad.encode())
+
+
+# --- cross-source reconciliation -------------------------------------------
+
+
+class _FakeExchange:
+    """A venue that returns whatever it is told to, including wrong periods."""
+
+    def __init__(self, closes: list[float] | None = None, *, shift_ms: int = 0) -> None:
+        # A list of CLOSES, not of rows — the fake builds the OHLCV rows around
+        # them. The annotation said list[list[object]] and was simply wrong.
+        self._closes = closes or []
+        self._shift = shift_ms
+
+    def fetch_ohlcv(
+        self, symbol: str, timeframe: str, since: int | None = None, limit: int | None = None
+    ) -> list[list[object]]:
+        base = (since or 0) + self._shift
+        return [
+            [base + i * 60_000, 1.0, 1.0, 1.0, close, 1.0] for i, close in enumerate(self._closes)
+        ]
+
+
+def _land(tmp_path: Path, symbol: str, ym: str, closes: list[float]) -> None:
+    import gzip
+    import json
+    from datetime import timedelta
+
+    path = crypto.month_path(symbol, ym, directory=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    with gzip.open(path, "wt", encoding="utf-8") as handle:
+        for i, close in enumerate(closes):
+            when = start + timedelta(minutes=i)
+            handle.write(
+                json.dumps(
+                    {
+                        "symbol": symbol,
+                        "open": close,
+                        "high": close,
+                        "low": close,
+                        "close": close,
+                        "volume": 1.0,
+                        "trades": 1,
+                        "event_time": when.isoformat(),
+                        "knowledge_time": (when + timedelta(minutes=1)).isoformat(),
+                    }
+                )
+                + "\n"
+            )
+
+
+def test_two_venues_quoting_the_same_asset_agree(tmp_path: Path) -> None:
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    _land(tmp_path, "BTCUSDT", "2024-01", [100.0] * 10)
+    result = reconcile.compare(
+        "BTCUSDT",
+        "2024-01",
+        _FakeExchange([100.05] * 10),
+        samples=1,
+        per_sample=10,
+        directory=tmp_path,
+    )
+    assert result.usable
+    assert result.agrees
+    assert result.median_diff_pct < 0.5
+
+
+def test_a_venue_that_ignores_since_is_unusable_not_disagreeing(tmp_path: Path) -> None:
+    """The trap that would make this whole check worthless.
+
+    Kraken returns 2026 bars when asked for 2024, with no error. Comparing them
+    reports a ~70% 'disagreement' that is entirely a timestamp bug in the
+    REFERENCE — and the natural reading of that number is 'Binance is wrong'.
+    """
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    _land(tmp_path, "BTCUSDT", "2024-01", [100.0] * 10)
+    two_years = 2 * 365 * 24 * 60 * 60 * 1000
+    result = reconcile.compare(
+        "BTCUSDT",
+        "2024-01",
+        _FakeExchange([70000.0] * 10, shift_ms=two_years),
+        samples=1,
+        per_sample=10,
+        directory=tmp_path,
+    )
+    assert not result.usable
+    assert "ignoring `since`" in result.note
+    assert not result.agrees
+
+
+def test_a_real_price_disagreement_is_reported(tmp_path: Path) -> None:
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    _land(tmp_path, "BTCUSDT", "2024-01", [100.0] * 10)
+    result = reconcile.compare(
+        "BTCUSDT",
+        "2024-01",
+        _FakeExchange([150.0] * 10),
+        samples=1,
+        per_sample=10,
+        directory=tmp_path,
+    )
+    assert result.usable, "the timestamps line up, so this is a genuine comparison"
+    assert not result.agrees
+    assert result.median_diff_pct > 40
+
+
+def test_ohlc_violations_are_caught(tmp_path: Path) -> None:
+    import gzip
+    import json
+
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    path = crypto.month_path("BADUSDT", "2024-01", directory=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(path, "wt", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(
+                {
+                    "symbol": "BADUSDT",
+                    "open": 5.0,
+                    "high": 1.0,
+                    "low": 9.0,
+                    "close": 5.0,
+                    "volume": 1.0,
+                    "trades": 1,
+                    "event_time": "2024-01-01T00:00:00+00:00",
+                    "knowledge_time": "2024-01-01T00:01:00+00:00",
+                }
+            )
+            + "\n"
+        )
+    problems = reconcile.sanity_checks("BADUSDT", "2024-01", directory=tmp_path)
+    assert any("low>high" in p for p in problems)

@@ -21,6 +21,14 @@ web = [
     "fastapi>=0.115",
     "uvicorn>=0.30",
 ]
+# Cross-source verification only. The crypto INGEST deliberately needs none of
+# this — it reads Binance's bulk archive over plain urllib — but checking that
+# archive against an independent venue needs a client that speaks many
+# exchanges, and writing one would be worse than depending on one. Optional
+# because a machine doing an overnight backfill has no reason to install it.
+crypto = [
+    "ccxt>=4.4",
+]
 dev = [
     "boto3-stubs>=1.43.73",
     "mypy>=1.11",
@@ -79,6 +87,13 @@ files = ["src", "tools", "tests"]
 warn_unreachable = true
 disallow_any_unimported = true
 plugins = ["pydantic.mypy"]
+
+# ccxt ships no type stubs and is optional, so it is unresolvable on a machine
+# that has not installed the `crypto` extra. Ignored here rather than silenced
+# at each import, so the exemption is visible in one place.
+[[tool.mypy.overrides]]
+module = ["ccxt.*", "ccxt"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
