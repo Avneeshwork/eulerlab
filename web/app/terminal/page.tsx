@@ -3,22 +3,29 @@
 /**
  * The library — the terminal's primary surface.
  *
- * The design decision this screen exists to encode: **the default sort is
- * evidence, not Sharpe.** Ranking a strategy library by return is the selection
- * procedure that overfitting tests measure, performed by the interface, at
- * scale, before the user has thought about it. Composer's own reviewers describe
- * the result as "backtested junk optimized to look good on historical data" —
- * that is not a Composer flaw, it is what sorting by return produces.
+ * Built from the Robinhood reference (docs/RESEARCH/018), which contributes
+ * three things: structural whitespace, a big hero number, and progressive
+ * disclosure — a row shows a little and opens to show the rest.
  *
- * Sorting by Sharpe remains available, because hiding it would be worse than
- * showing it with a warning attached.
+ * It contributes two things that are deliberately inverted:
+ *
+ *   1. **Their hero number is your money.** Ours is the noise bar. A strategy's
+ *      return in that slot would be the whole design arguing that return is
+ *      what matters, above every caveat on the page.
+ *   2. **Their accent tracks profit.** Ours tracks evidence. Green here means
+ *      "cleared the bar", never "did well".
+ *
+ * And one thing kept from the Bloomberg read (017): the default sort is
+ * evidence, not Sharpe. Ranking a strategy library by return is the selection
+ * procedure the overfitting tests measure, performed by the interface, at
+ * scale, before the user has thought about it.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CommandPalette } from '@/components/CommandPalette';
-import { EvidenceBadge, SharpeVsBar, Tag } from '@/components/primitives';
+import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { api } from '@/lib/api';
-import type { Fleet, FleetStrategy } from '@/lib/api';
+import type { Fleet, FleetStrategy, RunPrice } from '@/lib/api';
 
 type Sort = 'evidence' | 'name' | 'sharpe';
 
@@ -30,7 +37,18 @@ const RUNG_ORDER: Record<string, number> = {
   retired: 4,
 };
 
-const NAV = ['Library', 'Build', 'Run', 'Instruments', 'Live', 'Data'];
+// Build / Run / Instruments / Live / Data are not built yet (T-3613). They are
+// rendered disabled rather than omitted, because a nav that silently lacks them
+// claims the product is smaller than it is; and disabled rather than
+// clickable-to-nothing, because a dead link is worse than an honest one.
+const NAV = [
+  { label: 'Library', ready: true },
+  { label: 'Build', ready: false },
+  { label: 'Run', ready: false },
+  { label: 'Instruments', ready: false },
+  { label: 'Live', ready: false },
+  { label: 'Data', ready: false },
+];
 
 export default function TerminalPage() {
   const [fleet, setFleet] = useState<Fleet | null>(null);
@@ -39,7 +57,10 @@ export default function TerminalPage() {
   const [assetClass, setAssetClass] = useState('');
   const [sort, setSort] = useState<Sort>('evidence');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<string | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [dark, setDark] = useState<boolean | null>(null);
+  const [price, setPrice] = useState<RunPrice | null>(null);
 
   useEffect(() => {
     api
@@ -48,18 +69,45 @@ export default function TerminalPage() {
       .catch(() => setProblem('Cannot reach the API. Is it running on :8000?'));
   }, []);
 
+  // Null means "follow the OS", which is the state most people are in. Only an
+  // explicit choice stamps the attribute.
+  useEffect(() => {
+    const root = document.querySelector('.terminal');
+    if (!root) return;
+    if (dark === null) root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', dark ? 'dark' : 'light');
+  }, [dark]);
+
   // ⌘K / Ctrl-K. Bloomberg's mnemonics without the keyboard: one input that
   // reaches strategies, features, papers and actions.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setPaletteOpen((open) => !open);
+        setPaletteOpen((isOpen) => !isOpen);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // What a run costs, priced before the click rather than after it. An
+  // interface that makes running feel free is how somebody spends fifty trials
+  // in an afternoon without noticing.
+  useEffect(() => {
+    if (selected.size === 0) {
+      setPrice(null);
+      return;
+    }
+    let live = true;
+    api
+      .priceRun(selected.size, 0)
+      .then((quote) => live && setPrice(quote))
+      .catch(() => live && setPrice(null));
+    return () => {
+      live = false;
+    };
+  }, [selected]);
 
   const classes = useMemo(
     () => Array.from(new Set(fleet?.strategies.map((s) => s.asset_class) ?? [])).sort(),
@@ -99,73 +147,128 @@ export default function TerminalPage() {
     setSelected((prev) => {
       const next = new Set(prev);
       // Selection is explicit and counted. A windowed list that quietly
-      // includes rows nobody rendered would, here, spend trials nobody chose.
+      // included rows nobody rendered would, here, run configurations nobody
+      // chose.
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
   }, []);
 
+  const measured = fleet?.strategies.filter((s) => s.sharpe !== null).length ?? 0;
+  const clearing = fleet?.strategies.filter((s) => s.clears_bar).length ?? 0;
+  const trials = fleet?.strategies.reduce((sum, s) => sum + s.trials, 0) ?? 0;
+
   return (
     <>
       <header className="tbar">
         <span className="tbrand">
-          euler<span>lab</span>
+          <span className="tmark" aria-hidden="true">
+            ↗
+          </span>
+          eulerlab
         </span>
         <nav className="tnav" aria-label="Sections">
           {NAV.map((item) => (
-            <button key={item} type="button" aria-current={item === 'Library' ? 'page' : undefined}>
-              {item}
+            <button
+              key={item.label}
+              type="button"
+              disabled={!item.ready}
+              aria-current={item.label === 'Library' ? 'page' : undefined}
+              title={item.ready ? undefined : 'Not built yet (T-3613).'}
+            >
+              {item.label}
             </button>
           ))}
         </nav>
         <div className="tright">
-          <span className="tws" title="Evidence, strategies and credentials are scoped to this workspace (ADR-040).">
-            workspace: default
+          <span
+            className="tws"
+            title="Evidence, strategies and credentials are scoped to this workspace (ADR-040)."
+          >
+            workspace <b>default</b>
           </span>
           <button className="tcmd" type="button" onClick={() => setPaletteOpen(true)}>
-            ⌘K&nbsp; jump to anything
+            Jump to anything <kbd>⌘K</kbd>
+          </button>
+          <button
+            className="ticon"
+            type="button"
+            onClick={() => setDark((value) => (value === null ? true : value ? false : null))}
+            title={
+              dark === null ? 'Following your system theme' : dark ? 'Dark theme' : 'Light theme'
+            }
+            aria-label="Change theme"
+          >
+            {dark === null ? '◐' : dark ? '●' : '○'}
           </button>
         </div>
       </header>
 
       <div className="tpage">
-        <div className="thead">
+        {/* The hero. Their big number is the portfolio; ours is the bar. */}
+        <section className="thero">
           <div>
-            <h1>Library</h1>
-            <p className="tsub">
-              Sorted by evidence, not by return. Ranking a strategy library by performance is
-              the selection procedure the overfitting tests measure — done by the interface,
-              at scale, before anyone has thought about it.
+            <div className="theyebrow">The number to beat</div>
+            <div className="thnum">
+              <b>{fleet ? fleet.bar.toFixed(2) : '—'}</b>
+              <span className="unit">
+                Sharpe{!fleet?.bar_sigma_measured && fleet ? ', assumed' : ''}
+              </span>
+            </div>
+            <p className="thsub">
+              {trials} trials have been recorded, so this is the Sharpe the luckiest
+              worthless strategy would be expected to show by chance alone. A backtest
+              below it is not evidence of anything.
             </p>
           </div>
-        </div>
+          <div className="thstats">
+            <div className="thstat">
+              <span>Strategies</span>
+              <b>{fleet?.strategies.length ?? '—'}</b>
+            </div>
+            <div className="thstat">
+              <span>Measured</span>
+              <b>{fleet ? measured : '—'}</b>
+            </div>
+            <div className="thstat">
+              <span>Clearing it</span>
+              <b className={clearing > 0 ? 'on' : ''}>{fleet ? clearing : '—'}</b>
+            </div>
+          </div>
+        </section>
 
-        {fleet && (
-          <div className="tbanner">
-            <span>
-              strategies <b>{fleet.strategies.length}</b>
+        {fleet && !fleet.bar_sigma_measured && (
+          <div className="tnote">
+            <span className="mk" aria-hidden="true">
+              ▲
             </span>
-            <span title={fleet.bar_note}>
-              noise bar <b>{fleet.bar.toFixed(2)}</b>
-              {!fleet.bar_sigma_measured && <em className="assumed"> assumed</em>}
-            </span>
-            <span>
-              clearing it <b>{fleet.strategies.filter((s) => s.clears_bar).length}</b>
-            </span>
-            <span>
-              trials logged <b>{fleet.strategies.reduce((sum, s) => sum + s.trials, 0)}</b>
-            </span>
-            <span style={{ marginLeft: 'auto' }}>screening here spends no trial</span>
+            <div>
+              <p>
+                <b>The bar is assumed, not measured.</b> {fleet.bar_note}
+              </p>
+              <p style={{ marginTop: 6 }}>
+                Screening on this page spends no trial, so any search done here is
+                invisible to the bar — it stands lower than the work actually done
+                justifies.
+              </p>
+            </div>
           </div>
         )}
 
-        {problem && <div className="tnote">{problem}</div>}
+        {problem && (
+          <div className="tnote bad">
+            <span className="mk" aria-hidden="true">
+              ▲
+            </span>
+            <div>{problem}</div>
+          </div>
+        )}
 
         <div className="ttools">
           <input
             className="tsearch"
-            placeholder="search name, factor, paper…"
+            placeholder="Search by name, factor or paper…"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             aria-label="Search strategies"
@@ -176,7 +279,7 @@ export default function TerminalPage() {
             aria-pressed={assetClass === ''}
             onClick={() => setAssetClass('')}
           >
-            all
+            All
           </button>
           {classes.map((name) => (
             <button
@@ -190,10 +293,10 @@ export default function TerminalPage() {
             </button>
           ))}
           <label className="tsort">
-            sort
+            Sort
             <select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
-              <option value="evidence">evidence</option>
-              <option value="name">name</option>
+              <option value="evidence">Evidence</option>
+              <option value="name">Name</option>
               <option value="sharpe">Sharpe — see note</option>
             </select>
           </label>
@@ -201,52 +304,64 @@ export default function TerminalPage() {
 
         {sort === 'sharpe' && (
           <div className="tnote">
-            <b>Sorting by Sharpe and taking the top row is the selection procedure the
-            overfitting test measures.</b> The ranking is shown because hiding it would be
-            worse — but the bar, not the order, is what decides anything.
+            <span className="mk" aria-hidden="true">
+              ▲
+            </span>
+            <div>
+              <b>Sorting by Sharpe and taking the top row is the selection procedure the
+              overfitting test measures.</b>{' '}
+              The ranking is offered because hiding it would be worse than showing it with
+              this attached — but the bar, not the order, is what decides anything.
+            </div>
           </div>
         )}
 
-        <div className="tcard">
-          <div className="tscroll">
-            <table className="tlib">
-              <thead>
-                <tr>
-                  <th style={{ width: 26 }} aria-label="select" />
-                  <th>Strategy</th>
-                  <th>Class</th>
-                  <th>TF</th>
-                  <th>Evidence</th>
-                  <th style={{ textAlign: 'right' }}>Sharpe vs bar</th>
-                  <th style={{ textAlign: 'right' }}>Runs</th>
-                  <th style={{ textAlign: 'right' }}>Trials</th>
-                  <th>RM / TM</th>
-                </tr>
-              </thead>
-              <tbody>
-                {fleet &&
-                  rows.map((strategy) => (
-                    <Row
-                      key={strategy.id}
-                      strategy={strategy}
-                      bar={fleet.bar}
-                      checked={selected.has(strategy.id)}
-                      onToggle={() => toggle(strategy.id)}
-                    />
-                  ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="tcols" aria-hidden="true">
+          <span />
+          <span>Strategy</span>
+          <span>Class · Timeframe · Evidence</span>
+          <span className="r">Sharpe vs bar</span>
+          <span className="r">Runs</span>
+          <span className="r">Trials</span>
+        </div>
+
+        <div className="tlist">
+          {fleet &&
+            rows.map((strategy) => (
+              <Row
+                key={strategy.id}
+                strategy={strategy}
+                bar={fleet.bar}
+                checked={selected.has(strategy.id)}
+                open={open === strategy.id}
+                onToggle={() => toggle(strategy.id)}
+                onOpen={() => setOpen(open === strategy.id ? null : strategy.id)}
+              />
+            ))}
           {fleet && rows.length === 0 && <div className="tempty">Nothing matches that filter.</div>}
           {!fleet && !problem && <div className="tempty">Reading the registry…</div>}
         </div>
+
+        {selected.size > 0 && (
+          <div className="tsel">
+            <b>{selected.size}</b> selected
+            <span className="price">
+              {price
+                ? `${price.new_evaluations} new backtests · spends ${price.spends_trials} trials · unrecorded search`
+                : 'pricing…'}
+            </span>
+            <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
+              Clear
+            </button>
+            <button className="tbtn" type="button" disabled title="Not built yet (T-3613).">
+              Backtest
+            </button>
+          </div>
+        )}
       </div>
 
       {paletteOpen && (
-        <CommandPalette
-          strategies={fleet?.strategies ?? []}
-          onClose={() => setPaletteOpen(false)}
-        />
+        <CommandPalette strategies={fleet?.strategies ?? []} onClose={() => setPaletteOpen(false)} />
       )}
     </>
   );
@@ -256,77 +371,146 @@ function Row({
   strategy,
   bar,
   checked,
+  open,
   onToggle,
+  onOpen,
 }: {
   strategy: FleetStrategy;
   bar: number;
   checked: boolean;
+  open: boolean;
   onToggle: () => void;
+  onOpen: () => void;
 }) {
+  const result = strategy.result;
   return (
-    <tr>
-      <td>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          aria-label={`Select ${strategy.title}`}
-        />
-      </td>
-      <td>
-        <div className="nm">{strategy.id}</div>
-        <div className="sub">
-          {strategy.kind} · {strategy.shape}
-          {!strategy.is_strategy_subclass && (
-            <span
-              className="tflag"
-              title="Cannot satisfy the Strategy interface: its data cannot be expressed in a MarketView (ADR-037)."
-            >
-              not a Strategy
-            </span>
-          )}
+    <div className="trow" data-open={open}>
+      <div
+        className="trow-top"
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={onOpen}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onOpen();
+          }
+        }}
+      >
+        <div className="c-sel" onClick={(event) => event.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={onToggle}
+            aria-label={`Select ${strategy.title}`}
+          />
         </div>
-      </td>
-      <td>
-        <Tag>{strategy.asset_class}</Tag>
-      </td>
-      <td>
-        <Tag>{strategy.timeframe}</Tag>
-      </td>
-      <td>
-        <EvidenceBadge stage={strategy.stage} />
-      </td>
-      <td>
-        <SharpeVsBar
+        <div className="tname">
+          <div className="nm">{strategy.title}</div>
+          <div className="sub">
+            {strategy.kind} · {strategy.shape}
+            {!strategy.is_strategy_subclass && (
+              <span
+                className="tflag"
+                title="Cannot satisfy the Strategy interface: its data cannot be expressed in a MarketView (ADR-037)."
+              >
+                not a Strategy
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="tmeta">
+          <Tag>{strategy.asset_class}</Tag>
+          <Tag>{strategy.timeframe}</Tag>
+          <EvidenceBadge stage={strategy.stage} />
+        </div>
+        <SharpeCell
           sharpe={strategy.sharpe}
           bar={bar}
-          note={
-            strategy.sharpe === null
-              ? strategy.trials > 0
-                ? 'searched, never measured'
-                : 'not measured'
-              : strategy.result.caveat || undefined
-          }
+          runs={result.runs}
+          isMax={Boolean(result.is_a_maximum)}
         />
-      </td>
-      <td className="num" title={strategy.result.caveat || undefined}>
-        {strategy.result.runs || <span style={{ opacity: 0.4 }}>—</span>}
-        {strategy.result.is_a_maximum && (
-          <span
-            className="tflag"
-            title={strategy.result.caveat}
-            style={{ marginLeft: 4 }}
-          >
-            max
-          </span>
-        )}
-      </td>
-      <td className="num">{strategy.trials}</td>
-      <td className="num" style={{ textAlign: 'left', fontSize: 10.5 }}>
-        {strategy.risk_manager || <span style={{ opacity: 0.5 }}>none</span>}
-        {' / '}
-        {strategy.trade_manager || <span style={{ opacity: 0.5 }}>none</span>}
-      </td>
-    </tr>
+        <div className="truns c-hide">
+          {result.runs || <span className="tdim">—</span>}
+          {result.is_a_maximum && <span className="mx">max</span>}
+        </div>
+        <div className="ttrials c-hide">
+          {strategy.trials || <span className="tdim">0</span>}
+        </div>
+      </div>
+
+      {open && (
+        <div className="tdetail">
+          <div>
+            <p className="tdesc">{strategy.summary}</p>
+            <div className="tfacts">
+              <Fact label="Total return" value={result.total_return} kind="pct" />
+              <Fact label="Max drawdown" value={result.max_drawdown} kind="pct" />
+              <Fact label="Fills" value={result.fills} kind="int" />
+              <Fact label="Window" value={result.window_days} kind="days" />
+              <Fact label="Tier" value={result.tier} kind="text" />
+              <Fact label="Lookback" value={strategy.lookback} kind="days" />
+              <Fact label="Risk manager" value={strategy.risk_manager} kind="text" />
+              <Fact label="Trade manager" value={strategy.trade_manager} kind="text" />
+            </div>
+          </div>
+          <div className="tside">
+            {result.caveat && (
+              <div className="tcaveat">
+                <h4>What this number is not</h4>
+                {result.caveat}
+              </div>
+            )}
+            {!result.caveat && strategy.sharpe === null && (
+              <div className="tcaveat">
+                <h4>No result</h4>
+                This strategy has never been backtested in this workspace. The column reads
+                &ldquo;not measured&rdquo; rather than zero, because zero would be a finding.
+              </div>
+            )}
+            <div className="tacts">
+              <button className="tbtn go" type="button" disabled title="Not built yet (T-3613).">
+                Backtest
+              </button>
+              <button className="tbtn" type="button" disabled title="Not built yet (T-3613).">
+                Trials
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Fact({
+  label,
+  value,
+  kind,
+}: {
+  label: string;
+  value: number | string | undefined;
+  kind: 'pct' | 'int' | 'days' | 'text';
+}) {
+  let text = '—';
+  let tone = '';
+  if (value !== undefined && value !== null && value !== '') {
+    if (kind === 'pct' && typeof value === 'number') {
+      text = `${value >= 0 ? '' : '−'}${Math.abs(value * 100).toFixed(1)}%`;
+      tone = value < 0 ? 'neg' : '';
+    } else if (kind === 'days') {
+      text = `${value}d`;
+    } else {
+      text = String(value);
+    }
+  } else {
+    tone = 'dim';
+  }
+  return (
+    <div className="tfact">
+      <span>{label}</span>
+      <b className={tone}>{text}</b>
+    </div>
   );
 }

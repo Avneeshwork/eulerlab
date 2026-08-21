@@ -1,166 +1,97 @@
-'use client';
-
 /**
- * The five primitives that carry nine tenths of every screen.
+ * The terminal's shared pieces, rebuilt on the Robinhood reference
+ * (docs/RESEARCH/018).
  *
- * Built before any surface so that each screen does not invent its own version
- * of a Sharpe bar or an evidence badge and drift. Published spec: "The Honest
- * Strategy Terminal", section 09 step 1.
- *
- * Two of these encode a research decision rather than a visual one, and those
- * are the ones worth reading:
- *
- * - `EvidenceBadge` renders a rung the backend DERIVED from the trial ledger.
- *   It has no `set` counterpart and no override, because a strategy that could
- *   be told it was validated would eventually be told so by a bug.
- *
- * - `SharpeVsBar` draws every Sharpe against the noise bar at a fixed scale, so
- *   the bar tick lands at the same x on every row. Sorting a library by raw
- *   Sharpe *is* the selection procedure the overfitting tests measure, so the
- *   component makes "clears the bar" the visual signal and magnitude secondary.
+ * One rule runs through all of them and is the reason this file is worth
+ * reading: **the accent is spent on evidence, never on magnitude.** Robinhood
+ * turns the portfolio green when the portfolio is up, which is the most
+ * effective thing in their interface and the exact reflex this platform exists
+ * to interrupt. Here green means the figure cleared the noise bar. A Sharpe of
+ * 2.19 pulled from forty unrecorded runs renders in plain ink.
  */
 
-import type { Stage } from '@/lib/api';
-
-// --- 1. evidence badge -----------------------------------------------------
-
-const RUNG_LABEL: Record<string, string> = {
-  registered: 'screened',
-  backtested: 'backtested',
-  forward_testing: 'forward',
-  live: 'live',
-  retired: 'retired',
+const STAGE_LABEL: Record<string, string> = {
+  registered: 'Screened',
+  backtested: 'Backtested',
+  forward_testing: 'Validated',
+  live: 'Live',
+  retired: 'Retired',
 };
 
-const RUNG_CLASS: Record<string, string> = {
-  registered: 'ev--screened',
-  backtested: 'ev--backtested',
-  forward_testing: 'ev--validated',
-  live: 'ev--live',
-  retired: 'ev--retired',
+const STAGE_TITLE: Record<string, string> = {
+  registered: 'Declared and screenable. No recorded trial, so no evidence.',
+  backtested: 'Backtested with at least one trial recorded in the ledger.',
+  forward_testing: 'Passed the gate and is being forward-tested on unseen data.',
+  live: 'Trading real capital.',
+  retired: 'Withdrawn. Kept because the trial it spent is permanent.',
 };
 
-const RUNG_TITLE: Record<string, string> = {
-  registered:
-    'It ran, and nothing more. Screening in the workbench spends no trial — which means this is real search the noise bar does not know you performed.',
-  backtested: 'Evaluated on the event-driven engine and recorded in the trial ledger.',
-  forward_testing: 'Survived the validation battery: CPCV, deflated Sharpe, PBO and stress.',
-  live: 'Real capital, real fills.',
-  retired: 'Withdrawn. Kept visible because a strategy that failed is evidence too.',
-};
-
-export function EvidenceBadge({ stage }: { stage: Stage }) {
+export function EvidenceBadge({ stage }: { stage: string }) {
   return (
-    <span className={`ev ${RUNG_CLASS[stage] ?? ''}`} title={RUNG_TITLE[stage] ?? ''}>
-      {RUNG_LABEL[stage] ?? stage}
+    <span className="tpill" data-stage={stage} title={STAGE_TITLE[stage] ?? ''}>
+      {STAGE_LABEL[stage] ?? stage}
     </span>
   );
 }
-
-// --- 2. Sharpe against the noise bar ---------------------------------------
-
-export function SharpeVsBar({
-  sharpe,
-  bar,
-  note,
-}: {
-  // null means never measured. It is NOT zero — zero is a measurement meaning
-  // "no edge", null means nobody looked — and the two must never render alike.
-  sharpe: number | null;
-  bar: number;
-  note?: string;
-}) {
-  // Fixed scale so the bar tick lands at the same x on every row in the table.
-  // A per-row scale would make each row internally sensible and the column
-  // meaningless.
-  const scale = Math.max(bar * 1.6, 0.01);
-  const barLeft = Math.min((bar / scale) * 100, 100);
-  const clears = sharpe !== null && sharpe >= bar;
-  const fill = sharpe === null ? 0 : Math.max(Math.min((sharpe / scale) * 100, 100), 0);
-
-  return (
-    <div className="sb">
-      <span
-        className={`sb-v${clears ? ' sb-v--pass' : ''}${sharpe === null ? ' sb-v--none' : ''}`}
-        title={note}
-      >
-        {sharpe === null ? (note ?? 'not measured') : sharpe.toFixed(2)}
-      </span>
-      <span className="sb-track" aria-hidden="true">
-        <span className="sb-line" />
-        {sharpe !== null && (
-          <span className={`sb-fill${clears ? ' sb-fill--pass' : ''}`} style={{ width: `${fill}%` }} />
-        )}
-        <span className="sb-bar" style={{ left: `${barLeft}%` }} />
-      </span>
-    </div>
-  );
-}
-
-// --- 3. sparkline ----------------------------------------------------------
-
-export function Sparkline({
-  values,
-  width = 64,
-  height = 20,
-}: {
-  values: number[];
-  width?: number;
-  height?: number;
-}) {
-  if (values.length < 2) {
-    return <span className="t-mono" style={{ fontSize: 10, color: 'var(--ink-3)' }}>—</span>;
-  }
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const span = max - min || 1;
-  const step = width / (values.length - 1);
-  const points = values
-    .map((v, i) => `${(i * step).toFixed(1)},${(height - ((v - min) / span) * height).toFixed(1)}`)
-    .join(' ');
-
-  // Coloured by direction, which is an outcome and therefore allowed to use the
-  // semantic palette. A flat series gets the neutral ink.
-  const last = values[values.length - 1];
-  const first = values[0];
-  const stroke =
-    last > first ? 'var(--up)' : last < first ? 'var(--down)' : 'var(--ink-3)';
-
-  return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
-      <polyline fill="none" stroke={stroke} strokeWidth="1.3" points={points} />
-    </svg>
-  );
-}
-
-// --- 4. stat grid ----------------------------------------------------------
-
-export type Stat = {
-  label: string;
-  value: string;
-  tone?: 'up' | 'down' | 'warn';
-  help?: string;
-};
-
-export function StatGrid({ stats }: { stats: Stat[] }) {
-  return (
-    <div className="stats">
-      {stats.map((s) => (
-        <div className="stat" key={s.label} title={s.help}>
-          <div className="stat-k">{s.label}</div>
-          <div className={`stat-v${s.tone ? ` stat-v--${s.tone}` : ''}`}>{s.value}</div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// --- 5. tag ----------------------------------------------------------------
 
 export function Tag({ children, title }: { children: React.ReactNode; title?: string }) {
   return (
-    <span className="tag" title={title}>
+    <span className="ttag" title={title}>
       {children}
     </span>
+  );
+}
+
+/**
+ * The headline number, the bar it is measured against, and how many runs it was
+ * the best of — one component, because they are one fact.
+ *
+ * `results.py` makes it impossible to obtain a best result without its
+ * denominator. This is that rule expressed in the layout: the count sits under
+ * the figure at every breakpoint, including the narrow one where the Runs
+ * column is hidden, so the number can never be read alone.
+ */
+export function SharpeCell({
+  sharpe,
+  bar,
+  runs,
+  isMax,
+}: {
+  sharpe: number | null;
+  bar: number;
+  runs: number;
+  isMax: boolean;
+}) {
+  if (sharpe === null) {
+    // Never zero. Null means nobody looked; zero is a measurement meaning no
+    // edge, and collapsing the two is how an untested strategy comes to look
+    // like a tested failure.
+    return (
+      <div className="tnum">
+        <span className="big none">not measured</span>
+        <div className="foot tdim">{runs > 0 ? `${runs} runs, none tradeable` : 'never run'}</div>
+      </div>
+    );
+  }
+
+  const clears = sharpe >= bar;
+  const span = Math.max(bar * 1.6, sharpe * 1.15, 0.5);
+  const fill = Math.max(0, Math.min(100, (sharpe / span) * 100));
+  const tick = Math.max(0, Math.min(100, (bar / span) * 100));
+  const delta = sharpe - bar;
+
+  return (
+    <div className="tnum">
+      <span className={`big${clears ? ' clear' : ''}`}>{sharpe.toFixed(2)}</span>
+      <div className="tmeter" aria-hidden="true">
+        <i className={clears ? 'clear' : ''} style={{ width: `${fill}%` }} />
+        <u style={{ left: `${tick}%` }} />
+      </div>
+      <div className="foot">
+        {isMax ? `best of ${runs} · ` : ''}
+        {delta >= 0 ? '+' : '−'}
+        {Math.abs(delta).toFixed(2)} {delta >= 0 ? 'over' : 'under'} bar
+      </div>
+    </div>
   );
 }
