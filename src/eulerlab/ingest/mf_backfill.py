@@ -60,7 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         ordered = ordered[: args.limit]
 
     print(f"\n== NAV history backfill ({len(ordered):,} schemes) ==")
-    fetched = skipped = failed = rows = 0
+    fetched = skipped = failed = rows = empty = 0
     started = time.time()
 
     for index, scheme in enumerate(ordered, start=1):
@@ -76,6 +76,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 fetched += 1
                 rows += written_rows
+                if written_rows == 0:
+                    # A scheme AMFI lists but mfapi.in has no history for.
+                    # Overwhelmingly a fund launched too recently for the
+                    # mirror to have caught up — AMFI is the authority and the
+                    # daily snapshot accumulates its history from now on.
+                    empty += 1
             time.sleep(args.pace)
 
         if index % 250 == 0 or index == len(ordered):
@@ -89,6 +95,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     print(f"\n{fetched:,} fetched, {skipped:,} already current, {failed:,} failed")
     print(f"{rows:,} NAV rows landed under {amfi.HISTORY_DIR}")
+    if empty:
+        print(
+            f"{empty} scheme(s) returned no history at all. Usually a fund too new for\n"
+            f"the mfapi.in mirror; AMFI already carries its NAV, so the daily snapshot\n"
+            f"accumulates history for it from today."
+        )
     print(
         "\nRe-running costs nothing: a scheme already current is skipped without a "
         "request. Nothing here is synced to B2 yet — run `make sync-cloud`."

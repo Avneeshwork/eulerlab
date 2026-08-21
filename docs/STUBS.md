@@ -45,3 +45,4 @@ Empty rows are good news. A long table is not a problem in itself — an
 These are not fake — they simply do not exist yet, and no code pretends
 otherwise: market data, any downloader, any database, the security master, both
 backtesters, any strategy, any broker connection. See `STATE.md`.
+| S-026 | 8 AMFI schemes have no NAV history at all | `data/landing/mf/history/` | Not a fetch failure — mfapi.in returns `{"data":[]}` with `scheme_code:0` for them. All 8 are recently launched (Invesco India Nifty Bank ETF, JioBlackRock Nifty Midcap 150 Index Fund and similar): AMFI already publishes their NAV, the community mirror has not caught up. This is precisely the case ADR-038 anticipated — **where AMFI and mfapi.in disagree, AMFI wins** — and the daily snapshot accumulates their history from today forward | resolves itself as the mirror catches up, or as daily snapshots accumulate |
