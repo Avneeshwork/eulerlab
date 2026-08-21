@@ -65,6 +65,11 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 | T-3323 | Mutual fund NAVs ingested | DONE — ADR-038. AMFI `NAVAll.txt` daily snapshot (14,288 schemes, 1,680 direct-growth) + full per-scheme history from mfapi.in. **Morningstar was a dead end — 6 rows.** In `make daily` as `--snapshot-only`; the history backfill is a one-off |
 | T-3324 | The old AMFI URL fails silently | RECORDED — `www.amfiindia.com` now 302s to `portal.amfiindia.com`; the redirect page parses as *zero schemes*, not an error. `Trade`'s scraper is in that state now. Our parser raises on an empty result |
 | T-3325 | mf history backfill is a one-off ~14,288 requests | OPEN — running; resumable, skips anything already current. Only the daily snapshot is in `make daily` |
+| T-3327 | Morningstar ratings ingested | DONE — ADR-039. `make morningstar`. **5,741 funds**, up from the 6 the old scraper managed: it read page 1 and stopped, and the page is ASP.NET `__doPostBack` paging that a GET loop cannot walk |
+| T-3328 | The ratings are icons, not text | DONE — values live in a CSS class (`analyst-rating-icon-bronze`) and a `title` (`Star Rating 3`). Reading cell text returns empty, which is why the old scraper's few rows were useless anyway |
+| T-3329 | **Morningstar publishes no ISIN or scheme code** | OPEN by design — the only bridge to AMFI is the fund name, which `CLAUDE.md` forbids joining on. Ratings are landed whole keyed on `morningstar_id`; the name join is separate, advisory, and prints matched/ambiguous/unmatched every run. An ambiguous name is left **unjoined**, never guessed |
+| T-3330 | Pager was clicked by a fixed control id | FIXED — `ctl02$ctl01` is the literal "2" link, so the crawl re-served page 2 and stopped at 400/5,741 while reporting a clean stop. Now found by label. Regression-tested |
+| T-3331 | Unrated funds were stored as zero stars | FIXED — Morningstar's scale is 1-5 and the page renders unrated as `Star Rating 0`; **405 funds** affected. Zero is not a point on the scale. **Third null-rendered-as-zero bug this session** — worth treating as a standing hazard |
 | T-3326 | Workbench typography | DONE — IBM Plex superfamily (serif headings, sans text, mono numbers), real type scale, surface blocks became tabs. The palette was already good; the type was the weak part |
 
 ---

@@ -271,6 +271,12 @@ daily:
 mf-ingest:
 	@uv run python -m eulerlab.ingest.mf_backfill $(if $(SNAPSHOT),--snapshot-only,) $(if $(LIMIT),--limit $(LIMIT),) $(if $(PACE),--pace $(PACE),)
 
+# Morningstar star / medalist ratings — the one thing AMFI does not publish.
+# Reports how far the name-based join to AMFI reaches, every run, because that
+# compromise should stay visible (ADR-039).
+morningstar:
+	@uv run python -m eulerlab.ingest.morningstar_run $(if $(PACE),--pace $(PACE),) $(if $(NOJOIN),--no-join,)
+
 # Install / inspect the launchd job that actually runs `make daily`.
 schedule:
 	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)
