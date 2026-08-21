@@ -45,13 +45,15 @@ from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
 from eulerlab.backtest.strategy import Strategy
 from eulerlab.backtest.vector import build_adjusted_index
+from eulerlab.batch import Item as _BatchItem
+from eulerlab.batch import runner
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.intraday import scan as tweezer_scan
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
-from eulerlab.strategies import catalog
+from eulerlab.strategies import REGISTRY, catalog
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
@@ -219,6 +221,59 @@ def _drawdown(equity: list[float]) -> float:
     return worst
 
 
+@dataclass(frozen=True)
+class _EngineRun:
+    equity: list[float]
+    days: list[date]
+    fills: int
+    rejects: int
+    costs: float
+
+
+def _engine_run(
+    strategy: Strategy,
+    rows: list[PanelRow],
+    *,
+    days_window: int,
+    tier: str,
+    starting_cash: float,
+    rebalance: int,
+) -> _EngineRun:
+    """The one place this API calls an engine.
+
+    Extracted so a single backtest and a screening batch cannot drift apart —
+    the same reasoning as T-2501, which pulled `plan_orders` out so the
+    backtest and paper paths shared one implementation. A second path to a
+    number is a second answer.
+    """
+    days = trading_days(rows)
+    warmup = min(253, max(20, len(days) // 4))
+    index = PANEL.index(days_window, rows)
+
+    if tier == "A":
+        run = vector.run(
+            rows,
+            strategy,
+            starting_cash=starting_cash,
+            rebalance_every=rebalance,
+            warmup=warmup,
+            adjusted_index=index,
+        )
+        return _EngineRun(run.equity, run.days, len(run.fills), 0, run.total_cost)
+
+    run_b = event_driven.run(
+        rows,
+        strategy,
+        starting_cash=starting_cash,
+        rebalance_every=rebalance,
+        warmup=warmup,
+        adjusted_index=index,
+    )
+    return _EngineRun(
+        run_b.equity, run_b.days, len(run_b.fills), len(run_b.rejections), run_b.total_cost
+    )
+
+
 def _run_backtest(job: Job, request: BacktestRequest) -> None:
     try:
         job.status, job.message = "running", "loading the panel"
@@ -231,33 +286,18 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
         job.message = f"{len(rows):,} rows, {len(days):,} trading days"
         warmup = min(253, max(20, len(days) // 4))
 
-        index = PANEL.index(request.days, rows)
         job.message = f"running tier {request.tier}"
 
-        rebalance = request.rebalance
-        if request.tier == "A":
-            run = vector.run(
-                rows,
-                strategy,
-                starting_cash=request.starting_cash,
-                rebalance_every=rebalance,
-                warmup=warmup,
-                adjusted_index=index,
-            )
-            equity, curve_days = run.equity, run.days
-            fills, rejects, costs = len(run.fills), 0, run.total_cost
-        else:
-            run_b = event_driven.run(
-                rows,
-                strategy,
-                starting_cash=request.starting_cash,
-                rebalance_every=rebalance,
-                warmup=warmup,
-                adjusted_index=index,
-            )
-            equity, curve_days = run_b.equity, run_b.days
-            fills, rejects = len(run_b.fills), len(run_b.rejections)
-            costs = run_b.total_cost
+        engine = _engine_run(
+            strategy,
+            rows,
+            days_window=request.days,
+            tier=request.tier,
+            starting_cash=request.starting_cash,
+            rebalance=request.rebalance,
+        )
+        equity, curve_days = engine.equity, engine.days
+        fills, rejects, costs = engine.fills, engine.rejects, engine.costs
 
         if not equity:
             raise RuntimeError(
@@ -477,36 +517,187 @@ class PriceRunRequest(BaseModel):
 
 @app.post("/api/run/price")
 def price_run(request: PriceRunRequest) -> dict[str, Any]:
-    """What this batch does to the bar, before it is allowed to run.
+    """What this batch costs, and what it does not.
 
-    The single most important response in this interface. A console makes
-    running things cheap, which is exactly what would let someone spend fifty
-    trials in an afternoon by clicking — so the cost is stated first, in the
-    unit that is actually spent, and it cannot be undone.
+    **A batch here spends no trial.** Only `make validate` and `make gate`
+    write to the ledger, and neither is reachable from this interface (T-3007).
+    Saying otherwise on a button would be a false claim in the UI of a project
+    whose whole premise is not making false claims in its UI.
 
-    A cached configuration spends nothing: re-running an unchanged strategy
-    against unchanged data evaluates nothing new (ADR-036). A new one always
-    spends, however small the parameter change.
+    What it reports instead is the thing a friendlier response would leave out:
+    screening is still searching. Evaluating twenty configurations here is
+    twenty configurations you looked at, and the bar does not move for any of
+    them. `would_move_bar_to` is the honest forecast — where the bar *would*
+    stand if this search were recorded — shown so the free path cannot quietly
+    become the way search gets laundered (ADR-036).
     """
     new = max(request.configurations - request.cached, 0)
     before = price_search(0, available_years=11.4).bar_after
-    after = price_search(new, available_years=11.4).bar_after
+    forecast = price_search(new, available_years=11.4).bar_after
     return {
         "logged": trial_count(),
         "configurations": request.configurations,
         "cached": request.cached,
-        "new_trials": new,
-        "bar_before": round(before, 3),
-        "bar_after": round(after, 3),
-        "irreversible": new > 0,
+        "new_evaluations": new,
+        "spends_trials": 0,
+        "bar_now": round(before, 3),
+        "would_move_bar_to": round(forecast, 3),
+        "unrecorded_search": new > 0,
         "note": (
-            f"{request.cached} of {request.configurations} are cached and spend nothing. "
-            f"The remaining {new} are new evaluations and are permanent — every future "
-            f"candidate must clear the higher bar. There is no un-spend."
+            f"{new} configuration(s) would be newly evaluated. This run spends no trial — "
+            f"only `make validate` and `make gate` do, and neither is reachable from here. "
+            f"But the search is real: recorded, it would move the bar from {before:.2f} to "
+            f"{forecast:.2f}. It will not move, and that is the gap."
             if new
-            else "Every configuration in this batch is cached. This run spends no trial."
+            else "Every configuration is cached. Nothing new would be evaluated."
         ),
     }
+
+
+STRATEGY_SPECS: dict[str, dict[str, Any]] = {
+    "rank_and_hold": {
+        "feature": "momentum_12_1",
+        "top_n": 30,
+        "rebalance": 21,
+        "min_turnover": 0.0,
+    },
+    "buy_and_hold": {
+        # The control. `rebalance` is the full window so it trades once and
+        # holds, which is what makes it the engine's sanity anchor. Ranked on
+        # `turnover_liquidity` because BuyAndHold holds the most liquid names.
+        "feature": "turnover_liquidity",
+        "top_n": 30,
+        "rebalance": 3000,
+        "min_turnover": 0.0,
+    },
+}
+"""How each registered strategy is built for a screening run.
+
+Only strategies that are `Strategy` subclasses appear here. Tweezer is absent
+on purpose rather than mapped to something approximate — running it through the
+daily engine would produce a number for something that never happened.
+"""
+
+
+class BatchRunRequest(BaseModel):
+    """A batch of screening runs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    strategies: list[str] = Field(default_factory=list)
+    days: int = Field(default=800, ge=60, le=3000)
+    tier: Literal["A", "B"] = "B"
+    use_cache: bool = True
+
+
+def _run_batch(job: Job, request: BatchRunRequest) -> None:
+    """Screen each selected strategy through the same engine `make backtest` uses."""
+    try:
+        job.status = "running"
+        items = [
+            _BatchItem(
+                strategy_id=name,
+                params={"days": request.days, "tier": request.tier},
+            )
+            for name in request.strategies
+        ]
+
+        def compute(item: _BatchItem) -> dict[str, Any]:
+            declaration = REGISTRY.get(item.strategy_id)
+            if declaration is None:
+                msg = f"unknown strategy {item.strategy_id!r}"
+                raise KeyError(msg)
+            if not declaration.is_strategy_subclass:
+                # Tweezer cannot go through the daily engine at all: its data
+                # cannot be expressed in a MarketView (ADR-037). Refusing is
+                # the honest answer; running it on daily bars would produce a
+                # number for something that never happened.
+                msg = (
+                    f"{item.strategy_id} is not a Strategy — intraday bracket shapes "
+                    f"cannot be expressed as target weights (ADR-037). Use the "
+                    f"intraday surface."
+                )
+                raise TypeError(msg)
+
+            rows = PANEL.rows(request.days)
+            if not rows:
+                msg = "no panel on disk. Run `make build-panel` first."
+                raise RuntimeError(msg)
+
+            # Each registered strategy builds through the same translator the
+            # single-backtest path uses, so a batch result and a one-off result
+            # for the same configuration are the same number by construction.
+            spec = STRATEGY_SPECS[item.strategy_id]
+            strategy = translate.from_spec(**spec).build()
+            engine = _engine_run(
+                strategy,
+                rows,
+                days_window=request.days,
+                tier=request.tier,
+                starting_cash=1_000_000.0,
+                rebalance=int(spec["rebalance"]),
+            )
+            if not engine.equity:
+                msg = f"the {request.days}-day window is too short to produce a run"
+                raise RuntimeError(msg)
+
+            if engine.fills == 0:
+                # A run that never traded is NOT a result of zero. Reporting
+                # Sharpe 0.00 here would read as "no edge" when the truth is
+                # "never evaluated" — the same null-versus-zero distinction the
+                # fleet list depends on, and just as wrong one layer down.
+                #
+                # The usual cause is the window being shorter than the
+                # strategy's declared lookback: the feature returns None on
+                # every symbol, nothing gets ranked, and the strategy holds
+                # nothing all the way through.
+                needed = declaration.lookback
+                msg = (
+                    f"held nothing for the whole run — 0 fills. {item.strategy_id} declares a "
+                    f"{needed}-period lookback and the window is {request.days} days, so its "
+                    f"feature had too little history to rank anything. Widen the window past "
+                    f"{needed} days."
+                    if needed >= request.days
+                    else (
+                        "held nothing for the whole run — 0 fills. Not a zero result: the "
+                        "strategy never traded, so there is nothing to measure."
+                    )
+                )
+                raise RuntimeError(msg)
+
+            returns = [b / a - 1.0 for a, b in pairwise(engine.equity) if a > 0]
+            stats = sharpe_stats(returns)
+            return {
+                "sharpe": round(stats.sharpe, 4),
+                "total_return": round(engine.equity[-1] / 1_000_000.0 - 1.0, 6),
+                "max_drawdown": round(_drawdown(engine.equity), 6),
+                "fills": engine.fills,
+                "costs": round(engine.costs, 2),
+            }
+
+        def progress(index: int, total: int, item: _BatchItem) -> None:
+            job.message = f"screened {index}/{total} — {item.strategy_id}"
+
+        result = runner.run(items, compute, use_cache=request.use_cache, on_progress=progress)
+        job.result = runner.summarise(result)
+        job.status = "done"
+    except Exception:
+        job.status = "failed"
+        job.error = traceback.format_exc(limit=3)
+    finally:
+        job.finished = time.time()
+
+
+@app.post("/api/run/batch")
+def run_batch(request: BatchRunRequest) -> dict[str, Any]:
+    """Start a screening batch. Spends no trial, and says so in the result."""
+    if not request.strategies:
+        return {"ok": False, "error": "select at least one strategy"}
+    job = Job(id=uuid.uuid4().hex[:12])
+    with JOBS_LOCK:
+        JOBS[job.id] = job
+    threading.Thread(target=_run_batch, args=(job, request), daemon=True).start()
+    return {"ok": True, "job": job.id}
 
 
 @app.get("/api/library")

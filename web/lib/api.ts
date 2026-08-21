@@ -156,11 +156,32 @@ export type RunPrice = {
   logged: number;
   configurations: number;
   cached: number;
-  new_trials: number;
-  bar_before: number;
-  bar_after: number;
-  irreversible: boolean;
+  new_evaluations: number;
+  // Always 0. A batch of backtests writes nothing to the ledger; only
+  // `make validate` and `make gate` do, and neither is reachable from here.
+  spends_trials: number;
+  bar_now: number;
+  // Where the bar WOULD stand if this search were recorded. It will not be.
+  would_move_bar_to: number;
+  unrecorded_search: boolean;
   note: string;
+};
+
+export type BatchResult = {
+  total: number;
+  cached: number;
+  computed: number;
+  failed: number;
+  // Configurations evaluated that the trial ledger will never know about.
+  unrecorded: number;
+  spent_trials: number;
+  note: string;
+  results: {
+    strategy: string;
+    cached: boolean;
+    error: string;
+    result?: { sharpe: number; total_return: number; max_drawdown: number; fills: number };
+  }[];
 };
 
 async function get<T>(path: string): Promise<T> {
@@ -188,6 +209,9 @@ export const api = {
     get<InstrumentList>(`/api/instruments?q=${encodeURIComponent(q)}&batch=${encodeURIComponent(batch)}`),
   priceRun: (configurations: number, cached: number) =>
     post<RunPrice>('/api/run/price', { configurations, cached }),
+  runBatch: (strategies: string[], days: number, tier: 'A' | 'B') =>
+    post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', { strategies, days, tier }),
+  batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>
     post<{ ok: boolean; label?: string; error?: string }>('/api/validate', input),
