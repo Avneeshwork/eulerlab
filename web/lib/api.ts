@@ -109,10 +109,14 @@ export type StrategyResult = {
   fills?: number;
   tier?: string;
   window_days?: number;
-  // How many distinct configurations the headline figure was the best of.
-  // Inseparable from the figure: a Sharpe means one thing as the only run and
-  // another as the highest of forty.
+  // How many distinct configurations have been tried. The headline is the most
+  // recent of them, not the best — a maximum over N is a biased estimate of any
+  // one of them, and the latest run is simply a measurement.
   runs: number;
+  // The best across configurations, carried beside the latest so a better run
+  // does not silently disappear now that the headline is not a maximum.
+  best_sharpe?: number | null;
+  configuration?: string;
   // Which instruments the run could choose from, and how many actually traded.
   // A result without its universe is ambiguous: the same strategy over nifty50
   // and over four thousand names are different answers.
@@ -209,6 +213,171 @@ export type UniverseList = {
   universes: Universe[];
   default: string;
   caveat: string;
+};
+
+// --- the full report ------------------------------------------------------
+
+export type Constituent = {
+  symbol: string;
+  fills: number;
+  bought_qty: number;
+  sold_qty: number;
+  bought_value: number;
+  sold_value: number;
+  costs: number;
+  open_qty: number;
+  mark: number;
+  open_value: number;
+  contribution: number;
+  traded_value: number;
+  first_day: string;
+  last_day: string;
+};
+
+export type OrderRow = {
+  day: string;
+  symbol: string;
+  side: string;
+  quantity: number;
+  price: number;
+  notional: number;
+  cost: number;
+  client_order_id: string;
+};
+
+export type Drawdown = {
+  depth: number;
+  peak_day: string | null;
+  trough_day: string | null;
+  recovered_day: string | null;
+  still_underwater: boolean;
+};
+
+export type Metrics = {
+  sharpe: number;
+  sortino: number | null;
+  total_return: number;
+  annualised: number | null;
+  volatility: number;
+  trading_days: number;
+  years: number;
+  flat_days: number;
+  // How much of the run was actually invested. A Sharpe over a mostly-flat
+  // series is not comparable to one from a fully-invested run.
+  invested_fraction: number;
+  first_move_day: string | null;
+  hit_rate: number | null;
+  hit_rate_invested: number | null;
+  best_day: number | null;
+  worst_day: number | null;
+  average_gain: number | null;
+  average_loss: number | null;
+  skew: number;
+  kurtosis: number;
+  costs: number;
+  traded_value: number;
+  cost_drag: number | null;
+  turnover_x: number | null;
+  drawdown: Drawdown;
+};
+
+export type Reconciliation = {
+  equity_change: number;
+  attributed: number;
+  residual: number;
+  // False means the per-instrument decomposition does not add up to the
+  // headline result, and the reader must know before trusting either.
+  exact: boolean;
+  unmarked_symbols: string[];
+};
+
+export type FullReport = {
+  strategy_id: string;
+  configuration: string;
+  universe: string;
+  instruments: string[];
+  tier: string;
+  window_days: number;
+  period: [string | null, string | null];
+  starting_cash: number;
+  final_equity: number;
+  metrics: Metrics;
+  warnings: string[];
+  constituents: Constituent[];
+  reconciliation: Reconciliation;
+  orders: OrderRow[];
+  rejections: { day: string; symbol: string; reason: string }[];
+  equity: { days: string[]; values: number[] };
+};
+
+export type RunChoice = {
+  configuration: string;
+  sharpe: number;
+  tier: string;
+  window_days: number;
+  universe: string;
+  symbols: number;
+  at: string;
+};
+
+export type ReportResponse = {
+  ok: boolean;
+  error?: string;
+  report?: FullReport;
+  runs?: RunChoice[];
+};
+
+export type WindowInfo = {
+  ok: boolean;
+  error?: string;
+  requested_days: number;
+  available_days: number;
+  window_days: number;
+  truncated: boolean;
+  panel_first: string | null;
+  panel_last: string | null;
+  window_first: string | null;
+  window_last: string | null;
+  // The leading stretch is never traded. Showing "1200 days" while the
+  // strategy trades 947 of them invites reading a result as covering a period
+  // it does not.
+  warmup_days: number;
+  traded_first: string | null;
+  traded_last: string | null;
+  traded_days: number;
+  universe: string;
+};
+
+export type ExplainSection = { title: string; body: string };
+
+export type Explain = {
+  procedure: ExplainSection[];
+  asset_classes: Capability[];
+  strategy: {
+    id: string;
+    title: string;
+    summary: string;
+    kind: string;
+    shape: string;
+    asset_class: string;
+    timeframe: string;
+    emits: string;
+    lookback: number;
+    is_strategy_subclass: boolean;
+    risk_manager: string;
+    trade_manager: string;
+    how_it_decides: string;
+    runs_here: number;
+    latest_sharpe: number | null;
+    best_sharpe: number | null;
+    best_window_days: number | null;
+    best_universe: string;
+    best_period_note: string;
+    bar: number;
+    clears_bar: boolean;
+  } | null;
+  starting_cash: number;
+  rebalance_days: number;
 };
 
 export type CloudStatus = {
@@ -315,13 +484,29 @@ export const api = {
   universes: () => get<UniverseList>('/api/universes'),
   priceRun: (configurations: number, cached: number) =>
     post<RunPrice>('/api/run/price', { configurations, cached }),
-  runBatch: (strategies: string[], days: number, tier: 'A' | 'B', universe: string) =>
+  runBatch: (
+    strategies: string[],
+    days: number,
+    tier: 'A' | 'B',
+    universe: string,
+    instruments: string[] = []
+  ) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', {
       strategies,
       days,
       tier,
       universe,
+      instruments,
     }),
+  report: (strategy: string, workspace = '', configuration = '') =>
+    get<ReportResponse>(
+      `/api/report?strategy=${encodeURIComponent(strategy)}` +
+        `&workspace=${encodeURIComponent(workspace)}` +
+        `&configuration=${encodeURIComponent(configuration)}`
+    ),
+  window: (days: number, universe = 'all') =>
+    get<WindowInfo>(`/api/window?days=${days}&universe=${encodeURIComponent(universe)}`),
+  explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
   batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>

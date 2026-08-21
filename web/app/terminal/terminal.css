@@ -983,3 +983,151 @@
   color: var(--fail);
 }
 .verdict[data-ok='true'] { color: var(--clear); }
+
+/* ============================ wide dialogs ============================ */
+
+.dlg.wide { width: min(940px, 95vw); }
+.dlg.tall { max-height: 88vh; }
+
+.ticon.sm { width: 26px; height: 26px; font-size: 11px; font-style: italic; font-weight: 600; }
+
+/* ============================ explain ============================ */
+
+.explain-block { margin-bottom: var(--s6); }
+.explain-block:last-child { margin-bottom: 0; }
+.explain-block h3 {
+  margin: 0 0 var(--s4);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.explain-step { margin-bottom: var(--s4); }
+.explain-step b { font-size: var(--t-body); font-weight: 600; }
+.explain-step p {
+  margin: var(--s1) 0 0;
+  font-family: var(--serif);
+  font-size: var(--t-lead);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+/* ============================ report ============================
+   The reconciliation sits above everything and is styled to be read: an
+   attribution that does not add up must not look like one that does. */
+
+.recon {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-md);
+  background: var(--clear-wash);
+  border: 1px solid color-mix(in srgb, var(--clear) 30%, transparent);
+  margin-bottom: var(--s5);
+}
+.recon[data-exact='false'] {
+  background: var(--fail-wash);
+  border-color: color-mix(in srgb, var(--fail) 32%, transparent);
+}
+.recon > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recon span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.recon b { font-size: var(--t-lead); font-weight: 600; font-variant-numeric: tabular-nums; }
+.recon p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.report-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--s5);
+}
+.report-hero .thnum b { font-size: var(--t-title); }
+
+.report-h {
+  margin: var(--s6) 0 var(--s3);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.report-h:first-of-type { margin-top: 0; }
+
+/* ============================ chosen instruments ============================ */
+
+.chosen-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding: var(--s3) var(--s5) 0;
+  max-height: 116px;
+  overflow-y: auto;
+}
+.chosen-chip {
+  font: inherit;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  padding: 4px var(--s2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--ground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chosen-chip span { opacity: 0.6; margin-left: 2px; }
+.chosen-chip:hover span { opacity: 1; }
+
+@media (max-width: 720px) {
+  .recon { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ============================ period preview ============================
+   A day count is not a period a person can reason about, and the window is not
+   the same as the part actually traded. */
+
+.period {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+}
+.period > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.period span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.period b { font-size: var(--t-body); font-weight: 600; font-variant-numeric: tabular-nums; }
+.period i { font-style: normal; font-size: var(--t-small); color: var(--ink-3); }
+.period p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--caveat);
+}

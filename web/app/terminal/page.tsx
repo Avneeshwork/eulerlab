@@ -21,7 +21,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { BuildTab } from '@/components/terminal/BuildTab';
 import { DataTab } from '@/components/terminal/DataTab';
+import { BacktestDialog } from '@/components/terminal/BacktestDialog';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
+import { ExplainDialog } from '@/components/terminal/ExplainDialog';
+import { InstrumentChooser } from '@/components/terminal/InstrumentChooser';
+import { ReportDialog } from '@/components/terminal/ReportDialog';
 import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
 import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
@@ -46,6 +50,18 @@ export default function TerminalPage() {
   // silently running different universes would produce two numbers that look
   // comparable and are not.
   const [universe, setUniverse] = useState('all');
+  // A hand-picked list overrides the universe when non-empty. Held beside it so
+  // the library row's Backtest and the Run tab cannot disagree about what a run
+  // was pointed at.
+  const [instruments, setInstruments] = useState<string[]>([]);
+  const [choosing, setChoosing] = useState(false);
+  const [explaining, setExplaining] = useState<string | null>(null);
+  const [reporting, setReporting] = useState<FleetStrategy | null>(null);
+  // Backtest opens a dialog rather than firing on whatever the toolbar was set
+  // to. The instruments and the period are the two facts that most change a
+  // result, and they were the two the operator could not see when deciding.
+  const [configuring, setConfiguring] = useState<FleetStrategy | null>(null);
+  const [pendingRun, setPendingRun] = useState<string[]>([]);
 
   const workspace = '';
 
@@ -113,6 +129,15 @@ export default function TerminalPage() {
           >
             workspace <b>default</b>
           </span>
+          <button
+            className="ticon"
+            type="button"
+            onClick={() => setExplaining('')}
+            title="What a backtest here actually does, and which asset classes have data."
+            aria-label="What this means"
+          >
+            i
+          </button>
           <button className="tcmd" type="button" onClick={() => setPaletteOpen(true)}>
             Jump to anything <kbd>⌘K</kbd>
           </button>
@@ -189,8 +214,15 @@ export default function TerminalPage() {
               tier={tier}
               universe={universe}
               onUniverse={setUniverse}
+              instruments={instruments}
+              onChoose={() => setChoosing(true)}
               onRefresh={refresh}
               onDeploy={setDeploying}
+              onExplain={setExplaining}
+              onReport={setReporting}
+              onConfigure={setConfiguring}
+              pendingRun={pendingRun}
+              onRan={() => setPendingRun([])}
             />
           </>
         )}
@@ -203,9 +235,11 @@ export default function TerminalPage() {
             window={days}
             tier={tier}
             universe={universe}
+            instruments={instruments}
             onWindow={setDays}
             onTier={setTier}
             onUniverse={setUniverse}
+            onChoose={() => setChoosing(true)}
             onRefresh={refresh}
           />
         )}
@@ -231,6 +265,41 @@ export default function TerminalPage() {
           strategy={deploying}
           workspace={workspace}
           onClose={() => setDeploying(null)}
+        />
+      )}
+      {explaining !== null && (
+        <ExplainDialog strategy={explaining} onClose={() => setExplaining(null)} />
+      )}
+      {reporting && (
+        <ReportDialog
+          strategy={reporting}
+          workspace={workspace}
+          onClose={() => setReporting(null)}
+        />
+      )}
+      {configuring && (
+        <BacktestDialog
+          strategy={configuring}
+          window={days}
+          tier={tier}
+          universe={universe}
+          instruments={instruments}
+          onWindow={setDays}
+          onTier={setTier}
+          onUniverse={setUniverse}
+          onInstruments={setInstruments}
+          onRun={() => {
+            setPendingRun([configuring.id]);
+            setConfiguring(null);
+          }}
+          onClose={() => setConfiguring(null)}
+        />
+      )}
+      {choosing && (
+        <InstrumentChooser
+          chosen={instruments}
+          onChange={setInstruments}
+          onClose={() => setChoosing(false)}
         />
       )}
     </>

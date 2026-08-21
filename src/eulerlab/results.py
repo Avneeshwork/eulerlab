@@ -280,10 +280,17 @@ def best(workspace: Workspace, strategy_id: str) -> Best | None:
 def latest(workspace: Workspace, strategy_id: str) -> Run | None:
     """The most recent run, whatever it scored.
 
-    Offered alongside `best` because "the last thing I ran" is a different and
-    often more honest question than "the best thing I ever ran".
+    This is what the library reports, not `best`. "The last thing I ran" is a
+    single measurement; "the best thing I ever ran" is a maximum over N draws,
+    and a maximum is a biased estimator of any one of them. Showing the latest
+    removes that bias rather than pricing it — the honest direction, and the
+    less flattering one.
+
+    Zero-fill runs are excluded on the same grounds as in `best`: a run that
+    never traded is not a result, and being the most recent does not make it
+    one.
     """
-    runs = distinct(workspace, strategy_id)
+    runs = [run for run in distinct(workspace, strategy_id) if run.fills > 0]
     if not runs:
         return None
     return max(runs, key=lambda r: r.at)
@@ -292,39 +299,59 @@ def latest(workspace: Workspace, strategy_id: str) -> Run | None:
 def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
     """What the library shows for one strategy.
 
-    `caveat` is populated whenever the headline figure is a maximum, and it is
-    part of the payload rather than the page — a result without its caveat is
-    the worst artefact this project can produce.
+    The headline is the **most recent** run, not the best. A maximum over
+    several configurations is a biased estimate of any one of them; the latest
+    run is just a measurement. Reporting it is the less flattering choice and
+    the only one that does not need a correction applied before it means
+    anything.
+
+    `runs` still travels with it, because how much searching happened is
+    context the number needs either way — and when the best beats the latest,
+    the caveat says so rather than letting the better figure disappear.
     """
-    top = best(workspace, strategy_id)
-    if top is None:
+    recent = latest(workspace, strategy_id)
+    if recent is None:
         return {"sharpe": None, "runs": 0, "caveat": ""}
 
+    top = best(workspace, strategy_id)
+    runs = top.runs if top else 1
+    unrecorded = top.unrecorded if top else 0
+
     caveat = ""
-    if top.is_a_maximum:
+    if top is not None and runs > 1:
         caveat = (
-            f"Best of {top.runs} configurations. A maximum over several attempts is a "
-            f"biased estimate of any one of them — it is the score of the luckiest draw, "
-            f"not of the strategy."
+            f"The most recent of {runs} configurations, not the best of them. "
+            f"The best scored {top.run.sharpe:.2f}"
+            + (
+                " — shown here is the latest, because a maximum over several attempts "
+                "is the score of the luckiest draw rather than of the strategy."
+                if top.run.sharpe > recent.sharpe
+                else ", which is this run."
+            )
         )
-    if top.unrecorded:
+    if unrecorded:
         caveat += (
-            f" {top.unrecorded} of those runs are not in the trial ledger, so the noise "
+            f" {unrecorded} of those runs are not in the trial ledger, so the noise "
             f"bar does not know that search happened."
         )
     return {
-        "sharpe": round(top.run.sharpe, 4),
-        "total_return": round(top.run.total_return, 6),
-        "max_drawdown": round(top.run.max_drawdown, 6),
-        "fills": top.run.fills,
-        "tier": top.run.tier,
-        "window_days": top.run.window_days,
-        "universe": top.run.universe,
-        "symbols": top.run.symbols,
-        "curve": top.run.curve,
-        "runs": top.runs,
-        "unrecorded": top.unrecorded,
-        "is_a_maximum": top.is_a_maximum,
-        "at": top.run.at,
+        "sharpe": round(recent.sharpe, 4),
+        "total_return": round(recent.total_return, 6),
+        "max_drawdown": round(recent.max_drawdown, 6),
+        "fills": recent.fills,
+        "tier": recent.tier,
+        "window_days": recent.window_days,
+        "universe": recent.universe,
+        "symbols": recent.symbols,
+        "curve": recent.curve,
+        "runs": runs,
+        "unrecorded": unrecorded,
+        "best_sharpe": round(top.run.sharpe, 4) if top else None,
+        # False by construction now: the headline is a measurement, not a
+        # maximum. Kept so a caller that was reading it does not silently start
+        # treating a latest-run figure as a selected one.
+        "is_a_maximum": False,
+        "at": recent.at,
+        "configuration": recent.configuration,
         "caveat": caveat.strip(),
     }

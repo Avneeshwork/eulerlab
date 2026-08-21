@@ -91,6 +91,9 @@ class BacktestResult:
     fills: list[Fill] = field(default_factory=list)
     starting_cash: float = 1_000_000.0
     cost_mode: str = "realistic"
+    final_marks: dict[str, float] = field(default_factory=dict)
+    """The prices open positions were valued at on the last day. See the same
+    field on TierBResult for why this is returned rather than reconstructed."""
 
     @property
     def total_cost(self) -> float:
@@ -394,5 +397,10 @@ def run(
 
         result.days.append(fill_day)
         result.equity.append(portfolio_value(fill_day))
+        result.final_marks = {
+            symbol: price
+            for symbol in holdings
+            if (price := mark_price(symbol, fill_day)) is not None
+        }
 
     return result

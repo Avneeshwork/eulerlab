@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from eulerlab.api.server import _Panel, _universe_rows
 from eulerlab.features.panel import PanelRow
 
@@ -44,6 +46,29 @@ def test_the_same_window_and_universe_is_still_cached() -> None:
 
 def test_all_means_every_symbol_in_the_panel() -> None:
     rows = [_row("AAA", date(2026, 1, 2), 1.0), _row("BBB", date(2026, 1, 2), 2.0)]
-    kept, size = _universe_rows(rows, "all")
+    kept, size, resolved = _universe_rows(rows, "all")
     assert kept == rows
     assert size == 2
+    assert resolved == [], "a named universe resolves by name; only a custom list is enumerated"
+
+
+def test_a_hand_picked_list_overrides_the_universe() -> None:
+    """Batches are a convenience, not the only way in. "Does this work on these
+    two names" was previously unaskable."""
+    rows = [
+        _row("AAA", date(2026, 1, 2), 1.0),
+        _row("BBB", date(2026, 1, 2), 2.0),
+        _row("CCC", date(2026, 1, 2), 3.0),
+    ]
+    kept, size, resolved = _universe_rows(rows, "all", ["aaa", "CCC"])
+    assert {row.symbol for row in kept} == {"AAA", "CCC"}, "case is normalised"
+    assert size == 2
+    assert resolved == ["AAA", "CCC"]
+
+
+def test_choosing_instruments_the_panel_does_not_have_refuses() -> None:
+    """Rather than running on the empty intersection and reporting no trades,
+    which reads as "no edge" when the truth is "nothing was there"."""
+    rows = [_row("AAA", date(2026, 1, 2), 1.0)]
+    with pytest.raises(RuntimeError, match="none of the"):
+        _universe_rows(rows, "all", ["ZZZ"])

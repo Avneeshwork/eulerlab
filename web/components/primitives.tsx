@@ -43,24 +43,24 @@ export function Tag({ children, title }: { children: React.ReactNode; title?: st
 }
 
 /**
- * The headline number, the bar it is measured against, and how many runs it was
- * the best of — one component, because they are one fact.
+ * The headline number, the bar it is measured against, and how many
+ * configurations have been tried — one component, because they are one fact.
  *
- * `results.py` makes it impossible to obtain a best result without its
- * denominator. This is that rule expressed in the layout: the count sits under
- * the figure at every breakpoint, including the narrow one where the Runs
- * column is hidden, so the number can never be read alone.
+ * The figure is the **most recent** run, not the best. A maximum over N
+ * configurations is a biased estimate of any one of them; the latest run is a
+ * measurement. The count still travels with it because how much searching
+ * happened is context the number needs either way, and it sits under the figure
+ * at every breakpoint, including the narrow one where the Runs column is
+ * hidden.
  */
 export function SharpeCell({
   sharpe,
   bar,
   runs,
-  isMax,
 }: {
   sharpe: number | null;
   bar: number;
   runs: number;
-  isMax: boolean;
 }) {
   if (sharpe === null) {
     // Never zero. Null means nobody looked; zero is a measurement meaning no
@@ -88,7 +88,7 @@ export function SharpeCell({
         <u style={{ left: `${tick}%` }} />
       </div>
       <div className="foot">
-        {isMax ? `best of ${runs} · ` : ''}
+        {runs > 1 ? `latest of ${runs} · ` : ''}
         {delta >= 0 ? '+' : '−'}
         {Math.abs(delta).toFixed(2)} {delta >= 0 ? 'over' : 'under'} bar
       </div>

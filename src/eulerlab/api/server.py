@@ -27,11 +27,13 @@ re-reading it per request would make every backtest feel broken.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import threading
 import time
 import traceback
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from itertools import pairwise
@@ -42,7 +44,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import cloud_results
+from eulerlab import cloud_results, reports
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.authoring import translate
@@ -252,6 +254,26 @@ class _EngineRun:
     symbols: int = 0
     """Distinct instruments that actually traded, counted from the fills."""
 
+    fill_rows: Sequence[reports.FillLike] = ()
+    """The fills themselves, for the report's order ledger and attribution.
+
+    A Sequence rather than a list because Tier A and Tier B have separate fill
+    types with no common ancestor; `list` is invariant, so only a covariant
+    container accepts either against the protocol.
+    """
+
+    rejection_rows: tuple[tuple[str, str, str], ...] = ()
+
+    marks: dict[str, float] = field(default_factory=dict)
+    """The prices the engine valued open positions at on the last day.
+
+    Taken from the engine rather than rebuilt. Reconstructing them went wrong
+    twice — raw `PanelRow.close` instead of the adjusted price, then an index
+    whose symbol set did not match the engine's — and each time the report's
+    attribution missed the result it was decomposing. Asking the engine what it
+    used removes the class of error rather than the instance.
+    """
+
 
 def _engine_run(
     strategy: Strategy,
@@ -271,7 +293,7 @@ def _engine_run(
     number is a second answer.
     """
     days = trading_days(rows)
-    warmup = min(253, max(20, len(days) // 4))
+    warmup = warmup_for(len(days))
     index = PANEL.index(days_window, rows, universe)
 
     if tier == "A":
@@ -290,6 +312,8 @@ def _engine_run(
             0,
             run.total_cost,
             len({fill.symbol for fill in run.fills}),
+            run.fills,
+            marks=dict(run.final_marks),
         )
 
     run_b = event_driven.run(
@@ -307,6 +331,11 @@ def _engine_run(
         len(run_b.rejections),
         run_b.total_cost,
         len({fill.symbol for fill in run_b.fills}),
+        run_b.fills,
+        tuple(
+            (reject.day.isoformat(), reject.symbol, reject.reason) for reject in run_b.rejections
+        ),
+        marks=dict(run_b.final_marks),
     )
 
 
@@ -320,7 +349,7 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
 
         days = trading_days(rows)
         job.message = f"{len(rows):,} rows, {len(days):,} trading days"
-        warmup = min(253, max(20, len(days) // 4))
+        warmup = warmup_for(len(days))
 
         job.message = f"running tier {request.tier}"
 
@@ -456,18 +485,20 @@ def health() -> dict[str, Any]:
     }
 
 
-def _best_sharpe(tenant: workspace_mod.Workspace, row: Any) -> float | None:
-    """A strategy's best backtest Sharpe, or None if it has never run.
+def _latest_sharpe(tenant: workspace_mod.Workspace, row: Any) -> float | None:
+    """A strategy's most recent backtest Sharpe, or None if it has never run.
 
-    None, never zero. Zero is a measurement meaning no edge; None means nobody
-    looked, and the library renders them differently on purpose.
+    The latest rather than the best: a maximum over configurations is a biased
+    estimate of any one of them, and the most recent run is simply a
+    measurement. None, never zero — zero is a measurement meaning no edge,
+    None means nobody looked, and the library renders them differently.
     """
-    top = result_store.best(tenant, row.declaration.id)
-    return round(top.run.sharpe, 4) if top else None
+    recent = result_store.latest(tenant, row.declaration.id)
+    return round(recent.sharpe, 4) if recent else None
 
 
 def _clears(tenant: workspace_mod.Workspace, row: Any, bar: float) -> bool:
-    value = row.sharpe if row.sharpe is not None else _best_sharpe(tenant, row)
+    value = row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row)
     return value is not None and value >= bar
 
 
@@ -507,7 +538,7 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 # a screened one: it is the stronger claim and was paid for.
                 # `result` carries the backtest figure and, inseparably, how
                 # many runs it was the best of.
-                "sharpe": row.sharpe if row.sharpe is not None else _best_sharpe(tenant, row),
+                "sharpe": row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row),
                 "result": result_store.summary(tenant, row.declaration.id),
                 "trials": row.trials,
                 "clears_bar": _clears(tenant, row, bar),
@@ -572,10 +603,38 @@ results look as though nobody knew what they ran on.
 """
 
 
-def _universe_rows(rows: list[PanelRow], universe: str) -> tuple[list[PanelRow], int]:
-    """Restrict the panel to one universe. Returns the rows and its size."""
+CUSTOM_UNIVERSE = "custom"
+"""A hand-picked instrument list rather than a named batch.
+
+Recorded under its own name so a custom run is never confused with a named one.
+The instruments themselves go into the configuration hash, so two different
+hand-picked lists are two different results rather than both being "custom".
+"""
+
+
+def _universe_rows(
+    rows: list[PanelRow], universe: str, instruments: Sequence[str] = ()
+) -> tuple[list[PanelRow], int, list[str]]:
+    """Restrict the panel to a universe or an explicit instrument list.
+
+    Returns the rows, the size of what was asked for, and the resolved symbol
+    list. The third value matters for a custom run: it is what the report shows
+    when the universe name alone says nothing.
+    """
+    if instruments:
+        wanted = sorted({symbol.strip().upper() for symbol in instruments if symbol.strip()})
+        kept = [row for row in rows if row.symbol in set(wanted)]
+        if not kept:
+            missing = ", ".join(wanted[:5])
+            msg = (
+                f"none of the {len(wanted)} chosen instruments are in the panel "
+                f"(checked {missing}...). Nothing to run."
+            )
+            raise RuntimeError(msg)
+        found = sorted({row.symbol for row in kept})
+        return kept, len(wanted), found
     if universe == ALL_INSTRUMENTS:
-        return rows, len({row.symbol for row in rows})
+        return rows, len({row.symbol for row in rows}), []
     symbols = set(catalog.universe(universe))
     kept = [row for row in rows if row.symbol in symbols]
     if not kept:
@@ -584,7 +643,7 @@ def _universe_rows(rows: list[PanelRow], universe: str) -> tuple[list[PanelRow],
             f"The universe and the panel do not overlap, so there is nothing to run."
         )
         raise RuntimeError(msg)
-    return kept, len(symbols)
+    return kept, len(symbols), []
 
 
 @app.get("/api/universes")
@@ -707,10 +766,90 @@ class BatchRunRequest(BaseModel):
     and of the stored result's configuration, because the same strategy over
     nifty50 and over the whole panel are two different answers."""
 
+    instruments: list[str] = Field(default_factory=list)
+    """A hand-picked list, which overrides `universe` when non-empty.
+
+    Batches are a convenience, not the only way in: a question like "does this
+    work on these eleven banks" is a legitimate backtest and was previously
+    unaskable.
+    """
+
     use_cache: bool = True
     workspace: str = ""
     """Which tenant's results this run belongs to. Empty means the default
     single-operator workspace (ADR-040)."""
+
+
+def _how_it_decides(declaration: Any) -> str:
+    """A plain description of the rule, built from the strategy's own numbers.
+
+    Constructed from the built strategy — `top_n`, `min_names`, the feature —
+    rather than from prose kept beside it, because prose beside a number drifts
+    from it and then explains a strategy the code does not implement.
+    """
+    try:
+        built = _build_registered(declaration.id)
+    except (KeyError, TypeError, ValueError):
+        built = None
+
+    top_n = getattr(built, "top_n", None)
+    floor = getattr(built, "min_names", None)
+    lookback = declaration.lookback
+
+    if declaration.shape == "cross-section" and isinstance(top_n, int):
+        parts = [
+            f"Every {BATCH_REBALANCE_DAYS} trading days it scores each instrument in the "
+            f"universe, ranks them, and holds the top {top_n} in equal weight, selling "
+            f"whatever has dropped out of that list."
+        ]
+        if isinstance(floor, int) and floor > 0:
+            parts.append(
+                f"It will not trade at all unless at least {floor} instruments can be "
+                f"scored on that day — so a universe near or below {floor} names leaves it "
+                f"holding cash, and a single instrument short of history blocks every trade."
+            )
+        parts.append(
+            f"Scoring needs {lookback} trading days of history per instrument, so the "
+            f"first {lookback} days of any window produce no position."
+        )
+        return " ".join(parts)
+
+    return (
+        f"It emits {declaration.emits.value} directly rather than ranking a cross-section, "
+        f"and needs {lookback} trading days of history before it can decide anything."
+    )
+
+
+def index_key(universe: str, resolved: Sequence[str]) -> str:
+    """What the adjusted-price index is cached under.
+
+    For a named universe this is the name. For a hand-picked list it must be
+    the *contents*, not the word "custom" — otherwise every custom run at the
+    same window shares one cache entry, and the second run is handed an index
+    built from the first run's symbols. That is precisely the failure
+    `_Panel.index` was keyed by universe to prevent, and the shared "custom"
+    label silently reintroduced it: a four-name run poisoned the next
+    sixty-name run with `KeyError: 'ULTRACEMCO'`.
+    """
+    if not resolved:
+        return universe
+    digest = hashlib.sha256("\u0000".join(sorted(resolved)).encode()).hexdigest()[:16]
+    return f"{CUSTOM_UNIVERSE}:{digest}"
+
+
+def warmup_for(day_count: int) -> int:
+    """Leading days discarded so features have history to compute from.
+
+    One definition, used by the engine and by the window preview. Two copies of
+    this arithmetic would let the interface promise a period the run does not
+    actually cover.
+    """
+    return min(253, max(20, day_count // 4))
+
+
+def _universe_label(request: BatchRunRequest) -> str:
+    """What to record as the universe. `custom` when instruments were picked."""
+    return CUSTOM_UNIVERSE if request.instruments else request.universe
 
 
 def _as_float(payload: dict[str, object], key: str) -> float:
@@ -749,11 +888,26 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # key. Without it a nifty50 run and a whole-panel run of the
                 # same strategy share a key, and the second is served the
                 # first's numbers.
-                params={
-                    "days": request.days,
-                    "tier": request.tier,
-                    "universe": request.universe,
-                },
+                # `instruments` is present only when something was hand-picked.
+                # Adding an always-present key would change the configuration
+                # hash of every existing run, so re-running an unchanged
+                # whole-panel backtest would count as a new configuration and
+                # inflate the denominator that prices selection bias — for no
+                # reason but a new dict key.
+                params=(
+                    {
+                        "days": request.days,
+                        "tier": request.tier,
+                        "universe": _universe_label(request),
+                        "instruments": sorted(request.instruments),
+                    }
+                    if request.instruments
+                    else {
+                        "days": request.days,
+                        "tier": request.tier,
+                        "universe": request.universe,
+                    }
+                ),
             )
             for name in request.strategies
         ]
@@ -779,7 +933,9 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             if not rows:
                 msg = "no panel on disk. Run `make build-panel` first."
                 raise RuntimeError(msg)
-            rows, universe_size = _universe_rows(rows, request.universe)
+            rows, universe_size, resolved = _universe_rows(
+                rows, request.universe, request.instruments
+            )
 
             strategy = _build_registered(item.strategy_id)
             engine = _engine_run(
@@ -789,7 +945,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 tier=request.tier,
                 starting_cash=1_000_000.0,
                 rebalance=21,
-                universe=request.universe,
+                universe=index_key(request.universe, resolved),
             )
             if not engine.equity:
                 msg = f"the {request.days}-day window is too short to produce a run"
@@ -806,17 +962,33 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # every symbol, nothing gets ranked, and the strategy holds
                 # nothing all the way through.
                 needed = declaration.lookback
-                msg = (
-                    f"held nothing for the whole run — 0 fills. {item.strategy_id} declares a "
-                    f"{needed}-period lookback and the window is {request.days} days, so its "
-                    f"feature had too little history to rank anything. Widen the window past "
-                    f"{needed} days."
-                    if needed >= request.days
-                    else (
+                # Name the cause rather than guessing at it. There are two, and
+                # they are not the same fix: a window shorter than the lookback,
+                # or a universe smaller than the strategy's min_names — one
+                # instrument short of history then blocks every trade. The
+                # second was invisible until custom instrument lists made it
+                # easy to hit, and it is what makes momentum_12_1 on nifty50
+                # hold cash for three years while still reporting a Sharpe.
+                floor = getattr(strategy, "min_names", 0)
+                if isinstance(floor, int) and 0 < universe_size <= floor:
+                    msg = (
+                        f"held nothing for the whole run — 0 fills. {item.strategy_id} needs at "
+                        f"least {floor} instruments it can score before it will trade, and this "
+                        f"universe has {universe_size}. A single instrument short of history "
+                        f"then blocks every trade. Widen the universe past {floor} names."
+                    )
+                elif needed >= request.days:
+                    msg = (
+                        f"held nothing for the whole run — 0 fills. {item.strategy_id} declares a "
+                        f"{needed}-period lookback and the window is {request.days} days, so its "
+                        f"feature had too little history to rank anything. Widen the window past "
+                        f"{needed} days."
+                    )
+                else:
+                    msg = (
                         "held nothing for the whole run — 0 fills. Not a zero result: the "
                         "strategy never traded, so there is nothing to measure."
                     )
-                )
                 raise RuntimeError(msg)
 
             returns = [b / a - 1.0 for a, b in pairwise(engine.equity) if a > 0]
@@ -830,10 +1002,43 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # What the run could choose from, and what it actually touched.
                 # The second is the answer to "which instruments was this run
                 # on", which the universe name alone does not give.
-                "universe": request.universe,
+                "universe": _universe_label(request),
                 "universe_size": universe_size,
                 "symbols": engine.symbols,
             }
+
+            # The full analysis, written beside the row that summarises it and
+            # keyed by the same configuration hash so the two cannot drift.
+            saved = result_store.Run(
+                strategy_id=item.strategy_id,
+                sharpe=0.0,
+                total_return=0.0,
+                max_drawdown=0.0,
+                fills=0,
+                days=0,
+                tier=request.tier,
+                window_days=request.days,
+                data_version=batch_data_version(),
+                universe=_universe_label(request),
+                params=dict(item.params),
+            )
+            reports.save(
+                workspace,
+                reports.build(
+                    strategy_id=item.strategy_id,
+                    configuration=saved.configuration,
+                    universe=_universe_label(request),
+                    instruments=resolved,
+                    tier=request.tier,
+                    window_days=request.days,
+                    equity=engine.equity,
+                    days=engine.days,
+                    fills=list(engine.fill_rows),
+                    rejections=list(engine.rejection_rows),
+                    marks=engine.marks,
+                    starting_cash=1_000_000.0,
+                ),
+            )
 
             outcome["days"] = len(engine.days)
             # Carried so the library can draw the run rather than describe it.
@@ -870,7 +1075,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     days=int(_as_float(payload, "days")),
                     tier=request.tier,
                     window_days=request.days,
-                    universe=request.universe,
+                    universe=_universe_label(request),
                     symbols=int(_as_float(payload, "symbols")),
                     data_version=batch_data_version(),
                     params=dict(item_outcome.item.params),
@@ -1396,4 +1601,224 @@ def cloud_mirror(request: MirrorRequest) -> dict[str, Any]:
         "pulled": outcome.pulled,
         "merged_rows": outcome.merged_rows,
         "failed": outcome.failed,
+    }
+
+
+# --- the full report ----------------------------------------------------------
+
+
+@app.get("/api/report")
+def report(strategy: str, workspace: str = "", configuration: str = "") -> dict[str, Any]:
+    """The full analysis of one run.
+
+    Defaults to the configuration behind the strategy's best stored result, so
+    the report opens on the run the library is showing. Passing `configuration`
+    explicitly opens any other run of the same strategy.
+    """
+    tenant = workspace_mod.resolve(workspace or None)
+    runs = result_store.distinct(tenant, strategy)
+    if not runs:
+        return {"ok": False, "error": f"{strategy} has never been run in this workspace"}
+
+    target = configuration
+    if not target:
+        # The latest, matching what the library shows. Opening a report on a
+        # different run from the one on the row it was clicked from would be a
+        # quiet mismatch.
+        recent = result_store.latest(tenant, strategy)
+        if recent is None:
+            return {"ok": False, "error": f"{strategy} has no tradeable run to report on"}
+        target = recent.configuration
+
+    payload = reports.load(tenant, strategy, target)
+    if payload is None:
+        return {
+            "ok": False,
+            "error": (
+                "no report stored for that run. Reports are written when a backtest runs, "
+                "so a result recorded before reports existed has none — re-run it to get one."
+            ),
+            "runs": [_run_choice(run) for run in runs],
+        }
+    return {"ok": True, "report": payload, "runs": [_run_choice(run) for run in runs]}
+
+
+def _run_choice(run: result_store.Run) -> dict[str, Any]:
+    """One selectable run, for the report's run switcher."""
+    return {
+        "configuration": run.configuration,
+        "sharpe": round(run.sharpe, 4),
+        "tier": run.tier,
+        "window_days": run.window_days,
+        "universe": run.universe,
+        "symbols": run.symbols,
+        "at": run.at,
+    }
+
+
+# --- what any of this means ---------------------------------------------------
+
+# Starting cash and rebalance cadence are the batch runner's, read from one
+# place so this endpoint cannot describe a run the engine does not perform.
+BATCH_STARTING_CASH = 1_000_000.0
+BATCH_REBALANCE_DAYS = 21
+
+
+@app.get("/api/explain")
+def explain(strategy: str = "") -> dict[str, Any]:
+    """What a backtest here actually does, and what this strategy is.
+
+    Every number in the procedure section is the value the engine uses, not a
+    description of what it might use. A page that explains a run the code does
+    not perform is worse than no explanation.
+    """
+    procedure = [
+        {
+            "title": "What a backtest here is",
+            "body": (
+                "The strategy is asked, on each rebalance day, for the weights it wants "
+                "across the instruments it can see. Those weights become orders, the "
+                "orders are filled at the next available price, and costs are deducted. "
+                "The account starts at "
+                f"₹{BATCH_STARTING_CASH:,.0f} and rebalances every "
+                f"{BATCH_REBALANCE_DAYS} trading days."
+            ),
+        },
+        {
+            "title": "What it cannot see",
+            "body": (
+                "The strategy is only ever handed data whose knowledge_time is at or "
+                "before the decision date. That is enforced at the data layer rather "
+                "than by the strategy behaving well, so a lookahead bug is a structural "
+                "impossibility rather than a thing to be careful about."
+            ),
+        },
+        {
+            "title": "Warmup",
+            "body": (
+                "The first stretch of every run is discarded so features have history to "
+                "compute from — a quarter of the window, capped at 253 days and floored "
+                "at 20. A strategy whose lookback is longer than the window will hold "
+                "nothing and the run refuses rather than reporting a Sharpe of zero."
+            ),
+        },
+        {
+            "title": "Tier A and Tier B",
+            "body": (
+                "Tier A is a vectorised screen: fast, and it assumes it can transact at "
+                "the price it saw. Tier B is the event-driven engine that the paper and "
+                "live paths also use — it places orders, they can be rejected, and cash "
+                "has to be there. A Tier A number read as a Tier B number is worse than "
+                "no number."
+            ),
+        },
+        {
+            "title": "What the Sharpe is measured against",
+            "body": (
+                "Not zero. Against the noise bar: the Sharpe the luckiest worthless "
+                "strategy would be expected to reach given how many configurations have "
+                "been tried. Screening in this interface writes nothing to the trial "
+                "ledger, so the bar does not rise as you search — which means it is "
+                "lower than the work actually done justifies."
+            ),
+        },
+    ]
+
+    asset_classes = [
+        {
+            "name": capability.asset_class.value,
+            "timeframe": capability.timeframe.value,
+            "supported": capability.supported,
+            "detail": capability.detail,
+        }
+        for capability in catalog.capabilities()
+    ]
+
+    about: dict[str, Any] | None = None
+    declaration = REGISTRY.get(strategy) if strategy else None
+    if declaration is not None:
+        tenant = workspace_mod.resolve(None)
+        top = result_store.best(tenant, declaration.id)
+        recent = result_store.latest(tenant, declaration.id)
+        runs = result_store.distinct(tenant, declaration.id)
+        bar = price_search(0, available_years=11.4).bar_after
+        about = {
+            "id": declaration.id,
+            "title": declaration.title,
+            "summary": declaration.summary,
+            "kind": declaration.kind,
+            "shape": declaration.shape,
+            "asset_class": declaration.asset_class.value,
+            "timeframe": declaration.timeframe.value,
+            "emits": declaration.emits.value,
+            "lookback": declaration.lookback,
+            "is_strategy_subclass": declaration.is_strategy_subclass,
+            "risk_manager": declaration.risk_manager,
+            "trade_manager": declaration.trade_manager,
+            # How it decides, read off the strategy object rather than
+            # written into the page: top_n, min_names and the feature are the
+            # numbers that actually govern its behaviour, and a description
+            # that drifted from them would be confidently wrong.
+            "how_it_decides": _how_it_decides(declaration),
+            "runs_here": len(runs),
+            "latest_sharpe": round(recent.sharpe, 4) if recent else None,
+            "best_sharpe": round(top.run.sharpe, 4) if top else None,
+            "best_window_days": recent.window_days if recent else None,
+            "best_universe": recent.universe if recent else "",
+            "best_period_note": (
+                f"Most recent run: {recent.window_days} trading days on "
+                f"{recent.universe or 'the whole panel'}, tier {recent.tier}, "
+                f"across {recent.symbols} instruments."
+            )
+            if recent
+            else "Never run in this workspace.",
+            "bar": round(bar, 3),
+            "clears_bar": bool(recent and recent.sharpe >= bar),
+        }
+
+    return {
+        "procedure": procedure,
+        "asset_classes": asset_classes,
+        "strategy": about,
+        "starting_cash": BATCH_STARTING_CASH,
+        "rebalance_days": BATCH_REBALANCE_DAYS,
+    }
+
+
+@app.get("/api/window")
+def window(days: int = 800, universe: str = ALL_INSTRUMENTS) -> dict[str, Any]:
+    """What a window of N trading days actually covers.
+
+    A number of days is not a period a person can reason about, and the two
+    differ in a way that matters: the leading stretch is warmup and is never
+    traded. Showing "1200 days" while the strategy trades 964 of them invites
+    reading a result as covering a period it does not.
+    """
+    try:
+        rows = PANEL.rows(days)
+    except (FileNotFoundError, OSError) as exc:
+        return {"ok": False, "error": str(exc)}
+    if not rows:
+        return {"ok": False, "error": "no panel on disk. Run `make build-panel` first."}
+
+    all_days = trading_days(PANEL.rows())
+    picked = trading_days(rows)
+    warmup = warmup_for(len(picked))
+    traded = picked[warmup:] if warmup < len(picked) else []
+
+    return {
+        "ok": True,
+        "requested_days": days,
+        "available_days": len(all_days),
+        "window_days": len(picked),
+        "truncated": days > len(all_days),
+        "panel_first": all_days[0].isoformat() if all_days else None,
+        "panel_last": all_days[-1].isoformat() if all_days else None,
+        "window_first": picked[0].isoformat() if picked else None,
+        "window_last": picked[-1].isoformat() if picked else None,
+        "warmup_days": warmup,
+        "traded_first": traded[0].isoformat() if traded else None,
+        "traded_last": traded[-1].isoformat() if traded else None,
+        "traded_days": len(traded),
+        "universe": universe,
     }

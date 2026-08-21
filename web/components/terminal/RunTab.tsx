@@ -20,18 +20,22 @@ export function RunTab({
   window: days,
   tier,
   universe,
+  instruments,
   onWindow,
   onTier,
   onUniverse,
+  onChoose,
   onRefresh,
 }: {
   fleet: Fleet | null;
   window: number;
   tier: 'A' | 'B';
   universe: string;
+  instruments: string[];
   onWindow: (days: number) => void;
   onTier: (tier: 'A' | 'B') => void;
   onUniverse: (name: string) => void;
+  onChoose: () => void;
   onRefresh: () => void;
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -63,7 +67,7 @@ export function RunTab({
     setError('');
     setResult(null);
     try {
-      const outcome = await runBatch([...picked], days, tier, universe, setNote);
+      const outcome = await runBatch([...picked], days, tier, universe, instruments, setNote);
       setResult(outcome);
       onRefresh();
     } catch (problem) {
@@ -71,7 +75,7 @@ export function RunTab({
     } finally {
       setBusy(false);
     }
-  }, [picked, days, tier, universe, onRefresh]);
+  }, [picked, days, tier, universe, instruments, onRefresh]);
 
   return (
     <>
@@ -106,6 +110,15 @@ export function RunTab({
 
       <div className="ttools">
         <UniversePicker value={universe} onChange={onUniverse} />
+        <button
+          className="tchip"
+          type="button"
+          aria-pressed={instruments.length > 0}
+          onClick={onChoose}
+          title="Pick individual instruments instead of a batch. Overrides the universe."
+        >
+          {instruments.length > 0 ? `${instruments.length} instruments` : 'Pick instruments'}
+        </button>
         <label className="tsort" style={{ marginLeft: 0 }}>
           Window
           <select
@@ -184,7 +197,14 @@ export function RunTab({
 
         <div className="tpanel">
           <h3>What this run costs</h3>
-          <UniverseNote value={universe} />
+          {instruments.length > 0 ? (
+            <p className="tfine">
+              <b>{instruments.length} hand-picked instruments</b> — this overrides the
+              universe and is recorded as a custom run.
+            </p>
+          ) : (
+            <UniverseNote value={universe} />
+          )}
           {price ? (
             <>
               <div className="tfacts">

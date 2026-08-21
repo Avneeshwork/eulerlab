@@ -75,13 +75,34 @@ def test_a_single_run_is_a_measurement_not_a_maximum(space: ws.Workspace) -> Non
     assert top.is_a_maximum is False, "one run is a measurement; there was nothing to select from"
 
 
-def test_the_caveat_appears_only_when_the_figure_is_a_maximum(space: ws.Workspace) -> None:
-    rs.record(space, _run(1.4))
-    assert "Best of" not in rs.summary(space, "demo")["caveat"]
+def test_the_headline_is_the_latest_run_not_the_best(space: ws.Workspace) -> None:
+    """A maximum over N configurations is a biased estimate of any one of them.
+    The most recent run is simply a measurement, so that is what gets reported —
+    the less flattering figure, and the one that needs no correction."""
+    rs.record(
+        space,
+        rs.Run(**{**_run(2.9, window=500).__dict__, "at": "2026-01-01T00:00:00+00:00"}),
+    )
+    rs.record(
+        space,
+        rs.Run(**{**_run(0.4, window=1200).__dict__, "at": "2026-06-01T00:00:00+00:00"}),
+    )
+    summary = rs.summary(space, "demo")
+    assert summary["sharpe"] == 0.4, "the latest run, even though 2.9 was better"
+    assert summary["best_sharpe"] == 2.9, "the better run is still reported, not hidden"
 
-    rs.record(space, _run(2.0, window=1200))
+
+def test_the_caveat_names_the_better_run_when_there_is_one(space: ws.Workspace) -> None:
+    rs.record(space, _run(1.4))
+    assert "configurations" not in rs.summary(space, "demo")["caveat"]
+
+    rs.record(
+        space,
+        rs.Run(**{**_run(2.0, window=1200).__dict__, "at": "2020-01-01T00:00:00+00:00"}),
+    )
     caveat = rs.summary(space, "demo")["caveat"]
-    assert "Best of 2 configurations" in caveat
+    assert "most recent of 2 configurations" in caveat
+    assert "2.00" in caveat, "the better score is named rather than quietly dropped"
     assert "luckiest draw" in caveat
 
 

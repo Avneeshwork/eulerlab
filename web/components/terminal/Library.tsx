@@ -40,8 +40,15 @@ export function Library({
   tier,
   universe,
   onUniverse,
+  instruments,
+  onChoose,
   onRefresh,
   onDeploy,
+  onExplain,
+  onReport,
+  onConfigure,
+  pendingRun,
+  onRan,
 }: {
   fleet: Fleet | null;
   problem: string;
@@ -49,8 +56,16 @@ export function Library({
   tier: 'A' | 'B';
   universe: string;
   onUniverse: (name: string) => void;
+  instruments: string[];
+  onChoose: () => void;
   onRefresh: () => void;
   onDeploy: (strategy: FleetStrategy) => void;
+  onExplain: (strategy: string) => void;
+  onReport: (strategy: FleetStrategy) => void;
+  onConfigure: (strategy: FleetStrategy) => void;
+  /** Ids the Backtest dialog just confirmed. Run once, then cleared. */
+  pendingRun: string[];
+  onRan: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [assetClass, setAssetClass] = useState('');
@@ -109,7 +124,7 @@ export function Library({
       setFailure('');
       setBusy((prev) => new Set([...prev, ...ids]));
       try {
-        const result = await runBatch(ids, days, tier, universe, setNote);
+        const result = await runBatch(ids, days, tier, universe, instruments, setNote);
         const failed = result.results.filter((r) => r.error);
         setNote(
           `${result.computed} computed, ${result.cached} cached` +
@@ -132,8 +147,15 @@ export function Library({
         });
       }
     },
-    [days, tier, universe, onRefresh]
+    [days, tier, universe, instruments, onRefresh]
   );
+
+  useEffect(() => {
+    if (pendingRun.length === 0) return;
+    const ids = pendingRun;
+    onRan();
+    void backtest(ids);
+  }, [pendingRun, onRan, backtest]);
 
   return (
     <>
@@ -165,6 +187,15 @@ export function Library({
           </button>
         ))}
         <UniversePicker value={universe} onChange={onUniverse} />
+        <button
+          className="tchip"
+          type="button"
+          aria-pressed={instruments.length > 0}
+          onClick={onChoose}
+          title="Pick individual instruments instead of a batch. Overrides the universe."
+        >
+          {instruments.length > 0 ? `${instruments.length} instruments` : 'Pick instruments'}
+        </button>
         <label className="tsort">
           Sort
           <select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
@@ -229,8 +260,10 @@ export function Library({
               busy={busy.has(strategy.id)}
               onToggle={() => toggle(strategy.id)}
               onOpen={() => setOpen(open === strategy.id ? null : strategy.id)}
-              onBacktest={() => backtest([strategy.id])}
+              onBacktest={() => onConfigure(strategy)}
               onDeploy={() => onDeploy(strategy)}
+              onExplain={() => onExplain(strategy.id)}
+              onReport={() => onReport(strategy)}
             />
           ))}
         {fleet && rows.length === 0 && <div className="tempty">Nothing matches that filter.</div>}
@@ -241,8 +274,9 @@ export function Library({
         <div className="tsel">
           <b>{selected.size}</b> selected
           <span className="price">
-            {universe} · {days}-day window · tier {tier} · spends no trial, so the bar
-            will not learn this search happened
+            {instruments.length > 0 ? `${instruments.length} chosen instruments` : universe} ·{' '}
+            {days}-day window · tier {tier} · spends no trial, so the bar will not learn
+            this search happened
           </span>
           <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
             Clear
@@ -271,6 +305,8 @@ function Row({
   onOpen,
   onBacktest,
   onDeploy,
+  onExplain,
+  onReport,
 }: {
   strategy: FleetStrategy;
   bar: number;
@@ -281,6 +317,8 @@ function Row({
   onOpen: () => void;
   onBacktest: () => void;
   onDeploy: () => void;
+  onExplain: () => void;
+  onReport: () => void;
 }) {
   const result = strategy.result;
   const runnable = strategy.is_strategy_subclass;
@@ -354,9 +392,17 @@ function Row({
           sharpe={strategy.sharpe}
           bar={bar}
           runs={result.runs}
-          isMax={Boolean(result.is_a_maximum)}
         />
         <div className="tacts-cell" onClick={(event) => event.stopPropagation()}>
+          <button
+            className="ticon sm"
+            type="button"
+            onClick={onExplain}
+            title="What this strategy is, what a backtest here does, and which asset classes have data."
+            aria-label={`What ${strategy.title} means`}
+          >
+            i
+          </button>
           <button
             className="tbtn sm"
             type="button"
@@ -364,7 +410,7 @@ function Row({
             onClick={onBacktest}
             title={
               runnable
-                ? 'Run this strategy through the same engine `make backtest` uses. Spends no trial.'
+                ? 'Choose the instruments and the period, then run.'
                 : 'Cannot run through the daily engine (ADR-037).'
             }
           >
@@ -387,7 +433,13 @@ function Row({
             <p className="tdesc">{strategy.summary}</p>
             <div className="tfacts">
               <Fact label="Evidence" value={<EvidenceBadge stage={strategy.stage} />} />
-              <Fact label="Runs" value={result.runs || '—'} />
+              <Fact label="Configurations" value={result.runs || '—'} />
+              <Fact
+                label="Best of them"
+                value={result.best_sharpe !== null && result.best_sharpe !== undefined ? result.best_sharpe.toFixed(2) : '—'}
+              />
+              <Fact label="Universe" value={result.universe || '—'} />
+              <Fact label="Instruments" value={result.symbols ?? '—'} />
               <Fact label="Trials" value={strategy.trials} />
               <Fact label="Total return" value={fmtPct(result.total_return)} />
               <Fact label="Max drawdown" value={fmtPct(result.max_drawdown)} />
@@ -402,6 +454,19 @@ function Row({
             </div>
           </div>
           <div className="tside">
+            <button
+              className="tbtn go"
+              type="button"
+              disabled={strategy.sharpe === null}
+              onClick={onReport}
+              title={
+                strategy.sharpe === null
+                  ? 'Never run, so there is nothing to report on.'
+                  : 'Per-instrument attribution, the order ledger, and every metric.'
+              }
+            >
+              Full analysis
+            </button>
             {result.caveat && (
               <div className="tcaveat">
                 <h4>What this number is not</h4>
@@ -436,8 +501,10 @@ function curveTitle(strategy: FleetStrategy): string {
   const result = strategy.result;
   if (result.sharpe === null || result.sharpe === undefined) return 'Equity curve';
   const base =
-    `Best stored backtest: Sharpe ${result.sharpe.toFixed(2)}` +
-    (result.window_days ? ` over ${result.window_days} days` : '') +
+    `Most recent backtest: Sharpe ${result.sharpe.toFixed(2)}` +
+    (result.window_days ? ` over ${result.window_days} trading days` : '') +
+    (result.universe ? ` on ${result.universe}` : '') +
+    (result.symbols ? `, ${result.symbols} instruments` : '') +
     (result.tier ? `, tier ${result.tier}` : '');
   const headline = strategy.sharpe;
   if (headline !== null && Math.abs(headline - result.sharpe) > 0.005) {
