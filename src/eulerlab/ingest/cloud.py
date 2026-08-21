@@ -59,6 +59,19 @@ class ObjectStore(Protocol):
     def put(self, key: str, payload: bytes, sha256: str) -> None: ...
 
 
+class ReadableStore(ObjectStore, Protocol):
+    """An ObjectStore that can also be read back.
+
+    Separate from `ObjectStore` because the upload paths — the landing-zone
+    sync, the pruner — genuinely never download, and widening the protocol they
+    depend on would force every fake in their tests to grow a method none of
+    them uses.
+    """
+
+    def get(self, key: str) -> bytes:
+        """The object's bytes. Raises if it is not there."""
+
+
 class MissingCredentials(RuntimeError):
     """Set B2_KEY_ID and B2_APP_KEY in .env before syncing."""
 

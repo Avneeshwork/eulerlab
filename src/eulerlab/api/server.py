@@ -27,19 +27,22 @@ re-reading it per request would make every backtest feel broken.
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 import traceback
 import uuid
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
 from itertools import pairwise
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab import cloud_results
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.authoring import translate
@@ -52,8 +55,10 @@ from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.batch import Item as _BatchItem
 from eulerlab.batch import data_version as batch_data_version
 from eulerlab.batch import runner
+from eulerlab.features.alt_panel import coverage as alt_coverage
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
+from eulerlab.ingest.cloud import load_storage_config
 from eulerlab.intraday import scan as tweezer_scan
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
@@ -621,6 +626,18 @@ def _as_float(payload: dict[str, object], key: str) -> float:
     return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else 0.0
 
 
+def _as_curve(payload: dict[str, object]) -> list[float]:
+    """Read the equity curve out of an untyped result payload."""
+    value = payload.get("curve")
+    if not isinstance(value, list):
+        return []
+    return [
+        float(point)
+        for point in value
+        if isinstance(point, int | float) and not isinstance(point, bool)
+    ]
+
+
 def _run_batch(job: Job, request: BatchRunRequest) -> None:
     """Screen each selected strategy through the same engine `make backtest` uses."""
     workspace = workspace_mod.resolve(request.workspace or None).ensure()
@@ -695,7 +712,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
 
             returns = [b / a - 1.0 for a, b in pairwise(engine.equity) if a > 0]
             stats = sharpe_stats(returns)
-            outcome = {
+            outcome: dict[str, Any] = {
                 "sharpe": round(stats.sharpe, 4),
                 "total_return": round(engine.equity[-1] / 1_000_000.0 - 1.0, 6),
                 "max_drawdown": round(_drawdown(engine.equity), 6),
@@ -704,6 +721,10 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             }
 
             outcome["days"] = len(engine.days)
+            # Carried so the library can draw the run rather than describe it.
+            # Downsampled here rather than in the UI so the cache stores the
+            # small version and a cache hit yields the same curve.
+            outcome["curve"] = result_store.downsample(engine.equity)
             return outcome
 
         def progress(index: int, total: int, item: _BatchItem) -> None:
@@ -736,6 +757,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     window_days=request.days,
                     data_version=batch_data_version(),
                     params=dict(item_outcome.item.params),
+                    curve=_as_curve(payload),
                     # Screening spends no trial (T-3321). The honest value, and
                     # what lets the library report how much of its own evidence
                     # the noise bar has never seen.
@@ -743,7 +765,21 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 ),
             )
 
-        job.result = runner.summarise(result)
+        summary = runner.summarise(result)
+        # Every result also goes to the bucket the market data lives in.
+        #
+        # After the local record, never instead of it. A cloud outage must not
+        # turn a completed backtest into a failed one — but it must not be
+        # silent either, so the outcome travels back in the job result and the
+        # interface can say the mirror is behind.
+        mirrored = cloud_results.mirror_quietly(workspace)
+        summary["cloud"] = {
+            "ok": mirrored.ok,
+            "pushed": mirrored.pushed,
+            "pulled": mirrored.pulled,
+            "failed": mirrored.failed,
+        }
+        job.result = summary
         job.status = "done"
     except Exception:
         job.status = "failed"
@@ -990,3 +1026,257 @@ def job_status(job_id: str) -> dict[str, Any]:
         )
         job.finished = time.time()
     return {"ok": True, **job.payload()}
+
+
+# --- deployment -------------------------------------------------------------
+
+
+class PreflightRequest(BaseModel):
+    """Ask whether a strategy could be deployed, and if not, exactly why not."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    strategy: str
+    workspace: str = ""
+    mode: Literal["paper", "live"] = "paper"
+
+
+def _credentials_present() -> tuple[bool, str]:
+    """Whether broker credentials are configured — presence only.
+
+    The values are never read into a response. Reporting that a key is set is
+    useful; reporting any part of the key itself would put a secret into an
+    HTTP body that the browser will cache.
+    """
+    required = ("ZERODHA_API_KEY", "ZERODHA_API_SECRET", "ZERODHA_ACCESS_TOKEN")
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        return False, f"not set: {', '.join(missing)}"
+    return True, "all three Zerodha variables are set"
+
+
+@app.post("/api/deploy/preflight")
+def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
+    """Every condition that must hold before a strategy can trade, checked.
+
+    This endpoint exists because the alternative — a Deploy button that either
+    works or throws — hides which of six different things was wrong. Each check
+    is a real read of the registry, the ledger, the result store, the
+    filesystem or the environment. None of them is assumed.
+
+    Nothing can pass the evidence check today, and that is not a bug in the
+    check. `strategies/__init__.py` derives stage from the ledger and there is
+    no mechanism that promotes a strategy to `forward_testing`, because the
+    forward-test stage is not built (T-3311). A strategy that has only been
+    screened has no business sending orders, so the honest answer is to name
+    the missing stage rather than to let it through.
+    """
+    tenant = workspace_mod.resolve(request.workspace or None)
+    checks: list[dict[str, Any]] = []
+
+    def check(name: str, passed: bool, detail: str, *, blocking: bool = True) -> None:
+        checks.append({"name": name, "passed": passed, "detail": detail, "blocking": blocking})
+
+    declaration = REGISTRY.get(request.strategy)
+    check(
+        "Strategy is registered",
+        declaration is not None,
+        f"{request.strategy} is in the registry"
+        if declaration
+        else f"no strategy named {request.strategy!r}",
+    )
+    if declaration is None:
+        return {"ok": False, "mode": request.mode, "checks": checks, "blockers": 1}
+
+    check(
+        "Satisfies the Strategy interface",
+        declaration.is_strategy_subclass,
+        "emits target weights"
+        if declaration.is_strategy_subclass
+        else "intraday bracket shapes cannot be expressed as target weights (ADR-037)",
+    )
+
+    supported = [
+        c
+        for c in catalog.capabilities()
+        if c.asset_class == declaration.asset_class and c.timeframe == declaration.timeframe
+    ]
+    has_data = bool(supported) and supported[0].supported
+    check(
+        "Data exists for this asset class and timeframe",
+        has_data,
+        supported[0].detail if supported else "no capability entry for this pair",
+    )
+
+    row = next(
+        (r for r in strategy_fleet(tenant.ledger) if r.declaration.id == request.strategy), None
+    )
+    stage = row.stage.value if row else "unknown"
+    check(
+        "Cleared the gate and is forward-testing",
+        stage in {"forward_testing", "live"},
+        f"stage is {stage!r}. The forward-test stage is not built (T-3311), so nothing "
+        f"can reach it yet — mandate.yaml holds that a strategy is dead until it clears "
+        f"the gate, and a screened-only strategy has no evidence behind it"
+        if stage not in {"forward_testing", "live"}
+        else f"stage is {stage!r}",
+    )
+
+    bar = price_search(0, available_years=11.4).bar_after
+    top = result_store.best(tenant, request.strategy)
+    beats = top is not None and top.run.sharpe >= bar
+    check(
+        "Best backtest clears the noise bar",
+        beats,
+        f"{top.run.sharpe:.2f} against a bar of {bar:.2f}"
+        + (
+            f", but it is the best of {top.runs} configurations and "
+            f"{top.unrecorded} of them are not in the trial ledger"
+            if top.is_a_maximum
+            else ""
+        )
+        if top
+        else "never backtested in this workspace",
+    )
+
+    stop = workspace_mod.halted(tenant)
+    check("Not halted", not stop, stop or "no kill switch is set")
+
+    if request.mode == "live":
+        present, detail = _credentials_present()
+        check("Broker credentials configured", present, detail)
+        check(
+            "Broker adapter proven against the live API",
+            False,
+            "KiteBroker has never been run against the real Kite API (T-3336). Its order "
+            "path is covered by tests against a fake client only, so the first live order "
+            "would also be the first real exercise of that code",
+        )
+
+    blockers = sum(1 for c in checks if c["blocking"] and not c["passed"])
+    return {
+        "ok": blockers == 0,
+        "mode": request.mode,
+        "strategy": request.strategy,
+        "checks": checks,
+        "blockers": blockers,
+    }
+
+
+# --- data ---------------------------------------------------------------------
+
+
+def _landing_source(name: str) -> dict[str, Any]:
+    """Count what is actually on disk under one landing source."""
+    root = Path("data/landing") / name
+    if not root.exists():
+        return {"name": name, "present": False, "files": 0, "newest": None}
+    files = [p for p in root.rglob("*") if p.is_file()]
+    newest = max((p.stat().st_mtime for p in files), default=0.0)
+    return {
+        "name": name,
+        "present": True,
+        "files": len(files),
+        "bytes": sum(p.stat().st_size for p in files),
+        "newest": datetime.fromtimestamp(newest, tz=UTC).date().isoformat() if newest else None,
+    }
+
+
+@app.get("/api/data")
+def data_status() -> dict[str, Any]:
+    """What data is on disk, counted rather than claimed.
+
+    The panel figures come from the panel itself; the landing figures come from
+    walking the directories. Nothing here is a configured expectation — if a
+    source is missing, it reports missing rather than reporting its intended
+    size.
+    """
+    panel: dict[str, Any] = {}
+    try:
+        # `loaded` is read AFTER the rows, not before: reading it first reports
+        # the state this request walked in on, which is False on the very
+        # request that loads the panel and reads as a contradiction next to
+        # five million rows.
+        panel |= alt_coverage(PANEL.rows())
+        panel["loaded"] = PANEL.loaded()
+    except (FileNotFoundError, OSError) as exc:
+        panel |= {"error": str(exc), "rows": 0, "loaded": False}
+
+    universes: list[dict[str, Any]] = []
+    for name in sorted(catalog.UNIVERSE_FILES):
+        try:
+            symbols = catalog.universe(name)
+        except (ValueError, FileNotFoundError, OSError) as exc:
+            universes.append({"name": name, "symbols": 0, "error": str(exc)})
+            continue
+        universes.append({"name": name, "symbols": len(symbols)})
+
+    return {
+        "panel": panel,
+        "universes": universes,
+        "universe_caveat": catalog.UNIVERSE_CAVEAT,
+        "sources": [
+            _landing_source(name) for name in ("nse", "crypto", "mf", "fundamentals", "kite_minute")
+        ],
+    }
+
+
+# --- cloud --------------------------------------------------------------------
+
+
+class MirrorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    workspace: str = ""
+
+
+@app.get("/api/cloud/status")
+def cloud_status(workspace: str = "") -> dict[str, Any]:
+    """Whether results are being mirrored, and how far behind the bucket is.
+
+    `local` is counted from disk. `remote` is one LIST against the bucket, so
+    this is a real comparison rather than a record of what the last push
+    believed it did.
+    """
+    tenant = workspace_mod.resolve(workspace or None)
+    ready, reason = cloud_results.configured()
+    local = (
+        sorted(p.name for p in tenant.results.glob("*.jsonl")) if tenant.results.exists() else []
+    )
+    payload: dict[str, Any] = {
+        "configured": ready,
+        "reason": reason,
+        "workspace": tenant.id,
+        "bucket": "",
+        "prefix": f"{cloud_results.RESULTS_PREFIX}{tenant.id}/",
+        "local_files": local,
+        "remote_files": [],
+        "reachable": False,
+    }
+    if not ready:
+        return payload
+    try:
+        config = load_storage_config(cloud_results.STORAGE_CONFIG)
+        payload["bucket"] = config.bucket
+        store = cloud_results.open_store()
+        prefix = str(payload["prefix"])
+        remote = store.list_sizes(prefix)
+        payload["remote_files"] = sorted(key[len(prefix) :] for key in remote)
+        payload["reachable"] = True
+    except Exception as exc:
+        payload["reason"] = f"{type(exc).__name__}: {exc}"
+    return payload
+
+
+@app.post("/api/cloud/mirror")
+def cloud_mirror(request: MirrorRequest) -> dict[str, Any]:
+    """Pull the bucket's results, merge, then push. Both copies end up equal."""
+    tenant = workspace_mod.resolve(request.workspace or None).ensure()
+    outcome = cloud_results.mirror_quietly(tenant)
+    return {
+        "ok": outcome.ok,
+        "pushed": outcome.pushed,
+        "pulled": outcome.pulled,
+        "merged_rows": outcome.merged_rows,
+        "failed": outcome.failed,
+    }

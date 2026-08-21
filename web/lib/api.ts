@@ -113,6 +113,10 @@ export type StrategyResult = {
   // Inseparable from the figure: a Sharpe means one thing as the only run and
   // another as the highest of forty.
   runs: number;
+  // The real equity curve of the best run, downsampled by the server. Empty
+  // when nothing has been run — the sparkline renders nothing rather than a
+  // flat line, because a flat line is a claim about a run that did not happen.
+  curve?: number[];
   unrecorded?: number;
   is_a_maximum?: boolean;
   at?: string;
@@ -145,6 +149,48 @@ export type Fleet = {
   bar_sigma_measured: boolean;
   bar_note: string;
   strategies: FleetStrategy[];
+};
+
+export type PreflightCheck = {
+  name: string;
+  passed: boolean;
+  detail: string;
+  blocking: boolean;
+};
+
+export type Preflight = {
+  ok: boolean;
+  mode: 'paper' | 'live';
+  strategy: string;
+  checks: PreflightCheck[];
+  blockers: number;
+};
+
+export type PanelStatus = {
+  loaded: boolean;
+  rows: number;
+  symbols?: number;
+  days?: number;
+  first?: string | null;
+  last?: string | null;
+  thinnest?: number;
+  fattest?: number;
+  error?: string;
+};
+
+export type DataSource = {
+  name: string;
+  present: boolean;
+  files: number;
+  bytes?: number;
+  newest: string | null;
+};
+
+export type DataStatus = {
+  panel: PanelStatus;
+  universes: { name: string; symbols: number; error?: string }[];
+  universe_caveat: string;
+  sources: DataSource[];
 };
 
 export type Capability = {
@@ -238,6 +284,9 @@ export const api = {
   backtest: (input: StrategyInput & { days: number; tier: 'A' | 'B'; starting_cash: number }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/backtest', input),
   job: (id: string) => get<Job>(`/api/jobs/${id}`),
+  preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
+    post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
+  data: () => get<DataStatus>('/api/data'),
   tweezer: (input: { symbols: string[]; start: string; end: string }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/tweezer', input),
 };

@@ -42,6 +42,30 @@ from typing import Any
 
 from eulerlab.workspace import Workspace
 
+CURVE_POINTS = 64
+"""How many points of the equity curve a stored result keeps.
+
+Enough for a sparkline to be truthful about shape, drawdown and where the
+losses fell; far short of the several hundred a run produces. The alternative
+was to store no curve and let the interface draw something from the Sharpe,
+which would be an invented picture of a real run.
+"""
+
+
+def downsample(equity: list[float], points: int = CURVE_POINTS) -> list[float]:
+    """Evenly-spaced samples, always including the first and last.
+
+    The endpoints matter more than the interior: the last point is the total
+    return the summary reports, and a curve whose end disagreed with the
+    headline number would be worse than no curve.
+    """
+    if len(equity) <= points:
+        return [round(value, 2) for value in equity]
+    step = (len(equity) - 1) / (points - 1)
+    picked = [equity[round(index * step)] for index in range(points)]
+    picked[-1] = equity[-1]
+    return [round(value, 2) for value in picked]
+
 
 @dataclass(frozen=True)
 class Run:
@@ -57,6 +81,11 @@ class Run:
     window_days: int
     data_version: str
     params: dict[str, Any] = field(default_factory=dict)
+    curve: list[float] = field(default_factory=list)
+    """The equity curve, downsampled. An output, so deliberately not part of
+    `configuration` — two runs of the same configuration are the same result
+    even if a data revision moved the curve."""
+
     at: str = ""
     trial_recorded: bool = False
     """Whether this run appears in the trial ledger.
@@ -94,6 +123,7 @@ class Run:
             "window_days": self.window_days,
             "data_version": self.data_version,
             "params": self.params,
+            "curve": self.curve,
             "at": self.at or datetime.now(UTC).isoformat(),
             "trial_recorded": self.trial_recorded,
             "configuration": self.configuration,
@@ -169,6 +199,7 @@ def _to_run(row: dict[str, Any]) -> Run:
         window_days=int(row.get("window_days", 0)),
         data_version=str(row.get("data_version", "")),
         params=dict(row.get("params") or {}),
+        curve=[float(value) for value in (row.get("curve") or [])],
         at=str(row.get("at", "")),
         trial_recorded=bool(row.get("trial_recorded", False)),
     )
@@ -256,6 +287,7 @@ def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
         "fills": top.run.fills,
         "tier": top.run.tier,
         "window_days": top.run.window_days,
+        "curve": top.run.curve,
         "runs": top.runs,
         "unrecorded": top.unrecorded,
         "is_a_maximum": top.is_a_maximum,
