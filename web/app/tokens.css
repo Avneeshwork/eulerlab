@@ -1,0 +1,235 @@
+/* Design tokens for the terminal.
+
+   SCOPED to `.terminal`, not `:root`, deliberately. The existing workbench has
+   its own warm palette in globals.css using the same variable names; defining
+   these globally would silently repaint it the moment this file was imported.
+   Both live side by side until the terminal replaces the workbench, at which
+   point this becomes `:root` and the old palette is deleted in one commit
+   rather than bleeding out over several.
+
+   Published spec: "The Honest Strategy Terminal", section 08.
+
+   Three rules that the rest of the CSS depends on:
+
+   1. Colour carries meaning or it is not used. --up and --down mean direction
+      and outcome, never emphasis. In a trading interface a red number that is
+      red for styling reasons is a lie the reader has to learn to ignore, and
+      once they do they will ignore a real one.
+
+   2. Every number is monospaced with tabular figures, so digits align down a
+      column and a change of magnitude reads as a change of shape. This is the
+      highest-value typographic decision in a data-dense product.
+
+   3. --accent is brand and is never semantic. Nothing about a cyan value tells
+      you whether it is good. */
+
+.terminal {
+  color-scheme: light dark;
+
+  --ground: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #eff2f6;
+  --surface-3: #e2e7ee;
+
+  --ink: #0d1117;
+  --ink-2: #4a5563;
+  --ink-3: #7a8797;
+
+  --rule: #dde3ea;
+  --rule-2: #c6cfda;
+
+  --accent: #0b7fa8;
+  --accent-soft: #e1f2f8;
+  --accent-line: #7fc0d8;
+
+  /* Semantic. Direction and outcome only. */
+  --up: #137a3b;
+  --up-soft: #e4f4ea;
+  --down: #b4232c;
+  --down-soft: #fbeaeb;
+  --warn: #9a6700;
+  --warn-soft: #fbf2e0;
+
+  --shadow: 0 1px 2px rgba(13, 17, 23, 0.05), 0 10px 28px -14px rgba(13, 17, 23, 0.22);
+
+  --ui: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Density. Rows are 30-34px, not the 56px a marketing site would use:
+     compact grids let a trader see more at once. The floor is legibility at a
+     ten-hour sitting — 12.5px minimum for anything read, 9px only for
+     uppercase labels carrying letter-spacing. */
+  --row-h: 32px;
+  --gap: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .terminal:not([data-theme="light"]) {
+    --ground: #0a0d13;
+    --surface: #121721;
+    --surface-2: #19202b;
+    --surface-3: #232c3a;
+
+    --ink: #e6edf3;
+    --ink-2: #9ba8b8;
+    --ink-3: #67768a;
+
+    --rule: #222b38;
+    --rule-2: #2f3a4a;
+
+    --accent: #4cc9f0;
+    --accent-soft: #0c2733;
+    --accent-line: #1f5b72;
+
+    --up: #3fb950;
+    --up-soft: #0d2a16;
+    --down: #f85149;
+    --down-soft: #2c1416;
+    --warn: #d29922;
+    --warn-soft: #2b2110;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -14px rgba(0, 0, 0, 0.7);
+  }
+}
+
+.terminal[data-theme="dark"] {
+  --ground: #0a0d13;
+  --surface: #121721;
+  --surface-2: #19202b;
+  --surface-3: #232c3a;
+
+  --ink: #e6edf3;
+  --ink-2: #9ba8b8;
+  --ink-3: #67768a;
+
+  --rule: #222b38;
+  --rule-2: #2f3a4a;
+
+  --accent: #4cc9f0;
+  --accent-soft: #0c2733;
+  --accent-line: #1f5b72;
+
+  --up: #3fb950;
+  --up-soft: #0d2a16;
+  --down: #f85149;
+  --down-soft: #2c1416;
+  --warn: #d29922;
+  --warn-soft: #2b2110;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 10px 28px -14px rgba(0, 0, 0, 0.7);
+}
+
+/* ---------- primitives ---------- */
+
+.t-mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Evidence badge. The load-bearing element of the whole interface: it is
+   derived from the ledger, never stored on the strategy, so a strategy cannot
+   claim a rung it has not earned. */
+.ev {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+  border: 1px solid var(--rule-2);
+  background: var(--surface-2);
+  color: var(--ink-3);
+}
+.ev::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.ev--screened { color: var(--ink-3); }
+.ev--backtested {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.ev--validated {
+  color: var(--warn);
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+.ev--live {
+  color: var(--up);
+  border-color: var(--up);
+  background: var(--up-soft);
+}
+.ev--retired { color: var(--ink-3); opacity: 0.7; }
+
+/* Sharpe against the noise bar. The tick sits at the same fraction on every
+   row, so "who clears it" reads down the column and magnitude stays visibly
+   secondary — which is the point: sorting by magnitude is the selection
+   procedure the overfitting tests measure. */
+.sb { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.sb-v {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  min-width: 38px;
+  text-align: right;
+}
+.sb-v--pass { color: var(--up); font-weight: 700; }
+.sb-v--none { font-size: 9.5px; opacity: 0.65; }
+.sb-track { position: relative; width: 72px; height: 12px; flex: none; }
+.sb-line { position: absolute; left: 0; right: 0; top: 5px; height: 2px; background: var(--surface-3); }
+.sb-fill { position: absolute; left: 0; top: 5px; height: 2px; background: var(--ink-3); }
+.sb-fill--pass { background: var(--up); height: 3px; top: 4.5px; }
+.sb-bar { position: absolute; top: 0; bottom: 0; width: 1.5px; background: var(--down); }
+
+/* Tag: a neutral label. Never coloured, because a tag is not an outcome. */
+.tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--rule-2);
+  color: var(--ink-2);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+/* Stat grid. 1px gaps over a rule-coloured background gives hairline dividers
+   without each cell drawing its own border and doubling them. */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.stat { background: var(--surface); padding: 9px 11px; }
+.stat-k {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.stat-v {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  margin-top: 2px;
+}
+.stat-v--up { color: var(--up); }
+.stat-v--down { color: var(--down); }
+.stat-v--warn { color: var(--warn); }

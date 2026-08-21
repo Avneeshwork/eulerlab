@@ -96,7 +96,12 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 | T-3606 | Global kill switch outranks per-workspace | DONE — a platform halt reported over a tenant's own reason, or they look in the wrong place |
 | T-3607 | **Per-workspace ledgers weaken the bar** | OPEN by decision — sharing is statistically more correct but unsellable (one customer's failed search raises another's). Mitigation: within a workspace, count **everything**, including the screening that is currently free (T-3321) |
 | T-3608 | Authentication is a seam, not an implementation | OPEN — `resolve()` takes a principal; what produces it (session, OIDC, local default) is undecided. No fake auth was written |
-| T-3609 | Dashboard UI | TODO — next. Design in the published spec; five primitives first |
+| T-3609 | Dashboard: primitives + library screen | DONE — `/terminal`. Five primitives (`EvidenceBadge`, `SharpeVsBar`, `Sparkline`, `StatGrid`, `Tag`), tokens, and the library against the real `/api/fleet`. Verified in both themes with 12 real strategies |
+| T-3610 | **The default sort is evidence, not Sharpe** | DONE — ranking a library by return *is* the selection procedure the overfitting tests measure, performed by the interface before anyone has thought about it. Sorting by Sharpe stays available and warns |
+| T-3611 | Command palette | DONE — Bloomberg's mnemonics without the keyboard. `⌘K`, `STRAT`/`FEAT`/`PAPER`/`RUN` prefixes, arrow keys, Escape. At a thousand strategies a menu is not viable |
+| T-3612 | Tokens scoped to `.terminal`, not `:root` | DONE by design — the existing workbench uses the same variable names with a warm palette; global tokens would have repainted it silently. Both coexist until the terminal replaces it, then it becomes `:root` in one commit |
+| T-3613 | Terminal covers only the library so far | OPEN — Build / Run / Instruments / Live / Data are navigation stubs. The workbench at `/` still does the authoring and running |
+| T-3614 | Virtualisation not yet needed | OPEN — 12 rows today. At a thousand it needs windowing, and windowed *select-all* must never include unrendered rows, because here that spends trials nobody chose |
 
 ---
 
