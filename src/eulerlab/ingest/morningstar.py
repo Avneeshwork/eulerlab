@@ -707,32 +707,43 @@ def enrich(
     by_mid = {r.morningstar_id: r for r in ratings}
     known = isins or {}
 
+    # One row per (scheme, ISIN) — the instrument grain, not the scheme grain.
+    #
+    # AMFI publishes two ISINs per scheme_code, and they are two instruments:
+    # the payout variant and the reinvestment one. Emitting one row per scheme
+    # keyed on isin_growth silently dropped every rating that had matched the
+    # reinvestment ISIN — 1,727 of 4,845 successful matches went nowhere.
     out: list[dict[str, object]] = []
     for scheme in schemes:
         code = str(getattr(scheme, "scheme_code", ""))
-        isin = str(getattr(scheme, "isin_growth", "") or "")
-        rating = by_mid.get(by_isin_key.get(isin, ""))
-        out.append(
-            {
-                "scheme_code": code,
-                "isin": isin,
-                "name": getattr(scheme, "name", ""),
-                "amc": getattr(scheme, "amc", ""),
-                "plan": getattr(scheme, "plan", ""),
-                "option": getattr(scheme, "option", ""),
-                "nav": getattr(scheme, "nav", None),
-                "morningstar_id": rating.morningstar_id if rating else None,
-                "star_rating": rating.star_rating if rating else None,
-                "medalist": rating.medalist if rating else None,
-                "category": rating.category if rating else None,
-                # How the row was joined, not merely that it was. An ISIN
-                # match is an identifier match; a name match is an educated
-                # guess, and a reader must be able to tell them apart.
-                "rating_join": (
-                    "isin"
-                    if rating and known.get(rating.morningstar_id)
-                    else ("name-fuzzy" if rating else "none")
-                ),
-            }
-        )
+        pair = [
+            (str(getattr(scheme, "isin_growth", "") or ""), "growth/payout"),
+            (str(getattr(scheme, "isin_reinvest", "") or ""), "reinvestment"),
+        ]
+        for isin, variant in [(i, v) for i, v in pair if i]:
+            rating = by_mid.get(by_isin_key.get(isin, ""))
+            out.append(
+                {
+                    "scheme_code": code,
+                    "isin": isin,
+                    "isin_variant": variant,
+                    "name": getattr(scheme, "name", ""),
+                    "amc": getattr(scheme, "amc", ""),
+                    "plan": getattr(scheme, "plan", ""),
+                    "option": getattr(scheme, "option", ""),
+                    "nav": getattr(scheme, "nav", None),
+                    "morningstar_id": rating.morningstar_id if rating else None,
+                    "star_rating": rating.star_rating if rating else None,
+                    "medalist": rating.medalist if rating else None,
+                    "category": rating.category if rating else None,
+                    # How the row was joined, not merely that it was. An ISIN
+                    # match is an identifier match; a name match is an educated
+                    # guess, and a reader must be able to tell them apart.
+                    "rating_join": (
+                        "isin"
+                        if rating and known.get(rating.morningstar_id)
+                        else ("name-fuzzy" if rating else "none")
+                    ),
+                }
+            )
     return out

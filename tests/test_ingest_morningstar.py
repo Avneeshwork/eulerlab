@@ -196,3 +196,42 @@ def test_a_fund_page_is_reachable_by_id_alone() -> None:
         rating_date=None,
     )
     assert without.path == "/mutualfunds/f00000pduy/x/morningstar-analysis.aspx"
+
+
+def test_every_isin_of_a_scheme_gets_its_own_row() -> None:
+    """The enriched output is at the INSTRUMENT grain, not the scheme grain.
+
+    Emitting one row per scheme keyed on isin_growth silently dropped every
+    rating matched to a scheme's reinvestment ISIN — 1,727 of 4,845 successful
+    matches went nowhere, and the loss was invisible because the rows that did
+    appear looked correct.
+    """
+    scheme = _Scheme(
+        "119219",
+        "DSP Large & Mid Cap Fund",
+        isin_growth="INF740K01PM4",
+        isin_reinvest="INF740K01PN2",
+    )
+    ratings = [_rating("f1", "DSP Payout"), _rating("f2", "DSP Reinvestment")]
+    join = morningstar.Join(
+        matched={"f1": "INF740K01PM4", "f2": "INF740K01PN2"},
+        ambiguous=0,
+        unmatched=0,
+        by_isin=2,
+    )
+    rows = morningstar.enrich(
+        [scheme], ratings, join, isins={"f1": "INF740K01PM4", "f2": "INF740K01PN2"}
+    )
+
+    assert len(rows) == 2, "one row per ISIN, not one per scheme"
+    assert {r["isin"] for r in rows} == {"INF740K01PM4", "INF740K01PN2"}
+    # Both matches attach; neither is dropped.
+    assert all(r["rating_join"] == "isin" for r in rows)
+    assert {r["morningstar_id"] for r in rows} == {"f1", "f2"}
+
+
+def test_a_scheme_with_one_isin_yields_one_row() -> None:
+    scheme = _Scheme("1", "Single ISIN Fund", isin_growth="INF000000001")
+    rows = morningstar.enrich([scheme], [], morningstar.Join(matched={}, ambiguous=0, unmatched=0))
+    assert len(rows) == 1
+    assert rows[0]["isin_variant"] == "growth/payout"
