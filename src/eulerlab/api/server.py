@@ -53,6 +53,7 @@ from eulerlab.llm import client
 from eulerlab.research.budget import price_search
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
+from eulerlab.validation.ledger import sharpe_dispersion
 from eulerlab.validation.statistics import sharpe_stats
 
 app = FastAPI(title="EulerLab", version="0.1.0")
@@ -361,11 +362,19 @@ def _caveats(request: BacktestRequest, sharpe: float) -> list[str]:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
+    # The bar is scaled by sigma_SR, which is assumed to be 1.0 and has never
+    # been measured (A-021). Reporting the bar without that fact invites it to
+    # be read as measured, and at sigma_SR 0.5 the same 19 trials give a bar of
+    # 0.94 rather than 1.88 — a difference that spans our best-ever result.
+    dispersion = sharpe_dispersion()
     return {
         "ok": True,
         "panel_loaded": PANEL.loaded(),
         "trials_logged": trial_count(),
         "noise_bar": round(price_search(0, available_years=11.4).bar_after, 3),
+        "noise_bar_sigma_measured": dispersion.usable,
+        "noise_bar_sigma": dispersion.sigma,
+        "noise_bar_note": dispersion.reason,
     }
 
 

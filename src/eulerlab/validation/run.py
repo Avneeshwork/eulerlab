@@ -282,6 +282,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             "pbo": round(pbo.pbo, 4),
             "n_paths": pbo.n_paths,
             "best_full_sample_sharpe": best_sharpe,
+            # The canonical key `sharpe_dispersion` reads. Written alongside the
+            # original rather than replacing it: the eleven existing entries are
+            # hash-chained and cannot be renamed, so both keys must be readable
+            # forever and only new rows can carry the canonical one.
+            ledger.SHARPE_KEY: best_sharpe,
         },
     )
 

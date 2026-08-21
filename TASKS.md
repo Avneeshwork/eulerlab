@@ -32,6 +32,30 @@ Operator-supplied rules. Verify: `uv run pytest tests/test_intraday_tweezer.py`
 
 ---
 
+## Fleet scale-up — many strategies, many asset classes (2026-08-21)
+
+Operator asked to scale to hundreds of strategies across asset classes, with
+RM/TM attachment and a backtest → forward-test → live pipeline. Architecture in
+ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
+
+| ID | Task | Status |
+|---|---|---|
+| T-3301 | σ_SR is assumed 1.0 and scales the entire noise bar | DONE (instrumented) — `ledger.sharpe_dispersion()` measures it and **refuses** while only 3 entries carry a Sharpe, all H-0001. A-021 |
+| T-3302 | Dispersion across distinct subjects, never across entries | DONE — one hypothesis re-evaluated 8 times is one strategy; counting repeats shrinks σ and lowers the bar. Mutation-tested: naive row-counting fails 2 tests |
+| T-3303 | Canonical `sharpe` key recorded going forward | DONE — `validation/run.py` writes it alongside the legacy key. Past entries are hash-chained and **must not** be rewritten, so both keys stay readable forever |
+| T-3304 | The bar is marked "assumed" wherever it is shown | DONE — `/api/health` returns `noise_bar_sigma_measured`, the workbench marks it. A caveat that travels in the payload, not the page |
+| T-3305 | **σ_SR still unmeasured** — needs 5 distinct validated hypotheses | OPEN — the project has 1. Until then the bar rests on an assumption, and at σ_SR ≤ 0.68 the best-ever 1.27 would clear it |
+| T-3306 | ADR-035: count trials by family, control FDR not FWER | OPEN — **operator decision.** `mandate.yaml` and `gates.py` untouched. At 1,000 trials the flat counter demands Sharpe 3.26 |
+| T-3307 | Effective-N estimator has no primary source | OPEN — A-020. Direction sourced (Harvey/Liu/Zhu §4); the specific method is not |
+| T-3308 | `strategies/` package + registry, one file per strategy | TODO — next |
+| T-3309 | RM/TM as seams between `target_weights()` and order planning | TODO — `Strategy` itself must not change |
+| T-3310 | `EventStrategy` for intraday/bracket shapes (Tweezer is not a `Strategy`) | TODO — T-3209 is the same gap |
+| T-3311 | Forward-test as an explicit per-strategy stage | TODO — `paper/runner.py` already is the mechanism; the stage is untracked |
+| T-3312 | `server.py` has no test coverage | OPEN — no test imports it; the type gate was the only check, and it was red in CI for 5 merges |
+| T-3313 | Schedule `make daily` so data actually updates | TODO — exists but nothing runs it; no cron, no launchd |
+
+---
+
 ## Integrated from TradeMaster (2026-08-20)
 
 Source: `~/Documents/TradeMaster_Avneesh` (2CentsCapital). Verify: `make montecarlo`.

@@ -126,7 +126,13 @@ export default function Page() {
         {health && (
           <div className="statline">
             <span>trials logged <b>{health.trials_logged}</b></span>
-            <span>noise bar <b>Sharpe {health.noise_bar.toFixed(2)}</b></span>
+            <span
+              title={health.noise_bar_note}
+              data-tip={health.noise_bar_note}
+            >
+              noise bar <b>Sharpe {health.noise_bar.toFixed(2)}</b>
+              {!health.noise_bar_sigma_measured && <em className="assumed"> assumed</em>}
+            </span>
             <span>panel <b>{health.panel_loaded ? 'cached' : 'not yet loaded'}</b></span>
             <span className="muted">running a backtest here spends no trial</span>
           </div>

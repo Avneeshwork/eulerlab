@@ -25,6 +25,11 @@ export type Health = {
   panel_loaded: boolean;
   trials_logged: number;
   noise_bar: number;
+  // The bar is scaled by a dispersion of Sharpes that has never been measured
+  // (A-021). Carried in the payload so the caveat travels with the number.
+  noise_bar_sigma_measured: boolean;
+  noise_bar_sigma: number | null;
+  noise_bar_note: string;
 };
 
 export type Result = {

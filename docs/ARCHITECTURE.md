@@ -459,6 +459,23 @@ CDF, and `σ_SR` is the standard deviation of Sharpes across trials.
 
 **This is the bar to beat.** It rises with every strategy you try.
 
+> **σ_SR is assumed, not measured, and it scales the whole bar (A-021).** The
+> implementation defaults it to 1.0 and nothing has ever overridden it. The
+> same 19 trials give a bar of **0.94** at σ_SR = 0.5, **1.88** at 1.0, and
+> **2.82** at 1.5 — a range that spans this project's best-ever result of 1.27.
+> So the sentence "the gate has killed everything it has seen" rests on this
+> constant as much as on the evidence.
+>
+> `ledger.sharpe_dispersion()` measures it from the trial ledger and, at the
+> time of writing, **refuses**: only 3 entries carry a Sharpe and all three are
+> H-0001 at successive stages. Dispersion is taken across *distinct subjects*,
+> never across entries — one hypothesis re-evaluated eight times is one
+> strategy, and counting the repeats would report our own re-measurement noise
+> as the spread between ideas, shrinking σ_SR and lowering the bar. `ic` trials
+> have no Sharpe at all, since they measure rank correlation, so they can never
+> contribute. The API reports `noise_bar_sigma_measured: false` and the
+> workbench marks the bar **assumed** until five distinct subjects exist.
+
 The **Deflated Sharpe Ratio** then gives the probability that the true Sharpe
 is above zero, given that `N` attempts were made:
 
