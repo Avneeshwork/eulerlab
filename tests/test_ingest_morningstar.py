@@ -87,6 +87,10 @@ def test_a_page_with_no_rows_parses_as_empty() -> None:
 class _Scheme:
     scheme_code: str
     name: str
+    isin_growth: str = ""
+    isin_reinvest: str = ""
+    plan: str = ""
+    option: str = ""
 
 
 def _rating(mid: str, name: str) -> morningstar.Rating:
@@ -99,31 +103,72 @@ def _rating(mid: str, name: str) -> morningstar.Rating:
         equity_stylebox=None,
         fixed_income_stylebox=None,
         rating_date=None,
+        detail_path=f"/mutualfunds/{mid}/x/morningstar-analysis.aspx",
     )
 
 
-def test_a_clean_name_match_joins() -> None:
+def test_the_isin_is_read_from_the_fund_page() -> None:
+    """The listing page carries no ISIN, which is what forced the fuzzy name
+    join and capped it at 18.3%. The fund's own page carries one."""
+    assert morningstar.parse_isin("<div>ISIN INF740K01PM4 blah</div>") == "INF740K01PM4"
+    assert morningstar.parse_isin("<div>nothing here</div>") == ""
+
+
+def test_an_isin_match_beats_the_name_and_is_exact() -> None:
     join = morningstar.join_to_amfi(
-        [_rating("f1", "DSP Large & Mid Cap Fund Direct Plan Growth")],
-        [_Scheme("119551", "DSP Large & Mid Cap Fund")],
+        [_rating("f1", "Totally Different Name")],
+        [_Scheme("119219", "DSP Large & Mid Cap Fund", isin_growth="INF740K01PL6")],
+        isins={"f1": "INF740K01PL6"},
     )
-    assert join.matched == {"f1": "119551"}
-    assert join.rate == 1.0
+    assert join.matched == {"f1": "INF740K01PL6"}
+    assert join.by_isin == 1
 
 
-def test_an_ambiguous_name_is_left_unjoined() -> None:
-    """The rule that matters. Two schemes folding to the same name means the
-    join cannot say which one — and a rating on the wrong fund is worse than a
-    rating on none, so neither is chosen."""
+def test_two_isins_of_one_scheme_are_two_instruments_not_a_collision() -> None:
+    """The correction that unlocked the join.
+
+    AMFI publishes two ISINs per scheme_code — payout and reinvestment — while
+    Morningstar treats them as separate funds. Joining on scheme_code made both
+    ratings collide on one key and the one-to-one guard dropped both. They were
+    never contested: they are two instruments inside one scheme, and the ISIN
+    is the instrument.
+    """
+    scheme = _Scheme(
+        "119219",
+        "DSP Large & Mid Cap Fund",
+        isin_growth="INF740K01PM4",
+        isin_reinvest="INF740K01PN2",
+    )
     join = morningstar.join_to_amfi(
-        [_rating("f1", "Axis Bluechip Fund Direct Plan Growth")],
-        [_Scheme("1", "Axis Bluechip Fund"), _Scheme("2", "Axis Bluechip Fund")],
+        [_rating("f1", "DSP Payout"), _rating("f2", "DSP Reinvestment")],
+        [scheme],
+        isins={"f1": "INF740K01PM4", "f2": "INF740K01PN2"},
     )
-    assert join.matched == {}
-    assert join.ambiguous == 1
+    assert len(join.matched) == 2
+    assert join.ambiguous == 0
+    assert join.matched["f1"] != join.matched["f2"]
 
 
-def test_an_unknown_name_is_reported_not_dropped() -> None:
+def test_an_unknown_name_with_no_isin_is_reported_not_dropped() -> None:
     join = morningstar.join_to_amfi([_rating("f1", "Nonexistent Fund")], [_Scheme("1", "Other")])
     assert join.unmatched == 1
     assert join.rate == 0.0
+
+
+def test_amfi_is_the_spine_and_unrated_schemes_survive() -> None:
+    """Every AMFI scheme appears once whether or not a rating was found.
+    Morningstar as the spine would silently shrink the universe to whatever a
+    third party happens to cover."""
+    schemes = [
+        _Scheme("1", "Rated Fund", isin_growth="INF000000001"),
+        _Scheme("2", "Unrated Fund", isin_growth="INF000000002"),
+    ]
+    ratings = [_rating("f1", "Rated Fund")]
+    join = morningstar.Join(matched={"f1": "INF000000001"}, ambiguous=0, unmatched=0, by_isin=1)
+
+    rows = morningstar.enrich(schemes, ratings, join, isins={"f1": "INF000000001"})
+    assert len(rows) == 2
+    by_isin = {r["isin"]: r for r in rows}
+    assert by_isin["INF000000001"]["rating_join"] == "isin"
+    assert by_isin["INF000000002"]["rating_join"] == "none"
+    assert by_isin["INF000000002"]["star_rating"] is None

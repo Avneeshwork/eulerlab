@@ -1,4 +1,4 @@
-# ADR-039 — Morningstar ratings are landed whole and joined only by name
+# ADR-039 — Morningstar ratings, joined to AMFI on ISIN
 
 **Date:** 2026-08-21 · **Sprint:** fleet scale-up · **Status:** accepted
 
@@ -7,7 +7,14 @@ and analyst ratings were the one thing Morningstar had which AMFI does not
 publish. The operator asked for them. `featured-reports.aspx` holds **5,741
 funds** — the previous scraper in `~/Documents/Trade` retrieved **6**.
 
-**The problem.** The page carries a Morningstar fund id (`f00000pdux`), a fund
+**Superseded in part, same day.** This ADR originally concluded that a fuzzy
+name join was the best available, because the *listing* page carries no ISIN.
+The operator said to use the ISIN. Checking rather than assuming: each fund's
+own page **does** carry one, and joining on it is exact. The name join survives
+only as a fallback for funds whose page has none. The reasoning below is kept
+because the constraint it describes is real for the listing page.
+
+**The problem.** The listing page carries a Morningstar fund id (`f00000pdux`), a fund
 name, and the ratings. **It carries no ISIN and no AMFI scheme code.**
 `CLAUDE.md` is unambiguous: *instrument joins use internal IDs only. Never a
 ticker, tradingsymbol, or broker token.* A fund name is exactly the kind of
@@ -48,6 +55,27 @@ affected. Now `None`. This is the third time in one session that a null has
 tried to render as a zero — the fleet list, a backtest with no fills, and now
 this — which suggests it is worth treating as a standing hazard rather than
 three coincidences.
+
+## What the ISIN changed
+
+Fetching each fund's own page lifts the join from a fuzzy 18.3% to **exact**.
+On the first 25 funds: 25 ISINs found, 25 matched, zero ambiguous.
+
+It also exposed that the earlier collisions were never collisions. **AMFI
+publishes two ISINs per `scheme_code`** — one for the payout variant, one for
+reinvestment — while Morningstar treats those as two funds. Joining to the
+scheme code made two legitimate ratings land on one key, and the one-to-one
+guard dropped both as contested. They were two instruments inside one scheme,
+and the ISIN is the instrument. **The join was at the wrong grain, and the
+18.3% ceiling was an artefact of that rather than a fact about the data.**
+
+The enriched output is therefore keyed on ISIN, not scheme code, and
+`rating_join` records *how* each row matched — `isin`, `name-fuzzy`, or `none`
+— so an identifier match is never confused with an educated guess.
+
+The cost is a second crawl: 5,741 fund pages rather than 29 listing pages. It
+is resumable and records an empty result too, so a fund whose page genuinely
+has no ISIN is not retried forever.
 
 **Cost if wrong.** Low for the ratings themselves, which stand alone. The join
 is where the risk sits, and it is bounded by being advisory: nothing in the

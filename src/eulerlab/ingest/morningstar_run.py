@@ -34,15 +34,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     path = morningstar.land(ratings)
     print(f"\nlanded {len(ratings):,} ratings -> {path}")
 
-    rated = [r for r in ratings if r.star_rating is not None]
-    print(f"  {len(rated):,} carry a star rating; {len(ratings) - len(rated):,} are unrated")
+    starred = [r for r in ratings if r.star_rating is not None]
+    print(f"  {len(starred):,} carry a star rating; {len(ratings) - len(starred):,} are unrated")
 
     if args.no_join:
         return 0
 
     print("\n== join to AMFI ==")
-    schemes = amfi.fetch_universe()
-    join = morningstar.join_to_amfi(ratings, list(schemes))
+    schemes = list(amfi.fetch_universe())
+    join = morningstar.join_to_amfi(ratings, schemes)
     print(f"  matched   : {len(join.matched):,}  ({join.rate * 100:.1f}%)")
     print(f"  ambiguous : {join.ambiguous:,}  (name folds to more than one scheme — left unjoined)")
     print(f"  unmatched : {join.unmatched:,}")
@@ -50,8 +50,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         "\nThis join is BY NAME and therefore fuzzy. Morningstar publishes no ISIN\n"
         "and no scheme code, and CLAUDE.md requires joins on internal ids only.\n"
         "An ambiguous name is left unjoined rather than resolved by picking one:\n"
-        "a rating on the wrong fund is worse than a rating on none."
+        "a rating on the wrong fund is worse than a rating on none. Matches are\n"
+        "one-to-one: if two Morningstar rows claim one scheme, both are dropped."
     )
+
+    # AMFI is the spine. Every scheme it publishes appears once, rated or not.
+    enriched = morningstar.enrich(schemes, ratings, join)
+    path = morningstar.land_enriched(enriched)
+    rated = sum(1 for row in enriched if row["rating_join"] != "none")
+    print(f"\n== enriched ==\n  {len(enriched):,} AMFI schemes -> {path}")
+    print(f"  {rated:,} carry a rating ({rated / len(enriched) * 100:.1f}%); the rest carry nulls")
     return 0
 
 

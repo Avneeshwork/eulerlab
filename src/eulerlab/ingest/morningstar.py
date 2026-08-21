@@ -44,6 +44,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from http.cookiejar import CookieJar
@@ -91,6 +92,8 @@ class Rating:
     equity_stylebox: int | None
     fixed_income_stylebox: int | None
     rating_date: date | None
+    detail_path: str = ""
+    """Path to the fund's own page, which is where the ISIN lives."""
 
 
 def _token(page: str, field: str) -> str:
@@ -135,7 +138,7 @@ def parse_page(page: str) -> list[Rating]:
     body = re.sub(r"(?is)<(script|style).*?</\1>", " ", page)
 
     for row in re.findall(r'(?is)<tr class="mds-data-table__row".*?</tr>', body):
-        link = re.search(r"/mutualfunds/(f[0-9a-z]+)/[^']*'\s*title='([^']*)'", row)
+        link = re.search(r"href='(/mutualfunds/(f[0-9a-z]+)/[^']*)'\s*title='([^']*)'", row)
         if not link:
             continue
 
@@ -168,8 +171,9 @@ def parse_page(page: str) -> list[Rating]:
 
         out.append(
             Rating(
-                morningstar_id=link.group(1),
-                name=html.unescape(link.group(2)).strip(),
+                morningstar_id=link.group(2),
+                name=html.unescape(link.group(3)).strip(),
+                detail_path=html.unescape(link.group(1)),
                 category=category,
                 medalist=medalist,
                 star_rating=stars,
@@ -191,6 +195,14 @@ class _Session:
 
     def __init__(self) -> None:
         self._opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
+
+    def open_path(self, path: str, *, timeout: int = 45) -> str:
+        """GET a page other than the listing (a fund's own page)."""
+        url = urllib.parse.urljoin("https://www.morningstar.in", path)
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with self._opener.open(request, timeout=timeout) as response:
+            body: bytes = response.read()
+            return body.decode("utf-8", errors="replace")
 
     def open(self, data: dict[str, str] | None = None, *, timeout: int = 60) -> str:
         payload = urllib.parse.urlencode(data).encode() if data else None
@@ -307,38 +319,232 @@ def land(ratings: list[Rating], *, directory: Path = LANDING) -> Path:
     return path
 
 
+ISIN_PATH = Path("data/landing/mf/morningstar_isin.jsonl")
+ISIN_RE = re.compile(r"\bINF[0-9A-Z]{9}\b")
+
+
+def parse_isin(page: str) -> str:
+    """The scheme's ISIN, from its own Morningstar page.
+
+    The listing page carries no ISIN at all — only a name — which is what
+    forced the fuzzy name join and capped it at 18.3%. The per-fund page does
+    carry one, and an ISIN is a real instrument identifier rather than a label,
+    so joining on it satisfies the rule the name join could only apologise for.
+    """
+    match = ISIN_RE.search(page)
+    return match.group(0) if match else ""
+
+
+def known_isins(*, path: Path = ISIN_PATH) -> dict[str, str]:
+    """Morningstar id -> ISIN for everything already fetched.
+
+    This is what makes the crawl resumable: 5,741 detail pages is over an hour,
+    and a run that had to start again from zero would never finish.
+    """
+    if not path.exists():
+        return {}
+    out: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        out[str(row["morningstar_id"])] = str(row["isin"])
+    return out
+
+
+def fetch_isins(
+    ratings: list[Rating],
+    *,
+    path: Path = ISIN_PATH,
+    pace: float = 0.8,
+    limit: int = 0,
+) -> dict[str, str]:
+    """Walk the fund pages and record each ISIN, skipping what is already known.
+
+    An empty ISIN is recorded too, deliberately. Without it a fund whose page
+    genuinely has none would be retried on every future run forever.
+    """
+    known = known_isins(path=path)
+    todo = [r for r in ratings if r.morningstar_id not in known and r.detail_path]
+    if limit:
+        todo = todo[:limit]
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    session = _Session()
+    for index, rating in enumerate(todo, start=1):
+        try:
+            page = session.open_path(rating.detail_path)
+            isin = parse_isin(page)
+        except Exception:
+            isin = ""
+        known[rating.morningstar_id] = isin
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(
+                json.dumps({"morningstar_id": rating.morningstar_id, "isin": isin}, sort_keys=True)
+                + "\n"
+            )
+        if index % 200 == 0 or index == len(todo):
+            found = sum(1 for v in known.values() if v)
+            print(f"  [{index:>5}/{len(todo)}] {found:,} ISINs known")
+        time.sleep(pace)
+    return known
+
+
+ENRICHED_DIR = Path("data/landing/mf/enriched")
+
+
+def land_enriched(rows: list[dict[str, object]], *, directory: Path = ENRICHED_DIR) -> Path:
+    """Write the AMFI-spine view with ratings attached.
+
+    A derived artefact rather than raw landing — it is reproducible from the
+    two snapshots it was built from, and is written beside them so the daily
+    job produces one file a reader can actually use.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(UTC).date().isoformat()
+    path = directory / f"{stamp}.jsonl.gz"
+    with gzip.open(path, "wt", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+    return path
+
+
 # --- joining to AMFI, honestly ---------------------------------------------
 
 
-def _normalise(name: str) -> str:
-    """Fold a fund name to something two sources might agree on."""
+_PLAN_WORDS = (("direct", "direct"), ("regular", "regular"), ("reg", "regular"))
+"""Morningstar abbreviates: "Fund - Reg Pr" is a Regular plan. Matched on word
+boundaries so `reg` cannot fire inside "Regency" or "Aggressive"."""
+
+_OPTION_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("idcw-reinvest", ("re-investment", "reinvestment", "re investment", "reinvest")),
+    ("idcw-payout", ("payout",)),
+    ("growth", ("growth",)),
+    ("idcw", ("idcw", "dividend", "dcw")),
+)
+"""Order matters: a name saying "Reinvestment of Income Dist cum Cap Wdrl" also
+contains no "growth", but "IDCW-Re-investment" must not fall through to the
+bare `idcw` bucket. Most specific first."""
+
+_TAIL = re.compile(
+    r"\b("
+    r"p(?:y)?t\s+of\s+inc|payout\s+of\s+inc|"
+    r"r(?:ei)?nvmt\s+of\s+inc|reinvestment\s+of\s+inc|re\s*investment\s+of\s+inc|"
+    r"prdic\s+r|of\s+inc(?:ome)?\s+dist|inc(?:ome)?\s+dist|dist\s+cum\s+cap|idcw|dividend"
+    r").*$",
+    re.I,
+)
+"""Everything from a distribution phrase to the end of the name is noise.
+
+Morningstar abbreviates these a dozen ways — "Pyt of Inc Dis cum Cap Wdrl",
+"Rnvmt of Inc DiscumcptlWdrlOpt", "Prdic Rnvmt of Inc Dis cumcptlwdrlopt" —
+and AMFI does not put any of them in its `name` column at all. Matching the
+phrase and cutting to the end is far more robust than enumerating spellings:
+that enumeration is what left 4,305 funds unmatched.
+
+`inc` and `income` are both spelled out because Morningstar uses each. Matching
+only the long form left 2,691 funds carrying a trailing "inc dist cum cap wdrl"
+that AMFI never writes, so their base names could not agree.
+"""
+
+_FREQUENCY = ("daily", "weekly", "fortnightly", "monthly", "quarterly", "half yearly", "annual")
+
+_NOISE = (
+    "direct plan",
+    "regular plan",
+    "growth option",
+    "idcw option",
+)
+
+
+def _base_name(name: str) -> str:
+    """Fold a fund name to the part both sources spell the same way.
+
+    AMFI keeps plan and option in their own columns, so its `name` is already
+    the base. Morningstar concatenates all three, so the plan and option words
+    are stripped here — but captured separately by `_plan` / `_option` rather
+    than discarded, because throwing them away is what collapsed 594 distinct
+    schemes onto one ambiguous name.
+    """
     text = name.lower()
-    text = re.sub(r"[^a-z0-9 ]+", " ", text)
-    for noise in (
-        "payout of income dist cum cap wdrl",
-        "reinvestment of income dist cum cap wdrl",
-        "income dist cum cap wdrl",
-        "direct plan",
-        "regular plan",
-        " fund",
-        " scheme",
-        " plan",
-        " option",
-        " growth",
-        " idcw",
-        " dividend",
-    ):
+    for noise in _NOISE:
         text = text.replace(noise, " ")
+    text = _TAIL.sub(" ", text)
+    text = re.sub(r"[^a-z0-9 ]+", " ", text)
+    for freq in _FREQUENCY:
+        text = re.sub(rf"\b{freq}\b", " ", text)
+    for word in (
+        "fund",
+        "scheme",
+        "plan",
+        "option",
+        "growth",
+        "idcw",
+        "dividend",
+        "direct",
+        "regular",
+        "payout",
+        "reinvestment",
+    ):
+        text = re.sub(rf"\b{word}\b", " ", text)
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _plan(text: str) -> str:
+    lowered = text.lower()
+    for needle, label in _PLAN_WORDS:
+        if re.search(rf"\b{needle}\b", lowered):
+            return label
+    return ""
+
+
+def _option(text: str) -> str:
+    lowered = text.lower()
+    for label, needles in _OPTION_PATTERNS:
+        if any(n in lowered for n in needles):
+            return label
+    return ""
+
+
+def _coarse(option: str) -> str:
+    """Collapse the payout/reinvestment split back to plain IDCW.
+
+    AMFI usually records the option as bare `IDCW` (3,670 schemes) and only
+    sometimes distinguishes payout from reinvestment (310 and 312).
+    Morningstar always distinguishes. Demanding exact equality therefore fails
+    on ~2,700 funds that are in fact the same scheme, so the join tries the
+    exact option first and falls back to this coarser bucket.
+    """
+    return "idcw" if option.startswith("idcw") else option
+
+
+def _key(name: str, plan: str = "", option: str = "") -> tuple[str, str, str]:
+    """The composite identity two sources can agree on.
+
+    Not an internal id, and this is not pretending to be one — see ADR-039.
+    It is a name plus the two attributes that distinguish a scheme's variants,
+    which is the most a source without an ISIN can offer.
+    """
+    return (_base_name(name), _plan(plan or name), _option(option or name))
 
 
 @dataclass(frozen=True)
 class Join:
     matched: dict[str, str]
-    """Morningstar id -> AMFI scheme code, for unambiguous name matches only."""
+    """Morningstar id -> **ISIN**, not scheme code.
+
+    The grain matters and got this wrong once. AMFI publishes two ISINs per
+    `scheme_code` — the payout one and the reinvestment one — while Morningstar
+    treats those as two funds. Joining to the scheme code therefore made two
+    legitimate ratings collide on one key, and the one-to-one guard dropped
+    both as contested. They were not contested; they were two instruments
+    inside one scheme. The ISIN is the instrument.
+    """
 
     ambiguous: int
     unmatched: int
+    by_isin: int = 0
+    """How many matched on ISIN. The rest, if any, are name matches."""
 
     @property
     def rate(self) -> float:
@@ -346,30 +552,152 @@ class Join:
         return len(self.matched) / total if total else 0.0
 
 
-def join_to_amfi(ratings: list[Rating], schemes: list[object]) -> Join:
-    """Match ratings to AMFI schemes by name. **Fuzzy, and labelled as such.**
+def _primary_isin(code: str, schemes: Sequence[object]) -> str:
+    for scheme in schemes:
+        if str(getattr(scheme, "scheme_code", "")) == code:
+            return str(getattr(scheme, "isin_growth", "") or "")
+    return ""
 
-    Morningstar publishes no ISIN and no scheme code, so a name is the only
-    bridge. A name that folds to the same normalised form as two different
-    schemes is left **unmatched**, not resolved by picking one: a rating on the
-    wrong fund is worse than a rating on none, and this project's identity rule
-    exists precisely to stop that trade being made quietly.
+
+def join_to_amfi(
+    ratings: list[Rating],
+    schemes: Sequence[object],
+    *,
+    isins: dict[str, str] | None = None,
+) -> Join:
+    """Match ratings to AMFI schemes.
+
+    **On ISIN when one is known, which is the whole point.** An ISIN is a real
+    instrument identifier, so a match on it satisfies `CLAUDE.md`'s rule that
+    joins use identifiers and never labels. AMFI publishes two per scheme — the
+    growth/payout ISIN and the reinvestment one — and either may be the one
+    Morningstar shows, so both are indexed.
+
+    A fund with no ISIN falls back to the composite name key, which is fuzzy and
+    capped around 18%. That fallback is kept rather than dropped because some
+    funds genuinely have no ISIN on their page, but it is counted separately so
+    the two are never confused in a report.
+
+    Matches are one-to-one in both directions. If two ratings claim one scheme,
+    neither is kept: a rating on the wrong fund is worse than a rating on none.
     """
-    by_name: dict[str, list[str]] = {}
+    isins = isins or {}
+
+    by_isin: dict[str, list[str]] = {}
+    by_key: dict[tuple[str, str, str], list[str]] = {}
     for scheme in schemes:
         code = str(getattr(scheme, "scheme_code", ""))
         name = str(getattr(scheme, "name", ""))
-        if code and name:
-            by_name.setdefault(_normalise(name), []).append(code)
+        if not code:
+            continue
+        for field in ("isin_growth", "isin_reinvest"):
+            value = str(getattr(scheme, field, "") or "")
+            if value:
+                by_isin.setdefault(value, []).append(code)
+        if name:
+            key = _key(name, str(getattr(scheme, "plan", "")), str(getattr(scheme, "option", "")))
+            by_key.setdefault(key, []).append(code)
+
+    by_coarse: dict[tuple[str, str, str], list[str]] = {}
+    for key, codes in by_key.items():
+        by_coarse.setdefault((key[0], key[1], _coarse(key[2])), []).extend(codes)
 
     matched: dict[str, str] = {}
+    isin_hits = 0
     ambiguous = unmatched = 0
+
     for rating in ratings:
-        candidates = by_name.get(_normalise(rating.name), [])
-        if len(candidates) == 1:
-            matched[rating.morningstar_id] = candidates[0]
+        isin = isins.get(rating.morningstar_id, "")
+        candidates = by_isin.get(isin, []) if isin else []
+        hit_by_isin = len(candidates) == 1
+
+        if not hit_by_isin:
+            key = _key(rating.name)
+            candidates = by_key.get(key, [])
+            if len(candidates) != 1:
+                coarse = by_coarse.get((key[0], key[1], _coarse(key[2])), [])
+                candidates = coarse if len(coarse) == 1 else candidates or coarse
+
+        if hit_by_isin:
+            matched[rating.morningstar_id] = isin
+            isin_hits += 1
+        elif len(candidates) == 1:
+            # No ISIN on the fund's page. Fall back to the name key and record
+            # the scheme's primary ISIN, so every matched row is keyed the same
+            # way regardless of how it was found.
+            primary = _primary_isin(candidates[0], schemes)
+            if primary:
+                matched[rating.morningstar_id] = primary
+            else:
+                unmatched += 1
         elif candidates:
             ambiguous += 1
         else:
             unmatched += 1
-    return Join(matched=matched, ambiguous=ambiguous, unmatched=unmatched)
+
+    # One-to-one in the other direction too. The name fallback can send several
+    # Morningstar variants at one scheme, and keeping whichever arrived last
+    # would attach an arbitrary rating to a real fund.
+    claims: dict[str, list[str]] = {}
+    for mid, code in matched.items():
+        claims.setdefault(code, []).append(mid)
+    contested = {mid for mids in claims.values() if len(mids) > 1 for mid in mids}
+    for mid in contested:
+        del matched[mid]
+    ambiguous += len(contested)
+    isin_hits = min(isin_hits, len(matched))
+
+    return Join(matched=matched, ambiguous=ambiguous, unmatched=unmatched, by_isin=isin_hits)
+
+
+def enrich(
+    schemes: Sequence[object],
+    ratings: list[Rating],
+    join: Join,
+    *,
+    isins: dict[str, str] | None = None,
+) -> list[dict[str, object]]:
+    """AMFI records with Morningstar ratings attached where they matched.
+
+    **AMFI is the spine.** Every scheme AMFI publishes appears exactly once,
+    whether or not a rating was found; a fund with no rating carries nulls
+    rather than being dropped. The reverse — Morningstar as the spine — would
+    silently shrink the universe to whatever a third party happens to cover.
+
+    Every enriched row carries `rating_join` so a reader can tell a matched
+    rating from an absent one without inferring it from a null, and knows the
+    match was by name rather than by identifier (ADR-039).
+    """
+    by_isin_key = {isin: mid for mid, isin in join.matched.items()}
+    by_mid = {r.morningstar_id: r for r in ratings}
+    known = isins or {}
+
+    out: list[dict[str, object]] = []
+    for scheme in schemes:
+        code = str(getattr(scheme, "scheme_code", ""))
+        isin = str(getattr(scheme, "isin_growth", "") or "")
+        rating = by_mid.get(by_isin_key.get(isin, ""))
+        out.append(
+            {
+                "scheme_code": code,
+                "isin": isin,
+                "name": getattr(scheme, "name", ""),
+                "amc": getattr(scheme, "amc", ""),
+                "plan": getattr(scheme, "plan", ""),
+                "option": getattr(scheme, "option", ""),
+                "nav": getattr(scheme, "nav", None),
+                "morningstar_id": rating.morningstar_id if rating else None,
+                "star_rating": rating.star_rating if rating else None,
+                "medalist": rating.medalist if rating else None,
+                "category": rating.category if rating else None,
+                # How the row was joined, not merely that it was. An ISIN
+                # match is an identifier match; a name match is an educated
+                # guess, and a reader must be able to tell them apart.
+                "rating_join": (
+                    "isin"
+                    if rating and known.get(rating.morningstar_id)
+                    else ("name-fuzzy" if rating else "none")
+                ),
+            }
+        )
+    return out
