@@ -296,3 +296,93 @@ def test_ohlc_violations_are_caught(tmp_path: Path) -> None:
         )
     problems = reconcile.sanity_checks("BADUSDT", "2024-01", directory=tmp_path)
     assert any("low>high" in p for p in problems)
+
+
+def test_a_frozen_feed_is_caught_by_repetition_not_by_bounds(tmp_path: Path) -> None:
+    """The check the archive most needed and did not have.
+
+    A stale feed passes every OHLC bound: each bar is internally consistent,
+    the count is right, the price simply stopped moving. Only repetition shows
+    it.
+    """
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    _land(tmp_path, "STALEUSDT", "2024-01", [100.0] * 60)
+    findings = reconcile.stale_runs("STALEUSDT", "2024-01", threshold=30, directory=tmp_path)
+    assert findings
+    assert findings[0].kind == "stale"
+
+    _land(tmp_path, "LIVEUSDT", "2024-01", [100.0 + i * 0.1 for i in range(60)])
+    assert not reconcile.stale_runs("LIVEUSDT", "2024-01", threshold=30, directory=tmp_path)
+
+
+def test_an_ordinary_crypto_minute_is_not_extreme(tmp_path: Path) -> None:
+    """Measured: p50 of |minute return| is 0.045% and p99.9 is 0.93% across
+    2.4M returns. The first version of this check used 15x MAD and produced
+    37,140 findings by flagging 1.2% moves — the same error T-609 records for
+    equities, where a spike threshold turned out to be the 99th percentile of
+    ordinary trading."""
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    closes = [100.0]
+    for i in range(200):
+        closes.append(closes[-1] * (1.005 if i % 2 else 0.995))
+    _land(tmp_path, "NORMALUSDT", "2024-01", closes)
+    assert reconcile.extreme_moves("NORMALUSDT", "2024-01", directory=tmp_path) == []
+
+
+def test_a_large_move_on_no_volume_is_flagged_as_isolated(tmp_path: Path) -> None:
+    """A real move brings volume and trades with it; a corrupt print does not.
+
+    Verified against NEARUSDT 2021-12-15 04:00 — a +73% minute that looked
+    like the worst outlier in the archive until the bar was read: volume went
+    from ~500 to 4,097,436 and trades from 22 to 40,691, and the price held for
+    ten minutes. A market, not a bad tick.
+    """
+    import gzip
+    import json
+    from datetime import timedelta
+
+    from eulerlab.quality import crypto_reconcile as reconcile
+
+    path = crypto.month_path("SPIKEUSDT", "2024-01", directory=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    start = datetime(2024, 1, 1, tzinfo=UTC)
+    with gzip.open(path, "wt", encoding="utf-8") as handle:
+        for i in range(60):
+            close = 100.0 if i != 30 else 200.0  # +100% on flat volume
+            when = start + timedelta(minutes=i)
+            handle.write(
+                json.dumps(
+                    {
+                        "symbol": "SPIKEUSDT",
+                        "open": close,
+                        "high": close,
+                        "low": close,
+                        "close": close,
+                        "volume": 10.0,
+                        "trades": 5,
+                        "event_time": when.isoformat(),
+                        "knowledge_time": (when + timedelta(minutes=1)).isoformat(),
+                    }
+                )
+                + "\n"
+            )
+
+    findings = reconcile.extreme_moves("SPIKEUSDT", "2024-01", directory=tmp_path)
+    assert findings
+    assert findings[0].kind == "extreme-isolated", "flat volume means it is not a market move"
+
+
+def test_a_truncated_file_is_not_mistaken_for_a_landed_one(tmp_path: Path) -> None:
+    """path.exists() is not the same question as 'can this be read'. A
+    truncated gzip exists, has a plausible size, and raises only when something
+    reads past the break — possibly months later. land_month skips anything
+    that exists, so without this the corruption would persist forever.
+    """
+    path = crypto.month_path("TRUNCUSDT", "2024-01", directory=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x1f\x8b\x08\x00truncated-not-a-whole-stream")
+
+    assert path.exists()
+    assert not crypto.is_readable("TRUNCUSDT", "2024-01", directory=tmp_path)

@@ -91,6 +91,28 @@ def main(argv: Sequence[str] | None = None) -> int:
                         print(f"  {symbol} {year_month}: {problem}")
     print(f"  OHLC / ordering / positivity violations: {violations}")
 
+    # Stale feeds and bad prints — the two failures a bounds check cannot see.
+    stale = corroborated = isolated = 0
+    isolated_examples: list[str] = []
+    for symbol in symbols:
+        for year_month in months:
+            if not crypto.is_readable(symbol, year_month):
+                continue
+            stale += len(reconcile.stale_runs(symbol, year_month))
+            for finding in reconcile.extreme_moves(symbol, year_month):
+                if finding.kind == "extreme-corroborated":
+                    corroborated += 1
+                else:
+                    isolated += 1
+                    if len(isolated_examples) < 5:
+                        isolated_examples.append(f"{symbol} {finding.at}: {finding.detail}")
+
+    print(f"  stale runs (>=30 identical closes):       {stale}")
+    print(f"  large moves corroborated by volume:       {corroborated}")
+    print(f"  large moves with NO volume (bad prints?): {isolated}")
+    for example in isolated_examples:
+        print(f"      {example}")
+
     # --- 2. are the gaps shared? -----------------------------------------
     print(f"\n== gaps ({len(short_months)} symbol-months are short) ==")
     by_month: dict[str, list[str]] = {}
@@ -147,7 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "and a minute bar samples a continuous process. Under 0.5% median is\n"
         "microstructure; this project's own equity vendor comparison sits at 0.181%."
     )
-    return 1 if (violations or disagreements) else 0
+    return 1 if (violations or disagreements or isolated) else 0
 
 
 if __name__ == "__main__":

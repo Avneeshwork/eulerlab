@@ -196,6 +196,154 @@ def compare(
     )
 
 
+@dataclass(frozen=True)
+class Finding:
+    """One problem, named precisely enough to act on."""
+
+    kind: str
+    detail: str
+    at: str = ""
+
+
+def stale_runs(
+    symbol: str, year_month: str, *, threshold: int = 30, directory: Path | None = None
+) -> list[Finding]:
+    """Runs of identical closes — what a frozen feed looks like.
+
+    The check the archive most needed and did not have. OHLC bounds pass
+    perfectly on a stale feed: every bar is internally consistent, the count is
+    right, and the price simply stopped moving. Only the repetition gives it
+    away.
+
+    `threshold` is 30 minutes. Genuinely flat half-hours do happen in thin
+    alt-coins at 3am, so this is a *finding* rather than a failure — but a
+    liquid pair printing the same close for half an hour is a stopped clock,
+    and a strategy reading it as calm will size into it.
+    """
+    path = crypto.month_path(symbol, year_month, directory=directory or crypto.LANDING)
+    if not path.exists():
+        return []
+
+    findings: list[Finding] = []
+    previous: float | None = None
+    run = 0
+    run_started = ""
+
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            close = float(row["close"])
+            when = str(row["event_time"])
+
+            if previous is not None and close == previous:
+                if run == 0:
+                    run_started = when
+                run += 1
+            else:
+                if run >= threshold:
+                    findings.append(
+                        Finding("stale", f"{run + 1} identical closes at {previous}", run_started)
+                    )
+                run = 0
+            previous = close
+
+    if run >= threshold:
+        findings.append(Finding("stale", f"{run + 1} identical closes at {previous}", run_started))
+    return findings
+
+
+# Measured, not chosen. Across 2,437,704 minute returns sampled from 14 symbols
+# and 56 symbol-months of the landed archive:
+#
+#     p50      0.0453%      p99.9    0.9322%
+#     p90      0.1754%      p99.99   2.0515%
+#     p99      0.4401%      p99.999  3.9683%
+#     max      9.16%
+#
+# So an ordinary crypto minute moves ~0.05%, and the single largest move in the
+# entire sample is 9.16% — a real market move, not a corrupt print.
+EXTREME_MOVE_PCT = 12.0
+"""One-minute return beyond which a print is not plausibly a market move.
+
+Set above the 9.16% maximum actually observed, so it flags things the archive
+has never yet contained rather than things it contains routinely.
+
+The first version used 15x MAD and produced **37,140 findings**, flagging
+1.2% minute moves as extreme. That is the identical mistake T-609 records on
+the equity side, where a spike threshold of 5.0 turned out to be the *99th
+percentile of ordinary trading*. Writing a comment citing that lesson did not
+prevent repeating it; measuring the distribution did.
+"""
+
+
+def extreme_moves(
+    symbol: str,
+    year_month: str,
+    *,
+    threshold_pct: float = EXTREME_MOVE_PCT,
+    directory: Path | None = None,
+) -> list[Finding]:
+    """Minute returns too large to be a market move.
+
+    An absolute threshold rather than a dispersion multiple. Crypto volatility
+    varies enormously between a quiet month in a large cap and a violent one in
+    an alt, so a relative threshold flags the calm months and misses the wild
+    ones — which is exactly backwards. What does not vary is that no honest
+    minute bar moves 12%.
+    """
+    path = crypto.month_path(symbol, year_month, directory=directory or crypto.LANDING)
+    if not path.exists():
+        return []
+
+    rows: list[dict[str, Any]] = []
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                rows.append(json.loads(line))
+
+    if len(rows) < 20:
+        return []
+
+    volumes = sorted(float(r["volume"]) for r in rows)
+    # A thin month can have a median volume of exactly zero — most minutes
+    # genuinely trade nothing — and dividing by it is how this check crashed
+    # the first time it met a quiet alt-coin.
+    typical_volume = volumes[len(volumes) // 2] or 1e-9
+
+    findings: list[Finding] = []
+    for index in range(1, len(rows)):
+        previous, current = rows[index - 1], rows[index]
+        before, after = float(previous["close"]), float(current["close"])
+        if before <= 0:
+            continue
+        move = (after / before - 1.0) * 100.0
+        if abs(move) <= threshold_pct:
+            continue
+
+        # Corroboration. A real move brings volume and trades with it; a
+        # corrupt print does not. Verified against NEARUSDT 2021-12-15 04:00,
+        # a +73% minute that looked like the worst outlier in the archive:
+        # volume went from ~500 to 4,097,436 and trades from 22 to 40,691, and
+        # the price held for the following ten minutes. That is a market, not
+        # a bad tick.
+        volume = float(current["volume"])
+        trades = int(current["trades"] or 0)
+        multiple = volume / typical_volume
+        corroborated = multiple > 10 and trades > 100
+
+        findings.append(
+            Finding(
+                "extreme-corroborated" if corroborated else "extreme-isolated",
+                f"{move:+.2f}% in one minute, volume {volume:,.0f} "
+                f"({multiple:,.0f}x typical), {trades:,} trades",
+                str(current["event_time"]),
+            )
+        )
+    return findings
+
+
 def sanity_checks(symbol: str, year_month: str, *, directory: Path | None = None) -> list[str]:
     """Checks that need no second source at all.
 

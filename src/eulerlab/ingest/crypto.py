@@ -240,7 +240,15 @@ def land_month(symbol: str, year_month: str, *, directory: Path = LANDING) -> tu
 
     path.parent.mkdir(parents=True, exist_ok=True)
     receipt = datetime.now(UTC).isoformat()
-    with gzip.open(path, "wt", encoding="utf-8") as handle:
+
+    # Written to a temporary file and renamed, never straight to the final
+    # path. A download interrupted mid-write would otherwise leave a TRUNCATED
+    # file sitting exactly where a complete one belongs — and `land_month`
+    # skips anything that exists, so it would be treated as landed forever
+    # while being unreadable. rename() within a directory is atomic on POSIX,
+    # so the final path only ever holds a whole file.
+    temporary = path.with_suffix(path.suffix + ".partial")
+    with gzip.open(temporary, "wt", encoding="utf-8") as handle:
         for candle in candles:
             handle.write(
                 json.dumps(
@@ -260,7 +268,46 @@ def land_month(symbol: str, year_month: str, *, directory: Path = LANDING) -> tu
                 )
                 + "\n"
             )
+    temporary.replace(path)
     return len(candles), True
+
+
+def is_readable(symbol: str, year_month: str, *, directory: Path = LANDING) -> bool:
+    """Can the landed file actually be read end to end?
+
+    `path.exists()` is not the same question. A truncated gzip exists, has a
+    plausible size, and raises `EOFError` only when something reads past the
+    break — which may be months after the download that produced it.
+    """
+    path = month_path(symbol, year_month, directory=directory)
+    if not path.exists():
+        return False
+    try:
+        with gzip.open(path, "rt", encoding="utf-8") as handle:
+            for _ in handle:
+                pass
+    except Exception:
+        # Deliberately broad. The question is "can this be read", and the
+        # answer is no regardless of which layer objects — a truncated stream
+        # raises zlib.error, a corrupt header gzip.BadGzipFile, a short read
+        # EOFError, and none of those share a base class worth naming here.
+        return False
+    return True
+
+
+def repair(symbol: str, year_month: str, *, directory: Path = LANDING) -> bool:
+    """Re-fetch a month whose file cannot be read. Returns True if repaired.
+
+    Deletes before re-fetching, because `land_month` skips anything that
+    exists — the very behaviour that lets a truncated file persist.
+    """
+    if is_readable(symbol, year_month, directory=directory):
+        return False
+    path = month_path(symbol, year_month, directory=directory)
+    path.unlink(missing_ok=True)
+    path.with_suffix(path.suffix + ".partial").unlink(missing_ok=True)
+    land_month(symbol, year_month, directory=directory)
+    return True
 
 
 def months_between(start: date, end: date) -> list[str]:
