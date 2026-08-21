@@ -16,6 +16,8 @@ Both are read from what is on disk, never asserted.
 
 from __future__ import annotations
 
+import gzip
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -97,8 +99,24 @@ def capabilities() -> list[Capability]:
             Path("data/landing/crypto").exists(),
             "resampled from the minute archive",
         ),
+        Capability(
+            AssetClass.MUTUAL_FUND,
+            Timeframe.DAILY,
+            MF_HISTORY.exists(),
+            _fund_detail(),
+        ),
         Capability(AssetClass.FX, Timeframe.DAILY, False, "no data"),
     ]
+
+
+def _fund_detail() -> str:
+    """Counted from disk, like every other row."""
+    if not MF_HISTORY.exists():
+        return "no data — run `make mf`"
+    landed = sum(1 for _ in MF_HISTORY.glob("*.jsonl.gz"))
+    snapshot = _latest_enriched()
+    stamp = snapshot.name.split(".")[0] if snapshot else "no snapshot"
+    return f"{landed:,} schemes with landed NAV history (AMFI, snapshot {stamp})"
 
 
 def _crypto_detail() -> str:
@@ -138,6 +156,18 @@ class Instrument:
     rank: int
     """Position in the liquidity ranking. Lower is more traded."""
 
+    name: str = ""
+    """A human-readable name, where the symbol alone is not one.
+
+    Equities and crypto pairs are recognisable from the ticker. A mutual fund
+    scheme code is not — `119551` tells nobody anything, and a picker that
+    showed only the code would be unusable for the 14,280 schemes on disk.
+    """
+
+    detail: str = ""
+    """What the row is, in a few words. AMC and plan for a fund, quote currency
+    for a crypto pair."""
+
 
 def _minute_symbols() -> set[str]:
     """Symbols with a local minute cache.
@@ -153,8 +183,116 @@ def _minute_symbols() -> set[str]:
     return {p.name for p in root.iterdir() if p.is_dir()}
 
 
-def search(query: str = "", *, batch: str = "", limit: int = 60) -> list[Instrument]:
-    """Instruments matching `query`, restricted to `batch` when given."""
+CRYPTO_LANDING = Path("data/landing/crypto")
+MF_ENRICHED = Path("data/landing/mf/enriched")
+MF_HISTORY = Path("data/landing/mf/history")
+
+
+def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
+    """The landed crypto universe, read from the directories on disk.
+
+    Ranked by how many months are landed rather than by turnover: the
+    liquidity ranking that orders equities does not exist here, and inventing
+    one would be worse than ordering by the thing actually measured.
+    """
+    if not CRYPTO_LANDING.exists():
+        return []
+    needle = query.strip().upper()
+    landed = [
+        (len(list(path.glob("*.gz"))), path.name)
+        for path in sorted(CRYPTO_LANDING.iterdir())
+        if path.is_dir()
+    ]
+    landed.sort(key=lambda item: (-item[0], item[1]))
+
+    out: list[Instrument] = []
+    for rank, (months, symbol) in enumerate(landed, start=1):
+        if needle and needle not in symbol:
+            continue
+        base = symbol[:-4] if symbol.endswith("USDT") else symbol
+        out.append(
+            Instrument(
+                symbol=symbol,
+                asset_class=AssetClass.CRYPTO,
+                # Minute bars are what was landed; the daily panel is resampled
+                # from them (alt_panel), so both are true here.
+                has_daily=months > 0,
+                has_minute=months > 0,
+                rank=rank,
+                name=base,
+                detail=f"{months} months landed, quoted in USDT",
+            )
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _latest_enriched() -> Path | None:
+    if not MF_ENRICHED.exists():
+        return None
+    snapshots = sorted(MF_ENRICHED.glob("*.jsonl.gz"))
+    return snapshots[-1] if snapshots else None
+
+
+def fund_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
+    """Mutual fund schemes from the newest enriched snapshot.
+
+    Matched on name, AMC, ISIN and scheme code, because a person looking for a
+    fund knows its name and not its code. Only schemes with landed NAV history
+    report `has_daily`: a scheme in the snapshot with no history file is
+    listed but cannot be backtested, and saying so is better than offering it
+    and returning nothing.
+    """
+    snapshot = _latest_enriched()
+    if snapshot is None:
+        return []
+    needle = query.strip().upper()
+    have_history = {path.name.split(".")[0] for path in MF_HISTORY.glob("*.jsonl.gz")}
+    # AMFI publishes one row per ISIN and a scheme has two — growth/payout and
+    # reinvestment — so the snapshot lists every scheme_code twice. A picker
+    # offers a *scheme* to backtest, not an ISIN variant, and showing 119551
+    # twice would be a defect rather than a distinction.
+    seen: set[str] = set()
+
+    out: list[Instrument] = []
+    with gzip.open(snapshot, "rt", encoding="utf-8") as handle:
+        for rank, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            code = str(row.get("scheme_code", ""))
+            if code in seen:
+                continue
+            name = str(row.get("name", ""))
+            amc = str(row.get("amc", "") or "")
+            isin = str(row.get("isin", "") or "")
+            if needle and needle not in f"{code} {name} {amc} {isin}".upper():
+                continue
+            plan = str(row.get("plan", "") or "")
+            option = str(row.get("option", "") or "")
+            seen.add(code)
+            out.append(
+                Instrument(
+                    symbol=code,
+                    asset_class=AssetClass.MUTUAL_FUND,
+                    has_daily=code in have_history,
+                    has_minute=False,
+                    rank=rank,
+                    name=name,
+                    detail=" · ".join(part for part in (amc, plan, option) if part),
+                )
+            )
+            if len(out) >= limit:
+                break
+    return out
+
+
+def equity_instruments(query: str = "", *, batch: str = "", limit: int = 60) -> list[Instrument]:
+    """Equities from a liquidity-ranked batch."""
     symbols = universe(batch) if batch else universe("all_liquid")
     minute = _minute_symbols()
     needle = query.strip().upper()
@@ -175,3 +313,34 @@ def search(query: str = "", *, batch: str = "", limit: int = 60) -> list[Instrum
         if len(out) >= limit:
             break
     return out
+
+
+def search(
+    query: str = "", *, batch: str = "", limit: int = 60, asset_class: str = ""
+) -> list[Instrument]:
+    """Instruments matching `query`, across every asset class that has data.
+
+    Previously this returned equities and nothing else, which quietly meant the
+    crypto and mutual fund data — 20 landed pairs and 14,280 schemes — could
+    not be seen or selected at all. An asset class with data on disk and no way
+    to reach it is the same defect as one offered without data, in the other
+    direction.
+
+    With no `asset_class` the classes are interleaved by share of the limit, so
+    a bare search does not return sixty equities and imply the rest are absent.
+    """
+    wanted = asset_class.strip().lower()
+    if wanted == AssetClass.CRYPTO.value:
+        return crypto_instruments(query, limit)
+    if wanted == AssetClass.MUTUAL_FUND.value:
+        return fund_instruments(query, limit)
+    if wanted == AssetClass.EQUITY.value or batch:
+        return equity_instruments(query, batch=batch, limit=limit)
+
+    share = max(1, limit // 3)
+    mixed = [
+        *equity_instruments(query, limit=share),
+        *crypto_instruments(query, limit=share),
+        *fund_instruments(query, limit=limit - 2 * share),
+    ]
+    return mixed[:limit]

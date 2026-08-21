@@ -36,6 +36,13 @@ class AssetClass(StrEnum):
     OPTIONS = "options"
     CRYPTO = "crypto"
     FX = "fx"
+    MUTUAL_FUND = "mutual_fund"
+    """AMFI scheme NAVs, resampled to daily bars by `features/alt_panel`.
+
+    A real asset class here rather than a special case: 14,280 schemes are
+    landed, and without a name for them the instrument picker could not offer
+    them at all.
+    """
 
 
 class Timeframe(StrEnum):

@@ -13,7 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { UniverseNote, UniversePicker } from '@/components/terminal/UniversePicker';
 import { runBatch } from '@/lib/run';
-import type { BatchResult, Fleet, RunPrice } from '@/lib/api';
+import type { BatchResult, Fleet, Instrument, RunPrice, WindowInfo } from '@/lib/api';
 
 export function RunTab({
   fleet,
@@ -24,7 +24,7 @@ export function RunTab({
   onWindow,
   onTier,
   onUniverse,
-  onChoose,
+  onInstruments,
   onRefresh,
 }: {
   fleet: Fleet | null;
@@ -35,7 +35,7 @@ export function RunTab({
   onWindow: (days: number) => void;
   onTier: (tier: 'A' | 'B') => void;
   onUniverse: (name: string) => void;
-  onChoose: () => void;
+  onInstruments: (symbols: string[]) => void;
   onRefresh: () => void;
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -44,8 +44,36 @@ export function RunTab({
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [info, setInfo] = useState<WindowInfo | null>(null);
+  const [symbolQuery, setSymbolQuery] = useState('');
+  const [found, setFound] = useState<Instrument[]>([]);
+
+  // Same period logic as the Backtest dialog, from the same endpoint, so the
+  // two surfaces cannot describe the same run differently.
+  useEffect(() => {
+    api.window(days, universe).then(setInfo).catch(() => setInfo(null));
+  }, [days, universe]);
+
+  useEffect(() => {
+    if (symbolQuery.trim() === '') {
+      setFound([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      api.instruments(symbolQuery, '', '', 40).then((l) => setFound(l.instruments)).catch(() => setFound([]));
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [symbolQuery]);
+
+  const toggleSymbol = (symbol: string) =>
+    onInstruments(
+      instruments.includes(symbol)
+        ? instruments.filter((s) => s !== symbol)
+        : [...instruments, symbol]
+    );
 
   const runnable = (fleet?.strategies ?? []).filter((s) => s.is_strategy_subclass);
+  const custom = instruments.length > 0;
 
   useEffect(() => {
     if (picked.size === 0) {
@@ -110,15 +138,14 @@ export function RunTab({
 
       <div className="ttools">
         <UniversePicker value={universe} onChange={onUniverse} />
-        <button
-          className="tchip"
-          type="button"
-          aria-pressed={instruments.length > 0}
-          onClick={onChoose}
-          title="Pick individual instruments instead of a batch. Overrides the universe."
-        >
-          {instruments.length > 0 ? `${instruments.length} instruments` : 'Pick instruments'}
-        </button>
+        <input
+          className="tsearch"
+          style={{ flex: '1 1 200px', minWidth: 170 }}
+          placeholder="…or search to add individual instruments"
+          value={symbolQuery}
+          onChange={(event) => setSymbolQuery(event.target.value)}
+          aria-label="Search instruments"
+        />
         <label className="tsort" style={{ marginLeft: 0 }}>
           Window
           <select
@@ -150,6 +177,75 @@ export function RunTab({
           Clear
         </button>
       </div>
+
+      {info?.ok && (
+        <div className="period">
+          <div>
+            <span>Window</span>
+            <b>
+              {info.window_first} → {info.window_last}
+            </b>
+            <i>{info.window_days.toLocaleString('en-IN')} trading days</i>
+          </div>
+          <div>
+            <span>Warmup, never traded</span>
+            <b>{info.warmup_days} days</b>
+            <i>so features have history to compute from</i>
+          </div>
+          <div>
+            <span>Actually traded</span>
+            <b>
+              {info.traded_first} → {info.traded_last}
+            </b>
+            <i>{info.traded_days.toLocaleString('en-IN')} trading days</i>
+          </div>
+        </div>
+      )}
+
+      {custom && (
+        <div className="chosen-rail" style={{ padding: 0 }}>
+          {instruments.map((symbol) => (
+            <button key={symbol} className="chosen-chip" type="button" onClick={() => toggleSymbol(symbol)}>
+              {symbol} <span aria-hidden="true">✕</span>
+            </button>
+          ))}
+          <button className="tbtn sm ghost-line" type="button" onClick={() => onInstruments([])}>
+            Clear
+          </button>
+        </div>
+      )}
+
+      {symbolQuery.trim() !== '' && (
+        <div className="tpanel" style={{ padding: 0 }}>
+          <div className="tscroll" style={{ maxHeight: '24vh' }}>
+            <table className="ttable">
+              <tbody>
+                {found.map((instrument) => (
+                  <tr key={`${instrument.asset_class}-${instrument.symbol}`}>
+                    <td style={{ width: 26 }}>
+                      <input
+                        type="checkbox"
+                        checked={instruments.includes(instrument.symbol)}
+                        onChange={() => toggleSymbol(instrument.symbol)}
+                        aria-label={`Add ${instrument.symbol}`}
+                      />
+                    </td>
+                    <td>
+                      <b>{instrument.name || instrument.symbol}</b>
+                      {instrument.name && <div className="tfine">{instrument.symbol}</div>}
+                    </td>
+                    <td>
+                      <span className="ttag">{instrument.asset_class}</span>
+                    </td>
+                    <td className="r">{instrument.rank || <span className="tdim">—</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {found.length === 0 && <div className="tempty">Nothing matches.</div>}
+        </div>
+      )}
 
       <div className="tgrid">
         <div className="tpanel">
@@ -220,10 +316,6 @@ export function RunTab({
                   <span>Trials spent</span>
                   <b>{price.spends_trials}</b>
                 </div>
-              </div>
-              <div className="tnote" style={{ marginTop: 16 }}>
-                <span className="mk">▲</span>
-                <div>{price.note}</div>
               </div>
             </>
           ) : (

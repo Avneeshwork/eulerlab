@@ -196,29 +196,18 @@ export function Library({
         >
           {instruments.length > 0 ? `${instruments.length} instruments` : 'Pick instruments'}
         </button>
-        <label className="tsort">
+        <label
+          className="tsort"
+          title="Ranking a library by return and taking the top row is the selection procedure the overfitting test measures. The bar, not the order, is what decides anything."
+        >
           Sort
           <select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
             <option value="evidence">Evidence</option>
             <option value="name">Name</option>
-            <option value="sharpe">Sharpe — see note</option>
+            <option value="sharpe">Sharpe</option>
           </select>
         </label>
       </div>
-
-      {sort === 'sharpe' && (
-        <div className="tnote">
-          <span className="mk" aria-hidden="true">
-            ▲
-          </span>
-          <div>
-            <b>Sorting by Sharpe and taking the top row is the selection procedure the
-            overfitting test measures.</b>{' '}
-            The ranking is offered because hiding it would be worse than showing it with
-            this attached — but the bar, not the order, is what decides anything.
-          </div>
-        </div>
-      )}
 
       {note && !failure && <div className="trunning">{note}</div>}
       {failure && (

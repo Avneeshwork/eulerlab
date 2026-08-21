@@ -28,23 +28,26 @@ export function InstrumentChooser({
 }) {
   const [query, setQuery] = useState('');
   const [batch, setBatch] = useState('');
+  const [assetClass, setAssetClass] = useState('');
   const [found, setFound] = useState<Instrument[]>([]);
   const [batches, setBatches] = useState<string[]>([]);
+  const [classes, setClasses] = useState<string[]>([]);
   const [problem, setProblem] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
       api
-        .instruments(query, batch)
+        .instruments(query, assetClass === 'equity' ? batch : '', assetClass, 120)
         .then((list) => {
           setFound(list.instruments);
           setBatches(list.batches);
+          setClasses(list.asset_classes);
           setProblem(list.ok ? '' : (list.error ?? ''));
         })
         .catch(() => setProblem('Cannot reach the instrument list.'));
     }, 180);
     return () => clearTimeout(timer);
-  }, [query, batch]);
+  }, [query, batch, assetClass]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
@@ -80,10 +83,32 @@ export function InstrumentChooser({
             aria-label="Search instruments"
             autoFocus
           />
-          <button className="tchip" type="button" aria-pressed={batch === ''} onClick={() => setBatch('')}>
+          <button
+            className="tchip"
+            type="button"
+            aria-pressed={assetClass === ''}
+            onClick={() => {
+              setAssetClass('');
+              setBatch('');
+            }}
+          >
             All
           </button>
-          {batches.map((name) => (
+          {classes.map((name) => (
+            <button
+              key={name}
+              className="tchip"
+              type="button"
+              aria-pressed={assetClass === name}
+              onClick={() => {
+                setAssetClass(assetClass === name ? '' : name);
+                setBatch('');
+              }}
+            >
+              {name === 'mutual_fund' ? 'funds' : name}
+            </button>
+          ))}
+          {assetClass === 'equity' && batches.map((name) => (
             <button
               key={name}
               className="tchip"
@@ -116,7 +141,7 @@ export function InstrumentChooser({
               <thead>
                 <tr>
                   <th style={{ width: 26 }} />
-                  <th>Symbol</th>
+                  <th>Instrument</th>
                   <th>Class</th>
                   <th className="r">Rank</th>
                   <th className="r">Daily</th>
@@ -135,7 +160,8 @@ export function InstrumentChooser({
                       />
                     </td>
                     <td>
-                      <b>{instrument.symbol}</b>
+                      <b>{instrument.name || instrument.symbol}</b>
+                      {instrument.name && <div className="tfine">{instrument.symbol}</div>}
                     </td>
                     <td>
                       <span className="ttag">{instrument.asset_class}</span>

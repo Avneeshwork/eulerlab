@@ -570,16 +570,23 @@ def capabilities() -> dict[str, Any]:
 
 
 @app.get("/api/instruments")
-def instruments(q: str = "", batch: str = "", limit: int = 60) -> dict[str, Any]:
-    """Search instruments, optionally inside a named batch."""
+def instruments(
+    q: str = "", batch: str = "", limit: int = 60, asset_class: str = ""
+) -> dict[str, Any]:
+    """Search instruments across every asset class that has data on disk."""
     try:
-        found = catalog.search(q, batch=batch, limit=limit)
+        found = catalog.search(q, batch=batch, limit=limit, asset_class=asset_class)
     except (ValueError, FileNotFoundError) as exc:
         return {"ok": False, "error": str(exc), "instruments": []}
     return {
         "ok": True,
         "batches": sorted(catalog.UNIVERSE_FILES),
         "batch_caveat": catalog.UNIVERSE_CAVEAT,
+        # One entry per class, not per (class, timeframe) — the matrix has three
+        # equity rows and two crypto rows, and a picker wants classes.
+        "asset_classes": list(
+            dict.fromkeys(c.asset_class.value for c in catalog.capabilities() if c.supported)
+        ),
         "instruments": [
             {
                 "symbol": i.symbol,
@@ -587,6 +594,8 @@ def instruments(q: str = "", batch: str = "", limit: int = 60) -> dict[str, Any]
                 "has_daily": i.has_daily,
                 "has_minute": i.has_minute,
                 "rank": i.rank,
+                "name": i.name,
+                "detail": i.detail,
             }
             for i in found
         ],

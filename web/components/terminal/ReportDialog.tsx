@@ -129,10 +129,9 @@ export function ReportDialog({
           {report && metrics && (
             <>
               {report.warnings.map((warning) => (
-                <div className="tnote" key={warning} style={{ marginBottom: 16 }}>
-                  <span className="mk">▲</span>
-                  <div>{warning}</div>
-                </div>
+                <p className="tfine" key={warning} style={{ marginBottom: 14 }}>
+                  {warning}
+                </p>
               ))}
 
               <div className="recon" data-exact={report.reconciliation.exact}>

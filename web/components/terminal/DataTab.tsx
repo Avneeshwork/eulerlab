@@ -166,10 +166,9 @@ export function DataTab({ workspace }: { workspace: string }) {
               </div>
             </div>
             {!cloud.configured && (
-              <div className="tnote" style={{ marginTop: 16 }}>
-                <span className="mk">▲</span>
-                <div>Not configured: {cloud.reason}</div>
-              </div>
+              <p className="tfine" style={{ marginTop: 16 }}>
+                Not configured: {cloud.reason}
+              </p>
             )}
             <div className="tacts" style={{ marginTop: 16 }}>
               <button

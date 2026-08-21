@@ -412,6 +412,10 @@ export type Instrument = {
   has_daily: boolean;
   has_minute: boolean;
   rank: number;
+  // A scheme code is not a name. Empty for equities and crypto, where the
+  // ticker already is one.
+  name?: string;
+  detail?: string;
 };
 
 export type InstrumentList = {
@@ -419,6 +423,8 @@ export type InstrumentList = {
   error?: string;
   batches: string[];
   batch_caveat: string;
+  // Classes with data on disk. Anything absent here has no instruments to show.
+  asset_classes: string[];
   instruments: Instrument[];
 };
 
@@ -479,8 +485,11 @@ export const api = {
   library: () => get<Library>('/api/library'),
   fleet: () => get<Fleet>('/api/fleet'),
   capabilities: () => get<{ matrix: Capability[] }>('/api/capabilities'),
-  instruments: (q: string, batch: string) =>
-    get<InstrumentList>(`/api/instruments?q=${encodeURIComponent(q)}&batch=${encodeURIComponent(batch)}`),
+  instruments: (q: string, batch: string, assetClass = '', limit = 60) =>
+    get<InstrumentList>(
+      `/api/instruments?q=${encodeURIComponent(q)}&batch=${encodeURIComponent(batch)}` +
+        `&asset_class=${encodeURIComponent(assetClass)}&limit=${limit}`
+    ),
   universes: () => get<UniverseList>('/api/universes'),
   priceRun: (configurations: number, cached: number) =>
     post<RunPrice>('/api/run/price', { configurations, cached }),

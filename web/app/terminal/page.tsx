@@ -163,7 +163,7 @@ export default function TerminalPage() {
                 <div className="theyebrow">The number to beat</div>
                 <div className="thnum">
                   <b>{fleet ? fleet.bar.toFixed(2) : '—'}</b>
-                  <span className="unit">
+                  <span className="unit" title={fleet?.bar_note}>
                     Sharpe{fleet && !fleet.bar_sigma_measured ? ', assumed' : ''}
                   </span>
                 </div>
@@ -188,24 +188,6 @@ export default function TerminalPage() {
                 </div>
               </div>
             </section>
-
-            {fleet && !fleet.bar_sigma_measured && (
-              <div className="tnote">
-                <span className="mk" aria-hidden="true">
-                  ▲
-                </span>
-                <div>
-                  <p>
-                    <b>The bar is assumed, not measured.</b> {fleet.bar_note}
-                  </p>
-                  <p style={{ marginTop: 6 }}>
-                    Screening on this page spends no trial, so any search done here is
-                    invisible to the bar — it stands lower than the work actually done
-                    justifies.
-                  </p>
-                </div>
-              </div>
-            )}
 
             <Library
               fleet={fleet}
@@ -239,7 +221,7 @@ export default function TerminalPage() {
             onWindow={setDays}
             onTier={setTier}
             onUniverse={setUniverse}
-            onChoose={() => setChoosing(true)}
+            onInstruments={setInstruments}
             onRefresh={refresh}
           />
         )}

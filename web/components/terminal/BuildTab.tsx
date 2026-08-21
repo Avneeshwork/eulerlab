@@ -237,14 +237,6 @@ export function BuildTab({ onRefresh }: { onRefresh: () => void }) {
             </div>
           )}
 
-          <div className="tnote" style={{ marginTop: 16 }}>
-            <span className="mk">▲</span>
-            <div>
-              A backtest started here spends no trial, exactly like screening. Only
-              <code> make validate</code> and <code> make gate</code> write to the ledger,
-              and neither is reachable from this interface by design.
-            </div>
-          </div>
         </div>
       </div>
     </>

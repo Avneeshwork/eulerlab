@@ -72,3 +72,33 @@ def test_choosing_instruments_the_panel_does_not_have_refuses() -> None:
     rows = [_row("AAA", date(2026, 1, 2), 1.0)]
     with pytest.raises(RuntimeError, match="none of the"):
         _universe_rows(rows, "all", ["ZZZ"])
+
+
+def test_search_covers_every_asset_class_with_data() -> None:
+    """It returned equities and nothing else, which quietly meant the landed
+    crypto pairs and mutual fund schemes could not be seen or selected at all.
+    An asset class with data and no way to reach it is the same defect as one
+    offered without data, pointing the other way."""
+    from eulerlab.strategies import catalog
+
+    classes = {i.asset_class.value for i in catalog.search(limit=90)}
+    on_disk = {c.asset_class.value for c in catalog.capabilities() if c.supported}
+    assert classes == on_disk, "a bare search must reach every class that has data"
+
+
+def test_a_fund_scheme_appears_once_not_once_per_isin() -> None:
+    """AMFI publishes one row per ISIN and a scheme has two — growth/payout and
+    reinvestment. A picker offers a scheme to backtest, not an ISIN variant."""
+    from eulerlab.strategies import catalog
+
+    funds = catalog.fund_instruments(limit=40)
+    codes = [f.symbol for f in funds]
+    assert len(codes) == len(set(codes))
+
+
+def test_a_fund_carries_a_name_because_its_code_is_not_one() -> None:
+    from eulerlab.strategies import catalog
+
+    funds = catalog.fund_instruments(limit=5)
+    assert funds, "no enriched snapshot on disk"
+    assert all(f.name for f in funds), "119551 tells nobody anything"

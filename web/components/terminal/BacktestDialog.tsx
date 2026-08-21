@@ -61,7 +61,7 @@ export function BacktestDialog({
   useEffect(() => {
     const timer = setTimeout(() => {
       api
-        .instruments(query, '')
+        .instruments(query, '', '', 40)
         .then((list) => {
           setFound(list.instruments);
           setBatches(list.batches);
@@ -239,7 +239,8 @@ export function BacktestDialog({
                         />
                       </td>
                       <td>
-                        <b>{instrument.symbol}</b>
+                        <b>{instrument.name || instrument.symbol}</b>
+                        {instrument.name && <div className="tfine">{instrument.symbol}</div>}
                       </td>
                       <td>
                         <span className="ttag">{instrument.asset_class}</span>
