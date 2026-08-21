@@ -86,6 +86,7 @@ Operator asked for 5 years of minute data for up to 20 coins. Verify: `make cryp
 
 | ID | Task | Status |
 |---|---|---|
+| T-3400 | **Crypto backfill complete** | DONE — **20 symbols x 60 months = 1,200 symbol-months, 52,534,759 minute candles, 1.0 GB.** 1,199 downloaded, 20 absent (pre-listing months). Verified: 0 OHLC/ordering/positivity violations, 0 truncated files, 0 bad prints |
 | T-3401 | Bulk archive, not ccxt | DONE — 5y of 1m bars for 20 coins is ~52,000 paginated REST calls; `data.binance.vision` is ~1,200 monthly ZIPs. ccxt is installed and remains right for the recent gap, not for the backfill |
 | T-3402 | Universe measured, not listed | DONE — ranked by Binance USDT quote volume, then **filtered to coins that actually have history 5 years back**, probed against the archive. Ranking by today's volume alone returned XPL/PUMP/ACE (listed last year) and RLUSD (a stablecoin) |
 | T-3403 | Stablecoins and leveraged tokens excluded | DONE — a stablecoin's USDT pair is an exchange rate between two claims on the same dollar, not a coin; `UP`/`DOWN`/`BULL`/`BEAR` are derivatives of a coin |
