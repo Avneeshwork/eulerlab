@@ -21,6 +21,8 @@ export function RunTab({
   tier,
   universe,
   instruments,
+  assetClass,
+  onAssetClass,
   onWindow,
   onTier,
   onUniverse,
@@ -32,6 +34,8 @@ export function RunTab({
   tier: 'A' | 'B';
   universe: string;
   instruments: string[];
+  assetClass: string;
+  onAssetClass: (name: string) => void;
   onWindow: (days: number) => void;
   onTier: (tier: 'A' | 'B') => void;
   onUniverse: (name: string) => void;
@@ -51,8 +55,20 @@ export function RunTab({
   // Same period logic as the Backtest dialog, from the same endpoint, so the
   // two surfaces cannot describe the same run differently.
   useEffect(() => {
-    api.window(days, universe).then(setInfo).catch(() => setInfo(null));
-  }, [days, universe]);
+    setInfo(null);
+    // Guarded against its own earlier self. Switching asset class fires a
+    // second request while the first is in flight, and the equity panel answers
+    // in milliseconds while crypto resamples a minute archive — so the *older*
+    // response landed last and painted equity dates under a "Crypto" label.
+    let live = true;
+    api
+      .window(days, universe, assetClass)
+      .then((next) => live && setInfo(next))
+      .catch(() => live && setInfo(null));
+    return () => {
+      live = false;
+    };
+  }, [days, universe, assetClass]);
 
   useEffect(() => {
     if (symbolQuery.trim() === '') {
@@ -60,10 +76,10 @@ export function RunTab({
       return;
     }
     const timer = setTimeout(() => {
-      api.instruments(symbolQuery, '', '', 40).then((l) => setFound(l.instruments)).catch(() => setFound([]));
+      api.instruments(symbolQuery, '', assetClass, 40).then((l) => setFound(l.instruments)).catch(() => setFound([]));
     }, 180);
     return () => clearTimeout(timer);
-  }, [symbolQuery]);
+  }, [symbolQuery, assetClass]);
 
   const toggleSymbol = (symbol: string) =>
     onInstruments(
@@ -95,7 +111,15 @@ export function RunTab({
     setError('');
     setResult(null);
     try {
-      const outcome = await runBatch([...picked], days, tier, universe, instruments, setNote);
+      const outcome = await runBatch(
+        [...picked],
+        days,
+        tier,
+        universe,
+        instruments,
+        assetClass,
+        setNote
+      );
       setResult(outcome);
       onRefresh();
     } catch (problem) {
@@ -103,7 +127,7 @@ export function RunTab({
     } finally {
       setBusy(false);
     }
-  }, [picked, days, tier, universe, instruments, onRefresh]);
+  }, [picked, days, tier, universe, instruments, assetClass, onRefresh]);
 
   return (
     <>
@@ -137,7 +161,22 @@ export function RunTab({
       </section>
 
       <div className="ttools">
-        <UniversePicker value={universe} onChange={onUniverse} />
+        <label className="tsort" style={{ marginLeft: 0 }}>
+          Asset
+          <select
+            value={assetClass}
+            onChange={(event) => {
+              onAssetClass(event.target.value);
+              onInstruments([]);
+              onUniverse('all');
+            }}
+          >
+            <option value="equity">Equities</option>
+            <option value="crypto">Crypto</option>
+            <option value="mutual_fund">Mutual funds</option>
+          </select>
+        </label>
+        {assetClass === 'equity' && <UniversePicker value={universe} onChange={onUniverse} />}
         <input
           className="tsearch"
           style={{ flex: '1 1 200px', minWidth: 170 }}
@@ -178,6 +217,20 @@ export function RunTab({
         </button>
       </div>
 
+      {!info && (
+        <div className="period">
+          <div>
+            <span>Reading the panel</span>
+            <b>…</b>
+            <i>
+              {assetClass === 'equity'
+                ? 'trimming to the window'
+                : 'first load resamples the raw archive, which takes a couple of minutes'}
+            </i>
+          </div>
+        </div>
+      )}
+
       {info?.ok && (
         <div className="period">
           <div>
@@ -200,6 +253,13 @@ export function RunTab({
             <i>{info.traded_days.toLocaleString('en-IN')} trading days</i>
           </div>
         </div>
+      )}
+
+      {info?.ok && info.cost_mode !== 'realistic' && (
+        <p className="tfine">
+          No cost model covers {assetClass.replace('_', ' ')}, so these runs pay nothing to
+          trade. Results are upper bounds, not net figures.
+        </p>
       )}
 
       {custom && (

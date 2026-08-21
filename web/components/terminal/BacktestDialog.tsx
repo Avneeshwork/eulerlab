@@ -27,10 +27,12 @@ export function BacktestDialog({
   tier,
   universe,
   instruments,
+  assetClass,
   onWindow,
   onTier,
   onUniverse,
   onInstruments,
+  onAssetClass,
   onRun,
   onClose,
 }: {
@@ -39,10 +41,12 @@ export function BacktestDialog({
   tier: 'A' | 'B';
   universe: string;
   instruments: string[];
+  assetClass: string;
   onWindow: (days: number) => void;
   onTier: (tier: 'A' | 'B') => void;
   onUniverse: (name: string) => void;
   onInstruments: (symbols: string[]) => void;
+  onAssetClass: (name: string) => void;
   onRun: () => void;
   onClose: () => void;
 }) {
@@ -52,16 +56,25 @@ export function BacktestDialog({
   const [batches, setBatches] = useState<string[]>([]);
 
   useEffect(() => {
+    setInfo(null);
+    // Guarded against its own earlier self. Switching asset class fires a
+    // second request while the first is in flight, and the equity panel answers
+    // in milliseconds while crypto resamples a minute archive — so the *older*
+    // response landed last and painted equity dates under a "Crypto" label.
+    let live = true;
     api
-      .window(days, universe)
-      .then(setInfo)
-      .catch(() => setInfo(null));
-  }, [days, universe]);
+      .window(days, universe, assetClass)
+      .then((next) => live && setInfo(next))
+      .catch(() => live && setInfo(null));
+    return () => {
+      live = false;
+    };
+  }, [days, universe, assetClass]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       api
-        .instruments(query, '', '', 40)
+        .instruments(query, '', assetClass, 40)
         .then((list) => {
           setFound(list.instruments);
           setBatches(list.batches);
@@ -69,7 +82,7 @@ export function BacktestDialog({
         .catch(() => setFound([]));
     }, 180);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, assetClass]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
@@ -131,6 +144,20 @@ export function BacktestDialog({
             </label>
           </div>
 
+          {!info && (
+            <div className="period">
+              <div>
+                <span>Reading the panel</span>
+                <b>…</b>
+                <i>
+                  {assetClass === 'equity'
+                    ? 'trimming to the window'
+                    : 'first load resamples the raw archive, which takes a couple of minutes'}
+                </i>
+              </div>
+            </div>
+          )}
+
           {info?.ok && (
             <div className="period">
               <div>
@@ -176,6 +203,21 @@ export function BacktestDialog({
 
           <h4 className="report-h">Instruments</h4>
           <div className="ttools" style={{ marginBottom: 12 }}>
+            <label className="tsort" style={{ marginLeft: 0 }}>
+              Asset
+              <select
+                value={assetClass}
+                onChange={(event) => {
+                  onAssetClass(event.target.value);
+                  onInstruments([]);
+                  onUniverse('all');
+                }}
+              >
+                <option value="equity">Equities</option>
+                <option value="crypto">Crypto</option>
+                <option value="mutual_fund">Mutual funds</option>
+              </select>
+            </label>
             <button
               className="tchip"
               type="button"
@@ -187,7 +229,7 @@ export function BacktestDialog({
             >
               Whole panel
             </button>
-            {batches.map((name) => (
+            {assetClass === 'equity' && batches.map((name) => (
               <button
                 key={name}
                 className="tchip"
@@ -254,16 +296,28 @@ export function BacktestDialog({
             </div>
           )}
 
+          {info?.ok && info.cost_mode !== 'realistic' && (
+            <p className="tfine" style={{ marginBottom: 10 }}>
+              No cost model covers {assetClass.replace('_', ' ')}, so this run pays nothing
+              to trade. The result is an upper bound, not a net figure.
+            </p>
+          )}
+
           <p className="tfine">
             {custom
               ? `${instruments.length} hand-picked instruments. This overrides the batch and is recorded as a custom run, with the list itself in the configuration hash — so a different list is a different result, not another "custom".`
-              : universe === 'all'
-                ? 'The whole panel. Batches are liquidity-ranked from our own turnover history rather than index membership, because a published constituent list only exists as it stands today and using one across history is survivorship bias.'
-                : `The ${universe} batch — liquidity-ranked from our own turnover history, not index membership.`}
+              : assetClass === 'crypto'
+                ? 'Every landed pair. Binance spot, resampled from the minute archive to daily bars.'
+                : assetClass === 'mutual_fund'
+                  ? 'Every scheme with landed NAV history. Direct growth plans only, so a scheme is not counted once per plan variant.'
+                  : universe === 'all'
+                    ? 'The whole panel. Batches are liquidity-ranked from our own turnover history rather than index membership, because a published constituent list only exists as it stands today and using one across history is survivorship bias.'
+                    : `The ${universe} batch — liquidity-ranked from our own turnover history, not index membership.`}
           </p>
 
           <div className="dlg-foot">
             <div className="verdict" data-ok={!lookbackTooLong}>
+              {assetClass !== 'equity' ? `${assetClass.replace('_', ' ')} · ` : ''}
               {custom ? `${instruments.length} instruments` : universe} · tier {tier} ·{' '}
               {info?.ok ? `${info.traded_days} days traded` : `${days} days`} · spends no
               trial

@@ -81,6 +81,9 @@ not strictly need; the alternative is an interface that silently cannot show a
 field the code demonstrably produces.
 
 1 -> 2: added `curve`, the downsampled equity path.
+2 -> 3: added `asset_class` and `cost_mode`, once crypto and funds became
+runnable — a cached equity outcome reported `cost_mode: null`, which reads as
+"unknown" for a run that certainly paid realistic costs.
 2 -> 3: added `universe`, `universe_size` and `symbols`.
 """
 

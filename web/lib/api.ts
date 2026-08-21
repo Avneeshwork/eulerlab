@@ -342,6 +342,10 @@ export type WindowInfo = {
   // strategy trades 947 of them invites reading a result as covering a period
   // it does not.
   warmup_days: number;
+  asset_class?: string;
+  // "replication" means no cost model covers this class, so the run paid
+  // nothing to trade and the result is an upper bound.
+  cost_mode?: string;
   traded_first: string | null;
   traded_last: string | null;
   traded_days: number;
@@ -498,7 +502,8 @@ export const api = {
     days: number,
     tier: 'A' | 'B',
     universe: string,
-    instruments: string[] = []
+    instruments: string[] = [],
+    assetClass = 'equity'
   ) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', {
       strategies,
@@ -506,6 +511,7 @@ export const api = {
       tier,
       universe,
       instruments,
+      asset_class: assetClass,
     }),
   report: (strategy: string, workspace = '', configuration = '') =>
     get<ReportResponse>(
@@ -513,8 +519,11 @@ export const api = {
         `&workspace=${encodeURIComponent(workspace)}` +
         `&configuration=${encodeURIComponent(configuration)}`
     ),
-  window: (days: number, universe = 'all') =>
-    get<WindowInfo>(`/api/window?days=${days}&universe=${encodeURIComponent(universe)}`),
+  window: (days: number, universe = 'all', assetClass = 'equity') =>
+    get<WindowInfo>(
+      `/api/window?days=${days}&universe=${encodeURIComponent(universe)}` +
+        `&asset_class=${encodeURIComponent(assetClass)}`
+    ),
   explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
   batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),

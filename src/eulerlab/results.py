@@ -80,6 +80,15 @@ class Run:
     tier: str
     window_days: int
     data_version: str
+    asset_class: str = "equity"
+    """Which panel this ran against. Defaults to equity so rows written before
+    crypto and funds were runnable read back correctly rather than as unknown."""
+
+    cost_mode: str = "realistic"
+    """`replication` means the run paid no costs, because no cost model covers
+    that asset class. Carried per run so a gross-of-costs number can never be
+    compared to a net one without the difference being visible."""
+
     universe: str = "all"
     """Which instruments the run could choose from.
 
@@ -139,6 +148,8 @@ class Run:
             "fills": self.fills,
             "days": self.days,
             "tier": self.tier,
+            "asset_class": self.asset_class,
+            "cost_mode": self.cost_mode,
             "window_days": self.window_days,
             "universe": self.universe,
             "symbols": self.symbols,
@@ -217,6 +228,8 @@ def _to_run(row: dict[str, Any]) -> Run:
         fills=int(row.get("fills", 0)),
         days=int(row.get("days", 0)),
         tier=str(row.get("tier", "")),
+        asset_class=str(row.get("asset_class", "equity")),
+        cost_mode=str(row.get("cost_mode", "realistic")),
         window_days=int(row.get("window_days", 0)),
         # A row written before the selector existed ran on the unfiltered
         # panel, which is exactly what "all" means.
@@ -340,6 +353,8 @@ def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
         "max_drawdown": round(recent.max_drawdown, 6),
         "fills": recent.fills,
         "tier": recent.tier,
+        "asset_class": recent.asset_class,
+        "cost_mode": recent.cost_mode,
         "window_days": recent.window_days,
         "universe": recent.universe,
         "symbols": recent.symbols,

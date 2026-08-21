@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { Capability, InstrumentList } from '@/lib/api';
+import type { InstrumentList } from '@/lib/api';
 
 const LABEL: Record<string, string> = {
   equity: 'Equities',
@@ -24,14 +24,6 @@ export function InstrumentsTab() {
   const [assetClass, setAssetClass] = useState('');
   const [batch, setBatch] = useState('');
   const [list, setList] = useState<InstrumentList | null>(null);
-  const [matrix, setMatrix] = useState<Capability[]>([]);
-
-  useEffect(() => {
-    api
-      .capabilities()
-      .then((response) => setMatrix(response.matrix))
-      .catch(() => setMatrix([]));
-  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -159,38 +151,6 @@ export function InstrumentsTab() {
         )}
       </div>
 
-      <div className="tpanel">
-        <h3>What has data behind it</h3>
-        <table className="ttable">
-          <thead>
-            <tr>
-              <th>Asset class</th>
-              <th>Timeframe</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {matrix.map((cell) => (
-              <tr key={`${cell.asset_class}-${cell.timeframe}`}>
-                <td>
-                  <b>{LABEL[cell.asset_class] ?? cell.asset_class}</b>
-                </td>
-                <td>
-                  <span className="ttag">{cell.timeframe}</span>
-                </td>
-                <td>
-                  <span className="tpill" data-stage={cell.supported ? 'live' : 'retired'}>
-                    {cell.supported ? 'ready' : 'no data'}
-                  </span>
-                  <p className="tfine" style={{ margin: '4px 0 0' }}>
-                    {cell.detail}
-                  </p>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </>
   );
 }

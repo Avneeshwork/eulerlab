@@ -20,7 +20,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { BuildTab } from '@/components/terminal/BuildTab';
-import { DataTab } from '@/components/terminal/DataTab';
 import { BacktestDialog } from '@/components/terminal/BacktestDialog';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
 import { ExplainDialog } from '@/components/terminal/ExplainDialog';
@@ -33,7 +32,10 @@ import { RunTab } from '@/components/terminal/RunTab';
 import { api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
-const NAV = ['Library', 'Build', 'Run', 'Instruments', 'Live', 'Data'] as const;
+// Data is deliberately not here. Results still mirror to the bucket after every
+// backtest — that is automatic and unaffected; what is gone is the manual
+// pull-merge-push button and the on-disk counts.
+const NAV = ['Library', 'Build', 'Run', 'Instruments', 'Live'] as const;
 type Tab = (typeof NAV)[number];
 
 export default function TerminalPage() {
@@ -50,6 +52,7 @@ export default function TerminalPage() {
   // silently running different universes would produce two numbers that look
   // comparable and are not.
   const [universe, setUniverse] = useState('all');
+  const [assetClass, setAssetClass] = useState('equity');
   // A hand-picked list overrides the universe when non-empty. Held beside it so
   // the library row's Backtest and the Run tab cannot disagree about what a run
   // was pointed at.
@@ -197,6 +200,7 @@ export default function TerminalPage() {
               universe={universe}
               onUniverse={setUniverse}
               instruments={instruments}
+              runClass={assetClass}
               onChoose={() => setChoosing(true)}
               onRefresh={refresh}
               onDeploy={setDeploying}
@@ -218,6 +222,8 @@ export default function TerminalPage() {
             tier={tier}
             universe={universe}
             instruments={instruments}
+            assetClass={assetClass}
+            onAssetClass={setAssetClass}
             onWindow={setDays}
             onTier={setTier}
             onUniverse={setUniverse}
@@ -236,7 +242,6 @@ export default function TerminalPage() {
           />
         )}
 
-        {tab === 'Data' && <DataTab workspace={workspace} />}
       </div>
 
       {paletteOpen && (
@@ -266,10 +271,12 @@ export default function TerminalPage() {
           tier={tier}
           universe={universe}
           instruments={instruments}
+          assetClass={assetClass}
           onWindow={setDays}
           onTier={setTier}
           onUniverse={setUniverse}
           onInstruments={setInstruments}
+          onAssetClass={setAssetClass}
           onRun={() => {
             setPendingRun([configuring.id]);
             setConfiguring(null);

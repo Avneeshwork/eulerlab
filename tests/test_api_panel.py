@@ -102,3 +102,45 @@ def test_a_fund_carries_a_name_because_its_code_is_not_one() -> None:
     funds = catalog.fund_instruments(limit=5)
     assert funds, "no enriched snapshot on disk"
     assert all(f.name for f in funds), "119551 tells nobody anything"
+
+
+def test_costs_are_modelled_only_where_a_schedule_exists() -> None:
+    """costs/schedule.py covers Indian exchange-traded segments. A Binance spot
+    trade pays a taker fee and a fund redemption may pay an exit load; neither
+    pays STT or stamp duty. Running them through EQUITY_DELIVERY would produce a
+    confidently wrong number rather than an obviously missing one (S-028)."""
+    from eulerlab.api.server import cost_mode_for
+
+    assert cost_mode_for("equity") == "realistic"
+    assert cost_mode_for("crypto") == "replication"
+    assert cost_mode_for("mutual_fund") == "replication"
+
+
+def test_the_index_key_separates_asset_classes() -> None:
+    """Equity, crypto and fund panels all call their universe "all". Sharing one
+    cache entry handed a fund run an index of Binance pairs — KeyError on a
+    scheme code."""
+    from eulerlab.api.server import index_key
+
+    assert index_key("all", [], "equity") != index_key("all", [], "crypto")
+    assert index_key("all", [], "crypto") != index_key("all", [], "mutual_fund")
+
+
+def test_the_index_key_separates_two_hand_picked_lists() -> None:
+    from eulerlab.api.server import index_key
+
+    assert index_key("all", ["AAA", "BBB"]) != index_key("all", ["AAA", "CCC"])
+    assert index_key("all", ["BBB", "AAA"]) == index_key("all", ["AAA", "BBB"]), (
+        "order must not matter; the set is what identifies the run"
+    )
+
+
+def test_equity_params_are_unchanged_by_the_new_fields() -> None:
+    """`instruments` and `asset_class` join the params only when they are not
+    the default. An always-present key would change the configuration hash of
+    every run already recorded, inflating the denominator that prices selection
+    bias for no reason but a new dict key."""
+    from eulerlab.api.server import BatchRunRequest, _run_params
+
+    plain = _run_params(BatchRunRequest(strategies=["s"], days=800, universe="all"))
+    assert set(plain) == {"days", "tier", "universe"}

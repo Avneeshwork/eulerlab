@@ -166,40 +166,6 @@ export function ExplainDialog({
             </section>
           )}
 
-          {explain && (
-            <section className="explain-block">
-              <h3>Where this can run, and what data exists</h3>
-              <table className="ttable">
-                <thead>
-                  <tr>
-                    <th>Asset class</th>
-                    <th>Timeframe</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {explain.asset_classes.map((cell) => (
-                    <tr key={`${cell.asset_class}-${cell.timeframe}`}>
-                      <td>
-                        <b>{cell.asset_class}</b>
-                      </td>
-                      <td>
-                        <span className="ttag">{cell.timeframe}</span>
-                      </td>
-                      <td>
-                        <span className="tpill" data-stage={cell.supported ? 'live' : 'retired'}>
-                          {cell.supported ? 'ready' : 'no data'}
-                        </span>
-                        <p className="tfine" style={{ margin: '4px 0 0' }}>
-                          {cell.detail}
-                        </p>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          )}
         </div>
       </div>
     </div>

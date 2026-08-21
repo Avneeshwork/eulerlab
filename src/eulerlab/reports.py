@@ -183,6 +183,27 @@ def _drawdown_detail(equity: list[float], days: list[date]) -> dict[str, Any]:
     }
 
 
+CASH_LIKE_VOLATILITY = 0.02
+"""Annualised volatility below which a high Sharpe says nothing about skill.
+
+A Sharpe is return over volatility. Divide a modest return by a near-zero
+denominator and it goes to the moon without the strategy doing anything: a
+momentum rule over Indian mutual funds returned 4.9% a year at 0.73% volatility
+for a Sharpe of 6.49, which is a statement that liquid and debt funds have
+smooth NAVs, not that the rule works.
+
+2% is where Indian liquid funds sit (roughly 0.5-1%) with room above them, so
+anything under it is cash-like by construction rather than by judgement.
+"""
+
+HIGH_TURNOVER = 5.0
+"""Portfolio turns over its own capital this many times, or more.
+
+Only reported when no cost model covers the asset class: at 27x turnover a
+result gross of costs is not a slightly optimistic estimate, it is a different
+number.
+"""
+
 FLAT_RUN_FRACTION = 0.5
 """Above this share of unchanged days, the run is flagged as mostly idle.
 
@@ -265,6 +286,8 @@ def build(
     universe: str,
     instruments: list[str],
     tier: str,
+    asset_class: str = "equity",
+    cost_mode: str = "realistic",
     window_days: int,
     equity: list[float],
     days: list[date],
@@ -332,12 +355,38 @@ def build(
     if not constituents:
         warnings.append("No instrument traded. There is nothing to attribute.")
 
+    volatility = float(metrics["volatility"] or 0.0)
+    sharpe = float(metrics["sharpe"] or 0.0)
+    if 0.0 < volatility < CASH_LIKE_VOLATILITY and sharpe > 1.0:
+        warnings.append(
+            f"Volatility is {volatility * 100:.2f}% a year — cash-like. A Sharpe of "
+            f"{sharpe:.2f} on an annualised return of "
+            f"{float(metrics['annualised'] or 0.0) * 100:.1f}% is arithmetic about a "
+            f"near-zero denominator, not evidence of skill. Compare this against other "
+            f"cash-like instruments, never against an equity strategy."
+        )
+
+    turnover = float(metrics["turnover_x"] or 0.0)
+    if cost_mode != "realistic":
+        note = (
+            f"No cost model covers {asset_class}, so this run paid nothing to trade and "
+            f"the result is an upper bound rather than a net figure."
+        )
+        if turnover >= HIGH_TURNOVER:
+            note += (
+                f" It turned over its capital {turnover:.0f} times; at that rate the "
+                f"omitted costs are not a rounding error."
+            )
+        warnings.append(note)
+
     return {
         "strategy_id": strategy_id,
         "configuration": configuration,
         "universe": universe,
         "instruments": instruments,
         "tier": tier,
+        "asset_class": asset_class,
+        "cost_mode": cost_mode,
         "window_days": window_days,
         "period": [days[0].isoformat(), days[-1].isoformat()] if days else [None, None],
         "starting_cash": starting_cash,

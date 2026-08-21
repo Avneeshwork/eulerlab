@@ -65,7 +65,7 @@ from eulerlab.intraday import scan as tweezer_scan
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
-from eulerlab.strategies import REGISTRY, catalog
+from eulerlab.strategies import REGISTRY, AssetClass, catalog
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
@@ -137,6 +137,89 @@ class _Panel:
 
 
 PANEL = _Panel()
+
+
+class _AltPanel:
+    """Crypto and mutual fund daily bars, loaded once and kept.
+
+    Separate from `_Panel` because these are *derived*: crypto is resampled
+    from 52.5M minute candles and funds from 14,280 NAV series, so a rebuild
+    per request would make the first backtest on either take minutes. Held by
+    asset class, and the lock is the same reason `_Panel` has one — two
+    requests arriving together would otherwise both start the resample.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._rows: dict[str, list[PanelRow]] = {}
+
+    def rows(self, asset_class: str, days: int = 0) -> list[PanelRow]:
+        with self._lock:
+            if asset_class not in self._rows:
+                self._rows[asset_class] = _load_alt(asset_class)
+        rows = self._rows[asset_class]
+        if not days:
+            return rows
+        # Trailing N *trading* days, matching `_Panel.rows`. Crypto trades every
+        # day and funds only on business days, so neither is forced onto the NSE
+        # calendar; "trading days" is whatever days the data actually has.
+        all_days = sorted({r.day for r in rows})
+        if days >= len(all_days):
+            return rows
+        cutoff = all_days[-days]
+        return [r for r in rows if r.day >= cutoff]
+
+    def loaded(self, asset_class: str) -> bool:
+        return asset_class in self._rows
+
+
+def _load_alt(asset_class: str) -> list[PanelRow]:
+    from eulerlab.features import alt_panel
+
+    if asset_class == AssetClass.CRYPTO.value:
+        return alt_panel.crypto_daily()
+    if asset_class == AssetClass.MUTUAL_FUND.value:
+        return alt_panel.fund_daily()
+    msg = f"no panel for asset class {asset_class!r}"
+    raise ValueError(msg)
+
+
+ALT = _AltPanel()
+
+COSTED_CLASSES = frozenset({AssetClass.EQUITY.value})
+"""Asset classes the cost model actually covers.
+
+`costs/schedule.py` has segments for equity delivery, equity intraday, futures
+and options — all Indian exchange-traded. Running a Binance spot trade or a
+mutual fund redemption through EQUITY_DELIVERY would apply STT, stamp duty and
+NSE charges to something none of them touch, and produce a confidently wrong
+number rather than an obviously missing one.
+
+So crypto and fund runs are executed gross of costs and labelled as such. That
+is a real limitation, recorded in docs/STUBS.md, not a rounding decision: a
+crypto strategy rebalancing every 21 days pays real Binance taker fees, and a
+result that ignores them is an upper bound.
+"""
+
+
+def _rows_for(asset_class: str, days: int) -> list[PanelRow]:
+    """The daily bars for one asset class, trimmed to the window."""
+    if asset_class == AssetClass.EQUITY.value:
+        return PANEL.rows(days)
+    return ALT.rows(asset_class, days)
+
+
+def _no_panel_message(asset_class: str) -> str:
+    if asset_class == AssetClass.CRYPTO.value:
+        return "no crypto landed. Run `make crypto` first."
+    if asset_class == AssetClass.MUTUAL_FUND.value:
+        return "no mutual fund NAV history landed. Run `make mf` first."
+    return "no panel on disk. Run `make build-panel` first."
+
+
+def cost_mode_for(asset_class: str) -> str:
+    """`realistic` where the cost model applies, `replication` where it does not."""
+    return "realistic" if asset_class in COSTED_CLASSES else "replication"
 
 
 # --- jobs -------------------------------------------------------------------
@@ -284,6 +367,7 @@ def _engine_run(
     starting_cash: float,
     rebalance: int,
     universe: str = "all",
+    cost_mode: str = "realistic",
 ) -> _EngineRun:
     """The one place this API calls an engine.
 
@@ -304,6 +388,7 @@ def _engine_run(
             rebalance_every=rebalance,
             warmup=warmup,
             adjusted_index=index,
+            cost_mode=cost_mode,
         )
         return _EngineRun(
             run.equity,
@@ -323,6 +408,7 @@ def _engine_run(
         rebalance_every=rebalance,
         warmup=warmup,
         adjusted_index=index,
+        cost_mode=cost_mode,
     )
     return _EngineRun(
         run_b.equity,
@@ -622,7 +708,11 @@ hand-picked lists are two different results rather than both being "custom".
 
 
 def _universe_rows(
-    rows: list[PanelRow], universe: str, instruments: Sequence[str] = ()
+    rows: list[PanelRow],
+    universe: str,
+    instruments: Sequence[str] = (),
+    *,
+    whole_panel: bool = False,
 ) -> tuple[list[PanelRow], int, list[str]]:
     """Restrict the panel to a universe or an explicit instrument list.
 
@@ -642,7 +732,7 @@ def _universe_rows(
             raise RuntimeError(msg)
         found = sorted({row.symbol for row in kept})
         return kept, len(wanted), found
-    if universe == ALL_INSTRUMENTS:
+    if whole_panel or universe == ALL_INSTRUMENTS:
         return rows, len({row.symbol for row in rows}), []
     symbols = set(catalog.universe(universe))
     kept = [row for row in rows if row.symbol in symbols]
@@ -775,6 +865,15 @@ class BatchRunRequest(BaseModel):
     and of the stored result's configuration, because the same strategy over
     nifty50 and over the whole panel are two different answers."""
 
+    asset_class: str = AssetClass.EQUITY.value
+    """Which panel to run against.
+
+    Explicit rather than inferred, because a universe run has no instruments to
+    infer from. Mixing classes in one run is refused: a cross-section that ranks
+    a Binance pair against a mutual fund NAV is comparing series with different
+    calendars, different cost treatment and no shared notion of a trading day.
+    """
+
     instruments: list[str] = Field(default_factory=list)
     """A hand-picked list, which overrides `universe` when non-empty.
 
@@ -829,21 +928,30 @@ def _how_it_decides(declaration: Any) -> str:
     )
 
 
-def index_key(universe: str, resolved: Sequence[str]) -> str:
+def index_key(universe: str, resolved: Sequence[str], asset_class: str = "equity") -> str:
     """What the adjusted-price index is cached under.
 
-    For a named universe this is the name. For a hand-picked list it must be
-    the *contents*, not the word "custom" — otherwise every custom run at the
-    same window shares one cache entry, and the second run is handed an index
-    built from the first run's symbols. That is precisely the failure
-    `_Panel.index` was keyed by universe to prevent, and the shared "custom"
-    label silently reintroduced it: a four-name run poisoned the next
-    sixty-name run with `KeyError: 'ULTRACEMCO'`.
+    Three things have to be in it, and each was learned by breaking:
+
+    - the **universe name**, because a nifty50 run at 800 days would otherwise
+      hand its index to the next 800-day run over every symbol;
+    - the **contents** of a hand-picked list rather than the word "custom",
+      because every custom run at one window would otherwise share a single
+      entry — a four-name run poisoned a sixty-name run with
+      `KeyError: 'ULTRACEMCO'`;
+    - the **asset class**, because equity, crypto and fund panels all called
+      their universe "all". A crypto run built the entry and the next mutual
+      fund run was handed it, failing with `KeyError: '139389'` — a scheme code
+      looked up in an index of Binance pairs.
+
+    The third is the one that would have been dangerous if the symbol spaces
+    overlapped: it fails loudly only because a scheme code is not a ticker.
     """
-    if not resolved:
-        return universe
-    digest = hashlib.sha256("\u0000".join(sorted(resolved)).encode()).hexdigest()[:16]
-    return f"{CUSTOM_UNIVERSE}:{digest}"
+    base = universe
+    if resolved:
+        digest = hashlib.sha256("\u0000".join(sorted(resolved)).encode()).hexdigest()[:16]
+        base = f"{CUSTOM_UNIVERSE}:{digest}"
+    return base if asset_class == AssetClass.EQUITY.value else f"{asset_class}:{base}"
 
 
 def warmup_for(day_count: int) -> int:
@@ -854,6 +962,27 @@ def warmup_for(day_count: int) -> int:
     actually cover.
     """
     return min(253, max(20, day_count // 4))
+
+
+def _run_params(request: BatchRunRequest) -> dict[str, object]:
+    """What makes this a distinct configuration.
+
+    `instruments` and `asset_class` are present only when they are not the
+    default. An always-present key would change the configuration hash of every
+    run already recorded, so re-running an unchanged equity backtest would count
+    as a new configuration and inflate the denominator that prices selection
+    bias — for no reason but a new dict key.
+    """
+    params: dict[str, object] = {
+        "days": request.days,
+        "tier": request.tier,
+        "universe": _universe_label(request),
+    }
+    if request.instruments:
+        params["instruments"] = sorted(request.instruments)
+    if request.asset_class != AssetClass.EQUITY.value:
+        params["asset_class"] = request.asset_class
+    return params
 
 
 def _universe_label(request: BatchRunRequest) -> str:
@@ -903,20 +1032,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # whole-panel backtest would count as a new configuration and
                 # inflate the denominator that prices selection bias — for no
                 # reason but a new dict key.
-                params=(
-                    {
-                        "days": request.days,
-                        "tier": request.tier,
-                        "universe": _universe_label(request),
-                        "instruments": sorted(request.instruments),
-                    }
-                    if request.instruments
-                    else {
-                        "days": request.days,
-                        "tier": request.tier,
-                        "universe": request.universe,
-                    }
-                ),
+                params=_run_params(request),
             )
             for name in request.strategies
         ]
@@ -938,12 +1054,18 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 )
                 raise TypeError(msg)
 
-            rows = PANEL.rows(request.days)
+            rows = _rows_for(request.asset_class, request.days)
             if not rows:
-                msg = "no panel on disk. Run `make build-panel` first."
+                msg = _no_panel_message(request.asset_class)
                 raise RuntimeError(msg)
             rows, universe_size, resolved = _universe_rows(
-                rows, request.universe, request.instruments
+                rows,
+                request.universe,
+                request.instruments,
+                # A named equity batch means nothing to a crypto or fund panel;
+                # for those the whole panel is the universe unless instruments
+                # were picked.
+                whole_panel=request.asset_class != AssetClass.EQUITY.value,
             )
 
             strategy = _build_registered(item.strategy_id)
@@ -954,7 +1076,8 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 tier=request.tier,
                 starting_cash=1_000_000.0,
                 rebalance=21,
-                universe=index_key(request.universe, resolved),
+                universe=index_key(_universe_label(request), resolved, request.asset_class),
+                cost_mode=cost_mode_for(request.asset_class),
             )
             if not engine.equity:
                 msg = f"the {request.days}-day window is too short to produce a run"
@@ -1014,6 +1137,8 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 "universe": _universe_label(request),
                 "universe_size": universe_size,
                 "symbols": engine.symbols,
+                "asset_class": request.asset_class,
+                "cost_mode": cost_mode_for(request.asset_class),
             }
 
             # The full analysis, written beside the row that summarises it and
@@ -1029,6 +1154,8 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 window_days=request.days,
                 data_version=batch_data_version(),
                 universe=_universe_label(request),
+                asset_class=request.asset_class,
+                cost_mode=cost_mode_for(request.asset_class),
                 params=dict(item.params),
             )
             reports.save(
@@ -1039,6 +1166,8 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     universe=_universe_label(request),
                     instruments=resolved,
                     tier=request.tier,
+                    asset_class=request.asset_class,
+                    cost_mode=cost_mode_for(request.asset_class),
                     window_days=request.days,
                     equity=engine.equity,
                     days=engine.days,
@@ -1085,6 +1214,8 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     tier=request.tier,
                     window_days=request.days,
                     universe=_universe_label(request),
+                    asset_class=request.asset_class,
+                    cost_mode=cost_mode_for(request.asset_class),
                     symbols=int(_as_float(payload, "symbols")),
                     data_version=batch_data_version(),
                     params=dict(item_outcome.item.params),
@@ -1795,7 +1926,11 @@ def explain(strategy: str = "") -> dict[str, Any]:
 
 
 @app.get("/api/window")
-def window(days: int = 800, universe: str = ALL_INSTRUMENTS) -> dict[str, Any]:
+def window(
+    days: int = 800,
+    universe: str = ALL_INSTRUMENTS,
+    asset_class: str = AssetClass.EQUITY.value,
+) -> dict[str, Any]:
     """What a window of N trading days actually covers.
 
     A number of days is not a period a person can reason about, and the two
@@ -1804,13 +1939,14 @@ def window(days: int = 800, universe: str = ALL_INSTRUMENTS) -> dict[str, Any]:
     reading a result as covering a period it does not.
     """
     try:
-        rows = PANEL.rows(days)
-    except (FileNotFoundError, OSError) as exc:
+        rows = _rows_for(asset_class, days)
+        every = _rows_for(asset_class, 0)
+    except (FileNotFoundError, OSError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
     if not rows:
-        return {"ok": False, "error": "no panel on disk. Run `make build-panel` first."}
+        return {"ok": False, "error": _no_panel_message(asset_class)}
 
-    all_days = trading_days(PANEL.rows())
+    all_days = trading_days(every)
     picked = trading_days(rows)
     warmup = warmup_for(len(picked))
     traded = picked[warmup:] if warmup < len(picked) else []
@@ -1830,4 +1966,9 @@ def window(days: int = 800, universe: str = ALL_INSTRUMENTS) -> dict[str, Any]:
         "traded_last": traded[-1].isoformat() if traded else None,
         "traded_days": len(traded),
         "universe": universe,
+        "asset_class": asset_class,
+        # Stated because it changes what the result means. No cost model covers
+        # crypto or funds, so those runs are gross of costs — an upper bound,
+        # not a net result.
+        "cost_mode": cost_mode_for(asset_class),
     }

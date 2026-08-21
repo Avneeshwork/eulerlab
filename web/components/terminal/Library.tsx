@@ -41,6 +41,7 @@ export function Library({
   universe,
   onUniverse,
   instruments,
+  runClass,
   onChoose,
   onRefresh,
   onDeploy,
@@ -57,6 +58,9 @@ export function Library({
   universe: string;
   onUniverse: (name: string) => void;
   instruments: string[];
+  /** The asset class a run will use. Chosen in the Backtest dialog, shown here
+   * so the selection bar cannot claim a run over the wrong panel. */
+  runClass: string;
   onChoose: () => void;
   onRefresh: () => void;
   onDeploy: (strategy: FleetStrategy) => void;
@@ -124,7 +128,7 @@ export function Library({
       setFailure('');
       setBusy((prev) => new Set([...prev, ...ids]));
       try {
-        const result = await runBatch(ids, days, tier, universe, instruments, setNote);
+        const result = await runBatch(ids, days, tier, universe, instruments, runClass, setNote);
         const failed = result.results.filter((r) => r.error);
         setNote(
           `${result.computed} computed, ${result.cached} cached` +
@@ -147,7 +151,7 @@ export function Library({
         });
       }
     },
-    [days, tier, universe, instruments, onRefresh]
+    [days, tier, universe, instruments, runClass, onRefresh]
   );
 
   useEffect(() => {
@@ -263,6 +267,7 @@ export function Library({
         <div className="tsel">
           <b>{selected.size}</b> selected
           <span className="price">
+            {runClass !== 'equity' ? `${runClass} · ` : ''}
             {instruments.length > 0 ? `${instruments.length} chosen instruments` : universe} ·{' '}
             {days}-day window · tier {tier} · spends no trial, so the bar will not learn
             this search happened
