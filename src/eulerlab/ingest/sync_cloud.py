@@ -21,6 +21,14 @@ from eulerlab.ingest.landing import Landing
 DEFAULT_LANDING = Path("data/landing/nse")
 DEFAULT_CONFIG = Path("config/storage.yaml")
 
+MAX_DISCOVERY_SWEEPS = 5
+"""How many times to re-scan the landing root for trees that appeared mid-run.
+
+Bounded rather than looping until stable: a writer producing a new tree faster
+than the sync drains them would otherwise never let the command finish, and
+anything still arriving by the fifth sweep is honestly the next run's work.
+"""
+
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -94,26 +102,51 @@ def main(argv: Sequence[str] | None = None) -> int:
     # than listed. Hardcoding each one meant a new dataset was silently never
     # backed up until someone noticed - which happened twice (participant OI,
     # then fundamentals). Discovery makes forgetting impossible.
-    others = sorted(
-        d for d in args.landing_root.iterdir() if d.is_dir() and d.name != args.landing.name
-    )
-    for tree_root in others:
-        print(f"\n{tree_root.name} from {tree_root}:")
-        tree = sync_directory(
-            tree_root,
-            store,
-            prefix=f"{config.prefix}{tree_root.name}/",
-            dry_run=args.dry_run,
+    #
+    # But discovery ONCE is not enough, and that cost a full re-run. This walk
+    # used to enumerate the landing root a single time, at the start. A tree
+    # created while the sync was running - a backfill finishing after the sync
+    # began - was simply not in the list, so it was never uploaded, and the run
+    # still exited 0. A gigabyte of crypto sat unmirrored while the command
+    # reported success.
+    #
+    # So the root is re-scanned after each pass and any tree that has appeared
+    # is picked up, until a pass finds nothing new. Bounded, because a
+    # sufficiently fast writer could otherwise keep it going forever - and
+    # anything still arriving after that is genuinely the next run's job.
+    done: set[str] = set()
+    for sweep in range(1, MAX_DISCOVERY_SWEEPS + 1):
+        others = sorted(
+            d
+            for d in args.landing_root.iterdir()
+            if d.is_dir() and d.name != args.landing.name and d.name not in done
         )
-        print(f"  uploaded : {tree.uploaded}")
-        print(f"  skipped  : {tree.skipped}")
-        if tree.failed:
-            print(f"  FAILED   : {len(tree.failed)}")
-            for problem in tree.failed[:10]:
-                print(f"    {problem}")
-            result = SyncResult(
-                result.uploaded, result.skipped, result.mismatched, [*result.failed, *tree.failed]
+        if not others:
+            break
+        if sweep > 1:
+            print(f"\n-- sweep {sweep}: {len(others)} tree(s) appeared mid-run --")
+
+        for tree_root in others:
+            done.add(tree_root.name)
+            print(f"\n{tree_root.name} from {tree_root}:")
+            tree = sync_directory(
+                tree_root,
+                store,
+                prefix=f"{config.prefix}{tree_root.name}/",
+                dry_run=args.dry_run,
             )
+            print(f"  uploaded : {tree.uploaded}")
+            print(f"  skipped  : {tree.skipped}")
+            if tree.failed:
+                print(f"  FAILED   : {len(tree.failed)}")
+                for problem in tree.failed[:10]:
+                    print(f"    {problem}")
+                result = SyncResult(
+                    result.uploaded,
+                    result.skipped,
+                    result.mismatched,
+                    [*result.failed, *tree.failed],
+                )
 
     if result.mismatched:
         print("\nMISMATCHED — in the bucket with a different hash, left untouched:")
