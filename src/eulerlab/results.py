@@ -80,6 +80,24 @@ class Run:
     tier: str
     window_days: int
     data_version: str
+    universe: str = "all"
+    """Which instruments the run could choose from.
+
+    Part of `configuration`: the same strategy over nifty50 and over the whole
+    panel are two different answers, not one answer recomputed. Defaults to
+    "all" because that is what every run did before the selector existed —
+    `_run_batch` passed the panel unfiltered — so reading an older row as "all"
+    is a statement of fact rather than a guess.
+    """
+
+    symbols: int = 0
+    """How many distinct instruments actually traded.
+
+    Different from the universe size and more informative: a strategy offered
+    4,002 names that held 20 of them is the useful fact, and it is the answer to
+    "what did this run actually touch".
+    """
+
     params: dict[str, Any] = field(default_factory=dict)
     curve: list[float] = field(default_factory=list)
     """The equity curve, downsampled. An output, so deliberately not part of
@@ -103,6 +121,7 @@ class Run:
                 "strategy": self.strategy_id,
                 "tier": self.tier,
                 "window": self.window_days,
+                "universe": self.universe,
                 "data": self.data_version,
                 "params": self.params,
             },
@@ -121,6 +140,8 @@ class Run:
             "days": self.days,
             "tier": self.tier,
             "window_days": self.window_days,
+            "universe": self.universe,
+            "symbols": self.symbols,
             "data_version": self.data_version,
             "params": self.params,
             "curve": self.curve,
@@ -197,6 +218,10 @@ def _to_run(row: dict[str, Any]) -> Run:
         days=int(row.get("days", 0)),
         tier=str(row.get("tier", "")),
         window_days=int(row.get("window_days", 0)),
+        # A row written before the selector existed ran on the unfiltered
+        # panel, which is exactly what "all" means.
+        universe=str(row.get("universe") or "all"),
+        symbols=int(row.get("symbols", 0)),
         data_version=str(row.get("data_version", "")),
         params=dict(row.get("params") or {}),
         curve=[float(value) for value in (row.get("curve") or [])],
@@ -294,6 +319,8 @@ def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
         "fills": top.run.fills,
         "tier": top.run.tier,
         "window_days": top.run.window_days,
+        "universe": top.run.universe,
+        "symbols": top.run.symbols,
         "curve": top.run.curve,
         "runs": top.runs,
         "unrecorded": top.unrecorded,

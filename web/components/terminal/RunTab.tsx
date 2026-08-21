@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { UniverseNote, UniversePicker } from '@/components/terminal/UniversePicker';
 import { runBatch } from '@/lib/run';
 import type { BatchResult, Fleet, RunPrice } from '@/lib/api';
 
@@ -18,15 +19,19 @@ export function RunTab({
   fleet,
   window: days,
   tier,
+  universe,
   onWindow,
   onTier,
+  onUniverse,
   onRefresh,
 }: {
   fleet: Fleet | null;
   window: number;
   tier: 'A' | 'B';
+  universe: string;
   onWindow: (days: number) => void;
   onTier: (tier: 'A' | 'B') => void;
+  onUniverse: (name: string) => void;
   onRefresh: () => void;
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -58,7 +63,7 @@ export function RunTab({
     setError('');
     setResult(null);
     try {
-      const outcome = await runBatch([...picked], days, tier, setNote);
+      const outcome = await runBatch([...picked], days, tier, universe, setNote);
       setResult(outcome);
       onRefresh();
     } catch (problem) {
@@ -66,7 +71,7 @@ export function RunTab({
     } finally {
       setBusy(false);
     }
-  }, [picked, days, tier, onRefresh]);
+  }, [picked, days, tier, universe, onRefresh]);
 
   return (
     <>
@@ -100,6 +105,7 @@ export function RunTab({
       </section>
 
       <div className="ttools">
+        <UniversePicker value={universe} onChange={onUniverse} />
         <label className="tsort" style={{ marginLeft: 0 }}>
           Window
           <select
@@ -178,6 +184,7 @@ export function RunTab({
 
         <div className="tpanel">
           <h3>What this run costs</h3>
+          <UniverseNote value={universe} />
           {price ? (
             <>
               <div className="tfacts">

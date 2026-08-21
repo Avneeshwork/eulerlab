@@ -67,7 +67,7 @@ def cost_model_version() -> str:
     return hashlib.sha256(source.read_bytes()).hexdigest()[:16]
 
 
-OUTCOME_SCHEMA = 2
+OUTCOME_SCHEMA = 3
 """Bumped whenever a run starts producing a field it did not produce before.
 
 The cache key covers everything that could change the *answer*. It does not
@@ -81,6 +81,7 @@ not strictly need; the alternative is an interface that silently cannot show a
 field the code demonstrably produces.
 
 1 -> 2: added `curve`, the downsampled equity path.
+2 -> 3: added `universe`, `universe_size` and `symbols`.
 """
 
 

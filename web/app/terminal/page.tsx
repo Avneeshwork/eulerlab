@@ -41,6 +41,11 @@ export default function TerminalPage() {
   const [deploying, setDeploying] = useState<FleetStrategy | null>(null);
   const [days, setDays] = useState(800);
   const [tier, setTier] = useState<'A' | 'B'>('B');
+  // Which instruments a run may choose from. Held here with window and tier
+  // because the library's per-row Backtest uses them too, and two surfaces
+  // silently running different universes would produce two numbers that look
+  // comparable and are not.
+  const [universe, setUniverse] = useState('all');
 
   const workspace = '';
 
@@ -182,6 +187,8 @@ export default function TerminalPage() {
               problem={problem}
               window={days}
               tier={tier}
+              universe={universe}
+              onUniverse={setUniverse}
               onRefresh={refresh}
               onDeploy={setDeploying}
             />
@@ -195,8 +202,10 @@ export default function TerminalPage() {
             fleet={fleet}
             window={days}
             tier={tier}
+            universe={universe}
             onWindow={setDays}
             onTier={setTier}
+            onUniverse={setUniverse}
             onRefresh={refresh}
           />
         )}

@@ -9,6 +9,7 @@ obtain without also obtaining how many runs it beat.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -203,3 +204,39 @@ def test_a_tie_on_sharpe_is_broken_by_recency(space: ws.Workspace) -> None:
     assert top.runs == 2, "different tiers are still two configurations"
     assert top.run.tier == "B"
     assert top.run.curve == [1.0, 2.0], "the tie-break must carry the curve with it"
+
+
+# --- which instruments the run was on --------------------------------------
+
+
+def test_the_same_strategy_on_two_universes_is_two_results(space: ws.Workspace) -> None:
+    """Not one result recomputed. Momentum over nifty50 and momentum over four
+    thousand names are different answers to different questions, and collapsing
+    them would let a run on one universe silently report the other's number."""
+    rs.record(space, rs.Run(**{**_run(1.0).__dict__, "universe": "nifty50"}))
+    rs.record(space, rs.Run(**{**_run(2.0).__dict__, "universe": "all"}))
+    top = rs.best(space, "demo")
+    assert top is not None
+    assert top.runs == 2
+    assert top.run.universe == "all"
+
+
+def test_a_row_written_before_the_selector_reads_as_all(space: ws.Workspace) -> None:
+    """Not a guess. `_run_batch` passed the panel unfiltered, so a row with no
+    universe recorded genuinely ran on everything."""
+    path = space.results / "demo.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    legacy = _run(1.5).to_row()
+    del legacy["universe"]
+    path.write_text(json.dumps(legacy) + "\n", encoding="utf-8")
+
+    top = rs.best(space, "demo")
+    assert top is not None
+    assert top.run.universe == "all"
+
+
+def test_the_universe_is_reported_with_the_result(space: ws.Workspace) -> None:
+    rs.record(space, rs.Run(**{**_run(1.5).__dict__, "universe": "nifty100", "symbols": 37}))
+    summary = rs.summary(space, "demo")
+    assert summary["universe"] == "nifty100"
+    assert summary["symbols"] == 37, "how many names actually traded, not how many were offered"

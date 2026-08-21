@@ -25,9 +25,10 @@ export async function runBatch(
   strategies: string[],
   days: number,
   tier: 'A' | 'B',
+  universe: string,
   onProgress?: (message: string) => void
 ): Promise<BatchResult> {
-  const started = await api.runBatch(strategies, days, tier);
+  const started = await api.runBatch(strategies, days, tier, universe);
   if (!started.ok || !started.job) throw new RunFailed(started.error ?? 'could not start the run');
 
   const deadline = Date.now() + TIMEOUT_MS;

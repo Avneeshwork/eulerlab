@@ -57,7 +57,10 @@ export function RunComposer({
     setRunning(true);
     setMessage('starting');
 
-    const started = await api.runBatch(strategies, days, tier).catch(() => null);
+    // 'all' is the whole panel, which is exactly what this screen ran on
+    // before the universe selector existed. Passing it keeps the old
+    // workbench's numbers comparable with the ones it has already produced.
+    const started = await api.runBatch(strategies, days, tier, 'all').catch(() => null);
     if (!started?.ok || !started.job) {
       setProblem(started?.error ?? 'could not start the batch');
       setRunning(false);

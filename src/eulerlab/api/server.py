@@ -99,7 +99,7 @@ class _Panel:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._rows: list[PanelRow] | None = None
-        self._indices: dict[int, dict[str, dict[date, float]]] = {}
+        self._indices: dict[tuple[int, str], dict[str, dict[date, float]]] = {}
 
     def rows(self, days: int = 0) -> list[PanelRow]:
         with self._lock:
@@ -113,11 +113,22 @@ class _Panel:
         cutoff = all_days[-days]
         return [r for r in self._rows if r.day >= cutoff]
 
-    def index(self, days: int, rows: list[PanelRow]) -> dict[str, dict[date, float]]:
+    def index(
+        self, days: int, rows: list[PanelRow], universe: str = "all"
+    ) -> dict[str, dict[date, float]]:
+        """Back-adjusted prices for this row set.
+
+        Keyed by the window AND the universe. Keying by window alone was safe
+        only while every run saw the whole panel: once rows are filtered, a
+        nifty50 run at 800 days would hand its index to the next 800-day run
+        over every symbol, which then has no adjusted prices for the symbols
+        nifty50 never contained.
+        """
         with self._lock:
-            if days not in self._indices:
-                self._indices[days] = build_adjusted_index(rows)
-            return self._indices[days]
+            key = (days, universe)
+            if key not in self._indices:
+                self._indices[key] = build_adjusted_index(rows)
+            return self._indices[key]
 
     def loaded(self) -> bool:
         return self._rows is not None
@@ -238,6 +249,8 @@ class _EngineRun:
     fills: int
     rejects: int
     costs: float
+    symbols: int = 0
+    """Distinct instruments that actually traded, counted from the fills."""
 
 
 def _engine_run(
@@ -248,6 +261,7 @@ def _engine_run(
     tier: str,
     starting_cash: float,
     rebalance: int,
+    universe: str = "all",
 ) -> _EngineRun:
     """The one place this API calls an engine.
 
@@ -258,7 +272,7 @@ def _engine_run(
     """
     days = trading_days(rows)
     warmup = min(253, max(20, len(days) // 4))
-    index = PANEL.index(days_window, rows)
+    index = PANEL.index(days_window, rows, universe)
 
     if tier == "A":
         run = vector.run(
@@ -269,7 +283,14 @@ def _engine_run(
             warmup=warmup,
             adjusted_index=index,
         )
-        return _EngineRun(run.equity, run.days, len(run.fills), 0, run.total_cost)
+        return _EngineRun(
+            run.equity,
+            run.days,
+            len(run.fills),
+            0,
+            run.total_cost,
+            len({fill.symbol for fill in run.fills}),
+        )
 
     run_b = event_driven.run(
         rows,
@@ -280,7 +301,12 @@ def _engine_run(
         adjusted_index=index,
     )
     return _EngineRun(
-        run_b.equity, run_b.days, len(run_b.fills), len(run_b.rejections), run_b.total_cost
+        run_b.equity,
+        run_b.days,
+        len(run_b.fills),
+        len(run_b.rejections),
+        run_b.total_cost,
+        len({fill.symbol for fill in run_b.fills}),
     )
 
 
@@ -536,6 +562,74 @@ def instruments(q: str = "", batch: str = "", limit: int = 60) -> dict[str, Any]
     }
 
 
+ALL_INSTRUMENTS = "all"
+"""Every symbol in the panel.
+
+Not one of `catalog.UNIVERSE_FILES` — those are liquidity-ranked lists, and the
+panel is wider than any of them. Named explicitly because it is what every run
+did before the selector existed, and leaving it unnamed would make those
+results look as though nobody knew what they ran on.
+"""
+
+
+def _universe_rows(rows: list[PanelRow], universe: str) -> tuple[list[PanelRow], int]:
+    """Restrict the panel to one universe. Returns the rows and its size."""
+    if universe == ALL_INSTRUMENTS:
+        return rows, len({row.symbol for row in rows})
+    symbols = set(catalog.universe(universe))
+    kept = [row for row in rows if row.symbol in symbols]
+    if not kept:
+        msg = (
+            f"no panel rows for any of the {len(symbols)} symbols in {universe!r}. "
+            f"The universe and the panel do not overlap, so there is nothing to run."
+        )
+        raise RuntimeError(msg)
+    return kept, len(symbols)
+
+
+@app.get("/api/universes")
+def universes() -> dict[str, Any]:
+    """Every universe a backtest can be pointed at, with its size.
+
+    `all` is listed first and is the default because it is what every existing
+    result ran on. It is also the widest and least liquid, which is stated
+    rather than left for the reader to discover — the cost model is calibrated
+    on traded names, so a universe full of rarely-traded ones understates costs.
+    """
+    out: list[dict[str, Any]] = [
+        {
+            "name": ALL_INSTRUMENTS,
+            "symbols": len({row.symbol for row in PANEL.rows()}),
+            "recommended": False,
+            "note": (
+                "Every symbol in the panel. What every result so far ran on, and the "
+                "widest — it includes rarely-traded names whose real costs the model "
+                "understates."
+            ),
+        }
+    ]
+    for name in sorted(catalog.UNIVERSE_FILES):
+        try:
+            symbols = catalog.universe(name)
+        except (ValueError, FileNotFoundError, OSError) as exc:
+            out.append({"name": name, "symbols": 0, "recommended": False, "note": str(exc)})
+            continue
+        out.append(
+            {
+                "name": name,
+                "symbols": len(symbols),
+                "recommended": name == "nifty100",
+                "note": (
+                    "Liquid enough that the cost model is defensible, wide enough to rank "
+                    "across. The recommended starting point."
+                    if name == "nifty100"
+                    else ""
+                ),
+            }
+        )
+    return {"universes": out, "default": ALL_INSTRUMENTS, "caveat": catalog.UNIVERSE_CAVEAT}
+
+
 class PriceRunRequest(BaseModel):
     """What a proposed batch would cost."""
 
@@ -608,6 +702,11 @@ class BatchRunRequest(BaseModel):
     strategies: list[str] = Field(default_factory=list)
     days: int = Field(default=800, ge=60, le=3000)
     tier: Literal["A", "B"] = "B"
+    universe: str = ALL_INSTRUMENTS
+    """Which instruments the strategy may choose from. Part of the cache key
+    and of the stored result's configuration, because the same strategy over
+    nifty50 and over the whole panel are two different answers."""
+
     use_cache: bool = True
     workspace: str = ""
     """Which tenant's results this run belongs to. Empty means the default
@@ -646,7 +745,15 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
         items = [
             _BatchItem(
                 strategy_id=name,
-                params={"days": request.days, "tier": request.tier},
+                # `universe` belongs in params because params feed the cache
+                # key. Without it a nifty50 run and a whole-panel run of the
+                # same strategy share a key, and the second is served the
+                # first's numbers.
+                params={
+                    "days": request.days,
+                    "tier": request.tier,
+                    "universe": request.universe,
+                },
             )
             for name in request.strategies
         ]
@@ -672,6 +779,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             if not rows:
                 msg = "no panel on disk. Run `make build-panel` first."
                 raise RuntimeError(msg)
+            rows, universe_size = _universe_rows(rows, request.universe)
 
             strategy = _build_registered(item.strategy_id)
             engine = _engine_run(
@@ -681,6 +789,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 tier=request.tier,
                 starting_cash=1_000_000.0,
                 rebalance=21,
+                universe=request.universe,
             )
             if not engine.equity:
                 msg = f"the {request.days}-day window is too short to produce a run"
@@ -718,6 +827,12 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 "max_drawdown": round(_drawdown(engine.equity), 6),
                 "fills": engine.fills,
                 "costs": round(engine.costs, 2),
+                # What the run could choose from, and what it actually touched.
+                # The second is the answer to "which instruments was this run
+                # on", which the universe name alone does not give.
+                "universe": request.universe,
+                "universe_size": universe_size,
+                "symbols": engine.symbols,
             }
 
             outcome["days"] = len(engine.days)
@@ -755,6 +870,8 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     days=int(_as_float(payload, "days")),
                     tier=request.tier,
                     window_days=request.days,
+                    universe=request.universe,
+                    symbols=int(_as_float(payload, "symbols")),
                     data_version=batch_data_version(),
                     params=dict(item_outcome.item.params),
                     curve=_as_curve(payload),

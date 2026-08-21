@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { Spark } from '@/components/terminal/Spark';
+import { UniversePicker } from '@/components/terminal/UniversePicker';
 import { api } from '@/lib/api';
 import { runBatch } from '@/lib/run';
 import type { Fleet, FleetStrategy } from '@/lib/api';
@@ -37,6 +38,8 @@ export function Library({
   problem,
   window: days,
   tier,
+  universe,
+  onUniverse,
   onRefresh,
   onDeploy,
 }: {
@@ -44,6 +47,8 @@ export function Library({
   problem: string;
   window: number;
   tier: 'A' | 'B';
+  universe: string;
+  onUniverse: (name: string) => void;
   onRefresh: () => void;
   onDeploy: (strategy: FleetStrategy) => void;
 }) {
@@ -104,7 +109,7 @@ export function Library({
       setFailure('');
       setBusy((prev) => new Set([...prev, ...ids]));
       try {
-        const result = await runBatch(ids, days, tier, setNote);
+        const result = await runBatch(ids, days, tier, universe, setNote);
         const failed = result.results.filter((r) => r.error);
         setNote(
           `${result.computed} computed, ${result.cached} cached` +
@@ -127,7 +132,7 @@ export function Library({
         });
       }
     },
-    [days, tier, onRefresh]
+    [days, tier, universe, onRefresh]
   );
 
   return (
@@ -159,6 +164,7 @@ export function Library({
             {name}
           </button>
         ))}
+        <UniversePicker value={universe} onChange={onUniverse} />
         <label className="tsort">
           Sort
           <select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
@@ -235,8 +241,8 @@ export function Library({
         <div className="tsel">
           <b>{selected.size}</b> selected
           <span className="price">
-            {days}-day window · tier {tier} · spends no trial, so the bar will not learn
-            this search happened
+            {universe} · {days}-day window · tier {tier} · spends no trial, so the bar
+            will not learn this search happened
           </span>
           <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
             Clear
@@ -318,7 +324,20 @@ function Row({
         </div>
         <div className="tmeta">
           <Tag>{strategy.asset_class}</Tag>
-          <Tag>{strategy.timeframe}</Tag>
+          {result.universe ? (
+            <Tag
+              title={`This result was run on ${result.universe}${
+                result.symbols ? `; ${result.symbols} names actually traded` : ''
+              }.`}
+            >
+              {result.universe}
+              {result.symbols ? ` · ${result.symbols}` : ''}
+            </Tag>
+          ) : (
+            <span className="tdim" style={{ fontSize: 11 }}>
+              never run
+            </span>
+          )}
         </div>
         <div className="tgraph">
           {busy ? (
@@ -374,6 +393,8 @@ function Row({
               <Fact label="Max drawdown" value={fmtPct(result.max_drawdown)} />
               <Fact label="Fills" value={result.fills ?? '—'} />
               <Fact label="Window" value={result.window_days ? `${result.window_days}d` : '—'} />
+              <Fact label="Universe" value={result.universe || '—'} />
+              <Fact label="Names traded" value={result.symbols || '—'} />
               <Fact label="Tier" value={result.tier || '—'} />
               <Fact label="Lookback" value={`${strategy.lookback}d`} />
               <Fact label="Risk manager" value={strategy.risk_manager || '—'} />

@@ -113,6 +113,11 @@ export type StrategyResult = {
   // Inseparable from the figure: a Sharpe means one thing as the only run and
   // another as the highest of forty.
   runs: number;
+  // Which instruments the run could choose from, and how many actually traded.
+  // A result without its universe is ambiguous: the same strategy over nifty50
+  // and over four thousand names are different answers.
+  universe?: string;
+  symbols?: number;
   // The real equity curve of the best run, downsampled by the server. Empty
   // when nothing has been run — the sparkline renders nothing rather than a
   // flat line, because a flat line is a claim about a run that did not happen.
@@ -191,6 +196,19 @@ export type DataStatus = {
   universes: { name: string; symbols: number; error?: string }[];
   universe_caveat: string;
   sources: DataSource[];
+};
+
+export type Universe = {
+  name: string;
+  symbols: number;
+  recommended: boolean;
+  note: string;
+};
+
+export type UniverseList = {
+  universes: Universe[];
+  default: string;
+  caveat: string;
 };
 
 export type CloudStatus = {
@@ -294,10 +312,16 @@ export const api = {
   capabilities: () => get<{ matrix: Capability[] }>('/api/capabilities'),
   instruments: (q: string, batch: string) =>
     get<InstrumentList>(`/api/instruments?q=${encodeURIComponent(q)}&batch=${encodeURIComponent(batch)}`),
+  universes: () => get<UniverseList>('/api/universes'),
   priceRun: (configurations: number, cached: number) =>
     post<RunPrice>('/api/run/price', { configurations, cached }),
-  runBatch: (strategies: string[], days: number, tier: 'A' | 'B') =>
-    post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', { strategies, days, tier }),
+  runBatch: (strategies: string[], days: number, tier: 'A' | 'B', universe: string) =>
+    post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', {
+      strategies,
+      days,
+      tier,
+      universe,
+    }),
   batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>
