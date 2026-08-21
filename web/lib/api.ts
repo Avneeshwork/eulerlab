@@ -102,6 +102,23 @@ export type StrategyInput = {
 
 export type Stage = 'registered' | 'backtested' | 'forward_testing' | 'live' | 'retired';
 
+export type StrategyResult = {
+  sharpe: number | null;
+  total_return?: number;
+  max_drawdown?: number;
+  fills?: number;
+  tier?: string;
+  window_days?: number;
+  // How many distinct configurations the headline figure was the best of.
+  // Inseparable from the figure: a Sharpe means one thing as the only run and
+  // another as the highest of forty.
+  runs: number;
+  unrecorded?: number;
+  is_a_maximum?: boolean;
+  at?: string;
+  caveat: string;
+};
+
 export type FleetStrategy = {
   id: string;
   title: string;
@@ -120,6 +137,7 @@ export type FleetStrategy = {
   sharpe: number | null;
   trials: number;
   clears_bar: boolean;
+  result: StrategyResult;
 };
 
 export type Fleet = {

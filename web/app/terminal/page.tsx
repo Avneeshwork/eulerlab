@@ -218,6 +218,7 @@ export default function TerminalPage() {
                   <th>TF</th>
                   <th>Evidence</th>
                   <th style={{ textAlign: 'right' }}>Sharpe vs bar</th>
+                  <th style={{ textAlign: 'right' }}>Runs</th>
                   <th style={{ textAlign: 'right' }}>Trials</th>
                   <th>RM / TM</th>
                 </tr>
@@ -304,9 +305,21 @@ function Row({
               ? strategy.trials > 0
                 ? 'searched, never measured'
                 : 'not measured'
-              : undefined
+              : strategy.result.caveat || undefined
           }
         />
+      </td>
+      <td className="num" title={strategy.result.caveat || undefined}>
+        {strategy.result.runs || <span style={{ opacity: 0.4 }}>—</span>}
+        {strategy.result.is_a_maximum && (
+          <span
+            className="tflag"
+            title={strategy.result.caveat}
+            style={{ marginLeft: 4 }}
+          >
+            max
+          </span>
+        )}
       </td>
       <td className="num">{strategy.trials}</td>
       <td className="num" style={{ textAlign: 'left', fontSize: 10.5 }}>

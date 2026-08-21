@@ -40,6 +40,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab import results as result_store
+from eulerlab import workspace as workspace_mod
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
@@ -48,6 +50,7 @@ from eulerlab.backtest.strategies import BuyAndHold
 from eulerlab.backtest.strategy import Strategy
 from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.batch import Item as _BatchItem
+from eulerlab.batch import data_version as batch_data_version
 from eulerlab.batch import runner
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
@@ -422,8 +425,23 @@ def health() -> dict[str, Any]:
     }
 
 
+def _best_sharpe(tenant: workspace_mod.Workspace, row: Any) -> float | None:
+    """A strategy's best backtest Sharpe, or None if it has never run.
+
+    None, never zero. Zero is a measurement meaning no edge; None means nobody
+    looked, and the library renders them differently on purpose.
+    """
+    top = result_store.best(tenant, row.declaration.id)
+    return round(top.run.sharpe, 4) if top else None
+
+
+def _clears(tenant: workspace_mod.Workspace, row: Any, bar: float) -> bool:
+    value = row.sharpe if row.sharpe is not None else _best_sharpe(tenant, row)
+    return value is not None and value >= bar
+
+
 @app.get("/api/fleet")
-def fleet() -> dict[str, Any]:
+def fleet(workspace: str = "") -> dict[str, Any]:
     """Every registered strategy, with whatever the ledger knows about it.
 
     `sharpe` is null for a strategy that has never been evaluated, and the
@@ -434,6 +452,7 @@ def fleet() -> dict[str, Any]:
     """
     bar = price_search(0, available_years=11.4).bar_after
     dispersion = sharpe_dispersion()
+    tenant = workspace_mod.resolve(workspace or None)
     return {
         "bar": round(bar, 3),
         "bar_sigma_measured": dispersion.usable,
@@ -453,11 +472,16 @@ def fleet() -> dict[str, Any]:
                 "trade_manager": row.declaration.trade_manager,
                 "is_strategy_subclass": row.declaration.is_strategy_subclass,
                 "stage": row.stage.value,
-                "sharpe": row.sharpe,
+                # The ledger's Sharpe (a validated result) takes precedence over
+                # a screened one: it is the stronger claim and was paid for.
+                # `result` carries the backtest figure and, inseparably, how
+                # many runs it was the best of.
+                "sharpe": row.sharpe if row.sharpe is not None else _best_sharpe(tenant, row),
+                "result": result_store.summary(tenant, row.declaration.id),
                 "trials": row.trials,
-                "clears_bar": row.sharpe is not None and row.sharpe >= bar,
+                "clears_bar": _clears(tenant, row, bar),
             }
-            for row in strategy_fleet()
+            for row in strategy_fleet(tenant.ledger)
         ],
     }
 
@@ -580,10 +604,26 @@ class BatchRunRequest(BaseModel):
     days: int = Field(default=800, ge=60, le=3000)
     tier: Literal["A", "B"] = "B"
     use_cache: bool = True
+    workspace: str = ""
+    """Which tenant's results this run belongs to. Empty means the default
+    single-operator workspace (ADR-040)."""
+
+
+def _as_float(payload: dict[str, object], key: str) -> float:
+    """Read a number out of an untyped result payload.
+
+    The batch runner carries results as `dict[str, object]` because a compute
+    function may return anything. Rather than scatter type-ignores at each read,
+    the narrowing happens once — and a non-numeric value becomes 0.0 rather
+    than raising, since a malformed field must not lose the whole run.
+    """
+    value = payload.get(key)
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else 0.0
 
 
 def _run_batch(job: Job, request: BatchRunRequest) -> None:
     """Screen each selected strategy through the same engine `make backtest` uses."""
+    workspace = workspace_mod.resolve(request.workspace or None).ensure()
     try:
         job.status = "running"
         items = [
@@ -655,7 +695,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
 
             returns = [b / a - 1.0 for a, b in pairwise(engine.equity) if a > 0]
             stats = sharpe_stats(returns)
-            return {
+            outcome = {
                 "sharpe": round(stats.sharpe, 4),
                 "total_return": round(engine.equity[-1] / 1_000_000.0 - 1.0, 6),
                 "max_drawdown": round(_drawdown(engine.equity), 6),
@@ -663,10 +703,46 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 "costs": round(engine.costs, 2),
             }
 
+            outcome["days"] = len(engine.days)
+            return outcome
+
         def progress(index: int, total: int, item: _BatchItem) -> None:
             job.message = f"screened {index}/{total} — {item.strategy_id}"
 
         result = runner.run(items, compute, use_cache=request.use_cache, on_progress=progress)
+
+        # Recorded from the OUTCOMES, not from inside `compute`.
+        #
+        # A cache hit never calls `compute`, so recording there meant a strategy
+        # served from cache produced no stored result and the library kept
+        # showing "not measured" for something that had demonstrably run. A
+        # cached result is still a result — the same numbers, just not
+        # recomputed — and the configuration key makes it supersede rather than
+        # duplicate.
+        for item_outcome in result.outcomes:
+            if item_outcome.error or not item_outcome.result:
+                continue
+            payload = item_outcome.result
+            result_store.record(
+                workspace,
+                result_store.Run(
+                    strategy_id=item_outcome.item.strategy_id,
+                    sharpe=_as_float(payload, "sharpe"),
+                    total_return=_as_float(payload, "total_return"),
+                    max_drawdown=_as_float(payload, "max_drawdown"),
+                    fills=int(_as_float(payload, "fills")),
+                    days=int(_as_float(payload, "days")),
+                    tier=request.tier,
+                    window_days=request.days,
+                    data_version=batch_data_version(),
+                    params=dict(item_outcome.item.params),
+                    # Screening spends no trial (T-3321). The honest value, and
+                    # what lets the library report how much of its own evidence
+                    # the noise bar has never seen.
+                    trial_recorded=False,
+                ),
+            )
+
         job.result = runner.summarise(result)
         job.status = "done"
     except Exception:
