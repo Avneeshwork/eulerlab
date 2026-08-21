@@ -41,9 +41,23 @@ class Composite(Strategy):
     strategy would be the worst place to hide it.
     """
 
-    def __init__(self, features: Sequence[Feature | str], *, top_n: int = 30) -> None:
+    def __init__(
+        self,
+        features: Sequence[Feature | str],
+        *,
+        top_n: int = 30,
+        min_names: int = 20,
+    ) -> None:
         self.features = [BY_NAME[f] if isinstance(f, str) else f for f in features]
         self.top_n = top_n
+        self.min_names = min_names
+        """How wide the cross-section must be before ranking means anything.
+
+        Defaulted for an equity panel of hundreds. The whole crypto universe is
+        20 coins, so the equity default of 50 makes every crypto strategy
+        return no positions at all — which reads in a backtest as Sharpe 0.00
+        rather than as "this never ran". Sized per universe at the call site.
+        """
         names = "+".join(f.name for f in self.features)
         self.name = f"composite({names}, top{top_n})"
         self.lookback = max(f.min_history for f in self.features) + 10
@@ -59,7 +73,7 @@ class Composite(Strategy):
                 value = feature(view.history[symbol])
                 if value is not None:
                     scored.append((value, symbol))
-            if len(scored) < 20:
+            if len(scored) < self.min_names:
                 # Too thin a cross-section for this feature to rank. Skipping it
                 # is right; ranking 3 names would give them extreme positions on
                 # no information.
@@ -73,7 +87,7 @@ class Composite(Strategy):
         # by all of them, so it is dropped rather than averaged over fewer.
         wanted = len(self.features)
         eligible = [(rank_sum[s] / counted[s], s) for s in rank_sum if counted[s] == wanted]
-        if len(eligible) < 20:
+        if len(eligible) < self.min_names:
             return {}
 
         eligible.sort(reverse=True)
@@ -89,59 +103,59 @@ class Composite(Strategy):
 # have to be counted as search.
 
 
-def momentum_12_1(top_n: int = 30) -> Strategy:
+def momentum_12_1(top_n: int = 30, min_names: int = 50) -> Strategy:
     """Jegadeesh & Titman (1993). Buy 12-month winners, skipping last month.
 
     The skip is the point: month -1 carries the short-term reversal that
     `reversal_1m` trades in the opposite direction, and without the skip the
     two effects cancel.
     """
-    return RankAndHold("momentum_12_1", top_n=top_n)
+    return RankAndHold("momentum_12_1", top_n=top_n, min_names=min_names)
 
 
-def momentum_6_1(top_n: int = 30) -> Strategy:
+def momentum_6_1(top_n: int = 30, min_names: int = 50) -> Strategy:
     """Jegadeesh & Titman (1993), the shorter formation window they also test."""
-    return RankAndHold("momentum_6_1", top_n=top_n)
+    return RankAndHold("momentum_6_1", top_n=top_n, min_names=min_names)
 
 
-def short_term_reversal(top_n: int = 30) -> Strategy:
+def short_term_reversal(top_n: int = 30, min_names: int = 50) -> Strategy:
     """Jegadeesh (1990), Lehmann (1990). Last month's losers outperform.
 
     `reversal_1m` is already negated in the library, so ranking it high is
     buying the losers — the sign convention that every feature is oriented so
     higher is better.
     """
-    return RankAndHold("reversal_1m", top_n=top_n)
+    return RankAndHold("reversal_1m", top_n=top_n, min_names=min_names)
 
 
-def low_volatility(top_n: int = 30) -> Strategy:
+def low_volatility(top_n: int = 30, min_names: int = 50) -> Strategy:
     """Baker, Bradley & Wurgler (2011). Low-volatility stocks outperformed.
 
     The opposite of what risk pricing predicts, over 41 years of US data.
     """
-    return RankAndHold("low_volatility", top_n=top_n)
+    return RankAndHold("low_volatility", top_n=top_n, min_names=min_names)
 
 
-def fifty_two_week_high(top_n: int = 30) -> Strategy:
+def fifty_two_week_high(top_n: int = 30, min_names: int = 50) -> Strategy:
     """George & Hwang (2004). Nearness to the 52-week high forecasts returns.
 
     Distinct from momentum and, in the paper, dominating it — and unlike
     momentum its forecasts do not reverse over the long run.
     """
-    return RankAndHold("price_to_52w_high", top_n=top_n)
+    return RankAndHold("price_to_52w_high", top_n=top_n, min_names=min_names)
 
 
-def illiquidity_premium(top_n: int = 30) -> Strategy:
+def illiquidity_premium(top_n: int = 30, min_names: int = 50) -> Strategy:
     """Amihud (2002). Illiquid stocks earn a premium for being illiquid.
 
     The one on this list most likely to be an artefact *here*: T-907 records
     that market impact is not modelled at all, so a backtest of an illiquidity
     premium is being paid the premium without paying its cost.
     """
-    return RankAndHold("illiquidity_amihud", top_n=top_n)
+    return RankAndHold("illiquidity_amihud", top_n=top_n, min_names=min_names)
 
 
-def small_size(top_n: int = 30) -> Strategy:
+def small_size(top_n: int = 30, min_names: int = 50) -> Strategy:
     """Banz (1981). Small firms outearned large ones.
 
     `small_size` is negated log price, which is a **weak proxy** for market
@@ -149,10 +163,10 @@ def small_size(top_n: int = 30) -> Strategy:
     Registered because the effect is real in the literature; the implementation
     is the honest limit of what the panel supports.
     """
-    return RankAndHold("small_size", top_n=top_n)
+    return RankAndHold("small_size", top_n=top_n, min_names=min_names)
 
 
-def quality_composite(top_n: int = 30) -> Strategy:
+def quality_composite(top_n: int = 30, min_names: int = 20) -> Strategy:
     """Low volatility, shallow drawdowns, and liquidity, ranked together.
 
     Not from one paper. The construction is standard and the components each
@@ -160,10 +174,12 @@ def quality_composite(top_n: int = 30) -> Strategy:
     the kind of choice that should be counted as search rather than presented
     as a finding.
     """
-    return Composite(["low_volatility", "max_drawdown", "turnover_liquidity"], top_n=top_n)
+    return Composite(
+        ["low_volatility", "max_drawdown", "turnover_liquidity"], top_n=top_n, min_names=min_names
+    )
 
 
-def momentum_quality(top_n: int = 30) -> Strategy:
+def momentum_quality(top_n: int = 30, min_names: int = 20) -> Strategy:
     """Momentum, filtered by not-falling-apart.
 
     Momentum's known failure is the crash: winners are high-beta going into a
@@ -171,16 +187,18 @@ def momentum_quality(top_n: int = 30) -> Strategy:
     response, and whether it helps here is an empirical question nobody has
     asked of this data.
     """
-    return Composite(["momentum_12_1", "max_drawdown", "low_volatility"], top_n=top_n)
+    return Composite(
+        ["momentum_12_1", "max_drawdown", "low_volatility"], top_n=top_n, min_names=min_names
+    )
 
 
-def value_reversal(top_n: int = 30) -> Strategy:
+def value_reversal(top_n: int = 30, min_names: int = 20) -> Strategy:
     """Short-term reversal combined with liquidity.
 
     Reversal is strongest in illiquid names and most expensive to trade there,
     which is the tension this pairing exposes rather than resolves.
     """
-    return Composite(["reversal_1m", "turnover_liquidity"], top_n=top_n)
+    return Composite(["reversal_1m", "turnover_liquidity"], top_n=top_n, min_names=min_names)
 
 
 BUILDERS = {

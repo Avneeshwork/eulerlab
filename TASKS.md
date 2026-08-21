@@ -94,6 +94,10 @@ Operator asked for ten strategies from the literature. Sources in
 | T-3504 | **An IC trial does not make a strategy "backtested"** | FIXED — an `ic` entry evaluates a *feature*, not the strategy ranking on it. It had `short_term_reversal` reporting backtested because somebody once IC-screened `reversal_1m`. The trial still counts toward the bar; only the stage is withheld |
 | T-3505 | `rank_and_hold` renamed to `momentum_12_1` | DONE — same strategy under its paper's name |
 | T-3506 | **Screened, not validated** | OPEN — `low_volatility` screened at Sharpe 2.19 on Tier A over 800 days. That is one window, one configuration, on the screen not the engine, and it spent no trial so the ledger does not know it happened. It is **not** evidence |
+| T-3508 | Crypto and funds usable as daily panels | DONE — `features/alt_panel.py`. Crypto: **36,520 rows, 20 coins, 1,826 days** (2021-08 to 2026-07), perfectly balanced. Funds: **1.36M rows, 400 direct-growth schemes, 6,988 days** (2006-2026). Every existing feature, both engines and the whole battery work unchanged |
+| T-3509 | **Not the real ADR-037 fix, and says so** | OPEN — this resamples to DAILY. Anything reading a sub-daily bar still has nowhere to live: Tweezer is still not a `Strategy`, and a minute-level crypto strategy still needs the `MarketView` rewrite |
+| T-3510 | Equity defaults meant "never trade" on crypto | FIXED — `min_names=50` is sized for a 250-name panel; the whole crypto universe is 20 coins, so every crypto strategy returned no positions and read as **Sharpe 0.00** rather than "never ran". Threaded through; at top 5 / min 10 they trade |
+| T-3511 | `limit` sampled the alphabetical head | FIXED — AMFI issues scheme codes in order and direct plans only began in 2013, so every direct-growth scheme sits at the HIGH end. Taking the first 600 files then filtering returned **zero**, which looked like an empty dataset. Filter now precedes limit |
 | T-3507 | Three strategies could not be built | OPEN — time-series momentum, crypto momentum and fund persistence need data the `MarketView` cannot express (ADR-037). Landed but unwired: 52.5M crypto candles, 21.7M NAV rows |
 
 ---
