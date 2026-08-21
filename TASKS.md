@@ -159,7 +159,8 @@ Verify: `make verify` (7 of 7) · `make chaos` (11 of 11) ·
 | T-2602 | The decomposition closes to the paisa | DONE — checked against 0.01 rupees, not 10% |
 | T-2603 | State plainly that the residual is an identity, not a measurement | DONE — S-018; both books are ours |
 | T-2604 | Live reality-gap residual under 10% | **NOT DONE — impossible before Sprint 29.** Needs a real counterparty. The machinery exists and is verified against a case where the true answer is known |
-| T-2605 | Live Kite order adapter | OPEN — deliberately deferred; decision question 2 in the review |
+| T-2605 | Live Kite order adapter | DONE (unexercised) — `broker/kite.py`, ported from `~/Documents/Trade`'s working Kite code. Satisfies `BrokerAdapter`, asserted as a typed binding so mypy checks it. 21 tests, all against fakes. **Never run against the live API** |
+| T-3336 | Kite adapter has never met the real API | OPEN — the tests prove contract conformance, not that Kite accepts these calls. Needs a market session and credentials. The riskiest untested part is the rejected/unreachable split: it keys off substrings in Kite's error text |
 | T-2606 | `ACKNOWLEDGED` / `PARTIALLY_FILLED` exercised by a real venue | OPEN — modelled and unit-tested, never produced by the paper broker (S-016) |
 | T-2607 | Kill-switch limits set from an observed distribution | OPEN — A-018; needs ~4 weeks of paper history |
 | T-2608 | Decide whether `config/killswitch.yaml` becomes operator-owned | OPEN — operator decision, question 1 in the review |
