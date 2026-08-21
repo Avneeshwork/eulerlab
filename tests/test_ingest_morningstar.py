@@ -172,3 +172,27 @@ def test_amfi_is_the_spine_and_unrated_schemes_survive() -> None:
     assert by_isin["INF000000001"]["rating_join"] == "isin"
     assert by_isin["INF000000002"]["rating_join"] == "none"
     assert by_isin["INF000000002"]["star_rating"] is None
+
+
+def test_a_fund_page_is_reachable_by_id_alone() -> None:
+    """The slug in the URL is decorative — the id resolves the fund.
+
+    This is what let the ISIN crawl be driven from a landed snapshot instead of
+    re-walking the listing, whose pagination completed all 29 pages once and
+    stalled at page 4 the next time. A crawl that depends on a flaky crawl
+    inherits its flakiness.
+    """
+    rating = _rating("f00000pduy", "Some Fund")
+    assert rating.path.startswith("/mutualfunds/f00000pduy/")
+
+    without = morningstar.Rating(
+        morningstar_id="f00000pduy",
+        name="Some Fund",
+        category="",
+        medalist="",
+        star_rating=None,
+        equity_stylebox=None,
+        fixed_income_stylebox=None,
+        rating_date=None,
+    )
+    assert without.path == "/mutualfunds/f00000pduy/x/morningstar-analysis.aspx"

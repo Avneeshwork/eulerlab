@@ -93,7 +93,19 @@ class Rating:
     fixed_income_stylebox: int | None
     rating_date: date | None
     detail_path: str = ""
-    """Path to the fund's own page, which is where the ISIN lives."""
+    """Path to the fund's own page, which is where the ISIN lives.
+
+    Optional, because the page resolves on the id alone — the slug in the URL
+    is decorative and any value returns the right fund. That matters more than
+    it sounds: it means the ISIN crawl can be driven from a landed ratings file
+    and never has to re-walk the listing, whose pagination is flaky (it
+    completed all 29 pages once and stalled at page 4 the next time).
+    """
+
+    @property
+    def path(self) -> str:
+        """Where to fetch this fund's own page."""
+        return self.detail_path or f"/mutualfunds/{self.morningstar_id}/x/morningstar-analysis.aspx"
 
 
 def _token(page: str, field: str) -> str:
@@ -335,6 +347,29 @@ def parse_isin(page: str) -> str:
     return match.group(0) if match else ""
 
 
+def read_landed(path: Path) -> list[Rating]:
+    """Ratings from a landed snapshot, so a crawl need not re-walk the listing."""
+    out: list[Rating] = []
+    with gzip.open(path, "rt", encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            out.append(
+                Rating(
+                    morningstar_id=str(row["morningstar_id"]),
+                    name=str(row["name"]),
+                    category=str(row.get("category") or ""),
+                    medalist=str(row.get("medalist") or ""),
+                    star_rating=row.get("star_rating"),
+                    equity_stylebox=row.get("equity_stylebox"),
+                    fixed_income_stylebox=row.get("fixed_income_stylebox"),
+                    rating_date=None,
+                )
+            )
+    return out
+
+
 def known_isins(*, path: Path = ISIN_PATH) -> dict[str, str]:
     """Morningstar id -> ISIN for everything already fetched.
 
@@ -365,7 +400,7 @@ def fetch_isins(
     genuinely has none would be retried on every future run forever.
     """
     known = known_isins(path=path)
-    todo = [r for r in ratings if r.morningstar_id not in known and r.detail_path]
+    todo = [r for r in ratings if r.morningstar_id not in known]
     if limit:
         todo = todo[:limit]
 
@@ -373,7 +408,7 @@ def fetch_isins(
     session = _Session()
     for index, rating in enumerate(todo, start=1):
         try:
-            page = session.open_path(rating.detail_path)
+            page = session.open_path(rating.path)
             isin = parse_isin(page)
         except Exception:
             isin = ""
