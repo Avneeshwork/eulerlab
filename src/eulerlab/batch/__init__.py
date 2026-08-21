@@ -67,6 +67,23 @@ def cost_model_version() -> str:
     return hashlib.sha256(source.read_bytes()).hexdigest()[:16]
 
 
+OUTCOME_SCHEMA = 2
+"""Bumped whenever a run starts producing a field it did not produce before.
+
+The cache key covers everything that could change the *answer*. It does not
+cover what the answer *contains*, and that gap is not theoretical: equity
+curves were added to the stored outcome, and every strategy with a cached entry
+kept being served the older, curve-less version. Re-running looked like it did
+nothing, because a cache hit is indistinguishable from a fast run.
+
+Bumping this retires those entries. The cost is recomputation the numbers did
+not strictly need; the alternative is an interface that silently cannot show a
+field the code demonstrably produces.
+
+1 -> 2: added `curve`, the downsampled equity path.
+"""
+
+
 def cache_key(strategy_id: str, params: dict[str, object]) -> str:
     """Everything that could change the answer, and nothing that cannot.
 
@@ -79,6 +96,7 @@ def cache_key(strategy_id: str, params: dict[str, object]) -> str:
             "params": params,
             "data": data_version(),
             "costs": cost_model_version(),
+            "schema": OUTCOME_SCHEMA,
         },
         sort_keys=True,
         separators=(",", ":"),

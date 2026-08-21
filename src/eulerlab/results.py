@@ -237,7 +237,14 @@ def best(workspace: Workspace, strategy_id: str) -> Best | None:
     tradeable = [r for r in runs if r.fills > 0]
     if not tradeable:
         return None
-    top = max(tradeable, key=lambda r: r.sharpe)
+    # Ties are broken by recency, not by whatever order the dict happened to
+    # produce. Two configurations scoring identically are equally good results,
+    # so an arbitrary winner is not wrong on the number — but it is wrong on
+    # everything travelling with it. A tier A and a tier B run of one strategy
+    # scored the same 0.3324 and the arbitrary winner was the older one, which
+    # predated stored curves, so the library drew no graph for a strategy that
+    # had one.
+    top = max(tradeable, key=lambda r: (r.sharpe, r.at))
     return Best(
         run=top,
         runs=len(tradeable),

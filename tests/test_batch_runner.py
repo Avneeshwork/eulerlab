@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from eulerlab.batch import Batch, Item, Outcome, cache_key, read_cached, runner, write_cached
 
 
@@ -143,3 +145,19 @@ def test_a_failure_is_never_cached(tmp_path: Path) -> None:
 
     runner.run([Item("s")], failing, cache_dir=tmp_path)
     assert list(tmp_path.glob("*.json")) == [], "a failure must leave no cache entry"
+
+
+def test_a_new_outcome_field_retires_old_cache_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cache key covers what could change the answer, not what the answer
+    contains — and that gap shipped a real bug.
+
+    Equity curves were added to the stored outcome. Every strategy with a
+    cached entry kept being served the older, curve-less version, so the
+    library drew no graph and re-running appeared to do nothing: a cache hit is
+    indistinguishable from a fast run.
+    """
+    import eulerlab.batch as batch
+
+    before = batch.cache_key("s", {"days": 800})
+    monkeypatch.setattr(batch, "OUTCOME_SCHEMA", batch.OUTCOME_SCHEMA + 1)
+    assert batch.cache_key("s", {"days": 800}) != before

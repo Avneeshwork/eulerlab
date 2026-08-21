@@ -10,11 +10,17 @@
 export function Spark({
   curve,
   clears,
+  title,
   width = 132,
   height = 34,
 }: {
   curve: number[] | undefined;
   clears: boolean;
+  /** Which run this is. Always supplied, because the headline Sharpe beside it
+   * may come from the trial ledger while this curve comes from a screening run
+   * — two different runs, and the graph must never be read as the headline
+   * figure's own path. */
+  title?: string;
   width?: number;
   height?: number;
 }) {
@@ -43,8 +49,9 @@ export function Spark({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={`Equity curve, ${end >= start ? 'ending above' : 'ending below'} its start`}
+      aria-label={title ?? `Equity curve, ${end >= start ? 'ending above' : 'ending below'} its start`}
     >
+      <title>{title ?? 'Equity curve'}</title>
       <polygon points={area} className="spark-fill" />
       <line x1="0" y1={base} x2={width} y2={base} className="spark-base" />
       <polyline points={line} className="spark-line" fill="none" />

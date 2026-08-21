@@ -179,3 +179,27 @@ def test_a_torn_final_line_does_not_lose_the_file(space: ws.Workspace) -> None:
     top = rs.best(space, "demo")
     assert top is not None, "a crash mid-write must not discard the completed runs"
     assert top.runs == 1
+
+
+def test_a_tie_on_sharpe_is_broken_by_recency(space: ws.Workspace) -> None:
+    """Two configurations scoring identically are equally good results, so an
+    arbitrary winner is not wrong on the number — but it is wrong on everything
+    travelling with it.
+
+    This is not hypothetical: a tier A and a tier B run of momentum_12_1 both
+    scored 0.3324, the arbitrary winner was the older one, and the older one
+    predated stored equity curves. The library drew no graph for a strategy
+    that had one.
+    """
+    older = rs.Run(**{**_run(1.5, tier="A").__dict__, "at": "2026-01-01T00:00:00+00:00"})
+    newer = rs.Run(
+        **{**_run(1.5, tier="B").__dict__, "at": "2026-06-01T00:00:00+00:00", "curve": [1.0, 2.0]}
+    )
+    rs.record(space, older)
+    rs.record(space, newer)
+
+    top = rs.best(space, "demo")
+    assert top is not None
+    assert top.runs == 2, "different tiers are still two configurations"
+    assert top.run.tier == "B"
+    assert top.run.curve == [1.0, 2.0], "the tie-break must carry the curve with it"

@@ -193,6 +193,25 @@ export type DataStatus = {
   sources: DataSource[];
 };
 
+export type CloudStatus = {
+  configured: boolean;
+  reason: string;
+  workspace: string;
+  bucket: string;
+  prefix: string;
+  local_files: string[];
+  remote_files: string[];
+  reachable: boolean;
+};
+
+export type MirrorResult = {
+  ok: boolean;
+  pushed: number;
+  pulled: number;
+  merged_rows: number;
+  failed: string[];
+};
+
 export type Capability = {
   asset_class: string;
   timeframe: string;
@@ -240,6 +259,10 @@ export type BatchResult = {
   unrecorded: number;
   spent_trials: number;
   note: string;
+  // Whether the results reached the bucket. Present because a run that
+  // succeeded locally but did not mirror is a real state the UI must be able
+  // to show, rather than one it silently reports as a clean success.
+  cloud?: { ok: boolean; pushed: number; pulled: number; failed: string[] };
   results: {
     strategy: string;
     cached: boolean;
@@ -284,6 +307,9 @@ export const api = {
   backtest: (input: StrategyInput & { days: number; tier: 'A' | 'B'; starting_cash: number }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/backtest', input),
   job: (id: string) => get<Job>(`/api/jobs/${id}`),
+  cloudStatus: (workspace = '') =>
+    get<CloudStatus>(`/api/cloud/status?workspace=${encodeURIComponent(workspace)}`),
+  mirror: (workspace = '') => post<MirrorResult>('/api/cloud/mirror', { workspace }),
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
   data: () => get<DataStatus>('/api/data'),
