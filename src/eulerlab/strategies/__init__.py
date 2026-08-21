@@ -106,6 +106,121 @@ class Declaration:
     ledger_subjects: list[str] = field(default_factory=list)
 
 
+def _published() -> dict[str, Declaration]:
+    """The ten from `docs/RESEARCH/017`, each citing its paper.
+
+    Declared here and built by `backtest.published.BUILDERS`, so a strategy
+    cannot appear in the console without something able to run it.
+    """
+    spec: list[tuple[str, str, str, str, str, int, list[str]]] = [
+        (
+            "momentum_12_1",
+            "Momentum 12-1",
+            "Buy 12-month winners, skipping the last month. Jegadeesh & Titman (1993).",
+            "technical",
+            "cross-section",
+            263,
+            ["H-0001", "momentum_12_1"],
+        ),
+        (
+            "momentum_6_1",
+            "Momentum 6-1",
+            "The shorter formation window Jegadeesh & Titman (1993) also test.",
+            "technical",
+            "cross-section",
+            158,
+            ["momentum_6_1"],
+        ),
+        (
+            "short_term_reversal",
+            "Short-term reversal",
+            "Last month's losers outperform. Jegadeesh (1990), Lehmann (1990).",
+            "technical",
+            "cross-section",
+            32,
+            ["reversal_1m"],
+        ),
+        (
+            "low_volatility",
+            "Low-volatility anomaly",
+            "Low-volatility stocks outperformed over 41 years. Baker, Bradley & Wurgler (2011).",
+            "quant",
+            "cross-section",
+            73,
+            ["low_volatility"],
+        ),
+        (
+            "fifty_two_week_high",
+            "52-week high",
+            "Nearness to the 52-week high forecasts returns, and does not reverse. George & Hwang (2004).",
+            "technical",
+            "cross-section",
+            210,
+            ["price_to_52w_high"],
+        ),
+        (
+            "illiquidity_premium",
+            "Illiquidity premium",
+            "Illiquid stocks earn a premium. Amihud (2002). Market impact is NOT modelled here (T-907).",
+            "quant",
+            "cross-section",
+            73,
+            ["illiquidity_amihud"],
+        ),
+        (
+            "small_size",
+            "Size effect",
+            "Small firms outearned large. Banz (1981). Proxied by negated log price, which is weak.",
+            "fundamental",
+            "cross-section",
+            11,
+            ["small_size"],
+        ),
+        (
+            "quality_composite",
+            "Quality composite",
+            "Low volatility, shallow drawdowns and liquidity ranked together. No single paper.",
+            "quant",
+            "cross-section",
+            136,
+            [],
+        ),
+        (
+            "momentum_quality",
+            "Momentum, crash-filtered",
+            "Momentum averaged with drawdown and volatility — the standard answer to momentum crashes.",
+            "quant",
+            "cross-section",
+            263,
+            ["momentum_12_1"],
+        ),
+        (
+            "value_reversal",
+            "Reversal, liquidity-filtered",
+            "Reversal is strongest where it is most expensive to trade. This pairing exposes that.",
+            "quant",
+            "cross-section",
+            73,
+            ["reversal_1m"],
+        ),
+    ]
+    return {
+        key: Declaration(
+            id=key,
+            title=title,
+            summary=summary,
+            kind=kind,
+            shape=shape,
+            asset_class=AssetClass.EQUITY,
+            timeframe=Timeframe.DAILY,
+            emits=Emits.TARGET_WEIGHT,
+            lookback=lookback,
+            ledger_subjects=subjects,
+        )
+        for key, title, summary, kind, shape, lookback, subjects in spec
+    }
+
+
 REGISTRY: dict[str, Declaration] = {
     "rank_and_hold": Declaration(
         id="rank_and_hold",
@@ -151,6 +266,11 @@ REGISTRY: dict[str, Declaration] = {
     ),
 }
 
+# The published set joins the hand-written ones. `rank_and_hold` is dropped in
+# favour of `momentum_12_1`, which is the same strategy under its paper's name.
+REGISTRY.pop("rank_and_hold", None)
+REGISTRY.update(_published())
+
 
 @dataclass(frozen=True)
 class FleetRow:
@@ -164,16 +284,31 @@ class FleetRow:
     trials: int
 
 
-def _evidence(path: object = LEDGER_PATH) -> tuple[dict[str, float], dict[str, int]]:
-    """Latest Sharpe and trial count per ledger subject."""
+def _evidence(
+    path: object = LEDGER_PATH,
+) -> tuple[dict[str, float], dict[str, int], dict[str, int]]:
+    """Latest Sharpe, total trials, and trials that actually ran the strategy.
+
+    The third is separate for a reason. An `ic` entry evaluates a **feature** —
+    its rank correlation with forward returns — not the strategy that ranks on
+    it. Counting one as a backtest would let `short_term_reversal` report
+    "backtested" because somebody once IC-screened `reversal_1m`, which is a
+    different claim about a different object.
+
+    The trial still counts toward the bar, because the search really happened.
+    Only the *stage* is withheld.
+    """
     sharpes: dict[str, float] = {}
     counts: dict[str, int] = {}
+    evaluated: dict[str, int] = {}
     for entry in read_ledger(path):  # type: ignore[arg-type]
         counts[entry.subject] = counts.get(entry.subject, 0) + 1
+        if entry.kind != "ic":
+            evaluated[entry.subject] = evaluated.get(entry.subject, 0) + 1
         value = sharpe_of(entry)
         if value is not None:
             sharpes[entry.subject] = value
-    return sharpes, counts
+    return sharpes, counts, evaluated
 
 
 def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
@@ -182,19 +317,21 @@ def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
     Sorted by id so the list is stable between calls — a console whose rows
     move between refreshes is one nobody can point at.
     """
-    sharpes, counts = _evidence(path)
+    sharpes, counts, evaluated = _evidence(path)
     rows: list[FleetRow] = []
     for declaration in REGISTRY.values():
         subjects = declaration.ledger_subjects
         trials = sum(counts.get(s, 0) for s in subjects)
+        ran = sum(evaluated.get(s, 0) for s in subjects)
         measured = [sharpes[s] for s in subjects if s in sharpes]
         rows.append(
             FleetRow(
                 declaration=declaration,
-                # Evaluated means backtested. Nothing can be further along:
-                # there is no mechanism to promote a strategy to forward
-                # testing or live, so those stages are unreachable by design.
-                stage=Stage.BACKTESTED if trials else Stage.REGISTERED,
+                # Backtested requires the STRATEGY to have been run, not a
+                # feature it happens to rank on. Nothing can be further along:
+                # there is no mechanism to promote to forward testing or live,
+                # so those stages are unreachable by design.
+                stage=Stage.BACKTESTED if ran else Stage.REGISTERED,
                 sharpe=max(measured) if measured else None,
                 trials=trials,
             )

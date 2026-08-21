@@ -33,9 +33,11 @@ def test_a_strategy_with_no_evidence_reports_none_not_zero(tmp_path: Path) -> No
 
 
 def test_stage_is_derived_from_the_ledger(tmp_path: Path) -> None:
+    # Seeded as a `validation` entry by _ledger, which is what actually
+    # constitutes running the strategy — an `ic` entry would not.
     path = _ledger(tmp_path, "H-0001", 1.27)
     rows = {r.declaration.id: r for r in fleet(path)}
-    assert rows["rank_and_hold"].stage is Stage.BACKTESTED
+    assert rows["momentum_12_1"].stage is Stage.BACKTESTED
     # No ledger entry names it, so it cannot have been evaluated.
     assert rows["buy_and_hold"].stage is Stage.REGISTERED
 
@@ -60,7 +62,7 @@ def test_tweezer_is_recorded_as_not_a_strategy_subclass() -> None:
     """Its data cannot be expressed in a `MarketView` at all (ADR-037). Keeping
     the reason in the declaration stops it reading as an oversight."""
     assert REGISTRY["tweezer_bottom"].is_strategy_subclass is False
-    assert REGISTRY["rank_and_hold"].is_strategy_subclass is True
+    assert REGISTRY["momentum_12_1"].is_strategy_subclass is True
 
 
 def test_no_strategy_claims_a_risk_manager_that_does_not_exist() -> None:
@@ -129,3 +131,73 @@ def test_search_is_case_insensitive_and_bounded() -> None:
     found = catalog.search("reliance", batch="nifty250")
     assert [i.symbol for i in found][:1] == ["RELIANCE"]
     assert len(catalog.search("", batch="nifty250", limit=7)) == 7
+
+
+# --- the published set ------------------------------------------------------
+
+
+def test_every_registered_strategy_can_actually_be_built() -> None:
+    """A console that lists a strategy it cannot run is a console that lies.
+
+    The registry and the builders are separate structures, so nothing but this
+    stops one gaining an entry the other lacks.
+    """
+    from eulerlab.backtest.published import BUILDERS
+
+    runnable = set(BUILDERS) | {"buy_and_hold"}
+    declared = {d.id for d in REGISTRY.values() if d.is_strategy_subclass}
+    missing = declared - runnable
+    assert not missing, f"declared but unbuildable: {sorted(missing)}"
+
+
+def test_ten_published_strategies_are_registered() -> None:
+    from eulerlab.backtest.published import BUILDERS
+
+    assert len(BUILDERS) == 10
+    for name in BUILDERS:
+        assert name in REGISTRY, f"{name} builds but is not declared"
+
+
+def test_an_ic_trial_does_not_make_a_strategy_backtested(tmp_path: Path) -> None:
+    """An `ic` entry evaluates a FEATURE — its rank correlation with forward
+    returns — not the strategy that ranks on it.
+
+    Counting one as a backtest let `short_term_reversal` report "backtested"
+    because somebody once IC-screened `reversal_1m`, which is a different claim
+    about a different object. The trial still counts toward the bar, because
+    the search really happened; only the stage is withheld.
+    """
+    path = tmp_path / "l.jsonl"
+    ledger.append(kind="ic", subject="reversal_1m", params={}, outcome={"mean_ic": 0.01}, path=path)
+    rows = {r.declaration.id: r for r in fleet(path)}
+    row = rows["short_term_reversal"]
+
+    assert row.trials == 1, "the search happened and is counted"
+    assert row.stage is Stage.REGISTERED, "but the strategy was never run"
+
+
+def test_a_validation_trial_does_make_it_backtested(tmp_path: Path) -> None:
+    path = tmp_path / "l.jsonl"
+    ledger.append(
+        kind="validation",
+        subject="H-0001",
+        params={},
+        outcome={ledger.SHARPE_KEY: 1.27},
+        path=path,
+    )
+    rows = {r.declaration.id: r for r in fleet(path)}
+    assert rows["momentum_12_1"].stage is Stage.BACKTESTED
+    assert rows["momentum_12_1"].sharpe == 1.27
+
+
+def test_the_composite_drops_symbols_not_scored_by_every_feature() -> None:
+    """A symbol ranked by two of three features is not comparable to one ranked
+    by all three, so averaging over fewer would flatter it."""
+    from eulerlab.backtest.published import Composite
+
+    composite = Composite(["low_volatility", "max_drawdown"], top_n=5)
+    # `lookback` is Optional on the base class; a Composite always sets one.
+    assert composite.lookback is not None
+    assert composite.lookback >= 126
+    assert "low_volatility" in composite.name
+    assert "max_drawdown" in composite.name

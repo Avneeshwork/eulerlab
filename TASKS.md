@@ -80,6 +80,23 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 
 ---
 
+## Ten published strategies (2026-08-21)
+
+Operator asked for ten strategies from the literature. Sources in
+`docs/RESEARCH/017`. Verify: `uv run pytest tests/test_strategies_registry.py`
+
+| ID | Task | Status |
+|---|---|---|
+| T-3501 | Ten strategies, each citing a real paper | DONE — `backtest/published.py`. Jegadeesh & Titman, Baker/Bradley/Wurgler, George & Hwang, Amihud, Banz, Jegadeesh/Lehmann, plus three composites that cite no single paper and say so |
+| T-3502 | Most are `RankAndHold` over an existing feature | DONE by design — the feature library was built from the same literature, so "implement the low-volatility anomaly" genuinely *is* "rank on `low_volatility`". Ten bespoke classes would be ten copies of one loop |
+| T-3503 | The registry cannot list what it cannot run | DONE — a test asserts every declared strategy has a builder. The two are separate structures and nothing else would stop them drifting |
+| T-3504 | **An IC trial does not make a strategy "backtested"** | FIXED — an `ic` entry evaluates a *feature*, not the strategy ranking on it. It had `short_term_reversal` reporting backtested because somebody once IC-screened `reversal_1m`. The trial still counts toward the bar; only the stage is withheld |
+| T-3505 | `rank_and_hold` renamed to `momentum_12_1` | DONE — same strategy under its paper's name |
+| T-3506 | **Screened, not validated** | OPEN — `low_volatility` screened at Sharpe 2.19 on Tier A over 800 days. That is one window, one configuration, on the screen not the engine, and it spent no trial so the ledger does not know it happened. It is **not** evidence |
+| T-3507 | Three strategies could not be built | OPEN — time-series momentum, crypto momentum and fund persistence need data the `MarketView` cannot express (ADR-037). Landed but unwired: 52.5M crypto candles, 21.7M NAV rows |
+
+---
+
 ## Crypto — minute bars, top 20 by volume (2026-08-21)
 
 Operator asked for 5 years of minute data for up to 20 coins. Verify: `make crypto VERIFY=1`

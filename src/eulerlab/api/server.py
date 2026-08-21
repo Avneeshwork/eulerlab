@@ -43,6 +43,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
+from eulerlab.backtest.published import BUILDERS as PUBLISHED
+from eulerlab.backtest.strategies import BuyAndHold
 from eulerlab.backtest.strategy import Strategy
 from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.batch import Item as _BatchItem
@@ -554,29 +556,19 @@ def price_run(request: PriceRunRequest) -> dict[str, Any]:
     }
 
 
-STRATEGY_SPECS: dict[str, dict[str, Any]] = {
-    "rank_and_hold": {
-        "feature": "momentum_12_1",
-        "top_n": 30,
-        "rebalance": 21,
-        "min_turnover": 0.0,
-    },
-    "buy_and_hold": {
-        # The control. `rebalance` is the full window so it trades once and
-        # holds, which is what makes it the engine's sanity anchor. Ranked on
-        # `turnover_liquidity` because BuyAndHold holds the most liquid names.
-        "feature": "turnover_liquidity",
-        "top_n": 30,
-        "rebalance": 3000,
-        "min_turnover": 0.0,
-    },
-}
-"""How each registered strategy is built for a screening run.
+# Strategies are built by `backtest.published.BUILDERS`, which is also what the
+# registry declares — so a strategy cannot appear in the console without
+# something able to run it, and the two cannot drift apart.
 
-Only strategies that are `Strategy` subclasses appear here. Tweezer is absent
-on purpose rather than mapped to something approximate — running it through the
-daily engine would produce a number for something that never happened.
-"""
+
+def _build_registered(strategy_id: str) -> Strategy:
+    builder = PUBLISHED.get(strategy_id)
+    if builder is None:
+        if strategy_id == "buy_and_hold":
+            return BuyAndHold(top_n=30)
+        msg = f"no builder for {strategy_id!r}"
+        raise KeyError(msg)
+    return builder()
 
 
 class BatchRunRequest(BaseModel):
@@ -624,18 +616,14 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 msg = "no panel on disk. Run `make build-panel` first."
                 raise RuntimeError(msg)
 
-            # Each registered strategy builds through the same translator the
-            # single-backtest path uses, so a batch result and a one-off result
-            # for the same configuration are the same number by construction.
-            spec = STRATEGY_SPECS[item.strategy_id]
-            strategy = translate.from_spec(**spec).build()
+            strategy = _build_registered(item.strategy_id)
             engine = _engine_run(
                 strategy,
                 rows,
                 days_window=request.days,
                 tier=request.tier,
                 starting_cash=1_000_000.0,
-                rebalance=int(spec["rebalance"]),
+                rebalance=21,
             )
             if not engine.equity:
                 msg = f"the {request.days}-day window is too short to produce a run"
