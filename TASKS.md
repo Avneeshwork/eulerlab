@@ -81,6 +81,25 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 
 ---
 
+## Multi-user platform (2026-08-21)
+
+**Operator reversed the single-operator premise.** ADR-040. Verify:
+`uv run pytest tests/test_workspace.py`
+
+| ID | Task | Status |
+|---|---|---|
+| T-3601 | **ADR-040 records the reversal** | DONE — `CLAUDE.md` opens with "single operator, single-person capital... not scale", and every cost rule descends from it. That file is operator-owned; **it needs amending by them, not me** |
+| T-3602 | Workspace model: shared data, isolated evidence | DONE — `workspace.py`. Landing zone and panels shared (duplicating 3.5 GB per tenant is absurd); ledger, strategies, credentials and kill switch per workspace |
+| T-3603 | The id is the security boundary | DONE — one validation point, refuses rather than sanitises. A sanitiser turning `../../etc` into `etc` produces a *valid* id for an attack. NFKC first so a fullwidth solidus cannot smuggle a separator. 9 hostile inputs tested |
+| T-3604 | Resolution is the only door | DONE — an unknown principal **raises**, never falls back to default. A typo in a tenant id must not hand back somebody else's evidence |
+| T-3605 | The default workspace keeps the existing hash chain | DONE — that ledger holds 19 real trials and is hash-chained; moving it would break every link, which is the tampering the chain exists to expose |
+| T-3606 | Global kill switch outranks per-workspace | DONE — a platform halt reported over a tenant's own reason, or they look in the wrong place |
+| T-3607 | **Per-workspace ledgers weaken the bar** | OPEN by decision — sharing is statistically more correct but unsellable (one customer's failed search raises another's). Mitigation: within a workspace, count **everything**, including the screening that is currently free (T-3321) |
+| T-3608 | Authentication is a seam, not an implementation | OPEN — `resolve()` takes a principal; what produces it (session, OIDC, local default) is undecided. No fake auth was written |
+| T-3609 | Dashboard UI | TODO — next. Design in the published spec; five primitives first |
+
+---
+
 ## Ten published strategies (2026-08-21)
 
 Operator asked for ten strategies from the literature. Sources in
