@@ -259,6 +259,18 @@ daily:
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
 	@echo "== fundamentals =="
 	-uv run python -m eulerlab.fundamentals.backfill
+	@echo "== mutual fund NAVs =="
+	-uv run python -m eulerlab.ingest.mf_backfill --snapshot-only
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
 	$(MAKE) prune-local
+
+# Mutual fund NAVs. --snapshot-only is what `daily` runs (one request, the
+# whole universe); the full history backfill is ~14,000 requests and is a
+# one-off, so it is not in the daily path.
+mf-ingest:
+	@uv run python -m eulerlab.ingest.mf_backfill $(if $(SNAPSHOT),--snapshot-only,) $(if $(LIMIT),--limit $(LIMIT),) $(if $(PACE),--pace $(PACE),)
+
+# Install / inspect the launchd job that actually runs `make daily`.
+schedule:
+	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)

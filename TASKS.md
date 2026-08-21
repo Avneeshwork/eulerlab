@@ -61,7 +61,11 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 | T-3310 | `EventStrategy` for intraday/bracket shapes (Tweezer is not a `Strategy`) | TODO — T-3209 is the same gap |
 | T-3311 | Forward-test as an explicit per-strategy stage | TODO — `paper/runner.py` already is the mechanism; the stage is untracked |
 | T-3312 | `server.py` has no test coverage | OPEN — no test imports it; the type gate was the only check, and it was red in CI for 5 merges |
-| T-3313 | Schedule `make daily` so data actually updates | TODO — exists but nothing runs it; no cron, no launchd |
+| T-3313 | Schedule `make daily` so data actually updates | DONE — `tools/schedule_daily.py`, launchd not cron (cron does not fire if the laptop slept; launchd catches up on wake). Installed and **loaded**, 19:30 daily. `make schedule` to inspect |
+| T-3323 | Mutual fund NAVs ingested | DONE — ADR-038. AMFI `NAVAll.txt` daily snapshot (14,288 schemes, 1,680 direct-growth) + full per-scheme history from mfapi.in. **Morningstar was a dead end — 6 rows.** In `make daily` as `--snapshot-only`; the history backfill is a one-off |
+| T-3324 | The old AMFI URL fails silently | RECORDED — `www.amfiindia.com` now 302s to `portal.amfiindia.com`; the redirect page parses as *zero schemes*, not an error. `Trade`'s scraper is in that state now. Our parser raises on an empty result |
+| T-3325 | mf history backfill is a one-off ~14,288 requests | OPEN — running; resumable, skips anything already current. Only the daily snapshot is in `make daily` |
+| T-3326 | Workbench typography | DONE — IBM Plex superfamily (serif headings, sans text, mono numbers), real type scale, surface blocks became tabs. The palette was already good; the type was the weak part |
 
 ---
 

@@ -84,19 +84,13 @@ export function FleetTable({
 
   return (
     <div className="card">
-      <div className="fleet-head">
-        <div>
-          <h2>Fleet</h2>
-          <p className="sub">
-            {fleet.strategies.length} registered · every Sharpe shown against the bar,
-            because the bar is what makes it mean anything
-          </p>
-        </div>
-        <div className="fleet-bar-note" title={fleet.bar_note}>
-          noise bar <b>{fleet.bar.toFixed(2)}</b>
-          {!fleet.bar_sigma_measured && <em className="assumed"> assumed</em>}
-        </div>
-      </div>
+      {/* The noise bar is already in the masthead statline; repeating it here
+          made the same number argue with itself two inches apart. */}
+      <h2>Fleet</h2>
+      <p className="sub">
+        {fleet.strategies.length} registered. Every Sharpe is drawn against the bar,
+        because a Sharpe on its own reads as good or bad against nothing.
+      </p>
 
       <div className="tools">
         <input
