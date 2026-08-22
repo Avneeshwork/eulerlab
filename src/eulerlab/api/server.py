@@ -1190,6 +1190,36 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
 
         result = runner.run(items, compute, use_cache=request.use_cache, on_progress=progress)
 
+        # A cache hit never calls `compute`, and the full report is written
+        # inside it — so a cached run left the "Full analysis" button pointing
+        # at nothing. The stored result was fine; only the report was missing,
+        # which made the two disagree about whether the run had happened.
+        #
+        # The report cannot be cached alongside the outcome: it holds every
+        # fill, and one is 86 KB against a few hundred bytes for the numbers.
+        # So a missing report forces a recompute of that item alone —
+        # self-healing, and it costs exactly what a cache miss would have.
+        for item_outcome in result.outcomes:
+            if item_outcome.error or not item_outcome.result:
+                continue
+            expected = result_store.Run(
+                strategy_id=item_outcome.item.strategy_id,
+                sharpe=0.0,
+                total_return=0.0,
+                max_drawdown=0.0,
+                fills=0,
+                days=0,
+                tier=request.tier,
+                window_days=request.days,
+                data_version=batch_data_version(),
+                universe=_universe_label(request),
+                asset_class=request.asset_class,
+                params=dict(item_outcome.item.params),
+            ).configuration
+            if reports.load(workspace, item_outcome.item.strategy_id, expected) is None:
+                job.message = f"rebuilding report — {item_outcome.item.strategy_id}"
+                compute(item_outcome.item)
+
         # Recorded from the OUTCOMES, not from inside `compute`.
         #
         # A cache hit never calls `compute`, so recording there meant a strategy

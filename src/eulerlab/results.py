@@ -124,15 +124,30 @@ class Run:
 
     @property
     def configuration(self) -> str:
-        """What makes this a distinct result rather than a repeat."""
+        """What makes this a distinct result rather than a repeat.
+
+        Built from **named fields only**, never from the free-form `params`
+        dict. Params carried `days` and `universe` as well, duplicating the
+        `window_days` and `universe` fields — so the day a `universe` key was
+        added to params, every identical re-run started hashing differently and
+        counted as a new configuration. That inflated `runs`, which is the
+        denominator the whole selection-bias correction rests on: a strategy
+        looked more searched-over than it was, and every figure looked less
+        well attested than it is.
+
+        `instruments` is the one thing params uniquely holds, so it is lifted
+        out by name. Anything else added to params in future changes nothing
+        here, which is the point.
+        """
         material = json.dumps(
             {
                 "strategy": self.strategy_id,
                 "tier": self.tier,
                 "window": self.window_days,
                 "universe": self.universe,
+                "asset_class": self.asset_class,
                 "data": self.data_version,
-                "params": self.params,
+                "instruments": sorted(self.params.get("instruments") or []),
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -253,7 +268,11 @@ def distinct(workspace: Workspace, strategy_id: str) -> list[Run]:
     """
     latest: dict[str, dict[str, Any]] = {}
     for row in _read_rows(workspace, strategy_id):
-        key = str(row.get("configuration", ""))
+        # Recomputed, not read back. The stored value is what the definition
+        # said on the day the row was written, and rows written under an older
+        # definition would otherwise stay split forever — the log is
+        # append-only, so a wrong grouping could never be corrected.
+        key = _to_run(row).configuration
         previous = latest.get(key)
         if previous is None or str(row.get("at", "")) >= str(previous.get("at", "")):
             latest[key] = row

@@ -261,3 +261,70 @@ def test_the_universe_is_reported_with_the_result(space: ws.Workspace) -> None:
     summary = rs.summary(space, "demo")
     assert summary["universe"] == "nifty100"
     assert summary["symbols"] == 37, "how many names actually traded, not how many were offered"
+
+
+def _cfg(
+    *,
+    universe: str = "all",
+    asset_class: str = "equity",
+    window: int = 800,
+    params: dict[str, object] | None = None,
+) -> rs.Run:
+    """A Run built for hashing. Explicit rather than splatted so --strict can
+    see the types."""
+    return rs.Run(
+        strategy_id="demo",
+        sharpe=1.4,
+        total_return=0.1,
+        max_drawdown=-0.1,
+        fills=10,
+        days=window,
+        tier="B",
+        window_days=window,
+        data_version="v1",
+        universe=universe,
+        asset_class=asset_class,
+        params=dict(params or {}),
+    )
+
+
+def test_a_params_key_added_later_does_not_split_one_configuration(
+    space: ws.Workspace,
+) -> None:
+    """The configuration hash is built from named fields, never from the
+    free-form params dict.
+
+    Params carried `days` and `universe` too, duplicating the `window_days` and
+    `universe` fields — so the day a `universe` key was added to params, every
+    identical re-run started hashing differently and counted as a new
+    configuration. That inflates `runs`, the denominator the whole
+    selection-bias correction rests on.
+    """
+    old = _cfg(params={"days": 800, "tier": "B"})
+    new_style = _cfg(params={"days": 800, "tier": "B", "universe": "all"})
+    assert old.configuration == new_style.configuration
+
+    rs.record(space, old)
+    rs.record(space, new_style)
+    top = rs.best(space, "demo")
+    assert top is not None
+    assert top.runs == 1, "one run recorded twice is one configuration"
+
+
+def test_a_hand_picked_list_still_makes_a_distinct_configuration() -> None:
+    """`instruments` is the one thing params uniquely holds, so it is lifted out
+    by name rather than lost with the rest of the dict."""
+    one = _cfg(universe="custom", params={"instruments": ["AAA", "BBB"]})
+    two = _cfg(universe="custom", params={"instruments": ["AAA", "CCC"]})
+    assert one.configuration != two.configuration
+
+    reordered = _cfg(universe="custom", params={"instruments": ["BBB", "AAA"]})
+    assert reordered.configuration == one.configuration, (
+        "order must not matter; the set identifies the run"
+    )
+
+
+def test_a_different_asset_class_is_a_different_configuration() -> None:
+    """Momentum on equities and momentum on crypto are two answers, not one
+    recomputed."""
+    assert _cfg(asset_class="equity").configuration != _cfg(asset_class="crypto").configuration

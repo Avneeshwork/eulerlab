@@ -316,6 +316,7 @@ function Row({
 }) {
   const result = strategy.result;
   const runnable = strategy.is_strategy_subclass;
+  const ranOn = result.asset_class;
   return (
     <div className="trow" data-open={open}>
       <div
@@ -355,7 +356,28 @@ function Row({
           </div>
         </div>
         <div className="tmeta">
-          <Tag>{strategy.asset_class}</Tag>
+          {/* The class the result was RUN on, not the one the strategy is
+              declared for. They can differ — buy_and_hold is declared equity and
+              its latest run was 20 crypto pairs — and a crypto Sharpe sitting
+              under an "equity" tag is the same quiet mismatch the graph tooltip
+              already guards against. */}
+          <Tag
+            title={
+              ranOn && ranOn !== strategy.asset_class
+                ? `Declared for ${strategy.asset_class}; this result was run on ${ranOn}.`
+                : undefined
+            }
+          >
+            {ranOn || strategy.asset_class}
+          </Tag>
+          {result.cost_mode === 'replication' && (
+            <span
+              className="tflag"
+              title="No cost model covers that asset class, so this figure is gross of costs and not comparable to a net one."
+            >
+              no costs
+            </span>
+          )}
           {result.universe ? (
             <Tag
               title={`This result was run on ${result.universe}${
@@ -432,6 +454,8 @@ function Row({
                 label="Best of them"
                 value={result.best_sharpe !== null && result.best_sharpe !== undefined ? result.best_sharpe.toFixed(2) : '—'}
               />
+              <Fact label="Asset class" value={result.asset_class || '—'} />
+              <Fact label="Costs" value={result.cost_mode === 'replication' ? 'not modelled' : 'realistic'} />
               <Fact label="Universe" value={result.universe || '—'} />
               <Fact label="Instruments" value={result.symbols ?? '—'} />
               <Fact label="Trials" value={strategy.trials} />
@@ -494,12 +518,20 @@ function Row({
 function curveTitle(strategy: FleetStrategy): string {
   const result = strategy.result;
   if (result.sharpe === null || result.sharpe === undefined) return 'Equity curve';
+  const gross =
+    result.cost_mode === 'replication'
+      ? ', gross of costs because no cost model covers that class'
+      : '';
   const base =
     `Most recent backtest: Sharpe ${result.sharpe.toFixed(2)}` +
+    (result.asset_class && result.asset_class !== strategy.asset_class
+      ? ` on ${result.asset_class}`
+      : '') +
     (result.window_days ? ` over ${result.window_days} trading days` : '') +
     (result.universe ? ` on ${result.universe}` : '') +
     (result.symbols ? `, ${result.symbols} instruments` : '') +
-    (result.tier ? `, tier ${result.tier}` : '');
+    (result.tier ? `, tier ${result.tier}` : '') +
+    gross;
   const headline = strategy.sharpe;
   if (headline !== null && Math.abs(headline - result.sharpe) > 0.005) {
     return (

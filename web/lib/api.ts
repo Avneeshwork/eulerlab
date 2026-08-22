@@ -122,6 +122,12 @@ export type StrategyResult = {
   // and over four thousand names are different answers.
   universe?: string;
   symbols?: number;
+  // Which panel the run was pointed at. The declaration says what a strategy is
+  // designed for; this says what it was actually run on, and they can differ.
+  asset_class?: string;
+  // "replication" means no cost model covered that class, so the figure is
+  // gross of costs and not comparable to a net one.
+  cost_mode?: string;
   // The real equity curve of the best run, downsampled by the server. Empty
   // when nothing has been run — the sparkline renders nothing rather than a
   // flat line, because a flat line is a claim about a run that did not happen.
