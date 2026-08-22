@@ -42,7 +42,7 @@ def test_the_mid_is_taken_per_field() -> None:
     assert bar.close == pytest.approx(1.3)
 
 
-def test_the_spread_is_the_mean_gap_across_the_four_points() -> None:
+def test_the_spread_uses_only_the_contemporaneous_points() -> None:
     bars = fx_bulk.parse_week(
         _csv(["01/05/2020 10:00:00.000,1.0,1.0,1.0,1.0,1.0002,1.0002,1.0002,1.0002"])
     )

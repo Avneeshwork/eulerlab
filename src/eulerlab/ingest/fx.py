@@ -59,6 +59,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 LANDING = Path("data/landing/fx")
 FEED = "https://datafeed.dukascopy.com/datafeed"
@@ -98,28 +99,90 @@ def point_scale(pair: str) -> float:
 
 @dataclass(frozen=True)
 class Bar:
-    """One minute of mid price, plus the spread that will be charged for it."""
+    """One minute, with both sides of the book kept.
+
+    **Bid and ask are stored, not a mid and a spread.** Storing derived values
+    and discarding the inputs meant a bug in the derivation could only be fixed
+    by re-fetching ten years of data — which is exactly what happened: the
+    spread was averaged across open, high, low and close, and `AskHigh -
+    BidHigh` is not a spread at all. The highest ask and the highest bid occur
+    at *different instants* inside the minute, so their difference is a gap
+    between two unrelated moments. It went negative on real data, which is
+    impossible for a real quote and was the clue.
+
+    Only open and close pair bid against ask at the same instant, so only they
+    can measure a spread. Keeping both sides means the next definition can be
+    derived without another download.
+    """
 
     ts: datetime
-    open: float
-    high: float
-    low: float
-    close: float
-    ticks: int
-    volume: float
-    mean_spread: float
+    bid_open: float
+    bid_high: float
+    bid_low: float
+    bid_close: float
+    ask_open: float
+    ask_high: float
+    ask_low: float
+    ask_close: float
+    ticks: int = 0
+    volume: float = 0.0
+
+    # --- the mid, derived per field ---------------------------------------
+    # The high of the mid is the mid of the highs. Applying one mid to every
+    # field would narrow every bar.
+
+    @property
+    def open(self) -> float:
+        return (self.bid_open + self.ask_open) / 2.0
+
+    @property
+    def high(self) -> float:
+        return (self.bid_high + self.ask_high) / 2.0
+
+    @property
+    def low(self) -> float:
+        return (self.bid_low + self.ask_low) / 2.0
+
+    @property
+    def close(self) -> float:
+        return (self.bid_close + self.ask_close) / 2.0
+
+    @property
+    def mean_spread(self) -> float:
+        """Cost of crossing, from the two points where both sides are
+        contemporaneous. Never from the high or the low."""
+        return ((self.ask_open - self.bid_open) + (self.ask_close - self.bid_close)) / 2.0
 
     def to_row(self) -> dict[str, object]:
         return {
             "ts": self.ts.isoformat(),
-            "open": round(self.open, 6),
-            "high": round(self.high, 6),
-            "low": round(self.low, 6),
-            "close": round(self.close, 6),
+            "bo": round(self.bid_open, 6),
+            "bh": round(self.bid_high, 6),
+            "bl": round(self.bid_low, 6),
+            "bc": round(self.bid_close, 6),
+            "ao": round(self.ask_open, 6),
+            "ah": round(self.ask_high, 6),
+            "al": round(self.ask_low, 6),
+            "ac": round(self.ask_close, 6),
             "ticks": self.ticks,
             "volume": round(self.volume, 4),
-            "mean_spread": round(self.mean_spread, 8),
         }
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> Bar:
+        return cls(
+            ts=datetime.fromisoformat(str(row["ts"])),
+            bid_open=float(row["bo"]),
+            bid_high=float(row["bh"]),
+            bid_low=float(row["bl"]),
+            bid_close=float(row["bc"]),
+            ask_open=float(row["ao"]),
+            ask_high=float(row["ah"]),
+            ask_low=float(row["al"]),
+            ask_close=float(row["ac"]),
+            ticks=int(row.get("ticks", 0)),
+            volume=float(row.get("volume", 0.0)),
+        )
 
 
 def hour_url(pair: str, when: datetime) -> str:
@@ -161,26 +224,35 @@ def decode_hour(
 
 
 def to_minutes(ticks: list[tuple[datetime, float, float, float]]) -> list[Bar]:
-    """Group ticks into minute bars on the mid price."""
+    """Group ticks into minute bars, keeping bid and ask separate.
+
+    Both sides are carried through rather than collapsed to a mid here, for
+    the same reason `Bar` stores them: a derivation kept without its inputs
+    cannot be corrected without re-fetching.
+    """
     buckets: dict[datetime, list[tuple[float, float, float]]] = {}
     for ts, bid, ask, volume in ticks:
         minute = ts.replace(second=0, microsecond=0)
-        buckets.setdefault(minute, []).append(((bid + ask) / 2.0, ask - bid, volume))
+        buckets.setdefault(minute, []).append((bid, ask, volume))
 
     bars: list[Bar] = []
     for minute in sorted(buckets):
         rows = buckets[minute]
-        mids = [r[0] for r in rows]
+        bids = [r[0] for r in rows]
+        asks = [r[1] for r in rows]
         bars.append(
             Bar(
                 ts=minute,
-                open=mids[0],
-                high=max(mids),
-                low=min(mids),
-                close=mids[-1],
+                bid_open=bids[0],
+                bid_high=max(bids),
+                bid_low=min(bids),
+                bid_close=bids[-1],
+                ask_open=asks[0],
+                ask_high=max(asks),
+                ask_low=min(asks),
+                ask_close=asks[-1],
                 ticks=len(rows),
                 volume=sum(r[2] for r in rows),
-                mean_spread=sum(r[1] for r in rows) / len(rows),
             )
         )
     return bars
@@ -311,19 +383,13 @@ def read_day(pair: str, day: date, *, root: Path = LANDING) -> list[Bar]:
         for line in handle:
             if not line.strip():
                 continue
-            row = json.loads(line)
-            out.append(
-                Bar(
-                    ts=datetime.fromisoformat(str(row["ts"])),
-                    open=float(row["open"]),
-                    high=float(row["high"]),
-                    low=float(row["low"]),
-                    close=float(row["close"]),
-                    ticks=int(row["ticks"]),
-                    volume=float(row["volume"]),
-                    mean_spread=float(row["mean_spread"]),
-                )
-            )
+            try:
+                out.append(Bar.from_row(json.loads(line)))
+            except (KeyError, ValueError, TypeError):
+                # A row written under the old mid-only format. Skipped rather
+                # than half-read: a Bar with no bid or ask cannot answer what
+                # the spread was, and guessing zero would understate every cost.
+                continue
     return out
 
 

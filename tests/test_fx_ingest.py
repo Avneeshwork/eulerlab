@@ -80,9 +80,9 @@ def test_corrupt_compression_yields_nothing_rather_than_raising() -> None:
 
 
 def test_ticks_group_into_minute_bars_on_the_mid() -> None:
-    """OHLC is built from the mid. A bar of bids and a bar of asks are
-    different series, and mixing them is a spread-wide error that never
-    surfaces as an exception."""
+    """Both sides are stored; the mid is derived per field on read. The high of
+    the mid is the mid of the highs, and applying one mid everywhere would
+    narrow every bar."""
     base = datetime(2024, 6, 3, 9, tzinfo=UTC)
     ticks = [
         (base, 1.0800, 1.0802, 1.0),
@@ -99,6 +99,8 @@ def test_ticks_group_into_minute_bars_on_the_mid() -> None:
     assert first.close == pytest.approx(1.0796)
     assert first.ticks == 3
     assert first.volume == pytest.approx(6.0)
+    # From open and close only. The highest ask and the highest bid happen at
+    # different instants inside the minute, so their difference is not a spread.
     assert first.mean_spread == pytest.approx(0.0002)
 
 
@@ -122,13 +124,16 @@ def test_a_landed_day_round_trips(tmp_path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     bar = fx.Bar(
         ts=datetime(2024, 6, 3, 9, tzinfo=UTC),
-        open=1.08,
-        high=1.081,
-        low=1.079,
-        close=1.0805,
+        bid_open=1.0799,
+        bid_high=1.0809,
+        bid_low=1.0789,
+        bid_close=1.0804,
+        ask_open=1.0801,
+        ask_high=1.0811,
+        ask_low=1.0791,
+        ask_close=1.0806,
         ticks=42,
         volume=7.5,
-        mean_spread=0.00012,
     )
     with gzip.open(path, "wt", encoding="utf-8") as handle:
         handle.write(json.dumps(bar.to_row()) + "\n")
@@ -178,3 +183,52 @@ def test_weekends_are_not_fetched() -> None:
     days = days_between(date(2024, 6, 1), date(2024, 6, 10))
     assert all(d.weekday() < 5 for d in days)
     assert date(2024, 6, 1) not in days
+
+
+def test_a_spread_never_uses_the_high_or_the_low() -> None:
+    """The bug that forced this file's rewrite.
+
+    Averaging (Ask - Bid) across open, high, low and close treats `AskHigh -
+    BidHigh` as a spread. It is not: the highest ask and the highest bid occur
+    at *different instants* inside the minute, so the difference is a gap
+    between two unrelated moments. On real data it went negative, which is
+    impossible for a quote and was the clue.
+
+    Here the highs and lows are deliberately crossed. Only open and close are
+    contemporaneous, so only they may be used, and the answer must stay
+    positive.
+    """
+    bar = fx.Bar(
+        ts=datetime(2024, 6, 3, 9, tzinfo=UTC),
+        bid_open=1.0000,
+        bid_high=1.0090,
+        bid_low=0.9990,
+        bid_close=1.0010,
+        ask_open=1.0002,
+        ask_high=1.0080,
+        ask_low=0.9980,
+        ask_close=1.0012,
+    )
+    assert bar.mean_spread == pytest.approx(0.0002)
+    assert bar.mean_spread > 0
+
+
+def test_both_sides_survive_a_round_trip() -> None:
+    """Storing a derived mid and discarding bid and ask meant a mistake in the
+    derivation could only be fixed by re-fetching ten years."""
+    bar = fx.Bar(
+        ts=datetime(2024, 6, 3, 9, tzinfo=UTC),
+        bid_open=1.0,
+        bid_high=1.1,
+        bid_low=0.9,
+        bid_close=1.05,
+        ask_open=1.0002,
+        ask_high=1.1002,
+        ask_low=0.9002,
+        ask_close=1.0502,
+        ticks=7,
+    )
+    back = fx.Bar.from_row(bar.to_row())
+    assert back.bid_close == pytest.approx(1.05)
+    assert back.ask_close == pytest.approx(1.0502)
+    assert back.mean_spread == pytest.approx(bar.mean_spread)

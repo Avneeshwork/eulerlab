@@ -21,10 +21,10 @@ FXCM serves **bid and ask OHLC separately**:
 
     DateTime,BidOpen,BidHigh,BidLow,BidClose,AskOpen,AskHigh,AskLow,AskClose
 
-Where the Dukascopy path had to build a mid from ticks and average the spread
-across them, here both sides are already stated. The stored shape stays the same
-`Bar` so one reader serves both sources — mid per field, spread as the mean gap
-across the four points — but the numbers behind it are firmer.
+Where the Dukascopy path had to build both sides from ticks, here they are
+already stated. Both are stored as given; the mid and the spread are derived on
+read, so a mistake in either can be corrected without re-fetching — which is
+not hypothetical, it is why this file was rewritten once already.
 
 ### What a missing week means
 
@@ -77,20 +77,22 @@ def parse_week(payload: bytes) -> list[Bar]:
             ask = [float(row[f"Ask{k}"]) for k in ("Open", "High", "Low", "Close")]
         except (KeyError, ValueError, TypeError):
             continue
-        mid = [(b + a) / 2.0 for b, a in zip(bid, ask, strict=True)]
         out.append(
             Bar(
                 ts=ts,
-                open=mid[0],
-                high=mid[1],
-                low=mid[2],
-                close=mid[3],
+                bid_open=bid[0],
+                bid_high=bid[1],
+                bid_low=bid[2],
+                bid_close=bid[3],
+                ask_open=ask[0],
+                ask_high=ask[1],
+                ask_low=ask[2],
+                ask_close=ask[3],
                 # FXCM publishes aggregated candles, not ticks, so there is no
                 # tick count to report. Zero is honest; inventing one from the
                 # bar's range would be a fabricated field.
                 ticks=0,
                 volume=0.0,
-                mean_spread=sum(a - b for b, a in zip(bid, ask, strict=True)) / 4.0,
             )
         )
     return out
