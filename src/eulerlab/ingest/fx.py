@@ -223,8 +223,13 @@ def _fetch(url: str, *, timeout: int = 30, retries: int = 5) -> bytes | None:
                 time.sleep(5 * (attempt + 1))
                 continue
         except (urllib.error.URLError, TimeoutError):
+            # Includes DNS failure, which under load is transient and local
+            # rather than anything the feed did. Backed off longer than an
+            # HTTP error because the resolver needs time, not a retry.
             if attempt == retries - 1:
                 raise
+            time.sleep(3 * (attempt + 1))
+            continue
         time.sleep(2**attempt)
     return None
 
@@ -234,7 +239,7 @@ def hours_of(day: date) -> Iterator[datetime]:
         yield datetime(day.year, day.month, day.day, hour, tzinfo=UTC)
 
 
-HOUR_WORKERS = 12
+HOUR_WORKERS = 6
 """How many of a day's 24 hours are fetched at once.
 
 Measured on 2026-08-22: the feed serves a single connection at roughly **10
@@ -244,8 +249,11 @@ effective. The limit is therefore per-connection, not per-IP.
 
 That distinction decides whether this is possible at all: ten pairs over ten
 years is about 624,000 hourly requests, which is 72 days serially and under two
-days concurrently. Twelve is chosen over sixteen to leave the feed room - the
-gain past a dozen is small, and the point is to finish rather than to be rude.
+days concurrently. Six rather than the sixteen that benchmarked fastest. Twelve produced a steady
+stream of `nodename nor servname provided` - DNS failures, not HTTP ones, from
+too many simultaneous lookups against the local resolver. Those days were
+skipped rather than landed, so the extra concurrency was buying nothing and
+costing coverage. Six holds a pair-day near half a minute and lands it.
 """
 
 
