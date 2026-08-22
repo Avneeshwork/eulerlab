@@ -1137,3 +1137,14 @@
 .ttable.example tr[data-held='true'] td { background: var(--clear-wash); }
 .ttable.example tr[data-cut='true'] td { border-top: 2px solid var(--ink); }
 .ttable.example tr[data-held='false'] td { color: var(--ink-3); }
+
+/* Text inside a dialog fills its width.
+   The 68ch measure is right for a page, where a paragraph sits in a column
+   beside other things. In a dialog it leaves half the panel empty and reads as
+   a layout bug rather than as typography, so it is lifted here only. */
+.dlg-body .tdesc,
+.dlg-body .tfine,
+.dlg-body .explain-step p,
+.dlg-body p {
+  max-width: none;
+}
