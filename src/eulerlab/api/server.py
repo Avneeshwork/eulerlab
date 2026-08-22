@@ -1249,6 +1249,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 if item.strategy_id in PAPER_SIGNALS:
                     intraday = _run_intraday(item.strategy_id, request)
                     intraday["tier"] = "intraday"
+                    store_one(item, intraday)
                     return intraday
                 msg = (
                     f"{item.strategy_id} is not a Strategy and has no intraday "
@@ -1386,7 +1387,43 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             # Downsampled here rather than in the UI so the cache stores the
             # small version and a cache hit yields the same curve.
             outcome["curve"] = result_store.downsample(engine.equity)
+            store_one(item, outcome)
             return outcome
+
+        def store_one(item: _BatchItem, payload: dict[str, Any]) -> None:
+            """Make one strategy's result durable, immediately.
+
+            Called as each item finishes rather than after the whole batch,
+            because a batch that is abandoned at the job timeout used to throw
+            away everything it had already computed. Ten intraday signals take
+            longer than 900s together; seven of them completed, none were kept,
+            and the library showed "not measured" for work that had demonstrably
+            run.
+            """
+            result_store.record(
+                workspace,
+                result_store.Run(
+                    strategy_id=item.strategy_id,
+                    sharpe=_as_float(payload, "sharpe"),
+                    total_return=_as_float(payload, "total_return"),
+                    max_drawdown=_as_float(payload, "max_drawdown"),
+                    fills=int(_as_float(payload, "fills")),
+                    days=int(_as_float(payload, "days")),
+                    tier=str(payload.get("tier") or request.tier),
+                    window_days=request.days,
+                    universe=_universe_label(request),
+                    asset_class=request.asset_class,
+                    cost_mode=cost_mode_for(request.asset_class),
+                    symbols=int(_as_float(payload, "symbols")),
+                    data_version=batch_data_version(),
+                    params=dict(item.params),
+                    curve=_as_curve(payload),
+                    # Screening spends no trial (T-3321). The honest value, and
+                    # what lets the library report how much of its own evidence
+                    # the noise bar has never seen.
+                    trial_recorded=False,
+                ),
+            )
 
         def progress(index: int, total: int, item: _BatchItem) -> None:
             job.message = f"screened {index}/{total} — {item.strategy_id}"
@@ -1423,42 +1460,16 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 job.message = f"rebuilding report — {item_outcome.item.strategy_id}"
                 compute(item_outcome.item)
 
-        # Recorded from the OUTCOMES, not from inside `compute`.
+        # A second pass, for cache hits only.
         #
-        # A cache hit never calls `compute`, so recording there meant a strategy
-        # served from cache produced no stored result and the library kept
-        # showing "not measured" for something that had demonstrably run. A
-        # cached result is still a result — the same numbers, just not
-        # recomputed — and the configuration key makes it supersede rather than
-        # duplicate.
+        # `compute` stores its own result now, but a cache hit never calls it —
+        # and a cached result is still a result, the same numbers just not
+        # recomputed. Recording it again is free: the configuration key makes it
+        # supersede rather than duplicate.
         for item_outcome in result.outcomes:
             if item_outcome.error or not item_outcome.result:
                 continue
-            payload = item_outcome.result
-            result_store.record(
-                workspace,
-                result_store.Run(
-                    strategy_id=item_outcome.item.strategy_id,
-                    sharpe=_as_float(payload, "sharpe"),
-                    total_return=_as_float(payload, "total_return"),
-                    max_drawdown=_as_float(payload, "max_drawdown"),
-                    fills=int(_as_float(payload, "fills")),
-                    days=int(_as_float(payload, "days")),
-                    tier=request.tier,
-                    window_days=request.days,
-                    universe=_universe_label(request),
-                    asset_class=request.asset_class,
-                    cost_mode=cost_mode_for(request.asset_class),
-                    symbols=int(_as_float(payload, "symbols")),
-                    data_version=batch_data_version(),
-                    params=dict(item_outcome.item.params),
-                    curve=_as_curve(payload),
-                    # Screening spends no trial (T-3321). The honest value, and
-                    # what lets the library report how much of its own evidence
-                    # the noise bar has never seen.
-                    trial_recorded=False,
-                ),
-            )
+            store_one(item_outcome.item, item_outcome.result)
 
         summary = runner.summarise(result)
         # Every result also goes to the bucket the market data lives in.
