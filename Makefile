@@ -297,6 +297,11 @@ morningstar:
 
 # Minute-level crypto from Binance's bulk archive. NOT ccxt: five years of 1m
 # bars for 20 coins is ~52,000 paginated REST calls versus ~1,200 monthly ZIPs.
+# FX minute bars from Dukascopy's public tick feed. Resumable: a day already on
+# disk costs no requests, so run it repeatedly rather than once for ten years.
+fx:
+	@uv run python -m eulerlab.ingest.fx_backfill $(if $(PAIRS),--pairs $(PAIRS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(LIMIT),--limit $(LIMIT),)
+
 crypto:
 	@uv run python -m eulerlab.ingest.crypto_backfill $(if $(COINS),--coins $(COINS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(VERIFY),--verify,) $(if $(UNIVERSE),--universe-only,)
 

@@ -384,6 +384,8 @@ export type Explain = {
     risk_manager: string;
     trade_manager: string;
     how_it_decides: string;
+    source: string;
+    published: string;
     example: {
       headline: string;
       rows: { symbol: string; score: number; held: boolean }[];

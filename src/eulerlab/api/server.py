@@ -2133,6 +2133,8 @@ def explain(strategy: str = "") -> dict[str, Any]:
             # numbers that actually govern its behaviour, and a description
             # that drifted from them would be confidently wrong.
             "how_it_decides": _how_it_decides(declaration),
+            "source": declaration.source,
+            "published": declaration.published,
             "example": _worked_example(declaration),
             "runs_here": len(runs),
             "latest_sharpe": round(recent.sharpe, 4) if recent else None,

@@ -86,6 +86,26 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
           {error && <div className="tnote bad">{error}</div>}
           {!explain && !error && <div className="tempty">Reading…</div>}
 
+          {about?.source && (
+            <section className="explain-block">
+              <h3>Where this comes from</h3>
+              <div className="paper">
+                <b>{about.source}</b>
+                {about.published && (
+                  <p>
+                    <span>The paper reported:</span> {about.published}
+                  </p>
+                )}
+                <p className="tfine" style={{ marginTop: 8 }}>
+                  This is not a strategy someone here invented and then measured. It was
+                  published first, and what it scored in its own paper is stated above so
+                  a result on our data can never be read without the prior it is arguing
+                  against — which matters most when that prior is a published failure.
+                </p>
+              </div>
+            </section>
+          )}
+
           {about && (
             <section className="explain-block">
               <h3>The idea</h3>
