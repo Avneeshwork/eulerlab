@@ -1,0 +1,79 @@
+# The first hypothesis whose prior is negative.
+#
+# Every other hypothesis in this directory starts from a published positive
+# result and asks whether it survives here. This one starts from a published
+# *failure* and asks the same question, which is a stronger test: if these
+# signals show an edge on our data, the first suspect is our harness.
+
+id: H-0003
+title: Mesfin's fourteen intraday signal families, on Indian equity minute bars
+status: under_validation
+
+claim: >
+  Nine intraday signal families that Mesfin (2026) measured as unprofitable on
+  MNQ futures are also unprofitable on NSE equity minute bars, net of Indian
+  transaction costs.
+
+rationale: >
+  Mesfin tested fourteen families across 947 trading days of five-minute MNQ
+  data against five criteria - walk-forward validation, t >= 2.0, at least 30
+  trades, positive net return after two-point round-trip friction, and
+  consistency across years. None passed. Maximum gross return across every
+  family was 1.05 to 1.50 points against a 2.0-point cost.
+  .
+  His structural explanation is that on five-minute bars the gross edge in a
+  liquid instrument competes down to roughly the friction cost of the marginal
+  participant. If that is right it should transfer to any liquid market. If it
+  does not transfer, the interesting question is whether Indian equities are
+  less efficient at this horizon or whether our cost model is too kind.
+
+source: >
+  Mesfin, M. (2026). Structural Limits of OHLCV-Based Intraday Signals in MNQ
+  Futures: A Systematic Falsification Study. arXiv:2605.04004, v1 2026-05-05,
+  v2 2026-07-13. Full text retrieved 2026-08-22. See docs/RESEARCH/019.
+
+# Fixed before any of these were run here. PBO measures whether *choosing*
+# among them is picking noise, so adding one after seeing results would be the
+# exact overfitting this is meant to detect.
+configurations:
+  - {signal: orb_breakout,       paper_t: 1.50,   paper_verdict: fail_year_instability}
+  - {signal: range_expansion,    paper_t: -10.96, paper_verdict: fail_significantly_backwards}
+  - {signal: liquidity_grab,     paper_t: -14.12, paper_verdict: fail_friction_ceiling}
+  - {signal: gap_fill_fade,      paper_t: -0.32,  paper_verdict: fail_noise}
+  - {signal: gap_continuation,   paper_t: 3.23,   paper_verdict: fail_sample_size_22}
+  - {signal: volume_spike,       paper_t: 0.07,   paper_verdict: fail_precise_null}
+  - {signal: volume_dryup,       paper_t: -0.92,  paper_verdict: fail_precise_null}
+  - {signal: volatility_regime,  paper_t: 0.86,   paper_verdict: fail}
+  - {signal: ou_reversion,       paper_t: -2.19,  paper_verdict: fail}
+
+red_flags:
+  - >
+    The exits are not the paper's. Mesfin measures a fixed-horizon return;
+    this platform's intraday engine is a bracket with a stop and a forced
+    session close. A bracket and a horizon are different strategies over the
+    same signal, and for a signal with fat left tails the difference is large.
+    Nothing here may be compared to his tables as though it were a replication.
+  - >
+    Long-only. `bracket.run` opens with Side.BUY and closes with Side.SELL, so
+    every short variant is either mirrored or absent. Mesfin's short results
+    differ from his long ones - ORB short is -3.45 against long +2.82 - so the
+    long-only view is not half the picture, it is a different one.
+  - >
+    A positive result on any of these is more likely a harness bug than a
+    discovery. The specific things to check first: whether `forward` really
+    starts after the signal bar, whether costs are being applied on both legs,
+    and whether the same setup is being counted repeatedly across successive
+    bars.
+  - >
+    Mesfin's friction ceiling is 2.0 points on a Nasdaq future. Indian equity
+    costs are a percentage and include STT and stamp duty. There is no direct
+    analogue, so "does the ceiling transfer" is not answerable by comparing the
+    two numbers - only by measuring the gross edge here and comparing it to our
+    own costs.
+  - >
+    The volatility regime signal is a simplification. Mesfin's VVG classifier
+    needs three simultaneous pre-market terciles and fires on 4.4% of days;
+    ours uses a single session-range condition because the tercile construction
+    needs a cross-day distribution the intraday scanner does not carry. It is a
+    weaker filter, so a different firing rate is expected and is not evidence
+    about his result.

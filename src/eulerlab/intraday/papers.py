@@ -1,0 +1,638 @@
+"""Intraday signals from published papers, coded against this platform.
+
+Every signal here traces to a paper in `docs/RESEARCH/019`, and every one of
+them arrives with a **published expectation of failure**. That is not a
+disclaimer, it is the point.
+
+### Why a library of failures is worth building
+
+A strategy library normally arrives with a positive prior — someone published a
+result, and the noise bar's job is to argue it down. Mesfin (2026) tested
+fourteen intraday signal families on 947 days of MNQ futures against five
+criteria and **none passed**: maximum gross return across every family was
+1.05-1.50 points against a 2.0-point friction cost. So the prior here is already
+negative and measured, and a positive result on our data has to argue against
+evidence rather than against nothing.
+
+That is the correct posture, and it is one we normally have to manufacture.
+
+### What is faithful here and what is not
+
+**Faithful:** the entry conditions. Each `detect` implements the paper's stated
+trigger, on the paper's stated bar geometry, with the thresholds it published.
+
+**Not faithful:** the exits. Mesfin measures a fixed-horizon return (enter at
+bar+1, exit at bar+N). This platform's intraday engine is a bracket — stop,
+targets, forced close at the session end — because that is what `bracket.run`
+simulates and what a real order would be. A bracket exit and a horizon exit are
+different strategies over the same signal, and the difference is not small: a
+signal with positive drift and fat left tails looks very different under a stop
+than under a horizon. Results here therefore **cannot be compared to the
+paper's tables directly**, and the note in `docs/RESEARCH/019` says so.
+
+**Also not faithful:** everything is long-only, because `bracket.run` opens with
+`Side.BUY` and closes with `Side.SELL`. Short variants are mirrored to the long
+side where the mirror is meaningful and omitted where it is not.
+
+**Also different:** the friction. Mesfin's ceiling is 2.0 points round-trip on a
+Nasdaq future. Indian equity costs are a percentage, not a point spread, and
+include STT and stamp duty. Whether the ceiling transfers is the first thing
+running these measures — it is an open question in the note, not an assumption.
+"""
+
+from __future__ import annotations
+
+import math
+import statistics
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
+from datetime import time
+
+from eulerlab.features.indicators import atr, sma
+from eulerlab.intraday.tweezer import Candle, Plan, Rejected
+
+IST_OPEN = time(9, 15)
+"""NSE opens at 09:15 IST. The papers are written against 09:30 ET; what
+transfers is "the first N minutes of the session", not the clock time."""
+
+
+@dataclass(frozen=True)
+class PaperRules:
+    """Every threshold, named, and sourced.
+
+    Separated from the logic for the same reason `tweezer.Rules` is: a
+    threshold living inside a condition gets tuned as a side effect of reading
+    the code, and nobody can see it happen.
+    """
+
+    # --- shared risk geometry ---
+    atr_period: int = 14
+    stop_atr_mult: float = 1.4
+    """Zarattini, Barbon & Aziz (2024): stop at entry -/+ 1.4 x ATR(14)."""
+
+    target_r: float = 2.0
+    """Bracket target as a multiple of risk. **Ours, not the papers'** — Mesfin
+    exits on a bar horizon and Zarattini exits at the close, neither of which
+    is a target. Named so the substitution is visible."""
+
+    risk_per_trade: float = 0.01
+    max_risk_pct: float = 3.0
+    min_risk_pct: float = 0.05
+
+    # --- opening range (Mesfin §4.1, Zarattini et al. 2024) ---
+    opening_range_minutes: int = 5
+    orb_relative_volume_min: float = 1.0
+    """Zarattini's selection step: first-5-minute volume over the mean of the
+    prior 14 days. The paper's own summary reports the plain breakout is weak
+    and this screen does almost all the work."""
+
+    # --- range expansion (Mesfin §4.2) ---
+    expansion_lookback: int = 20
+    expansion_mult: float = 2.5
+
+    # --- liquidity grab (Mesfin §4.3) ---
+    grab_lookback: int = 20
+
+    # --- gaps (Mesfin §4.4) ---
+    gap_min_pct: float = 0.3
+
+    # --- volume signatures (Mesfin §4.5) ---
+    volume_lookback: int = 20
+    volume_spike_z: float = 2.0
+    volume_dryup_z: float = -1.0
+
+    # --- volatility regime (Mesfin §4.6) ---
+    vvg_lookback: int = 20
+    vvg_range_mult: float = 1.5
+
+    # --- mean reversion (Mesfin §4.8) ---
+    ou_lookback: int = 60
+    ou_entry_z: float = -2.0
+
+
+Detect = Callable[[Sequence[Candle], PaperRules, float], "Plan | Rejected"]
+
+
+@dataclass(frozen=True)
+class PaperSignal:
+    """One coded signal and the claim it is testing."""
+
+    id: str
+    title: str
+    source: str
+    """Citation, to the section. A signal whose provenance is a memory is not
+    reproducible."""
+
+    published: str
+    """What the paper reported. Carried in the object so a result can never be
+    read without the prior it is arguing against."""
+
+    detect: Detect
+
+
+# --- shared plumbing ---------------------------------------------------------
+
+
+def _closes(window: Sequence[Candle]) -> list[float]:
+    return [c.close for c in window]
+
+
+def _atr_now(window: Sequence[Candle], period: int) -> float | None:
+    series = atr([c.high for c in window], [c.low for c in window], _closes(window), period=period)
+    return series[-1] if series and series[-1] is not None else None
+
+
+def _session_bars(window: Sequence[Candle]) -> list[Candle]:
+    """Bars belonging to the same session date as the last bar.
+
+    Sessions are separated by date rather than by a clock window, so this works
+    unchanged on crypto, which has no session at all and returns the whole day.
+    """
+    day = window[-1].ts.date()
+    return [c for c in window if c.ts.date() == day]
+
+
+def _plan(
+    *, signal: Candle, entry: float, stop: float, rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """Turn a trigger into a fully specified bracket, or say why not."""
+    r = entry - stop
+    if r <= 0:
+        return Rejected("stop above entry")
+    risk_pct = r / entry * 100.0
+    if risk_pct > rules.max_risk_pct:
+        return Rejected("risk too wide", f"{risk_pct:.2f}%")
+    if risk_pct < rules.min_risk_pct:
+        return Rejected("risk too tight", f"{risk_pct:.2f}%")
+
+    shares = math.floor((equity * rules.risk_per_trade) / r)
+    shares = min(shares, math.floor(equity / entry))
+    if shares < 1:
+        return Rejected("size rounds to zero")
+
+    first = shares // 2 if shares >= 2 else 0
+    return Plan(
+        signal_ts=signal.ts,
+        entry=entry,
+        stop=stop,
+        target_1=entry + rules.target_r * r,
+        target_2=entry + (rules.target_r + 1.0) * r,
+        r=r,
+        shares_1=first,
+        shares_2=shares - first,
+        risk_pct=risk_pct,
+    )
+
+
+def _volume_z(window: Sequence[Candle], lookback: int) -> float | None:
+    """How unusual the last bar's volume is, in standard deviations."""
+    volumes = [c.volume for c in window[-(lookback + 1) : -1]]
+    if len(volumes) < lookback or len(set(volumes)) < 2:
+        return None
+    spread = statistics.pstdev(volumes)
+    if spread <= 0:
+        return None
+    return (window[-1].volume - statistics.fmean(volumes)) / spread
+
+
+# --- Mesfin (2026) §4.1 — opening range breakout -----------------------------
+
+
+def opening_range_breakout(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """Break of the first N minutes' high, long.
+
+    Mesfin §4.1 tested 09:30-09:55 ET with immediate, pullback and delayed
+    entries; the best long variant reached t = 1.50 and failed on year
+    stability (-1.42 in 2022, +7.04 in 2024). Zarattini et al. use a
+    **five-minute** range and report the breakout alone is weak.
+    """
+    session = _session_bars(window)
+    span = rules.opening_range_minutes
+    if len(session) <= span:
+        return Rejected("warmup", f"{len(session)} session bars, need > {span}")
+    if len(window) < rules.atr_period * 2:
+        return Rejected("warmup", "not enough history for ATR")
+
+    opening = session[:span]
+    high = max(c.high for c in opening)
+    if opening[-1].close <= opening[0].open:
+        return Rejected("range closed down", "the paper takes the long only when it closes up")
+
+    signal = window[-1]
+    if signal.close <= high:
+        return Rejected("no breakout", f"close {signal.close:.2f} <= range high {high:.2f}")
+    if signal in opening:
+        return Rejected("still inside the opening range")
+
+    band = _atr_now(window, rules.atr_period)
+    if band is None or band <= 0:
+        return Rejected("no ATR")
+    return _plan(
+        signal=signal,
+        entry=signal.close,
+        stop=high - rules.stop_atr_mult * band,
+        rules=rules,
+        equity=equity,
+    )
+
+
+# --- Mesfin (2026) §4.2 — range expansion continuation ------------------------
+
+
+def range_expansion(window: Sequence[Candle], rules: PaperRules, equity: float) -> Plan | Rejected:
+    """A bar whose range far exceeds the rolling mean, taken as continuation.
+
+    Mesfin §4.2 is the most interesting failure in the paper: t = -10.96 at
+    bar+1. The signal is not merely unprofitable, it is **significantly
+    backwards**, and the explanation generalises — the directional burst is
+    real but is fully consumed *inside* the expansion bar, so a bar-close
+    system entering on the next bar systematically captures the post-exhaustion
+    reversal instead. Momentum that lives inside a bar cannot be reached by
+    bar-close execution.
+    """
+    if len(window) < rules.expansion_lookback + 2:
+        return Rejected("warmup")
+    ranges = [c.high - c.low for c in window[-(rules.expansion_lookback + 1) : -1]]
+    mean_range = statistics.fmean(ranges) if ranges else 0.0
+    if mean_range <= 0:
+        return Rejected("no range history")
+
+    signal = window[-1]
+    span = signal.high - signal.low
+    if span < rules.expansion_mult * mean_range:
+        return Rejected("not an expansion", f"{span / mean_range:.2f}x mean")
+    if signal.close <= signal.open:
+        return Rejected("expansion is downward", "continuation long needs an up bar")
+
+    return _plan(signal=signal, entry=signal.close, stop=signal.low, rules=rules, equity=equity)
+
+
+# --- Mesfin (2026) §4.3 — liquidity grab reversal ----------------------------
+
+
+def liquidity_grab_reversal(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """Price pierces the session low, then closes back inside. Long the reversal.
+
+    Mesfin §4.3 found 6,442 such events and both directions significantly
+    negative — fading at t = -14.12, following at t = -13.24. The gross
+    directional content is 0.20-0.80 points either way, which cannot clear a
+    2-point friction in either direction. He calls it a pure friction-ceiling
+    result: the pattern is real and too small to trade.
+    """
+    session = _session_bars(window)
+    if len(session) < rules.grab_lookback + 1:
+        return Rejected("warmup", f"{len(session)} session bars")
+
+    prior = session[-(rules.grab_lookback + 1) : -1]
+    floor = min(c.low for c in prior)
+    signal = session[-1]
+
+    if signal.low >= floor:
+        return Rejected("no pierce", "did not take out the session low")
+    if signal.close <= floor:
+        return Rejected("closed outside", "a grab must close back inside the range")
+
+    return _plan(signal=signal, entry=signal.close, stop=signal.low, rules=rules, equity=equity)
+
+
+# --- Mesfin (2026) §4.4 — gaps -----------------------------------------------
+
+
+def _gap_pct(window: Sequence[Candle]) -> float | None:
+    """Today's open against the previous session's close."""
+    session = _session_bars(window)
+    if not session:
+        return None
+    before = [c for c in window if c.ts.date() < session[0].ts.date()]
+    if not before:
+        return None
+    previous_close = before[-1].close
+    if previous_close <= 0:
+        return None
+    return (session[0].open - previous_close) / previous_close * 100.0
+
+
+def gap_fill_fade(window: Sequence[Candle], rules: PaperRules, equity: float) -> Plan | Rejected:
+    """A down gap, faded on the expectation that it closes during the session.
+
+    Mesfin §4.4 tested three entry times and all failed, t between -0.32 and
+    -0.59 — indistinguishable from noise rather than wrong. MNQ gaps simply do
+    not reliably fill within the session.
+    """
+    gap = _gap_pct(window)
+    if gap is None:
+        return Rejected("no previous session")
+    if gap > -rules.gap_min_pct:
+        return Rejected("no down gap", f"{gap:.2f}%")
+
+    signal = _session_bars(window)[-1]
+    band = _atr_now(window, rules.atr_period)
+    if band is None or band <= 0:
+        return Rejected("no ATR")
+    return _plan(
+        signal=signal,
+        entry=signal.close,
+        stop=signal.close - rules.stop_atr_mult * band,
+        rules=rules,
+        equity=equity,
+    )
+
+
+def gap_continuation(window: Sequence[Candle], rules: PaperRules, equity: float) -> Plan | Rejected:
+    """An up gap, taken as continuation rather than something to be filled.
+
+    Mesfin §4.4's most interesting result and the one he refused to claim: with
+    a Kalman velocity filter the short side reached t = 3.23 at a 68% win rate
+    — on **22 trades over three years**, declining from 12 to 6 to 4. He kept
+    it as a candidate rather than validating it, which is the right call and
+    the reason this is coded without the Kalman filter: that filter is what
+    reduced it to 22 observations.
+    """
+    gap = _gap_pct(window)
+    if gap is None:
+        return Rejected("no previous session")
+    if gap < rules.gap_min_pct:
+        return Rejected("no up gap", f"{gap:.2f}%")
+
+    session = _session_bars(window)
+    signal = session[-1]
+    if signal.close <= session[0].open:
+        return Rejected("gap already fading", "continuation needs price above the open")
+
+    band = _atr_now(window, rules.atr_period)
+    if band is None or band <= 0:
+        return Rejected("no ATR")
+    return _plan(
+        signal=signal,
+        entry=signal.close,
+        stop=session[0].open - rules.stop_atr_mult * band,
+        rules=rules,
+        equity=equity,
+    )
+
+
+# --- Mesfin (2026) §4.5 — volume signatures ----------------------------------
+
+
+def volume_spike_momentum(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """An unusually heavy up bar, taken as informed flow continuing.
+
+    Mesfin §4.5: t = +0.07 on 2,119 up-spikes. He is careful about what that
+    means — the sample is large enough that a near-zero t is a **precise null**,
+    not an underpowered test. Volume magnitude at five-minute resolution does
+    not predict the next bar's direction.
+    """
+    if len(window) < rules.volume_lookback + 1:
+        return Rejected("warmup")
+    z = _volume_z(window, rules.volume_lookback)
+    if z is None:
+        return Rejected("no volume history")
+    if z < rules.volume_spike_z:
+        return Rejected("no spike", f"z={z:.2f}")
+
+    signal = window[-1]
+    if signal.close <= signal.open:
+        return Rejected("spike is downward")
+    return _plan(signal=signal, entry=signal.close, stop=signal.low, rules=rules, equity=equity)
+
+
+def volume_dryup_reversal(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """Volume drying up after a decline, taken as exhaustion before a turn.
+
+    Mesfin §4.5: t = -0.92 on 1,060 events. Another precise null.
+    """
+    if len(window) < rules.volume_lookback + 2:
+        return Rejected("warmup")
+    z = _volume_z(window, rules.volume_lookback)
+    if z is None:
+        return Rejected("no volume history")
+    if z > rules.volume_dryup_z:
+        return Rejected("no dry-up", f"z={z:.2f}")
+
+    signal = window[-1]
+    trend = sma(_closes(window), rules.volume_lookback)
+    level = trend[-1] if trend and trend[-1] is not None else None
+    if level is None or signal.close >= level:
+        return Rejected("not after a decline", "exhaustion needs price below its mean")
+
+    return _plan(signal=signal, entry=signal.close, stop=signal.low, rules=rules, equity=equity)
+
+
+# --- Mesfin (2026) §4.6 — volatility regime ----------------------------------
+
+
+def volatility_regime_reversal(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """On an unusually volatile session, fade the move.
+
+    Mesfin §4.6's VVG classifier needs three simultaneous pre-market terciles
+    (first-30-minute return, overnight gap, first-bar volume deviation) and
+    fires on 4.4% of days. The descriptive findings are real — a 25.6bp
+    next-day spread and a 77.6% peak-reversal rate — and **every directional
+    strategy built on them failed**, reversal at t = +0.86.
+
+    Coded with a single volatility condition rather than three terciles: the
+    tercile construction needs a cross-day distribution the intraday scanner
+    does not carry. That is a simplification, and it is stated rather than
+    hidden.
+    """
+    session = _session_bars(window)
+    if len(session) < 2 or len(window) < rules.vvg_lookback + 2:
+        return Rejected("warmup")
+
+    ranges = [c.high - c.low for c in window[-(rules.vvg_lookback + 1) : -1]]
+    mean_range = statistics.fmean(ranges) if ranges else 0.0
+    if mean_range <= 0:
+        return Rejected("no range history")
+
+    span = max(c.high for c in session) - min(c.low for c in session)
+    if span < rules.vvg_range_mult * mean_range * len(session) ** 0.5:
+        return Rejected("session not volatile enough")
+
+    signal = session[-1]
+    opening = session[0].open
+    if signal.close >= opening:
+        return Rejected("not down on the session", "the long fade needs a decline to fade")
+
+    return _plan(
+        signal=signal,
+        entry=signal.close,
+        stop=min(c.low for c in session),
+        rules=rules,
+        equity=equity,
+    )
+
+
+# --- Mesfin (2026) §4.8 — Ornstein-Uhlenbeck mean reversion ------------------
+
+
+def ou_mean_reversion(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """Buy when price is far below its rolling mean in standard deviations.
+
+    Mesfin §4.8 tested this on Micro Gold at 1.5sd, 2.0sd and 2.5sd; all failed,
+    most with strongly negative t. The 60-minute variant's half-life worked out
+    to roughly eight hours — longer than a session, which makes it structurally
+    incompatible with intraday execution regardless of its sign.
+    """
+    if len(window) < rules.ou_lookback + 1:
+        return Rejected("warmup")
+    closes = _closes(window)[-(rules.ou_lookback + 1) :]
+    reference, signal = closes[:-1], window[-1]
+    spread = statistics.pstdev(reference)
+    if spread <= 0:
+        return Rejected("no dispersion")
+    z = (signal.close - statistics.fmean(reference)) / spread
+    if z > rules.ou_entry_z:
+        return Rejected("not stretched", f"z={z:.2f}")
+
+    return _plan(
+        signal=signal,
+        entry=signal.close,
+        stop=signal.close - spread * 1.5,
+        rules=rules,
+        equity=equity,
+    )
+
+
+# --- Zarattini, Barbon & Aziz (2024) — ORB on a stock in play ----------------
+
+
+def orb_stock_in_play(
+    window: Sequence[Candle], rules: PaperRules, equity: float
+) -> Plan | Rejected:
+    """The opening-range breakout, but only on an unusually active day.
+
+    Zarattini, Barbon & Aziz (2024) report Sharpe 2.81 over 2016-2023 on the
+    top-20 basket, and their own summary says the plain breakout is weak — the
+    **relative-volume selection does almost all the work**.
+
+    That directly contradicts Mesfin on ORB, and the contradiction is
+    informative rather than awkward: Mesfin tests one index future with no
+    selection step, while this is a cross-sectional result over 7,000 names. The
+    two are consistent if the edge lives in choosing *which* instrument to apply
+    the breakout to.
+
+    The honest gap: the paper compares today's first-five-minute volume to the
+    mean of the **prior 14 days**, which needs cross-session history the scanner
+    holds only when the window spans them. Where it does not, this returns a
+    rejection naming the reason rather than silently degrading to a plain ORB.
+    """
+    session = _session_bars(window)
+    span = rules.opening_range_minutes
+    if len(session) <= span:
+        return Rejected("warmup", f"{len(session)} session bars")
+
+    opening_volume = sum(c.volume for c in session[:span])
+    history: list[float] = []
+    seen: set[object] = set()
+    for candle in window:
+        day = candle.ts.date()
+        if day == session[0].ts.date() or day in seen:
+            continue
+        same_day = [c for c in window if c.ts.date() == day]
+        if len(same_day) >= span:
+            history.append(sum(c.volume for c in same_day[:span]))
+            seen.add(day)
+
+    if len(history) < 2:
+        return Rejected(
+            "no relative volume",
+            "needs prior sessions' opening volume; the selection step is the strategy",
+        )
+    baseline = statistics.fmean(history)
+    if baseline <= 0:
+        return Rejected("no baseline volume")
+    relative = opening_volume / baseline
+    if relative < rules.orb_relative_volume_min:
+        return Rejected("not in play", f"relative volume {relative:.2f}")
+
+    return opening_range_breakout(window, rules, equity)
+
+
+SIGNALS: dict[str, PaperSignal] = {
+    signal.id: signal
+    for signal in (
+        PaperSignal(
+            "orb_breakout",
+            "Opening range breakout",
+            "Mesfin (2026) arXiv:2605.04004 §4.1",
+            "FAIL — best long t=1.50; -1.42 in 2022 against +7.04 in 2024",
+            opening_range_breakout,
+        ),
+        PaperSignal(
+            "range_expansion",
+            "Range expansion continuation",
+            "Mesfin (2026) arXiv:2605.04004 §4.2",
+            "FAIL — t=-10.96, significantly backwards; the move is consumed inside the bar",
+            range_expansion,
+        ),
+        PaperSignal(
+            "liquidity_grab",
+            "Liquidity grab reversal",
+            "Mesfin (2026) arXiv:2605.04004 §4.3",
+            "FAIL — t=-14.12 fading, -13.24 following; real but below the friction ceiling",
+            liquidity_grab_reversal,
+        ),
+        PaperSignal(
+            "gap_fill_fade",
+            "Gap fill fade",
+            "Mesfin (2026) arXiv:2605.04004 §4.4",
+            "FAIL — t between -0.32 and -0.59 across three entry times; noise",
+            gap_fill_fade,
+        ),
+        PaperSignal(
+            "gap_continuation",
+            "Gap continuation",
+            "Mesfin (2026) arXiv:2605.04004 §4.4",
+            "FAIL on sample size — t=3.23 but only 22 trades in three years, and declining",
+            gap_continuation,
+        ),
+        PaperSignal(
+            "volume_spike",
+            "Volume spike momentum",
+            "Mesfin (2026) arXiv:2605.04004 §4.5",
+            "FAIL — t=+0.07 on 2,119 events; a precise null, not an underpowered test",
+            volume_spike_momentum,
+        ),
+        PaperSignal(
+            "volume_dryup",
+            "Volume dry-up exhaustion",
+            "Mesfin (2026) arXiv:2605.04004 §4.5",
+            "FAIL — t=-0.92 on 1,060 events",
+            volume_dryup_reversal,
+        ),
+        PaperSignal(
+            "volatility_regime",
+            "Volatility regime reversal",
+            "Mesfin (2026) arXiv:2605.04004 §4.6",
+            "FAIL — t=+0.86; the classifier's descriptive findings are real, the trades are not",
+            volatility_regime_reversal,
+        ),
+        PaperSignal(
+            "ou_reversion",
+            "Ornstein-Uhlenbeck mean reversion",
+            "Mesfin (2026) arXiv:2605.04004 §4.8",
+            "FAIL — t=-2.19 at 2.0sd; half-life longer than a session at 60-minute resolution",
+            ou_mean_reversion,
+        ),
+        PaperSignal(
+            "orb_in_play",
+            "Opening range breakout on a stock in play",
+            "Zarattini, Barbon & Aziz (2024) SSRN 4729284",
+            "Sharpe 2.81, 2016-2023, top-20 basket — the only positive prior here, and it is "
+            "a selection result that contradicts Mesfin's single-instrument ORB",
+            orb_stock_in_play,
+        ),
+    )
+}
