@@ -120,6 +120,22 @@ class Declaration:
     without the prior it is arguing against — which matters most when the prior
     is a published failure."""
 
+    tested_on: str = ""
+    """The instrument and market the source paper tested, in its own words.
+
+    Not what this platform runs it on. Every intraday signal here was published
+    against MNQ futures or US equities and runs here on NSE minute bars —
+    reading a result without that gap credits a strategy with evidence gathered
+    somewhere else entirely.
+    """
+
+    recommended_class: str = ""
+    """The asset class the source studied, which may differ from the one a run
+    was pointed at."""
+
+    logic: list[str] = field(default_factory=list)
+    """The implementation, step by step, as coded."""
+
     ledger_subjects: list[str] = field(default_factory=list)
 
 
@@ -313,6 +329,9 @@ def _paper_signals() -> dict[str, Declaration]:
             is_strategy_subclass=False,
             source=signal.source,
             published=signal.published,
+            tested_on=signal.tested_on,
+            recommended_class=signal.recommended_class,
+            logic=list(signal.logic),
         )
         for signal in SIGNALS.values()
     }

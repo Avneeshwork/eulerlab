@@ -90,19 +90,19 @@ def capabilities() -> list[Capability]:
         Capability(
             AssetClass.CRYPTO,
             Timeframe.MINUTE,
-            Path("data/landing/crypto").exists(),
+            _has_files(CRYPTO_LANDING, "*/*.jsonl.gz"),
             _crypto_detail(),
         ),
         Capability(
             AssetClass.CRYPTO,
             Timeframe.DAILY,
-            Path("data/landing/crypto").exists(),
+            _has_files(CRYPTO_LANDING, "*/*.jsonl.gz"),
             "resampled from the minute archive",
         ),
         Capability(
             AssetClass.MUTUAL_FUND,
             Timeframe.DAILY,
-            MF_HISTORY.exists(),
+            _has_files(MF_HISTORY, "*.jsonl.gz"),
             _fund_detail(),
         ),
         Capability(AssetClass.FX, Timeframe.MINUTE, FX_LANDING.exists(), _fx_detail()),
@@ -114,8 +114,8 @@ def capabilities() -> list[Capability]:
 
 def _fx_detail() -> str:
     """Counted from disk, like every other row."""
-    if not FX_LANDING.exists():
-        return "no data - run `make fx-bulk`"
+    if not _has_files(FX_LANDING, "*/*/*.jsonl.gz"):
+        return "no local FX bars — pruned to B2, or never run (`make fx-bulk`)"
     pairs = [p for p in FX_LANDING.iterdir() if p.is_dir()]
     days = sum(1 for _ in FX_LANDING.glob("*/*/*.jsonl.gz"))
     return f"{len(pairs)} pairs, {days:,} pair-days of 1m bars (FXCM, bid and ask)"
@@ -141,6 +141,9 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
         if needle and needle not in pair:
             continue
         days = sum(1 for _ in folder.glob("*/*.jsonl.gz"))
+        if days == 0:
+            # Pruned to B2 or never landed. Either way it cannot be read here.
+            continue
         out.append(
             Instrument(
                 symbol=pair,
@@ -159,12 +162,24 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
 
 def _fund_detail() -> str:
     """Counted from disk, like every other row."""
-    if not MF_HISTORY.exists():
-        return "no data — run `make mf`"
+    if not _has_files(MF_HISTORY, "*.jsonl.gz"):
+        return "no local NAV history — pruned to B2, or never run (`make mf`)"
     landed = sum(1 for _ in MF_HISTORY.glob("*.jsonl.gz"))
     snapshot = _latest_enriched()
     stamp = snapshot.name.split(".")[0] if snapshot else "no snapshot"
     return f"{landed:,} schemes with landed NAV history (AMFI, snapshot {stamp})"
+
+
+def _has_files(root: Path, pattern: str) -> bool:
+    """Whether a tree holds any data *right now*.
+
+    Not `root.exists()`. `make prune-local` deletes files that are verified
+    present in B2 and leaves the directory behind, so existence stopped being
+    evidence the moment pruning became a supported workflow. A matrix that says
+    "supported" over an emptied directory is asserting rather than reading,
+    which is the one thing this module exists not to do.
+    """
+    return any(root.glob(pattern))
 
 
 def _crypto_detail() -> str:
@@ -247,10 +262,15 @@ def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     if not CRYPTO_LANDING.exists():
         return []
     needle = query.strip().upper()
+    # Symbols with no landed months are skipped, not listed with a zero.
+    # `make prune-local` empties the directories and leaves them behind, so a
+    # symbol folder is not evidence of data — and a picker that offers an
+    # instrument the engine cannot read is the exact defect this module exists
+    # to prevent, pointed inward.
     landed = [
-        (len(list(path.glob("*.gz"))), path.name)
+        (months, path.name)
         for path in sorted(CRYPTO_LANDING.iterdir())
-        if path.is_dir()
+        if path.is_dir() and (months := len(list(path.glob("*.gz")))) > 0
     ]
     landed.sort(key=lambda item: (-item[0], item[1]))
 

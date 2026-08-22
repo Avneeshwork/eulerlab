@@ -91,9 +91,26 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
               <h3>Where this comes from</h3>
               <div className="paper">
                 <b>{about.source}</b>
+                {about.tested_on && (
+                  <p>
+                    <span>Tested on:</span> {about.tested_on}
+                    {about.recommended_class && (
+                      <span className="ttag" style={{ marginLeft: 8, textTransform: 'none' }}>
+                        {about.recommended_class}
+                      </span>
+                    )}
+                  </p>
+                )}
                 {about.published && (
                   <p>
-                    <span>The paper reported:</span> {about.published}
+                    <span>It reported:</span> {about.published}
+                  </p>
+                )}
+                {about.recommended_class && about.recommended_class !== about.asset_class && (
+                  <p className="mismatch">
+                    <span>Note</span> the paper studied {about.recommended_class} and this
+                    runs on {about.asset_class}. A result here is evidence about{' '}
+                    {about.asset_class}, not a replication of the paper.
                   </p>
                 )}
                 <p className="tfine" style={{ marginTop: 8 }}>
@@ -114,6 +131,23 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
               </p>
               <p className="tdesc" style={{ fontSize: 17, marginTop: 10 }}>
                 {about.how_it_decides}
+              </p>
+            </section>
+          )}
+
+          {about && about.logic.length > 0 && (
+            <section className="explain-block">
+              <h3>How it is implemented</h3>
+              <ol className="logic">
+                {about.logic.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+              <p className="tfine" style={{ marginTop: 10 }}>
+                These are the steps as coded, not a description written beside the code.
+                The exits are this platform's bracket rather than the paper's, which is
+                stated in `intraday/papers.py` and means nothing here is a replication of
+                its tables.
               </p>
             </section>
           )}

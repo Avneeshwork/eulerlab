@@ -97,10 +97,18 @@ def test_a_fund_scheme_appears_once_not_once_per_isin() -> None:
 
 
 def test_a_fund_carries_a_name_because_its_code_is_not_one() -> None:
+    """Skipped rather than failed when the snapshot is not local.
+
+    `make prune-local` deletes files verified present in B2, so "the data lives
+    only in the bucket" is a supported state of this repository rather than a
+    defect. A test that failed on it would be reporting a broken workflow as a
+    broken code path.
+    """
     from eulerlab.strategies import catalog
 
     funds = catalog.fund_instruments(limit=5)
-    assert funds, "no enriched snapshot on disk"
+    if not funds:
+        pytest.skip("no enriched MF snapshot on disk (pruned to B2)")
     assert all(f.name for f in funds), "119551 tells nobody anything"
 
 

@@ -274,6 +274,20 @@ def fx_daily(
             day = bars[0].ts.date()
             if start and day < start:
                 continue
+            # Median, and floored at zero.
+            #
+            # Median because the distribution has a long right tail at the
+            # Sunday open and around releases, and a mean would charge every
+            # trade for the worst minutes of the week.
+            #
+            # Floored because roughly 2.8% of FXCM minutes are *crossed* — ask
+            # below bid by up to a pip. That is a real property of aggregated
+            # broker OHLC, where the recorded bid open and ask open can come
+            # from different ticks, and it is left untouched in the landed data
+            # because raw data is immutable. But a negative cost would pay the
+            # strategy to trade, which is a worse error than any overestimate,
+            # so it cannot reach the cost model. The median is positive for
+            # every pair regardless; the floor is a guard, not a correction.
             spreads = sorted(bar.mean_spread for bar in bars)
             rows.append(
                 PanelRow(
@@ -283,7 +297,7 @@ def fx_daily(
                     volume=0.0,
                     turnover=0.0,
                     isin=f"FX:{pair}",
-                    spread=spreads[len(spreads) // 2],
+                    spread=max(0.0, spreads[len(spreads) // 2]),
                     open=bars[0].open,
                     high=max(bar.high for bar in bars),
                     low=min(bar.low for bar in bars),

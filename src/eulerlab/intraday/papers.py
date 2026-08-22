@@ -129,6 +129,27 @@ class PaperSignal:
 
     detect: Detect
 
+    tested_on: str = ""
+    """The instrument and market the **paper** tested, in its own words.
+
+    Not what this platform runs it on. Mesfin tested MNQ futures and Zarattini
+    US equities; everything here runs on NSE minute bars. Reading a result
+    without knowing that gap is how a strategy gets credited with evidence
+    gathered somewhere else entirely.
+    """
+
+    recommended_class: str = ""
+    """The asset class the paper studied. Distinct from the asset class a run
+    was pointed at, which the result already carries."""
+
+    logic: tuple[str, ...] = ()
+    """The implementation, step by step, as coded.
+
+    Written beside the function rather than inside the UI so the two cannot
+    drift: if the rule changes and this does not, the mismatch is in one file
+    and visible in review.
+    """
+
 
 # --- shared plumbing ---------------------------------------------------------
 
@@ -569,6 +590,15 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.1",
             "FAIL — best long t=1.50; -1.42 in 2022 against +7.04 in 2024",
             opening_range_breakout,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Take the first 5 minutes of the session as the opening range.",
+                "Require it to close above its own open — the paper's long side only.",
+                "Fire when a later bar closes above the range high.",
+                "Stop at the range high minus 1.4 x ATR(14).",
+                "Target 2R and 3R; forced flat at the session close.",
+            ),
         ),
         PaperSignal(
             "range_expansion",
@@ -576,6 +606,14 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.2",
             "FAIL — t=-10.96, significantly backwards; the move is consumed inside the bar",
             range_expansion,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Take the mean bar range over the previous 20 bars.",
+                "Fire when the signal bar's range exceeds 2.5x that mean and closes up.",
+                "Stop at the expansion bar's low.",
+                "The paper's finding is that entry lands after the move is already over.",
+            ),
         ),
         PaperSignal(
             "liquidity_grab",
@@ -583,6 +621,13 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.3",
             "FAIL — t=-14.12 fading, -13.24 following; real but below the friction ceiling",
             liquidity_grab_reversal,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Track the lowest low of the previous 20 bars in this session.",
+                "Fire when a bar pierces that low but closes back above it.",
+                "Stop at the piercing bar's low — the level that was just swept.",
+            ),
         ),
         PaperSignal(
             "gap_fill_fade",
@@ -590,6 +635,13 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.4",
             "FAIL — t between -0.32 and -0.59 across three entry times; noise",
             gap_fill_fade,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Compare today's session open to the previous session's close.",
+                "Fire when the gap is down by more than 0.3%, betting it closes.",
+                "Stop 1.4 x ATR(14) below entry.",
+            ),
         ),
         PaperSignal(
             "gap_continuation",
@@ -597,6 +649,14 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.4",
             "FAIL on sample size — t=3.23 but only 22 trades in three years, and declining",
             gap_continuation,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Same gap measure, opposite direction: up by more than 0.3%.",
+                "Require price still above the session open — the gap has not faded.",
+                "Stop 1.4 x ATR(14) below the session open.",
+                "Coded without the paper's Kalman filter, which is what cut it to 22 trades.",
+            ),
         ),
         PaperSignal(
             "volume_spike",
@@ -604,6 +664,13 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.5",
             "FAIL — t=+0.07 on 2,119 events; a precise null, not an underpowered test",
             volume_spike_momentum,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Take the volume z-score against the previous 20 bars.",
+                "Fire when z exceeds 2.0 and the bar closes up.",
+                "Stop at the spike bar's low.",
+            ),
         ),
         PaperSignal(
             "volume_dryup",
@@ -611,6 +678,13 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.5",
             "FAIL — t=-0.92 on 1,060 events",
             volume_dryup_reversal,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Same z-score, inverted: fire when z falls below -1.0.",
+                "Require price below its own 20-bar mean, so it is exhaustion after a fall.",
+                "Stop at the signal bar's low.",
+            ),
         ),
         PaperSignal(
             "volatility_regime",
@@ -618,6 +692,14 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.6",
             "FAIL — t=+0.86; the classifier's descriptive findings are real, the trades are not",
             volatility_regime_reversal,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Measure the session's high-to-low range against the 20-bar mean range.",
+                "Fire when the session is unusually wide and price is below its open.",
+                "Stop at the session low.",
+                "Simplified: the paper's classifier needs three pre-market terciles the scanner does not carry.",
+            ),
         ),
         PaperSignal(
             "ou_reversion",
@@ -625,6 +707,13 @@ SIGNALS: dict[str, PaperSignal] = {
             "Mesfin (2026) arXiv:2605.04004 §4.8",
             "FAIL — t=-2.19 at 2.0sd; half-life longer than a session at 60-minute resolution",
             ou_mean_reversion,
+            tested_on="MNQ (Micro E-Mini Nasdaq 100) futures, 5-minute bars, 947 days 2021-2025",
+            recommended_class="futures",
+            logic=(
+                "Take the z-score of the close against the previous 60 closes.",
+                "Fire when it falls below -2.0 standard deviations.",
+                "Stop 1.5 standard deviations below entry.",
+            ),
         ),
         PaperSignal(
             "orb_in_play",
@@ -633,6 +722,14 @@ SIGNALS: dict[str, PaperSignal] = {
             "Sharpe 2.81, 2016-2023, top-20 basket — the only positive prior here, and it is "
             "a selection result that contradicts Mesfin's single-instrument ORB",
             orb_stock_in_play,
+            tested_on="~7,000 US equities, 5-minute opening range, 2016-2023",
+            recommended_class="equity",
+            logic=(
+                "Sum the first 5 minutes' volume for today.",
+                "Compare it to the mean first-5-minute volume of the prior sessions.",
+                "Refuse unless that ratio clears 1.0 — the selection step IS the strategy.",
+                "Then apply the plain opening range breakout above.",
+            ),
         ),
     )
 }

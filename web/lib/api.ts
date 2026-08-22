@@ -386,6 +386,12 @@ export type Explain = {
     how_it_decides: string;
     source: string;
     published: string;
+    // What the PAPER tested, which is not what we run it on. Every intraday
+    // signal here was published against MNQ futures or US equities and runs on
+    // NSE minute bars.
+    tested_on: string;
+    recommended_class: string;
+    logic: string[];
     example: {
       headline: string;
       rows: { symbol: string; score: number; held: boolean }[];
