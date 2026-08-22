@@ -1131,3 +1131,9 @@
   line-height: 1.5;
   color: var(--caveat);
 }
+
+/* The worked example. The line under the held rows is the rule itself made
+   visible — everything above it is bought, everything below is not. */
+.ttable.example tr[data-held='true'] td { background: var(--clear-wash); }
+.ttable.example tr[data-cut='true'] td { border-top: 2px solid var(--ink); }
+.ttable.example tr[data-held='false'] td { color: var(--ink-3); }

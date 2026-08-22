@@ -377,6 +377,14 @@ export type Explain = {
     risk_manager: string;
     trade_manager: string;
     how_it_decides: string;
+    example: {
+      headline: string;
+      rows: { symbol: string; score: number; held: boolean }[];
+      held_count: number;
+      weight_pct: number;
+      footer: string;
+      real_note: string;
+    } | null;
     runs_here: number;
     latest_sharpe: number | null;
     best_sharpe: number | null;

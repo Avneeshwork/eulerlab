@@ -888,6 +888,65 @@ class BatchRunRequest(BaseModel):
     single-operator workspace (ADR-040)."""
 
 
+ILLUSTRATION = ("ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON")
+ILLUSTRATION_SCORES = (0.42, 0.28, 0.11, -0.06, -0.19)
+ILLUSTRATION_HELD = 2
+"""A five-name universe for showing the mechanic.
+
+Deliberately fake names and round scores, and labelled as an illustration
+wherever it is rendered. The alternative — using five real tickers — would be
+read as a result, and this is a diagram of a rule, not evidence of anything.
+
+Held is 2 of 5 rather than the strategy's real `top_n`, because "hold the top
+30 of 5" shows nothing. The real figure is stated beside it.
+"""
+
+
+def _worked_example(declaration: Any) -> dict[str, Any] | None:
+    """The rule, run once on five made-up names.
+
+    Built from the strategy's own `top_n` and feature so the prose beside the
+    table cannot drift from what the code does. Returns None for shapes this
+    illustration does not fit, rather than forcing one that misleads.
+    """
+    if declaration.shape != "cross-section":
+        return None
+    try:
+        built = _build_registered(declaration.id)
+    except (KeyError, TypeError, ValueError):
+        return None
+    top_n = getattr(built, "top_n", None)
+    if not isinstance(top_n, int):
+        return None
+
+    weight = round(100 / ILLUSTRATION_HELD)
+    return {
+        "headline": (
+            f"Say the universe were just five names, and on rebalance day their "
+            f"{declaration.id} scores came out like this."
+        ),
+        "rows": [
+            {"symbol": name, "score": score, "held": index < ILLUSTRATION_HELD}
+            for index, (name, score) in enumerate(
+                zip(ILLUSTRATION, ILLUSTRATION_SCORES, strict=True)
+            )
+        ],
+        "held_count": ILLUSTRATION_HELD,
+        "weight_pct": weight,
+        "footer": (
+            f"It sorts by score, keeps the top {ILLUSTRATION_HELD}, and puts {weight}% of "
+            f"the account in each. Everything below the line is sold or never bought. "
+            f"{BATCH_REBALANCE_DAYS} trading days later it scores again — if GAMMA has "
+            f"overtaken BETA, BETA is sold and GAMMA bought, and that trade pays costs."
+        ),
+        "real_note": (
+            f"The real rule holds the top {top_n}, not the top {ILLUSTRATION_HELD}, and "
+            f"ranks the whole universe rather than five names. The scores above are made "
+            f"up to show the mechanic."
+        ),
+    }
+
+
 def _how_it_decides(declaration: Any) -> str:
     """A plain description of the rule, built from the strategy's own numbers.
 
@@ -1930,6 +1989,7 @@ def explain(strategy: str = "") -> dict[str, Any]:
             # numbers that actually govern its behaviour, and a description
             # that drifted from them would be confidently wrong.
             "how_it_decides": _how_it_decides(declaration),
+            "example": _worked_example(declaration),
             "runs_here": len(runs),
             "latest_sharpe": round(recent.sharpe, 4) if recent else None,
             "best_sharpe": round(top.run.sharpe, 4) if top else None,
