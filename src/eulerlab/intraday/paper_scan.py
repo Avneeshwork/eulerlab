@@ -21,7 +21,28 @@ from datetime import date
 from eulerlab.intraday import bracket, store
 from eulerlab.intraday.bracket import Trade
 from eulerlab.intraday.papers import SIGNALS, PaperRules
-from eulerlab.intraday.tweezer import Plan, Rejected, Rules
+from eulerlab.intraday.tweezer import Candle, Plan, Rejected, Rules
+
+_CANDLES: dict[tuple[str, date, date], list[Candle]] = {}
+"""Fetched bars, shared across signals.
+
+Ten signals over twelve symbols fetched the same bars ten times, which is what
+put a batch of the whole set past the job timeout. The bars for one symbol and
+window are the same object whichever signal is asking, so they are read once.
+
+Keyed by the exact window rather than the symbol, because a wider request is
+not satisfiable from a narrower cached one and quietly returning the narrow
+range would shorten a backtest without saying so.
+"""
+
+
+def candles_for(symbol: str, start: date, end: date) -> list[Candle]:
+    """Minute bars for one symbol and window, read once per process."""
+    key = (symbol, start, end)
+    if key not in _CANDLES:
+        _CANDLES[key] = store.fetch(symbol, start=start, end=end)
+    return _CANDLES[key]
+
 
 WARMUP_BARS = 80
 """Bars of history before the first evaluation.
@@ -69,7 +90,7 @@ def scan_symbol(
     """Evaluate one signal bar by bar across every session in the range."""
     signal = SIGNALS[signal_id]
     rules = rules or PaperRules()
-    candles = store.fetch(symbol, start=start, end=end)
+    candles = candles_for(symbol, start, end)
     out = SignalScan(signal=signal_id, symbol=symbol, candles=len(candles))
     if not candles:
         return out

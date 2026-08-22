@@ -66,13 +66,29 @@ def test_tweezer_is_recorded_as_not_a_strategy_subclass() -> None:
 
 
 def test_no_strategy_claims_a_risk_manager_that_does_not_exist() -> None:
-    """RM/TM are not built (ADR-036). Only Tweezer names any, because its
-    bracket executor is real code; the rest must report none rather than a
-    sizer they do not have."""
+    """RM/TM are not built (ADR-036), so a declaration may only name one if the
+    code behind it exists.
+
+    The exemption is not a list of strategy ids, it is a property: everything
+    running through the intraday bracket executor really does size by risk
+    percent and really does exit on a stop, because `_plan` and `bracket.run`
+    are that code. Everything on the daily engine is flat equal-weight and must
+    say so rather than describing a sizer it does not have.
+
+    This started as "only tweezer_bottom", which was true when Tweezer was the
+    only bracket strategy and became wrong the moment ten more were coded
+    against the same executor.
+    """
+    from eulerlab.intraday.papers import SIGNALS
+
+    bracketed = {"tweezer_bottom", *SIGNALS}
     for declaration in REGISTRY.values():
-        if declaration.id != "tweezer_bottom":
-            assert declaration.risk_manager == ""
-            assert declaration.trade_manager == ""
+        if declaration.id not in bracketed:
+            assert declaration.risk_manager == "", declaration.id
+            assert declaration.trade_manager == "", declaration.id
+        else:
+            assert declaration.risk_manager == "risk-pct", declaration.id
+            assert declaration.trade_manager == "bracket", declaration.id
 
 
 # --- the catalogue ---------------------------------------------------------

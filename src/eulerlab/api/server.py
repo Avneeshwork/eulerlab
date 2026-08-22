@@ -39,6 +39,7 @@ from datetime import UTC, date, datetime
 from itertools import pairwise
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,6 +63,7 @@ from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.ingest.cloud import load_storage_config
 from eulerlab.intraday import scan as tweezer_scan
+from eulerlab.intraday.papers import SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
@@ -619,6 +621,17 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 "risk_manager": row.declaration.risk_manager,
                 "trade_manager": row.declaration.trade_manager,
                 "is_strategy_subclass": row.declaration.is_strategy_subclass,
+                # Whether the interface can actually run it. Not the same as
+                # satisfying the Strategy interface: the intraday signals
+                # cannot be expressed as target weights (ADR-037) and still run
+                # perfectly well through the minute-bar scanner. Conflating the
+                # two left eleven coded strategies greyed out.
+                "runnable": (
+                    row.declaration.is_strategy_subclass or row.declaration.id in PAPER_SIGNALS
+                ),
+                "engine": ("intraday" if row.declaration.id in PAPER_SIGNALS else "daily"),
+                "source": row.declaration.source,
+                "published": row.declaration.published,
                 "stage": row.stage.value,
                 # The ledger's Sharpe (a validated result) takes precedence over
                 # a screened one: it is the stronger claim and was paid for.
@@ -687,6 +700,10 @@ def instruments(
         ],
     }
 
+
+IST = ZoneInfo("Asia/Kolkata")
+"""Market time. The intraday window is defined in the market's day, not the
+server's."""
 
 ALL_INSTRUMENTS = "all"
 """Every symbol in the panel.
@@ -1023,6 +1040,127 @@ def warmup_for(day_count: int) -> int:
     return min(253, max(20, day_count // 4))
 
 
+INTRADAY_SYMBOL_CAP = 12
+"""How many symbols an intraday run scans.
+
+Minute bars are ~370 per symbol per session, so a six-month scan of one symbol
+reads roughly 45,000 candles. The daily engine reads a prebuilt panel; this
+fetches and replays. Twelve symbols keeps a run inside a couple of minutes,
+and the cap is stated in the result rather than hidden, because a signal that
+fired twice across twelve names is a different claim from one that fired twice
+across four hundred.
+"""
+
+INTRADAY_SESSIONS_PER_YEAR = 250
+
+
+def _intraday_symbols(request: BatchRunRequest) -> list[str]:
+    """Which symbols an intraday scan covers.
+
+    Hand-picked instruments win, then the named universe, then whatever has
+    minute bars. Always intersected with what actually has minute data, because
+    a symbol with daily bars and no minute bars is not a smaller sample - it is
+    an absent one.
+    """
+    from eulerlab.intraday import store
+
+    try:
+        available = set(store.available_symbols())
+    except Exception:
+        available = set()
+
+    if request.instruments:
+        wanted = [s.strip().upper() for s in request.instruments if s.strip()]
+    elif request.universe != ALL_INSTRUMENTS:
+        wanted = list(catalog.universe(request.universe))
+    else:
+        wanted = sorted(available)
+
+    kept = [s for s in wanted if not available or s in available]
+    return kept[:INTRADAY_SYMBOL_CAP]
+
+
+def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
+    """Scan one paper signal across minute bars and shape the result like a
+    backtest.
+
+    The Sharpe here is computed over **per-session** returns, not per-day
+    returns of a continuously held portfolio. An intraday signal is flat
+    overnight and flat on any session it does not fire, so a session it sat out
+    contributes a zero - which is a real zero, not a missing observation. That
+    makes this comparable to a daily Sharpe in construction but not in meaning,
+    and the tier is recorded as `intraday` so the two are never silently
+    ranked against each other.
+    """
+    from datetime import timedelta
+
+    from eulerlab.intraday import paper_scan
+
+    symbols = _intraday_symbols(request)
+    if not symbols:
+        msg = "no symbols with minute bars for that selection"
+        raise RuntimeError(msg)
+
+    # Timezone-explicit: `date.today()` means whatever the running machine's
+    # locale says, and an intraday window that silently shifts by a day is the
+    # kind of bug that never surfaces as an error.
+    end = datetime.now(UTC).astimezone(IST).date()
+    start = end - timedelta(days=request.days)
+    scans = paper_scan.scan_many(strategy_id, symbols, start=start, end=end)
+    if not scans:
+        msg = f"no minute bars readable for any of {len(symbols)} symbols"
+        raise RuntimeError(msg)
+
+    # Per-session profit and loss, summed across symbols.
+    by_session: dict[date, float] = {}
+    sessions_seen: set[date] = set()
+    fills = 0
+    for scan in scans:
+        for trade in scan.trades:
+            if not trade.filled or trade.entry_ts is None:
+                continue
+            fills += 1
+            day = trade.entry_ts.date()
+            by_session[day] = by_session.get(day, 0.0) + trade.net_pnl()
+    for scan in scans:
+        for trade in scan.trades:
+            if trade.entry_ts is not None:
+                sessions_seen.add(trade.entry_ts.date())
+
+    if fills == 0:
+        msg = (
+            f"no trade filled across {len(symbols)} symbols in {request.days} days. "
+            f"The signal either never fired or never filled - check the rejection "
+            f"reasons rather than reading this as a zero result."
+        )
+        raise RuntimeError(msg)
+
+    cash = 1_000_000.0
+    equity = [cash]
+    for day in sorted(by_session):
+        cash += by_session[day]
+        equity.append(cash)
+
+    returns = [b / a - 1.0 for a, b in pairwise(equity) if a > 0]
+    stats = sharpe_stats(returns, periods_per_year=INTRADAY_SESSIONS_PER_YEAR)
+    return {
+        "sharpe": round(stats.sharpe, 4),
+        "total_return": round(equity[-1] / 1_000_000.0 - 1.0, 6),
+        "max_drawdown": round(_drawdown(equity), 6),
+        "fills": fills,
+        "costs": round(sum(t.costs for s in scans for t in s.trades), 2),
+        "days": len(equity) - 1,
+        "universe": _universe_label(request),
+        "universe_size": len(symbols),
+        "symbols": len({s.symbol for s in scans if s.trades}),
+        "asset_class": request.asset_class,
+        "cost_mode": cost_mode_for(request.asset_class),
+        "curve": result_store.downsample(equity),
+        "sessions_scanned": sum(s.sessions for s in scans),
+        "symbol_cap": INTRADAY_SYMBOL_CAP,
+    }
+
+
 def _run_params(request: BatchRunRequest) -> dict[str, object]:
     """What makes this a distinct configuration.
 
@@ -1102,14 +1240,20 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 msg = f"unknown strategy {item.strategy_id!r}"
                 raise KeyError(msg)
             if not declaration.is_strategy_subclass:
-                # Tweezer cannot go through the daily engine at all: its data
-                # cannot be expressed in a MarketView (ADR-037). Refusing is
-                # the honest answer; running it on daily bars would produce a
-                # number for something that never happened.
+                # Intraday signals run through the minute-bar scanner instead of
+                # refusing. They still cannot satisfy the `Strategy` interface —
+                # a conditional entry with a bracket is not a target weight
+                # (ADR-037) — but "cannot be expressed as weights" is not the
+                # same as "cannot be evaluated", and treating it as such left
+                # eleven coded strategies unrunnable from the interface.
+                if item.strategy_id in PAPER_SIGNALS:
+                    intraday = _run_intraday(item.strategy_id, request)
+                    intraday["tier"] = "intraday"
+                    return intraday
                 msg = (
-                    f"{item.strategy_id} is not a Strategy — intraday bracket shapes "
-                    f"cannot be expressed as target weights (ADR-037). Use the "
-                    f"intraday surface."
+                    f"{item.strategy_id} is not a Strategy and has no intraday "
+                    f"implementation — intraday bracket shapes cannot be expressed as "
+                    f"target weights (ADR-037)."
                 )
                 raise TypeError(msg)
 

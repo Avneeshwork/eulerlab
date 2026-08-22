@@ -110,6 +110,16 @@ class Declaration:
     here keeps the reason visible instead of leaving it an unexplained absence.
     """
 
+    source: str = ""
+    """Where the rule came from, to the section. Empty for hand-written
+    strategies; a citation for anything coded from a paper, so provenance is
+    carried by the object rather than by memory."""
+
+    published: str = ""
+    """What the source reported. Carried so a result here can never be read
+    without the prior it is arguing against — which matters most when the prior
+    is a published failure."""
+
     ledger_subjects: list[str] = field(default_factory=list)
 
 
@@ -273,10 +283,46 @@ REGISTRY: dict[str, Declaration] = {
     ),
 }
 
+
+def _paper_signals() -> dict[str, Declaration]:
+    """Declarations for the intraday signals coded from published papers.
+
+    Derived from `intraday.papers.SIGNALS` rather than hand-written, so the
+    library cannot list a signal that does not exist or miss one that does.
+
+    All of them report `is_strategy_subclass=False` for the same reason Tweezer
+    does: they emit a conditional entry with a bracket, which cannot be
+    expressed as target weights over a daily panel (ADR-037). They run through
+    the intraday scanner instead.
+    """
+    from eulerlab.intraday.papers import SIGNALS
+
+    return {
+        signal.id: Declaration(
+            id=signal.id,
+            title=signal.title,
+            summary=signal.published,
+            kind="technical",
+            shape="pattern",
+            asset_class=AssetClass.EQUITY,
+            timeframe=Timeframe.MINUTE,
+            emits=Emits.CONDITIONAL_ENTRY,
+            lookback=80,
+            risk_manager="risk-pct",
+            trade_manager="bracket",
+            is_strategy_subclass=False,
+            source=signal.source,
+            published=signal.published,
+        )
+        for signal in SIGNALS.values()
+    }
+
+
 # The published set joins the hand-written ones. `rank_and_hold` is dropped in
 # favour of `momentum_12_1`, which is the same strategy under its paper's name.
 REGISTRY.pop("rank_and_hold", None)
 REGISTRY.update(_published())
+REGISTRY.update(_paper_signals())
 
 
 @dataclass(frozen=True)

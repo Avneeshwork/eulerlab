@@ -30,7 +30,7 @@ export function LiveTab({
   const [reports, setReports] = useState<Record<string, Preflight>>({});
   const live = fleet.filter((s) => s.stage === 'live');
   const forward = fleet.filter((s) => s.stage === 'forward_testing');
-  const candidates = fleet.filter((s) => s.clears_bar && s.is_strategy_subclass);
+  const candidates = fleet.filter((s) => s.clears_bar && s.runnable);
 
   useEffect(() => {
     let alive = true;

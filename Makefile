@@ -252,6 +252,20 @@ attribution:
 reconcile-book:
 	@uv run python -m eulerlab.oms.book
 
+# Is the Kite token from today, or from a day the market has since moved past?
+#
+# The token expires at 6 AM and reminting it needs an interactive login, so an
+# unattended job cannot renew it. Checking first turns "the minute ingest
+# silently did nothing" into a line in the log that names the cause — which is
+# the difference between noticing on the day and noticing in a month.
+kite-fresh:
+	@uv run python -c "import datetime as d, sys; from eulerlab.broker.kite_session import load; s = load(); 	  sys.exit(0) if s and d.datetime.fromisoformat(s.minted_at).date() == d.datetime.now(d.UTC).date() 	  else (print('kite token is stale or absent - run: make kite-login'), sys.exit(1))"
+
+# Minute bars for the last few sessions. NOT a backfill: --years 5 is a one-off
+# of ~13,500 chunks, this keeps the tail current.
+daily-minute:
+	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
+
 daily:
 	@echo "== EOD bhavcopy =="
 	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
@@ -261,6 +275,10 @@ daily:
 	-uv run python -m eulerlab.fundamentals.backfill
 	@echo "== mutual fund NAVs =="
 	-uv run python -m eulerlab.ingest.mf_backfill --snapshot-only
+	@echo "== minute bars (needs a token minted today) =="
+	-$(MAKE) --no-print-directory daily-minute
+	@echo "== crypto (Binance public archive, no auth) =="
+	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
 	$(MAKE) prune-local

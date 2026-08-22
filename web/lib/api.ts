@@ -151,6 +151,13 @@ export type FleetStrategy = {
   risk_manager: string;
   trade_manager: string;
   is_strategy_subclass: boolean;
+  // Whether the interface can run it. Distinct from is_strategy_subclass: an
+  // intraday signal cannot be expressed as target weights (ADR-037) and still
+  // runs fine through the minute-bar scanner.
+  runnable: boolean;
+  engine: 'daily' | 'intraday';
+  source: string;
+  published: string;
   stage: Stage;
   // null means never measured. It is NOT zero and must never render as zero.
   sharpe: number | null;

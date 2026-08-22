@@ -88,7 +88,7 @@ export function RunTab({
         : [...instruments, symbol]
     );
 
-  const runnable = (fleet?.strategies ?? []).filter((s) => s.is_strategy_subclass);
+  const runnable = (fleet?.strategies ?? []).filter((s) => s.runnable);
   const custom = instruments.length > 0;
 
   useEffect(() => {

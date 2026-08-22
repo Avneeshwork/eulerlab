@@ -315,7 +315,7 @@ function Row({
   onReport: () => void;
 }) {
   const result = strategy.result;
-  const runnable = strategy.is_strategy_subclass;
+  const runnable = strategy.runnable;
   const ranOn = result.asset_class;
   return (
     <div className="trow" data-open={open}>
@@ -345,12 +345,20 @@ function Row({
           <div className="nm">{strategy.title}</div>
           <div className="sub">
             {strategy.kind} · {strategy.shape}
+            {strategy.engine === 'intraday' && (
+              <span
+                className="ttag"
+                title="Runs on minute bars through the intraday scanner. It cannot be expressed as target weights (ADR-037), which is a different thing from not being runnable."
+              >
+                intraday
+              </span>
+            )}
             {!runnable && (
               <span
                 className="tflag"
-                title="Cannot satisfy the Strategy interface: its data cannot be expressed in a MarketView (ADR-037)."
+                title="Cannot satisfy the Strategy interface and has no intraday implementation (ADR-037)."
               >
-                not a Strategy
+                not runnable
               </span>
             )}
           </div>
