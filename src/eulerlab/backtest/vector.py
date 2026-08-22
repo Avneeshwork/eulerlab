@@ -152,6 +152,23 @@ def build_adjusted_index(rows: Sequence[PanelRow]) -> dict[str, dict[date, float
     return index
 
 
+def spread_cost(price: float, quantity: int, spread: float) -> float:
+    """What crossing the book costs, for instruments priced by spread alone.
+
+    Spot FX has no exchange, no STT and no stamp duty — the cost of trading it
+    *is* the bid-ask spread. A trade crosses half of it on entry and half on
+    exit, so a single leg pays half the quoted spread on its notional.
+
+    Charged from the spread the data actually recorded, not a rate invented for
+    it. That is the difference between this and the `replication` mode crypto
+    and mutual funds run in, which pays nothing because nothing is known
+    (S-028).
+    """
+    if spread <= 0 or quantity <= 0 or price <= 0:
+        return 0.0
+    return (spread / 2.0) * quantity
+
+
 def _costs_for(
     day: date, price: float, quantity: int, side: Side, brokerage: Brokerage | None
 ) -> float:

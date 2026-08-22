@@ -105,8 +105,56 @@ def capabilities() -> list[Capability]:
             MF_HISTORY.exists(),
             _fund_detail(),
         ),
-        Capability(AssetClass.FX, Timeframe.DAILY, False, "no data"),
+        Capability(AssetClass.FX, Timeframe.MINUTE, FX_LANDING.exists(), _fx_detail()),
+        Capability(
+            AssetClass.FX, Timeframe.DAILY, FX_LANDING.exists(), "resampled from minute bars"
+        ),
     ]
+
+
+def _fx_detail() -> str:
+    """Counted from disk, like every other row."""
+    if not FX_LANDING.exists():
+        return "no data - run `make fx-bulk`"
+    pairs = [p for p in FX_LANDING.iterdir() if p.is_dir()]
+    days = sum(1 for _ in FX_LANDING.glob("*/*/*.jsonl.gz"))
+    return f"{len(pairs)} pairs, {days:,} pair-days of 1m bars (FXCM, bid and ask)"
+
+
+def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
+    """The landed FX universe, read from disk.
+
+    Ranked by BIS turnover order rather than by anything measured here: spot FX
+    has no consolidated volume, so a liquidity ranking derived from our own data
+    would be an artefact of one broker's quote frequency.
+    """
+    if not FX_LANDING.exists():
+        return []
+    from eulerlab.ingest.fx import PAIRS
+
+    needle = query.strip().upper()
+    out: list[Instrument] = []
+    for rank, pair in enumerate(PAIRS, start=1):
+        folder = FX_LANDING / pair
+        if not folder.is_dir():
+            continue
+        if needle and needle not in pair:
+            continue
+        days = sum(1 for _ in folder.glob("*/*.jsonl.gz"))
+        out.append(
+            Instrument(
+                symbol=pair,
+                asset_class=AssetClass.FX,
+                has_daily=days > 0,
+                has_minute=days > 0,
+                rank=rank,
+                name=f"{pair[:3]}/{pair[3:]}",
+                detail=f"{days:,} days landed, BIS turnover rank {rank}",
+            )
+        )
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _fund_detail() -> str:
@@ -184,6 +232,7 @@ def _minute_symbols() -> set[str]:
 
 
 CRYPTO_LANDING = Path("data/landing/crypto")
+FX_LANDING = Path("data/landing/fx")
 MF_ENRICHED = Path("data/landing/mf/enriched")
 MF_HISTORY = Path("data/landing/mf/history")
 
@@ -334,13 +383,16 @@ def search(
         return crypto_instruments(query, limit)
     if wanted == AssetClass.MUTUAL_FUND.value:
         return fund_instruments(query, limit)
+    if wanted == AssetClass.FX.value:
+        return fx_instruments(query, limit)
     if wanted == AssetClass.EQUITY.value or batch:
         return equity_instruments(query, batch=batch, limit=limit)
 
-    share = max(1, limit // 3)
+    share = max(1, limit // 4)
     mixed = [
         *equity_instruments(query, limit=share),
         *crypto_instruments(query, limit=share),
-        *fund_instruments(query, limit=limit - 2 * share),
+        *fx_instruments(query, limit=share),
+        *fund_instruments(query, limit=limit - 3 * share),
     ]
     return mixed[:limit]

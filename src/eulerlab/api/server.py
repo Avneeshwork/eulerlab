@@ -182,13 +182,15 @@ def _load_alt(asset_class: str) -> list[PanelRow]:
         return alt_panel.crypto_daily()
     if asset_class == AssetClass.MUTUAL_FUND.value:
         return alt_panel.fund_daily()
+    if asset_class == AssetClass.FX.value:
+        return alt_panel.fx_daily()
     msg = f"no panel for asset class {asset_class!r}"
     raise ValueError(msg)
 
 
 ALT = _AltPanel()
 
-COSTED_CLASSES = frozenset({AssetClass.EQUITY.value})
+COSTED_CLASSES = frozenset({AssetClass.EQUITY.value, AssetClass.FX.value})
 """Asset classes the cost model actually covers.
 
 `costs/schedule.py` has segments for equity delivery, equity intraday, futures
@@ -201,6 +203,11 @@ So crypto and fund runs are executed gross of costs and labelled as such. That
 is a real limitation, recorded in docs/STUBS.md, not a rounding decision: a
 crypto strategy rebalancing every 21 days pays real Binance taker fees, and a
 result that ignores them is an upper bound.
+
+**FX is the exception, and for a reason worth stating.** It also pays none of
+the Indian charges — but its cost is the bid-ask spread, which is *measured* in
+the landed data and carried on every `PanelRow`. Charging what was observed is
+not the same kind of act as inventing a fee schedule, so FX runs costed.
 """
 
 
@@ -214,6 +221,8 @@ def _rows_for(asset_class: str, days: int) -> list[PanelRow]:
 def _no_panel_message(asset_class: str) -> str:
     if asset_class == AssetClass.CRYPTO.value:
         return "no crypto landed. Run `make crypto` first."
+    if asset_class == AssetClass.FX.value:
+        return "no FX landed. Run `make fx-bulk` first."
     if asset_class == AssetClass.MUTUAL_FUND.value:
         return "no mutual fund NAV history landed. Run `make mf` first."
     return "no panel on disk. Run `make build-panel` first."
@@ -1319,6 +1328,20 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                         f"{needed}-period lookback and the window is {request.days} days, so its "
                         f"feature had too little history to rank anything. Widen the window past "
                         f"{needed} days."
+                    )
+                elif rows and not any(row.turnover > 0 for row in rows[:2000]):
+                    # Checked after min_names because that cause is specific and
+                    # verifiable, and this one is broad enough to shadow it: on
+                    # FX both are true at once, and the universe size is the
+                    # answer that tells you what to change.
+                    #
+                    # Fabricating a turnover to make these run would invent the
+                    # very number the ranking is supposed to read.
+                    msg = (
+                        f"held nothing for the whole run — 0 fills. {request.asset_class} has "
+                        f"no turnover: spot FX has no consolidated volume and a mutual fund "
+                        f"has no traded volume at all. Any strategy that screens on liquidity "
+                        f"selects nothing here — use one that ranks on price alone."
                     )
                 else:
                     msg = (

@@ -217,3 +217,77 @@ def coverage(rows: list[PanelRow]) -> dict[str, object]:
         "thinnest": min(per_symbol.values()),
         "fattest": max(per_symbol.values()),
     }
+
+
+def fx_daily(
+    pairs: list[str] | None = None,
+    *,
+    directory: Path | None = None,
+    start: date | None = None,
+) -> list[PanelRow]:
+    """Daily bars for the landed FX universe, from minute bars.
+
+    ### Volume and turnover are zero, and that is a fact rather than a gap
+
+    Spot FX has no central exchange and therefore no consolidated volume. FXCM
+    publishes none, and a tick count from Dukascopy measures how often *one
+    broker* updated a quote, which is not turnover in any sense the liquidity
+    features mean. Reporting zero keeps `turnover_liquidity` and
+    `illiquidity_amihud` from producing a ranking out of an artefact — those
+    features simply cannot be used here, and a fabricated denominator would
+    hide that rather than state it.
+
+    ### The spread is the cost model
+
+    Every other asset class in this repository pays exchange charges, STT and
+    stamp duty. FX pays none of them: the cost of trading it *is* the bid-ask
+    spread. That is measured per minute in the landed data, so the daily row
+    carries the **median** of the day's spreads — median rather than mean
+    because the distribution has a long right tail at the Sunday open and
+    around releases, and a mean would charge every trade for the worst minutes
+    of the week.
+    """
+    from eulerlab.ingest import fx
+
+    root = directory or fx.LANDING
+    if not root.exists():
+        return []
+
+    wanted = set(pairs) if pairs else {p.name for p in root.iterdir() if p.is_dir()}
+    rows: list[PanelRow] = []
+
+    for pair in sorted(wanted):
+        folder = root / pair
+        if not folder.is_dir():
+            continue
+        for path in sorted(folder.glob("*/*.jsonl.gz")):
+            try:
+                with gzip.open(path, "rt", encoding="utf-8") as handle:
+                    bars = [fx.Bar.from_row(json.loads(line)) for line in handle if line.strip()]
+            except (OSError, ValueError, KeyError, EOFError):
+                # A file that cannot be read is skipped, never half-parsed. A
+                # partial day would look like a real one with a short session.
+                continue
+            if not bars:
+                continue
+
+            day = bars[0].ts.date()
+            if start and day < start:
+                continue
+            spreads = sorted(bar.mean_spread for bar in bars)
+            rows.append(
+                PanelRow(
+                    day=day,
+                    symbol=pair,
+                    close=bars[-1].close,
+                    volume=0.0,
+                    turnover=0.0,
+                    isin=f"FX:{pair}",
+                    spread=spreads[len(spreads) // 2],
+                    open=bars[0].open,
+                    high=max(bar.high for bar in bars),
+                    low=min(bar.low for bar in bars),
+                )
+            )
+    rows.sort(key=lambda row: (row.day, row.symbol))
+    return rows
