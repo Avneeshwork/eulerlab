@@ -21,8 +21,10 @@ from __future__ import annotations
 
 import os
 from collections.abc import Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
@@ -293,6 +295,16 @@ class S3ObjectStore:
         )
 
 
+UPLOAD_WORKERS = 12
+"""Concurrent uploads for a directory tree.
+
+Twelve rather than more for the reason the FX ingest found: past a dozen
+simultaneous connections the local resolver, not the remote service, becomes
+the failure point — and a DNS error looks nothing like a rate limit while
+being just as fatal to the file it was fetching.
+"""
+
+
 @dataclass(frozen=True)
 class TreeSyncResult:
     uploaded: int
@@ -326,25 +338,45 @@ def sync_directory(
     remote = store.list_sizes(prefix)
     local = sorted(p for p in root.glob(pattern) if p.is_file())
 
-    uploaded = skipped = 0
-    failed: list[str] = []
-
+    pending: list[tuple[Path, str]] = []
+    skipped = 0
     for path in local:
         key = f"{prefix}{path.relative_to(root).as_posix()}"
-        size = path.stat().st_size
-        if remote.get(key) == size:
+        if remote.get(key) == path.stat().st_size:
             skipped += 1
             continue
-        if dry_run:
-            uploaded += 1
-            continue
+        pending.append((path, key))
+
+    if dry_run:
+        return TreeSyncResult(uploaded=len(pending), skipped=skipped, failed=[])
+
+    uploaded = 0
+    failed: list[str] = []
+    lock = Lock()
+
+    def send(job: tuple[Path, str]) -> None:
+        nonlocal uploaded
+        path, key = job
         try:
             payload = path.read_bytes()
             store.put(key, payload, sha256_of(payload))
         except Exception as exc:  # one bad object must not stop the tree
-            failed.append(f"{path.relative_to(root)}: {exc}")
-            continue
-        uploaded += 1
+            with lock:
+                failed.append(f"{path.relative_to(root)}: {exc}")
+            return
+        with lock:
+            uploaded += 1
+
+    # Uploaded concurrently, and the reason is the same one the Dukascopy
+    # backfill taught: the throttle is per-connection, not per-account. Serially
+    # this managed 58 objects a minute, which is eight hours for the 34,773
+    # FX pair-days — a tree of many small files is bound by round trips rather
+    # than by bandwidth.
+    #
+    # The counter and the failure list are guarded because they are the only
+    # shared state; each upload is otherwise independent.
+    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
+        list(pool.map(send, pending))
 
     return TreeSyncResult(uploaded=uploaded, skipped=skipped, failed=failed)
 
