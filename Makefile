@@ -304,6 +304,12 @@ fx:
 
 # FX in bulk from FXCM's weekly candle files. This is the backfill path; `make
 # fx` (Dukascopy, per hour) is 100x slower and kept only as a second opinion.
+# Sector, market cap and headline ratios, reduced from the fundamentals tree to
+# one small JSON. 2,353 Parquet files is far too slow for a screen that should
+# feel instant.
+company-digest:
+	@uv run python -c "from eulerlab.features import company; d=company.build_digest(); p=company.save_digest(d); print(f'{len(d):,} companies -> {p}')"
+
 fx-bulk:
 	@uv run python -m eulerlab.ingest.fx_bulk_backfill $(if $(PAIRS),--pairs $(PAIRS),) $(if $(FROM),--from-year $(FROM),) $(if $(TO),--to-year $(TO),)
 

@@ -413,6 +413,65 @@ export type Explain = {
   rebalance_days: number;
 };
 
+// --- the trader snapshot --------------------------------------------------
+
+export type Tile = {
+  symbol: string;
+  return: number;
+  turnover: number;
+  close: number;
+  // Today's turnover against its own recent median. Null when there is too
+  // little history to say — not zero, which would read as "no interest".
+  relative_volume: number | null;
+  sector: string;
+  industry: string;
+  market_cap: number | null;
+  pe: number | null;
+};
+
+export type Snapshot = {
+  ok: boolean;
+  error?: string;
+  as_of: string;
+  previous: string;
+  regime: {
+    advancers: number;
+    decliners: number;
+    unchanged: number;
+    breadth_ratio: number | null;
+    proxy_return_20d: number;
+    volatility: number;
+    volatility_before: number | null;
+    volatility_rising: boolean;
+    proxy_note: string;
+  };
+  map: {
+    tiles: Tile[];
+    sized_by: string;
+    note: string;
+    grouped: boolean;
+    covered?: number;
+    missing: string;
+  };
+  movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
+  catalysts: { available: boolean; reason: string };
+  cross_asset: {
+    asset_class: string;
+    label: string;
+    instruments: number;
+    as_of: string;
+    detail: string;
+  }[];
+  evidence: {
+    bar: number;
+    strategies: number;
+    clearing: number;
+    clearing_names: string[];
+    trials: number;
+  };
+  gaps: string[];
+};
+
 export type CloudStatus = {
   configured: boolean;
   reason: string;
@@ -569,6 +628,8 @@ export const api = {
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
   data: () => get<DataStatus>('/api/data'),
+  snapshot: (workspace = '') =>
+    get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
   tweezer: (input: { symbols: string[]; start: string; end: string }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/tweezer', input),
 };

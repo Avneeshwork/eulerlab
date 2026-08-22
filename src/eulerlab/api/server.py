@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import statistics
 import threading
 import time
 import traceback
@@ -58,6 +59,7 @@ from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.batch import Item as _BatchItem
 from eulerlab.batch import data_version as batch_data_version
 from eulerlab.batch import runner
+from eulerlab.features import company as company_digest
 from eulerlab.features.alt_panel import coverage as alt_coverage
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
@@ -67,7 +69,7 @@ from eulerlab.intraday.paper_scan import ALL_SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
-from eulerlab.strategies import REGISTRY, AssetClass, catalog
+from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
@@ -2260,4 +2262,246 @@ def window(
         # crypto or funds, so those runs are gross of costs — an upper bound,
         # not a net result.
         "cost_mode": cost_mode_for(asset_class),
+    }
+
+
+# --- the trader snapshot ------------------------------------------------------
+
+
+SNAPSHOT_MOVERS = 12
+BREADTH_UNCHANGED_PCT = 0.05
+"""Below this move, a name counts as unchanged rather than as an advancer.
+
+Without a dead band, breadth is decided by rounding: a stock that closed a
+paisa higher is not an advancer in any sense a reader means, and counting it as
+one makes the ratio look decisive on a flat day.
+"""
+
+
+def _by_day(rows: list[PanelRow]) -> dict[date, dict[str, PanelRow]]:
+    """The panel indexed once, by day and then by symbol.
+
+    Built once rather than re-derived per day. The first version scanned the
+    whole row list inside a loop over days — 400 days against 1.1M rows is
+    roughly 880 million comparisons, which returned in minutes to curl and
+    timed out through the browser's proxy. Same numbers, two orders of
+    magnitude fewer operations.
+    """
+    index: dict[date, dict[str, PanelRow]] = {}
+    for row in rows:
+        index.setdefault(row.day, {})[row.symbol] = row
+    return index
+
+
+def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> list[float]:
+    """Equal-weighted average return per day, across everything that traded."""
+    out: list[float] = []
+    for position in range(1, len(days)):
+        prior = index.get(days[position - 1], {})
+        current = index.get(days[position], {})
+        moves = [
+            row.close / prior[symbol].close - 1.0
+            for symbol, row in current.items()
+            if symbol in prior and prior[symbol].close > 0 and row.close > 0
+        ]
+        if moves:
+            out.append(statistics.fmean(moves))
+    return out
+
+
+@app.get("/api/snapshot")
+def snapshot(workspace: str = "") -> dict[str, Any]:
+    """The trader's first screen, computed from the panel.
+
+    Five bands (docs/RESEARCH/021): regime, the map, movers, cross-asset, and
+    evidence. Each reports what it can measure and says plainly what it cannot
+    — a band that names its missing source is a shopping list, whereas a band
+    quietly omitted is invisible.
+    """
+    tenant = workspace_mod.resolve(workspace or None)
+    try:
+        rows = PANEL.rows(400)
+    except (FileNotFoundError, OSError) as exc:
+        return {"ok": False, "error": str(exc)}
+    if not rows:
+        return {"ok": False, "error": "no panel on disk. Run `make build-panel` first."}
+
+    days = trading_days(rows)
+    if len(days) < 30:
+        return {"ok": False, "error": "not enough history for a snapshot"}
+    today, yesterday = days[-1], days[-2]
+    index = _by_day(rows)
+    prior_day, current_day = index.get(yesterday, {}), index.get(today, {})
+    returns = {
+        symbol: row.close / prior_day[symbol].close - 1.0
+        for symbol, row in current_day.items()
+        if symbol in prior_day and prior_day[symbol].close > 0 and row.close > 0
+    }
+
+    # --- band 1: regime -----------------------------------------------------
+    up = sum(1 for r in returns.values() if r > BREADTH_UNCHANGED_PCT / 100)
+    down = sum(1 for r in returns.values() if r < -BREADTH_UNCHANGED_PCT / 100)
+    flat = len(returns) - up - down
+
+    # An equal-weighted proxy, stated as such. There is no index in the panel,
+    # so this is the average stock rather than the cap-weighted market — which
+    # is a different and, for breadth, more honest number.
+    latest_close = {symbol: row.close for symbol, row in current_day.items()}
+    proxy = _daily_moves(index, days[-70:])
+
+    recent = proxy[-20:]
+    older = proxy[-60:-20] if len(proxy) >= 60 else []
+    vol = statistics.pstdev(recent) * (252**0.5) if len(recent) > 2 else 0.0
+    vol_before = statistics.pstdev(older) * (252**0.5) if len(older) > 2 else 0.0
+    cumulative = 1.0
+    for move in recent:
+        cumulative *= 1.0 + move
+
+    # --- band 2 and 3: the map and the movers -------------------------------
+    turnover = {symbol: row.turnover for symbol, row in current_day.items()}
+    volume_history: dict[str, list[float]] = {}
+    for day in days[-21:-1]:
+        for symbol, row in index.get(day, {}).items():
+            if row.turnover > 0:
+                volume_history.setdefault(symbol, []).append(row.turnover)
+
+    # Sector and market cap come from the screener scrape, which landed them
+    # all along under sections nothing was reading (`sector`, `top_ratios`).
+    companies = company_digest.load_digest()
+
+    tiles: list[dict[str, Any]] = []
+    for symbol, move in returns.items():
+        traded = turnover.get(symbol, 0.0)
+        if traded <= 0:
+            continue
+        past = volume_history.get(symbol, [])
+        typical = statistics.median(past) if len(past) >= 5 else 0.0
+        profile = companies.get(symbol)
+        tiles.append(
+            {
+                "symbol": symbol,
+                "return": round(move, 6),
+                "turnover": round(traded, 2),
+                "close": round(latest_close.get(symbol, 0.0), 2),
+                "relative_volume": round(traded / typical, 2) if typical > 0 else None,
+                "sector": profile.sector if profile else "",
+                "industry": profile.industry if profile else "",
+                "market_cap": profile.market_cap if profile else None,
+                "pe": profile.pe if profile else None,
+            }
+        )
+
+    # Sized by market cap where it is known, falling back to turnover. The two
+    # are different statements — size against attention — so which one a tile
+    # used is reported rather than blended silently.
+    capped = [t for t in tiles if t["market_cap"]]
+    sized_by = "market cap" if len(capped) > len(tiles) * 0.5 else "turnover"
+    key = "market_cap" if sized_by == "market cap" else "turnover"
+    tiles.sort(key=lambda t: -float(t[key] or 0))
+    by_move = sorted(tiles, key=lambda t: -float(t["return"]))
+    unusual = sorted(
+        (t for t in tiles if t["relative_volume"] is not None),
+        key=lambda t: -float(t["relative_volume"] or 0),
+    )
+
+    # --- band 4: cross-asset ------------------------------------------------
+    cross: list[dict[str, Any]] = [
+        {
+            "asset_class": "equity",
+            "label": "NSE equities",
+            "instruments": len(latest_close),
+            "as_of": today.isoformat(),
+            "detail": f"{up:,} up / {down:,} down",
+        }
+    ]
+    for name, klass in (("Crypto", "crypto"), ("FX", "fx"), ("Mutual funds", "mutual_fund")):
+        cell = next(
+            (
+                c
+                for c in catalog.capabilities()
+                if c.asset_class.value == klass and c.timeframe is Timeframe.DAILY
+            ),
+            None,
+        )
+        cross.append(
+            {
+                "asset_class": klass,
+                "label": name,
+                "instruments": len(catalog.search(asset_class=klass, limit=500)),
+                "as_of": "",
+                "detail": cell.detail if cell else "no capability entry",
+            }
+        )
+
+    # --- band 5: evidence ---------------------------------------------------
+    bar = price_search(0, available_years=11.4).bar_after
+    fleet_rows = list(strategy_fleet(tenant.ledger))
+    clearing = [r for r in fleet_rows if _clears(tenant, r, bar)]
+
+    return {
+        "ok": True,
+        "as_of": today.isoformat(),
+        "previous": yesterday.isoformat(),
+        "regime": {
+            "advancers": up,
+            "decliners": down,
+            "unchanged": flat,
+            "breadth_ratio": round(up / down, 2) if down else None,
+            "proxy_return_20d": round(cumulative - 1.0, 6),
+            "volatility": round(vol, 6),
+            "volatility_before": round(vol_before, 6) if vol_before else None,
+            "volatility_rising": bool(vol_before and vol > vol_before),
+            "proxy_note": (
+                "Equal-weighted across every symbol in the panel. There is no index "
+                "here, so this is the average stock rather than the cap-weighted "
+                "market — a different number, and for breadth the more honest one."
+            ),
+        },
+        "map": {
+            "tiles": tiles[:180],
+            "sized_by": sized_by,
+            "note": (
+                "Sized by market capitalisation and grouped by sector, both from the "
+                "screener scrape."
+                if sized_by == "market cap"
+                else "Sized by turnover — market cap is known for too few names to size "
+                "by it, which measures attention rather than size."
+            ),
+            "grouped": bool(companies),
+            "covered": len(capped),
+            "missing": "" if companies else "sector classification",
+        },
+        "movers": {
+            "gainers": by_move[:SNAPSHOT_MOVERS],
+            "losers": by_move[-SNAPSHOT_MOVERS:][::-1],
+            "unusual_volume": unusual[:SNAPSHOT_MOVERS],
+        },
+        "catalysts": {
+            "available": False,
+            "reason": (
+                "No news source is connected. Every mover below is a price without a "
+                "reason, which is the difference between information and a ranking."
+            ),
+        },
+        "cross_asset": cross,
+        "evidence": {
+            "bar": round(bar, 3),
+            "strategies": len(fleet_rows),
+            "clearing": len(clearing),
+            "clearing_names": [r.declaration.id for r in clearing][:8],
+            "trials": sum(r.trials for r in fleet_rows),
+        },
+        "gaps": [
+            *(
+                []
+                if companies
+                else [
+                    "sector and market cap — run `make company-digest` to read them "
+                    "out of the fundamentals tree"
+                ]
+            ),
+            "index levels — no NIFTY, so breadth has nothing to diverge from",
+            "news with ticker tagging — the largest gap; movers have no why",
+            "live quotes — everything here is end-of-day",
+        ],
     }
