@@ -17,13 +17,44 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Protocol
 
 from eulerlab.intraday import bracket, store
 from eulerlab.intraday.bracket import Trade
+from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
+from eulerlab.intraday.crypto_signals import Detect as Detect
 from eulerlab.intraday.papers import SIGNALS, PaperRules
 from eulerlab.intraday.tweezer import Candle, Plan, Rejected, Rules
 
-_CANDLES: dict[tuple[str, date, date], list[Candle]] = {}
+
+class _Signal(Protocol):
+    """What the scanner needs from a signal, whichever module defined it.
+
+    A Protocol rather than a shared base class: the equity paper signals and
+    the crypto ones were written independently and share a shape, not a
+    lineage. Forcing an ancestor on them would be asserting a relationship that
+    does not exist.
+
+    Declared as properties because both concrete signal types are frozen
+    dataclasses, and an attribute in a Protocol demands a read-write member
+    that a frozen instance cannot satisfy.
+    """
+
+    @property
+    def id(self) -> str: ...
+
+    @property
+    def detect(self) -> Detect: ...
+
+
+ALL_SIGNALS: dict[str, _Signal] = {**SIGNALS, **CRYPTO_SIGNALS}
+"""Every coded intraday signal, whichever module defined it.
+
+Merged here rather than in either module so neither has to import the other:
+the equity paper signals and the crypto ones share a shape and nothing else.
+"""
+
+_CANDLES: dict[tuple[str, date, date, str], list[Candle]] = {}
 """Fetched bars, shared across signals.
 
 Ten signals over twelve symbols fetched the same bars ten times, which is what
@@ -36,11 +67,23 @@ range would shorten a backtest without saying so.
 """
 
 
-def candles_for(symbol: str, start: date, end: date) -> list[Candle]:
-    """Minute bars for one symbol and window, read once per process."""
-    key = (symbol, start, end)
+def candles_for(
+    symbol: str, start: date, end: date, *, asset_class: str = "equity"
+) -> list[Candle]:
+    """Minute bars for one symbol and window, read once per process.
+
+    The source is chosen by asset class rather than guessed from the symbol:
+    NSE minute bars come from the Kite archive, crypto from the Binance one,
+    and a symbol like `ADANIENT` versus `ADAUSDT` is not a reliable tell.
+    """
+    key = (symbol, start, end, asset_class)
     if key not in _CANDLES:
-        _CANDLES[key] = store.fetch(symbol, start=start, end=end)
+        if asset_class == "crypto":
+            from eulerlab.intraday import crypto_store
+
+            _CANDLES[key] = crypto_store.fetch(symbol, start=start, end=end)
+        else:
+            _CANDLES[key] = store.fetch(symbol, start=start, end=end)
     return _CANDLES[key]
 
 
@@ -86,11 +129,12 @@ def scan_symbol(
     end: date,
     rules: PaperRules | None = None,
     equity: float = 1_000_000.0,
+    asset_class: str = "equity",
 ) -> SignalScan:
     """Evaluate one signal bar by bar across every session in the range."""
-    signal = SIGNALS[signal_id]
+    signal = ALL_SIGNALS[signal_id]
     rules = rules or PaperRules()
-    candles = candles_for(symbol, start, end)
+    candles = candles_for(symbol, start, end, asset_class=asset_class)
     out = SignalScan(signal=signal_id, symbol=symbol, candles=len(candles))
     if not candles:
         return out
@@ -141,13 +185,22 @@ def scan_many(
     end: date,
     rules: PaperRules | None = None,
     equity: float = 1_000_000.0,
+    asset_class: str = "equity",
 ) -> list[SignalScan]:
     """Every symbol, one signal. Failures are skipped, never silently zeroed."""
     out: list[SignalScan] = []
     for symbol in symbols:
         try:
             out.append(
-                scan_symbol(signal_id, symbol, start=start, end=end, rules=rules, equity=equity)
+                scan_symbol(
+                    signal_id,
+                    symbol,
+                    start=start,
+                    end=end,
+                    rules=rules,
+                    equity=equity,
+                    asset_class=asset_class,
+                )
             )
         except (OSError, ValueError, KeyError):
             # A symbol whose bars cannot be read is absent from the result, not

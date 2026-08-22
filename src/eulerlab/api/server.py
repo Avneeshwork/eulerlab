@@ -63,7 +63,7 @@ from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.ingest.cloud import load_storage_config
 from eulerlab.intraday import scan as tweezer_scan
-from eulerlab.intraday.papers import SIGNALS as PAPER_SIGNALS
+from eulerlab.intraday.paper_scan import ALL_SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.research.budget import price_search
@@ -1071,15 +1071,29 @@ def _intraday_symbols(request: BatchRunRequest) -> list[str]:
     a symbol with daily bars and no minute bars is not a smaller sample - it is
     an absent one.
     """
-    from eulerlab.intraday import store
+    # The symbol universe follows the asset class, because a crypto signal on
+    # RELIANCE is not a smaller sample, it is a different question.
+    if request.asset_class == AssetClass.CRYPTO.value:
+        from eulerlab.intraday import crypto_store
 
-    try:
-        available = set(store.available_symbols())
-    except Exception:
-        available = set()
+        try:
+            available = set(crypto_store.symbols())
+        except Exception:
+            available = set()
+    else:
+        from eulerlab.intraday import store
+
+        try:
+            available = set(store.available_symbols())
+        except Exception:
+            available = set()
 
     if request.instruments:
         wanted = [s.strip().upper() for s in request.instruments if s.strip()]
+    elif request.asset_class != AssetClass.EQUITY.value:
+        # Named batches are equity liquidity slices and mean nothing to another
+        # class, so the whole landed universe is the universe.
+        wanted = sorted(available)
     elif request.universe != ALL_INSTRUMENTS:
         wanted = list(catalog.universe(request.universe))
     else:
@@ -1115,7 +1129,9 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
     # kind of bug that never surfaces as an error.
     end = datetime.now(UTC).astimezone(IST).date()
     start = end - timedelta(days=request.days)
-    scans = paper_scan.scan_many(strategy_id, symbols, start=start, end=end)
+    scans = paper_scan.scan_many(
+        strategy_id, symbols, start=start, end=end, asset_class=request.asset_class
+    )
     if not scans:
         msg = f"no minute bars readable for any of {len(symbols)} symbols"
         raise RuntimeError(msg)

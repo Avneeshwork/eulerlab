@@ -41,11 +41,12 @@ from __future__ import annotations
 import gzip
 import json
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import date, datetime
 from pathlib import Path
 
 from eulerlab.features.panel import PanelRow
-from eulerlab.ingest import amfi, crypto
+from eulerlab.ingest import amfi, crypto, landing_reader
 
 
 def crypto_daily(
@@ -249,59 +250,90 @@ def fx_daily(
     """
     from eulerlab.ingest import fx
 
-    root = directory or fx.LANDING
-    if not root.exists():
+    if directory is not None:
+        # An explicit directory means a test or a one-off; the cloud is not
+        # consulted, because a test that silently reached the network would be
+        # measuring something other than what it thinks.
+        return _fx_from_disk(directory, pairs, start)
+
+    paths = landing_reader.available("fx", "*/*/*.jsonl.gz")
+    if not paths:
         return []
 
-    wanted = set(pairs) if pairs else {p.name for p in root.iterdir() if p.is_dir()}
+    wanted = set(pairs) if pairs else None
     rows: list[PanelRow] = []
+    for relative in paths:
+        pair = relative.split("/")[1]
+        if wanted is not None and pair not in wanted:
+            continue
+        try:
+            payload = landing_reader.read(relative)
+            bars = [
+                fx.Bar.from_row(json.loads(line))
+                for line in gzip.decompress(payload).decode("utf-8").splitlines()
+                if line.strip()
+            ]
+        except (OSError, ValueError, KeyError, EOFError):
+            continue
+        row = _fx_row(pair, bars, start)
+        if row is not None:
+            rows.append(row)
 
+    rows.sort(key=lambda row: (row.day, row.symbol))
+    return rows
+
+
+def _fx_row(pair: str, bars: Sequence[object], start: date | None) -> PanelRow | None:
+    """One day of FX minute bars as a panel row, or None if it is unusable."""
+    from eulerlab.ingest import fx as fx_mod
+
+    typed = [b for b in bars if isinstance(b, fx_mod.Bar)]
+    if not typed:
+        return None
+    day = typed[0].ts.date()
+    if start and day < start:
+        return None
+
+    # Median, and floored at zero. See the docstring on `fx_daily`: roughly
+    # 2.8% of source minutes are crossed, and a negative cost would pay a
+    # strategy to trade.
+    spreads = sorted(bar.mean_spread for bar in typed)
+    return PanelRow(
+        day=day,
+        symbol=pair,
+        close=typed[-1].close,
+        volume=0.0,
+        turnover=0.0,
+        isin=f"FX:{pair}",
+        spread=max(0.0, spreads[len(spreads) // 2]),
+        open=typed[0].open,
+        high=max(bar.high for bar in typed),
+        low=min(bar.low for bar in typed),
+    )
+
+
+def _fx_from_disk(directory: Path, pairs: list[str] | None, start: date | None) -> list[PanelRow]:
+    """The local-only path, for tests and explicit directories."""
+    from eulerlab.ingest import fx as fx_mod
+
+    if not directory.exists():
+        return []
+    wanted = set(pairs) if pairs else {p.name for p in directory.iterdir() if p.is_dir()}
+    rows: list[PanelRow] = []
     for pair in sorted(wanted):
-        folder = root / pair
+        folder = directory / pair
         if not folder.is_dir():
             continue
         for path in sorted(folder.glob("*/*.jsonl.gz")):
             try:
                 with gzip.open(path, "rt", encoding="utf-8") as handle:
-                    bars = [fx.Bar.from_row(json.loads(line)) for line in handle if line.strip()]
+                    bars = [
+                        fx_mod.Bar.from_row(json.loads(line)) for line in handle if line.strip()
+                    ]
             except (OSError, ValueError, KeyError, EOFError):
-                # A file that cannot be read is skipped, never half-parsed. A
-                # partial day would look like a real one with a short session.
                 continue
-            if not bars:
-                continue
-
-            day = bars[0].ts.date()
-            if start and day < start:
-                continue
-            # Median, and floored at zero.
-            #
-            # Median because the distribution has a long right tail at the
-            # Sunday open and around releases, and a mean would charge every
-            # trade for the worst minutes of the week.
-            #
-            # Floored because roughly 2.8% of FXCM minutes are *crossed* — ask
-            # below bid by up to a pip. That is a real property of aggregated
-            # broker OHLC, where the recorded bid open and ask open can come
-            # from different ticks, and it is left untouched in the landed data
-            # because raw data is immutable. But a negative cost would pay the
-            # strategy to trade, which is a worse error than any overestimate,
-            # so it cannot reach the cost model. The median is positive for
-            # every pair regardless; the floor is a guard, not a correction.
-            spreads = sorted(bar.mean_spread for bar in bars)
-            rows.append(
-                PanelRow(
-                    day=day,
-                    symbol=pair,
-                    close=bars[-1].close,
-                    volume=0.0,
-                    turnover=0.0,
-                    isin=f"FX:{pair}",
-                    spread=max(0.0, spreads[len(spreads) // 2]),
-                    open=bars[0].open,
-                    high=max(bar.high for bar in bars),
-                    low=min(bar.low for bar in bars),
-                )
-            )
+            row = _fx_row(pair, list(bars), start)
+            if row is not None:
+                rows.append(row)
     rows.sort(key=lambda row: (row.day, row.symbol))
     return rows
