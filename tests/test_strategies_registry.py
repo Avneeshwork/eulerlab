@@ -77,11 +77,14 @@ def test_no_strategy_claims_a_risk_manager_that_does_not_exist() -> None:
 
     This started as "only tweezer_bottom", which was true when Tweezer was the
     only bracket strategy and became wrong the moment ten more were coded
-    against the same executor.
+    against the same executor — and wrong again when ten crypto signals joined
+    them. Expressing it as a property rather than a list is what makes the
+    third addition free.
     """
+    from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
     from eulerlab.intraday.papers import SIGNALS
 
-    bracketed = {"tweezer_bottom", *SIGNALS}
+    bracketed = {"tweezer_bottom", *SIGNALS, *CRYPTO_SIGNALS}
     for declaration in REGISTRY.values():
         if declaration.id not in bracketed:
             assert declaration.risk_manager == "", declaration.id

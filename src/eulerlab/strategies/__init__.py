@@ -341,7 +341,45 @@ def _paper_signals() -> dict[str, Declaration]:
 # favour of `momentum_12_1`, which is the same strategy under its paper's name.
 REGISTRY.pop("rank_and_hold", None)
 REGISTRY.update(_published())
+
+
+def _crypto_signals() -> dict[str, Declaration]:
+    """Declarations for the minute-level crypto signals.
+
+    Their `published` field carries the provenance tier, because these do not
+    all have the same standing: one is from a peer-reviewed paper, two from
+    documented literature, seven are practitioner constructions with no
+    academic validation found. A library that presented them identically would
+    be flattering seven of them.
+    """
+    from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
+
+    return {
+        signal.id: Declaration(
+            id=signal.id,
+            title=signal.title,
+            summary=signal.published,
+            kind="technical",
+            shape="pattern",
+            asset_class=AssetClass.CRYPTO,
+            timeframe=Timeframe.MINUTE,
+            emits=Emits.CONDITIONAL_ENTRY,
+            lookback=120,
+            risk_manager="risk-pct",
+            trade_manager="bracket",
+            is_strategy_subclass=False,
+            source=f"[{signal.provenance}] {signal.source}",
+            published=signal.published,
+            tested_on=signal.source,
+            recommended_class=AssetClass.CRYPTO.value,
+            logic=list(signal.logic),
+        )
+        for signal in CRYPTO_SIGNALS.values()
+    }
+
+
 REGISTRY.update(_paper_signals())
+REGISTRY.update(_crypto_signals())
 
 
 @dataclass(frozen=True)
