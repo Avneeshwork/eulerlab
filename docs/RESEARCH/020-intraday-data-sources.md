@@ -62,6 +62,49 @@ a decision, not an oversight.
 **Confidence.** High on both; each was a live call today, not a documentation
 claim.
 
+## FX, and why the obvious source was the wrong one
+
+Added 2026-08-22, after the Dukascopy path proved unusable at scale.
+
+| Source | Checked | Result |
+|---|---|---|
+| HistData.com | form POST to `get.php` | **Not scriptable.** Returns HTTP 200 with zero bytes, with or without a session cookie. Needs a browser |
+| Dukascopy tick feed | live, per hour | **Works, and is 100x too slow.** Measured over a real run: **810 seconds per pair-day**, which is 245 days for ten pairs over ten years |
+| FXCM candle server | live, per week | **Works.** All ten pairs, every year 2015-2026. One weekly file replaces 168 hourly ones |
+
+The Dukascopy number is the finding. A single connection serves roughly 10
+seconds per request with zero 503s, and concurrency helps until it does not:
+twelve simultaneous connections produced a steady stream of `nodename nor
+servname provided`, which is the **local resolver** failing rather than the
+feed. Six workers lands days reliably at about 22 seconds each in isolation —
+and over a sustained multi-hour run the real rate degraded to 810 seconds, with
+SSL handshake timeouts appearing that were absent at the start.
+
+The lesson is not "Dukascopy is bad". It is that a benchmark taken warm, on a
+handful of requests, said 22 seconds and the sustained rate was thirty-seven
+times worse. **The per-hour URL shape was the problem, not the throttle.**
+
+### The two agree to a twentieth of a pip
+
+FXCM is not trusted because it is convenient. EURUSD on 2016-06-15 was landed
+from both, and compared minute by minute over the 1,438 bars they share:
+
+| | |
+|---|---|
+| Median close gap | **0.05 pips** |
+| 95th percentile | 0.25 pips |
+| Maximum | 1.65 pips |
+| Median spread, Dukascopy | 0.25 pips |
+| Median spread, FXCM | 0.37 pips |
+
+Two independent providers agreeing to a twentieth of a pip on the mid is strong
+evidence both are right about price. The **spreads differ and should** - they
+are different brokers quoting their own books, and that difference is exactly
+why the spread is stored per bar rather than assumed.
+
+Dukascopy is kept as `make fx` for precisely this: a second opinion to check
+the bulk source against, not a backfill path.
+
 ## Open questions
 
 - The gate makes a stale token visible but nobody is watching the log. A

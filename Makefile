@@ -302,6 +302,11 @@ morningstar:
 fx:
 	@uv run python -m eulerlab.ingest.fx_backfill $(if $(PAIRS),--pairs $(PAIRS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(LIMIT),--limit $(LIMIT),)
 
+# FX in bulk from FXCM's weekly candle files. This is the backfill path; `make
+# fx` (Dukascopy, per hour) is 100x slower and kept only as a second opinion.
+fx-bulk:
+	@uv run python -m eulerlab.ingest.fx_bulk_backfill $(if $(PAIRS),--pairs $(PAIRS),) $(if $(FROM),--from-year $(FROM),) $(if $(TO),--to-year $(TO),)
+
 crypto:
 	@uv run python -m eulerlab.ingest.crypto_backfill $(if $(COINS),--coins $(COINS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(VERIFY),--verify,) $(if $(UNIVERSE),--universe-only,)
 
