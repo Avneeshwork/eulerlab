@@ -275,6 +275,8 @@ daily:
 	-uv run python -m eulerlab.fundamentals.backfill
 	@echo "== mutual fund NAVs =="
 	-uv run python -m eulerlab.ingest.mf_backfill --snapshot-only
+	@echo "== economic calendar =="
+	-uv run python -m eulerlab.ingest.forexfactory
 	@echo "== minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory daily-minute
 	@echo "== crypto (Binance public archive, no auth) =="
@@ -307,6 +309,11 @@ fx:
 # Sector, market cap and headline ratios, reduced from the fundamentals tree to
 # one small JSON. 2,353 Parquet files is far too slow for a screen that should
 # feel instant.
+# The ForexFactory weekly calendar. History has to be accumulated - the feed
+# publishes one week and has no past endpoint - so this runs daily and merges.
+calendar:
+	@uv run python -m eulerlab.ingest.forexfactory
+
 company-digest:
 	@uv run python -c "from eulerlab.features import company; d=company.build_digest(); p=company.save_digest(d); print(f'{len(d):,} companies -> {p}')"
 

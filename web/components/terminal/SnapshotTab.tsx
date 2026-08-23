@@ -211,14 +211,67 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       {/* --- band 3: movers ------------------------------------------------ */}
       <section>
         <h3 className="report-h">Movers</h3>
-        {!snap.catalysts.available && (
-          <p className="tfine" style={{ marginBottom: 12 }}>{snap.catalysts.reason}</p>
-        )}
+        <p className="tfine" style={{ marginBottom: 12 }}>
+          No stock-specific news source is connected, so every mover here is a price
+          without a reason — the difference between information and a ranking.
+        </p>
         <div className="tgrid">
           <Movers title="Gainers" rows={snap.movers.gainers} />
           <Movers title="Losers" rows={snap.movers.losers} />
           <Movers title="Unusual volume" rows={snap.movers.unusual_volume} showVolume />
         </div>
+      </section>
+
+      {/* --- band 3b: the calendar ------------------------------------------ */}
+      <section>
+        <h3 className="report-h">
+          The calendar
+          {snap.catalysts.high_impact !== undefined && (
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              {snap.catalysts.high_impact} high-impact of {snap.catalysts.total}
+            </span>
+          )}
+        </h3>
+        {snap.catalysts.available && snap.catalysts.events?.length ? (
+          <div className="tpanel">
+            <table className="ttable">
+              <tbody>
+                {snap.catalysts.events.map((event) => (
+                  <tr key={`${event.at}-${event.title}`} data-past={event.past}>
+                    <td style={{ width: 54 }}>
+                      <span className="ccy">{event.country}</span>
+                    </td>
+                    <td>
+                      <b>{event.title}</b>
+                      <div className="tfine">
+                        {new Date(event.at).toLocaleString('en-IN', {
+                          weekday: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        {event.past ? ' · released' : ' · upcoming'}
+                      </div>
+                    </td>
+                    <td className="r">
+                      <span className="impact" data-level={event.impact.toLowerCase()}>
+                        {event.impact}
+                      </span>
+                    </td>
+                    <td className="r tfine" style={{ width: 130 }}>
+                      {event.forecast && <>forecast {event.forecast}</>}
+                      {event.previous && <div>prev {event.previous}</div>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="tfine">{snap.catalysts.reason}</p>
+        )}
+        {snap.catalysts.available && (
+          <p className="tfine" style={{ marginTop: 10 }}>{snap.catalysts.reason}</p>
+        )}
       </section>
 
       {/* --- band 4: cross-asset ------------------------------------------- */}

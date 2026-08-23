@@ -1342,3 +1342,33 @@
 .sector-head i.up { color: var(--clear); }
 .sector-head i.dn { color: var(--fail); }
 .sector-head span { margin-left: auto; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* The economic calendar. Impact is the only thing worth colouring: a Low-impact
+   release is noise on the schedule and a High one moves the whole tape. */
+.ccy {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+.impact {
+  display: inline-block;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  text-transform: uppercase;
+}
+.impact[data-level='high'] { background: var(--fail-wash); color: var(--fail); }
+.impact[data-level='medium'] { background: var(--caveat-wash); color: var(--caveat); }
+.impact[data-level='low'] { background: var(--surface-3); color: var(--ink-3); }
+.impact[data-level='holiday'] { background: var(--surface-2); color: var(--ink-4); }
+
+/* A released event is history; an upcoming one is actionable. Dimming the
+   first is the whole distinction. */
+.ttable tr[data-past='true'] td { opacity: 0.55; }

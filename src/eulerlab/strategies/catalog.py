@@ -90,19 +90,19 @@ def capabilities() -> list[Capability]:
         Capability(
             AssetClass.CRYPTO,
             Timeframe.MINUTE,
-            _has_files(CRYPTO_LANDING, "*/*.jsonl.gz"),
+            _has_files("crypto", "*/*.jsonl.gz"),
             _crypto_detail(),
         ),
         Capability(
             AssetClass.CRYPTO,
             Timeframe.DAILY,
-            _has_files(CRYPTO_LANDING, "*/*.jsonl.gz"),
+            _has_files("crypto", "*/*.jsonl.gz"),
             "resampled from the minute archive",
         ),
         Capability(
             AssetClass.MUTUAL_FUND,
             Timeframe.DAILY,
-            _has_files(MF_HISTORY, "*.jsonl.gz"),
+            _has_files("mf", "history/*.jsonl.gz"),
             _fund_detail(),
         ),
         Capability(AssetClass.FX, Timeframe.MINUTE, FX_LANDING.exists(), _fx_detail()),
@@ -114,11 +114,11 @@ def capabilities() -> list[Capability]:
 
 def _fx_detail() -> str:
     """Counted from disk, like every other row."""
-    if not _has_files(FX_LANDING, "*/*/*.jsonl.gz"):
-        return "no local FX bars — pruned to B2, or never run (`make fx-bulk`)"
-    pairs = [p for p in FX_LANDING.iterdir() if p.is_dir()]
-    days = sum(1 for _ in FX_LANDING.glob("*/*/*.jsonl.gz"))
-    return f"{len(pairs)} pairs, {days:,} pair-days of 1m bars (FXCM, bid and ask)"
+    found = _tree_files("fx", "*/*/*.jsonl.gz")
+    if not found:
+        return "no FX bars landed — run `make fx-bulk`"
+    pairs = {r.split("/")[1] for r in found if len(r.split("/")) >= 2}
+    return f"{len(pairs)} pairs, {len(found):,} pair-days of 1m bars (FXCM, bid and ask)"
 
 
 def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
@@ -128,19 +128,20 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     has no consolidated volume, so a liquidity ranking derived from our own data
     would be an artefact of one broker's quote frequency.
     """
-    if not FX_LANDING.exists():
-        return []
     from eulerlab.ingest.fx import PAIRS
 
     needle = query.strip().upper()
     out: list[Instrument] = []
+    landed_fx: dict[str, int] = {}
+    for relative in _tree_files("fx", "*/*/*.jsonl.gz"):
+        parts = relative.split("/")
+        if len(parts) >= 2:
+            landed_fx[parts[1]] = landed_fx.get(parts[1], 0) + 1
+
     for rank, pair in enumerate(PAIRS, start=1):
-        folder = FX_LANDING / pair
-        if not folder.is_dir():
-            continue
         if needle and needle not in pair:
             continue
-        days = sum(1 for _ in folder.glob("*/*.jsonl.gz"))
+        days = landed_fx.get(pair, 0)
         if days == 0:
             # Pruned to B2 or never landed. Either way it cannot be read here.
             continue
@@ -162,34 +163,48 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
 
 def _fund_detail() -> str:
     """Counted from disk, like every other row."""
-    if not _has_files(MF_HISTORY, "*.jsonl.gz"):
-        return "no local NAV history — pruned to B2, or never run (`make mf`)"
-    landed = sum(1 for _ in MF_HISTORY.glob("*.jsonl.gz"))
-    snapshot = _latest_enriched()
-    stamp = snapshot.name.split(".")[0] if snapshot else "no snapshot"
+    history = _tree_files("mf", "history/*.jsonl.gz")
+    if not history:
+        return "no NAV history landed — run `make mf`"
+    landed = len(history)
+    snapshot = _latest_enriched_relative()
+    stamp = snapshot.split("/")[-1].split(".")[0] if snapshot else "no snapshot"
     return f"{landed:,} schemes with landed NAV history (AMFI, snapshot {stamp})"
 
 
-def _has_files(root: Path, pattern: str) -> bool:
-    """Whether a tree holds any data *right now*.
+def _tree_files(tree: str, pattern: str) -> list[str]:
+    """Landing-relative paths under a tree, from disk **and the bucket**.
 
-    Not `root.exists()`. `make prune-local` deletes files that are verified
-    present in B2 and leaves the directory behind, so existence stopped being
-    evidence the moment pruning became a supported workflow. A matrix that says
-    "supported" over an emptied directory is asserting rather than reading,
-    which is the one thing this module exists not to do.
+    Local-only was the first fix and was half of one. `prune-local` moves data
+    to B2 rather than deleting it, so a local glob reports an emptied tree as
+    absent — the snapshot said "4 crypto instruments" against twenty landed,
+    and "0 mutual funds" against 14,280. Asking only the disk is as wrong as
+    asking only the directory entry, one layer up.
     """
-    return any(root.glob(pattern))
+    from eulerlab.ingest import landing_reader
+
+    return landing_reader.available(tree, pattern)
+
+
+def _has_files(tree: str, pattern: str) -> bool:
+    """Whether a tree holds data anywhere — disk or bucket.
+
+    Takes the tree name explicitly rather than deriving it from a `Path`. The
+    derived version used `root.name`, which for `data/landing/mf/history` gives
+    `history` and looked for a landing tree of that name — so mutual funds
+    reported unsupported while 14,280 NAV files sat in the bucket, and the
+    instrument picker and the capability matrix disagreed about the same data.
+    """
+    return bool(_tree_files(tree, pattern))
 
 
 def _crypto_detail() -> str:
     """Measured from disk, like every other row in this table."""
-    root = Path("data/landing/crypto")
-    if not root.exists():
+    found = _tree_files("crypto", "*/*.jsonl.gz")
+    if not found:
         return "no data — run `make crypto`"
-    symbols = [p for p in root.iterdir() if p.is_dir()]
-    months = sum(1 for _ in root.glob("*/*.jsonl.gz"))
-    return f"{len(symbols)} symbols, {months} symbol-months of 1m bars (Binance archive)"
+    symbols = {r.split("/")[1] for r in found if len(r.split("/")) >= 2}
+    return f"{len(symbols)} symbols, {len(found)} symbol-months of 1m bars (Binance archive)"
 
 
 def universe(name: str) -> list[str]:
@@ -259,19 +274,18 @@ def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     liquidity ranking that orders equities does not exist here, and inventing
     one would be worse than ordering by the thing actually measured.
     """
-    if not CRYPTO_LANDING.exists():
-        return []
     needle = query.strip().upper()
     # Symbols with no landed months are skipped, not listed with a zero.
     # `make prune-local` empties the directories and leaves them behind, so a
     # symbol folder is not evidence of data — and a picker that offers an
     # instrument the engine cannot read is the exact defect this module exists
     # to prevent, pointed inward.
-    landed = [
-        (months, path.name)
-        for path in sorted(CRYPTO_LANDING.iterdir())
-        if path.is_dir() and (months := len(list(path.glob("*.gz")))) > 0
-    ]
+    counts: dict[str, int] = {}
+    for relative in _tree_files("crypto", "*/*.jsonl.gz"):
+        parts = relative.split("/")
+        if len(parts) >= 2:
+            counts[parts[1]] = counts.get(parts[1], 0) + 1
+    landed = sorted(((n, sym) for sym, n in counts.items()), key=lambda x: (-x[0], x[1]))
     landed.sort(key=lambda item: (-item[0], item[1]))
 
     out: list[Instrument] = []
@@ -297,11 +311,10 @@ def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     return out
 
 
-def _latest_enriched() -> Path | None:
-    if not MF_ENRICHED.exists():
-        return None
-    snapshots = sorted(MF_ENRICHED.glob("*.jsonl.gz"))
-    return snapshots[-1] if snapshots else None
+def _latest_enriched_relative() -> str | None:
+    """Newest enriched MF snapshot, wherever it lives."""
+    found = _tree_files("mf", "enriched/*.jsonl.gz")
+    return found[-1] if found else None
 
 
 def fund_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
@@ -313,20 +326,26 @@ def fund_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     listed but cannot be backtested, and saying so is better than offering it
     and returning nothing.
     """
-    snapshot = _latest_enriched()
-    if snapshot is None:
+    snapshot_rel = _latest_enriched_relative()
+    if snapshot_rel is None:
         return []
     needle = query.strip().upper()
-    have_history = {path.name.split(".")[0] for path in MF_HISTORY.glob("*.jsonl.gz")}
+    have_history = {
+        relative.split("/")[-1].split(".")[0]
+        for relative in _tree_files("mf", "history/*.jsonl.gz")
+    }
     # AMFI publishes one row per ISIN and a scheme has two — growth/payout and
     # reinvestment — so the snapshot lists every scheme_code twice. A picker
     # offers a *scheme* to backtest, not an ISIN variant, and showing 119551
     # twice would be a defect rather than a distinction.
     seen: set[str] = set()
 
+    from eulerlab.ingest import landing_reader
+
     out: list[Instrument] = []
-    with gzip.open(snapshot, "rt", encoding="utf-8") as handle:
-        for rank, line in enumerate(handle, start=1):
+    text = gzip.decompress(landing_reader.read(snapshot_rel)).decode("utf-8", "replace")
+    for rank, line in enumerate(text.splitlines(), start=1):
+        if True:
             if not line.strip():
                 continue
             try:

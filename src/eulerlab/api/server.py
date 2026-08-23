@@ -36,7 +36,7 @@ import traceback
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 from typing import Any, Literal
@@ -2309,6 +2309,74 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
     return out
 
 
+CALENDAR_WINDOW_DAYS = 7
+
+
+def _calendar_band() -> dict[str, Any]:
+    """Scheduled macro releases, from the ForexFactory feed.
+
+    **This is not the missing `why`.** A CPI print explains why the market
+    moved; it does not explain why one small-cap rose 40%. Stock-specific news
+    is still absent, and conflating a macro calendar with it would be the
+    comfortable presentation and the wrong one — so this is its own band and
+    says what it does not cover.
+    """
+    try:
+        from eulerlab.ingest import forexfactory
+
+        events = forexfactory.read_all()
+    except Exception as exc:
+        return {
+            "available": False,
+            "reason": f"calendar unreadable: {type(exc).__name__}",
+            "events": [],
+        }
+
+    if not events:
+        return {
+            "available": False,
+            "reason": "No calendar landed. Run `make calendar` to fetch this week.",
+            "events": [],
+        }
+
+    now = datetime.now(UTC)
+    horizon = now + timedelta(days=CALENDAR_WINDOW_DAYS)
+    rows: list[dict[str, Any]] = []
+    for event in events:
+        try:
+            when = datetime.fromisoformat(event.event_time)
+        except ValueError:
+            continue
+        if when > horizon:
+            continue
+        rows.append(
+            {
+                "title": event.title,
+                "country": event.country,
+                "at": event.event_time,
+                "impact": event.impact,
+                "forecast": event.forecast,
+                "previous": event.previous,
+                "past": when < now,
+            }
+        )
+    rows.sort(key=lambda r: str(r["at"]), reverse=True)
+    high = [r for r in rows if r["impact"] == "High"]
+
+    return {
+        "available": True,
+        "events": (high or rows)[:14],
+        "total": len(rows),
+        "high_impact": len(high),
+        "reason": (
+            "Scheduled macro releases only. This explains why the market moved, not "
+            "why one company did — stock-specific news is still absent, and the feed "
+            "carries no released value, so surprise against forecast cannot be "
+            "computed from it."
+        ),
+    }
+
+
 @app.get("/api/snapshot")
 def snapshot(workspace: str = "") -> dict[str, Any]:
     """The trader's first screen, computed from the panel.
@@ -2476,13 +2544,7 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "losers": by_move[-SNAPSHOT_MOVERS:][::-1],
             "unusual_volume": unusual[:SNAPSHOT_MOVERS],
         },
-        "catalysts": {
-            "available": False,
-            "reason": (
-                "No news source is connected. Every mover below is a price without a "
-                "reason, which is the difference between information and a ranking."
-            ),
-        },
+        "catalysts": _calendar_band(),
         "cross_asset": cross,
         "evidence": {
             "bar": round(bar, 3),

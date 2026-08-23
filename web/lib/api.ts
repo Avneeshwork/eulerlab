@@ -454,7 +454,21 @@ export type Snapshot = {
     missing: string;
   };
   movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
-  catalysts: { available: boolean; reason: string };
+  catalysts: {
+    available: boolean;
+    reason: string;
+    events?: {
+      title: string;
+      country: string;
+      at: string;
+      impact: string;
+      forecast: string;
+      previous: string;
+      past: boolean;
+    }[];
+    total?: number;
+    high_impact?: number;
+  };
   cross_asset: {
     asset_class: string;
     label: string;
