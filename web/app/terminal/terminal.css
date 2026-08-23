@@ -1467,3 +1467,22 @@
 }
 .tsyncbox .tfine[data-state='failed'] { color: var(--down, #d2544b); }
 .tsyncbox .tfine[data-state='done'] { color: var(--ink-2); }
+
+/* Live quotes. The dot is the only animated thing on this page, and it earns
+   that by marking the one number here that is not end-of-day. */
+.tlive { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.tdot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--neon-deep);
+  flex: none;
+  animation: tpulse 2.4s ease-in-out infinite;
+}
+@keyframes tpulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.35 } }
+@media (prefers-reduced-motion: reduce) { .tdot { animation: none } }
+
+.tlivepx {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}

@@ -219,6 +219,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       {/* --- band 3: movers ------------------------------------------------ */}
       <section>
         <h3 className="report-h">Movers</h3>
+        {snap.quotes?.note && (
+          <p className="tfine tlive" data-live={snap.quotes.available}>
+            {snap.quotes.available && <span className="tdot" />}
+            {snap.quotes.note}
+            {snap.quotes.errors?.yahoo ? ` Yahoo: ${snap.quotes.errors.yahoo}.` : ''}
+            {snap.quotes.errors?.zerodha ? ` Zerodha: ${snap.quotes.errors.zerodha}.` : ''}
+          </p>
+        )}
         <p className="tfine" style={{ marginBottom: 12 }}>
           {snap.news?.available
             ? snap.news.note
@@ -227,12 +235,23 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
               }, so every mover here is a price without a reason.`}
         </p>
         <div className="tgrid">
-          <Movers title="Gainers" rows={snap.movers.gainers} stories={snap.news?.stories} />
-          <Movers title="Losers" rows={snap.movers.losers} stories={snap.news?.stories} />
+          <Movers
+            title="Gainers"
+            rows={snap.movers.gainers}
+            stories={snap.news?.stories}
+            quotes={snap.quotes?.quotes}
+          />
+          <Movers
+            title="Losers"
+            rows={snap.movers.losers}
+            stories={snap.news?.stories}
+            quotes={snap.quotes?.quotes}
+          />
           <Movers
             title="Unusual volume"
             rows={snap.movers.unusual_volume}
             stories={snap.news?.stories}
+            quotes={snap.quotes?.quotes}
             showVolume
           />
         </div>
@@ -392,11 +411,13 @@ function Movers({
   title,
   rows,
   stories,
+  quotes,
   showVolume = false,
 }: {
   title: string;
   rows: Tile[];
   stories?: Record<string, Story>;
+  quotes?: Record<string, { last: number; change_pct: number; source: string }>;
   showVolume?: boolean;
 }) {
   return (
@@ -434,6 +455,22 @@ function Movers({
                 <b className={row.return >= 0 ? 'up' : 'dn'}>{pct(row.return, 1)}</b>
                 {showVolume && row.relative_volume !== null && (
                   <div className="tfine">{row.relative_volume}× normal</div>
+                )}
+                {quotes?.[row.symbol] && (
+                  // The live price sits under the settled one rather than
+                  // replacing it: they answer different questions, and
+                  // overwriting the close would quietly change what the
+                  // percentage column is a percentage of.
+                  <div className="tlivepx" title={`live via ${quotes[row.symbol].source}`}>
+                    {quotes[row.symbol].last.toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                    <span className={quotes[row.symbol].change_pct >= 0 ? 'up' : 'dn'}>
+                      {' '}
+                      {pct(quotes[row.symbol].change_pct, 2)}
+                    </span>
+                  </div>
                 )}
               </td>
             </tr>

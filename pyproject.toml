@@ -92,7 +92,7 @@ plugins = ["pydantic.mypy"]
 # that has not installed the `crypto` extra. Ignored here rather than silenced
 # at each import, so the exemption is visible in one place.
 [[tool.mypy.overrides]]
-module = ["ccxt.*", "ccxt"]
+module = ["ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

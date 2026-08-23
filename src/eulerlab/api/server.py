@@ -2391,6 +2391,16 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
 
 CALENDAR_WINDOW_DAYS = 7
 
+CALENDAR_EVENTS = 20
+"""Calendar rows kept. Was 14; the operator asked for 20."""
+
+NEWS_TAPE = 50
+"""Tape headlines kept. Was 25; the operator asked for 50.
+
+Both bands scroll inside their own panel, so a longer list lengthens the band
+rather than the page — which is what made a short cap necessary before.
+"""
+
 
 def _instrument_count(asset_class: str) -> int:
     """How many instruments a class holds, from the local census.
@@ -2423,6 +2433,53 @@ def _instrument_count(asset_class: str) -> int:
         if census is not None:
             return int(getattr(census, field))
     return len(catalog.search(asset_class=asset_class, limit=500))
+
+
+def _quotes_band(symbols: list[str]) -> dict[str, Any]:
+    """Live prices for the movers, broker first.
+
+    Zerodha is primary because it is the venue this platform trades through, so
+    its quote is the price an order would actually meet. Yahoo is the fallback
+    for whatever the broker did not cover — and is currently answering 429 to
+    every request, which is reported rather than shown as an empty column.
+
+    The band exists to end a specific dishonesty: every other number on this
+    screen is end-of-day, and a page that does not say so invites the reader to
+    treat a settled close as a current price. So each row carries its source,
+    and the band names the source it used.
+    """
+    symbols = list(dict.fromkeys(symbols))[: SNAPSHOT_MOVERS * 2]
+    try:
+        from eulerlab import quotes
+
+        result = quotes.live(symbols)
+    except Exception as exc:
+        return {"available": False, "reason": f"{type(exc).__name__}: {exc}", "quotes": {}}
+
+    return {
+        "available": result.live,
+        "source": result.primary_source,
+        "sources": result.sources,
+        "errors": result.errors,
+        "asked": len(symbols),
+        "quotes": {
+            symbol: {
+                "last": round(q.last, 2),
+                "previous_close": round(q.previous_close, 2),
+                "change_pct": round(q.change_pct, 2),
+                "source": q.source,
+                "at": q.at,
+            }
+            for symbol, q in result.quotes.items()
+        },
+        "note": (
+            f"{len(result.quotes)} of {len(symbols)} movers quoted live via "
+            f"{result.primary_source or 'no source'}. Every other number on this "
+            "screen is end-of-day."
+            if result.live
+            else "No live source answered — everything here is end-of-day."
+        ),
+    }
 
 
 def _news_band(symbols: list[str]) -> dict[str, Any]:
@@ -2487,7 +2544,7 @@ def _news_band(symbols: list[str]) -> dict[str, Any]:
         }
 
     stories = {symbol: row(items[0]) for symbol, items in by_symbol.items() if items}
-    feed = [row(i) for i in newsfeed.tape(by_symbol, limit=25)]
+    feed = [row(i) for i in newsfeed.tape(by_symbol, limit=NEWS_TAPE)]
     covered = len(stories)
     return {
         "available": True,
@@ -2554,9 +2611,18 @@ def _calendar_band() -> dict[str, Any]:
     rows.sort(key=lambda r: str(r["at"]), reverse=True)
     high = [r for r in rows if r["impact"] == "High"]
 
+    # High-impact first, then the rest, up to the row budget. It used to be
+    # `high or rows` — only the high-impact ones whenever any existed — which
+    # meant a week with eight high-impact releases showed eight rows and hid
+    # the other ninety-two entirely. With a twenty-row budget that throws away
+    # twelve rows of real schedule to no purpose. Ordering by consequence and
+    # then filling keeps the important ones at the top without pretending the
+    # others are not happening.
+    ordered = high + [r for r in rows if r not in high]
+
     return {
         "available": True,
-        "events": (high or rows)[:14],
+        "events": ordered[:CALENDAR_EVENTS],
         "total": len(rows),
         "high_impact": len(high),
         "reason": (
@@ -2735,6 +2801,9 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "losers": by_move[-SNAPSHOT_MOVERS:][::-1],
             "unusual_volume": unusual[:SNAPSHOT_MOVERS],
         },
+        "quotes": _quotes_band(
+            [str(t["symbol"]) for t in [*by_move[:SNAPSHOT_MOVERS], *by_move[-SNAPSHOT_MOVERS:]]]
+        ),
         "news": _news_band(
             [
                 str(t["symbol"])
@@ -2765,6 +2834,5 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             ),
             "index levels — no NIFTY, so breadth has nothing to diverge from "
             "and a mover cannot be read against the market",
-            "live quotes — everything here is end-of-day",
         ],
     }

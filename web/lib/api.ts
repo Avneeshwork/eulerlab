@@ -469,6 +469,20 @@ export type Snapshot = {
     missing: string;
   };
   movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
+  quotes: {
+    available: boolean;
+    reason?: string;
+    /** Which source priced most of them — `zerodha` or `yahoo`. */
+    source?: string;
+    sources?: Record<string, number>;
+    errors?: Record<string, string>;
+    asked?: number;
+    quotes: Record<
+      string,
+      { last: number; previous_close: number; change_pct: number; source: string; at: string }
+    >;
+    note?: string;
+  };
   news: {
     available: boolean;
     reason?: string;
