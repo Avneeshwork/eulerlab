@@ -314,6 +314,12 @@ fx:
 calendar:
 	@uv run python -m eulerlab.ingest.forexfactory
 
+fmp-probe:
+	@uv run python -m eulerlab.ingest.fmp --probe
+
+fmp-news:
+	@uv run python -m eulerlab.ingest.fmp
+
 company-digest:
 	@uv run python -c "from eulerlab.features import company; d=company.build_digest(); p=company.save_digest(d); print(f'{len(d):,} companies -> {p}')"
 
