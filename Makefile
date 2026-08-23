@@ -286,6 +286,8 @@ daily:
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
 	$(MAKE) prune-local
+	@echo "== landing census =="
+	-$(MAKE) --no-print-directory manifest
 
 # Mutual fund NAVs. --snapshot-only is what `daily` runs (one request, the
 # whole universe); the full history backfill is ~14,000 requests and is a
@@ -318,6 +320,11 @@ calendar:
 
 news:
 	@uv run python -m eulerlab.ingest.news
+
+# Counts every landing tree once, so the capability matrix never lists the
+# bucket to render. Runs at the end of `daily`, after the sync has settled.
+manifest:
+	@uv run python -m eulerlab.ingest.manifest
 
 fmp-probe:
 	@uv run python -m eulerlab.ingest.fmp --probe

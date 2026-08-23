@@ -2312,6 +2312,39 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
 CALENDAR_WINDOW_DAYS = 7
 
 
+def _instrument_count(asset_class: str) -> int:
+    """How many instruments a class holds, from the local census.
+
+    Was `len(catalog.search(asset_class=..., limit=500))`, which built the full
+    instrument list — enumerating 34,773 fx keys, 14,280 mutual funds and 1,200
+    crypto — to display a single number. Measured at **62 seconds**, on a band
+    that shows three counts.
+
+    Falls back to the live search when the manifest has not been built, so a
+    fresh checkout still renders; it just renders slowly, and `make manifest`
+    fixes that.
+    """
+    from eulerlab.ingest import manifest
+
+    # Which number *is* the instrument count differs per tree, so it is stated
+    # rather than inferred. `groups or files` looked general and was wrong: mf
+    # files live at `mf/history/<scheme>.jsonl.gz`, so the second level is the
+    # literal directory `history` and the census records exactly one group —
+    # which rendered as "1 mutual fund" against 14,280 landed schemes.
+    tree, field = {
+        "crypto": ("crypto", "groups"),  # symbols
+        "fx": ("fx", "groups"),  # pairs
+        "mutual_fund": ("mf", "files"),  # one file per scheme
+    }.get(asset_class, ("", ""))
+
+    loaded = manifest.load()
+    if tree and loaded is not None:
+        census = loaded.census(tree)
+        if census is not None:
+            return int(getattr(census, field))
+    return len(catalog.search(asset_class=asset_class, limit=500))
+
+
 def _news_band(symbols: list[str]) -> dict[str, Any]:
     """Fresh stock-specific news, attached to the movers that need explaining.
 
@@ -2567,7 +2600,7 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             {
                 "asset_class": klass,
                 "label": name,
-                "instruments": len(catalog.search(asset_class=klass, limit=500)),
+                "instruments": _instrument_count(klass),
                 "as_of": "",
                 "detail": cell.detail if cell else "no capability entry",
             }

@@ -112,13 +112,29 @@ def capabilities() -> list[Capability]:
     ]
 
 
+def _census(tree: str) -> object | None:
+    """The counted size of a tree, from the local manifest.
+
+    Returns None when the manifest has never been built, which the callers
+    treat as "measure it live and say so" rather than as zero.
+    """
+    from eulerlab.ingest import manifest
+
+    loaded = manifest.load()
+    return loaded.census(tree) if loaded else None
+
+
 def _fx_detail() -> str:
     """Counted from disk, like every other row."""
-    found = _tree_files("fx", "*/*/*.jsonl.gz")
-    if not found:
+    census = _census("fx")
+    if census is None:
+        return "FX bars landed — count unmeasured (run `make manifest`)"
+    if not census.files:  # type: ignore[attr-defined]
         return "no FX bars landed — run `make fx-bulk`"
-    pairs = {r.split("/")[1] for r in found if len(r.split("/")) >= 2}
-    return f"{len(pairs)} pairs, {len(found):,} pair-days of 1m bars (FXCM, bid and ask)"
+    return (
+        f"{census.groups} pairs, {census.files:,} pair-days "  # type: ignore[attr-defined]
+        "of 1m bars (FXCM, bid and ask)"
+    )
 
 
 def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
@@ -163,10 +179,12 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
 
 def _fund_detail() -> str:
     """Counted from disk, like every other row."""
-    history = _tree_files("mf", "history/*.jsonl.gz")
-    if not history:
+    census = _census("mf")
+    if census is None:
+        return "NAV history landed — count unmeasured (run `make manifest`)"
+    if not census.files:  # type: ignore[attr-defined]
         return "no NAV history landed — run `make mf`"
-    landed = len(history)
+    landed = census.files  # type: ignore[attr-defined]
     snapshot = _latest_enriched_relative()
     stamp = snapshot.split("/")[-1].split(".")[0] if snapshot else "no snapshot"
     return f"{landed:,} schemes with landed NAV history (AMFI, snapshot {stamp})"
@@ -195,21 +213,34 @@ def _has_files(tree: str, pattern: str) -> bool:
     reported unsupported while 14,280 NAV files sat in the bucket, and the
     instrument picker and the capability matrix disagreed about the same data.
     """
+    # The manifest first, because it is a local file and already holds the
+    # answer. Falling straight through to the bucket meant the matrix still
+    # paid a network round trip per row to learn something `make daily` had
+    # counted hours earlier.
+    census = _census(tree)
+    if census is not None:
+        return bool(census.files)  # type: ignore[attr-defined]
+
     from eulerlab.ingest import landing_reader
 
-    # Not `_tree_files(...)`: that enumerates the tree to answer a boolean, and
-    # for fx that was 34,051 keys over 35 paginated requests — 62 seconds per
-    # call, on a matrix the snapshot renders every time.
+    # No manifest yet. Not `_tree_files(...)`: that enumerates the tree to
+    # answer a boolean, and for fx that was 34,051 keys over 35 paginated
+    # requests — 62 seconds per call, on a matrix the snapshot renders every
+    # time. One MaxKeys=1 probe answers the same question.
     return landing_reader.has_any(tree, pattern)
 
 
 def _crypto_detail() -> str:
     """Measured from disk, like every other row in this table."""
-    found = _tree_files("crypto", "*/*.jsonl.gz")
-    if not found:
+    census = _census("crypto")
+    if census is None:
+        return "minute bars landed — count unmeasured (run `make manifest`)"
+    if not census.files:  # type: ignore[attr-defined]
         return "no data — run `make crypto`"
-    symbols = {r.split("/")[1] for r in found if len(r.split("/")) >= 2}
-    return f"{len(symbols)} symbols, {len(found)} symbol-months of 1m bars (Binance archive)"
+    return (
+        f"{census.groups} symbols, {census.files} symbol-months "  # type: ignore[attr-defined]
+        "of 1m bars (Binance archive)"
+    )
 
 
 def universe(name: str) -> list[str]:
