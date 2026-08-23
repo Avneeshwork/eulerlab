@@ -427,11 +427,37 @@ def search(
     if wanted == AssetClass.EQUITY.value or batch:
         return equity_instruments(query, batch=batch, limit=limit)
 
-    share = max(1, limit // 4)
-    mixed = [
-        *equity_instruments(query, limit=share),
-        *crypto_instruments(query, limit=share),
-        *fx_instruments(query, limit=share),
-        *fund_instruments(query, limit=limit - 3 * share),
-    ]
+    # Only classes the capability matrix calls supported, and every one of
+    # them. Both directions are defects: offering an instrument that cannot be
+    # backtested wastes the operator's time, and hiding one that can is how
+    # crypto and mutual funds went unreachable in the first place.
+    #
+    # This used to be a fixed quarter-share over four hardcoded builders, which
+    # silently disagreed with `capabilities()` whenever a class had a snapshot
+    # but no history - mutual funds offered in the picker while the matrix
+    # called them unsupported. Deriving the split from the matrix makes the two
+    # incapable of drifting apart.
+    builders = {
+        AssetClass.EQUITY.value: lambda n: equity_instruments(query, limit=n),
+        AssetClass.CRYPTO.value: lambda n: crypto_instruments(query, n),
+        AssetClass.FX.value: lambda n: fx_instruments(query, n),
+        AssetClass.MUTUAL_FUND.value: lambda n: fund_instruments(query, n),
+    }
+    usable = _supported_classes()
+    supported = [name for name in builders if name in usable]
+    if not supported:
+        return []
+
+    share = max(1, limit // len(supported))
+    mixed: list[Instrument] = []
+    for index, name in enumerate(supported):
+        # The last class takes the remainder, so the limit is spent rather than
+        # rounded away.
+        take = limit - share * (len(supported) - 1) if index == len(supported) - 1 else share
+        mixed.extend(builders[name](max(1, take)))
     return mixed[:limit]
+
+
+def _supported_classes() -> set[str]:
+    """Asset-class names the capability matrix reports as usable."""
+    return {c.asset_class.value for c in capabilities() if c.supported}

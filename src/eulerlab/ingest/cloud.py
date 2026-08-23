@@ -222,12 +222,28 @@ class S3ObjectStore:
             raise MissingCredentials(msg)
 
         import boto3  # imported lazily so the ingest path never pays for it
+        from botocore.config import Config as BotoConfig
 
+        # Bounded, because unbounded is not a default this project can wear.
+        # boto3 ships a 60s connect timeout and five attempts, so one stalled
+        # TCP handshake costs five minutes per call and a pruned tree needs
+        # many. That is exactly what happened: a test run sat in SYN_SENT
+        # against B2 for **33 minutes**, hanging every commit behind it,
+        # burning five seconds of CPU the whole time.
+        #
+        # A short connect timeout is the one that matters — a handshake that
+        # has not completed in ten seconds is not going to. The read timeout is
+        # longer because a large object legitimately takes a while.
         self._client = boto3.client(
             "s3",
             endpoint_url=config.endpoint_url,
             aws_access_key_id=key_id,
             aws_secret_access_key=app_key,
+            config=BotoConfig(
+                connect_timeout=10,
+                read_timeout=30,
+                retries={"max_attempts": 3, "mode": "standard"},
+            ),
         )
         self._bucket = config.bucket
 

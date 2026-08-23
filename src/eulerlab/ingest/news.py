@@ -332,8 +332,26 @@ def fetch(query: Query, names: dict[str, str], *, now: datetime | None = None) -
     return parse_feed(_open(query.url), query, names, now=now)
 
 
-def day_path(asset_class: str, day: str, *, root: Path = LANDING) -> Path:
-    return root / asset_class / f"{day}.jsonl.gz"
+def month_path(asset_class: str, month: str, *, root: Path = LANDING) -> Path:
+    """One file per asset class per month, keyed by publication month.
+
+    Not per day. A sweep returns stories spanning a year of publication dates,
+    so day files came out at 970 files with a **median size of 877 bytes** for
+    1.4 MB of data. That is the same shape already recorded as a mistake for FX
+    (T-3710), and crypto already stores monthly here. Changed while the format
+    was one day old and nothing had been uploaded, which is the only cheap
+    moment to change it.
+
+    Dedup is therefore **scoped to a month**, which is not free. Google
+    re-dates evergreen pages — a "Reliance Power Share Price - Live NSE" quote
+    page keeps one stable guid while its pubDate follows each crawl — so the
+    same guid can land in two months and `_merge`, which reads one file, cannot
+    see both. Measured at 3 rows of 3,525 (0.09%), all of them quote pages
+    rather than articles. Left as a known leak instead of a cross-file guid
+    index: the index would be re-read on every sweep and grow without bound to
+    catch a tenth of a percent. See T-3744.
+    """
+    return root / asset_class / f"{month}.jsonl.gz"
 
 
 def _merge(path: Path, rows: list[dict[str, object]]) -> tuple[int, int]:
@@ -423,7 +441,7 @@ def land(
             return symbol, None
 
     failed: list[str] = []
-    by_day: dict[str, list[dict[str, object]]] = {}
+    by_month: dict[str, list[dict[str, object]]] = {}
     with ThreadPoolExecutor(WORKERS) as pool:
         for symbol, items in pool.map(one, symbols):
             if items is None:
@@ -432,11 +450,11 @@ def land(
             for item in items:
                 result.items += 1
                 result.matched += int(item.matched)
-                by_day.setdefault(item.event_time[:10], []).append(item.to_row())
+                by_month.setdefault(item.event_time[:7], []).append(item.to_row())
 
     result.failed = tuple(failed)
-    for day, rows in sorted(by_day.items()):
-        _, new = _merge(day_path(asset_class, day, root=root), rows)
+    for month, rows in sorted(by_month.items()):
+        _, new = _merge(month_path(asset_class, month, root=root), rows)
         result.new += new
     return result
 

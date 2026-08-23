@@ -86,7 +86,7 @@ def test_one_story_under_two_tickers_keeps_both(tmp_path: Path) -> None:
     early = datetime(2026, 8, 21, 9, 0, tzinfo=UTC)
     late = datetime(2026, 8, 21, 15, 0, tzinfo=UTC)
     feed = _rss(("Banks rally - ET", "shared", "ET"))
-    path = news.day_path("equity", "2026-08-21", root=tmp_path)
+    path = news.month_path("equity", "2026-08", root=tmp_path)
 
     first = news.parse_feed(feed, news.query_for("HDFCBANK", "equity"), {}, now=early)
     news._merge(path, [i.to_row() for i in first])

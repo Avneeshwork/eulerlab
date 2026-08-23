@@ -281,6 +281,8 @@ daily:
 	-$(MAKE) --no-print-directory daily-minute
 	@echo "== crypto (Binance public archive, no auth) =="
 	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
+	@echo "== per-instrument news (equity, crypto, FX) =="
+	-uv run python -m eulerlab.ingest.news
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
 	$(MAKE) prune-local

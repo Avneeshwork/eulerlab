@@ -32,10 +32,28 @@ loses a set.
 from __future__ import annotations
 
 import fnmatch
+import os
 from functools import lru_cache
 from pathlib import Path
 
 LANDING_ROOT = Path("data/landing")
+
+OFFLINE_ENV = "EULERLAB_NO_CLOUD"
+"""Set to 1 to answer from disk alone.
+
+Exists because the test suite had no business talking to Backblaze. Tests that
+called `catalog.search` were transitively listing 34,000 remote keys, and when
+one connection stalled the whole suite hung rather than failed — a hang and a
+failure look identical from the outside, which is the worst property a test can
+have. The timeouts in `cloud.py` bound the damage; this removes the reason.
+"""
+
+
+def cloud_enabled() -> bool:
+    """Whether the bucket may be consulted at all."""
+    return os.environ.get(OFFLINE_ENV, "").strip().lower() not in ("1", "true", "yes")
+
+
 STORAGE_CONFIG = Path("config/storage.yaml")
 
 
@@ -85,7 +103,7 @@ def available(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> 
     if root.exists():
         found |= {p.relative_to(LANDING_ROOT).as_posix() for p in root.glob(pattern) if p.is_file()}
 
-    if allow_cloud:
+    if allow_cloud and cloud_enabled():
         try:
             store, prefix = _store_and_prefix()
             listed = store.list_sizes(f"{prefix}{tree}/")  # type: ignore[attr-defined]
@@ -112,7 +130,7 @@ def read(relative: str, *, allow_cloud: bool = True) -> bytes:
     local = LANDING_ROOT / relative
     if local.exists():
         return local.read_bytes()
-    if not allow_cloud:
+    if not allow_cloud or not cloud_enabled():
         msg = f"{relative} is not local and the cloud was not consulted"
         raise FileNotFoundError(msg)
 
