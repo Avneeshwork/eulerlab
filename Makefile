@@ -314,6 +314,9 @@ fx:
 calendar:
 	@uv run python -m eulerlab.ingest.forexfactory
 
+news:
+	@uv run python -m eulerlab.ingest.news
+
 fmp-probe:
 	@uv run python -m eulerlab.ingest.fmp --probe
 
