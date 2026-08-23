@@ -139,3 +139,62 @@ def test_a_name_of_only_stopwords_still_scores() -> None:
 def test_undated_or_untitled_rows_are_dropped_not_defaulted() -> None:
     feed = b"<rss><channel><title>f</title><item><title>No date</title></item></channel></rss>"
     assert news.parse_feed(feed, news.query_for("X", "equity"), {}) == []
+
+
+def test_a_pair_prefix_company_is_not_its_namesake() -> None:
+    """The false explanation this matcher exists to prevent.
+
+    `RELIANCE` is not an abbreviation, it is the word that begins Reliance
+    Industries, Communications, Power and Infrastructure alike. Printing one
+    beside another's price is not a weak reason, it is a wrong one.
+    """
+    name = "Reliance Industries Limited"
+    assert news.strong_match("Reliance Industries shares rise 3%", "RELIANCE", name)
+    for other in (
+        "Reliance Communications (RCOM) subsidiary news",
+        "Reliance Power surges 5%",
+        "Reliance Infrastructure gains",
+    ):
+        assert not news.strong_match(other, "RELIANCE", name), other
+
+
+def test_an_abbreviation_ticker_is_evidence_on_its_own() -> None:
+    """`TCS` and `INFY` appear nowhere but their own company, so finding one
+    settles the question without needing the registered name."""
+    assert news.strong_match("Top 10 Firms: Airtel, TCS, SBI", "TCS", "Tata Consultancy Services")
+    assert news.strong_match("Infosys wins deal", "INFY", "Infosys Limited")
+
+
+def test_a_name_of_only_generic_words_identifies_nothing() -> None:
+    """ "W S Industries (I) Limited" keeps only `industries` once initials and
+    legal form are dropped, which tagged it onto every headline containing the
+    word — including "Reliance Industries Q2 profit rises"."""
+    assert not news.strong_match(
+        "Reliance Industries Q2 profit rises 12%", "WSI", "W S Industries (I) Limited"
+    )
+
+
+def test_a_name_with_no_distinctive_word_falls_back_to_nothing() -> None:
+    """ "B & A Limited" is single letters and a legal suffix.
+
+    Falling back to the raw words gave ('b', 'a', 'limited'), so the match
+    needed only a headline containing "b" and "a" — which tagged B & A Ltd onto
+    "Cupid shares reclassified from BSE Group B to Group A".
+    """
+    assert news.strong_tokens("B & A Limited") == ()
+    assert not news.strong_match(
+        "Cupid reclassified from Group B to Group A", "BNALTD", "B & A Limited"
+    )
+
+
+def test_tagging_finds_every_company_a_headline_names() -> None:
+    """A sector piece naming several lenders is one event with several
+    exposures, and a reader on one mover needs to see the others."""
+    hit = news.affected("HDFC Bank and ICICI Bank lead banking rally")
+    assert "HDFCBANK" in hit.symbols and "ICICIBANK" in hit.symbols
+
+
+def test_tagging_finds_nothing_in_an_index_headline() -> None:
+    """ "Nifty ends flat as metals drag" names no listed company. Tagging one
+    would invent an exposure that is not there."""
+    assert news.affected("Nifty ends flat as metals drag").symbols == ()

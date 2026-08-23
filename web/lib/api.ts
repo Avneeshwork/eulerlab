@@ -434,6 +434,11 @@ export type Story = {
   publisher: string;
   link: string;
   symbols: string[];
+  /** Every listed company the headline names, not just the one queried. A
+   *  sector piece naming four lenders is one event with four exposures. */
+  affects?: string[];
+  /** Sectors those companies sit in. */
+  sectors?: string[];
   /** Hours since publication. Shown on every headline, because a story with no
    *  visible age is indistinguishable from a stale one. */
   age_hours: number;
@@ -663,6 +668,7 @@ export const api = {
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
   data: () => get<DataStatus>('/api/data'),
+  syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
   snapshot: (workspace = '') =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
   tweezer: (input: { symbols: string[]; start: string; end: string }) =>

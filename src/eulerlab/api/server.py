@@ -1929,6 +1929,86 @@ def _landing_source(name: str) -> dict[str, Any]:
     }
 
 
+def _run_sync(job: Job) -> None:
+    """Mirror the landing zone to B2, then recount it.
+
+    The manifest is rebuilt at the end for the same reason `make daily` does
+    it there: the counts describe what the bucket holds, so recounting before
+    the upload would describe the state we just left.
+    """
+    import io
+    from contextlib import redirect_stdout
+
+    try:
+        from eulerlab.ingest import manifest
+        from eulerlab.ingest.sync_cloud import main as sync_main
+
+        job.status = "running"
+        job.message = "mirroring the landing zone to B2"
+        captured = io.StringIO()
+        with redirect_stdout(captured):
+            code = sync_main([])
+
+        uploaded = sum(
+            int(line.split(":")[1].strip())
+            for line in captured.getvalue().splitlines()
+            if line.strip().startswith("uploaded")
+        )
+
+        job.message = "recounting the landing zone"
+        saved = manifest.save(manifest.build())
+
+        job.status = "done" if code == 0 else "failed"
+        job.result = {
+            "uploaded": uploaded,
+            "manifest": str(saved),
+            "trees": {
+                name: census.files
+                for name, census in sorted((manifest.load() or manifest.Manifest()).trees.items())
+            },
+            "log": captured.getvalue()[-4000:],
+        }
+        if code != 0:
+            job.error = "sync reported a non-zero exit; see the log"
+    except Exception as exc:
+        # Broad on purpose: whatever the sync raises, the operator should read
+        # it on the page rather than have the job vanish with a bare "failed".
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"
+    finally:
+        job.finished = time.time()
+
+
+@app.post("/api/data/sync")
+def data_sync() -> dict[str, Any]:
+    """Start a cloud sync. Returns a job id immediately.
+
+    A job rather than a blocking call because a full mirror takes minutes and
+    an HTTP request that long is one the proxy will cut before the work
+    finishes — which is how a sync ends up reported as failed while it is
+    still running.
+
+    Refuses to start a second one. Two concurrent mirrors of the same tree do
+    not corrupt anything, but they double the upload and make the reported
+    counts meaningless.
+    """
+    with JOBS_LOCK:
+        running = [
+            j
+            for j in JOBS.values()
+            if j.status in ("queued", "running") and j.result.get("kind") == "sync"
+        ]
+        if running:
+            return {"ok": False, "error": "a sync is already running", "job": running[0].id}
+
+        job = Job(id=uuid.uuid4().hex[:12])
+        job.result = {"kind": "sync"}
+        JOBS[job.id] = job
+
+    threading.Thread(target=_run_sync, args=(job,), daemon=True).start()
+    return {"ok": True, "job": job.id}
+
+
 @app.get("/api/data")
 def data_status() -> dict[str, Any]:
     """What data is on disk, counted rather than claimed.
@@ -2392,11 +2472,17 @@ def _news_band(symbols: list[str]) -> dict[str, Any]:
             return -1.0
 
     def row(item: Any) -> dict[str, Any]:
+        # Which *other* listed companies the headline names, and their sectors.
+        # A sector piece naming four lenders is one event with four exposures,
+        # and a reader looking at one mover needs to see the other three.
+        hit = newsfeed.affected(item.title)
         return {
             "title": item.title,
             "publisher": item.publisher,
             "link": item.link,
             "symbols": list(item.symbols),
+            "affects": list(hit.symbols),
+            "sectors": list(hit.sectors),
             "age_hours": round(age_hours(item.event_time), 1),
         }
 
@@ -2677,8 +2763,8 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
                     "out of the fundamentals tree"
                 ]
             ),
-            "index levels — no NIFTY, so breadth has nothing to diverge from",
-            "news with ticker tagging — the largest gap; movers have no why",
+            "index levels — no NIFTY, so breadth has nothing to diverge from "
+            "and a mover cannot be read against the market",
             "live quotes — everything here is end-of-day",
         ],
     }

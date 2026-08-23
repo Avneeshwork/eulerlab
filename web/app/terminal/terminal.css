@@ -1418,3 +1418,52 @@
 .ttape li a { color: var(--ink); text-decoration: none; font-size: 12.5px; }
 .ttape li a:hover { text-decoration: underline; }
 .ttape li .tfine { grid-column: 2; }
+
+/* The sector a tagged company sits in. Set apart from the tickers because it
+   answers a different question: the tickers say who, the sector says whether
+   this is one company's problem or a rotation. */
+.tsector {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* Calendar and tape scroll inside their own panel rather than setting the
+   length of the page. A hundred calendar events and forty headlines pushed
+   every band below them off the screen, which buried the cross-asset and
+   evidence bands the page deliberately puts last — the band order is the
+   design, and a list long enough to hide it breaks that.
+
+   Capped in rem rather than by row count so it holds when the row heights
+   change, and the sticky header keeps the column meanings visible while the
+   body scrolls under it. */
+.tscroll {
+  max-height: 26rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tscroll table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+/* The sync control sits beside the instrument count because that is the number
+   it changes. Its caption says the operation is re-runnable, since the honest
+   worry about a button labelled "sync all data" is what it might overwrite:
+   already-uploaded files are skipped, nothing local is removed. */
+.tsyncbox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 22rem;
+  text-align: right;
+}
+.tsyncbox .tfine[data-state='failed'] { color: var(--down, #d2544b); }
+.tsyncbox .tfine[data-state='done'] { color: var(--ink-2); }

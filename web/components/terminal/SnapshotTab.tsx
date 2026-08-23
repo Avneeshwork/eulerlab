@@ -248,12 +248,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             </span>
           </h3>
           <p className="tfine" style={{ marginBottom: 12 }}>
-            Newest first. A headline must carry the ticker or two words of the
-            registered name to appear — &ldquo;Reliance Communications&rdquo; is not a
+            Newest first, tagged with every listed company the headline names and
+            the sectors they sit in — a story naming four lenders is one event with
+            four exposures. A headline must carry the ticker or two words of the
+            registered name to be tagged: &ldquo;Reliance Communications&rdquo; is not a
             Reliance Industries story, and printing it beside that price would be a
             false reason rather than a weak one.
           </p>
-          <div className="tpanel">
+          <div className="tpanel tscroll">
             <ul className="ttape">
               {snap.news.tape.map((story) => (
                 <li key={story.link || story.title}>
@@ -262,7 +264,10 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
                     {story.title}
                   </a>
                   <span className="tfine">
-                    {story.symbols.join(', ')}
+                    {(story.affects?.length ? story.affects : story.symbols).join(', ')}
+                    {story.sectors?.length ? (
+                      <span className="tsector">{story.sectors.join(' · ')}</span>
+                    ) : null}
                     {story.publisher ? ` · ${story.publisher}` : ''}
                   </span>
                 </li>
@@ -283,7 +288,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           )}
         </h3>
         {snap.catalysts.available && snap.catalysts.events?.length ? (
-          <div className="tpanel">
+          <div className="tpanel tscroll">
             <table className="ttable">
               <tbody>
                 {snap.catalysts.events.map((event) => (

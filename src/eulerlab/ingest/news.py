@@ -60,6 +60,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from functools import lru_cache
 from pathlib import Path
 
 LANDING = Path("data/landing/news")
@@ -202,8 +203,15 @@ def build_names(*, root: Path = NAMES_LANDING) -> dict[str, str]:
     return out
 
 
+@lru_cache(maxsize=4)
 def load_names(path: Path = NAMES_DERIVED, *, root: Path = NAMES_LANDING) -> dict[str, str]:
-    """The mapping, cached. Rebuilt from the landed list when absent."""
+    """The mapping, cached. Rebuilt from the landed list when absent.
+
+    Memoised because `affected()` consults it once per candidate symbol while
+    scanning a headline, and re-reading and re-parsing 2,553 entries each time
+    made one tag 26ms instead of 1ms — about 1.5 seconds across a snapshot's
+    sixty headlines, for a file that changes when NSE lists a company.
+    """
     if path.exists():
         loaded = json.loads(path.read_text(encoding="utf-8"))
         return {str(k): str(v) for k, v in loaded.items()}
@@ -547,6 +555,35 @@ Limited" to the single token "reliance", which then matched both.
 """
 
 
+GENERIC_NAME_WORDS = frozenset(
+    {
+        "industries",
+        "enterprises",
+        "services",
+        "group",
+        "technologies",
+        "international",
+        "products",
+        "holdings",
+        "finance",
+        "capital",
+        "solutions",
+        "systems",
+        "corporation",
+        "engineering",
+        "trading",
+    }
+)
+"""Words that name a *kind* of company rather than one company.
+
+A name can reduce to a single one of these once initials and legal form are
+dropped: "W S Industries (I) Limited" leaves `industries`, because `W` and `S`
+are too short to keep. Matching on that tags W S Industries onto every headline
+containing the word — it was tagged onto "Reliance Industries Q2 profit rises".
+Where this is all a name leaves, only the ticker identifies the company.
+"""
+
+
 def strong_tokens(name: str) -> tuple[str, ...]:
     """Name words that identify one company rather than a family of them."""
     clean = name.strip().lower()
@@ -556,7 +593,13 @@ def strong_tokens(name: str) -> tuple[str, ...]:
         return (clean,)
     words = [w for w in re.split(r"[^A-Za-z0-9]+", clean) if w]
     kept = [w for w in words if w not in STRONG_STOPWORDS and len(w) > 1]
-    return tuple(kept or words)
+    # No fallback to the raw words. "B & A Limited" leaves nothing after
+    # dropping single letters and legal form, and falling back handed back
+    # ('b', 'a', 'limited') — which required only that a headline contain "b"
+    # and "a", so B & A Ltd was tagged onto "Cupid shares reclassified from BSE
+    # Group B to Group A". A name with no distinctive word cannot identify its
+    # company, and the ticker is then the only evidence there is.
+    return tuple(kept)
 
 
 def strong_match(title: str, symbol: str, name: str) -> bool:
@@ -596,6 +639,10 @@ def strong_match(title: str, symbol: str, name: str) -> bool:
     if not tokens:
         return False
     if len(tokens) == 1 or "/" in name:
+        # A lone generic word is not an identity. Having already failed the
+        # ticker test above, there is nothing left to match on.
+        if tokens[0] in GENERIC_NAME_WORDS:
+            return False
         return tokens[0] in low
     # Two tokens, so "reliance industries" qualifies and "reliance" alone does
     # not. A headline naming only the shared first word is genuinely ambiguous,
@@ -697,3 +744,75 @@ def tape(by_symbol: dict[str, list[Item]], *, limit: int = 40) -> list[Item]:
             else:
                 merged[item.guid] = replace(prior, symbols=tuple(sorted({*prior.symbols, symbol})))
     return sorted(merged.values(), key=lambda i: i.event_time, reverse=True)[:limit]
+
+
+@dataclass(frozen=True)
+class Affected:
+    """Which listed companies a headline names, and what sectors they sit in."""
+
+    symbols: tuple[str, ...]
+    sectors: tuple[str, ...]
+
+
+@lru_cache(maxsize=1)
+def _company_index() -> tuple[dict[str, tuple[tuple[str, tuple[str, ...]], ...]], dict[str, str]]:
+    """First-token index over every listed company, plus symbol → sector.
+
+    Built once. The naive form — test all 2,553 registered names against every
+    headline — is 64,000 string searches for one tape refresh. Indexing on the
+    first significant token turns that into one dictionary lookup per word,
+    and the candidates it returns are then checked with the same strict rule
+    used to attribute a mover.
+    """
+    names = load_names()
+    index: dict[str, list[tuple[str, tuple[str, ...]]]] = {}
+    for symbol, name in names.items():
+        tokens = strong_tokens(name)
+        if not tokens:
+            continue
+        index.setdefault(tokens[0], []).append((symbol, tokens))
+        # Tickers that are not the company's own first word are distinctive
+        # enough to look up directly — TCS, INFY, SBIN.
+        low = symbol.lower()
+        if low not in tokens:
+            index.setdefault(low, []).append((symbol, tokens))
+
+    sectors: dict[str, str] = {}
+    try:
+        from eulerlab.features import company
+
+        sectors = {s: c.sector for s, c in company.load_digest().items() if c.sector}
+    except Exception:
+        # A missing digest costs sector labels, not the tagging itself.
+        sectors = {}
+    return ({k: tuple(v) for k, v in index.items()}, sectors)
+
+
+def affected(title: str, *, limit: int = 6) -> Affected:
+    """Every listed company a headline names, and their sectors.
+
+    This is the difference between "a story about HDFCBANK" and "a story about
+    the banks" — a sector piece naming four lenders is one event with four
+    exposures, and the reader needs to see which four.
+
+    Uses `strong_match`, so the same rule that stops "Reliance Communications"
+    being read as Reliance Industries applies here. A loose scan across 2,553
+    companies would generate far more false tags than a per-symbol query ever
+    did, because every headline is tested against every company.
+    """
+    index, sectors = _company_index()
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", title.lower()) if w]
+    hits: dict[str, None] = {}
+    for word in words:
+        for symbol, _tokens in index.get(word, ()):
+            if symbol in hits:
+                continue
+            if strong_match(title, symbol, load_names().get(symbol, "")):
+                hits[symbol] = None
+    found = tuple(list(hits)[:limit])
+    seen: dict[str, None] = {}
+    for symbol in found:
+        sector = sectors.get(symbol)
+        if sector:
+            seen[sector] = None
+    return Affected(symbols=found, sectors=tuple(seen))

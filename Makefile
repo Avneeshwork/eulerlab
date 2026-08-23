@@ -285,6 +285,8 @@ daily:
 	-uv run python -m eulerlab.ingest.news
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
+	@echo "== price panel =="
+	-$(MAKE) --no-print-directory build-panel
 	$(MAKE) prune-local
 	@echo "== landing census =="
 	-$(MAKE) --no-print-directory manifest

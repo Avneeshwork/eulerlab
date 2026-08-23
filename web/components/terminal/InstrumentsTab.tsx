@@ -9,7 +9,7 @@
  * defect as one offered without data, pointing the other way.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import type { InstrumentList } from '@/lib/api';
 
@@ -24,6 +24,48 @@ export function InstrumentsTab() {
   const [assetClass, setAssetClass] = useState('');
   const [batch, setBatch] = useState('');
   const [list, setList] = useState<InstrumentList | null>(null);
+  const [sync, setSync] = useState<{ state: string; note: string }>({ state: 'idle', note: '' });
+  const polling = useRef<number | null>(null);
+
+  // Stop polling when the tab unmounts, or a closed page keeps asking the API
+  // about a job nobody is watching.
+  useEffect(() => () => {
+    if (polling.current) window.clearInterval(polling.current);
+  }, []);
+
+  async function startSync() {
+    setSync({ state: 'running', note: 'starting…' });
+    const started = await api.syncData().catch((e) => ({ ok: false, error: String(e) }));
+    if (!started.ok || !('job' in started) || !started.job) {
+      setSync({ state: 'failed', note: started.error ?? 'could not start' });
+      return;
+    }
+    const id = started.job;
+    polling.current = window.setInterval(async () => {
+      const job = await api.job(id).catch(() => null);
+      if (!job) return;
+      if (job.status === 'done' || job.status === 'failed') {
+        if (polling.current) window.clearInterval(polling.current);
+        const uploaded = (job.result as { uploaded?: number } | undefined)?.uploaded;
+        setSync({
+          state: job.status,
+          note:
+            job.status === 'done'
+              ? `${uploaded ?? 0} object${uploaded === 1 ? '' : 's'} uploaded in ${job.elapsed}s`
+              : job.error || 'failed',
+        });
+        // A finished sync changes what is landed, so the list is re-read
+        // rather than left showing the counts from before it ran.
+        if (job.status === 'done') {
+          api.instruments(query, assetClass === 'equity' ? batch : '', assetClass, 120)
+            .then(setList)
+            .catch(() => undefined);
+        }
+      } else {
+        setSync({ state: 'running', note: job.message || 'syncing…' });
+      }
+    }, 2000);
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -51,6 +93,21 @@ export function InstrumentsTab() {
             liquidity-ranked from our own turnover history rather than index membership,
             because a published constituent list only exists as it stands today.
           </p>
+        </div>
+        <div className="tsyncbox">
+          <button
+            className="tbtn"
+            type="button"
+            onClick={startSync}
+            disabled={sync.state === 'running'}
+          >
+            {sync.state === 'running' ? 'Syncing…' : 'Sync all data'}
+          </button>
+          <div className="tfine" data-state={sync.state}>
+            {sync.state === 'idle'
+              ? 'Mirrors the landing zone to B2 and recounts it. Safe to re-run — already-uploaded files are skipped.'
+              : sync.note}
+          </div>
         </div>
       </section>
 
