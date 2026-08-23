@@ -195,7 +195,12 @@ def _has_files(tree: str, pattern: str) -> bool:
     reported unsupported while 14,280 NAV files sat in the bucket, and the
     instrument picker and the capability matrix disagreed about the same data.
     """
-    return bool(_tree_files(tree, pattern))
+    from eulerlab.ingest import landing_reader
+
+    # Not `_tree_files(...)`: that enumerates the tree to answer a boolean, and
+    # for fx that was 34,051 keys over 35 paginated requests — 62 seconds per
+    # call, on a matrix the snapshot renders every time.
+    return landing_reader.has_any(tree, pattern)
 
 
 def _crypto_detail() -> str:

@@ -2312,6 +2312,78 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
 CALENDAR_WINDOW_DAYS = 7
 
 
+def _news_band(symbols: list[str]) -> dict[str, Any]:
+    """Fresh stock-specific news, attached to the movers that need explaining.
+
+    This is the band the snapshot was built without, and said so: every mover
+    was "a price without a reason". It now has one — but only where one really
+    exists, which is the whole difficulty.
+
+    Two rules make the difference between information and decoration:
+
+    - **Windowed to a day.** An unconstrained Google News search is
+      relevance-ranked, and measured over the landed corpus only **0.8% of
+      3,525 stories were from that day** while 63% were one to twelve months
+      old. Showing that beside today's move would be worse than showing
+      nothing, because it would look current.
+    - **Attributed strictly.** A headline must carry the ticker or two tokens
+      of the registered name. "Reliance Communications" is not a story about
+      Reliance Industries, and printing it beside Reliance Industries' price
+      would be a false explanation rather than a weak one.
+
+    A mover with no qualifying story is reported as having none. That is a
+    finding, not a blank: a large move with no news is a different and often
+    more interesting fact than one with news.
+    """
+    # Gainers, losers and unusual volume overlap, and a duplicate symbol is a
+    # duplicate network round trip on a page that has to stay fast.
+    symbols = list(dict.fromkeys(symbols))
+    try:
+        from eulerlab.ingest import news as newsfeed
+
+        by_symbol = newsfeed.live(symbols, "equity")
+    except Exception as exc:
+        return {
+            "available": False,
+            "reason": f"news unreachable: {type(exc).__name__}",
+            "stories": {},
+            "tape": [],
+        }
+
+    now = datetime.now(UTC)
+
+    def age_hours(stamp: str) -> float:
+        try:
+            return max(0.0, (now - datetime.fromisoformat(stamp)).total_seconds() / 3600)
+        except ValueError:
+            return -1.0
+
+    def row(item: Any) -> dict[str, Any]:
+        return {
+            "title": item.title,
+            "publisher": item.publisher,
+            "link": item.link,
+            "symbols": list(item.symbols),
+            "age_hours": round(age_hours(item.event_time), 1),
+        }
+
+    stories = {symbol: row(items[0]) for symbol, items in by_symbol.items() if items}
+    feed = [row(i) for i in newsfeed.tape(by_symbol, limit=25)]
+    covered = len(stories)
+    return {
+        "available": True,
+        "stories": stories,
+        "tape": feed,
+        "covered": covered,
+        "asked": len(symbols),
+        "window": newsfeed.LIVE_WINDOW,
+        "note": (
+            f"{covered} of {len(symbols)} movers have a story from the last 24 hours. "
+            "The rest moved without one, which is itself worth seeing."
+        ),
+    }
+
+
 def _calendar_band() -> dict[str, Any]:
     """Scheduled macro releases, from the ForexFactory feed.
 
@@ -2544,6 +2616,16 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "losers": by_move[-SNAPSHOT_MOVERS:][::-1],
             "unusual_volume": unusual[:SNAPSHOT_MOVERS],
         },
+        "news": _news_band(
+            [
+                str(t["symbol"])
+                for t in [
+                    *by_move[:SNAPSHOT_MOVERS],
+                    *by_move[-SNAPSHOT_MOVERS:],
+                    *unusual[:SNAPSHOT_MOVERS],
+                ]
+            ]
+        ),
         "catalysts": _calendar_band(),
         "cross_asset": cross,
         "evidence": {

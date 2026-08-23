@@ -429,6 +429,16 @@ export type Tile = {
   pe: number | null;
 };
 
+export type Story = {
+  title: string;
+  publisher: string;
+  link: string;
+  symbols: string[];
+  /** Hours since publication. Shown on every headline, because a story with no
+   *  visible age is indistinguishable from a stale one. */
+  age_hours: number;
+};
+
 export type Snapshot = {
   ok: boolean;
   error?: string;
@@ -454,6 +464,17 @@ export type Snapshot = {
     missing: string;
   };
   movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
+  news: {
+    available: boolean;
+    reason?: string;
+    /** Freshest qualifying story per symbol. Absent means no story, not no check. */
+    stories: Record<string, Story>;
+    tape: Story[];
+    covered?: number;
+    asked?: number;
+    window?: string;
+    note?: string;
+  };
   catalysts: {
     available: boolean;
     reason: string;

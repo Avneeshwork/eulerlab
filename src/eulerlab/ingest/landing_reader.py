@@ -31,6 +31,7 @@ loses a set.
 
 from __future__ import annotations
 
+import contextlib
 import fnmatch
 import os
 from functools import lru_cache
@@ -67,8 +68,14 @@ class CloudUnavailable(RuntimeError):
 
 
 @lru_cache(maxsize=1)
+@lru_cache(maxsize=1)
 def _store_and_prefix() -> tuple[object, str]:
-    """The object store and key prefix, built once per process."""
+    """The object store and key prefix, built once per process.
+
+    The docstring claimed "once per process" long before it was true — without
+    the cache this built a fresh boto3 client on every call, and the capability
+    matrix calls it repeatedly.
+    """
     from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
 
     if not STORAGE_CONFIG.exists():
@@ -92,6 +99,46 @@ def remote_key(relative: str) -> str:
     return f"{prefix}{relative}"
 
 
+_LISTING_TTL = 300.0
+"""Seconds a remote tree listing is reused.
+
+The listings exist to produce counts — "10 pairs, 34,051 pair-days" on the
+capability matrix — and a count of an archive that only changes when `make
+daily` runs does not need to be recomputed per request. Without this, rendering
+the snapshot enumerated roughly **50,000 remote keys every time**: 34,051 for
+fx, 14,280 for mutual funds and 1,200 for crypto, all to build description
+strings. Measured at 51 to 189 seconds per call.
+
+Five minutes, not indefinite: an ingest that lands data mid-session should show
+up without restarting the API.
+"""
+
+_LISTED: dict[tuple[str, str], tuple[float, tuple[str, ...]]] = {}
+
+
+def _remote_listing(tree: str, pattern: str) -> tuple[str, ...]:
+    """Remote paths under a tree matching a pattern, memoised briefly."""
+    import time
+
+    key = (tree, pattern)
+    cached = _LISTED.get(key)
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < _LISTING_TTL:
+        return cached[1]
+
+    found: list[str] = []
+    store, prefix = _store_and_prefix()
+    for remote in store.list_sizes(f"{prefix}{tree}/"):  # type: ignore[attr-defined]
+        relative = remote[len(prefix) :]
+        if fnmatch.fnmatch(relative, f"{tree}/{pattern}") or fnmatch.fnmatch(
+            relative, f"{tree}/{pattern.replace('**/', '')}"
+        ):
+            found.append(relative)
+    out = tuple(found)
+    _LISTED[key] = (now, out)
+    return out
+
+
 def available(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> list[str]:
     """Landing-relative paths under one tree, from disk and the bucket together.
 
@@ -104,20 +151,52 @@ def available(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> 
         found |= {p.relative_to(LANDING_ROOT).as_posix() for p in root.glob(pattern) if p.is_file()}
 
     if allow_cloud and cloud_enabled():
-        try:
-            store, prefix = _store_and_prefix()
-            listed = store.list_sizes(f"{prefix}{tree}/")  # type: ignore[attr-defined]
-            for key in listed:
-                relative = key[len(prefix) :]
-                if fnmatch.fnmatch(relative, f"{tree}/{pattern}") or fnmatch.fnmatch(
-                    relative, f"{tree}/{pattern.replace('**/', '')}"
-                ):
-                    found.add(relative)
-        except CloudUnavailable:
-            # Local-only is a usable answer; an unreachable bucket is not a
-            # reason to report an empty tree that exists on disk.
-            pass
+        # Local-only is a usable answer; an unreachable bucket is not a reason
+        # to report an empty tree that exists on disk.
+        with contextlib.suppress(CloudUnavailable):
+            found |= set(_remote_listing(tree, pattern))
     return sorted(found)
+
+
+def _literal_prefix(pattern: str) -> str:
+    """The part of a glob before its first wildcard.
+
+    `history/*.jsonl.gz` gives `history/`; `*/*/*.jsonl.gz` gives `""`. Used to
+    narrow an existence probe as far as the pattern allows without pretending
+    to evaluate the glob remotely.
+    """
+    out: list[str] = []
+    for segment in pattern.split("/"):
+        if any(ch in segment for ch in "*?["):
+            break
+        out.append(segment)
+    return "/".join(out) + "/" if out else ""
+
+
+def has_any(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> bool:
+    """Whether a tree holds anything matching, without enumerating it.
+
+    A boolean question that cost 35 paginated requests and 62 seconds, because
+    the only tool available was "list every key and see". Disk is checked
+    first because it is free, and the bucket is asked with a single MaxKeys=1
+    probe narrowed to the pattern's literal prefix.
+
+    The probe is deliberately **weaker than the glob**: it answers "objects
+    exist under this prefix", not "objects match this pattern". For a
+    capability check that is the right granularity — a tree with data at an
+    unexpected depth is a different problem, and one worth failing loudly on
+    rather than reporting as absent.
+    """
+    root = LANDING_ROOT / tree
+    if root.exists() and next(root.glob(pattern), None) is not None:
+        return True
+    if not allow_cloud or not cloud_enabled():
+        return False
+    try:
+        store, prefix = _store_and_prefix()
+        return bool(store.any_under(f"{prefix}{tree}/{_literal_prefix(pattern)}"))  # type: ignore[attr-defined]
+    except CloudUnavailable:
+        return False
 
 
 def read(relative: str, *, allow_cloud: bool = True) -> bytes:

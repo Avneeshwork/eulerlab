@@ -57,7 +57,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -112,15 +112,26 @@ class Query:
     text: str
     hl: str = "en-IN"
     gl: str = "IN"
+    window: str = ""
+    """Google's recency operator — `1d`, `7d`. Empty means no constraint.
+
+    This is the difference between a feed and an archive, and it is not
+    cosmetic. Measured 2026-08-23 over the landed corpus: an unconstrained
+    search returns **relevance-ranked** results, and only **0.8% of 3,525
+    stories were from that day** while 63% were one to twelve months old. The
+    same query with `when:1d` returned 8-38 items of which **100% were inside
+    36 hours**, newest one to four hours old.
+
+    So an unwindowed sweep cannot be shown as news. It is a research corpus.
+    """
 
     @property
     def url(self) -> str:
-        return FEED.format(
-            q=urllib.parse.quote(self.text), hl=self.hl, gl=self.gl, lang=self.hl[:2]
-        )
+        text = f"{self.text} when:{self.window}" if self.window else self.text
+        return FEED.format(q=urllib.parse.quote(text), hl=self.hl, gl=self.gl, lang=self.hl[:2])
 
 
-def query_for(symbol: str, asset_class: str) -> Query:
+def query_for(symbol: str, asset_class: str, *, window: str = "") -> Query:
     """The search for one instrument.
 
     Equity uses the ticker plus an exchange word, which measured best. Crypto
@@ -133,18 +144,18 @@ def query_for(symbol: str, asset_class: str) -> Query:
             if base.endswith(quote) and len(base) > len(quote):
                 base = base[: -len(quote)]
                 break
-        return Query(symbol, asset_class, f"{base} crypto price", "en-US", "US")
+        return Query(symbol, asset_class, f"{base} crypto price", "en-US", "US", window)
 
     if asset_class == "fx":
         pair = symbol.upper()
         if len(pair) == 6:
-            return Query(symbol, asset_class, f"{pair[:3]} {pair[3:]} forex", "en-US", "US")
-        return Query(symbol, asset_class, f"{pair} forex", "en-US", "US")
+            return Query(symbol, asset_class, f"{pair[:3]} {pair[3:]} forex", "en-US", "US", window)
+        return Query(symbol, asset_class, f"{pair} forex", "en-US", "US", window)
 
     if asset_class == "us_equity":
-        return Query(symbol, asset_class, f"{symbol} stock", "en-US", "US")
+        return Query(symbol, asset_class, f"{symbol} stock", "en-US", "US", window)
 
-    return Query(symbol, asset_class, f"{symbol} share price NSE", "en-IN", "IN")
+    return Query(symbol, asset_class, f"{symbol} share price NSE", "en-IN", "IN", window)
 
 
 def _open(url: str, *, timeout: int = 30, retries: int = 3) -> bytes:
@@ -424,6 +435,7 @@ def land(
     root: Path = LANDING,
     names: dict[str, str] | None = None,
     now: datetime | None = None,
+    window: str = "",
 ) -> LandResult:
     """Sweep a list of instruments and merge what comes back.
 
@@ -436,7 +448,7 @@ def land(
 
     def one(symbol: str) -> tuple[str, list[Item] | None]:
         try:
-            return symbol, fetch(query_for(symbol, asset_class), table, now=now)
+            return symbol, fetch(query_for(symbol, asset_class, window=window), table, now=now)
         except (urllib.error.URLError, TimeoutError, OSError):
             return symbol, None
 
@@ -506,7 +518,7 @@ def _main() -> None:
         if not symbols:
             print(f"  {asset_class:8s} no instruments")
             continue
-        result = land(symbols, asset_class, names=names_for(asset_class))
+        result = land(symbols, asset_class, names=names_for(asset_class), window=DAILY_WINDOW)
         note = (
             f", {len(result.failed)} failed: {', '.join(result.failed[:4])}"
             if result.failed
@@ -521,3 +533,167 @@ def _main() -> None:
 
 if __name__ == "__main__":
     _main()
+
+
+STRONG_STOPWORDS = frozenset({"limited", "ltd", "the", "of", "and", "company", "co"})
+"""Dropped when matching strictly — legal form only.
+
+Deliberately much narrower than `NAME_STOPWORDS`. That list drops "industries",
+"services", "enterprises" and "group" because they are noise when asking *does
+this headline mention the company at all*. They are the opposite of noise when
+asking *which* company: "industries" is the entire difference between Reliance
+Industries and Reliance Power, and dropping it collapsed "Reliance Industries
+Limited" to the single token "reliance", which then matched both.
+"""
+
+
+def strong_tokens(name: str) -> tuple[str, ...]:
+    """Name words that identify one company rather than a family of them."""
+    clean = name.strip().lower()
+    if not clean:
+        return ()
+    if "/" in clean:
+        return (clean,)
+    words = [w for w in re.split(r"[^A-Za-z0-9]+", clean) if w]
+    kept = [w for w in words if w not in STRONG_STOPWORDS and len(w) > 1]
+    return tuple(kept or words)
+
+
+def strong_match(title: str, symbol: str, name: str) -> bool:
+    """Whether a headline names *this* company, strictly enough to quote as a
+    reason a price moved.
+
+    Stricter than `Item.matched`, and deliberately so. The loose test asks
+    whether any significant name token appears, which is right for building an
+    archive and wrong for attributing a move: it scored "Reliance
+    Communications (RCOM)" as a story about Reliance Industries. Those are
+    different companies, and printing one beside the other's price is not a
+    weak explanation, it is a false one.
+
+    So a strong match needs the **ticker**, or the first *two* significant
+    tokens of the registered name — "reliance industries", not "reliance".
+    A headline that says only "Reliance" is genuinely ambiguous, and dropping
+    it is the safer of the two errors: an empty cell says nothing, a wrong
+    cell says something untrue.
+
+    Single-token names (MRF, Wipro) fall back to that one token, which is
+    already distinctive.
+    """
+    low = title.lower()
+    tokens = strong_tokens(name)
+    sym = symbol.lower()
+
+    # The ticker is only evidence when it is not simply the company's own first
+    # word. `TCS`, `INFY`, `SBIN` are abbreviations that appear nowhere else, so
+    # finding one settles the question. `RELIANCE`, `TITAN` and `WIPRO` are the
+    # names themselves — and "Reliance" also begins Reliance Communications,
+    # Reliance Power and Reliance Infrastructure, so the ticker match fires on
+    # every one of them. That is how "Reliance Communications (RCOM)" was
+    # scored as a Reliance Industries story.
+    if sym and sym not in tokens and sym in low:
+        return True
+
+    if not tokens:
+        return False
+    if len(tokens) == 1 or "/" in name:
+        return tokens[0] in low
+    # Two tokens, so "reliance industries" qualifies and "reliance" alone does
+    # not. A headline naming only the shared first word is genuinely ambiguous,
+    # and an empty cell says nothing while a wrong one says something untrue.
+    return tokens[0] in low and tokens[1] in low
+
+
+LIVE_WINDOW = "1d"
+"""Recency for anything shown as news. Measured: 100% inside 36 hours."""
+
+DAILY_WINDOW = "7d"
+"""Recency for the daily sweep. Wider than the live one so a day the job did
+not run is still covered, narrow enough that the archive stays an archive
+rather than the relevance dump the first unwindowed sweep produced."""
+
+_LIVE_TTL = 900.0
+"""Seconds a live result is reused. Fifteen minutes: long enough that opening
+the page repeatedly costs nothing, short enough that "live" is not a lie.
+
+A cache rather than a poller on purpose. A background process would have to be
+supervised, restarted and monitored to keep a single operator's page warm,
+which is exactly the kind of standing cost this project refuses until something
+measured needs it.
+"""
+
+_LIVE: dict[tuple[str, str], tuple[float, list[Item]]] = {}
+
+
+def live(
+    symbols: list[str],
+    asset_class: str = "equity",
+    *,
+    names: dict[str, str] | None = None,
+    ttl: float = _LIVE_TTL,
+    matched_only: bool = True,
+) -> dict[str, list[Item]]:
+    """Fresh stories per symbol, for display rather than for the archive.
+
+    Separate from `land` because they answer different questions. `land` builds
+    history and keeps everything, including stories whose headline never names
+    the instrument. This is what a person reads, so it is windowed to a day and
+    filtered to headlines that actually name the thing — an unmatched headline
+    shown as the *reason* a stock moved would be a fabricated explanation,
+    which is worse than an empty cell.
+
+    Symbols are returned even when they have nothing, mapping to an empty list.
+    A caller must be able to tell "no fresh story" from "not asked", because on
+    this page those mean very different things about a mover.
+    """
+    table = names if names is not None else names_for(asset_class)
+    now = time.monotonic()
+    out: dict[str, list[Item]] = {}
+    wanted: list[str] = []
+    for symbol in symbols:
+        cached = _LIVE.get((symbol, asset_class))
+        if cached is not None and now - cached[0] < ttl:
+            out[symbol] = cached[1]
+        else:
+            wanted.append(symbol)
+
+    def one(symbol: str) -> tuple[str, list[Item] | None]:
+        try:
+            query = query_for(symbol, asset_class, window=LIVE_WINDOW)
+            return symbol, fetch(query, table)
+        except (urllib.error.URLError, TimeoutError, OSError):
+            return symbol, None
+
+    if wanted:
+        with ThreadPoolExecutor(WORKERS) as pool:
+            for symbol, items in pool.map(one, wanted):
+                if items is None:
+                    # Not cached: a failure must not be remembered as "no news"
+                    # for the next fifteen minutes.
+                    out[symbol] = []
+                    continue
+                fresh = (
+                    [i for i in items if strong_match(i.title, symbol, table.get(symbol, ""))]
+                    if matched_only
+                    else items
+                )
+                fresh.sort(key=lambda i: i.event_time, reverse=True)
+                _LIVE[(symbol, asset_class)] = (now, fresh)
+                out[symbol] = fresh
+    return out
+
+
+def tape(by_symbol: dict[str, list[Item]], *, limit: int = 40) -> list[Item]:
+    """One chronological feed across every symbol, newest first, deduplicated.
+
+    A story naming three banks appears once, carrying all three tickers, rather
+    than three times — a repeated headline reads as three events.
+    """
+    merged: dict[str, Item] = {}
+    for symbol, items in by_symbol.items():
+        for item in items:
+            prior = merged.get(item.guid)
+            if prior is None:
+                merged[item.guid] = item
+            else:
+                merged[item.guid] = replace(prior, symbols=tuple(sorted({*prior.symbols, symbol})))
+    return sorted(merged.values(), key=lambda i: i.event_time, reverse=True)[:limit]

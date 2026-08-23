@@ -265,6 +265,25 @@ class S3ObjectStore:
                 return sizes
             token = response.get("NextContinuationToken")
 
+    def any_under(self, prefix: str) -> bool:
+        """Whether *any* object exists under a prefix, in one request.
+
+        Deliberately on the concrete store and on **neither protocol**. Adding
+        it to `ObjectStore` broke 37 sync tests and adding it to
+        `ReadableStore` broke 9 results-mirror tests - in both cases forcing
+        fakes to implement a method that path never calls. Only the landing
+        reader asks this, and it already reaches the store dynamically, so a
+        protocol entry would buy nothing and cost every fake in the suite.
+
+        `list_sizes` paginates the whole tree, which is the right shape for a
+        sync and absurd for a yes/no question. Asking "does the fx tree hold
+        data" enumerated 34,051 keys across 35 round trips, and the capability
+        matrix asked it on every call — 62 seconds, every time, for a boolean.
+        MaxKeys=1 answers the same question with one request.
+        """
+        response = self._client.list_objects_v2(Bucket=self._bucket, Prefix=prefix, MaxKeys=1)
+        return bool(response.get("Contents"))
+
     def head_sha256(self, key: str) -> str | None:
         """SHA-256 recorded for an object, or None when it genuinely is not there.
 

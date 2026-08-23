@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { Snapshot, Tile } from '@/lib/api';
+import type { Snapshot, Story, Tile } from '@/lib/api';
 
 const pct = (value: number, digits = 2) =>
   `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(digits)}%`;
@@ -31,6 +31,14 @@ const crore = (value: number) =>
  * A gradient makes every tile a slightly different colour and none of them
  * readable; steps let the eye bin a tile instantly, which is the whole reason
  * the map beats a table. */
+/** "40m", "5h", "2d" — an age is only useful if it reads at a glance. */
+function age(hours: number): string {
+  if (hours < 0) return '';
+  if (hours < 1) return `${Math.round(hours * 60)}m`;
+  if (hours < 48) return `${Math.round(hours)}h`;
+  return `${Math.round(hours / 24)}d`;
+}
+
 function band(move: number): string {
   if (move >= 0.05) return 'up3';
   if (move >= 0.02) return 'up2';
@@ -212,15 +220,57 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       <section>
         <h3 className="report-h">Movers</h3>
         <p className="tfine" style={{ marginBottom: 12 }}>
-          No stock-specific news source is connected, so every mover here is a price
-          without a reason — the difference between information and a ranking.
+          {snap.news?.available
+            ? snap.news.note
+            : `No stock-specific news source is reachable${
+                snap.news?.reason ? ` (${snap.news.reason})` : ''
+              }, so every mover here is a price without a reason.`}
         </p>
         <div className="tgrid">
-          <Movers title="Gainers" rows={snap.movers.gainers} />
-          <Movers title="Losers" rows={snap.movers.losers} />
-          <Movers title="Unusual volume" rows={snap.movers.unusual_volume} showVolume />
+          <Movers title="Gainers" rows={snap.movers.gainers} stories={snap.news?.stories} />
+          <Movers title="Losers" rows={snap.movers.losers} stories={snap.news?.stories} />
+          <Movers
+            title="Unusual volume"
+            rows={snap.movers.unusual_volume}
+            stories={snap.news?.stories}
+            showVolume
+          />
         </div>
       </section>
+
+      {/* --- band 3a: the tape ---------------------------------------------- */}
+      {snap.news?.available && snap.news.tape.length > 0 && (
+        <section>
+          <h3 className="report-h">
+            The tape
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              last {snap.news.window ?? '1d'}, movers only
+            </span>
+          </h3>
+          <p className="tfine" style={{ marginBottom: 12 }}>
+            Newest first. A headline must carry the ticker or two words of the
+            registered name to appear — &ldquo;Reliance Communications&rdquo; is not a
+            Reliance Industries story, and printing it beside that price would be a
+            false reason rather than a weak one.
+          </p>
+          <div className="tpanel">
+            <ul className="ttape">
+              {snap.news.tape.map((story) => (
+                <li key={story.link || story.title}>
+                  <span className="tage mono">{age(story.age_hours)}</span>
+                  <a href={story.link} target="_blank" rel="noreferrer">
+                    {story.title}
+                  </a>
+                  <span className="tfine">
+                    {story.symbols.join(', ')}
+                    {story.publisher ? ` · ${story.publisher}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       {/* --- band 3b: the calendar ------------------------------------------ */}
       <section>
@@ -336,10 +386,12 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
 function Movers({
   title,
   rows,
+  stories,
   showVolume = false,
 }: {
   title: string;
   rows: Tile[];
+  stories?: Record<string, Story>;
   showVolume?: boolean;
 }) {
   return (
@@ -352,6 +404,26 @@ function Movers({
               <td>
                 <b>{row.symbol}</b>
                 <div className="tfine">{crore(row.turnover)} traded</div>
+                {stories &&
+                  (stories[row.symbol] ? (
+                    <a
+                      className="tstory"
+                      href={stories[row.symbol].link}
+                      target="_blank"
+                      rel="noreferrer"
+                      title={stories[row.symbol].title}
+                    >
+                      {stories[row.symbol].title}
+                      <span className="tage">
+                        {stories[row.symbol].publisher} · {age(stories[row.symbol].age_hours)}
+                      </span>
+                    </a>
+                  ) : (
+                    // Stated, not left blank. A large move with no news is a
+                    // different fact from one with news, and an empty cell
+                    // would read as "not checked".
+                    <div className="tnostory">no story in 24h</div>
+                  ))}
               </td>
               <td className="r">
                 <b className={row.return >= 0 ? 'up' : 'dn'}>{pct(row.return, 1)}</b>
