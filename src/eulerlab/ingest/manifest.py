@@ -45,6 +45,13 @@ TREES: tuple[tuple[str, str, str], ...] = (
     ("crypto", "crypto", "*/*.jsonl.gz"),
     ("news", "news", "*/*.jsonl.gz"),
     ("calendar", "calendar", "*.jsonl.gz"),
+    # US, added when the Alpaca ingest landed. A tree absent from this list is
+    # invisible to the capability matrix and the instrument counts, which read
+    # the census rather than the bucket — so 71 million minute bars would have
+    # sat in B2 while the US tab reported holding nothing.
+    ("us/bars", "us", "bars/*/*.jsonl.gz"),
+    ("us/minute", "us", "minute/*/*.jsonl.gz"),
+    ("us/sp500", "us", "sp500/*.jsonl.gz"),
 )
 """(key, tree, pattern) for each census entry.
 
