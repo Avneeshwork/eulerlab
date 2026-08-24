@@ -340,6 +340,21 @@ news:
 crypto-fill:
 	@uv run python -m eulerlab.ingest.crypto_fill $(if $(SINCE),--since=$(SINCE),)
 
+# US market data from Alpaca. The S&P snapshot is landed dated and used for
+# labelling only — ADR-008 rejects published index membership for selecting a
+# backtest universe, because today's list applied across history drops
+# everything that was removed.
+us-sp500:
+	@uv run python -c "from eulerlab.ingest import alpaca; n,e=alpaca.land_sp500(); print(f'{n} constituents{chr(32)}{e}')"
+
+us-bars:
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); w,n,e=alpaca.land_bars(s, start='$(FROM)' or '2016-01-01'); print(f'{w} symbols, {n:,} bars {e}')"
+
+# Fetch, sync and prune a batch at a time: the full window is ~3 GB against
+# ~4 GB of free disk, so landing it all and syncing afterwards would run out.
+us-minute:
+	@uv run python -m eulerlab.ingest.us_minute $(if $(LIMIT),--limit $(LIMIT),) $(if $(FROM),--start $(FROM),) $(if $(BATCH),--batch $(BATCH),)
+
 world:
 	@uv run python -m eulerlab.indices
 
