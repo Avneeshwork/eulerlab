@@ -2482,17 +2482,20 @@ def _world_band() -> dict[str, Any]:
             "fx": [],
             "movers": [],
             "sectors": [],
+            "commodities": [],
+            "curve": None,
             "errors": {"all": "no sweep landed — run `make world`"},
         }
 
     lists = {
         key: payload.get(key) if isinstance(payload.get(key), list) else []
-        for key in ("india", "world", "crypto", "fx", "movers", "sectors")
+        for key in ("india", "world", "crypto", "fx", "movers", "sectors", "commodities")
     }
     errors = payload.get("errors")
     return {
         "available": any(bool(v) for v in lists.values()),
         **lists,
+        "curve": payload.get("curve") if isinstance(payload.get("curve"), dict) else None,
         "taken_at": str(payload.get("taken_at", "")),
         "errors": errors if isinstance(errors, dict) else {},
     }

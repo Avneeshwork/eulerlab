@@ -458,12 +458,18 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
     found = levels()
     movers, mover_error = world_movers()
     sectors, sector_error = world_sectors()
+    curve, curve_error = treasury_curve()
+    commodity, commodity_error = commodities()
 
     errors = dict(found.errors)
     if mover_error:
         errors["movers"] = mover_error
     if sector_error:
         errors["sectors"] = sector_error
+    if curve_error:
+        errors["curve"] = curve_error
+    if commodity_error:
+        errors["commodities"] = commodity_error
 
     def level_row(level: Level) -> dict[str, object]:
         return {
@@ -496,11 +502,66 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
             {"sector": x.sector, "change_pct": round(x.change_pct, 2), "exchange": x.exchange}
             for x in sectors
         ],
+        "commodities": [level_row(x) for x in commodity],
+        "curve": (
+            {
+                "date": curve.date,
+                "points": [
+                    {"label": label, "years": years, "rate": rate}
+                    for label, years, rate in curve.points
+                ],
+                "spread_2s10s": curve.spread_2s10s,
+                "inverted": curve.inverted,
+            }
+            if curve
+            else None
+        ),
         "errors": errors,
     }
 
     root.mkdir(parents=True, exist_ok=True)
     path = snapshot_path(root=root)
+
+    # A worse sweep must not replace a better one.
+    #
+    # This is not hypothetical: a sweep run after the FMP daily limit was
+    # exhausted came back 429 on five of seven groups and **overwrote a
+    # complete sweep taken twenty minutes earlier** — FX, movers, sectors and
+    # commodities all went to zero and the yield curve disappeared, with the
+    # file's own timestamp making the wreckage look fresher than the good data
+    # it replaced.
+    #
+    # Compared by how many groups carry rows rather than by row count, because
+    # a group that legitimately shrinks (fewer movers past the price floor) is
+    # not a failure while a group that empties usually is.
+    if path.exists():
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            previous = {}
+        if isinstance(previous, dict):
+
+            def filled(doc: dict[str, object]) -> int:
+                return sum(1 for value in doc.values() if isinstance(value, list) and value) + (
+                    1 if doc.get("curve") else 0
+                )
+
+            if filled(previous) > filled(payload):
+                kept = dict(previous)
+                notes = kept.get("errors")
+                kept["errors"] = {
+                    **(notes if isinstance(notes, dict) else {}),
+                    "kept": (
+                        f"a sweep at {str(payload.get('taken_at', ''))[:19]} filled "
+                        f"{filled(payload)} groups against this one's {filled(previous)} "
+                        "and was discarded"
+                    ),
+                }
+                tmp = path.with_suffix(".partial")
+                tmp.write_text(json.dumps(kept, indent=1), encoding="utf-8")
+                tmp.replace(path)
+                return kept
+
     tmp = path.with_suffix(".partial")
     tmp.write_text(json.dumps(payload, indent=1), encoding="utf-8")
     tmp.replace(path)
@@ -559,5 +620,109 @@ def _main() -> None:
             print(f"  ! {name}: {str(why)[:80]}")
 
 
+TENORS: tuple[tuple[str, str, float], ...] = (
+    ("month1", "1M", 1 / 12),
+    ("month3", "3M", 0.25),
+    ("month6", "6M", 0.5),
+    ("year1", "1Y", 1.0),
+    ("year2", "2Y", 2.0),
+    ("year3", "3Y", 3.0),
+    ("year5", "5Y", 5.0),
+    ("year7", "7Y", 7.0),
+    ("year10", "10Y", 10.0),
+    ("year20", "20Y", 20.0),
+    ("year30", "30Y", 30.0),
+)
+"""(field, label, years). `month2` is dropped — it sits on top of `month1` at
+this scale and buys nothing but a crowded axis."""
+
+COMMODITIES = (
+    ("BZUSD", "BRENT", "$/bbl"),
+    ("GCUSD", "GOLD", "$/oz"),
+    ("SIUSD", "SILVER", "$/oz"),
+)
+"""What the free plan actually serves. WTI (`CLUSD`), natural gas (`NGUSD`) and
+the dollar index (`DXY`) all answer **402**, so the band shows Brent rather
+than the WTI a US desk would quote — stated on the page rather than silently
+substituted."""
+
+
+@dataclass(frozen=True)
+class Curve:
+    """A yield curve on one date."""
+
+    date: str
+    points: tuple[tuple[str, float, float], ...]
+    """(label, years, percent) in ascending maturity."""
+
+    @property
+    def spread_2s10s(self) -> float | None:
+        """10-year minus 2-year, in percentage points.
+
+        The one number a trader reads off a curve before any other: negative
+        means inverted, which has preceded every US recession in the modern
+        record and is the reason this band leads with the curve rather than
+        with a commodity.
+        """
+        rates = {label: value for label, _, value in self.points}
+        if "10Y" in rates and "2Y" in rates:
+            return rates["10Y"] - rates["2Y"]
+        return None
+
+    @property
+    def inverted(self) -> bool:
+        spread = self.spread_2s10s
+        return spread is not None and spread < 0
+
+
+def treasury_curve() -> tuple[Curve | None, str]:
+    """The newest US Treasury curve. Returns (curve, error).
+
+    Free on FMP — twelve tenors from one month to thirty years, dated. This is
+    the one macro series here that arrives as a genuine curve rather than a
+    quote, so it is drawn as one.
+    """
+    from datetime import timedelta
+
+    from eulerlab.ingest import fmp
+
+    if not fmp.key_present():
+        return None, "no FMP_API_KEY"
+
+    today = datetime.now(UTC).date()
+    try:
+        payload = fmp._get(
+            "treasury-rates",
+            {"from": (today - timedelta(days=10)).isoformat(), "to": today.isoformat()},
+        )
+    except Exception as exc:
+        return None, f"{type(exc).__name__}: {str(exc)[:90]}"
+
+    rows = [r for r in (payload if isinstance(payload, list) else []) if isinstance(r, dict)]
+    if not rows:
+        return None, "no treasury rows in the window"
+
+    newest = max(rows, key=lambda r: str(r.get("date", "")))
+    points: list[tuple[str, float, float]] = []
+    for field_name, label, years in TENORS:
+        value = newest.get(field_name)
+        if isinstance(value, (int, float)):
+            points.append((label, years, float(value)))
+    if not points:
+        return None, "treasury row carried no tenors"
+    return Curve(date=str(newest.get("date", "")), points=tuple(points)), ""
+
+
+def commodities() -> tuple[list[Level], str]:
+    """Brent, gold and silver. Returns (levels, error)."""
+    return quote_group(tuple((s, n, u) for s, n, u in COMMODITIES))
+
+
+# Last in the file, always. This block runs the moment the interpreter reaches
+# it, so anything defined below it does not exist when `_main` calls `land()` —
+# which is exactly how appending `treasury_curve` and `commodities` produced
+# `NameError: name 'treasury_curve' is not defined`. The identical mistake was
+# made in `ingest/news.py` earlier the same day; appending to a module is not
+# free when the module executes something partway down.
 if __name__ == "__main__":
     _main()

@@ -88,3 +88,74 @@ def test_usd_inr_leads_the_pairs_after_the_euro() -> None:
     """Whatever the global convention about majors, USD/INR is the pair that
     actually reprices an Indian book overnight."""
     assert [name for _, name, _ in indices.FX][:2] == ["EUR/USD", "USD/INR"]
+
+
+def test_a_rate_limited_sweep_does_not_replace_a_complete_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The bug this guard exists for.
+
+    A sweep run after the FMP daily limit was exhausted came back 429 on five
+    of seven groups and overwrote a complete sweep taken twenty minutes
+    earlier — FX, movers, sectors and commodities all went to zero and the
+    yield curve disappeared, with the new file's own timestamp making the
+    wreckage look fresher than the good data it replaced.
+    """
+    complete = {
+        "taken_at": "2026-08-24T10:00:00+00:00",
+        "india": [{"symbol": "NIFTY 50"}],
+        "world": [{"symbol": "^GSPC"}],
+        "fx": [{"symbol": "EURUSD"}],
+        "movers": [{"symbol": "AAPL"}],
+        "sectors": [{"sector": "Energy"}],
+        "curve": {"date": "2026-08-21", "points": []},
+        "errors": {},
+    }
+    path = indices.snapshot_path(root=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(complete), encoding="utf-8")
+
+    # Every remote call fails, exactly as it does past the daily limit.
+    monkeypatch.setattr(indices, "levels", lambda: indices.Levels(errors={"all": "429"}))
+    monkeypatch.setattr(indices, "world_movers", lambda: ([], "429"))
+    monkeypatch.setattr(indices, "world_sectors", lambda: ([], "429"))
+    monkeypatch.setattr(indices, "treasury_curve", lambda: (None, "429"))
+    monkeypatch.setattr(indices, "commodities", lambda: ([], "429"))
+
+    kept = indices.land(root=tmp_path)
+
+    assert kept["india"] == complete["india"], "the complete sweep must survive"
+    assert kept["curve"], "the curve must survive"
+    on_disk = json.loads(path.read_text(encoding="utf-8"))
+    assert on_disk["taken_at"] == "2026-08-24T10:00:00+00:00"
+    errors = kept["errors"]
+    assert isinstance(errors, dict) and "kept" in errors, "and it must say it discarded one"
+
+
+def test_a_better_sweep_does_replace_a_worse_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The guard must not freeze a stale file in place — only refuse a worse one."""
+    thin = {"taken_at": "2026-08-24T09:00:00+00:00", "india": [], "errors": {}}
+    path = indices.snapshot_path(root=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(thin), encoding="utf-8")
+
+    level = indices.Level(
+        symbol="NIFTY 50",
+        name="NIFTY 50",
+        last=24_300.0,
+        previous_close=24_250.0,
+        region="IN",
+        source="zerodha",
+        at="2026-08-24T11:00:00+00:00",
+    )
+    monkeypatch.setattr(indices, "levels", lambda: indices.Levels(india=[level]))
+    monkeypatch.setattr(indices, "world_movers", lambda: ([], ""))
+    monkeypatch.setattr(indices, "world_sectors", lambda: ([], ""))
+    monkeypatch.setattr(indices, "treasury_curve", lambda: (None, ""))
+    monkeypatch.setattr(indices, "commodities", lambda: ([], ""))
+
+    fresh = indices.land(root=tmp_path)
+    india = fresh["india"]
+    assert isinstance(india, list) and len(india) == 1, "a fuller sweep must be written"
