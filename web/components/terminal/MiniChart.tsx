@@ -3,18 +3,25 @@
 /**
  * One macro series as a small live chart.
  *
- * The scanner that feeds the macro band returns a single reading per symbol —
- * a level and a day's change, no history. That is enough to say where crude
- * is and useless for saying what it has been doing, which is most of why a
- * trader looks at crude at all.
+ * The scanner feeding the numbers view returns a single reading per symbol and
+ * no history — enough to say where crude is, useless for saying what it has
+ * been doing, which is most of why anyone looks at crude.
  *
- * TradingView's mini-chart widget carries its own history, so each series gets
- * a real line rather than a number. It is a separate embed per symbol, which
- * is why these are lazy: seventeen widgets mounting at once on a tab nobody
- * has scrolled to is seventeen third-party scripts for nothing.
+ * ### Two mechanics the widget insists on
+ *
+ * It looks for its own container structure. The script has to sit inside a
+ * `tradingview-widget-container` next to an empty
+ * `tradingview-widget-container__widget` div, and appending it to a bare node
+ * renders nothing at all — silently, with no console error. The first version
+ * of this file did exactly that and drew empty boxes.
+ *
+ * And it is mounted eagerly. An IntersectionObserver saved seventeen script
+ * loads and cost the charts entirely whenever the observer did not fire, which
+ * is a poor trade: the widgets are small, and a chart that sometimes does not
+ * appear is worse than one that always loads.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function MiniChart({
   symbol,
@@ -26,29 +33,10 @@ export function MiniChart({
   range?: string;
 }) {
   const holder = useRef<HTMLDivElement | null>(null);
-  const [seen, setSeen] = useState(false);
-
-  // Mounted only once it is about to be on screen. Without this the macro band
-  // fires every widget the moment the tab renders.
-  useEffect(() => {
-    const node = holder.current;
-    if (!node || seen) return;
-    const watcher = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setSeen(true);
-          watcher.disconnect();
-        }
-      },
-      { rootMargin: '200px' },
-    );
-    watcher.observe(node);
-    return () => watcher.disconnect();
-  }, [seen]);
 
   useEffect(() => {
     const node = holder.current;
-    if (!node || !seen) return;
+    if (!node) return;
     node.innerHTML = '';
 
     const dark =
@@ -56,27 +44,38 @@ export function MiniChart({
       (!document.documentElement.dataset.theme &&
         window.matchMedia('(prefers-color-scheme: dark)').matches);
 
+    // The structure the widget looks for. Without the inner __widget div it
+    // writes nowhere and leaves an empty box behind.
+    const container = document.createElement('div');
+    container.className = 'tradingview-widget-container';
+    const inner = document.createElement('div');
+    inner.className = 'tradingview-widget-container__widget';
+    container.appendChild(inner);
+
     const script = document.createElement('script');
     script.src =
       'https://s3.tradingview.com/external-embedding/embed-widget-mini-symbol-overview.js';
     script.async = true;
+    script.type = 'text/javascript';
     script.innerHTML = JSON.stringify({
       symbol,
       width: '100%',
-      height: 140,
+      height: 180,
       locale: 'en',
       dateRange: range,
       colorTheme: dark ? 'dark' : 'light',
       isTransparent: true,
       autosize: false,
-      largeChartUrl: '',
+      chartOnly: false,
+      noTimeScale: false,
     });
-    node.appendChild(script);
+    container.appendChild(script);
+    node.appendChild(container);
 
     return () => {
       node.innerHTML = '';
     };
-  }, [symbol, range, seen]);
+  }, [symbol, range]);
 
   return (
     <div className="minichart">
