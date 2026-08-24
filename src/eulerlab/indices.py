@@ -507,21 +507,42 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
     return payload
 
 
-def load(*, root: Path = LANDING) -> dict[str, object] | None:
+def load(*, root: Path = LANDING, allow_cloud: bool = True) -> dict[str, object] | None:
     """The newest landed sweep, or None when none has been taken.
 
     None rather than an empty payload: "not swept yet" and "swept, everything
     flat" look identical once the levels are gone, and only one of them means
     the operator should run `make world`.
+
+    Reads the bucket as well as the disk. `prune-local` moves landed files to
+    B2 and leaves the tree empty, so a local-only glob reported a swept file as
+    never taken — the whole index ribbon went blank the first time a prune ran
+    after a sweep. That is the third time this session a reader has been
+    written against the disk alone; the landing zone is the union of disk and
+    bucket, and anything that forgets it works until the next prune.
     """
     import json
 
     files = sorted(root.glob("????-??-??.json"))
-    if not files:
+    if files:
+        try:
+            loaded = json.loads(files[-1].read_text(encoding="utf-8"))
+            return loaded if isinstance(loaded, dict) else None
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    if not allow_cloud:
+        return None
+
+    from eulerlab.ingest import landing_reader
+
+    remote = sorted(landing_reader.available("marketdata", "*.json"))
+    if not remote:
         return None
     try:
-        loaded = json.loads(files[-1].read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        payload = landing_reader.read(remote[-1])
+        loaded = json.loads(payload.decode("utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
         return None
     return loaded if isinstance(loaded, dict) else None
 
