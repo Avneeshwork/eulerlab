@@ -520,7 +520,11 @@ def _main() -> None:
 
     from eulerlab.strategies import catalog
 
-    limit = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 25
+    # Wider than it was. The sweep ran over the top 25 by liquidity, so the
+    # archive covered fifteen large caps while the snapshot asked about the
+    # day's movers — which are usually small caps nobody swept, and the band
+    # read "no story" for every one of them.
+    limit = int(sys.argv[1]) if len(sys.argv) > 1 and sys.argv[1].isdigit() else 120
     for asset_class in ("equity", "crypto", "fx"):
         symbols = [i.symbol for i in catalog.search(limit=limit, asset_class=asset_class)]
         if not symbols:
@@ -537,10 +541,6 @@ def _main() -> None:
             f"{result.items:>5} items  {result.new:>5} new  "
             f"{result.match_rate:5.0%} on-topic{note}"
         )
-
-
-if __name__ == "__main__":
-    _main()
 
 
 STRONG_STOPWORDS = frozenset({"limited", "ltd", "the", "of", "and", "company", "co"})
@@ -913,3 +913,117 @@ def recent(
     for stories in out.values():
         stories.sort(key=lambda i: i.event_time, reverse=True)
     return out
+
+
+FORMULAIC = re.compile(
+    r"price (?:on|at|range on|today,?) \w+ \d{1,2},? \d{4}"
+    r"|price prediction"
+    r"|\bat \d{1,2}\s*(?:am|pm)\s*(?:edt|est|utc|gmt)\b"
+    r"|forecast for \w+ \d{1,2},? \d{4}",
+    re.IGNORECASE,
+)
+"""Titles generated from a template rather than written about an event.
+
+Measured on the landed tape: **56 of 200 stories, 28%**, were pages like "ETH
+price range on Aug 24, 2026 at 12am EDT Crypto Prediction" — one per coin per
+hour, from a handful of sites that publish them on a schedule. They are not
+wrong, they are simply not news, and at a quarter of the feed they push out the
+things that are.
+
+Filtered on **read**, never on ingest. The archive keeps what the sweep saw,
+because a filter is a judgement and judgements get revised — and a story
+deleted at ingest cannot be reconsidered.
+"""
+
+
+def formulaic(title: str) -> bool:
+    """Whether a headline reads as generated from a template."""
+    return bool(FORMULAIC.search(title))
+
+
+def recent_all(
+    *,
+    hours: float = 36.0,
+    limit: int = 50,
+    now: datetime | None = None,
+    root: Path = LANDING,
+    allow_cloud: bool = True,
+) -> list[Item]:
+    """Every recent landed story, whoever it names. Files only, no network.
+
+    The per-mover reason has to be about that mover or it is a false
+    explanation. A *tape* does not: it is what happened, in order, and
+    restricting it to the handful of symbols that happen to lead today's
+    movers list is why it read empty — today's movers were obscure small caps
+    with no coverage, while a hundred stories about the large caps sat landed
+    and unshown.
+    """
+    moment = now or datetime.now(UTC)
+    months = {moment.strftime("%Y-%m"), (moment - timedelta(days=32)).strftime("%Y-%m")}
+    cutoff = moment - timedelta(hours=hours)
+    seen: dict[str, Item] = {}
+
+    for asset_class in ("equity", "crypto", "fx"):
+        for month in sorted(months):
+            relative = f"{asset_class}/{month}.jsonl.gz"
+            try:
+                if allow_cloud:
+                    from eulerlab.ingest import landing_reader
+
+                    payload = landing_reader.read(f"news/{relative}")
+                else:
+                    payload = (root / relative).read_bytes()
+            except (OSError, ValueError, FileNotFoundError):
+                continue
+
+            text = gzip.decompress(payload).decode("utf-8", errors="replace")
+            for line in text.splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not row.get("matched"):
+                    # The archive keeps unmatched rows on purpose; a tape is
+                    # still a claim about relevance, so they stay out of it.
+                    continue
+                if formulaic(str(row.get("title", ""))):
+                    continue
+                try:
+                    when = datetime.fromisoformat(str(row.get("event_time", "")))
+                except ValueError:
+                    continue
+                if when < cutoff:
+                    continue
+
+                guid = str(row.get("guid", ""))
+                item = Item(
+                    guid=guid,
+                    title=str(row.get("title", "")),
+                    link=str(row.get("link", "")),
+                    publisher=str(row.get("publisher", "")),
+                    symbols=tuple(_as_list(row.get("symbols"))),
+                    asset_class=str(row.get("asset_class", asset_class)),
+                    matched=True,
+                    event_time=str(row.get("event_time", "")),
+                    knowledge_time=str(row.get("knowledge_time", "")),
+                    receipt_time=str(row.get("receipt_time", "")),
+                )
+                prior = seen.get(guid)
+                if prior is None:
+                    seen[guid] = item
+                else:
+                    seen[guid] = replace(
+                        prior, symbols=tuple(sorted({*prior.symbols, *item.symbols}))
+                    )
+
+    return sorted(seen.values(), key=lambda i: i.event_time, reverse=True)[:limit]
+
+
+# Kept last on purpose. This block executes the moment the interpreter reaches
+# it, so anything defined below it does not exist yet when `_main` runs — which
+# is exactly what broke `make news`: `live()` and the window constants were
+# appended after this, and the sweep died on `NameError: DAILY_WINDOW`.
+if __name__ == "__main__":
+    _main()

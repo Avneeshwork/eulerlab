@@ -2567,7 +2567,12 @@ def _news_band(symbols: list[str]) -> dict[str, Any]:
         }
 
     stories = {symbol: row(items[0]) for symbol, items in by_symbol.items() if items}
-    feed = [row(i) for i in newsfeed.tape(by_symbol, limit=NEWS_TAPE)]
+    # The tape is market-wide, not mover-scoped. Built from `by_symbol` it read
+    # empty whenever the day's movers were obscure small caps — which is most
+    # days — while a hundred landed stories about large caps sat unshown. The
+    # per-mover *reason* must still be about that mover; a tape is just what
+    # happened, in order.
+    feed = [row(i) for i in newsfeed.recent_all(hours=36.0, limit=NEWS_TAPE)]
     covered = len(stories)
     return {
         "available": True,
