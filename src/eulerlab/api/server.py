@@ -2455,89 +2455,43 @@ _WORLD: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 def _world_band() -> dict[str, Any]:
-    """Index levels and the day's movers, India and abroad.
+    """Index levels, movers and sectors — read from the landed sweep.
 
-    The snapshot has said "there is no index here" since it was built, so
-    breadth had nothing to diverge from and a mover could not be read against
-    its market. India comes from the broker; the rest from FMP, whose free
-    plan covers index quotes and mover feeds but — probed, not assumed — not
-    news and not the economic calendar.
+    Not fetched here. A full sweep is 29 FMP calls against a 250-a-day free
+    budget, so rendering it live would spend the allowance before lunch and
+    then show nothing for the rest of the day. `make world` takes it once and
+    this opens the file, which is the same division the news band already
+    makes and for the same reason.
 
-    Cached and deadline-bounded, because this is the third-party call that
-    replaced the one that hung the page for 576 seconds.
+    Carries `taken_at` so the page can say how old the levels are rather than
+    implying they are live.
     """
-    cached = _WORLD.get("band")
-    if cached is not None and time.monotonic() - cached[0] < _WORLD_TTL:
-        return cached[1]
+    from eulerlab import indices
 
-    def build() -> dict[str, Any]:
-        from eulerlab import indices
-
-        found = indices.levels()
-        movers, mover_error = indices.world_movers()
-        sectors, sector_error = indices.world_sectors()
-
-        def level_row(level: Any) -> dict[str, Any]:
-            return {
-                "symbol": level.symbol,
-                "name": level.name,
-                "last": round(level.last, 2),
-                "change_pct": round(level.change_pct, 2),
-                "region": level.region,
-                "source": level.source,
-            }
-
-        errors = dict(found.errors)
-        if mover_error:
-            errors["movers"] = mover_error
-        if sector_error:
-            errors["sectors"] = sector_error
-        return {
-            "available": found.any or bool(movers),
-            "india": [level_row(x) for x in found.india],
-            "world": [level_row(x) for x in found.world],
-            "movers": [
-                {
-                    "symbol": m.symbol,
-                    "name": m.name,
-                    "price": round(m.price, 2),
-                    "change_pct": round(m.change_pct, 2),
-                    "exchange": m.exchange,
-                    "kind": m.kind,
-                }
-                for m in movers
-            ],
-            "sectors": [
-                {"sector": x.sector, "change_pct": round(x.change_pct, 2), "exchange": x.exchange}
-                for x in sectors
-            ],
-            "errors": errors,
-        }
-
-    try:
-        with ThreadPoolExecutor(1) as pool:
-            band = pool.submit(build).result(timeout=WORLD_DEADLINE)
-    except FuturesTimeout:
+    payload = indices.load()
+    if payload is None:
         return {
             "available": False,
             "india": [],
             "world": [],
+            "crypto": [],
+            "fx": [],
             "movers": [],
             "sectors": [],
-            "errors": {"all": f"no index source answered within {WORLD_DEADLINE:.0f}s"},
-        }
-    except Exception as exc:
-        return {
-            "available": False,
-            "india": [],
-            "world": [],
-            "movers": [],
-            "sectors": [],
-            "errors": {"all": f"{type(exc).__name__}: {exc}"},
+            "errors": {"all": "no sweep landed — run `make world`"},
         }
 
-    _WORLD["band"] = (time.monotonic(), band)
-    return band
+    lists = {
+        key: payload.get(key) if isinstance(payload.get(key), list) else []
+        for key in ("india", "world", "crypto", "fx", "movers", "sectors")
+    }
+    errors = payload.get("errors")
+    return {
+        "available": any(bool(v) for v in lists.values()),
+        **lists,
+        "taken_at": str(payload.get("taken_at", "")),
+        "errors": errors if isinstance(errors, dict) else {},
+    }
 
 
 def _quotes_band(symbols: list[str]) -> dict[str, Any]:

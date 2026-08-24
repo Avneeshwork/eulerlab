@@ -69,19 +69,21 @@ function IndexCell({ level, muted = false }: { level: IndexLevel; muted?: boolea
 /** The ribbon: India first because it is the market being traded, then the
  *  overnight context that set the tone before it opened. */
 function IndexRibbon({
-  india,
-  world,
+  groups,
   market,
 }: {
-  india: IndexLevel[];
-  world: IndexLevel[];
-  market: 'IN' | 'US';
+  groups: Record<Market, IndexLevel[]>;
+  market: Market;
 }) {
-  // The selected market leads; the other stays visible but demoted. Hiding it
-  // entirely would be worse than the old undifferentiated strip — an Indian
-  // trader reads NIFTY against last night's S&P, and a US view with no NIFTY
-  // in it is missing the comparison that makes it useful at all.
-  const [lead, rest] = market === 'IN' ? [india, world] : [world, india];
+  // The selected market leads; everything else stays visible but demoted.
+  // Hiding the rest would be worse than the old undifferentiated strip — an
+  // Indian trader reads NIFTY against last night's S&P and this morning's
+  // USD/INR, and a view with only one of those is missing the comparison that
+  // makes the strip worth its height.
+  const lead = groups[market] ?? [];
+  const rest = (Object.keys(groups) as Market[])
+    .filter((k) => k !== market)
+    .flatMap((k) => groups[k] ?? []);
   if (!lead.length && !rest.length) return null;
   return (
     <div className="ixribbon">
@@ -160,6 +162,57 @@ function SectorStrip({ rows }: { rows: { sector: string; change_pct: number }[] 
   );
 }
 
+type Market = 'IN' | 'US' | 'CRYPTO' | 'FX';
+
+const MARKETS: [Market, string, string][] = [
+  ['IN', 'India', 'NSE — full panel, breadth and constituent map'],
+  ['US', 'United States', 'Indices, movers and sector performance. No constituent map: this platform holds no US price panel.'],
+  [
+    'CRYPTO',
+    'Crypto',
+    'Live majors, plus a landed 1-minute archive of 20 pairs. No breadth: six majors is not a market to count advancers in.',
+  ],
+  [
+    'FX',
+    'Forex',
+    'Live majors, plus a landed 1-minute archive of 10 pairs with bid and ask. USD/INR is second because it is the pair that reprices an Indian book.',
+  ],
+];
+
+/** Ranked movers for a quoted group. Crypto and FX have no constituent panel
+ *  here, so the six majors ranked by move *are* the detail — there is nothing
+ *  deeper to drill into, and inventing a grid would say otherwise. */
+function QuotedMovers({ rows, unit }: { rows: IndexLevel[]; unit: string }) {
+  const ranked = [...rows].sort((a, b) => b.change_pct - a.change_pct);
+  if (!ranked.length) return null;
+  const widest = Math.max(...ranked.map((r) => Math.abs(r.change_pct)), 0.01);
+  return (
+    <div className="secstrip">
+      {ranked.map((r) => (
+        <div className="secrow" key={r.symbol}>
+          <span className="secname">
+            {r.name}
+            <i className="tfine" style={{ marginLeft: 8, fontStyle: 'normal' }}>
+              {unit}
+              {r.last.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: r.last < 10 ? 4 : 2,
+              })}
+            </i>
+          </span>
+          <span className="secbar">
+            <i
+              className={r.change_pct >= 0 ? 'up' : 'dn'}
+              style={{ width: `${(Math.abs(r.change_pct) / widest) * 100}%` }}
+            />
+          </span>
+          <b className={r.change_pct >= 0 ? 'up' : 'dn'}>{pctRaw(r.change_pct, 2)}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function band(move: number): string {
   if (move >= 0.05) return 'up3';
   if (move >= 0.02) return 'up2';
@@ -222,7 +275,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
   const [error, setError] = useState('');
   // Which market the detail bands describe. India is the default because it is
   // the book being traded; the US view is context, and says so.
-  const [market, setMarket] = useState<'IN' | 'US'>('IN');
+  const [market, setMarket] = useState<Market>('IN');
 
   useEffect(() => {
     let live = true;
@@ -261,7 +314,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           here", which meant breadth had nothing to diverge from and a mover
           could not be read against its own market. */}
       <div className="mkttoggle" role="tablist" aria-label="Market">
-        {(['IN', 'US'] as const).map((key) => (
+        {MARKETS.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -270,18 +323,24 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             className={market === key ? 'on' : ''}
             onClick={() => setMarket(key)}
           >
-            {key === 'IN' ? 'India' : 'United States'}
+            {label}
           </button>
         ))}
         <span className="tfine mktnote">
-          {market === 'IN'
-            ? 'NSE — full panel, breadth and constituent map'
-            : 'US — indices, movers and sector performance. No constituent map: this platform holds no US price panel.'}
+          {MARKETS.find(([key]) => key === market)?.[2]}
         </span>
       </div>
 
       {snap.world?.available ? (
-        <IndexRibbon india={snap.world.india} world={snap.world.world} market={market} />
+        <IndexRibbon
+          groups={{
+            IN: snap.world.india ?? [],
+            US: snap.world.world ?? [],
+            CRYPTO: snap.world.crypto ?? [],
+            FX: snap.world.fx ?? [],
+          }}
+          market={market}
+        />
       ) : (
         <div className="ixribbon empty">
           No index source connected
@@ -349,10 +408,11 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       </section>
       ) : (
         <p className="tfine mktgap">
-          No session line for the US: breadth, volatility and the equal-weighted
-          proxy are all computed from the NSE panel, and this platform holds no US
-          price panel to compute them from. The indices and sectors above are
-          quotes, not a panel.
+          {market === 'US'
+            ? 'No session line for the US: breadth, volatility and the equal-weighted proxy are all computed from the NSE panel, and this platform holds no US price panel to compute them from. The indices and sectors above are quotes, not a panel.'
+            : market === 'CRYPTO'
+              ? 'No session line for crypto: breadth needs a population to count advancers in, and six majors is not one. The 1-minute archive underneath covers 20 pairs — enough to backtest against, not enough to call a market.'
+              : 'No session line for FX: a currency pair has no advancers and decliners, and volatility here would describe six quotes rather than a market. The 1-minute archive underneath covers 10 pairs with bid and ask.'}
         </p>
       )}
 
@@ -413,6 +473,30 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         </section>
       ) : null}
 
+      {/* --- band 2-alt: crypto and FX ---------------------------------------
+          The quoted majors, ranked. These markets have a landed minute archive
+          but no daily panel, so there is no breadth to count and no map to
+          draw — six ranked moves is the whole honest answer. */}
+      {(market === 'CRYPTO' || market === 'FX') && (
+        <section>
+          <h3 className="report-h">
+            {market === 'CRYPTO' ? 'Majors' : 'Pairs'}
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              live, ranked by move
+            </span>
+          </h3>
+          <QuotedMovers
+            rows={(market === 'CRYPTO' ? snap.world?.crypto : snap.world?.fx) ?? []}
+            unit={market === 'CRYPTO' ? '$' : ''}
+          />
+          <p className="tfine" style={{ marginTop: 10 }}>
+            {market === 'CRYPTO'
+              ? 'Quotes are live; the archive underneath is 1-minute bars for 20 pairs, which is what a strategy backtests against rather than what this band shows.'
+              : 'Quotes are live; the archive underneath is 1-minute bars for 10 pairs carrying bid and ask separately, so spread is measured rather than assumed.'}
+          </p>
+        </section>
+      )}
+
       {/* --- band 3: movers ------------------------------------------------ */}
       {market === 'IN' && (
       <section>
@@ -461,7 +545,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           Street closes and while Asia trades, so what happened there is
           already priced into the first minute here. In the US view it is the
           subject, so the heading says which it is. */}
-      {snap.world?.movers?.length ? (
+      {snap.world?.movers?.length && (market === 'IN' || market === 'US') ? (
         <section>
           <h3 className="report-h">
             {market === 'IN' ? 'Moving elsewhere' : 'Movers'}

@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 INDIA = (
     ("NSE:NIFTY 50", "NIFTY 50"),
@@ -44,6 +45,29 @@ WORLD = (
 )
 """The indices a trader in India actually watches for context — the overnight
 US close and the Asian session that opens before NSE does."""
+
+
+CRYPTO = (
+    ("BTCUSD", "BITCOIN", "CRYPTO"),
+    ("ETHUSD", "ETHEREUM", "CRYPTO"),
+    ("SOLUSD", "SOLANA", "CRYPTO"),
+    ("XRPUSD", "XRP", "CRYPTO"),
+    ("BNBUSD", "BNB", "CRYPTO"),
+    ("DOGEUSD", "DOGECOIN", "CRYPTO"),
+)
+"""Majors by market value. Deliberately not the twenty pairs in the landed
+archive: this is a ribbon, and a ribbon of twenty is a table."""
+
+FX = (
+    ("EURUSD", "EUR/USD", "FX"),
+    ("USDINR", "USD/INR", "FX"),
+    ("USDJPY", "USD/JPY", "FX"),
+    ("GBPUSD", "GBP/USD", "FX"),
+    ("AUDUSD", "AUD/USD", "FX"),
+    ("USDCNY", "USD/CNY", "FX"),
+)
+"""USD/INR sits second because it is the pair that actually reprices an Indian
+book overnight, whatever the global convention about majors."""
 
 
 @dataclass(frozen=True)
@@ -71,11 +95,13 @@ class Levels:
 
     india: list[Level] = field(default_factory=list)
     world: list[Level] = field(default_factory=list)
+    crypto: list[Level] = field(default_factory=list)
+    fx: list[Level] = field(default_factory=list)
     errors: dict[str, str] = field(default_factory=dict)
 
     @property
     def any(self) -> bool:
-        return bool(self.india or self.world)
+        return bool(self.india or self.world or self.crypto or self.fx)
 
 
 def from_zerodha() -> tuple[list[Level], str]:
@@ -184,6 +210,52 @@ def from_fmp() -> tuple[list[Level], str]:
     return out, refused
 
 
+def quote_group(
+    group: tuple[tuple[str, str, str], ...],
+    *,
+    source: str = "fmp",
+) -> tuple[list[Level], str]:
+    """Quote a named set of symbols. Returns (levels, error).
+
+    One call per symbol, as with the world indices: `batch-*` endpoints answer
+    402 on the free plan. A refusal on one symbol does not stop the rest —
+    coverage is per instrument, and dropping five because a sixth is paywalled
+    was already a bug once.
+    """
+    from eulerlab.ingest import fmp
+
+    if not fmp.key_present():
+        return [], "no FMP_API_KEY"
+
+    stamp = datetime.now(UTC).isoformat()
+    out: list[Level] = []
+    refused = ""
+    for symbol, label, region in group:
+        try:
+            payload = fmp._get("quote", {"symbol": symbol})
+        except Exception as exc:
+            refused = f"{type(exc).__name__}: {str(exc)[:90]}"
+            continue
+        rows = payload if isinstance(payload, list) else [payload]
+        row = rows[0] if rows and isinstance(rows[0], dict) else {}
+        last = row.get("price")
+        close = row.get("previousClose")
+        if not isinstance(last, (int, float)) or not last:
+            continue
+        out.append(
+            Level(
+                symbol=symbol,
+                name=label,
+                last=float(last),
+                previous_close=float(close) if isinstance(close, (int, float)) else 0.0,
+                region=region,
+                source=source,
+                at=stamp,
+            )
+        )
+    return out, refused
+
+
 def levels() -> Levels:
     """India and world together, each reporting its own failure."""
     result = Levels()
@@ -196,6 +268,16 @@ def levels() -> Levels:
     result.world = world
     if world_error:
         result.errors["world"] = world_error
+
+    crypto, crypto_error = quote_group(CRYPTO)
+    result.crypto = crypto
+    if crypto_error:
+        result.errors["crypto"] = crypto_error
+
+    fx, fx_error = quote_group(FX)
+    result.fx = fx
+    if fx_error:
+        result.errors["fx"] = fx_error
     return result
 
 
@@ -345,3 +427,116 @@ def world_sectors(*, on: str = "") -> tuple[list[SectorMove], str]:
         )
     out.sort(key=lambda s: -s.change_pct)
     return out, ""
+
+
+LANDING = Path("data/landing/marketdata")
+"""Where a sweep is written. Landed rather than fetched per render.
+
+The arithmetic forces it. A full sweep is **29 FMP calls** — six India indices
+via the broker are free, but seven world indices, six crypto, six FX, three
+mover feeds and one sector snapshot are not — against a free budget of **250 a
+day**. Even a three-hour cache is eight sweeps, 232 calls, and leaves nothing
+for anything else; a ten-minute cache would spend the day's allowance before
+lunch.
+
+So `make world` sweeps once and writes a file, and the snapshot reads it. The
+levels are minutes-to-hours old rather than seconds, which for a screen whose
+other numbers are end-of-day is the right trade — and the file records when it
+was taken so the page can say so instead of implying live.
+"""
+
+
+def snapshot_path(day: str = "", *, root: Path = LANDING) -> Path:
+    stamp = day or datetime.now(UTC).date().isoformat()
+    return root / f"{stamp}.json"
+
+
+def land(*, root: Path = LANDING) -> dict[str, object]:
+    """Sweep every group once and write it. Returns the payload."""
+    import json
+
+    found = levels()
+    movers, mover_error = world_movers()
+    sectors, sector_error = world_sectors()
+
+    errors = dict(found.errors)
+    if mover_error:
+        errors["movers"] = mover_error
+    if sector_error:
+        errors["sectors"] = sector_error
+
+    def level_row(level: Level) -> dict[str, object]:
+        return {
+            "symbol": level.symbol,
+            "name": level.name,
+            "last": round(level.last, 4),
+            "change_pct": round(level.change_pct, 2),
+            "region": level.region,
+            "source": level.source,
+        }
+
+    payload: dict[str, object] = {
+        "taken_at": datetime.now(UTC).isoformat(),
+        "india": [level_row(x) for x in found.india],
+        "world": [level_row(x) for x in found.world],
+        "crypto": [level_row(x) for x in found.crypto],
+        "fx": [level_row(x) for x in found.fx],
+        "movers": [
+            {
+                "symbol": m.symbol,
+                "name": m.name,
+                "price": round(m.price, 2),
+                "change_pct": round(m.change_pct, 2),
+                "exchange": m.exchange,
+                "kind": m.kind,
+            }
+            for m in movers
+        ],
+        "sectors": [
+            {"sector": x.sector, "change_pct": round(x.change_pct, 2), "exchange": x.exchange}
+            for x in sectors
+        ],
+        "errors": errors,
+    }
+
+    root.mkdir(parents=True, exist_ok=True)
+    path = snapshot_path(root=root)
+    tmp = path.with_suffix(".partial")
+    tmp.write_text(json.dumps(payload, indent=1), encoding="utf-8")
+    tmp.replace(path)
+    return payload
+
+
+def load(*, root: Path = LANDING) -> dict[str, object] | None:
+    """The newest landed sweep, or None when none has been taken.
+
+    None rather than an empty payload: "not swept yet" and "swept, everything
+    flat" look identical once the levels are gone, and only one of them means
+    the operator should run `make world`.
+    """
+    import json
+
+    files = sorted(root.glob("????-??-??.json"))
+    if not files:
+        return None
+    try:
+        loaded = json.loads(files[-1].read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _main() -> None:
+    payload = land()
+    counts = {k: len(v) for k, v in payload.items() if isinstance(v, list)}
+    print(f"world sweep -> {snapshot_path()}")
+    for name, count in sorted(counts.items()):
+        print(f"  {name:9s} {count:>3}")
+    errors = payload.get("errors")
+    if isinstance(errors, dict) and errors:
+        for name, why in errors.items():
+            print(f"  ! {name}: {str(why)[:80]}")
+
+
+if __name__ == "__main__":
+    _main()

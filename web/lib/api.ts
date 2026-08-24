@@ -492,6 +492,8 @@ export type Snapshot = {
     available: boolean;
     india: IndexLevel[];
     world: IndexLevel[];
+    crypto?: IndexLevel[];
+    fx?: IndexLevel[];
     movers: WorldMover[];
     sectors?: { sector: string; change_pct: number; exchange: string }[];
     errors?: Record<string, string>;

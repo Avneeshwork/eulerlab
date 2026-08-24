@@ -283,6 +283,8 @@ daily:
 	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
 	@echo "== per-instrument news (equity, crypto, FX) =="
 	-uv run python -m eulerlab.ingest.news
+	@echo "== index levels, movers, sectors =="
+	-uv run python -m eulerlab.indices
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
 	@echo "== price panel =="
@@ -325,6 +327,12 @@ news:
 
 # Counts every landing tree once, so the capability matrix never lists the
 # bucket to render. Runs at the end of `daily`, after the sync has settled.
+# One sweep of index levels, movers and sector performance. Landed rather than
+# fetched per page render: a sweep is 29 FMP calls against a 250/day free
+# budget, so rendering it live would spend the day's allowance before lunch.
+world:
+	@uv run python -m eulerlab.indices
+
 manifest:
 	@uv run python -m eulerlab.ingest.manifest
 
