@@ -429,6 +429,25 @@ export type Tile = {
   pe: number | null;
 };
 
+export type IndexLevel = {
+  symbol: string;
+  name: string;
+  last: number;
+  change_pct: number;
+  region: string;
+  source: string;
+};
+
+export type WorldMover = {
+  symbol: string;
+  name: string;
+  price: number;
+  change_pct: number;
+  exchange: string;
+  /** `gainer` | `loser` | `active` */
+  kind: string;
+};
+
 export type Story = {
   title: string;
   publisher: string;
@@ -469,6 +488,14 @@ export type Snapshot = {
     missing: string;
   };
   movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
+  world: {
+    available: boolean;
+    india: IndexLevel[];
+    world: IndexLevel[];
+    movers: WorldMover[];
+    sectors?: { sector: string; change_pct: number; exchange: string }[];
+    errors?: Record<string, string>;
+  };
   quotes: {
     available: boolean;
     reason?: string;

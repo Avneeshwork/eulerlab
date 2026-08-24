@@ -2393,6 +2393,9 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
 
 CALENDAR_WINDOW_DAYS = 7
 
+WORLD_DEADLINE = 25.0
+"""Seconds the snapshot waits for index levels before rendering without them."""
+
 QUOTES_DEADLINE = 15.0
 """Seconds the snapshot waits for a live quote before rendering without one."""
 
@@ -2438,6 +2441,103 @@ def _instrument_count(asset_class: str) -> int:
         if census is not None:
             return int(getattr(census, field))
     return len(catalog.search(asset_class=asset_class, limit=500))
+
+
+_WORLD_TTL = 600.0
+"""Seconds an index/mover sweep is reused.
+
+Ten minutes. The free FMP budget is 250 calls a day and one sweep costs ten —
+seven indices plus three mover feeds — so an uncached band would spend the
+whole day's allowance in under half an hour of page reloads.
+"""
+
+_WORLD: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _world_band() -> dict[str, Any]:
+    """Index levels and the day's movers, India and abroad.
+
+    The snapshot has said "there is no index here" since it was built, so
+    breadth had nothing to diverge from and a mover could not be read against
+    its market. India comes from the broker; the rest from FMP, whose free
+    plan covers index quotes and mover feeds but — probed, not assumed — not
+    news and not the economic calendar.
+
+    Cached and deadline-bounded, because this is the third-party call that
+    replaced the one that hung the page for 576 seconds.
+    """
+    cached = _WORLD.get("band")
+    if cached is not None and time.monotonic() - cached[0] < _WORLD_TTL:
+        return cached[1]
+
+    def build() -> dict[str, Any]:
+        from eulerlab import indices
+
+        found = indices.levels()
+        movers, mover_error = indices.world_movers()
+        sectors, sector_error = indices.world_sectors()
+
+        def level_row(level: Any) -> dict[str, Any]:
+            return {
+                "symbol": level.symbol,
+                "name": level.name,
+                "last": round(level.last, 2),
+                "change_pct": round(level.change_pct, 2),
+                "region": level.region,
+                "source": level.source,
+            }
+
+        errors = dict(found.errors)
+        if mover_error:
+            errors["movers"] = mover_error
+        if sector_error:
+            errors["sectors"] = sector_error
+        return {
+            "available": found.any or bool(movers),
+            "india": [level_row(x) for x in found.india],
+            "world": [level_row(x) for x in found.world],
+            "movers": [
+                {
+                    "symbol": m.symbol,
+                    "name": m.name,
+                    "price": round(m.price, 2),
+                    "change_pct": round(m.change_pct, 2),
+                    "exchange": m.exchange,
+                    "kind": m.kind,
+                }
+                for m in movers
+            ],
+            "sectors": [
+                {"sector": x.sector, "change_pct": round(x.change_pct, 2), "exchange": x.exchange}
+                for x in sectors
+            ],
+            "errors": errors,
+        }
+
+    try:
+        with ThreadPoolExecutor(1) as pool:
+            band = pool.submit(build).result(timeout=WORLD_DEADLINE)
+    except FuturesTimeout:
+        return {
+            "available": False,
+            "india": [],
+            "world": [],
+            "movers": [],
+            "sectors": [],
+            "errors": {"all": f"no index source answered within {WORLD_DEADLINE:.0f}s"},
+        }
+    except Exception as exc:
+        return {
+            "available": False,
+            "india": [],
+            "world": [],
+            "movers": [],
+            "sectors": [],
+            "errors": {"all": f"{type(exc).__name__}: {exc}"},
+        }
+
+    _WORLD["band"] = (time.monotonic(), band)
+    return band
 
 
 def _quotes_band(symbols: list[str]) -> dict[str, Any]:
@@ -2829,6 +2929,7 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "losers": by_move[-SNAPSHOT_MOVERS:][::-1],
             "unusual_volume": unusual[:SNAPSHOT_MOVERS],
         },
+        "world": _world_band(),
         "quotes": _quotes_band(
             [str(t["symbol"]) for t in [*by_move[:SNAPSHOT_MOVERS], *by_move[-SNAPSHOT_MOVERS:]]]
         ),

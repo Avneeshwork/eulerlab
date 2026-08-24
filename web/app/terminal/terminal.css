@@ -1486,3 +1486,165 @@
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
+
+/* --- the index ribbon ------------------------------------------------------
+   First thing on the page, because every number below it is relative to these.
+   A horizontal strip rather than a card grid: it is reference, not content,
+   and it should cost as little vertical space as a row of numbers can. */
+.ixribbon {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  margin-bottom: 14px;
+}
+.ixribbon.empty {
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.ixcell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 14px;
+  border-right: 1px solid var(--rule);
+  white-space: nowrap;
+  flex: none;
+}
+.ixcell:last-child { border-right: 0; }
+
+.ixname {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ixlast {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.ixchg { font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* Marks where India ends and the overnight world begins. A rule rather than a
+   label: the cells are already named, and a second heading would cost another
+   line of height on the one band that exists to save it. */
+.ixsplit {
+  width: 0;
+  border-left: 2px solid var(--rule-2);
+  margin: 6px 0;
+  flex: none;
+}
+
+/* The session block, tightened. It was a 96px number over three lines of
+   caveat, which put the map — and therefore everything after it — below the
+   fold on a laptop. The caveat is a tooltip now. */
+.regime.tight { padding-block: 14px; }
+.regime.tight .thnum b { font-size: 40px; line-height: 1.05; }
+.regime.tight .thnum .unit { font-size: 12px; }
+
+.whyq {
+  display: inline-block;
+  margin-left: 4px;
+  width: 13px;
+  height: 13px;
+  line-height: 13px;
+  text-align: center;
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  font-size: 9px;
+  color: var(--ink-3);
+  cursor: help;
+  text-decoration: none;
+}
+
+/* The map is reference too, and it was taking the whole viewport. Capped so
+   the bands after it — movers, world, tape — are reachable without scrolling
+   past a full screen of tiles. It scrolls inside itself instead. */
+.mapscroll {
+  max-height: 30rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* --- market toggle ---------------------------------------------------------
+   Above the ribbon, because it changes what the ribbon leads with. Two states
+   only: this platform has a full panel for one market and quotes for the
+   other, and a third tab would imply a symmetry that does not exist. */
+.mkttoggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 10px;
+}
+.mkttoggle button {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.mkttoggle button:first-of-type { border-radius: 5px 0 0 5px; }
+.mkttoggle button:last-of-type { border-radius: 0 5px 5px 0; border-left: 0; }
+.mkttoggle button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+  font-weight: 600;
+}
+.mkttoggle button:focus-visible { outline: 2px solid var(--neon-deep); outline-offset: 1px; }
+.mktnote { margin-left: 12px; }
+
+/* The unselected market stays on the ribbon, demoted. An Indian trader reads
+   NIFTY against last night's S&P, so hiding the other side would remove the
+   comparison that makes the strip worth having. */
+.ixcell.muted { opacity: 0.55; }
+.ixcell.muted .ixlast { font-weight: 500; }
+
+/* --- US sectors ------------------------------------------------------------
+   Ranked bars, not a treemap. Eleven averages is what the free data supports,
+   and a treemap drawn from eleven numbers would imply constituent detail that
+   is not there. */
+.secstrip {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.secrow {
+  display: grid;
+  grid-template-columns: 13rem 1fr 4.5rem;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.secrow:last-child { border-bottom: 0; }
+.secname { font-size: 12px; color: var(--ink); }
+.secbar { display: block; height: 7px; background: var(--sunken); border-radius: 2px; }
+.secbar i { display: block; height: 100%; border-radius: 2px; }
+.secbar i.up { background: var(--neon-deep); }
+.secbar i.dn { background: #c9524a; }
+.secrow b { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Says what the US view cannot compute, rather than leaving a gap the reader
+   fills with the India numbers that used to sit here. */
+.mktgap {
+  padding: 12px 14px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  max-width: 62ch;
+}

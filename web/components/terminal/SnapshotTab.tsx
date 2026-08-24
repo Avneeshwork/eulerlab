@@ -18,10 +18,17 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { Snapshot, Story, Tile } from '@/lib/api';
+import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 
 const pct = (value: number, digits = 2) =>
   `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(digits)}%`;
+
+/** Already-percent values. `pct` takes a fraction and multiplies by 100, which
+ *  is right for the panel's returns and wrong for anything a quote API hands
+ *  over — those arrive as percent already, and running them through `pct`
+ *  rendered NIFTY's +0.20% as "+20.00%" and INDIA VIX's -3.30% as "-330.00%". */
+const pctRaw = (value: number, digits = 2) =>
+  `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(digits)}%`;
 
 const crore = (value: number) =>
   value >= 1e7 ? `₹${(value / 1e7).toFixed(1)}Cr` : `₹${(value / 1e5).toFixed(1)}L`;
@@ -37,6 +44,120 @@ function age(hours: number): string {
   if (hours < 1) return `${Math.round(hours * 60)}m`;
   if (hours < 48) return `${Math.round(hours)}h`;
   return `${Math.round(hours / 24)}d`;
+}
+
+/** One index cell. Level above, change below, colour carrying the sign. */
+function IndexCell({ level, muted = false }: { level: IndexLevel; muted?: boolean }) {
+  const up = level.change_pct >= 0;
+  return (
+    <div
+      className={muted ? 'ixcell muted' : 'ixcell'}
+      title={`${level.name} · ${level.symbol} · via ${level.source}`}
+    >
+      <span className="ixname">{level.name}</span>
+      <span className="ixlast">
+        {level.last.toLocaleString('en-IN', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}
+      </span>
+      <span className={up ? 'ixchg up' : 'ixchg dn'}>{pctRaw(level.change_pct, 2)}</span>
+    </div>
+  );
+}
+
+/** The ribbon: India first because it is the market being traded, then the
+ *  overnight context that set the tone before it opened. */
+function IndexRibbon({
+  india,
+  world,
+  market,
+}: {
+  india: IndexLevel[];
+  world: IndexLevel[];
+  market: 'IN' | 'US';
+}) {
+  // The selected market leads; the other stays visible but demoted. Hiding it
+  // entirely would be worse than the old undifferentiated strip — an Indian
+  // trader reads NIFTY against last night's S&P, and a US view with no NIFTY
+  // in it is missing the comparison that makes it useful at all.
+  const [lead, rest] = market === 'IN' ? [india, world] : [world, india];
+  if (!lead.length && !rest.length) return null;
+  return (
+    <div className="ixribbon">
+      {lead.map((l) => (
+        <IndexCell key={l.symbol} level={l} />
+      ))}
+      {lead.length > 0 && rest.length > 0 && <span className="ixsplit" aria-hidden="true" />}
+      {rest.map((l) => (
+        <IndexCell key={l.symbol} level={l} muted />
+      ))}
+    </div>
+  );
+}
+
+/** World movers, grouped by kind. Separate from the India movers table
+ *  because they answer a different question — that one asks what moved in the
+ *  book being traded, this one asks what moved everywhere else overnight. */
+function WorldMovers({ rows }: { rows: WorldMover[] }) {
+  const groups: [string, string][] = [
+    ['gainer', 'Gainers'],
+    ['loser', 'Losers'],
+    ['active', 'Most active'],
+  ];
+  return (
+    <div className="tgrid">
+      {groups.map(([kind, label]) => {
+        const kept = rows.filter((r) => r.kind === kind).slice(0, 6);
+        return (
+          <div className="tpanel" key={kind}>
+            <h3>{label}</h3>
+            <table className="ttable">
+              <tbody>
+                {kept.map((r) => (
+                  <tr key={`${kind}-${r.symbol}`}>
+                    <td>
+                      <b>{r.symbol}</b>
+                      <div className="tfine">{r.name.slice(0, 26) || r.exchange}</div>
+                    </td>
+                    <td className="r">
+                      <b className={r.change_pct >= 0 ? 'up' : 'dn'}>{pctRaw(r.change_pct, 1)}</b>
+                      <div className="tfine">${r.price.toFixed(2)}</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {kept.length === 0 && <div className="tempty">Nothing to show.</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** US sectors, ranked. The US view's answer to India's constituent map — this
+ *  platform holds no US price panel, so eleven named sectors with an average
+ *  change is the most honest shape-of-the-session it can draw. */
+function SectorStrip({ rows }: { rows: { sector: string; change_pct: number }[] }) {
+  if (!rows.length) return null;
+  const widest = Math.max(...rows.map((r) => Math.abs(r.change_pct)), 0.01);
+  return (
+    <div className="secstrip">
+      {rows.map((r) => (
+        <div className="secrow" key={r.sector}>
+          <span className="secname">{r.sector}</span>
+          <span className="secbar">
+            <i
+              className={r.change_pct >= 0 ? 'up' : 'dn'}
+              style={{ width: `${(Math.abs(r.change_pct) / widest) * 100}%` }}
+            />
+          </span>
+          <b className={r.change_pct >= 0 ? 'up' : 'dn'}>{pctRaw(r.change_pct, 2)}</b>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function band(move: number): string {
@@ -99,6 +220,9 @@ function Cell({ tile, rank }: { tile: Tile; rank: number }) {
 export function SnapshotTab({ workspace }: { workspace: string }) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [error, setError] = useState('');
+  // Which market the detail bands describe. India is the default because it is
+  // the book being traded; the US view is context, and says so.
+  const [market, setMarket] = useState<'IN' | 'US'>('IN');
 
   useEffect(() => {
     let live = true;
@@ -131,19 +255,64 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
 
   return (
     <>
-      {/* --- band 1: regime ------------------------------------------------ */}
-      <section className="regime">
+      {/* --- band 0: the ribbon --------------------------------------------
+          Index levels come first because every number below is relative to
+          them. The page spent its whole existence saying "there is no index
+          here", which meant breadth had nothing to diverge from and a mover
+          could not be read against its own market. */}
+      <div className="mkttoggle" role="tablist" aria-label="Market">
+        {(['IN', 'US'] as const).map((key) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={market === key}
+            className={market === key ? 'on' : ''}
+            onClick={() => setMarket(key)}
+          >
+            {key === 'IN' ? 'India' : 'United States'}
+          </button>
+        ))}
+        <span className="tfine mktnote">
+          {market === 'IN'
+            ? 'NSE — full panel, breadth and constituent map'
+            : 'US — indices, movers and sector performance. No constituent map: this platform holds no US price panel.'}
+        </span>
+      </div>
+
+      {snap.world?.available ? (
+        <IndexRibbon india={snap.world.india} world={snap.world.world} market={market} />
+      ) : (
+        <div className="ixribbon empty">
+          No index source connected
+          {snap.world?.errors
+            ? ` — ${Object.values(snap.world.errors)[0]}`
+            : ''}
+        </div>
+      )}
+
+      {/* --- band 1: regime — India only -------------------------------------
+          Every number here is computed from the NSE panel: the proxy return,
+          the advance/decline count, the volatility. Leaving it on screen under
+          a "United States" toggle would present Indian breadth as American,
+          which is worse than showing nothing — the reader has no way to tell
+          from the numbers themselves. */}
+      {market === 'IN' ? (
+      <section className="regime tight">
         <div className="regime-lead">
           <div className="theyebrow">The session</div>
           <div className="thnum">
             <b className={r.proxy_return_20d >= 0 ? 'up' : 'dn'}>
               {pct(r.proxy_return_20d)}
             </b>
-            <span className="unit">20 days, equal-weighted</span>
+            {/* The caveat is a tooltip, not a paragraph. It has to stay
+                reachable — the number is an equal-weighted proxy, not an
+                index — but three lines of it in the largest type on the page
+                pushed everything that matters below the fold. */}
+            <span className="unit" title={r.proxy_note}>
+              20d equal-weighted <abbr className="whyq">?</abbr>
+            </span>
           </div>
-          <p className="tfine" style={{ marginTop: 8 }}>
-            {r.proxy_note}
-          </p>
         </div>
 
         <div className="regime-stats">
@@ -178,12 +347,23 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           <i className="dn" style={{ width: `${(r.decliners / total) * 100}%` }} />
         </div>
       </section>
+      ) : (
+        <p className="tfine mktgap">
+          No session line for the US: breadth, volatility and the equal-weighted
+          proxy are all computed from the NSE panel, and this platform holds no US
+          price panel to compute them from. The indices and sectors above are
+          quotes, not a panel.
+        </p>
+      )}
 
-      {/* --- band 2: the map ----------------------------------------------- */}
+      {/* --- band 2: the map — India only ------------------------------------
+          Gated rather than emptied. There is no US price panel here, so a US
+          map would be a blank grid claiming the data exists. */}
+      {market === 'IN' && (
       <section>
         <h3 className="report-h">The map</h3>
         {snap.map.grouped ? (
-          <div className="sectors">
+          <div className="sectors mapscroll">
             {groupBySector(snap.map.tiles).map(([sector, tiles]) => (
               <div className="sector" key={sector}>
                 <div className="sector-head">
@@ -215,8 +395,26 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             : `Ungrouped \u2014 no ${snap.map.missing} is connected.`}
         </p>
       </section>
+      )}
+
+      {/* --- band 2-US: sectors ---------------------------------------------
+          The US counterpart to the map. Ranked rather than gridded, because
+          eleven averages is what the free data supports and a treemap drawn
+          from eleven numbers would imply constituents it does not have. */}
+      {market === 'US' && snap.world?.sectors?.length ? (
+        <section>
+          <h3 className="report-h">
+            Sectors
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              last US close
+            </span>
+          </h3>
+          <SectorStrip rows={snap.world.sectors} />
+        </section>
+      ) : null}
 
       {/* --- band 3: movers ------------------------------------------------ */}
+      {market === 'IN' && (
       <section>
         <h3 className="report-h">Movers</h3>
         {snap.quotes?.note && (
@@ -256,6 +454,30 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           />
         </div>
       </section>
+      )}
+
+      {/* --- band 3½: the world --------------------------------------------
+          In the India view this is overnight context: NSE opens after Wall
+          Street closes and while Asia trades, so what happened there is
+          already priced into the first minute here. In the US view it is the
+          subject, so the heading says which it is. */}
+      {snap.world?.movers?.length ? (
+        <section>
+          <h3 className="report-h">
+            {market === 'IN' ? 'Moving elsewhere' : 'Movers'}
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              US listings, above $5
+            </span>
+          </h3>
+          <p className="tfine" style={{ marginBottom: 12 }}>
+            Filtered to $5 and above: the raw feed&rsquo;s median mover was a $4.75
+            micro-cap, and a shell doubling is not overnight context. Leveraged ETFs
+            still slip through, so one move in an underlying can appear under several
+            tickers.
+          </p>
+          <WorldMovers rows={snap.world.movers} />
+        </section>
+      ) : null}
 
       {/* --- band 3a: the tape ---------------------------------------------- */}
       {snap.news?.available && snap.news.tape.length > 0 && (
@@ -468,7 +690,7 @@ function Movers({
                     })}
                     <span className={quotes[row.symbol].change_pct >= 0 ? 'up' : 'dn'}>
                       {' '}
-                      {pct(quotes[row.symbol].change_pct, 2)}
+                      {pctRaw(quotes[row.symbol].change_pct, 2)}
                     </span>
                   </div>
                 )}
