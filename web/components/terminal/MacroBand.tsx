@@ -13,7 +13,9 @@
  * four numbers in a row do not answer that at a glance.
  */
 
+import { useState } from 'react';
 import type { MacroReading } from '@/lib/api';
+import { MiniChart } from '@/components/terminal/MiniChart';
 
 const pctRaw = (value: number, digits = 2) =>
   `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(digits)}%`;
@@ -105,6 +107,7 @@ export function MacroBand({
   spread?: number | null;
   stale?: boolean;
 }) {
+  const [view, setView] = useState<'charts' | 'numbers'>('charts');
   if (!rows.length) return null;
   return (
     <section>
@@ -119,23 +122,59 @@ export function MacroBand({
         </span>
       </h3>
 
-      <div className="macrogrid">
-        <Curve rows={rows} spread={spread} />
-        {GROUPS.map(([group, label]) => {
+      <div className="mkttoggle" style={{ marginBottom: 12 }}>
+        {(['charts', 'numbers'] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            className={view === mode ? 'on' : ''}
+            onClick={() => setView(mode)}
+          >
+            {mode === 'charts' ? 'Charts' : 'Numbers'}
+          </button>
+        ))}
+        {view === 'charts' && (
+          <span className="tfine mktnote">
+            Each series with its own history. The scanner that feeds the numbers view
+            returns one reading per symbol and no history at all.
+          </span>
+        )}
+      </div>
+
+      {view === 'numbers' ? (
+        <div className="macrogrid">
+          <Curve rows={rows} spread={spread} />
+          {GROUPS.map(([group, label]) => {
+            const kept = rows.filter((r) => r.group === group);
+            if (!kept.length) return null;
+            return (
+              <div className="mgroup" key={group}>
+                <div className="mgrouphead">{label}</div>
+                <div className="mtiles">
+                  {kept.map((r) => (
+                    <Tile key={r.symbol} reading={r} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        GROUPS.map(([group, label]) => {
           const kept = rows.filter((r) => r.group === group);
           if (!kept.length) return null;
           return (
-            <div className="mgroup" key={group}>
+            <div key={group} style={{ marginBottom: 16 }}>
               <div className="mgrouphead">{label}</div>
-              <div className="mtiles">
+              <div className="minigrid">
                 {kept.map((r) => (
-                  <Tile key={r.symbol} reading={r} />
+                  <MiniChart key={r.symbol} symbol={r.symbol} label={r.name} />
                 ))}
               </div>
             </div>
           );
-        })}
-      </div>
+        })
+      )}
     </section>
   );
 }

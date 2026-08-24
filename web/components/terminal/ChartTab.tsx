@@ -40,9 +40,9 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
       // free embed refuses it — index data is licensed separately from equity
       // data, so the widget answers "only available on TradingView". NIFTYBEES
       // is an ordinary security tracking the same index and embeds fine.
-      ['NSE:NIFTYBEES', 'NIFTY 50 (ETF)'],
-      ['NSE:BANKBEES', 'BANK NIFTY (ETF)'],
-      ['NSE:JUNIORBEES', 'NIFTY NEXT 50 (ETF)'],
+      ['NSE:NIFTYBEES', 'NIFTYBEES'],
+      ['NSE:BANKBEES', 'BANKBEES'],
+      ['NSE:JUNIORBEES', 'JUNIORBEES'],
       ['NSE:RELIANCE', 'RELIANCE'],
       ['NSE:TCS', 'TCS'],
       ['NSE:HDFCBANK', 'HDFC BANK'],
@@ -61,10 +61,10 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
   US: {
     label: 'US',
     symbols: [
-      ['AMEX:SPY', 'S&P 500 (SPY)'],
-      ['NASDAQ:QQQ', 'NASDAQ 100 (QQQ)'],
-      ['AMEX:DIA', 'DOW (DIA)'],
-      ['AMEX:IWM', 'RUSSELL 2000 (IWM)'],
+      ['AMEX:SPY', 'SPY'],
+      ['NASDAQ:QQQ', 'QQQ'],
+      ['AMEX:DIA', 'DIA'],
+      ['AMEX:IWM', 'IWM'],
       ['NASDAQ:AAPL', 'APPLE'],
       ['NASDAQ:MSFT', 'MICROSOFT'],
       ['NASDAQ:NVDA', 'NVIDIA'],
@@ -119,7 +119,7 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
       ['TVC:GOLD', 'GOLD'],
       ['TVC:SILVER', 'SILVER'],
       ['TVC:VIX', 'VIX'],
-      ['NSE:GOLDBEES', 'GOLD (NSE ETF)'],
+      ['NSE:GOLDBEES', 'GOLDBEES'],
     ],
   },
 };
@@ -296,11 +296,12 @@ export function ChartTab() {
 
       {market === 'NSE' && (
         <p className="tfine mktgap" style={{ marginBottom: 10 }}>
-          NIFTY and BANK NIFTY are charted through their ETFs. `NSE:NIFTY` is a real
-          symbol and the free embed refuses it &mdash; index data is licensed separately
-          from equity data &mdash; so NIFTYBEES tracks the same index as an ordinary
-          security. It is close, not identical: an ETF carries its own tracking error and
-          trades at its own premium or discount.
+          NIFTYBEES, BANKBEES and JUNIORBEES are <b>ETFs</b>, named for the funds they
+          are rather than the indices they track &mdash; Nippon India&rsquo;s Nifty 50,
+          Nifty Bank and Nifty Next 50 funds. The embed refuses `NSE:NIFTY` itself because
+          index data is licensed separately, and an ETF is close to its index but not the
+          same instrument: it carries tracking error and trades at its own premium. The
+          chart below each one is the real index series from our own panel.
         </p>
       )}
 
