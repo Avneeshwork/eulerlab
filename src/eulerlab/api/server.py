@@ -35,6 +35,8 @@ import time
 import traceback
 import uuid
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
@@ -2391,6 +2393,9 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
 
 CALENDAR_WINDOW_DAYS = 7
 
+QUOTES_DEADLINE = 15.0
+"""Seconds the snapshot waits for a live quote before rendering without one."""
+
 CALENDAR_EVENTS = 20
 """Calendar rows kept. Was 14; the operator asked for 20."""
 
@@ -2452,7 +2457,20 @@ def _quotes_band(symbols: list[str]) -> dict[str, Any]:
     try:
         from eulerlab import quotes
 
-        result = quotes.live(symbols)
+        # Bounded, because this is the one third-party call left in the render
+        # path, and an unbounded one already cost this page a 576-second hang
+        # through the news feed. A broker that has not answered in fifteen
+        # seconds will not answer usefully, and a snapshot without live prices
+        # is a far smaller loss than a snapshot that never arrives.
+        with ThreadPoolExecutor(1) as pool:
+            result = pool.submit(quotes.live, symbols).result(timeout=QUOTES_DEADLINE)
+    except FuturesTimeout:
+        return {
+            "available": False,
+            "reason": f"no quote source answered within {QUOTES_DEADLINE:.0f}s",
+            "quotes": {},
+            "note": "No live source answered in time — everything here is end-of-day.",
+        }
     except Exception as exc:
         return {"available": False, "reason": f"{type(exc).__name__}: {exc}", "quotes": {}}
 
@@ -2511,7 +2529,12 @@ def _news_band(symbols: list[str]) -> dict[str, Any]:
     try:
         from eulerlab.ingest import news as newsfeed
 
-        by_symbol = newsfeed.live(symbols, "equity")
+        # `recent`, not `live`. Rendering must not make a third-party request:
+        # Google News began stalling mid-session and `live()` retries three
+        # times at a 30s timeout, so thirty-four symbols cost roughly 576
+        # seconds and the page returned nothing at all. `make news` does the
+        # fetching on a schedule; this opens the files it wrote.
+        by_symbol = newsfeed.recent(symbols, hours=36.0)
     except Exception as exc:
         return {
             "available": False,
@@ -2554,8 +2577,8 @@ def _news_band(symbols: list[str]) -> dict[str, Any]:
         "asked": len(symbols),
         "window": newsfeed.LIVE_WINDOW,
         "note": (
-            f"{covered} of {len(symbols)} movers have a story from the last 24 hours. "
-            "The rest moved without one, which is itself worth seeing."
+            f"{covered} of {len(symbols)} movers have a landed story from the last "
+            "36 hours. The rest moved without one, which is itself worth seeing."
         ),
     }
 
@@ -2739,15 +2762,15 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "detail": f"{up:,} up / {down:,} down",
         }
     ]
+    # Read once, outside the loop. It was called per asset class, and
+    # `capabilities()` is not memoised — it lists landing trees to build its
+    # description strings, so three classes meant three full passes and the
+    # snapshot paid for the same answer three times over.
+    daily_cells = {
+        c.asset_class.value: c for c in catalog.capabilities() if c.timeframe is Timeframe.DAILY
+    }
     for name, klass in (("Crypto", "crypto"), ("FX", "fx"), ("Mutual funds", "mutual_fund")):
-        cell = next(
-            (
-                c
-                for c in catalog.capabilities()
-                if c.asset_class.value == klass and c.timeframe is Timeframe.DAILY
-            ),
-            None,
-        )
+        cell = daily_cells.get(klass)
         cross.append(
             {
                 "asset_class": klass,

@@ -372,7 +372,21 @@ def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
 
 
 def _latest_enriched_relative() -> str | None:
-    """Newest enriched MF snapshot, wherever it lives."""
+    """Newest enriched MF snapshot, wherever it lives.
+
+    Asks the census first. Listing the `mf` tree to learn the name of one file
+    means paginating 14,280 keys, and this is called while rendering a
+    capability row — the manifest already records the newest name for exactly
+    this reason.
+    """
+    # `mf/enriched`, not `mf`. They are separate census entries because the
+    # tree holds two different things, and asking the wrong one returned a
+    # scheme code where a dated snapshot belongs.
+    census = _census("mf/enriched")
+    newest = getattr(census, "newest", "") if census is not None else ""
+    if newest:
+        return f"mf/enriched/{newest}"
+
     found = _tree_files("mf", "enriched/*.jsonl.gz")
     return found[-1] if found else None
 

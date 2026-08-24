@@ -38,15 +38,26 @@ from pathlib import Path
 
 PATH = Path("data/derived/landing_manifest.json")
 
-TREES: tuple[tuple[str, str], ...] = (
-    ("fx", "*/*/*.jsonl.gz"),
-    ("mf", "history/*.jsonl.gz"),
-    ("crypto", "*/*.jsonl.gz"),
-    ("news", "*/*.jsonl.gz"),
-    ("calendar", "*.jsonl.gz"),
+TREES: tuple[tuple[str, str, str], ...] = (
+    ("fx", "fx", "*/*/*.jsonl.gz"),
+    ("mf", "mf", "history/*.jsonl.gz"),
+    ("mf/enriched", "mf", "enriched/*.jsonl.gz"),
+    ("crypto", "crypto", "*/*.jsonl.gz"),
+    ("news", "news", "*/*.jsonl.gz"),
+    ("calendar", "calendar", "*.jsonl.gz"),
 )
-"""The trees whose size the capability matrix reports, with the pattern each
-row asks about. Kept beside the counts so a manifest is self-describing."""
+"""(key, tree, pattern) for each census entry.
+
+The key is separate from the tree because one tree can hold two things worth
+counting separately. `mf` holds 14,280 per-scheme NAV histories *and* one dated
+enriched snapshot, and collapsing them lost the distinction in a way that
+produced a wrong answer rather than a missing one: `newest` came from the
+history files, so asking the census for the latest enriched snapshot returned
+`154641.jsonl.gz` — a scheme code — where the real file is `2026-08-21.jsonl.gz`.
+
+A count that is merely absent gets noticed. One that is confidently wrong does
+not.
+"""
 
 
 @dataclass
@@ -78,10 +89,10 @@ def build(*, allow_cloud: bool = True) -> Manifest:
     from eulerlab.ingest import landing_reader
 
     out = Manifest(built_at=datetime.now(UTC).isoformat())
-    for tree, pattern in TREES:
+    for key, tree, pattern in TREES:
         found = landing_reader.available(tree, pattern, allow_cloud=allow_cloud)
         groups = {parts[1] for parts in (r.split("/") for r in found) if len(parts) >= 3}
-        out.trees[tree] = TreeCensus(
+        out.trees[key] = TreeCensus(
             files=len(found),
             groups=len(groups),
             newest=max(found).split("/")[-1] if found else "",

@@ -58,7 +58,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
 from pathlib import Path
@@ -816,3 +816,100 @@ def affected(title: str, *, limit: int = 6) -> Affected:
         if sector:
             seen[sector] = None
     return Affected(symbols=found, sectors=tuple(seen))
+
+
+def recent(
+    symbols: list[str],
+    *,
+    hours: float = 36.0,
+    now: datetime | None = None,
+    root: Path = LANDING,
+    allow_cloud: bool = True,
+) -> dict[str, list[Item]]:
+    """Fresh landed stories per symbol. **Reads files, never the network.**
+
+    This exists because `live()` must not be called while rendering a page.
+    Google News began stalling mid-session and `_open` retries three times at a
+    30s timeout, so thirty-four symbols at six workers is roughly **576
+    seconds** of a request that a proxy cut long before — the snapshot returned
+    nothing at all, and the browser reported a 500 it never received.
+
+    The division is the same one the rest of this platform already makes: the
+    ingest reaches out on a schedule, the read path opens files. A page that
+    makes a third-party request to render is only as reliable as that third
+    party, and here that turned out to be not at all.
+
+    Only the current and previous month are opened. Stories are stored by
+    publication month, so a 36-hour window can straddle at most two files, and
+    reading the whole corpus to answer "what happened today" would be the same
+    mistake one layer down.
+    """
+    moment = now or datetime.now(UTC)
+    months = {moment.strftime("%Y-%m"), (moment - timedelta(days=32)).strftime("%Y-%m")}
+    wanted = {s.strip().upper() for s in symbols if s.strip()}
+    if not wanted:
+        return {}
+
+    table = load_names()
+    cutoff = moment - timedelta(hours=hours)
+    out: dict[str, list[Item]] = {s: [] for s in wanted}
+
+    for month in sorted(months):
+        relative = f"equity/{month}.jsonl.gz"
+        try:
+            if allow_cloud:
+                from eulerlab.ingest import landing_reader
+
+                payload = landing_reader.read(f"news/{relative}")
+            else:
+                payload = (root / relative).read_bytes()
+        except (OSError, ValueError, FileNotFoundError):
+            # A month with no file is an ordinary answer, not an error: the
+            # archive only goes back as far as the first sweep.
+            continue
+
+        for line in gzip.decompress(payload).decode("utf-8", errors="replace").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            tickers = {str(s).upper() for s in _as_list(row.get("symbols"))}
+            hit = tickers & wanted
+            if not hit:
+                continue
+            try:
+                when = datetime.fromisoformat(str(row.get("event_time", "")))
+            except ValueError:
+                continue
+            if when < cutoff:
+                continue
+
+            title = str(row.get("title", ""))
+            for symbol in hit:
+                # Re-checked on read rather than trusted from the file: the
+                # archive keeps everything the sweep saw, including headlines
+                # that never name the instrument, and those must not be shown
+                # as the reason a price moved.
+                if not strong_match(title, symbol, table.get(symbol, "")):
+                    continue
+                out[symbol].append(
+                    Item(
+                        guid=str(row.get("guid", "")),
+                        title=title,
+                        link=str(row.get("link", "")),
+                        publisher=str(row.get("publisher", "")),
+                        symbols=(symbol,),
+                        asset_class=str(row.get("asset_class", "equity")),
+                        matched=True,
+                        event_time=str(row.get("event_time", "")),
+                        knowledge_time=str(row.get("knowledge_time", "")),
+                        receipt_time=str(row.get("receipt_time", "")),
+                    )
+                )
+
+    for stories in out.values():
+        stories.sort(key=lambda i: i.event_time, reverse=True)
+    return out
