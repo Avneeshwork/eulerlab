@@ -28,6 +28,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import type { MacroReading } from '@/lib/api';
 import { MacroBand } from '@/components/terminal/MacroBand';
+import { OwnChart } from '@/components/terminal/OwnChart';
 
 type Market = 'NSE' | 'US' | 'CRYPTO' | 'FX' | 'MACRO';
 
@@ -131,6 +132,25 @@ const INTERVALS: [string, string][] = [
   ['D', '1D'],
   ['W', '1W'],
 ];
+
+/** Whether we hold our own bars for a charted symbol, and under what name.
+ *
+ *  The embed's symbol and ours are not the same string: it wants
+ *  `NSE:RELIANCE` and `BINANCE:BTCUSDT`, while the panel wants `RELIANCE` and
+ *  the crypto archive wants `BTCUSDT`. Keeping that translation in one place
+ *  beats scattering it through the render.
+ *
+ *  Returns null for anything not landed — US listings, sovereign yields, the
+ *  dollar index — so those show the embed alone rather than an empty panel
+ *  claiming we hold data we do not.
+ */
+function ownOf(charted: string): { symbol: string; assetClass: string } | null {
+  const [venue, rest] = charted.includes(':') ? charted.split(':') : ['', charted];
+  if (venue === 'NSE') return { symbol: rest, assetClass: 'equity' };
+  if (venue === 'BINANCE') return { symbol: rest, assetClass: 'crypto' };
+  if (venue === 'FX' || venue === 'FX_IDC') return { symbol: rest, assetClass: 'fx' };
+  return null;
+}
 
 export function ChartTab() {
   const [market, setMarket] = useState<Market>('NSE');
@@ -301,6 +321,15 @@ export function ChartTab() {
           container on mount, and a container that is auto-height at that moment
           measures zero and renders nothing at all. */}
       <div className="chartholder" ref={holder} />
+
+      {/* The same instrument from our own bars, when we hold them. Shown
+          beside the embed rather than instead of it: the embed has the drawing
+          tools, this has the provenance, and a reader comparing the two can
+          see for themselves where a vendor's adjusted close differs from the
+          panel's. */}
+      {ownOf(symbol) && (
+        <OwnChart symbol={ownOf(symbol)!.symbol} assetClass={ownOf(symbol)!.assetClass} />
+      )}
 
       {/* Below the chart, as asked: what a trader checks around a price. */}
       <MacroBand rows={macro} spread={spread} stale={stale} />

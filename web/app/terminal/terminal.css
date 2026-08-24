@@ -1806,3 +1806,24 @@
   color: var(--ink-4);
   margin: 3px 0 6px;
 }
+
+/* --- our own chart ---------------------------------------------------------
+   Sits under the embed for instruments we actually hold. Deliberately plainer:
+   the embed has the drawing tools, this has the provenance, and dressing it up
+   to look equivalent would obscure which is which. */
+.ownchart {
+  margin-top: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px 12px;
+}
+.ownhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.ownhead b { font-size: 13px; }
+.ownholder { height: 320px; width: 100%; }

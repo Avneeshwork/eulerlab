@@ -2011,6 +2011,95 @@ def data_sync() -> dict[str, Any]:
     return {"ok": True, "job": job.id}
 
 
+@app.get("/api/history")
+def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[str, Any]:
+    """OHLC bars for one instrument, **from data this platform holds**.
+
+    The TradingView embed refuses a great deal of what is charted here: index
+    data is licensed separately from equity data, so `NSE:NIFTY` errors, and
+    the ETF proxies substituted for it are close but not the same instrument.
+    That is a poor foundation for a chart on a platform whose panel already
+    contains the real thing.
+
+    So this serves our own bars. Equities come from the price panel — the same
+    rows a backtest reads, so a chart and a result cannot disagree — and crypto
+    and FX from their landed archives. There is no licensing question because
+    there is no third party.
+
+    What it cannot serve is anything not landed: US listings, sovereign yields,
+    the dollar index. Those stay on the embed, which is honest about being a
+    different source.
+    """
+    wanted = symbol.strip().upper()
+    if not wanted:
+        return {"ok": False, "error": "no symbol"}
+
+    try:
+        if asset_class == "equity":
+            rows = [r for r in PANEL.rows(days=days) if r.symbol == wanted]
+            bars = [
+                {
+                    "time": row.day.isoformat(),
+                    "open": row.open or row.close,
+                    "high": row.high or row.close,
+                    "low": row.low or row.close,
+                    "close": row.close,
+                    "volume": row.volume,
+                }
+                for row in sorted(rows, key=lambda r: r.day)
+            ]
+        elif asset_class in ("crypto", "fx"):
+            from datetime import timedelta
+
+            from eulerlab.features import alt_panel
+
+            # UTC, not the machine's zone: this asks a question about landed
+            # bars, and the archive is stamped in UTC.
+            start = (datetime.now(UTC) - timedelta(days=days)).date()
+            # Called separately rather than through one variable. The two
+            # readers take different parameter names — `symbols` for crypto,
+            # `pairs` for FX — and sharing a call site only hid that until the
+            # type checker found it.
+            if asset_class == "crypto":
+                landed = alt_panel.crypto_daily(symbols=[wanted], start=start)
+            else:
+                landed = alt_panel.fx_daily(pairs=[wanted], start=start)
+            bars = [
+                {
+                    "time": row.day.isoformat(),
+                    "open": row.open or row.close,
+                    "high": row.high or row.close,
+                    "low": row.low or row.close,
+                    "close": row.close,
+                    "volume": row.volume,
+                }
+                for row in sorted((r for r in landed if r.symbol == wanted), key=lambda r: r.day)
+            ]
+        else:
+            return {"ok": False, "error": f"no landed history for {asset_class}"}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+    if not bars:
+        # Named, not empty. "We hold nothing for this symbol" and "the request
+        # failed" are different answers and the chart should say which.
+        return {
+            "ok": False,
+            "error": f"no landed bars for {wanted} in the last {days} days",
+            "bars": [],
+        }
+
+    return {
+        "ok": True,
+        "symbol": wanted,
+        "asset_class": asset_class,
+        "bars": bars,
+        "source": "price panel" if asset_class == "equity" else f"{asset_class} archive",
+        "first": bars[0]["time"],
+        "last": bars[-1]["time"],
+    }
+
+
 @app.get("/api/data")
 def data_status() -> dict[str, Any]:
     """What data is on disk, counted rather than claimed.

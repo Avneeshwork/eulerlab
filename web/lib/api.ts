@@ -448,6 +448,27 @@ export type WorldMover = {
   kind: string;
 };
 
+export type Bar = {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+export type History = {
+  ok: boolean;
+  error?: string;
+  symbol?: string;
+  asset_class?: string;
+  bars: Bar[];
+  /** Where the bars came from — "price panel", "crypto archive". */
+  source?: string;
+  first?: string;
+  last?: string;
+};
+
 export type MacroReading = {
   symbol: string;
   name: string;
@@ -735,6 +756,10 @@ export const api = {
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
   data: () => get<DataStatus>('/api/data'),
+  history: (symbol: string, assetClass = 'equity', days = 400) =>
+    get<History>(
+      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}`,
+    ),
   syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
   snapshot: (workspace = '') =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
