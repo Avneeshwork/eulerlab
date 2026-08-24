@@ -2396,6 +2396,10 @@ CALENDAR_WINDOW_DAYS = 7
 WORLD_DEADLINE = 25.0
 """Seconds the snapshot waits for index levels before rendering without them."""
 
+LIVE_MAP_DEADLINE = 20.0
+"""Seconds to wait for live quotes before drawing the map from the settled
+close instead. Measured at 3.3s for 2,458 symbols, so this is generous."""
+
 QUOTES_DEADLINE = 15.0
 """Seconds the snapshot waits for a live quote before rendering without one."""
 
@@ -2745,6 +2749,42 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
         if symbol in prior_day and prior_day[symbol].close > 0 and row.close > 0
     }
 
+    # --- live overlay -------------------------------------------------------
+    # The panel is the backtest's source of truth and always will be, but it is
+    # end-of-day, and a screen that opens on a settled close is describing
+    # yesterday. Kite quotes 500 instruments in 0.2 seconds, so the whole
+    # universe is six calls and under four — which is what makes a live map
+    # possible rather than a nightly one.
+    #
+    # Substituted into `returns` rather than carried alongside, so breadth, the
+    # map and the movers all move together. Two sources for one number on one
+    # screen is how a page ends up disagreeing with itself.
+    live_at = ""
+    live_returns: dict[str, float] = {}
+    live_error = ""
+    try:
+        from eulerlab import quotes as quote_feed
+
+        with ThreadPoolExecutor(1) as pool:
+            fetched, live_error = pool.submit(quote_feed.nse_universe, sorted(returns)).result(
+                timeout=LIVE_MAP_DEADLINE
+            )
+        for symbol, quote in fetched.items():
+            if quote.previous_close > 0:
+                live_returns[symbol] = quote.last / quote.previous_close - 1.0
+        if live_returns:
+            live_at = next(iter(fetched.values())).at
+    except FuturesTimeout:
+        live_error = f"no quote in {LIVE_MAP_DEADLINE:.0f}s"
+    except Exception as exc:
+        live_error = f"{type(exc).__name__}: {exc}"
+
+    # Only symbols the broker actually priced are replaced. A partial answer
+    # updates what it covers and leaves the rest on the settled close, which is
+    # better than discarding two thousand live prices because six were missing.
+    if live_returns:
+        returns = {**returns, **live_returns}
+
     # --- band 1: regime -----------------------------------------------------
     up = sum(1 for r in returns.values() if r > BREADTH_UNCHANGED_PCT / 100)
     down = sum(1 for r in returns.values() if r < -BREADTH_UNCHANGED_PCT / 100)
@@ -2848,6 +2888,17 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
     return {
         "ok": True,
         "as_of": today.isoformat(),
+        # What the screen is actually showing, and when it was taken. The page
+        # carried a settled date while quoting live prices under it, which is
+        # the kind of quiet disagreement a reader has no way to notice.
+        "freshness": {
+            "live": bool(live_returns),
+            "quoted": len(live_returns),
+            "of": len(returns),
+            "taken_at": live_at,
+            "panel_date": today.isoformat(),
+            "reason": live_error,
+        },
         "previous": yesterday.isoformat(),
         "regime": {
             "advancers": up,

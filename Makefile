@@ -281,6 +281,8 @@ daily:
 	-$(MAKE) --no-print-directory daily-minute
 	@echo "== crypto (Binance public archive, no auth) =="
 	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
+	@echo "== FX (FXCM weekly candles) =="
+	-uv run python -m eulerlab.ingest.fx_bulk_backfill --from-year $$(date +%Y)
 	@echo "== per-instrument news (equity, crypto, FX) =="
 	-uv run python -m eulerlab.ingest.news
 	@echo "== index levels, movers, sectors =="

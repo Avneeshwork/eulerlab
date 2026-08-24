@@ -213,6 +213,42 @@ function QuotedMovers({ rows, unit }: { rows: IndexLevel[]; unit: string }) {
   );
 }
 
+/** When the numbers on screen were taken. Always visible, never inferred.
+ *
+ *  The page used to carry a settled panel date while quoting live prices
+ *  underneath it — a disagreement the reader had no way to notice. Now the
+ *  stamp says which it is, and a stale one is a fact on the screen rather than
+ *  an assumption in the reader's head. */
+function Stamp({ snap, market }: { snap: Snapshot; market: Market }) {
+  const f = snap.freshness;
+  const taken = market === 'IN' ? f?.taken_at : snap.world?.taken_at;
+  const live = market === 'IN' ? Boolean(f?.live) : Boolean(taken);
+
+  let when = market === 'IN' ? snap.as_of : '—';
+  if (taken) {
+    const d = new Date(taken);
+    if (!Number.isNaN(d.getTime())) {
+      when = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    }
+  }
+
+  const detail =
+    market === 'IN'
+      ? f?.live
+        ? `${f.quoted.toLocaleString('en-IN')} of ${f.of.toLocaleString('en-IN')} quoted live via Zerodha. Panel close ${f.panel_date}.`
+        : `End-of-day panel, ${snap.as_of}.${f?.reason ? ` No live quote: ${f.reason}.` : ''}`
+      : taken
+        ? `Swept at ${taken.slice(0, 19).replace('T', ' ')} UTC by \`make world\`.`
+        : 'No sweep landed — run `make world`.';
+
+  return (
+    <span className={live ? 'stamp live' : 'stamp'} title={detail}>
+      {live && <span className="tdot" />}
+      {live ? 'live' : 'EOD'} {when}
+    </span>
+  );
+}
+
 function band(move: number): string {
   if (move >= 0.05) return 'up3';
   if (move >= 0.02) return 'up2';
@@ -326,8 +362,10 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             {label}
           </button>
         ))}
-        <span className="tfine mktnote">
-          {MARKETS.find(([key]) => key === market)?.[2]}
+        <Stamp snap={snap} market={market} />
+        <span className="tfine mktnote" title={MARKETS.find(([key]) => key === market)?.[2]}>
+          {market === 'IN' ? 'NSE' : market === 'US' ? 'US listings' : market === 'CRYPTO' ? 'Majors' : 'Majors'}
+          <abbr className="whyq">?</abbr>
         </span>
       </div>
 
@@ -368,15 +406,21 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
                 reachable — the number is an equal-weighted proxy, not an
                 index — but three lines of it in the largest type on the page
                 pushed everything that matters below the fold. */}
-            <span className="unit" title={r.proxy_note}>
-              20d equal-weighted <abbr className="whyq">?</abbr>
+            <span
+              className="unit"
+              title={`${r.proxy_note} Computed from the panel's daily history, so it ends at the ${snap.as_of} close even when breadth above it is live.`}
+            >
+              20d equal-weighted, to {snap.as_of} <abbr className="whyq">?</abbr>
             </span>
           </div>
         </div>
 
         <div className="regime-stats">
           <div className="rstat">
-            <span>Breadth</span>
+            <span>
+              Breadth
+              {snap.freshness?.live && <span className="tdot" style={{ marginLeft: 5 }} />}
+            </span>
             <b className={negative ? 'dn' : 'up'}>
               {r.advancers.toLocaleString('en-IN')} / {r.decliners.toLocaleString('en-IN')}
             </b>
@@ -395,8 +439,17 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           </div>
           <div className="rstat">
             <span>As of</span>
-            <b>{snap.as_of}</b>
-            <i>end of day, not live</i>
+            <b>{snap.freshness?.live ? 'live' : snap.as_of}</b>
+            {/* Per stat, not per band. Breadth is counted from live quotes
+                while the 20-day proxy and the volatility figure are computed
+                from the panel's history — they are genuinely end-of-day and
+                cannot be otherwise. One blanket "as of" over both was wrong
+                whichever date it showed. */}
+            <i>
+              {snap.freshness?.live
+                ? `breadth live · 20d from ${snap.as_of} close`
+                : 'end of day, not live'}
+            </i>
           </div>
         </div>
 
@@ -448,12 +501,11 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             ))}
           </div>
         )}
-        <p className="tfine" style={{ marginTop: 10 }}>
-          {snap.map.note}{' '}
-          {snap.map.grouped
-            ? 'Grouped because a red tile is one company\u2019s problem and a red block is a rotation, and only the grouping lets the eye tell them apart.'
-            : `Ungrouped \u2014 no ${snap.map.missing} is connected.`}
-        </p>
+        {!snap.map.grouped && (
+          <p className="tfine" style={{ marginTop: 10 }}>
+            Ungrouped &mdash; no {snap.map.missing} is connected.
+          </p>
+        )}
       </section>
       )}
 
@@ -481,41 +533,54 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         <section>
           <h3 className="report-h">
             {market === 'CRYPTO' ? 'Majors' : 'Pairs'}
-            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
-              live, ranked by move
+            <span
+              className="tfine"
+              style={{ marginLeft: 10, fontWeight: 400 }}
+              title={
+                market === 'CRYPTO'
+                  ? 'Quotes are live; the archive underneath is 1-minute bars for 20 pairs, which is what a strategy backtests against.'
+                  : 'Quotes are live; the archive underneath is 1-minute bars for 10 pairs carrying bid and ask separately, so spread is measured rather than assumed.'
+              }
+            >
+              live, ranked <abbr className="whyq">?</abbr>
             </span>
           </h3>
           <QuotedMovers
             rows={(market === 'CRYPTO' ? snap.world?.crypto : snap.world?.fx) ?? []}
             unit={market === 'CRYPTO' ? '$' : ''}
           />
-          <p className="tfine" style={{ marginTop: 10 }}>
-            {market === 'CRYPTO'
-              ? 'Quotes are live; the archive underneath is 1-minute bars for 20 pairs, which is what a strategy backtests against rather than what this band shows.'
-              : 'Quotes are live; the archive underneath is 1-minute bars for 10 pairs carrying bid and ask separately, so spread is measured rather than assumed.'}
-          </p>
         </section>
       )}
 
       {/* --- band 3: movers ------------------------------------------------ */}
       {market === 'IN' && (
       <section>
-        <h3 className="report-h">Movers</h3>
-        {snap.quotes?.note && (
-          <p className="tfine tlive" data-live={snap.quotes.available}>
-            {snap.quotes.available && <span className="tdot" />}
-            {snap.quotes.note}
-            {snap.quotes.errors?.yahoo ? ` Yahoo: ${snap.quotes.errors.yahoo}.` : ''}
-            {snap.quotes.errors?.zerodha ? ` Zerodha: ${snap.quotes.errors.zerodha}.` : ''}
-          </p>
-        )}
-        <p className="tfine" style={{ marginBottom: 12 }}>
-          {snap.news?.available
-            ? snap.news.note
-            : `No stock-specific news source is reachable${
-                snap.news?.reason ? ` (${snap.news.reason})` : ''
-              }, so every mover here is a price without a reason.`}
-        </p>
+        <h3 className="report-h">
+          Movers
+          {/* Two stacked paragraphs became one line on the heading. Both facts
+              still have to be reachable — how many are quoted live, and how
+              many carry a reason — but they are status, not prose, and stacked
+              above the table they read as an apology for it. */}
+          <span
+            className="tfine hstat"
+            title={[
+              snap.quotes?.note,
+              snap.quotes?.errors?.zerodha ? `Zerodha: ${snap.quotes.errors.zerodha}` : '',
+              snap.quotes?.errors?.yahoo ? `Yahoo: ${snap.quotes.errors.yahoo}` : '',
+              snap.news?.available
+                ? snap.news.note
+                : `No news source reachable${snap.news?.reason ? ` (${snap.news.reason})` : ''}`,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          >
+            {snap.quotes?.available && <span className="tdot" />}
+            {snap.quotes?.available ? `${Object.keys(snap.quotes.quotes).length} live` : 'EOD'}
+            {' · '}
+            {snap.news?.covered ?? 0}/{snap.news?.asked ?? 0} with a reason
+            <abbr className="whyq">?</abbr>
+          </span>
+        </h3>
         <div className="tgrid">
           <Movers
             title="Gainers"
@@ -549,16 +614,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         <section>
           <h3 className="report-h">
             {market === 'IN' ? 'Moving elsewhere' : 'Movers'}
-            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
-              US listings, above $5
+            <span
+              className="tfine"
+              style={{ marginLeft: 10, fontWeight: 400 }}
+              title="Filtered to $5 and above: the raw feed's median mover was a $4.75 micro-cap. Leveraged ETFs still slip through, so one underlying can appear under several tickers."
+            >
+              US listings, above $5 <abbr className="whyq">?</abbr>
             </span>
           </h3>
-          <p className="tfine" style={{ marginBottom: 12 }}>
-            Filtered to $5 and above: the raw feed&rsquo;s median mover was a $4.75
-            micro-cap, and a shell doubling is not overnight context. Leveraged ETFs
-            still slip through, so one move in an underlying can appear under several
-            tickers.
-          </p>
           <WorldMovers rows={snap.world.movers} />
         </section>
       ) : null}
@@ -568,18 +631,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         <section>
           <h3 className="report-h">
             The tape
-            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
-              last {snap.news.window ?? '1d'}, movers only
+            <span
+              className="tfine"
+              style={{ marginLeft: 10, fontWeight: 400 }}
+              title="Newest first, tagged with every listed company the headline names. A headline must carry the ticker or two words of the registered name to be tagged — 'Reliance Communications' is not a Reliance Industries story."
+            >
+              last {snap.news.window ?? '1d'} <abbr className="whyq">?</abbr>
             </span>
           </h3>
-          <p className="tfine" style={{ marginBottom: 12 }}>
-            Newest first, tagged with every listed company the headline names and
-            the sectors they sit in — a story naming four lenders is one event with
-            four exposures. A headline must carry the ticker or two words of the
-            registered name to be tagged: &ldquo;Reliance Communications&rdquo; is not a
-            Reliance Industries story, and printing it beside that price would be a
-            false reason rather than a weak one.
-          </p>
           <div className="tpanel tscroll">
             <ul className="ttape">
               {snap.news.tape.map((story) => (
@@ -649,9 +708,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         ) : (
           <p className="tfine">{snap.catalysts.reason}</p>
         )}
-        {snap.catalysts.available && (
-          <p className="tfine" style={{ marginTop: 10 }}>{snap.catalysts.reason}</p>
-        )}
+
       </section>
 
       {/* --- band 4: cross-asset ------------------------------------------- */}

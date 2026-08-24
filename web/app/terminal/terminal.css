@@ -1648,3 +1648,68 @@
   margin-bottom: 14px;
   max-width: 62ch;
 }
+
+/* --- the freshness stamp ---------------------------------------------------
+   Beside the market toggle, always on screen. The page used to show a settled
+   panel date while quoting live prices underneath it; the stamp makes which
+   one you are looking at a fact rather than an assumption. */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 12px;
+  padding: 4px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+  white-space: nowrap;
+}
+.stamp.live { color: var(--ink); border-color: var(--neon-deep); }
+
+/* --- glass -----------------------------------------------------------------
+   A slight frost on the surfaces that float above the page — the ribbon, the
+   panels, the toggle. Kept subtle on purpose: this is a screen for reading
+   numbers, and a heavy blur costs contrast that the numbers need. Guarded so
+   browsers without backdrop-filter get the solid surface rather than a
+   washed-out one. */
+@supports (backdrop-filter: blur(8px)) {
+  .ixribbon,
+  .tpanel,
+  .secstrip,
+  .mkttoggle button,
+  .stamp {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    backdrop-filter: blur(10px) saturate(1.15);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  }
+  .mkttoggle button.on {
+    background: color-mix(in srgb, var(--ink) 90%, transparent);
+  }
+}
+
+/* A hairline highlight along the top edge reads as glass without costing any
+   contrast in the body, where the numbers are. */
+.ixribbon,
+.tpanel,
+.secstrip {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--ground) 55%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+/* Status on the heading rather than a paragraph under it. The facts still have
+   to be reachable — how many instruments are quoted live, how many movers
+   carry a reason — but stacked above a table they read as an apology for it. */
+.hstat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 12px;
+  font-weight: 400;
+  cursor: help;
+}

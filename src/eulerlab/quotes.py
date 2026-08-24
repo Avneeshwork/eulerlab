@@ -249,3 +249,74 @@ def live(symbols: list[str]) -> QuoteResult:
         if yahoo_error:
             result.errors["yahoo"] = yahoo_error
     return result
+
+
+def nse_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
+    """Live quotes for a whole NSE universe. Returns (quotes, error).
+
+    Kite answers **500 instruments in 0.2 seconds**, so the entire liquid
+    universe is six calls and under two seconds — which is what makes a live
+    map possible at all rather than a nightly one.
+
+    Symbols the broker does not recognise are simply absent from the result:
+    six of a five-hundred batch, typically renamed or delisted names still in
+    our universe file. Absent rather than zeroed, because a zero would render
+    as a stock that fell 100%.
+    """
+    if not symbols:
+        return {}, ""
+    try:
+        from kiteconnect import KiteConnect
+
+        from eulerlab.broker import kite_session
+    except ImportError as exc:
+        return {}, f"kiteconnect unavailable: {exc}"
+
+    session = kite_session.load()
+    if session is None:
+        return {}, "no Kite session — run `make kite-login` to mint a token"
+    api_key = _env("ZERODHA_API_KEY")
+    if not api_key:
+        return {}, "ZERODHA_API_KEY is not set"
+
+    kite = KiteConnect(api_key=api_key)
+    kite.set_access_token(session.access_token)
+
+    stamp = datetime.now(UTC).isoformat()
+    out: dict[str, Quote] = {}
+    for start in range(0, len(symbols), ZERODHA_BATCH):
+        batch = symbols[start : start + ZERODHA_BATCH]
+        try:
+            payload = kite.quote([f"NSE:{s}" for s in batch])
+        except Exception as exc:
+            return out, f"{type(exc).__name__}: {str(exc)[:120]}"
+
+        for key, row in payload.items():
+            symbol = key.split(":", 1)[-1]
+            last = row.get("last_price")
+            ohlc = row.get("ohlc") or {}
+            close = ohlc.get("close")
+            if not isinstance(last, (int, float)) or not last:
+                continue
+            out[symbol] = Quote(
+                symbol=symbol,
+                last=float(last),
+                previous_close=float(close) if isinstance(close, (int, float)) else 0.0,
+                source="zerodha",
+                at=stamp,
+            )
+    return out, ""
+
+
+def volume_of(row: dict[str, object]) -> float:
+    """Traded volume from a Kite quote row, or zero.
+
+    Kite names it `volume` on some segments and `volume_traded` on others, and
+    reading only one of them reported every stock as untraded on whichever
+    segment used the other spelling.
+    """
+    for key in ("volume", "volume_traded"):
+        value = row.get(key)
+        if isinstance(value, (int, float)):
+            return float(value)
+    return 0.0

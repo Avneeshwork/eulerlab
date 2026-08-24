@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from collections import defaultdict
 from collections.abc import Sequence
 from datetime import date, datetime
@@ -64,6 +65,18 @@ def crypto_daily(
     asset classes rather than two that nearly agree.
     """
     root = directory or crypto.LANDING
+    # The directory is the fallback, not the source of truth. `prune-local`
+    # moves landed months to B2 and leaves the tree empty, so reading only the
+    # disk returned nothing at all — a landed archive of 1,200 symbol-months
+    # reported as no crypto data. The same defect the catalog had, one layer
+    # down. An explicit `directory=` still wins, because the tests pass one.
+    if directory is None:
+        listed = landing_reader.available("crypto", "*/*.jsonl.gz")
+        names = {r.split("/")[1] for r in listed if len(r.split("/")) >= 3}
+        if names:
+            wanted = set(symbols) & names if symbols else names
+            return _crypto_from_cloud(sorted(wanted), start)
+
     if not root.exists():
         return []
 
@@ -310,6 +323,84 @@ def _fx_row(pair: str, bars: Sequence[object], start: date | None) -> PanelRow |
         high=max(bar.high for bar in typed),
         low=min(bar.low for bar in typed),
     )
+
+
+def _crypto_from_cloud(symbols: list[str], start: date | None) -> list[PanelRow]:
+    """Daily bars built from the landed archive, fetched from B2 when pruned.
+
+    Same aggregation as the on-disk path — last close of the day wins, volume
+    sums, turnover is close x volume - deliberately duplicated rather than
+    shared, because the two differ only in how bytes arrive and merging them
+    behind a flag made the disk path harder to read for no gain.
+
+    Only months that could straddle `start` are opened. The archive is 1,200
+    symbol-months; fetching all of them to answer a ten-day question would
+    trade one bug for a slower one.
+    """
+    rows: list[PanelRow] = []
+    listed = landing_reader.available("crypto", "*/*.jsonl.gz")
+    by_symbol: dict[str, list[str]] = {}
+    for relative in listed:
+        parts = relative.split("/")
+        if len(parts) >= 3 and parts[1] in set(symbols):
+            by_symbol.setdefault(parts[1], []).append(relative)
+
+    cutoff = f"{start:%Y-%m}" if start else ""
+    for symbol in symbols:
+        days: dict[date, list[float]] = {}
+        for relative in sorted(by_symbol.get(symbol, [])):
+            # Filenames carry the month, so a month entirely before `start` is
+            # skipped without being downloaded. Matched rather than sliced: the
+            # first version took `[-15:-9]` and got "026-07", which sorted below
+            # every real cutoff and skipped the entire archive.
+            stamp = re.search(r"(\d{4}-\d{2})\.jsonl\.gz$", relative)
+            if cutoff and stamp and stamp.group(1) < cutoff:
+                continue
+            try:
+                payload = gzip.decompress(landing_reader.read(relative))
+            except Exception:
+                continue
+            for line in payload.decode("utf-8", errors="replace").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                    when = datetime.fromisoformat(str(row["event_time"])).date()
+                    if start and when < start:
+                        continue
+                    close = float(row["close"])
+                    entry = days.get(when)
+                    if entry is None:
+                        days[when] = [
+                            float(row["open"]),
+                            float(row["high"]),
+                            float(row["low"]),
+                            close,
+                            float(row["volume"]),
+                        ]
+                    else:
+                        entry[1] = max(entry[1], float(row["high"]))
+                        entry[2] = min(entry[2], float(row["low"]))
+                        entry[3] = close
+                        entry[4] += float(row["volume"])
+                except Exception:
+                    continue
+
+        for when, (open_, high, low, close, volume) in sorted(days.items()):
+            rows.append(
+                PanelRow(
+                    day=when,
+                    symbol=symbol,
+                    close=close,
+                    volume=volume,
+                    turnover=close * volume,
+                    isin=f"CRYPTO:{symbol}",
+                    open=open_,
+                    high=high,
+                    low=low,
+                )
+            )
+    return rows
 
 
 def _fx_from_disk(directory: Path, pairs: list[str] | None, start: date | None) -> list[PanelRow]:

@@ -488,6 +488,14 @@ export type Snapshot = {
     missing: string;
   };
   movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
+  freshness?: {
+    live: boolean;
+    quoted: number;
+    of: number;
+    taken_at: string;
+    panel_date: string;
+    reason?: string;
+  };
   world: {
     available: boolean;
     india: IndexLevel[];
@@ -496,6 +504,7 @@ export type Snapshot = {
     fx?: IndexLevel[];
     movers: WorldMover[];
     sectors?: { sector: string; change_pct: number; exchange: string }[];
+    taken_at?: string;
     errors?: Record<string, string>;
   };
   quotes: {
