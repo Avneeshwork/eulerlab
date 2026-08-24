@@ -102,12 +102,16 @@ def test_unsupported_markets_are_reported_not_hidden() -> None:
     measured', and the matrix is where that distinction lives."""
     matrix = {(c.asset_class, c.timeframe): c for c in catalog.capabilities()}
     assert matrix[(AssetClass.EQUITY, Timeframe.DAILY)].supported
-    # Options rather than FX, and FX rather than crypto before it. This table
-    # tracks what is on disk, so its examples go stale as data arrives — twice
-    # now, which is the pattern rather than an accident. Crypto fell when the
-    # Binance archive landed; FX fell when the FXCM one did. Options remain:
-    # the chains are parsed and no strategy path reads them.
-    assert matrix[(AssetClass.FX, Timeframe.DAILY)].supported
+
+    # Options, and only options, as the standing example. Crypto and FX were
+    # each used here and each went stale — crypto when the Binance archive
+    # landed, FX when the FXCM one did, and FX again in the other direction
+    # when a prune moved its bytes to B2 and the offline suite could no longer
+    # reach them. Anything whose support depends on which files happen to be
+    # on this disk is a moving target and does not belong in an assertion.
+    #
+    # Options do not move: the chains are parsed and no strategy path reads
+    # them, so the cell is false for a reason no ingest can change.
     assert not matrix[(AssetClass.OPTIONS, Timeframe.DAILY)].supported
     # Every unsupported cell explains itself; "no" without a reason is useless.
     assert all(c.detail for c in catalog.capabilities() if not c.supported)

@@ -16,6 +16,22 @@ later.
 operator: installing a background job that runs on their machine daily and
 makes network requests is their decision to take deliberately, not a side
 effect of running a make target.
+
+**It runs `tools/daily_guard.sh`, not `make daily` directly.** The job failed
+at 19:30 every evening for six days and reported to nobody — it wrote stderr to
+a log file and the first signal was a human noticing a stale date on screen. A
+job that runs unattended and writes only to a file is logged, not monitored, so
+the wrapper turns a non-zero exit into a message.
+
+**PATH is set explicitly.** launchd starts with a minimal environment and
+`zsh -lc` does not source `.zshrc`, so `uv` was not on PATH and every step died
+with "uv: No such file or directory". Relying on shell init files means relying
+on a thing that differs between an interactive terminal and an agent.
+
+**Keep the repo out of ~/Documents, ~/Desktop and ~/Downloads.** macOS TCC
+denies a launchd agent access to all three, and the failure is obscure: the
+shell cannot even `getcwd`, so `make` runs somewhere else and reports "No rule
+to make target". That was the original six-day outage.
 """
 
 from __future__ import annotations
@@ -39,6 +55,7 @@ def plist(repo: Path, *, hour: int, minute: int) -> str:
     work, since this runs on the operator's own laptop rather than a server.
     """
     log = repo / LOG_DIR
+    home = Path.home()
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -49,9 +66,14 @@ def plist(repo: Path, *, hour: int, minute: int) -> str:
   <array>
     <string>/bin/zsh</string>
     <string>-lc</string>
-    <string>cd {repo} &amp;&amp; make daily</string>
+    <string>{repo}/tools/daily_guard.sh</string>
   </array>
   <key>WorkingDirectory</key><string>{repo}</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>{home}/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key><integer>{hour}</integer>

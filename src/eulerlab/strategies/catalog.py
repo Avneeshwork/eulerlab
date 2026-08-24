@@ -105,9 +105,23 @@ def capabilities() -> list[Capability]:
             _has_files("mf", "history/*.jsonl.gz"),
             _fund_detail(),
         ),
-        Capability(AssetClass.FX, Timeframe.MINUTE, FX_LANDING.exists(), _fx_detail()),
+        # `_has_files`, not `FX_LANDING.exists()`. A prune moves the bytes to B2
+        # and leaves the directory tree behind, so the raw existence check kept
+        # reporting FX supported against an empty tree — the matrix said yes
+        # while the instrument picker, which reads real paths, offered nothing.
+        # The same "a directory entry is not data" mistake as T-3727, one tree
+        # over.
         Capability(
-            AssetClass.FX, Timeframe.DAILY, FX_LANDING.exists(), "resampled from minute bars"
+            AssetClass.FX,
+            Timeframe.MINUTE,
+            _has_files("fx", "*/*/*.jsonl.gz"),
+            _fx_detail(),
+        ),
+        Capability(
+            AssetClass.FX,
+            Timeframe.DAILY,
+            _has_files("fx", "*/*/*.jsonl.gz"),
+            "resampled from minute bars",
         ),
     ]
 
@@ -117,8 +131,18 @@ def _census(tree: str) -> object | None:
 
     Returns None when the manifest has never been built, which the callers
     treat as "measure it live and say so" rather than as zero.
+
+    Also None when the bucket is unreachable, and that is the subtler case.
+    The manifest counts what lives in **B2**, most of which is not on this
+    disk after a prune — so offline it would report 34,773 FX files that
+    nothing here can open. The capability matrix would call FX supported while
+    the instrument picker, which reads real paths, offered none of it. A count
+    of unreachable data is not an answer about what is usable.
     """
-    from eulerlab.ingest import manifest
+    from eulerlab.ingest import landing_reader, manifest
+
+    if not landing_reader.cloud_enabled():
+        return None
 
     loaded = manifest.load()
     return loaded.census(tree) if loaded else None

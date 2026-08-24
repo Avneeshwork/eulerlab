@@ -11,6 +11,21 @@ Zerodha's cost is that its access token **expires at 6 AM the next day** — a
 regulatory requirement, not a design choice — so a token minted yesterday buys
 nothing today. That is precisely when a fallback earns its place.
 
+### There is currently no working fallback, and that is measured
+
+Two were tried on 2026-08-23:
+
+- **Yahoo** — `query1`, `query2`, the v8 chart and v7 quote endpoints all
+  return **429** on a first request from a plain client. A block on scripted
+  access, not a rate limit earned by traffic.
+- **NSE's own** `quote-equity` — **403**, even with the cookie bootstrap that
+  works for the corporate-announcements endpoint. That path is more protected.
+
+So Zerodha is not merely primary, it is presently the only source. That matters
+operationally: the Kite token dies at 6 AM and until it is minted there are no
+live quotes at all, rather than degraded ones. The band says so instead of
+showing an empty column and letting the reader assume nothing moved.
+
 ### Yahoo is implemented and currently blocked
 
 Measured 2026-08-23: `query1` and `query2`, the v8 chart and v7 quote endpoints
