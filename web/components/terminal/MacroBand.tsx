@@ -91,6 +91,37 @@ function Curve({ rows, spread }: { rows: MacroReading[]; spread?: number | null 
   );
 }
 
+/** What the mini-chart widget will actually draw.
+ *
+ *  The scanner serves every macro symbol we quote; the **widget does not**.
+ *  `TVC:US10Y`, `US30Y`, `DE10Y` and `GB10Y` answer "No data here yet", and
+ *  `IN10Y` and `JP10Y` answer "This symbol is only available on TradingView".
+ *  They are different products with different licensing, and verifying against
+ *  the scanner and assuming the widget agreed is what put six empty boxes on
+ *  the page.
+ *
+ *  So charts are drawn from ordinary securities — ETFs, the same class as
+ *  SPY and NIFTYBEES that the embed serves without complaint — and each is
+ *  labelled as the fund it is rather than the concept it stands for.
+ *
+ *  Bond ETFs are the delicate case: **price moves inversely to yield**, so a
+ *  chart of TLT rising is the 30-year yield falling. Labelling one "US 30Y"
+ *  would draw the line the wrong way round, so they are named as the funds
+ *  they are and the caption says which direction is which.
+ */
+const CHARTABLE: Record<string, { symbol: string; label: string; note?: string }> = {
+  'US 2Y': { symbol: 'NASDAQ:SHY', label: 'SHY · 1-3Y TREASURY', note: 'price, inverse to yield' },
+  'US 10Y': { symbol: 'NASDAQ:IEF', label: 'IEF · 7-10Y TREASURY', note: 'price, inverse to yield' },
+  'US 30Y': { symbol: 'NASDAQ:TLT', label: 'TLT · 20+Y TREASURY', note: 'price, inverse to yield' },
+  'WTI CRUDE': { symbol: 'AMEX:USO', label: 'USO · US OIL FUND' },
+  BRENT: { symbol: 'AMEX:BNO', label: 'BNO · BRENT OIL FUND' },
+  'NAT GAS': { symbol: 'AMEX:UNG', label: 'UNG · NATURAL GAS FUND' },
+  GOLD: { symbol: 'AMEX:GLD', label: 'GLD · SPDR GOLD' },
+  SILVER: { symbol: 'AMEX:SLV', label: 'SLV · ISHARES SILVER' },
+  COPPER: { symbol: 'AMEX:CPER', label: 'CPER · COPPER INDEX FUND' },
+  'DOLLAR INDEX': { symbol: 'AMEX:UUP', label: 'UUP · DOLLAR BULLISH' },
+};
+
 const GROUPS: [string, string][] = [
   ['yields', 'Sovereign yields'],
   ['energy', 'Energy'],
@@ -161,16 +192,34 @@ export function MacroBand({
         </div>
       ) : (
         GROUPS.map(([group, label]) => {
-          const kept = rows.filter((r) => r.group === group);
-          if (!kept.length) return null;
+          const kept = rows.filter((r) => r.group === group && CHARTABLE[r.name]);
+          const uncharted = rows.filter((r) => r.group === group && !CHARTABLE[r.name]);
+          if (!kept.length && !uncharted.length) return null;
           return (
             <div key={group} style={{ marginBottom: 16 }}>
               <div className="mgrouphead">{label}</div>
-              <div className="minigrid">
-                {kept.map((r) => (
-                  <MiniChart key={r.symbol} symbol={r.symbol} label={r.name} />
-                ))}
-              </div>
+              {kept.length > 0 && (
+                <div className="minigrid">
+                  {kept.map((r) => {
+                    const spec = CHARTABLE[r.name];
+                    return (
+                      <MiniChart
+                        key={r.symbol}
+                        symbol={spec.symbol}
+                        label={`${spec.label}${spec.note ? ` — ${spec.note}` : ''}`}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+              {uncharted.length > 0 && (
+                <p className="tfine mktgap" style={{ marginTop: kept.length ? 10 : 0 }}>
+                  No chart for {uncharted.map((r) => r.name).join(', ')} — the embed
+                  refuses these symbols even though the quote feed serves them. Their
+                  levels are in the Numbers view, and a history is being accumulated from
+                  each sweep.
+                </p>
+              )}
             </div>
           );
         })

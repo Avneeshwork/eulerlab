@@ -40,6 +40,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 
 SCANNER = "https://scanner.tradingview.com/global/scan"
 USER_AGENT = (
@@ -173,3 +174,91 @@ def fetch(*, timeout: int = 25) -> Macro:
             )
         )
     return Macro(readings=readings, missing=tuple(missing), at=stamp)
+
+
+HISTORY = Path("data/landing/macro")
+"""Where each sweep's readings are appended.
+
+The scanner returns a level and no history, and TradingView's mini-chart widget
+— the obvious way to draw one — **refuses most of these series**: the four US
+tenors and Germany's and the UK's answer "No data here yet", while India's and
+Japan's answer "This symbol is only available on TradingView". The symbols are
+valid; the scanner serves every one of them. The widget is a different product
+with different licensing, and assuming the two agreed was the mistake.
+
+So the history is accumulated here instead. Every sweep appends one row per
+series, and after a fortnight of daily runs there is a fortnight of curve — the
+same shape the ForexFactory calendar uses, for the same reason: the source
+publishes a present, not a past.
+
+It starts empty, and a chart drawn from two points says so rather than
+pretending to a trend.
+"""
+
+
+def history_path(day: str = "", *, root: Path = HISTORY) -> Path:
+    stamp = day or datetime.now(UTC).date().isoformat()
+    return root / f"{stamp}.jsonl"
+
+
+def append(macro: Macro, *, root: Path = HISTORY) -> int:
+    """Append this sweep's readings. Returns rows written.
+
+    One file per day, one line per reading, append-only. A sweep that returned
+    nothing writes nothing — an empty line would read as a zero reading, and a
+    zero yield is a very different claim from a missing one.
+    """
+    if not macro.readings:
+        return 0
+    root.mkdir(parents=True, exist_ok=True)
+    path = history_path(root=root)
+    stamp = macro.at or datetime.now(UTC).isoformat()
+    with path.open("a", encoding="utf-8") as handle:
+        for reading in macro.readings:
+            handle.write(
+                json.dumps(
+                    {
+                        "at": stamp,
+                        "symbol": reading.symbol,
+                        "name": reading.name,
+                        "group": reading.group,
+                        "unit": reading.unit,
+                        "last": reading.last,
+                        "change_pct": reading.change_pct,
+                    }
+                )
+                + "\n"
+            )
+    return len(macro.readings)
+
+
+def series(name: str, *, days: int = 90, root: Path = HISTORY) -> list[tuple[str, float]]:
+    """(timestamp, level) for one series, oldest first.
+
+    One point per sweep rather than per day: a sweep run twice leaves two
+    points, which is honest about how often it was actually measured.
+    """
+    from datetime import timedelta
+
+    if not root.exists():
+        return []
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).date().isoformat()
+    out: list[tuple[str, float]] = []
+    for path in sorted(root.glob("????-??-??.jsonl")):
+        if path.stem < cutoff:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for line in text.splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("name") == name and isinstance(row.get("last"), (int, float)):
+                out.append((str(row.get("at", "")), float(row["last"])))
+    out.sort(key=lambda pair: pair[0])
+    return out

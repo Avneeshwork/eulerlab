@@ -467,6 +467,10 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
     from eulerlab import macro as macro_feed
 
     macro = macro_feed.fetch()
+    # Appended every sweep. The scanner has no history and the mini-chart
+    # widget refuses most of these series, so the only reliable way to draw a
+    # line is to accumulate one.
+    macro_feed.append(macro)
 
     errors = dict(found.errors)
     if mover_error:
