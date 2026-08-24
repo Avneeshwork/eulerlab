@@ -461,6 +461,13 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
     curve, curve_error = treasury_curve()
     commodity, commodity_error = commodities()
 
+    # One request, no key, and it carries what FMP's free plan will not sell:
+    # WTI, natural gas, the dollar index, VIX and sovereign yields for seven
+    # countries including India's ten-year.
+    from eulerlab import macro as macro_feed
+
+    macro = macro_feed.fetch()
+
     errors = dict(found.errors)
     if mover_error:
         errors["movers"] = mover_error
@@ -470,6 +477,10 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
         errors["curve"] = curve_error
     if commodity_error:
         errors["commodities"] = commodity_error
+    if macro.error:
+        errors["macro"] = macro.error
+    if macro.missing:
+        errors["macro_missing"] = ", ".join(macro.missing)
 
     def level_row(level: Level) -> dict[str, object]:
         return {
@@ -503,6 +514,18 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
             for x in sectors
         ],
         "commodities": [level_row(x) for x in commodity],
+        "macro": [
+            {
+                "symbol": r.symbol,
+                "name": r.name,
+                "unit": r.unit,
+                "last": round(r.last, 4),
+                "change_pct": round(r.change_pct, 2),
+                "group": r.group,
+            }
+            for r in macro.readings
+        ],
+        "macro_2s10s": macro.us_curve_2s10s,
         "curve": (
             {
                 "date": curve.date,
@@ -522,45 +545,53 @@ def land(*, root: Path = LANDING) -> dict[str, object]:
     root.mkdir(parents=True, exist_ok=True)
     path = snapshot_path(root=root)
 
-    # A worse sweep must not replace a better one.
+    # A worse sweep must not replace a better one — **per group**, not whole.
     #
-    # This is not hypothetical: a sweep run after the FMP daily limit was
-    # exhausted came back 429 on five of seven groups and **overwrote a
-    # complete sweep taken twenty minutes earlier** — FX, movers, sectors and
-    # commodities all went to zero and the yield curve disappeared, with the
-    # file's own timestamp making the wreckage look fresher than the good data
-    # it replaced.
+    # The first version discarded the entire payload when it filled fewer
+    # groups. That protected the file and threw away real data with it: a
+    # sweep run past the FMP daily limit still fetched every macro series
+    # successfully, because those come from a different source that is not
+    # rate limited, and all seventeen were dropped because the FMP half had
+    # failed.
     #
-    # Compared by how many groups carry rows rather than by row count, because
-    # a group that legitimately shrinks (fewer movers past the price floor) is
-    # not a failure while a group that empties usually is.
+    # Merged group by group instead. A group that came back empty keeps
+    # whatever was there; a group that came back full replaces it. Sources
+    # fail independently, so they have to be kept independently.
     if path.exists():
         try:
             previous = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             previous = {}
+
         if isinstance(previous, dict):
+            kept_groups: list[str] = []
+            for key, value in previous.items():
+                fresh = payload.get(key)
+                stale_is_better = (
+                    isinstance(value, list) and value and isinstance(fresh, list) and not fresh
+                ) or (key == "curve" and value and not payload.get(key))
+                if stale_is_better:
+                    payload[key] = value
+                    kept_groups.append(key)
 
-            def filled(doc: dict[str, object]) -> int:
-                return sum(1 for value in doc.values() if isinstance(value, list) and value) + (
-                    1 if doc.get("curve") else 0
-                )
-
-            if filled(previous) > filled(payload):
-                kept = dict(previous)
-                notes = kept.get("errors")
-                kept["errors"] = {
+            if kept_groups:
+                # `taken_at` is when *this* sweep ran, and some of what it
+                # writes is older than that. One timestamp over two
+                # provenances is the same defect the session band carried —
+                # it showed the panel's date while breadth underneath it was
+                # live — so the stale groups are named in the file rather
+                # than left for a reader to infer from a single stamp.
+                payload["stale_groups"] = sorted(kept_groups)
+                payload["stale_since"] = str(previous.get("taken_at", ""))
+                notes = payload.get("errors")
+                payload["errors"] = {
                     **(notes if isinstance(notes, dict) else {}),
                     "kept": (
-                        f"a sweep at {str(payload.get('taken_at', ''))[:19]} filled "
-                        f"{filled(payload)} groups against this one's {filled(previous)} "
-                        "and was discarded"
+                        "this sweep returned nothing for "
+                        + ", ".join(sorted(kept_groups))
+                        + f"; values from {str(previous.get('taken_at', ''))[:19]} were retained"
                     ),
                 }
-                tmp = path.with_suffix(".partial")
-                tmp.write_text(json.dumps(kept, indent=1), encoding="utf-8")
-                tmp.replace(path)
-                return kept
 
     tmp = path.with_suffix(".partial")
     tmp.write_text(json.dumps(payload, indent=1), encoding="utf-8")

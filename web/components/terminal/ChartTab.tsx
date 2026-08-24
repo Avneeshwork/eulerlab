@@ -25,6 +25,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { api } from '@/lib/api';
+import type { MacroReading } from '@/lib/api';
+import { MacroBand } from '@/components/terminal/MacroBand';
 
 type Market = 'NSE' | 'US' | 'CRYPTO' | 'FX' | 'MACRO';
 
@@ -135,6 +138,27 @@ export function ChartTab() {
   const [interval, setInterval] = useState('D');
   const [typed, setTyped] = useState('');
   const holder = useRef<HTMLDivElement | null>(null);
+  const [macro, setMacro] = useState<MacroReading[]>([]);
+  const [spread, setSpread] = useState<number | null>(null);
+  const [stale, setStale] = useState(false);
+
+  // The macro band reads the landed sweep, same as the snapshot's ribbon —
+  // one file rather than seventeen requests per page view.
+  useEffect(() => {
+    let live = true;
+    api
+      .snapshot('')
+      .then((snap) => {
+        if (!live) return;
+        setMacro(snap.world?.macro ?? []);
+        setSpread(snap.world?.macro_2s10s ?? null);
+        setStale(Boolean(snap.world?.stale_groups?.includes('macro')));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     const node = holder.current;
@@ -277,6 +301,9 @@ export function ChartTab() {
           container on mount, and a container that is auto-height at that moment
           measures zero and renders nothing at all. */}
       <div className="chartholder" ref={holder} />
+
+      {/* Below the chart, as asked: what a trader checks around a price. */}
+      <MacroBand rows={macro} spread={spread} stale={stale} />
     </>
   );
 }

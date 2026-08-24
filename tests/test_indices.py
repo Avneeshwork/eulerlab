@@ -126,10 +126,55 @@ def test_a_rate_limited_sweep_does_not_replace_a_complete_one(
 
     assert kept["india"] == complete["india"], "the complete sweep must survive"
     assert kept["curve"], "the curve must survive"
-    on_disk = json.loads(path.read_text(encoding="utf-8"))
-    assert on_disk["taken_at"] == "2026-08-24T10:00:00+00:00"
+
+    # `taken_at` is when this sweep ran, which is honest — and some of what it
+    # wrote is older than that, so the file names which groups are stale
+    # rather than leaving one stamp to cover two provenances.
+    stale = kept["stale_groups"]
+    assert isinstance(stale, list) and "india" in stale and "curve" in stale
+    assert kept["stale_since"] == "2026-08-24T10:00:00+00:00"
     errors = kept["errors"]
-    assert isinstance(errors, dict) and "kept" in errors, "and it must say it discarded one"
+    assert isinstance(errors, dict) and "kept" in errors, "and it must say what it retained"
+
+
+def test_one_source_failing_does_not_discard_another_that_worked(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The flaw in the first version of the guard.
+
+    It discarded the whole payload when the new sweep filled fewer groups.
+    That threw away real data: a sweep run past the FMP daily limit still
+    fetched all seventeen macro series successfully, because those come from a
+    different source that is not rate limited, and every one was dropped
+    because the FMP half had failed. Sources fail independently, so they are
+    kept independently.
+    """
+    previous = {
+        "taken_at": "2026-08-24T10:00:00+00:00",
+        "world": [{"symbol": "^GSPC"}],
+        "macro": [],
+        "errors": {},
+    }
+    path = indices.snapshot_path(root=tmp_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(previous), encoding="utf-8")
+
+    reading = __import__("eulerlab.macro", fromlist=["Reading"]).Reading(
+        symbol="TVC:DXY", name="DOLLAR INDEX", unit="", last=98.9, change_pct=0.15, group="risk"
+    )
+    macro_module = __import__("eulerlab.macro", fromlist=["Macro"])
+    monkeypatch.setattr(indices, "levels", lambda: indices.Levels(errors={"world": "429"}))
+    monkeypatch.setattr(indices, "world_movers", lambda: ([], "429"))
+    monkeypatch.setattr(indices, "world_sectors", lambda: ([], "429"))
+    monkeypatch.setattr(indices, "treasury_curve", lambda: (None, "429"))
+    monkeypatch.setattr(indices, "commodities", lambda: ([], "429"))
+    monkeypatch.setattr(macro_module, "fetch", lambda: macro_module.Macro(readings=[reading]))
+
+    result = indices.land(root=tmp_path)
+
+    macro = result["macro"]
+    assert isinstance(macro, list) and len(macro) == 1, "the source that worked must survive"
+    assert result["world"] == previous["world"], "and the failed one keeps its old value"
 
 
 def test_a_better_sweep_does_replace_a_worse_one(

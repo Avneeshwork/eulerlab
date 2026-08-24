@@ -1755,3 +1755,54 @@
   font-weight: 600;
 }
 .chip:focus-visible { outline: 2px solid var(--neon-deep); outline-offset: 1px; }
+
+/* --- macro band ------------------------------------------------------------
+   Below the chart: what a trader checks around a price rather than in it. */
+.macrogrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.mgroup, .curvebox {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+.mgrouphead, .curvehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.curvehead b { font-size: 11px; letter-spacing: 0; text-transform: none; }
+
+.mtiles { display: flex; flex-direction: column; gap: 6px; }
+.mtile {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+}
+.mname { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.mlast { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.munit { font-size: 9px; color: var(--ink-4); font-style: normal; margin-left: 3px; }
+.mchg { font-size: 11px; font-variant-numeric: tabular-nums; min-width: 4.2rem; text-align: right; }
+
+/* The curve is drawn rather than listed because inversion is a shape. Four
+   numbers in a row do not answer "is the front end above the long end" at a
+   glance; a line that slopes the wrong way does. */
+.curvesvg { width: 100%; height: 46px; display: block; }
+.curveaxis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-4);
+  margin: 3px 0 6px;
+}

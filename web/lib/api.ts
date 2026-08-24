@@ -448,6 +448,16 @@ export type WorldMover = {
   kind: string;
 };
 
+export type MacroReading = {
+  symbol: string;
+  name: string;
+  unit: string;
+  last: number;
+  change_pct: number;
+  /** `energy` | `metals` | `risk` | `yields` */
+  group: string;
+};
+
 export type Story = {
   title: string;
   publisher: string;
@@ -504,7 +514,12 @@ export type Snapshot = {
     fx?: IndexLevel[];
     movers: WorldMover[];
     sectors?: { sector: string; change_pct: number; exchange: string }[];
+    macro?: MacroReading[];
+    macro_2s10s?: number | null;
     taken_at?: string;
+    /** Groups carrying values older than `taken_at`, and how old. */
+    stale_groups?: string[];
+    stale_since?: string;
     errors?: Record<string, string>;
   };
   quotes: {
