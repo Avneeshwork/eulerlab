@@ -26,28 +26,49 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-type Market = 'NSE' | 'BSE' | 'CRYPTO' | 'FX' | 'US';
+type Market = 'NSE' | 'US' | 'CRYPTO' | 'FX' | 'MACRO';
 
 const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = {
   NSE: {
     label: 'NSE',
     symbols: [
-      ['NSE:NIFTY', 'NIFTY 50'],
-      ['NSE:BANKNIFTY', 'BANK NIFTY'],
+      // ETFs, not the indices themselves. `NSE:NIFTY` is a real symbol and the
+      // free embed refuses it — index data is licensed separately from equity
+      // data, so the widget answers "only available on TradingView". NIFTYBEES
+      // is an ordinary security tracking the same index and embeds fine.
+      ['NSE:NIFTYBEES', 'NIFTY 50 (ETF)'],
+      ['NSE:BANKBEES', 'BANK NIFTY (ETF)'],
+      ['NSE:JUNIORBEES', 'NIFTY NEXT 50 (ETF)'],
       ['NSE:RELIANCE', 'RELIANCE'],
       ['NSE:TCS', 'TCS'],
       ['NSE:HDFCBANK', 'HDFC BANK'],
+      ['NSE:ICICIBANK', 'ICICI BANK'],
       ['NSE:INFY', 'INFOSYS'],
+      ['NSE:SBIN', 'SBI'],
+      ['NSE:BHARTIARTL', 'AIRTEL'],
+      ['NSE:ITC', 'ITC'],
+      ['NSE:LT', 'LARSEN & TOUBRO'],
+      ['NSE:TATAMOTORS', 'TATA MOTORS'],
+      ['NSE:AXISBANK', 'AXIS BANK'],
+      ['NSE:MARUTI', 'MARUTI'],
+      ['NSE:SUNPHARMA', 'SUN PHARMA'],
     ],
   },
-  BSE: { label: 'BSE', symbols: [['BSE:SENSEX', 'SENSEX']] },
   US: {
     label: 'US',
     symbols: [
-      ['SP:SPX', 'S&P 500'],
-      ['NASDAQ:NDX', 'NASDAQ 100'],
+      ['AMEX:SPY', 'S&P 500 (SPY)'],
+      ['NASDAQ:QQQ', 'NASDAQ 100 (QQQ)'],
+      ['AMEX:DIA', 'DOW (DIA)'],
+      ['AMEX:IWM', 'RUSSELL 2000 (IWM)'],
       ['NASDAQ:AAPL', 'APPLE'],
+      ['NASDAQ:MSFT', 'MICROSOFT'],
       ['NASDAQ:NVDA', 'NVIDIA'],
+      ['NASDAQ:AMZN', 'AMAZON'],
+      ['NASDAQ:GOOGL', 'ALPHABET'],
+      ['NASDAQ:META', 'META'],
+      ['NASDAQ:TSLA', 'TESLA'],
+      ['NYSE:JPM', 'JPMORGAN'],
     ],
   },
   CRYPTO: {
@@ -56,6 +77,13 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
       ['BINANCE:BTCUSDT', 'BTC/USDT'],
       ['BINANCE:ETHUSDT', 'ETH/USDT'],
       ['BINANCE:SOLUSDT', 'SOL/USDT'],
+      ['BINANCE:XRPUSDT', 'XRP/USDT'],
+      ['BINANCE:BNBUSDT', 'BNB/USDT'],
+      ['BINANCE:DOGEUSDT', 'DOGE/USDT'],
+      ['BINANCE:ADAUSDT', 'ADA/USDT'],
+      ['BINANCE:AVAXUSDT', 'AVAX/USDT'],
+      ['CRYPTOCAP:TOTAL', 'TOTAL MARKET CAP'],
+      ['CRYPTOCAP:BTC.D', 'BTC DOMINANCE'],
     ],
   },
   FX: {
@@ -65,6 +93,29 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
       ['FX:EURUSD', 'EUR/USD'],
       ['FX:USDJPY', 'USD/JPY'],
       ['FX:GBPUSD', 'GBP/USD'],
+      ['FX:AUDUSD', 'AUD/USD'],
+      ['FX:USDCAD', 'USD/CAD'],
+      ['FX:USDCHF', 'USD/CHF'],
+      ['FX:EURJPY', 'EUR/JPY'],
+      ['TVC:DXY', 'DOLLAR INDEX'],
+    ],
+  },
+  MACRO: {
+    label: 'Macro',
+    symbols: [
+      // The band the operator asked for, as charts rather than a single
+      // reading. TVC symbols are TradingView's own aggregates and embed freely
+      // where the underlying exchange feeds do not.
+      ['TVC:US10Y', 'US 10Y YIELD'],
+      ['TVC:US02Y', 'US 2Y YIELD'],
+      ['TVC:US30Y', 'US 30Y YIELD'],
+      ['TVC:IN10Y', 'INDIA 10Y YIELD'],
+      ['TVC:USOIL', 'WTI CRUDE'],
+      ['TVC:UKOIL', 'BRENT CRUDE'],
+      ['TVC:GOLD', 'GOLD'],
+      ['TVC:SILVER', 'SILVER'],
+      ['TVC:VIX', 'VIX'],
+      ['NSE:GOLDBEES', 'GOLD (NSE ETF)'],
     ],
   },
 };
@@ -80,7 +131,7 @@ const INTERVALS: [string, string][] = [
 
 export function ChartTab() {
   const [market, setMarket] = useState<Market>('NSE');
-  const [symbol, setSymbol] = useState('NSE:NIFTY');
+  const [symbol, setSymbol] = useState('NSE:NIFTYBEES');
   const [interval, setInterval] = useState('D');
   const [typed, setTyped] = useState('');
   const holder = useRef<HTMLDivElement | null>(null);
@@ -141,9 +192,9 @@ export function ChartTab() {
         </div>
         <div className="tsyncbox">
           <span className="tfine" style={{ textAlign: 'right' }}>
-            Drawing tools, indicators and symbol search are TradingView&rsquo;s, and so is
-            the data. A close here can differ from the panel&rsquo;s &mdash; never reconcile
-            a backtest against this chart.
+            Data, drawing tools and indicators are TradingView&rsquo;s. A close here can
+            differ from the panel&rsquo;s &mdash; never reconcile a backtest against this
+            chart.
           </span>
         </div>
       </section>
@@ -198,6 +249,16 @@ export function ChartTab() {
           </button>
         </form>
       </div>
+
+      {market === 'NSE' && (
+        <p className="tfine mktgap" style={{ marginBottom: 10 }}>
+          NIFTY and BANK NIFTY are charted through their ETFs. `NSE:NIFTY` is a real
+          symbol and the free embed refuses it &mdash; index data is licensed separately
+          from equity data &mdash; so NIFTYBEES tracks the same index as an ordinary
+          security. It is close, not identical: an ETF carries its own tracking error and
+          trades at its own premium or discount.
+        </p>
+      )}
 
       <div className="chipbar">
         {PRESETS[market].symbols.map(([value, label]) => (
