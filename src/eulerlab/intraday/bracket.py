@@ -79,9 +79,31 @@ class Trade:
         return self.net_pnl() / risked if risked > 0 else 0.0
 
 
-def _cost(price: float, shares: int, side: Side, day: date) -> float:
+def _cost(price: float, shares: int, side: Side, day: date, asset_class: str = "equity") -> float:
+    """What one fill costs, on the venue it would actually trade on.
+
+    The segment used to be hardcoded to `EQUITY_INTRADAY`, which meant a crypto
+    backtest was charged STT, SEBI turnover fees, stamp duty and GST on
+    brokerage — an Indian equity bill for a trade on Delta Exchange, which
+    levies none of them. The Delta model has existed and been tested since the
+    crypto signals were written; it was simply never wired to the engine that
+    charges.
+
+    Delta's own schedule instead: 0.05% taker, plus 18% GST **on the fee**, so
+    a round trip is 0.118% of notional. Deliberately not modelled here are
+    funding on perpetuals and India's 30% VDA tax — the first because these
+    signals close intraday and never hold through a funding window, the second
+    because a tax on outcome is not a cost of execution (A-026 to A-028).
+    """
     if shares <= 0:
         return 0.0
+
+    if asset_class == "crypto":
+        from eulerlab.costs.delta_exchange import futures_fee
+
+        fee = futures_fee(price=Decimal(str(price)), quantity=Decimal(str(shares)))
+        return float(fee.total)
+
     return float(
         cost_of_trade(
             trade_date=day,
@@ -99,6 +121,7 @@ def run(
     rules: Rules,
     *,
     session_end_index: int | None = None,
+    asset_class: str = "equity",
 ) -> Trade:
     """Execute `plan` against the candles that followed the signal.
 
@@ -128,7 +151,7 @@ def run(
                 trade.entry_ts = candle.ts
                 trade.entry_price = fill
                 peak = candle.high
-                trade.costs += _cost(fill, plan.shares, Side.BUY, day)
+                trade.costs += _cost(fill, plan.shares, Side.BUY, day, asset_class)
             elif index >= last_index:
                 break
             else:
@@ -144,7 +167,7 @@ def run(
         # --- forced close at the session end (Step 9) ---
         if index >= last_index:
             trade.exits.append(Exit(candle.ts, candle.close, held, "session end"))
-            trade.costs += _cost(candle.close, held, Side.SELL, day)
+            trade.costs += _cost(candle.close, held, Side.SELL, day, asset_class)
             remaining_1 = remaining_2 = 0
             break
 
@@ -155,7 +178,7 @@ def run(
             fill = min(stop, candle.open)
             reason = "breakeven stop" if breakeven_done else "stop"
             trade.exits.append(Exit(candle.ts, fill, held, reason))
-            trade.costs += _cost(fill, held, Side.SELL, day)
+            trade.costs += _cost(fill, held, Side.SELL, day, asset_class)
             remaining_1 = remaining_2 = 0
             break
 
@@ -166,7 +189,7 @@ def run(
             trail = peak * (1.0 - rules.trail_giveback)
             if candle.close < trail:
                 trade.exits.append(Exit(candle.ts, candle.close, held, "trailing stop"))
-                trade.costs += _cost(candle.close, held, Side.SELL, day)
+                trade.costs += _cost(candle.close, held, Side.SELL, day, asset_class)
                 remaining_1 = remaining_2 = 0
                 break
 

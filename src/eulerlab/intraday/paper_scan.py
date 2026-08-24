@@ -162,7 +162,7 @@ def scan_symbol(
             assert isinstance(outcome, Plan)
             out.plans += 1
             forward = candles[index + 1 : last]
-            trade = bracket.run(outcome, forward, bracket_rules)
+            trade = bracket.run(outcome, forward, bracket_rules, asset_class=asset_class)
             out.trades.append(trade)
             # ONE trade per session, then move to the next one.
             #

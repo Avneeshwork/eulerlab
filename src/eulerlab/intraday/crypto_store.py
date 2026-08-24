@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from datetime import UTC, date, datetime
 
 from eulerlab.ingest import landing_reader
@@ -43,15 +44,33 @@ def _in_range(relative: str, start: date | None, end: date | None) -> bool:
     before downloading is what keeps a 90-day scan from pulling five years of
     archive across the network.
     """
-    stem = relative.rsplit("-", 2)
-    if len(stem) < 3:
-        return True
+    # Two filename shapes live in this tree. Binance's bulk archive is monthly
+    # — `BTCUSDT-1m-2021-08.jsonl.gz` — and the REST filler that closes the
+    # current-month gap writes one file per day, `BTCUSDT-1m-2026-08-01.jsonl.gz`.
+    #
+    # Splitting on the last two hyphens read the daily shape as year 08, month
+    # 01 and raised `month must be in 1..12`, which took out every crypto read
+    # the moment the filler ran. Matched explicitly now, longest form first.
+    name = relative.rsplit("/", 1)[-1].split(".")[0]
+    daily = re.search(r"(\d{4})-(\d{2})-(\d{2})$", name)
+    monthly = re.search(r"(\d{4})-(\d{2})$", name)
+
     try:
-        year, month = int(stem[-2]), int(stem[-1].split(".")[0])
+        if daily:
+            year, month, day = (int(part) for part in daily.groups())
+            first = date(year, month, day)
+            last = first
+        elif monthly:
+            year, month = int(monthly.group(1)), int(monthly.group(2))
+            first = date(year, month, 1)
+            last = date(year + (month == 12), (month % 12) + 1, 1)
+        else:
+            return True
     except ValueError:
+        # An unparseable name is read rather than skipped: a file that might
+        # hold the window is cheaper to open than a gap is to notice.
         return True
-    first = date(year, month, 1)
-    last = date(year + (month == 12), (month % 12) + 1, 1)
+
     if start and last < start:
         return False
     return not (end and first > end)
