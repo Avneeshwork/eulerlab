@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import argparse
 import subprocess
-import sys
 import time
 from collections.abc import Sequence
 
@@ -30,6 +29,56 @@ BATCH = 25
 """Symbols per fetch-sync-prune cycle. Small enough that one cycle's local
 footprint is tens of megabytes, large enough that the sync's per-run overhead
 is not most of the work."""
+
+
+def _sync_minute() -> tuple[bool, str]:
+    """Upload **only** the minute tree.
+
+    Shelling out to `sync_cloud` synced the whole landing zone: it rescans
+    every tree to decide what to upload, and with fx at 34,773 objects, mutual
+    funds at 14,286 and US daily bars at 36,446, one batch took **29 minutes**
+    of relisting to move a few megabytes. Twenty batches of that is ten hours
+    of syncing for three gigabytes of data.
+
+    Called in-process against one directory instead, so the cost is
+    proportional to what actually changed.
+    """
+    from pathlib import Path
+
+    from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config, sync_directory
+
+    root = Path("data/landing/us/minute")
+    if not root.exists():
+        return True, "nothing to sync"
+    try:
+        config = load_storage_config(Path("config/storage.yaml"))
+        store = S3ObjectStore(config)
+        result = sync_directory(root, store, prefix=f"{config.prefix}us/minute/")
+    except Exception as exc:
+        return False, f"{type(exc).__name__}: {str(exc)[:120]}"
+    if result.failed:
+        return False, f"{len(result.failed)} objects failed"
+    return True, f"{result.uploaded} uploaded, {result.skipped} already there"
+
+
+def _prune_minute() -> str:
+    """Remove local minute files that are verified present in the bucket.
+
+    Verified per file rather than trusting the sync's return: the whole point
+    of the ordering is that nothing is deleted until the bucket has it.
+    """
+    from pathlib import Path
+
+    from eulerlab.ingest import landing_reader
+
+    remote = set(landing_reader.available("us", "minute/*/*.jsonl.gz"))
+    removed = 0
+    for path in Path("data/landing/us/minute").glob("*/*.jsonl.gz"):
+        relative = f"us/minute/{path.parent.name}/{path.name}"
+        if relative in remote:
+            path.unlink()
+            removed += 1
+    return f"{removed} local files released"
 
 
 def _run(command: list[str]) -> tuple[bool, str]:
@@ -67,13 +116,13 @@ def backfill(
         if not sync:
             continue
 
-        ok, note = _run([sys.executable, "-m", "eulerlab.ingest.sync_cloud"])
+        ok, note = _sync_minute()
         if not ok:
             # Not pruned. The bytes stay on disk until they are safely in the
             # bucket, because a prune after a failed upload is data loss.
-            print(f"  sync failed, keeping local copy: {note.strip()[:120]}", flush=True)
+            print(f"  sync failed, keeping local copy: {note}", flush=True)
             continue
-        _run([sys.executable, "-m", "eulerlab.ingest.prune_local"])
+        print(f"    synced: {note}; {_prune_minute()}", flush=True)
 
     print(f"done: {total_new:,} bars in {time.time() - began:.0f}s")
     return total_new
