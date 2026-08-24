@@ -25,6 +25,7 @@ import { DeployDialog } from '@/components/terminal/DeployDialog';
 import { ExplainDialog } from '@/components/terminal/ExplainDialog';
 import { InstrumentChooser } from '@/components/terminal/InstrumentChooser';
 import { ReportDialog } from '@/components/terminal/ReportDialog';
+import { ChartTab } from '@/components/terminal/ChartTab';
 import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
 import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
@@ -36,7 +37,7 @@ import type { Fleet, FleetStrategy } from '@/lib/api';
 // Data is deliberately not here. Results still mirror to the bucket after every
 // backtest — that is automatic and unaffected; what is gone is the manual
 // pull-merge-push button and the on-disk counts.
-const NAV = ['Snapshot', 'Library', 'Build', 'Run', 'Instruments', 'Live'] as const;
+const NAV = ['Snapshot', 'Chart', 'Library', 'Build', 'Run', 'Instruments', 'Live'] as const;
 type Tab = (typeof NAV)[number];
 
 export default function TerminalPage() {
@@ -161,6 +162,8 @@ export default function TerminalPage() {
 
       <div className="tpage">
         {tab === 'Snapshot' && <SnapshotTab workspace={workspace} />}
+
+        {tab === 'Chart' && <ChartTab />}
 
         {tab === 'Library' && (
           <>
