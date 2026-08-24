@@ -281,6 +281,8 @@ daily:
 	-$(MAKE) --no-print-directory daily-minute
 	@echo "== crypto (Binance public archive, no auth) =="
 	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
+	@echo "== crypto month-end gap (Binance daily archive) =="
+	-uv run python -m eulerlab.ingest.crypto_fill
 	@echo "== FX (FXCM weekly candles) =="
 	-uv run python -m eulerlab.ingest.fx_bulk_backfill --from-year $$(date +%Y)
 	@echo "== per-instrument news (equity, crypto, FX) =="
@@ -332,6 +334,12 @@ news:
 # One sweep of index levels, movers and sector performance. Landed rather than
 # fetched per page render: a sweep is 29 FMP calls against a 250/day free
 # budget, so rendering it live would spend the day's allowance before lunch.
+# Fills the window the monthly archive does not cover yet. Binance publishes
+# months after they end, so without this the corpus stops at the last
+# month-end however often the backfill runs.
+crypto-fill:
+	@uv run python -m eulerlab.ingest.crypto_fill $(if $(SINCE),--since=$(SINCE),)
+
 world:
 	@uv run python -m eulerlab.indices
 

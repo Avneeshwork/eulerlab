@@ -368,3 +368,125 @@ def recent_gap() -> tuple[date, date]:
     today = datetime.now(UTC).date()
     first_of_month = today.replace(day=1)
     return first_of_month, today
+
+
+DAILY_ARCHIVE = "https://data.binance.vision/data/spot/daily/klines"
+"""Binance's *daily* archive, on the same host and in the same format.
+
+The monthly archive only appears after a month ends, so anything reading "up
+to today" was really reading up to the last month-end — on 2026-08-24 the
+newest crypto file was `2026-07`, a twenty-four day hole that looked like
+staleness and was actually the shape of the source.
+
+The daily files fill exactly that window. Same CSV inside the zip, same parser,
+same host — verified 2026-08-24: `BTCUSDT-1m-2026-08-23.zip` is 70,164 bytes
+and carries a `.CHECKSUM` alongside it.
+"""
+
+
+def day_path(symbol: str, day: str, *, directory: Path = LANDING) -> Path:
+    """Where one symbol-day lands.
+
+    Beside the months, in the same folder, distinguishable by the length of the
+    stamp: `BTCUSDT-1m-2026-08.jsonl.gz` against `BTCUSDT-1m-2026-08-23.jsonl.gz`.
+    Readers glob the folder, so a day file is picked up without changing them.
+    """
+    return directory / symbol / f"{symbol}-1m-{day}.jsonl.gz"
+
+
+def land_day(symbol: str, day: str, *, directory: Path = LANDING) -> tuple[int, bool]:
+    """Fetch and land one symbol-day. Returns (candles, was_downloaded).
+
+    Idempotent in the same way `land_month` is: an existing file is never
+    refetched. A day Binance has not published yet returns (0, False) rather
+    than raising — asking for today before the day is over is an ordinary
+    thing to do, not an error.
+    """
+    path = day_path(symbol, day, directory=directory)
+    if path.exists():
+        return 0, False
+
+    try:
+        payload = _fetch(f"{DAILY_ARCHIVE}/{symbol}/1m/{symbol}-1m-{day}.zip")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return 0, False
+        raise
+
+    candles = parse_month(payload)
+    if not candles:
+        return 0, False
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    receipt = datetime.now(UTC).isoformat()
+    temporary = path.with_suffix(path.suffix + ".partial")
+    with gzip.open(temporary, "wt", encoding="utf-8") as handle:
+        for candle in candles:
+            handle.write(
+                json.dumps(
+                    {
+                        "symbol": symbol,
+                        "open": candle.open,
+                        "high": candle.high,
+                        "low": candle.low,
+                        "close": candle.close,
+                        "volume": candle.volume,
+                        "trades": candle.trades,
+                        "event_time": candle.open_time.isoformat(),
+                        "knowledge_time": candle.knowledge_time.isoformat(),
+                        "receipt_time": receipt,
+                    },
+                    sort_keys=True,
+                )
+                + "\n"
+            )
+    temporary.replace(path)
+    return len(candles), True
+
+
+def fill_days(
+    symbols: list[str],
+    *,
+    since: date | None = None,
+    directory: Path = LANDING,
+    workers: int = 6,
+) -> tuple[int, int, list[str]]:
+    """Land every published day from `since` to yesterday. Returns
+    (days, candles, missing).
+
+    Defaults to the first of the current month, which is precisely the window
+    the monthly archive does not yet cover. Today is excluded: Binance
+    publishes a day after it closes, so asking for it is a guaranteed 404 and
+    a misleading one — it would land in `missing` as though something were
+    wrong.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    now = datetime.now(UTC).date()
+    start = since or now.replace(day=1)
+    days = []
+    cursor = start
+    while cursor < now:
+        days.append(cursor.isoformat())
+        cursor += timedelta(days=1)
+
+    jobs = [(symbol, day) for symbol in symbols for day in days]
+    landed = candles = 0
+    missing: list[str] = []
+
+    def one(job: tuple[str, str]) -> tuple[str, str, int, bool]:
+        symbol, day = job
+        try:
+            count, downloaded = land_day(symbol, day, directory=directory)
+        except Exception:
+            return symbol, day, 0, False
+        return symbol, day, count, downloaded
+
+    with ThreadPoolExecutor(workers) as pool:
+        for symbol, day, count, downloaded in pool.map(one, jobs):
+            if downloaded:
+                landed += 1
+                candles += count
+            elif not day_path(symbol, day, directory=directory).exists():
+                missing.append(f"{symbol} {day}")
+    return landed, candles, missing
