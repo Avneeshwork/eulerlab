@@ -269,10 +269,39 @@ def levels() -> Levels:
     if world_error:
         result.errors["world"] = world_error
 
-    crypto, crypto_error = quote_group(CRYPTO)
-    result.crypto = crypto
-    if crypto_error:
-        result.errors["crypto"] = crypto_error
+    # Delta first, FMP as the fallback. Delta is the venue this platform would
+    # trade crypto on, so its mark is the price an order would meet — the same
+    # reason Zerodha is primary for India. It matters more here, because the
+    # fees already charged against these strategies are Delta's, and quoting
+    # one venue's price against another's costs is a mismatch.
+    from eulerlab.ingest import delta as delta_feed
+
+    venue = delta_feed.live()
+    if venue.any:
+        stamp = datetime.now(UTC).isoformat()
+        result.crypto = [
+            Level(
+                symbol=t.symbol,
+                name=t.name,
+                last=t.mark,
+                # Delta publishes a 24h percentage move rather than a previous
+                # close, so the close is derived from it. Stated because it is
+                # a reconstruction: every other Level here carries a real prior
+                # close, and this one is inferred from the move.
+                previous_close=t.mark / (1 + t.change_24h / 100) if t.change_24h else t.mark,
+                region="CRYPTO",
+                source="delta",
+                at=stamp,
+            )
+            for t in venue.tickers
+        ]
+    else:
+        crypto, crypto_error = quote_group(CRYPTO)
+        result.crypto = crypto
+        if crypto_error:
+            result.errors["crypto"] = crypto_error
+        if venue.error:
+            result.errors["delta"] = venue.error
 
     fx, fx_error = quote_group(FX)
     result.fx = fx
