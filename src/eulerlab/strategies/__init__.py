@@ -325,7 +325,34 @@ PAPERS: dict[str, tuple[str, str]] = {
         "https://www.aimspress.com/article/doi/10.3934/math.2023419",
         "",
     ),
+    # The same paper as above, cited in the other house style. Both spellings
+    # are kept rather than normalised at one call site, because a citation is
+    # written by whoever declares the signal and the lookup has to survive that.
+    "Cohen, G. (2023)": (
+        "https://www.aimspress.com/article/doi/10.3934/math.2023419",
+        "",
+    ),
 }
+
+CITATION_TAGS = ("[paper] ", "[literature] ", "[practitioner] ")
+"""Prefixes a declaration may put in front of its citation.
+
+They classify how much weight the source carries — a peer-reviewed paper is not
+a practitioner blog post — and they sit *before* the citation, so a plain
+`startswith` match against a citation prefix misses every tagged source. That is
+how `par_deviation` came to show no paper link while citing Cohen (2023): the
+declaration reads `[paper] Cohen, G. (2023)...` and the lookup was comparing
+against `Cohen`."""
+
+
+def _bare_citation(source: str) -> str:
+    """A citation with any classification tag stripped from the front."""
+    for tag in CITATION_TAGS:
+        if source.startswith(tag):
+            return source[len(tag) :]
+    return source
+
+
 """Where each cited source can actually be read.
 
 Matched on the citation's prefix rather than stored per signal, because
@@ -339,9 +366,14 @@ what it can; the PDFs are deliberately uncommitted.
 
 
 def paper_url(source: str) -> str:
-    """The link for a citation, or empty when the source is not a paper."""
+    """The link for a citation, or empty when the source is not a paper.
+
+    Takes the citation text, not a strategy id — passing an id returns empty,
+    which is how the sweep endpoint shipped with every paper link missing.
+    """
+    bare = _bare_citation(source)
     for prefix, (url, _pdf) in PAPERS.items():
-        if source.startswith(prefix):
+        if bare.startswith(prefix):
             return url
     return ""
 
@@ -350,8 +382,9 @@ def paper_pdf(source: str) -> str:
     """The local PDF for a citation, if one has been fetched."""
     from pathlib import Path
 
+    bare = _bare_citation(source)
     for prefix, (_url, pdf) in PAPERS.items():
-        if source.startswith(prefix) and pdf and Path(pdf).exists():
+        if bare.startswith(prefix) and pdf and Path(pdf).exists():
             return pdf
     return ""
 

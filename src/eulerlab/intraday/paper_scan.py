@@ -73,8 +73,14 @@ def candles_for(
     """Minute bars for one symbol and window, read once per process.
 
     The source is chosen by asset class rather than guessed from the symbol:
-    NSE minute bars come from the Kite archive, crypto from the Binance one,
-    and a symbol like `ADANIENT` versus `ADAUSDT` is not a reliable tell.
+    NSE minute bars come from the Kite archive, crypto from the Binance one, US
+    bars from the Alpaca one, and a symbol like `ADANIENT` versus `ADAUSDT`
+    versus `AAPL` is not a reliable tell.
+
+    `us` is the third source, and it is the one a paper's `recommended_class`
+    usually wants: most of the coded signals cite studies run on US markets, and
+    before it existed they were swept on NSE names instead — a different
+    question than the one those papers answer.
     """
     key = (symbol, start, end, asset_class)
     if key not in _CANDLES:
@@ -82,6 +88,10 @@ def candles_for(
             from eulerlab.intraday import crypto_store
 
             _CANDLES[key] = crypto_store.fetch(symbol, start=start, end=end)
+        elif asset_class == "us":
+            from eulerlab.intraday import us_store
+
+            _CANDLES[key] = us_store.fetch(symbol, start=start, end=end)
         else:
             _CANDLES[key] = store.fetch(symbol, start=start, end=end)
     return _CANDLES[key]

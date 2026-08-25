@@ -38,8 +38,14 @@ import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from eulerlab.features.indicators import atr, sma
-from eulerlab.intraday.papers import PaperRules, _plan, _session_bars, _volume_z
+from eulerlab.intraday.papers import (
+    PaperRules,
+    _atr_now,
+    _plan,
+    _session_bars,
+    _sma_tail,
+    _volume_z,
+)
 from eulerlab.intraday.tweezer import Candle, Plan, Rejected
 
 Detect = Callable[[Sequence[Candle], PaperRules, float], "Plan | Rejected"]
@@ -165,13 +171,7 @@ def session_momentum(window: Sequence[Candle], rules: PaperRules, equity: float)
     if opening <= 0 or session[-1].close <= opening:
         return Rejected("not up on the session")
 
-    band = atr(
-        [c.high for c in window],
-        [c.low for c in window],
-        [c.close for c in window],
-        period=rules.atr_period,
-    )
-    level = band[-1] if band and band[-1] is not None else None
+    level = _atr_now(window, rules.atr_period)
     if level is None or level <= 0:
         return Rejected("no ATR")
 
@@ -345,8 +345,11 @@ def trend_pullback(window: Sequence[Candle], rules: PaperRules, equity: float) -
     """A dip to the moving average inside an uptrend."""
     if len(window) < rules.ou_lookback + 2:
         return Rejected("warmup")
-    closes = [c.close for c in window]
-    trend = sma(closes, rules.ou_lookback)
+    # Exactly enough history for both readings and no more: the current mean,
+    # and the one `expansion_lookback` bars back that it is compared against.
+    # A simple moving average depends on a fixed number of closes, so this
+    # returns the same numbers the whole-window form did — see `_sma_tail`.
+    trend = _sma_tail(window, rules.ou_lookback, back=rules.expansion_lookback + 1)
     level = trend[-1] if trend and trend[-1] is not None else None
     earlier = trend[-rules.expansion_lookback] if len(trend) > rules.expansion_lookback else None
     if level is None or earlier is None or level <= earlier:
@@ -383,13 +386,7 @@ def funding_drift(window: Sequence[Candle], rules: PaperRules, equity: float) ->
     if signal.close <= signal.open:
         return Rejected("hour not trending up")
 
-    band = atr(
-        [c.high for c in window],
-        [c.low for c in window],
-        [c.close for c in window],
-        period=rules.atr_period,
-    )
-    level = band[-1] if band and band[-1] is not None else None
+    level = _atr_now(window, rules.atr_period)
     if level is None or level <= 0:
         return Rejected("no ATR")
 

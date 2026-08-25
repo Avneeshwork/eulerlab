@@ -86,6 +86,15 @@ class PaperRules:
     prior 14 days. The paper's own summary reports the plain breakout is weak
     and this screen does almost all the work."""
 
+    orb_baseline_sessions: int = 14
+    """How many prior sessions the relative-volume baseline averages.
+
+    The paper says 14 and this field is what enforces it. Until it existed the
+    code averaged **every** prior session in the window, so a 58-session
+    backtest silently compared today against a 58-day mean — a slower-moving,
+    less selective baseline than the one published, which changes how often the
+    screen fires and therefore what is being measured."""
+
     # --- range expansion (Mesfin §4.2) ---
     expansion_lookback: int = 20
     expansion_mult: float = 2.5
@@ -156,12 +165,70 @@ class PaperSignal:
 # --- shared plumbing ---------------------------------------------------------
 
 
+def _sma_tail(window: Sequence[Candle], period: int, *, back: int = 1) -> list[float | None]:
+    """The last `back` simple moving averages, from exactly enough history.
+
+    Unlike ATR, a simple moving average has a finite window: the value at bar
+    `i` depends on exactly `period` closes and nothing before them. So in exact
+    arithmetic this returns precisely what the whole-window call returned, and
+    the bound costs no accuracy at all.
+
+    In float64 the two differ in the last bits, and it is worth knowing which
+    way. `sma` keeps a running sum and subtracts the departing value, so its
+    rounding error grows with the number of bars it has walked: at 120,960 bars
+    the whole-window value has drifted about 5e-14 relative, at 1,000 bars
+    about 1e-16. The **bounded** value is therefore the more accurate of the
+    two, not the approximation — it has walked 74 bars instead of 120,960.
+
+    It exists because computing them from the whole window was quadratic.
+    `detect` runs once per bar with every bar so far, so `sma(_closes(window),
+    n)` built a list of every close and a full moving-average series on each of
+    120,960 crypto bars — about 1.5e10 operations for two numbers at the end of
+    it. `trend_pullback` was the last signal in the library that still did this;
+    it did not finish a single parameter set.
+    """
+    tail = window[-(period + back) :]
+    return sma(_closes(tail), period)
+
+
 def _closes(window: Sequence[Candle]) -> list[float]:
     return [c.close for c in window]
 
 
+ATR_TAIL_PERIODS = 20
+"""How many ATR periods of history the current ATR is computed from.
+
+At the default period of 14 this is 280 bars. Wilder smoothing weights the bar
+`n` steps back by `(1 - 1/period)**n`, so the oldest bar retained carries about
+1e-9 of the result.
+
+This is a **speed** bound, and only that. `detect` is called once per bar with
+every bar so far, so recomputing ATR over the whole window made every signal
+using it quadratic in the length of the backtest: on 120,960 crypto minute bars
+that is roughly 4e10 operations per parameter set, and `session_momentum` ran
+32 minutes of CPU without finishing one. Bounded, it finishes in 51 seconds.
+
+It buys nothing else, and the first version of this docstring claimed otherwise
+— that it also made ATR independent of where the study starts. Measured, that
+claim is wrong in both directions. Whole-history ATR has already converged to
+the identical float64 by about 500 bars, so there was no long-window drift to
+fix; and below the tail length the slice is a no-op, so a short window is
+computed exactly as it was before. Where the study start genuinely does matter
+is the first few hundred bars after it — 4% at 30 bars, 0.04% at 60 — and this
+bound does not touch that, because there the tail *is* the whole window.
+
+`tests/test_atr_tail_bound.py` measures the agreement rather than asserting it
+from the algebra."""
+
+
 def _atr_now(window: Sequence[Candle], period: int) -> float | None:
-    series = atr([c.high for c in window], [c.low for c in window], _closes(window), period=period)
+    """Current ATR, from a bounded tail of the window.
+
+    See `ATR_TAIL_PERIODS` for why it is bounded rather than computed over
+    everything available.
+    """
+    tail = window[-(period * ATR_TAIL_PERIODS) :]
+    series = atr([c.high for c in tail], [c.low for c in tail], _closes(tail), period=period)
     return series[-1] if series and series[-1] is not None else None
 
 
@@ -170,9 +237,20 @@ def _session_bars(window: Sequence[Candle]) -> list[Candle]:
 
     Sessions are separated by date rather than by a clock window, so this works
     unchanged on crypto, which has no session at all and returns the whole day.
+
+    Found by walking back from the end rather than filtering the whole window.
+    Candles arrive sorted, so one session's bars are contiguous at the tail, and
+    the two forms return the same list. The difference is cost: `detect` is
+    called once per bar with every bar so far, so a full filter here made every
+    signal in the library quadratic in the length of the backtest. On 22,000 US
+    minute bars that is 484 million comparisons per parameter set, spent to
+    re-find roughly 390 bars that were already at the end.
     """
     day = window[-1].ts.date()
-    return [c for c in window if c.ts.date() == day]
+    first = len(window)
+    while first > 0 and window[first - 1].ts.date() == day:
+        first -= 1
+    return list(window[first:])
 
 
 def _plan(
@@ -441,7 +519,7 @@ def volume_dryup_reversal(
         return Rejected("no dry-up", f"z={z:.2f}")
 
     signal = window[-1]
-    trend = sma(_closes(window), rules.volume_lookback)
+    trend = _sma_tail(window, rules.volume_lookback)
     level = trend[-1] if trend and trend[-1] is not None else None
     if level is None or signal.close >= level:
         return Rejected("not after a decline", "exhaustion needs price below its mean")
@@ -531,6 +609,17 @@ def ou_mean_reversion(
 # --- Zarattini, Barbon & Aziz (2024) — ORB on a stock in play ----------------
 
 
+_RELATIVE_VOLUME_CACHE: dict[object, list[float]] = {}
+"""Prior-session opening volumes, keyed by (window start, session, params).
+
+One entry per session per sweep, so a 58-session backtest across a nine-point
+grid holds a few hundred short lists. Cleared wholesale rather than evicted by
+age: the contents are derived, so losing them costs recomputation and nothing
+else, and an LRU here would be more machinery than the problem deserves."""
+
+_RELATIVE_VOLUME_CACHE_MAX = 20_000
+
+
 def orb_stock_in_play(
     window: Sequence[Candle], rules: PaperRules, equity: float
 ) -> Plan | Rejected:
@@ -557,16 +646,63 @@ def orb_stock_in_play(
         return Rejected("warmup", f"{len(session)} session bars")
 
     opening_volume = sum(c.volume for c in session[:span])
-    history: list[float] = []
-    seen: set[object] = set()
-    for candle in window:
-        day = candle.ts.date()
-        if day == session[0].ts.date() or day in seen:
-            continue
-        same_day = [c for c in window if c.ts.date() == day]
-        if len(same_day) >= span:
-            history.append(sum(c.volume for c in same_day[:span]))
-            seen.add(day)
+
+    # Walked backwards and stopped at `orb_baseline_sessions`, for two reasons.
+    #
+    # The paper averages the prior 14 days; the first version of this averaged
+    # every prior session in the window, which on a 58-session backtest is a
+    # 58-day baseline and a different screen than the published one.
+    #
+    # It was also quadratic. `detect` is called once per bar and the window is
+    # every bar so far, and the old body ran a full `[c for c in window if ...]`
+    # scan per distinct day inside a loop over the whole window — so the cost
+    # grew as the cube of the range. On 22,000 US minute bars it did not finish;
+    # it had run seventeen minutes at 99% CPU when it was killed, against about
+    # thirty seconds for every other signal in the library.
+    today = session[0].ts.date()
+
+    # Memoised per (series, session). The baseline averages *prior* sessions,
+    # so within one session it is the same number on every bar — recomputing it
+    # per bar repeated identical work about 390 times a day.
+    #
+    # The key fingerprints the first bar's OHLCV, not just its timestamp. Every
+    # US series in this platform starts at the same instant — QQQ and SPY both
+    # open 13:30 on the first session — so a timestamp-only key would serve
+    # SPY's volume baseline to a QQQ scan and silently change which days pass
+    # the screen. A full opening bar is what distinguishes them.
+    first = window[0]
+    cache_key = (
+        first.ts,
+        first.open,
+        first.high,
+        first.low,
+        first.close,
+        first.volume,
+        today,
+        span,
+        rules.orb_baseline_sessions,
+    )
+    history = _RELATIVE_VOLUME_CACHE.get(cache_key)
+    if history is None:
+        per_day: dict[object, list[float]] = {}
+        for candle in reversed(window):
+            day = candle.ts.date()
+            if day == today:
+                continue
+            if day not in per_day and len(per_day) >= rules.orb_baseline_sessions:
+                break
+            per_day.setdefault(day, []).append(candle.volume)
+
+        # Reversed once more: the walk collected each day's bars back to front,
+        # and the paper measures the session's *first* `span` minutes.
+        history = [
+            sum(list(reversed(volumes))[:span])
+            for volumes in per_day.values()
+            if len(volumes) >= span
+        ]
+        if len(_RELATIVE_VOLUME_CACHE) > _RELATIVE_VOLUME_CACHE_MAX:
+            _RELATIVE_VOLUME_CACHE.clear()
+        _RELATIVE_VOLUME_CACHE[cache_key] = history
 
     if len(history) < 2:
         return Rejected(

@@ -1869,3 +1869,136 @@
   border-bottom: 1px solid transparent;
 }
 .paperlinks a:hover { border-bottom-color: var(--neon-deep); }
+
+/* --- Parameter sweep -------------------------------------------------- */
+/* Best and median are given identical weight on purpose. A table that styles
+   the winner larger teaches the reader to read the winner, which is the exact
+   misreading the median column exists to prevent. */
+
+.optimize {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.optimize-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.optimize-head h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+}
+
+.optimize-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.optimize-stat .stat-value {
+  font-size: 1.35rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.optimize-stat .stat-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.optimize-market h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.optimize-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.optimize-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.4rem 0.7rem 0.4rem 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.optimize-table td {
+  padding: 0.5rem 0.7rem 0.5rem 0;
+  border-bottom: 1px solid var(--line-faint, var(--line));
+  vertical-align: baseline;
+}
+
+.optimize-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.optimize-table .pos { color: var(--up, #3fb950); }
+.optimize-table .neg { color: var(--down, #f85149); }
+
+.optimize-table .row-loss td { opacity: 0.72; }
+
+.strategy-name { display: block; }
+
+.strategy-id {
+  display: block;
+  font-size: 0.68rem;
+}
+
+.verdict {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+/* Four readings, four colours, and "profitable" is not the loudest of them.
+   A best that sits far above its median is the finding worth flagging even
+   when the number is positive. */
+.verdict-ok { border-color: var(--up, #3fb950); color: var(--up, #3fb950); }
+.verdict-flat { border-color: var(--up, #3fb950); color: var(--up, #3fb950); opacity: 0.75; }
+.verdict-tail { border-color: #d29922; color: #d29922; }
+.verdict-loss { border-color: var(--down, #f85149); color: var(--down, #f85149); }
+.verdict-error { border-color: var(--muted); color: var(--muted); }
+
+.optimize-note {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.optimize-note h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.optimize-note p { margin: 0 0 0.5rem; }
+.optimize-note p:last-child { margin-bottom: 0; }

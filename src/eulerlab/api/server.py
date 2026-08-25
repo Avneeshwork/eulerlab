@@ -2295,6 +2295,75 @@ BATCH_STARTING_CASH = 1_000_000.0
 BATCH_REBALANCE_DAYS = 21
 
 
+@app.get("/api/optimize")
+def optimize_results() -> dict[str, Any]:
+    """The last parameter sweep, as it was recorded.
+
+    Read-only, and there is deliberately no endpoint that starts a sweep. Every
+    candidate a sweep evaluates spends a permanent trial against the
+    deflated-Sharpe denominator, which raises the bar for every result this
+    platform holds; that is not a thing to put behind a button in a web page.
+    Sweeps are started from `make optimize` by an operator who meant to.
+
+    Each row carries its median beside its best, because the maximum of N draws
+    from noise rises with N and a sweep reporting only its winner has found the
+    right tail of a sample.
+    """
+    from eulerlab import optimize_store
+    from eulerlab.strategies import REGISTRY, paper_pdf, paper_url
+
+    latest = optimize_store.latest()
+    if latest is None:
+        return {
+            "ran": False,
+            "note": "no sweep recorded yet — run `make optimize`",
+            "rows": [],
+        }
+
+    rows: list[dict[str, Any]] = []
+    for row in latest.get("rows", []):
+        strategy_id = str(row.get("strategy_id", ""))
+        declaration = REGISTRY.get(strategy_id)
+        median = float(row.get("median_pnl") or 0.0)
+        best = float(row.get("best_pnl") or 0.0)
+        rows.append(
+            {
+                **row,
+                "title": declaration.title if declaration else strategy_id,
+                "source": declaration.source if declaration else "",
+                "tested_on": declaration.tested_on if declaration else "",
+                # Keyed on the citation text, not the id. Passing the id
+                # returns empty for everything, which is how this shipped once.
+                "paper_url": paper_url(declaration.source) if declaration else "",
+                "paper_pdf": (
+                    f"/api/paper/{strategy_id}"
+                    if declaration and paper_pdf(declaration.source)
+                    else ""
+                ),
+                # Reported only when the median is positive. A ratio taken
+                # against a losing median is arithmetic without meaning, and it
+                # is exactly the direction that would flatter: -100 over -110
+                # reads as a tidy 0.9 for a strategy that lost on every leg.
+                "spread_ratio": (best / median) if median > 0 else None,
+                "profitable": best > 0,
+                "beats_its_median_by": best - median,
+            }
+        )
+
+    return {
+        "ran": True,
+        "at": latest.get("at", ""),
+        "start": latest.get("start", ""),
+        "end": latest.get("end", ""),
+        "dry_run": bool(latest.get("dry_run", False)),
+        "trials_before": latest.get("trials_before", 0),
+        "trials_after": latest.get("trials_after", 0),
+        "required_t": latest.get("required_t", 0.0),
+        "skipped": latest.get("skipped", []),
+        "rows": rows,
+    }
+
+
 @app.get("/api/explain")
 def explain(strategy: str = "") -> dict[str, Any]:
     """What a backtest here actually does, and what this strategy is.

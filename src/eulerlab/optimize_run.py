@@ -20,7 +20,7 @@ import argparse
 import datetime as dt
 from collections.abc import Sequence
 
-from eulerlab import optimize
+from eulerlab import optimize, optimize_store
 from eulerlab.features import trials
 
 SPACES: dict[str, dict[str, list[float]]] = {
@@ -41,9 +41,50 @@ SPACES: dict[str, dict[str, list[float]]] = {
 SYMBOL_FOR: dict[str, str] = {
     "equity": "RELIANCE",
     "crypto": "BTCUSDT",
+    "us": "QQQ",
 }
 """One liquid instrument per class. A sweep across a universe multiplies the
-trial cost by the universe size for a question about parameters, not breadth."""
+trial cost by the universe size for a question about parameters, not breadth.
+
+`QQQ` is the US default because nine of the coded signals cite a study run on
+**MNQ**, the Micro E-Mini Nasdaq 100 future. QQQ tracks the same index in cash
+form: the instrument differs — no roll, no overnight margin, no futures tick —
+but the underlying is the one the paper measured, which is nearer than any NSE
+name and is stated rather than implied."""
+
+SYMBOL_OVERRIDE: dict[str, str] = {
+    # Zarattini, Barbon & Aziz test the opening range on a broad US equity
+    # cross-section, not on an index. SPY is the cross-section's own benchmark
+    # and the honest single-name stand-in; sweeping the actual 7,000 names
+    # would multiply the trial cost by the universe for a question about two
+    # parameters.
+    "orb_in_play": "SPY",
+}
+
+
+def market_for(declaration: object) -> tuple[str, str]:
+    """The asset class and symbol a strategy's own paper tested on.
+
+    Read from `recommended_class` rather than from what is convenient to load.
+    `futures` maps to the `us` reader because the futures cited are US index
+    futures and what this platform holds is US cash bars on the same index —
+    a substitution worth naming, which is why it happens here and not silently
+    inside the loader.
+    """
+    strategy_id = str(getattr(declaration, "id", ""))
+    asset_class = getattr(declaration, "asset_class", None)
+    wanted = str(
+        getattr(declaration, "recommended_class", None) or getattr(asset_class, "value", "")
+    ).lower()
+
+    if "crypto" in wanted:
+        market = "crypto"
+    elif "futures" in wanted or "us" in wanted.split() or strategy_id in SYMBOL_OVERRIDE:
+        market = "us"
+    else:
+        market = "equity"
+
+    return market, SYMBOL_OVERRIDE.get(strategy_id, SYMBOL_FOR[market])
 
 
 def run(
@@ -57,19 +98,30 @@ def run(
 
     before = trials.count()
     print(f"trials spent before this run: {before}")
-    print(f"{'strategy':22s} {'class':8s} {'cands':>5} {'best':>12} {'median':>12} {'spread':>12}")
-    print("-" * 76)
+    print(
+        f"{'strategy':22s} {'market':8s} {'symbol':7s} {'cands':>5} "
+        f"{'best':>12} {'median':>12} {'fills':>6}"
+    )
+    print("-" * 80)
+
+    from eulerlab.intraday.paper_scan import ALL_SIGNALS
 
     out: list[optimize.Sweep] = []
+    skipped: list[str] = []
     for strategy_id in strategy_ids:
         declaration = REGISTRY.get(strategy_id)
         if declaration is None:
             continue
-        # The paper's market, not ours. `recommended_class` is what the source
-        # tested; falling back to the declared class only when it is absent.
-        wanted = (declaration.recommended_class or declaration.asset_class.value).lower()
-        asset_class = "crypto" if "crypto" in wanted else "equity"
-        symbol = SYMBOL_FOR.get(asset_class, "RELIANCE")
+        if strategy_id not in ALL_SIGNALS:
+            # Not every registered strategy is an intraday bracket signal.
+            # `tweezer_bottom` is a daily candlestick pattern with its own
+            # engine, and it has no `stop_atr_mult` to sweep. Named in the
+            # summary rather than printed as an error row: a strategy this
+            # sweep cannot express is not a strategy that failed.
+            skipped.append(strategy_id)
+            continue
+        # The paper's market, not ours.
+        asset_class, symbol = market_for(declaration)
 
         sweep = optimize.sweep_intraday(
             strategy_id,
@@ -83,15 +135,47 @@ def run(
         out.append(sweep)
         top = sweep.best
         print(
-            f"{strategy_id:22s} {asset_class:8s} {len(sweep.candidates):>5} "
+            f"{strategy_id:22s} {asset_class:8s} {symbol:7s} {len(sweep.candidates):>5} "
             f"{top.net_pnl if top else 0:>12,.0f} {sweep.median_pnl:>12,.0f} "
-            f"{sweep.spread:>12,.0f}"
+            f"{top.fills if top else 0:>6}"
             f"{'  ' + sweep.error if sweep.error else ''}",
             flush=True,
         )
 
     after = trials.count()
-    print("-" * 76)
+
+    # Written before the summary is printed, so an interrupted run still leaves
+    # the rows it finished. A sweep whose results exist only in scrollback
+    # invites the one thing that must not be casual here — running it again.
+    optimize_store.record(
+        [
+            optimize_store.Row(
+                strategy_id=sweep.strategy_id,
+                market=sweep.asset_class,
+                symbol=sweep.symbol,
+                candidates=len(sweep.candidates),
+                best_pnl=sweep.best.net_pnl if sweep.best else 0.0,
+                median_pnl=sweep.median_pnl,
+                fills=sweep.best.fills if sweep.best else 0,
+                win_rate=sweep.best.win_rate if sweep.best else 0.0,
+                sessions=sweep.best.sessions if sweep.best else 0,
+                best_params=dict(sweep.best.params) if sweep.best else {},
+                error=sweep.error,
+            )
+            for sweep in out
+        ],
+        trials_before=before,
+        trials_after=after,
+        required_t=out[-1].required_t if out else 0.0,
+        start=start.isoformat(),
+        end=end.isoformat(),
+        dry_run=not record,
+        skipped=skipped,
+    )
+
+    print("-" * 80)
+    if skipped:
+        print(f"not swept (no intraday bracket form): {', '.join(skipped)}")
     print(f"trials spent by this run: {after - before}  (total {after})")
     if out:
         print(f"a result now needs t > {out[-1].required_t:.2f} to clear the noise bar")

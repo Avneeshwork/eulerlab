@@ -104,6 +104,18 @@ def _cost(price: float, shares: int, side: Side, day: date, asset_class: str = "
         fee = futures_fee(price=Decimal(str(price)), quantity=Decimal(str(shares)))
         return float(fee.total)
 
+    if asset_class == "us":
+        # Same mistake as the crypto one above, arriving from the other
+        # direction: without this branch a QQQ trade is charged STT, stamp duty
+        # and GST on brokerage. US equities pay no commission on Alpaca and two
+        # sell-side pass-throughs, which is roughly a fortieth of Delta's bill.
+        from eulerlab.costs.us_equity import equity_fee
+
+        us_fee = equity_fee(
+            price=Decimal(str(price)), quantity=Decimal(str(shares)), side=side, day=day
+        )
+        return float(us_fee.total)
+
     return float(
         cost_of_trade(
             trade_date=day,

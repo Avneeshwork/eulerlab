@@ -20,6 +20,47 @@ export type Provider = {
   is_default: boolean;
 };
 
+export type OptimizeRow = {
+  strategy_id: string;
+  title: string;
+  source: string;
+  tested_on: string;
+  paper_url?: string;
+  paper_pdf?: string;
+  market: string;
+  symbol: string;
+  candidates: number;
+  best_pnl: number;
+  median_pnl: number;
+  fills: number;
+  win_rate: number;
+  sessions: number;
+  best_params: Record<string, number>;
+  error: string;
+  profitable: boolean;
+  beats_its_median_by: number;
+  // Null whenever the median is not positive. A ratio against a losing median
+  // is arithmetic without meaning, and the API sends null rather than a number
+  // the UI would have to know not to trust.
+  spread_ratio: number | null;
+};
+
+export type Optimize = {
+  ran: boolean;
+  note?: string;
+  at?: string;
+  start?: string;
+  end?: string;
+  // A dry run produces identical numbers and spends no trials, so the flag has
+  // to reach the screen: a figure from a dry run is not in the ledger.
+  dry_run?: boolean;
+  trials_before?: number;
+  trials_after?: number;
+  required_t?: number;
+  skipped?: string[];
+  rows: OptimizeRow[];
+};
+
 export type Health = {
   ok: boolean;
   panel_loaded: boolean;
@@ -761,6 +802,7 @@ export const api = {
         `&asset_class=${encodeURIComponent(assetClass)}`
     ),
   explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
+  optimize: () => get<Optimize>('/api/optimize'),
   batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>
