@@ -181,9 +181,14 @@ def run(
         print(f"a result now needs t > {out[-1].required_t:.2f} to clear the noise bar")
         profitable = [s for s in out if s.best and s.best.net_pnl > 0]
         print(f"{len(profitable)} of {len(out)} had any profitable candidate")
-        wide = [s for s in out if s.best and s.spread > abs(s.median_pnl) * 2]
+        # Share of the best that sits above the median. `spread > 2 * |median|`
+        # was the first form and it misreads a negative median: a strategy at
+        # +20,499 against -1,993 has a best that is *entirely* tail, and that
+        # test called it narrow. Reported the same way the Sweep tab reports it,
+        # so the two do not disagree about the same run.
+        wide = [s for s in out if s.best and s.best.net_pnl > 0 and s.spread > s.best.net_pnl * 0.5]
         print(
-            f"{len(wide)} of {len(out)} had a best more than twice their median — "
+            f"{len(wide)} of {len(out)} had a best that is more than half tail — "
             "that gap is the sweep finding variance, not edge"
         )
     return out

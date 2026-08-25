@@ -103,3 +103,22 @@ def test_a_corrupt_line_does_not_lose_the_rest(tmp_path: Path) -> None:
 def test_missing_file_reads_as_no_sweep(tmp_path: Path) -> None:
     assert optimize_store.latest(tmp_path / "absent.jsonl") is None
     assert optimize_store.read_all(tmp_path / "absent.jsonl") == []
+
+
+def test_tail_share_reads_a_negative_median_correctly() -> None:
+    """The summary statistic, and the form of it that was wrong.
+
+    `gap_fill_fade` returned +3,729 at best against a median of -3,980: its
+    best is *entirely* tail, since the typical setting loses money. The first
+    test — spread greater than twice the absolute median — scored that as
+    narrow (7,709 against a threshold of 7,960) and reported it alongside
+    strategies whose whole grid was profitable.
+
+    Share of the best sitting above the median has no such blind spot, and it
+    is what both the CLI summary and the Sweep tab now use.
+    """
+    best, median = 3_729.0, -3_980.0
+    spread = best - median
+
+    assert spread > best * 0.5  # entirely tail, correctly flagged
+    assert not spread > abs(median) * 2  # the old test, which missed it

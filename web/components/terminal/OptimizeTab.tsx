@@ -26,9 +26,31 @@ const MARKET_LABEL: Record<string, string> = {
   equity: 'India',
 };
 
-function money(value: number): string {
+/**
+ * The currency a market's P&L is actually denominated in.
+ *
+ * The rest of this app writes ₹ because every backtest in it was on NSE. US
+ * bars are the first that are not: Alpaca quotes in dollars and the SEC and
+ * FINRA fees are dollar amounts, so a US result carrying a rupee sign is off by
+ * the exchange rate and reads as directly comparable to the India rows when it
+ * is not.
+ *
+ * Crypto is marked $ because the notional genuinely is — BTCUSDT, priced in
+ * dollars. Its cost model is less tidy than that label suggests: Delta's fee
+ * carries 18% Indian GST, so a dollar notional is charged a rupee-jurisdiction
+ * levy. That is a question about the cost model, not about this formatter.
+ */
+const CURRENCY: Record<string, string> = {
+  us: '$',
+  crypto: '$',
+  equity: '₹',
+};
+
+function money(value: number, market: string): string {
   const sign = value < 0 ? '−' : '';
-  return `${sign}₹${Math.abs(Math.round(value)).toLocaleString('en-IN')}`;
+  const symbol = CURRENCY[market] ?? '₹';
+  const locale = symbol === '₹' ? 'en-IN' : 'en-US';
+  return `${sign}${symbol}${Math.abs(Math.round(value)).toLocaleString(locale)}`;
 }
 
 /** How much of the best is above the median, as a share of the best. */
@@ -43,7 +65,7 @@ function Verdict({ row }: { row: OptimizeRow }) {
 
   const share = tailShare(row);
   if (share !== null && share > 0.5) {
-    return <span className="verdict verdict-tail">best is mostly tail</span>;
+    return <span className="verdict verdict-tail">over half tail</span>;
   }
   if (share !== null && share < 0.2) {
     return <span className="verdict verdict-flat">flat across the grid</span>;
@@ -84,6 +106,8 @@ export function OptimizeTab() {
   }
 
   const profitable = data.rows.filter((r) => r.profitable).length;
+  // Same test the per-row verdict uses, so the summary and the table cannot
+  // disagree about the same run.
   const tailHeavy = data.rows.filter((r) => {
     const share = tailShare(r);
     return share !== null && share > 0.5;
@@ -107,7 +131,7 @@ export function OptimizeTab() {
         </div>
         <div className="optimize-stat">
           <span className="stat-value">{tailHeavy}</span>
-          <span className="stat-label">whose best is mostly tail</span>
+          <span className="stat-label">whose best is over half tail</span>
         </div>
         <div className="optimize-stat">
           <span className="stat-value">{data.trials_after ?? 0}</span>
@@ -145,10 +169,10 @@ export function OptimizeTab() {
                       <span className="muted strategy-id">{row.strategy_id}</span>
                     </td>
                     <td className={`num ${row.best_pnl < 0 ? 'neg' : 'pos'}`}>
-                      {money(row.best_pnl)}
+                      {money(row.best_pnl, row.market)}
                     </td>
                     <td className={`num ${row.median_pnl < 0 ? 'neg' : 'pos'}`}>
-                      {money(row.median_pnl)}
+                      {money(row.median_pnl, row.market)}
                     </td>
                     <td className="num">
                       {/* Blank, not "n/a" and not a number, when the median is
