@@ -170,9 +170,33 @@ def spread_cost(price: float, quantity: int, spread: float) -> float:
 
 
 def _costs_for(
-    day: date, price: float, quantity: int, side: Side, brokerage: Brokerage | None
+    day: date,
+    price: float,
+    quantity: int,
+    side: Side,
+    brokerage: Brokerage | None,
+    asset_class: str = "equity",
 ) -> float:
-    """The single cost path. Delivery rates: Tier A holds overnight."""
+    """The single cost path. Delivery rates: Tier A holds overnight.
+
+    Routed by asset class, because the Indian schedule is not a default that
+    happens to be wrong elsewhere — it is a specific set of statutory charges.
+    A US equity charged STT, SEBI turnover and stamp duty pays roughly ten
+    basis points it does not owe, on every leg. The intraday engine had exactly
+    this bug and it survived until something actually traded a US instrument.
+    """
+    if asset_class == "us":
+        from eulerlab.costs.us_equity import equity_fee
+
+        return float(
+            equity_fee(
+                price=Decimal(str(price)),
+                quantity=Decimal(str(quantity)),
+                side=side,
+                day=day,
+            ).total
+        )
+
     breakdown = cost_of_trade(
         trade_date=day,
         segment=Segment.EQUITY_DELIVERY,

@@ -378,6 +378,12 @@ delta-candles:
 optimize:
 	@uv run python -m eulerlab.optimize_run $(if $(DRY),--dry-run,) $(if $(ONLY),--only $(ONLY),) $(if $(FROM),--start $(FROM),) $(if $(TO),--end $(TO),)
 
+# Run every swept strategy once on the parameters it actually uses, and cache
+# the result the library shows. Spends no trials: it re-runs only settings a
+# recorded sweep already contains.
+adopted-results:
+	@uv run python -m eulerlab.adopted_run $(if $(ONLY),--only $(ONLY),)
+
 build-us-panel:
 	@uv run python -m eulerlab.features.us_panel
 

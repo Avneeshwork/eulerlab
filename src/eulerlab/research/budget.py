@@ -112,10 +112,48 @@ class SearchCost:
         return "\n".join(lines)
 
 
+def searches_run() -> int:
+    """Every configuration this platform has ever evaluated, from both ledgers.
+
+    There are two, and for a long time only one of them reached this function.
+
+    `validation/ledger.py` is the hash-chained record of *validated* results —
+    19 entries, one per hypothesis that went through the gate. `features/trials.py`
+    is the append-only count of *configurations evaluated* — 192 entries, and
+    where `make optimize` writes every parameter set it tries.
+
+    The multiple-testing correction wants the second number and was reading the
+    first. So a 180-trial parameter sweep left the noise bar at 1.88 when the
+    search it had just performed put it at 2.76, and the results that sweep
+    selected were then judged against a bar that had not been charged for the
+    search that found them.
+
+    That is precisely the failure `features/trials.py` describes in its own
+    docstring — a count that "looks authoritative while understating the
+    denominator, which is exactly the direction that flatters." It was
+    understating it by an order of magnitude.
+
+    Summed rather than maximised: the two files record different work and
+    neither is a subset of the other. A validated hypothesis and a parameter
+    trial are both configurations someone looked at, and both are reasons the
+    best result seen so far is more likely to be luck.
+    """
+    from eulerlab.features.trials import count as feature_trial_count
+
+    try:
+        swept = feature_trial_count()
+    except (OSError, ValueError):
+        # A missing or unreadable trial log must not silently lower the bar,
+        # but it also cannot be invented. The validated ledger alone is the
+        # conservative floor and the caller still gets a number.
+        swept = 0
+    return ledger_count() + swept
+
+
 def price_search(n_proposed: int, *, available_years: float) -> SearchCost:
     """Cost a proposed search against the real trial ledger."""
     return SearchCost(
-        trials_already=ledger_count(),
+        trials_already=searches_run(),
         trials_proposed=max(n_proposed, 0),
         available_years=available_years,
     )

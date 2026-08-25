@@ -29,6 +29,28 @@ few enough that the file stays readable by eye."""
 
 
 @dataclass
+class Setting:
+    """One parameter set and exactly what it produced.
+
+    Every setting is kept, not just the winner. A sweep that stores only its
+    best result cannot be re-read later to see whether the best was a peak or a
+    plateau — and that distinction is the whole reason the median is reported
+    beside it. Nine rows per strategy is a trivial amount of data to hold and
+    the only way the summary can be checked against anything.
+    """
+
+    params: dict[str, float]
+    net_pnl: float
+    fills: int
+    wins: int
+    sessions: int
+
+    @property
+    def win_rate(self) -> float:
+        return self.wins / self.fills if self.fills else 0.0
+
+
+@dataclass
 class Row:
     """One strategy's sweep, flattened for transport."""
 
@@ -42,6 +64,7 @@ class Row:
     win_rate: float
     sessions: int
     best_params: dict[str, float] = field(default_factory=dict)
+    settings: list[Setting] = field(default_factory=list)
     error: str = ""
 
     @property
@@ -65,17 +88,31 @@ def record(
     end: str,
     dry_run: bool,
     skipped: list[str] | None = None,
+    run_id: str = "",
+    complete: bool = True,
     path: Path = SWEEPS_PATH,
 ) -> None:
-    """Append one sweep. `dry_run` is stored, not filtered out.
+    """Write one sweep. `dry_run` is stored, not filtered out.
 
     A dry run and a recorded run produce the same numbers and differ only in
     whether they spent trials, so the flag has to travel with the result —
     a reader who cannot tell them apart might cite a figure the ledger has no
     record of.
+
+    Called after **every strategy**, not once at the end. A sweep takes half an
+    hour and three of them have now been lost to an interruption that threw
+    away twenty completed strategies because the write came last. Passing the
+    same `run_id` replaces the previous partial rather than appending, so the
+    file holds one row per sweep and not one per strategy.
+
+    `complete` marks whether the run finished. A partial sweep is real data and
+    worth showing, but a reader has to know they are looking at nine strategies
+    of twenty rather than at a library where eleven were skipped.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
     document = {
+        "run_id": run_id,
+        "complete": complete,
         "at": datetime.now(UTC).isoformat(),
         "start": start,
         "end": end,
@@ -96,6 +133,16 @@ def record(
                 "win_rate": row.win_rate,
                 "sessions": row.sessions,
                 "best_params": row.best_params,
+                "settings": [
+                    {
+                        "params": setting.params,
+                        "net_pnl": setting.net_pnl,
+                        "fills": setting.fills,
+                        "wins": setting.wins,
+                        "sessions": setting.sessions,
+                    }
+                    for setting in row.settings
+                ],
                 "error": row.error,
             }
             for row in rows
@@ -103,7 +150,13 @@ def record(
     }
 
     existing = read_all(path)
-    existing.append(document)
+    # Replace this run's previous partial rather than stacking twenty rows for
+    # one sweep. Matched on run_id, so two sweeps in the same second stay
+    # separate and a resumed one overwrites only itself.
+    if run_id and existing and existing[-1].get("run_id") == run_id:
+        existing[-1] = document
+    else:
+        existing.append(document)
     kept = existing[-KEEP:]
     path.write_text(
         "".join(json.dumps(entry, sort_keys=True) + "\n" for entry in kept),

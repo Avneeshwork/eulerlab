@@ -14,6 +14,8 @@ overnight and `bracket.run` closes flat exactly as before.
 
 from __future__ import annotations
 
+import math
+import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
@@ -130,6 +132,50 @@ class SignalScan:
     def wins(self) -> int:
         return sum(1 for t in self.trades if t.filled and t.net_pnl() > 0)
 
+    def session_pnl(self) -> list[float]:
+        """Net P&L per session, including sessions that traded nothing.
+
+        The flat days matter. A signal that fires twice in 58 sessions and wins
+        both has a very different return series from one that trades daily, and
+        dropping the 56 zeros would report the second one's volatility for the
+        first — inflating its Sharpe by roughly the square root of how rarely it
+        trades.
+        """
+        by_day: dict[date, float] = {}
+        for trade in self.trades:
+            if trade.entry_ts is None:
+                continue
+            day = trade.entry_ts.date()
+            by_day[day] = by_day.get(day, 0.0) + trade.net_pnl()
+
+        if not self.sessions:
+            return []
+        # Sessions that traded, padded with zeros to the full session count.
+        series = [by_day[day] for day in sorted(by_day)]
+        return series + [0.0] * max(0, self.sessions - len(series))
+
+    def sharpe(self, equity: float) -> float | None:
+        """Annualised Sharpe of the per-session returns, or None if undefined.
+
+        Returned as None rather than zero when there is nothing to measure —
+        fewer than two sessions, or no variation at all. Zero is a finding
+        ("no edge"); None is the absence of one, and the two must not be
+        confused in a column that is read as evidence.
+
+        Annualised at sqrt(252) on the session count, which assumes sessions are
+        the independent unit. For an intraday strategy that closes flat every
+        day that is closer to true than it is for most things annualised this
+        way, but it is still an assumption and not a measurement.
+        """
+        series = self.session_pnl()
+        if len(series) < 2 or equity <= 0:
+            return None
+        returns = [value / equity for value in series]
+        spread = statistics.pstdev(returns)
+        if spread <= 0:
+            return None
+        return (statistics.fmean(returns) / spread) * math.sqrt(252.0)
+
 
 def scan_symbol(
     signal_id: str,
@@ -141,9 +187,23 @@ def scan_symbol(
     equity: float = 1_000_000.0,
     asset_class: str = "equity",
 ) -> SignalScan:
-    """Evaluate one signal bar by bar across every session in the range."""
+    """Evaluate one signal bar by bar across every session in the range.
+
+    With no `rules` given, the signal runs on its **adopted** parameters — the
+    ones a recorded sweep found beat the published defaults — falling back to
+    the paper's own values where nothing was adopted. That is what makes an
+    optimisation a change to the strategy rather than a report about it.
+
+    A sweep passes `rules` explicitly for every candidate, so it is never
+    reading its own previous winner as a starting point; each sweep measures the
+    same grid against the same baseline.
+    """
     signal = ALL_SIGNALS[signal_id]
-    rules = rules or PaperRules()
+    if rules is None:
+        from eulerlab.intraday import tuned
+
+        adopted = tuned.rules_for(signal_id)
+        rules = adopted if isinstance(adopted, PaperRules) else PaperRules()
     candles = candles_for(symbol, start, end, asset_class=asset_class)
     out = SignalScan(signal=signal_id, symbol=symbol, candles=len(candles))
     if not candles:

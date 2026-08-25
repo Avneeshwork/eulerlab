@@ -18,10 +18,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { Spark } from '@/components/terminal/Spark';
+import { AdoptedReport } from '@/components/terminal/AdoptedReport';
+import { SweepPanel } from '@/components/terminal/SweepPanel';
 import { UniversePicker } from '@/components/terminal/UniversePicker';
 import { api } from '@/lib/api';
 import { runBatch } from '@/lib/run';
-import type { Fleet, FleetStrategy } from '@/lib/api';
+import type { Fleet, FleetStrategy, OptimizeRow } from '@/lib/api';
 
 type Sort = 'evidence' | 'name' | 'sharpe';
 
@@ -79,6 +81,46 @@ export function Library({
   const [busy, setBusy] = useState<Set<string>>(new Set());
   const [note, setNote] = useState('');
   const [failure, setFailure] = useState('');
+
+  // Fetched once for the table rather than per row: one sweep document covers
+  // every strategy, and twenty components each asking for it would be twenty
+  // requests for one file.
+  const [sweeps, setSweeps] = useState<Map<string, OptimizeRow>>(new Map());
+  const [sweeping, setSweeping] = useState(false);
+  useEffect(() => {
+    let live = true;
+    // Polled while a sweep is in flight so finished strategies appear as they
+    // land, rather than all twenty arriving half an hour later. The interval
+    // is cleared as soon as the run reports complete, so a settled library
+    // makes exactly one request.
+    let timer: number | undefined;
+    const read = () => {
+      api
+        .optimize()
+        .then((data) => {
+          if (!live || !data.ran) return;
+          setSweeps(new Map(data.rows.map((row) => [row.strategy_id, row])));
+          const running = data.complete === false;
+          setSweeping(running);
+          if (!running && timer) {
+            window.clearInterval(timer);
+            timer = undefined;
+          }
+        })
+        .catch(() => {
+          // A missing sweep is a normal state — nothing has been swept yet —
+          // so it leaves the map empty rather than surfacing an error the
+          // reader cannot act on.
+        });
+    };
+
+    read();
+    timer = window.setInterval(read, 15_000);
+    return () => {
+      live = false;
+      if (timer) window.clearInterval(timer);
+    };
+  }, []);
 
   const classes = useMemo(
     () => Array.from(new Set(fleet?.strategies.map((s) => s.asset_class) ?? [])).sort(),
@@ -247,6 +289,8 @@ export function Library({
             <Row
               key={strategy.id}
               strategy={strategy}
+              sweep={sweeps.get(strategy.id)}
+              sweeping={sweeping}
               bar={fleet.bar}
               checked={selected.has(strategy.id)}
               open={open === strategy.id}
@@ -291,6 +335,8 @@ export function Library({
 
 function Row({
   strategy,
+  sweep,
+  sweeping,
   bar,
   checked,
   open,
@@ -303,6 +349,8 @@ function Row({
   onReport,
 }: {
   strategy: FleetStrategy;
+  sweep: OptimizeRow | undefined;
+  sweeping: boolean;
   bar: number;
   checked: boolean;
   open: boolean;
@@ -345,6 +393,28 @@ function Row({
           <div className="nm">{strategy.title}</div>
           <div className="sub">
             {strategy.kind} · {strategy.shape}
+            {strategy.adopted?.adopted && (
+              <span
+                className="ttag sweep-tag on"
+                title={
+                  `Running the best of ${sweep?.candidates ?? 9} settings, chosen by a recorded sweep ` +
+                  `on ${strategy.adopted.symbol}. Open the row for the full report.`
+                }
+              >
+                tuned
+              </span>
+            )}
+            {strategy.adopted && !strategy.adopted.adopted && sweep && (
+              <span
+                className="ttag"
+                title={
+                  `Swept over ${sweep.candidates} settings on ${sweep.symbol}; none beat the ` +
+                  `published parameters, which are still in use.`
+                }
+              >
+                paper params
+              </span>
+            )}
             {strategy.engine === 'intraday' && (
               <span
                 className="ttag"
@@ -369,14 +439,20 @@ function Row({
               its latest run was 20 crypto pairs — and a crypto Sharpe sitting
               under an "equity" tag is the same quiet mismatch the graph tooltip
               already guards against. */}
+          {/* The market the *displayed* result came from. For a swept strategy
+              that is the adopted run's market, not the daily store's: the row
+              was showing "equity · nifty50" beside a QQQ result, because the
+              tag and the number came from different runs. */}
           <Tag
             title={
-              ranOn && ranOn !== strategy.asset_class
-                ? `Declared for ${strategy.asset_class}; this result was run on ${ranOn}.`
-                : undefined
+              strategy.adopted
+                ? `This result was run on ${strategy.adopted.symbol} (${strategy.adopted.market}), the market its paper tested.`
+                : ranOn && ranOn !== strategy.asset_class
+                  ? `Declared for ${strategy.asset_class}; this result was run on ${ranOn}.`
+                  : undefined
             }
           >
-            {ranOn || strategy.asset_class}
+            {strategy.adopted ? strategy.adopted.market : ranOn || strategy.asset_class}
           </Tag>
           {result.cost_mode === 'replication' && (
             <span
@@ -386,7 +462,27 @@ function Row({
               no costs
             </span>
           )}
-          {result.universe ? (
+          {strategy.adopted && (
+            <Tag
+              title={
+                `Run on ${strategy.adopted.symbol} over ${strategy.adopted.sessions} sessions ` +
+                `with ${strategy.adopted.fills} fills, on the parameters this strategy now uses.`
+              }
+            >
+              {strategy.adopted.net_pnl < 0 ? '−' : '+'}
+              {strategy.adopted.market === 'equity' ? '₹' : '$'}
+              {Math.abs(Math.round(strategy.adopted.net_pnl)).toLocaleString(
+                strategy.adopted.market === 'equity' ? 'en-IN' : 'en-US',
+              )}
+            </Tag>
+          )}
+          {strategy.adopted ? (
+            <Tag
+              title={`${strategy.adopted.sessions} sessions, ${strategy.adopted.fills} fills.`}
+            >
+              {strategy.adopted.symbol} · {strategy.adopted.sessions}d
+            </Tag>
+          ) : result.universe ? (
             <Tag
               title={`This result was run on ${result.universe}${
                 result.symbols ? `; ${result.symbols} names actually traded` : ''
@@ -405,17 +501,31 @@ function Row({
           {busy ? (
             <span className="tdim">running…</span>
           ) : (
+            /* The adopted run's own equity path where there is one. The stored
+               curve belongs to the daily engine and, for a swept intraday
+               signal, is an NSE run under the published parameters — a picture
+               of a different strategy on a different market than the number
+               beside it. */
             <Spark
-              curve={result.curve}
+              curve={strategy.adopted ? strategy.adopted.curve : result.curve}
               clears={strategy.clears_bar}
-              title={curveTitle(strategy)}
+              title={
+                strategy.adopted
+                  ? `Cumulative P&L on ${strategy.adopted.symbol} over ${strategy.adopted.sessions} sessions, on the parameters this strategy now uses.`
+                  : curveTitle(strategy)
+              }
             />
           )}
         </div>
+        {/* For a swept strategy the headline is the run on the parameters it
+            actually uses, and `runs` is that sweep's grid size — the count the
+            number was the best of, which is what makes it readable. Falling
+            back to the daily engine's run count would attach the wrong
+            denominator to the right number. */}
         <SharpeCell
           sharpe={strategy.sharpe}
           bar={bar}
-          runs={result.runs}
+          runs={strategy.adopted ? (sweep?.candidates ?? result.runs) : result.runs}
         />
         <div className="tacts-cell" onClick={(event) => event.stopPropagation()}>
           <button
@@ -455,49 +565,119 @@ function Row({
         <div className="tdetail">
           <div>
             <p className="tdesc">{strategy.summary}</p>
+            {/* The strategy's own result first, then the sweep that chose its
+                parameters. The grid is evidence for the parameter, not the
+                result of the strategy, and leading with it answered "which
+                setting won" to a reader asking "what does this do". */}
+            {strategy.adopted && <AdoptedReport result={strategy.adopted} bar={bar} />}
+            {sweep && <SweepPanel row={sweep} running={sweeping} />}
+            {/* Facts about the run shown above it, never a second run's.
+                This grid used to read straight from the daily result store, so
+                a QQQ report with 20 fills over 58 sessions sat directly above
+                "nifty50 · 179 fills · 90d · −7.1%" — two complete, contradicting
+                accounts of one strategy, both presented as fact. Duplicated
+                "Universe" and "Instruments"/"Names traded" pairs came from the
+                same drift and are gone. */}
             <div className="tfacts">
               <Fact label="Evidence" value={<EvidenceBadge stage={strategy.stage} />} />
-              <Fact label="Configurations" value={result.runs || '—'} />
-              <Fact
-                label="Best of them"
-                value={result.best_sharpe !== null && result.best_sharpe !== undefined ? result.best_sharpe.toFixed(2) : '—'}
-              />
-              <Fact label="Asset class" value={result.asset_class || '—'} />
-              <Fact label="Costs" value={result.cost_mode === 'replication' ? 'not modelled' : 'realistic'} />
-              <Fact label="Universe" value={result.universe || '—'} />
-              <Fact label="Instruments" value={result.symbols ?? '—'} />
-              <Fact label="Trials" value={strategy.trials} />
-              <Fact label="Total return" value={fmtPct(result.total_return)} />
-              <Fact label="Max drawdown" value={fmtPct(result.max_drawdown)} />
-              <Fact label="Fills" value={result.fills ?? '—'} />
-              <Fact label="Window" value={result.window_days ? `${result.window_days}d` : '—'} />
-              <Fact label="Universe" value={result.universe || '—'} />
-              <Fact label="Names traded" value={result.symbols || '—'} />
-              <Fact label="Tier" value={result.tier || '—'} />
+              {strategy.adopted ? (
+                <>
+                  <Fact label="Settings tried" value={sweep?.candidates ?? '—'} />
+                  <Fact
+                    label="Parameters"
+                    value={strategy.adopted.adopted ? 'tuned' : "paper's"}
+                  />
+                  <Fact label="Market" value={strategy.adopted.market} />
+                  <Fact label="Instrument" value={strategy.adopted.symbol} />
+                  <Fact label="Costs" value="realistic" />
+                  <Fact label="Trials spent" value={sweep?.candidates ?? '—'} />
+                  {/* The account is a million units of whatever the prices are
+                      quoted in, so the label follows the market. "₹10L" on a
+                      QQQ run is wrong by the exchange rate. */}
+                  <Fact
+                    label={
+                      strategy.adopted.market === 'equity'
+                        ? 'Return on ₹10L'
+                        : 'Return on $1M'
+                    }
+                    value={fmtPct(strategy.adopted.net_pnl / 1_000_000)}
+                  />
+                  <Fact
+                    label="Max drawdown"
+                    value={fmtPct(strategy.adopted.max_drawdown / 1_000_000)}
+                  />
+                  <Fact label="Fills" value={strategy.adopted.fills} />
+                  <Fact label="Sessions" value={strategy.adopted.sessions} />
+                  <Fact label="Window" value={`${strategy.adopted.start} → ${strategy.adopted.end}`} />
+                </>
+              ) : (
+                <>
+                  <Fact label="Configurations" value={result.runs || '—'} />
+                  <Fact
+                    label="Best of them"
+                    value={
+                      result.best_sharpe !== null && result.best_sharpe !== undefined
+                        ? result.best_sharpe.toFixed(2)
+                        : '—'
+                    }
+                  />
+                  <Fact label="Asset class" value={result.asset_class || '—'} />
+                  <Fact
+                    label="Costs"
+                    value={result.cost_mode === 'replication' ? 'not modelled' : 'realistic'}
+                  />
+                  <Fact label="Universe" value={result.universe || '—'} />
+                  <Fact label="Instruments" value={result.symbols ?? '—'} />
+                  <Fact label="Trials" value={strategy.trials} />
+                  <Fact label="Total return" value={fmtPct(result.total_return)} />
+                  <Fact label="Max drawdown" value={fmtPct(result.max_drawdown)} />
+                  <Fact label="Fills" value={result.fills ?? '—'} />
+                  <Fact label="Window" value={result.window_days ? `${result.window_days}d` : '—'} />
+                </>
+              )}
+              <Fact label="Engine" value={strategy.engine === 'intraday' ? 'intraday' : 'daily'} />
               <Fact label="Lookback" value={`${strategy.lookback}d`} />
               <Fact label="Risk manager" value={strategy.risk_manager || '—'} />
               <Fact label="Trade manager" value={strategy.trade_manager || '—'} />
             </div>
           </div>
           <div className="tside">
+            {/* For a swept strategy this opens the *daily* engine's report,
+                which is a different run on a different market — the stale one
+                whose numbers used to leak into the fact grid above. Labelled
+                for what it is rather than removed: the old run is real, it is
+                simply not this strategy's result any more. */}
             <button
               className="tbtn go"
               type="button"
-              disabled={strategy.sharpe === null}
+              disabled={strategy.sharpe === null || Boolean(strategy.adopted)}
               onClick={onReport}
               title={
-                strategy.sharpe === null
-                  ? 'Never run, so there is nothing to report on.'
-                  : 'Per-instrument attribution, the order ledger, and every metric.'
+                strategy.adopted
+                  ? `The full report for this strategy is above. The daily-engine report covers an older run on a different market and is not this result.`
+                  : strategy.sharpe === null
+                    ? 'Never run, so there is nothing to report on.'
+                    : 'Per-instrument attribution, the order ledger, and every metric.'
               }
             >
-              Full analysis
+              {strategy.adopted ? 'Report is above' : 'Full analysis'}
             </button>
-            {result.caveat && (
+            {strategy.adopted ? (
               <div className="tcaveat">
                 <h4>What this number is not</h4>
-                {result.caveat}
+                {strategy.adopted.sessions} sessions and {strategy.adopted.fills} fills is a
+                short record, and the parameters were chosen by a search over{' '}
+                {sweep?.candidates ?? 9} settings on this same window. The bar it is drawn
+                against has been charged for that search, which is what makes the comparison
+                meaningful — but nothing here has been tested out of sample.
               </div>
+            ) : (
+              result.caveat && (
+                <div className="tcaveat">
+                  <h4>What this number is not</h4>
+                  {result.caveat}
+                </div>
+              )
             )}
             {!result.caveat && strategy.sharpe === null && (
               <div className="tcaveat">

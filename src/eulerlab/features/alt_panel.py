@@ -233,6 +233,41 @@ def coverage(rows: list[PanelRow]) -> dict[str, object]:
     }
 
 
+def us_daily(start: date | None = None) -> list[PanelRow]:
+    """Daily bars for the landed US universe, from the Alpaca panel.
+
+    Turnover is real here, unlike FX: US equities trade on exchanges that
+    publish consolidated volume, so `close * volume` is a genuine quantity and
+    the liquidity features work as intended.
+
+    **Volume comes from the IEX feed**, which is one venue carrying a low
+    single-digit share of the consolidated tape. Prices track closely; volume
+    does not. A turnover-ranked universe built from this is ranking IEX
+    participation, which correlates with real turnover but is not it (A-031).
+
+    Spread is left at zero, as for NSE equities. The US cost model charges the
+    two regulatory pass-throughs and no spread, which makes it a lower bound —
+    consistent with how the other classes are treated, and stated in A-030.
+    """
+    from eulerlab.features import us_panel
+
+    out: list[PanelRow] = []
+    for row in us_panel.read():
+        if start and row.day < start:
+            continue
+        out.append(
+            PanelRow(
+                day=row.day,
+                symbol=row.symbol,
+                close=row.close,
+                volume=row.volume,
+                turnover=row.close * row.volume,
+            )
+        )
+    out.sort(key=lambda r: (r.day, r.symbol))
+    return out
+
+
 def fx_daily(
     pairs: list[str] | None = None,
     *,

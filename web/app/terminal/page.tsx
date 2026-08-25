@@ -30,7 +30,6 @@ import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
 import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { RunTab } from '@/components/terminal/RunTab';
-import { OptimizeTab } from '@/components/terminal/OptimizeTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
 import { api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
@@ -38,7 +37,7 @@ import type { Fleet, FleetStrategy } from '@/lib/api';
 // Data is deliberately not here. Results still mirror to the bucket after every
 // backtest — that is automatic and unaffected; what is gone is the manual
 // pull-merge-push button and the on-disk counts.
-const NAV = ['Snapshot', 'Chart', 'Library', 'Build', 'Run', 'Sweep', 'Instruments', 'Live'] as const;
+const NAV = ['Snapshot', 'Chart', 'Library', 'Build', 'Run', 'Instruments', 'Live'] as const;
 type Tab = (typeof NAV)[number];
 
 export default function TerminalPage() {
@@ -178,7 +177,7 @@ export default function TerminalPage() {
                   </span>
                 </div>
                 <p className="thsub">
-                  {trials} trials have been recorded, so this is the Sharpe the luckiest
+                  {fleet?.bar_trials ?? trials} trials have been recorded, so this is the Sharpe the luckiest
                   worthless strategy would be expected to show by chance alone. A backtest
                   below it is not evidence of anything.
                 </p>
@@ -238,8 +237,6 @@ export default function TerminalPage() {
             onRefresh={refresh}
           />
         )}
-
-        {tab === 'Sweep' && <OptimizeTab />}
 
         {tab === 'Instruments' && <InstrumentsTab />}
 

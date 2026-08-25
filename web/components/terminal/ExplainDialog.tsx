@@ -142,6 +142,98 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
             </section>
           )}
 
+          {/* Placed directly after provenance, before "The idea": if a
+              parameter has been moved off the published value, that is the
+              second thing a reader needs to know, not a footnote. */}
+          {about?.tuning && (
+            <section className="explain-block">
+              <h3>
+                {!about.tuning.adopted
+                  ? 'Swept, and left alone'
+                  : about.tuning.changed.length > 0
+                    ? 'Tuned from the paper'
+                    : "Swept, and the paper's values won"}
+              </h3>
+
+              {about.tuning.adopted && about.tuning.changed.length > 0 ? (
+                <>
+                  <p className="tdesc" style={{ fontSize: 17 }}>
+                    This strategy no longer runs on its published parameters. A recorded
+                    sweep over {about.tuning.candidates} settings found a better one on{' '}
+                    {about.tuning.symbol}, and that is what every backtest, paper run and
+                    live signal now uses.
+                  </p>
+                  <table className="ttable tuned">
+                    <thead>
+                      <tr>
+                        <th>Parameter</th>
+                        <th className="r">Paper</th>
+                        <th className="r">Now</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {about.tuning.changed.map((change) => (
+                        <tr key={change.name}>
+                          <td>{change.name.replace(/_/g, ' ')}</td>
+                          <td className="r was">{change.paper}</td>
+                          <td className="r now">{change.adopted}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {Object.keys(about.tuning.params).length > about.tuning.changed.length && (
+                    <p className="tfine" style={{ marginTop: 8 }}>
+                      The other swept parameters landed on the paper&rsquo;s own values and
+                      are unchanged — listed as changes they would overstate what the sweep
+                      found.
+                    </p>
+                  )}
+                </>
+              ) : about.tuning.adopted ? (
+                <p className="tdesc" style={{ fontSize: 17 }}>
+                  A recorded sweep over {about.tuning.candidates} settings ran on{' '}
+                  {about.tuning.symbol}, and the paper&rsquo;s own parameters won it. Nothing
+                  changed — but that is a different fact from nothing having been tried.
+                  The published values are now the best of {about.tuning.candidates} tested,
+                  rather than simply the ones nobody questioned.
+                </p>
+              ) : (
+                <p className="tdesc" style={{ fontSize: 17 }}>
+                  A recorded sweep over {about.tuning.candidates} settings ran on{' '}
+                  {about.tuning.symbol} and {about.tuning.reason}. The published parameters
+                  are still the ones in use.
+                </p>
+              )}
+
+              <div className="tuned-facts">
+                <div>
+                  <span>Best</span>
+                  <b className={about.tuning.best_pnl < 0 ? 'neg' : 'pos'}>
+                    {Math.round(about.tuning.best_pnl).toLocaleString()}
+                  </b>
+                </div>
+                <div>
+                  <span>Median setting</span>
+                  <b className={about.tuning.median_pnl < 0 ? 'neg' : 'pos'}>
+                    {Math.round(about.tuning.median_pnl).toLocaleString()}
+                  </b>
+                </div>
+                <div>
+                  <span>Fills</span>
+                  <b>{about.tuning.fills}</b>
+                </div>
+                <div>
+                  <span>Sessions</span>
+                  <b>{about.tuning.sessions}</b>
+                </div>
+              </div>
+
+              <p className="tfine" style={{ marginTop: 10 }}>
+                {about.tuning.caveat}
+              </p>
+            </section>
+          )}
+
           {about && (
             <section className="explain-block">
               <h3>The idea</h3>
@@ -162,6 +254,22 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
                   <li key={step}>{step}</li>
                 ))}
               </ol>
+              {/* The steps are written once, in the declaration, and quote the
+                  published values. Without this note the dialog contradicts
+                  itself: "stop 1.4 → 1.0" two blocks above, "stop at 1.4 x ATR"
+                  here. Stated rather than string-substituted into the steps —
+                  rewriting prose by pattern match would eventually replace a
+                  number that meant something else. */}
+              {about.tuning && about.tuning.changed.length > 0 && (
+                <p className="tfine" style={{ marginTop: 10 }}>
+                  <b>These steps quote the paper&rsquo;s published values.</b> This strategy
+                  now runs with{' '}
+                  {about.tuning.changed
+                    .map((c) => `${c.name.replace(/_/g, ' ')} ${c.adopted} (was ${c.paper})`)
+                    .join(', ')}
+                  , as set out above.
+                </p>
+              )}
               <p className="tfine" style={{ marginTop: 10 }}>
                 These are the steps as coded, not a description written beside the code.
                 The exits are this platform's bracket rather than the paper's, which is

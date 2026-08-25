@@ -1,4 +1,4 @@
-"""US equity execution costs, for the Alpaca-landed side of the library.
+"""US equity execution costs, as an Indian investor actually pays them.
 
 Written because a `us` sweep otherwise fell through to `Segment.EQUITY_INTRADAY`
 and was charged **STT, SEBI turnover fees, stamp duty and GST on brokerage** —
@@ -11,12 +11,53 @@ punishes at roughly ten basis points a round trip depending on nothing real.
 Alpaca charges **no commission** on US equities. What remains are the two
 regulatory pass-throughs every US broker collects on the **sell side only**:
 
-| | rate | applies to | source |
+| | rate | charged? | source |
 |---|---|---|---|
-| SEC Section 31 fee | **$0.00** per million through 2026-04-03 | sells | FINRA Information Notice 03/17/26 |
-| SEC Section 31 fee | **$20.60** per million from 2026-04-04 | sells | same |
-| FINRA Trading Activity Fee | $0.000166 per share, capped $8.30 | sells | FINRA TAF guidance |
-| Commission | $0 | — | Alpaca |
+| **INDmoney brokerage** | **0.25% per leg, capped at $25 per transaction** | **yes** | operator, from INDmoney's schedule |
+| **GST on brokerage** | **18% of the brokerage** | **yes** | the cap is quoted excluding GST |
+| SEC Section 31 fee | $20.60 per million of sales | no | FINRA Information Notice 03/17/26 |
+| FINRA Trading Activity Fee | $0.000166 per share sold, capped $8.30 | no | FINRA TAF guidance |
+
+### Only the brokerage is charged
+
+Brokerage is the cost model here, by the operator's decision, and the two
+regulatory pass-throughs are kept for reference rather than added.
+
+The decision costs almost nothing in accuracy, which is why it is a reasonable
+one: on a $100,000 round trip the SEC and FINRA fees come to about **$2.09**
+against **$500** of brokerage — six tenths of one percent of the bill. A model
+that is 0.6% light on a figure that decides results by a factor of three is
+light in a place that does not matter.
+
+The constants and their sources stay in this module because they were verified
+against the regulator and because the rate schedule is the kind of fact that is
+expensive to re-derive. `sec_rate()` still works and is still tested; nothing
+calls it from the fee path.
+
+### The cap is the whole story, and it took two corrections to get right
+
+Alpaca is the **data** source here; it is not who this account trades through.
+The trades are placed through INDmoney.
+
+The rate is 0.25% a leg — but capped at **$25 per transaction**, and the cap is
+what binds at any size this engine trades. A typical position here is around
+$500,000 of notional: 0.25% of that is $1,250, and the cap cuts it to $25. A
+**fiftyfold** reduction, on every leg.
+
+The effect on the arithmetic is total. Uncapped, a round trip costs 0.5% of
+notional and no intraday signal in this library survives it — the friction on
+`orb_breakout` came to 309% of its gross edge. Capped, the same round trip
+costs $50 on $500,000, which is **0.02%** — a sixth of Delta Exchange's 0.118%
+and genuinely cheap.
+
+So the cap is not a detail of the fee schedule. It is the difference between
+"US intraday cannot work" and "US intraday is the cheapest venue we have", and
+this module has now stated both, in that order, before being told the cap
+existed. A fee model without its cap is not a conservative fee model; it is a
+wrong one, and it was wrong by a factor of fifty.
+
+GST at 18% applies on top of the brokerage, because the cap is quoted excluding
+it — the same treatment `delta_exchange.py` gives the same tax.
 
 Both are sell-side by construction — Section 31 is assessed on the proceeds of
 a sale, and the TAF on covered sales — so a round trip pays each exactly once.
@@ -41,13 +82,63 @@ sides of it. Rates before fiscal 2026 are deliberately absent rather than
 guessed; a date earlier than the table asks for a rate this module has not
 verified, and it says so instead of extrapolating.
 
+### Currency conversion is a cost on capital, not on trades
+
+INDmoney quotes 0.5%-1.2% for INR→USD conversion, charged by the remitting
+bank rather than by the platform. It is **not** modelled per trade, and that is
+a modelling decision rather than an omission.
+
+Conversion is paid when money crosses the border, not when a position is
+opened. A strategy that funds an account once and then trades it a hundred
+times pays the markup twice — in and out — not two hundred times. Charging it
+per fill would inflate an active strategy's costs by the number of trades it
+makes, which would punish turnover for a reason that has nothing to do with
+turnover.
+
+The honest consequence: a result from this module is net of broker and
+regulatory charges but gross of the round-trip currency conversion, which on a
+₹10 lakh account is roughly ₹5,000-12,000 each way regardless of how the
+strategy performs. See A-035.
+
+### Two brokers, and the choice is worth a real amount
+
+`BROKER` selects the schedule. Both are modelled from the broker's own pricing
+page, and they are genuinely different animals:
+
+- **INDmoney** — 0.25% a leg capped at $25, plus 18% GST. Flat $29.50 a leg at
+  any size above $10,000 of notional. Indian platform, INR funding, LRS route.
+- **Firstrade** — **$0 commission** online for stocks and ETFs. Pays only the
+  SEC Section 31 fee and the FINRA TAF, both sell-side. About **$2.09** on a
+  $100,000 sell and **nothing at all** on a buy.
+
+At the size this engine trades that is roughly $59 a round trip against $2, so
+Firstrade is about **thirty times cheaper**. Whether that matters depends
+entirely on how much friction the strategy was carrying to begin with — for
+these signals it is worth a few percent of gross, not the difference between
+working and not. The uncapped 0.25% *was* that difference; the choice between
+two cheap brokers is not.
+
+What this module does not model, and what should decide the question in
+practice: Firstrade is a US broker, so the account is held abroad and the
+funding, tax reporting and LRS paperwork differ from INDmoney's. Those are real
+costs in time and risk, and none of them is a per-trade fee.
+
+### TCS is not a cost
+
+20% TCS applies to LRS remittances above ₹10 lakh in a financial year. It is
+**creditable against income tax** when the return is filed, so it blocks
+capital rather than consuming it. Modelling it as a transaction cost would
+confuse a timing effect on cash with a charge on trading — the same reasoning
+that keeps India's VDA tax out of the Delta model (A-027).
+
 ### What is deliberately absent
 
 **Spread and slippage.** Fills here come from minute bars, and a bar's high and
 low are not a book — modelling half a spread on top would put a made-up number
 beside a measured one and make the total look more precise than its worst
 component. The NSE and Delta models make the same omission, so the three remain
-comparable to each other.
+comparable to each other. At 0.25% a leg the broker charge dwarfs a realistic
+spread anyway.
 
 **Borrow on shorts, and payment for order flow.** The first applies to
 positions this engine does not hold overnight; the second is a rebate the
@@ -56,9 +147,11 @@ broker receives, not a cost the trader pays.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from enum import StrEnum
 
 from eulerlab.costs.schedule import Side
 
@@ -88,8 +181,42 @@ TAF_PER_SHARE = Decimal("0.000166")
 TAF_CAP = Decimal("8.30")
 """Per-trade ceiling on the TAF. Binds above ~50,000 shares."""
 
-COMMISSION = Decimal("0")
-"""Alpaca charges none on US equities."""
+BROKERAGE_RATE = Decimal("0.0025")
+"""INDmoney: 0.25% of trade value, each leg, before the cap below."""
+
+BROKERAGE_CAP = Decimal("25")
+"""$25 per transaction, quoted excluding GST.
+
+The binding constraint at every size this engine trades, and the single number
+that decides whether US intraday works here at all. On a $500,000 position it
+turns $1,250 of brokerage into $25."""
+
+GST_RATE = Decimal("0.18")
+"""18% on the brokerage, since the cap is quoted before it. Same treatment as
+`delta_exchange.py` gives the same tax."""
+
+
+class Broker(StrEnum):
+    """Who the trade is placed through. Changes the fee, not the fill."""
+
+    INDMONEY = "indmoney"
+    FIRSTRADE = "firstrade"
+
+
+BROKER = Broker(os.environ.get("EULERLAB_US_BROKER", Broker.INDMONEY.value))
+"""The broker every US cost is charged at, from `EULERLAB_US_BROKER`.
+
+Defaults to INDmoney because that is the account that exists. Set to
+`firstrade` to price the same strategies on zero commission — the comparison is
+a one-line change rather than a fork of the cost model, so a result can always
+be re-read against the other schedule."""
+
+FX_MARKUP_RANGE = (Decimal("0.005"), Decimal("0.012"))
+"""INR->USD conversion, 0.5%-1.2%, charged by the remitting bank.
+
+Recorded here so the number is not lost, and deliberately **not** applied per
+trade — it is a cost on moving capital across the border, not on trading. See
+the module docstring."""
 
 
 class RateUnavailable(LookupError):
@@ -132,45 +259,87 @@ class Fee:
     notional: Decimal
     sec_fee: Decimal
     taf: Decimal
-    commission: Decimal = COMMISSION
+    brokerage: Decimal = Decimal("0")
+    gst: Decimal = Decimal("0")
+
+    @property
+    def capped(self) -> bool:
+        """Whether the $25 cap bound on this leg.
+
+        Worth asking of any given trade: below about $10,000 of notional the
+        percentage applies and the cost scales, above it the cost is flat. Two
+        strategies with the same edge and different position sizes are charged
+        very differently, and nothing else in the fee makes that visible."""
+        return self.brokerage >= BROKERAGE_CAP
 
     @property
     def total(self) -> Decimal:
-        return self.sec_fee + self.taf + self.commission
+        return self.sec_fee + self.taf + self.brokerage + self.gst
 
 
-def equity_fee(*, price: Decimal, quantity: Decimal, side: Side, day: date) -> Fee:
+def equity_fee(
+    *,
+    price: Decimal,
+    quantity: Decimal,
+    side: Side,
+    day: date,
+    broker: Broker | None = None,
+) -> Fee:
     """Cost of one US equity leg on a given date.
 
-    Buys are free of both pass-throughs, so this returns a zero bill for them
-    rather than half of one. That is not an approximation — Section 31 and the
-    TAF are assessed on sales.
-
-    `day` is required rather than defaulted to today: the Section 31 rate has
-    moved twice inside fiscal 2026 alone, and a default would quietly price a
-    2025 backtest at the current rate.
+    On INDmoney both legs pay the same capped 0.25%. On Firstrade a buy is free
+    and a sell pays only the two regulatory pass-throughs, which are sell-side
+    by construction.
     """
+    # Brokerage on both legs, and nothing else. The SEC and FINRA fees are
+    # modelled in this file and deliberately not added — see the docstring.
+    # `day` is still required so the signature does not have to change if they
+    # are ever switched back on, and so a caller cannot forget which year a
+    # trade happened in.
     notional = price * abs(quantity)
-    if side is not Side.SELL:
-        return Fee(notional=notional, sec_fee=Decimal("0"), taf=Decimal("0"))
 
-    sec_fee = notional * sec_rate(day)
-    taf = min(abs(quantity) * TAF_PER_SHARE, TAF_CAP)
-    return Fee(notional=notional, sec_fee=sec_fee, taf=taf)
+    if (broker or BROKER) is Broker.FIRSTRADE:
+        # Zero commission online. What remains are the two sell-side
+        # pass-throughs every US broker collects, so a buy is genuinely free.
+        if side is not Side.SELL:
+            return Fee(notional=notional, sec_fee=Decimal("0"), taf=Decimal("0"))
+        return Fee(
+            notional=notional,
+            sec_fee=notional * sec_rate(day),
+            taf=min(abs(quantity) * TAF_PER_SHARE, TAF_CAP),
+        )
+
+    brokerage = min(notional * BROKERAGE_RATE, BROKERAGE_CAP)
+    return Fee(
+        notional=notional,
+        sec_fee=Decimal("0"),
+        taf=Decimal("0"),
+        brokerage=brokerage,
+        gst=brokerage * GST_RATE,
+    )
 
 
-def round_trip_rate(*, price: Decimal, quantity: Decimal, day: date) -> Decimal:
+def round_trip_rate(
+    *, price: Decimal, quantity: Decimal, day: date, broker: Broker | None = None
+) -> Decimal:
     """All-in cost of a complete round trip, as a share of notional.
 
-    Size-dependent, unlike the Delta equivalent: the TAF is per share and
-    capped, so the rate falls as size rises rather than staying flat. On a
-    $100,000 position in a $500 stock at the fiscal-2026 rate it is about
-    **0.002%** — a fiftieth of Delta's 0.118%, and the reason a signal that
-    cannot pay for itself in crypto may still be worth measuring here.
+    **Size-dependent, and that is the point.** Below roughly $10,000 of notional
+    the 0.25% applies and a round trip costs 0.59% including GST. Above it the
+    $25 cap binds and the rate falls with size: on a $500,000 position a round
+    trip is $59, or **0.012%** — a tenth of Delta Exchange's 0.118%.
+
+    A strategy trading large positions is charged almost nothing here. One
+    trading small positions is charged more than it would pay on crypto. No
+    single number describes this venue.
+
+    An earlier version of this docstring said 0.002% and called US the cheap
+    venue. That was the cost of *clearing* a US trade, not of placing one
+    through the broker this account actually uses.
     """
     notional = price * abs(quantity)
     if notional <= 0:
         return Decimal("0")
-    buy = equity_fee(price=price, quantity=quantity, side=Side.BUY, day=day)
-    sell = equity_fee(price=price, quantity=quantity, side=Side.SELL, day=day)
+    buy = equity_fee(price=price, quantity=quantity, side=Side.BUY, day=day, broker=broker)
+    sell = equity_fee(price=price, quantity=quantity, side=Side.SELL, day=day, broker=broker)
     return (buy.total + sell.total) / notional

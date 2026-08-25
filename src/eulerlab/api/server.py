@@ -66,12 +66,13 @@ from eulerlab.features.alt_panel import coverage as alt_coverage
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.ingest.cloud import load_storage_config
+from eulerlab.intraday import adopted as adopted_mod
 from eulerlab.intraday import scan as tweezer_scan
 from eulerlab.intraday.paper_scan import ALL_SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
-from eulerlab.research.budget import price_search
-from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog
+from eulerlab.research.budget import price_search, searches_run
+from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
@@ -188,13 +189,15 @@ def _load_alt(asset_class: str) -> list[PanelRow]:
         return alt_panel.fund_daily()
     if asset_class == AssetClass.FX.value:
         return alt_panel.fx_daily()
+    if asset_class == AssetClass.US.value:
+        return alt_panel.us_daily()
     msg = f"no panel for asset class {asset_class!r}"
     raise ValueError(msg)
 
 
 ALT = _AltPanel()
 
-COSTED_CLASSES = frozenset({AssetClass.EQUITY.value, AssetClass.FX.value})
+COSTED_CLASSES = frozenset({AssetClass.EQUITY.value, AssetClass.FX.value, AssetClass.US.value})
 """Asset classes the cost model actually covers.
 
 `costs/schedule.py` has segments for equity delivery, equity intraday, futures
@@ -212,6 +215,12 @@ result that ignores them is an upper bound.
 the Indian charges — but its cost is the bid-ask spread, which is *measured* in
 the landed data and carried on every `PanelRow`. Charging what was observed is
 not the same kind of act as inventing a fee schedule, so FX runs costed.
+
+**US is costed too, from its own published schedule** — `costs/us_equity.py`,
+the SEC Section 31 rate and the FINRA TAF, both verified against the regulator.
+It must never fall through to the Indian segments: a QQQ trade charged STT and
+stamp duty is the same error as the crypto one above, and it has already
+happened once in the intraday engine.
 """
 
 
@@ -227,6 +236,8 @@ def _no_panel_message(asset_class: str) -> str:
         return "no crypto landed. Run `make crypto` first."
     if asset_class == AssetClass.FX.value:
         return "no FX landed. Run `make fx-bulk` first."
+    if asset_class == AssetClass.US.value:
+        return "no US bars landed. Run `make us-bars` first."
     if asset_class == AssetClass.MUTUAL_FUND.value:
         return "no mutual fund NAV history landed. Run `make mf` first."
     return "no panel on disk. Run `make build-panel` first."
@@ -598,8 +609,22 @@ def _latest_sharpe(tenant: workspace_mod.Workspace, row: Any) -> float | None:
     return round(recent.sharpe, 4) if recent else None
 
 
-def _clears(tenant: workspace_mod.Workspace, row: Any, bar: float) -> bool:
-    value = row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row)
+def _clears(
+    tenant: workspace_mod.Workspace,
+    row: Any,
+    bar: float,
+    adopted_results: dict[str, dict[str, Any]] | None = None,
+) -> bool:
+    """Whether the strategy's headline Sharpe clears the noise bar.
+
+    Judged on the **same** number the row displays. It previously read the
+    stored Sharpe while the row showed the adopted one, so `orb_breakout` could
+    display 3.54 against a bar of 1.88 and be flagged as not clearing, while
+    `gap_continuation` showed 3.44 and was flagged as clearing. Two strategies,
+    the same rule, opposite verdicts — because the verdict and the number came
+    from different runs.
+    """
+    value = _headline_sharpe(tenant, row, adopted_results or {})
     return value is not None and value >= bar
 
 
@@ -616,8 +641,16 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     bar = price_search(0, available_years=11.4).bar_after
     dispersion = sharpe_dispersion()
     tenant = workspace_mod.resolve(workspace or None)
+    # Read once for the whole payload rather than per strategy: it is one small
+    # file and thirty-two reads of it would be thirty-two parses.
+    adopted_results = adopted_mod.read()
     return {
         "bar": round(bar, 3),
+        # The denominator the bar was actually computed from. The console used
+        # to sum each strategy's own trial count and present that total as the
+        # bar's basis — 20 against a bar derived from 211 — which stated a
+        # relationship between two numbers that did not hold.
+        "bar_trials": searches_run(),
         "bar_sigma_measured": dispersion.usable,
         "bar_note": dispersion.reason,
         "strategies": [
@@ -650,10 +683,15 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 # a screened one: it is the stronger claim and was paid for.
                 # `result` carries the backtest figure and, inseparably, how
                 # many runs it was the best of.
-                "sharpe": row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row),
+                "sharpe": _headline_sharpe(tenant, row, adopted_results),
                 "result": result_store.summary(tenant, row.declaration.id),
+                # The run on the parameters the strategy actually uses, on the
+                # market its paper tested. For a swept strategy this is the
+                # result — the `result` field above is the daily engine's, which
+                # for an intraday signal is a stale run on the wrong market.
+                "adopted": adopted_results.get(row.declaration.id),
                 "trials": row.trials,
-                "clears_bar": _clears(tenant, row, bar),
+                "clears_bar": _clears(tenant, row, bar, adopted_results),
             }
             for row in strategy_fleet(tenant.ledger)
         ],
@@ -2356,11 +2394,87 @@ def optimize_results() -> dict[str, Any]:
         "start": latest.get("start", ""),
         "end": latest.get("end", ""),
         "dry_run": bool(latest.get("dry_run", False)),
+        # False while a sweep is still running. Partial results are real and
+        # worth showing, but a reader has to know they are looking at nine
+        # strategies of twenty rather than a library where eleven were skipped.
+        "complete": bool(latest.get("complete", True)),
         "trials_before": latest.get("trials_before", 0),
         "trials_after": latest.get("trials_after", 0),
         "required_t": latest.get("required_t", 0.0),
         "skipped": latest.get("skipped", []),
         "rows": rows,
+    }
+
+
+def _headline_sharpe(
+    tenant: Any, row: Any, adopted_results: dict[str, dict[str, Any]]
+) -> float | None:
+    """The Sharpe a strategy should be judged on.
+
+    For a swept intraday signal that is the run on its adopted parameters, on
+    the market its paper tested. It takes precedence over the stored figure
+    because the stored one predates both: `gap_continuation` showed 1.89 from a
+    run on NSE bars with the published parameters, while the strategy as it now
+    exists runs on QQQ with a tuned stop. Showing the old number beside the new
+    description is how a page lies without containing a false sentence.
+
+    Everything else keeps the previous order: the ledger's validated Sharpe
+    first, since it is the stronger claim and was paid for, then the most
+    recent screened one.
+    """
+    adopted_row = adopted_results.get(row.declaration.id)
+    if adopted_row is not None and adopted_row.get("sharpe") is not None:
+        return float(adopted_row["sharpe"])
+    return row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row)
+
+
+def _tuning(strategy_id: str) -> dict[str, Any] | None:
+    """The parameters a recorded sweep adopted for this strategy, and its evidence.
+
+    Returns None when no recorded sweep has covered it, which is different from
+    a sweep that found nothing — that case returns a record with `adopted`
+    false and the reason. "Never looked" and "looked and found nothing" are
+    different facts and the page says which one applies.
+    """
+    from eulerlab.intraday import tuned
+
+    adoption = tuned.for_strategy(strategy_id)
+    if adoption is None:
+        return None
+
+    return {
+        "adopted": adoption.adopted,
+        "reason": adoption.reason,
+        "symbol": adoption.symbol,
+        "market": adoption.market,
+        "swept_at": adoption.swept_at,
+        "candidates": adoption.candidates,
+        "fills": adoption.fills,
+        "sessions": adoption.sessions,
+        "best_pnl": adoption.best_pnl,
+        "median_pnl": adoption.median_pnl,
+        "tail_share": adoption.tail_share,
+        # Only the fields the sweep actually moved. A grid often lands on the
+        # paper's value for one of its two parameters, and listing that as a
+        # change would overstate what was found.
+        "changed": [
+            {"name": name, "paper": paper, "adopted": value}
+            for name, (paper, value) in sorted(adoption.changed.items())
+        ],
+        "params": adoption.params,
+        "paper_params": adoption.paper_params,
+        # Stated on the page rather than left to be inferred. None of these
+        # clears the platform's own bar, and several rest on fewer than twenty
+        # fills; a tuned parameter is the better guess of the ones tried, not
+        # a result.
+        "caveat": (
+            f"Chosen as the best of {adoption.candidates} settings over "
+            f"{adoption.sessions} sessions on {adoption.symbol}, with "
+            f"{adoption.fills} fills. The maximum of {adoption.candidates} draws "
+            "rises with the count whether or not anything real is there, which is "
+            "why the median is shown beside the best. This does not clear the "
+            "platform's bar of t > 3.0 and is not a validated result."
+        ),
     }
 
 
@@ -2372,18 +2486,88 @@ def explain(strategy: str = "") -> dict[str, Any]:
     description of what it might use. A page that explains a run the code does
     not perform is worse than no explanation.
     """
-    procedure = [
-        {
-            "title": "What a backtest here is",
-            "body": (
-                "The strategy is asked, on each rebalance day, for the weights it wants "
-                "across the instruments it can see. Those weights become orders, the "
-                "orders are filled at the next available price, and costs are deducted. "
-                "The account starts at "
-                f"₹{BATCH_STARTING_CASH:,.0f} and rebalances every "
-                f"{BATCH_REBALANCE_DAYS} trading days."
-            ),
-        },
+    # Which engine ran matters more than any other fact on this page. An
+    # intraday signal never produces target weights and never rebalances — ADR-037
+    # is explicit that a bracket trade cannot be expressed as one — so describing
+    # the daily engine to someone reading an intraday result explains a run the
+    # code did not perform. This module's own docstring calls that worse than no
+    # explanation, and it was doing it for all twenty swept signals.
+    intraday = bool(strategy) and strategy in PAPER_SIGNALS
+
+    if intraday:
+        from eulerlab.intraday.paper_scan import WARMUP_BARS
+
+        procedure = [
+            {
+                "title": "What a backtest here is",
+                "body": (
+                    "This is an intraday signal, so there is no rebalance and there are "
+                    "no target weights. Every bar of every session is offered to the "
+                    "signal, which either declines with a reason or returns one fully "
+                    "specified bracket — an entry, a stop and a target, sized so the "
+                    "distance to the stop is a fixed fraction of the account. The "
+                    "bracket is then walked forward bar by bar until the stop, the "
+                    "target, or the close takes it out. Nothing is held overnight."
+                ),
+            },
+            {
+                "title": "Why the rejections are counted",
+                "body": (
+                    "A signal that declines 12,000 times and fires twice is a different "
+                    "object than one that fires constantly, and the two can report the "
+                    "same P&L. Each refusal is tallied by reason, so 'no setup' and "
+                    "'not enough history' are never confused with each other."
+                ),
+            },
+            {
+                "title": "Warmup",
+                "body": (
+                    f"The first {WARMUP_BARS} bars of the range are skipped so indicators "
+                    "have history. A signal needing more says so itself by returning a "
+                    "warmup rejection, which is counted rather than hidden."
+                ),
+            },
+            {
+                "title": "What the costs are",
+                "body": (
+                    "Charged on the venue the trade would actually happen on, not a "
+                    "single default. NSE pays STT, SEBI turnover, stamp duty and GST; "
+                    "Delta Exchange pays 0.05% taker plus 18% GST, which is 0.118% a "
+                    "round trip; US equity pays no commission and the two sell-side "
+                    "regulatory fees, about 0.002%. That fifty-fold gap decides more "
+                    "results here than any parameter does. Spread and slippage are "
+                    "modelled on none of them, so every net figure is better than a "
+                    "real fill would be."
+                ),
+            },
+            {
+                "title": "What a sweep costs",
+                "body": (
+                    "Every parameter setting evaluated is written to the trial ledger, "
+                    "permanently. The deflated-Sharpe probability and the t-statistic "
+                    "both take the total count as their denominator, so each sweep "
+                    "raises the bar for every result this platform has produced or ever "
+                    "will. That is why sweeps run from `make optimize` and never from a "
+                    "button in this interface."
+                ),
+            },
+        ]
+    else:
+        procedure = [
+            {
+                "title": "What a backtest here is",
+                "body": (
+                    "The strategy is asked, on each rebalance day, for the weights it wants "
+                    "across the instruments it can see. Those weights become orders, the "
+                    "orders are filled at the next available price, and costs are deducted. "
+                    "The account starts at "
+                    f"₹{BATCH_STARTING_CASH:,.0f} and rebalances every "
+                    f"{BATCH_REBALANCE_DAYS} trading days."
+                ),
+            },
+        ]
+
+    procedure += [
         {
             "title": "What it cannot see",
             "body": (
@@ -2391,25 +2575,6 @@ def explain(strategy: str = "") -> dict[str, Any]:
                 "before the decision date. That is enforced at the data layer rather "
                 "than by the strategy behaving well, so a lookahead bug is a structural "
                 "impossibility rather than a thing to be careful about."
-            ),
-        },
-        {
-            "title": "Warmup",
-            "body": (
-                "The first stretch of every run is discarded so features have history to "
-                "compute from — a quarter of the window, capped at 253 days and floored "
-                "at 20. A strategy whose lookback is longer than the window will hold "
-                "nothing and the run refuses rather than reporting a Sharpe of zero."
-            ),
-        },
-        {
-            "title": "Tier A and Tier B",
-            "body": (
-                "Tier A is a vectorised screen: fast, and it assumes it can transact at "
-                "the price it saw. Tier B is the event-driven engine that the paper and "
-                "live paths also use — it places orders, they can be rejected, and cash "
-                "has to be there. A Tier A number read as a Tier B number is worse than "
-                "no number."
             ),
         },
         {
@@ -2423,6 +2588,30 @@ def explain(strategy: str = "") -> dict[str, Any]:
             ),
         },
     ]
+
+    if not intraday:
+        procedure += [
+            {
+                "title": "Warmup",
+                "body": (
+                    "The first stretch of every run is discarded so features have history "
+                    "to compute from — a quarter of the window, capped at 253 days and "
+                    "floored at 20. A strategy whose lookback is longer than the window "
+                    "will hold nothing and the run refuses rather than reporting a Sharpe "
+                    "of zero."
+                ),
+            },
+            {
+                "title": "Tier A and Tier B",
+                "body": (
+                    "Tier A is a vectorised screen: fast, and it assumes it can transact "
+                    "at the price it saw. Tier B is the event-driven engine that the paper "
+                    "and live paths also use — it places orders, they can be rejected, and "
+                    "cash has to be there. A Tier A number read as a Tier B number is "
+                    "worse than no number."
+                ),
+            },
+        ]
 
     asset_classes = [
         {
@@ -2464,7 +2653,14 @@ def explain(strategy: str = "") -> dict[str, Any]:
             "published": declaration.published,
             "tested_on": declaration.tested_on,
             "recommended_class": declaration.recommended_class,
-            "paper_url": declaration.paper_url,
+            # Resolved from the citation rather than read off the field: the
+            # field is populated where a declaration is built, and a signal
+            # built on a branch that forgot shows no source while having one.
+            # What the sweep changed, if anything. Carried beside the paper's
+            # own values rather than replacing them: a reader has to be able to
+            # see that a parameter was moved, from what, and on what evidence.
+            "tuning": _tuning(declaration.id),
+            "paper_url": paper_url(declaration.source) or declaration.paper_url,
             # Served rather than linked as a file path: the browser cannot open
             # a repo-relative path, and a link that does nothing is worse than
             # none because it looks like provenance was provided.
@@ -3181,7 +3377,9 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
     # --- band 5: evidence ---------------------------------------------------
     bar = price_search(0, available_years=11.4).bar_after
     fleet_rows = list(strategy_fleet(tenant.ledger))
-    clearing = [r for r in fleet_rows if _clears(tenant, r, bar)]
+    # Same adopted results the library judges on, so the snapshot's count and
+    # the library's flags cannot disagree about the same strategies.
+    clearing = [r for r in fleet_rows if _clears(tenant, r, bar, adopted_mod.read())]
 
     return {
         "ok": True,

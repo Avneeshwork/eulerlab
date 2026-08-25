@@ -22,47 +22,97 @@ PRICED_DAY = dt.date(2026, 6, 15)
 """Inside the sweep window, and after the 2026-04-04 rate step."""
 
 
-def test_buys_pay_nothing() -> None:
-    """Both US pass-throughs are assessed on sales, so a buy is genuinely free."""
+def test_the_cap_binds_at_every_size_this_engine_trades() -> None:
+    """The single number that decides whether US intraday works here.
+
+    A typical position is around $500,000 of notional. Uncapped that is $1,250
+    of brokerage a leg; capped it is $25. A fiftyfold difference, and the
+    difference between every US signal losing and every US signal being cheap
+    to run.
+    """
+    fee = us_equity.equity_fee(
+        price=Decimal("500"), quantity=Decimal("1000"), side=Side.BUY, day=PRICED_DAY
+    )
+    assert fee.capped
+    assert fee.brokerage == us_equity.BROKERAGE_CAP
+
+
+def test_small_trades_pay_the_percentage() -> None:
+    """Below the cap the rate applies, so cost scales with size and then stops."""
+    fee = us_equity.equity_fee(
+        price=Decimal("100"), quantity=Decimal("10"), side=Side.BUY, day=PRICED_DAY
+    )
+    assert not fee.capped
+    assert fee.brokerage == Decimal("1000") * us_equity.BROKERAGE_RATE
+
+
+def test_gst_is_charged_on_top_of_the_cap() -> None:
+    """The cap is quoted excluding GST, so 18% lands on the capped figure."""
+    fee = us_equity.equity_fee(
+        price=Decimal("500"), quantity=Decimal("1000"), side=Side.BUY, day=PRICED_DAY
+    )
+    assert fee.gst == us_equity.BROKERAGE_CAP * us_equity.GST_RATE
+    assert fee.total == us_equity.BROKERAGE_CAP * (Decimal("1") + us_equity.GST_RATE)
+
+
+def test_buys_pay_brokerage_but_no_regulatory_fees() -> None:
+    """Both pass-throughs are assessed on sales; the broker charges both legs.
+
+    An earlier version asserted a buy was free, which was true of the clearing
+    cost and false of the bill. Alpaca is the data source here, not the broker
+    the account trades through.
+    """
     fee = us_equity.equity_fee(
         price=Decimal("500"), quantity=Decimal("200"), side=Side.BUY, day=PRICED_DAY
     )
-    assert fee.total == Decimal("0")
     assert fee.sec_fee == Decimal("0")
     assert fee.taf == Decimal("0")
+    assert fee.brokerage == us_equity.BROKERAGE_CAP
+    assert fee.total == fee.brokerage + fee.gst
 
 
-def test_sells_pay_sec_and_taf() -> None:
+def test_both_legs_pay_the_same_brokerage_and_nothing_else() -> None:
+    """Only the 0.25% is charged, by decision — see the module docstring.
+
+    The regulatory fees stay modelled and unused. They are worth $2.09 against
+    $500 of brokerage on this trade: leaving them out is 0.6% light on a number
+    that decides results by a factor of three.
+    """
     fee = us_equity.equity_fee(
         price=Decimal("500"), quantity=Decimal("200"), side=Side.SELL, day=PRICED_DAY
     )
-    # $100,000 notional at the fiscal-2026 rate of $20.60 per million.
-    assert fee.sec_fee == Decimal("100000") * us_equity.sec_rate(PRICED_DAY)
-    assert fee.taf == Decimal("200") * us_equity.TAF_PER_SHARE
-    assert fee.commission == Decimal("0")
+    assert fee.sec_fee == Decimal("0")
+    assert fee.taf == Decimal("0")
+    assert fee.brokerage == us_equity.BROKERAGE_CAP
+    assert fee.total == fee.brokerage + fee.gst
 
 
-def test_taf_is_capped() -> None:
-    """The cap binds on large size, which is why the fee is itemised."""
+def test_the_cap_is_absolute_however_large_the_trade() -> None:
+    """$10,000,000 of notional pays the same $25 as $10,000 does."""
     fee = us_equity.equity_fee(
         price=Decimal("10"), quantity=Decimal("1000000"), side=Side.SELL, day=PRICED_DAY
     )
-    assert fee.taf == us_equity.TAF_CAP
+    assert fee.brokerage == us_equity.BROKERAGE_CAP
 
 
-def test_round_trip_is_far_cheaper_than_delta() -> None:
-    """The comparison that reframes every crypto result in this repository.
+def test_us_is_cheaper_than_delta_at_the_size_this_engine_trades() -> None:
+    """This module has now claimed three different things, in order.
 
-    Not a tolerance check on a magic number: the point is the order of
-    magnitude. US friction is basis points of a basis point; Delta's is over a
-    tenth of a percent.
+    Regulatory fees only: 0.003%, "US is nearly free". Then 0.25% uncapped:
+    0.5%, "US is four times Delta and nothing survives". Then the $25 cap:
+    0.012% on a $500,000 position, a tenth of Delta.
+
+    Only the last is right, and the lesson is that a fee model missing its cap
+    is not conservative, it is wrong — here by a factor of fifty.
     """
     from eulerlab.costs.delta_exchange import round_trip_rate as delta_rate
 
     us_rate = us_equity.round_trip_rate(
-        price=Decimal("500"), quantity=Decimal("200"), day=PRICED_DAY
+        price=Decimal("500"), quantity=Decimal("1000"), day=PRICED_DAY
     )
-    assert us_rate < delta_rate() / 20
+    # Reversed once the cap was applied. At the size this engine trades, a US
+    # round trip is a *tenth* of Delta's, not four times it.
+    assert us_rate < delta_rate()
 
 
 def test_bracket_routes_us_away_from_the_indian_schedule() -> None:
@@ -73,15 +123,40 @@ def test_bracket_routes_us_away_from_the_indian_schedule() -> None:
     $3. If the branch is ever removed, this gap is what catches it.
     """
     day = dt.date(2026, 6, 15)
-    us_cost = bracket._cost(500.0, 200, Side.SELL, day, "us")
-    india_cost = bracket._cost(500.0, 200, Side.SELL, day, "equity")
-    assert us_cost < india_cost / 5
-    assert us_cost > 0
+
+    # The shape, not a threshold. India's charges are percentage-based all the
+    # way up; the US brokerage stops at $25. So the two are within sight of
+    # each other on a small trade and diverge without limit on a large one, and
+    # a routing bug would show as the gap failing to widen.
+    small_us = bracket._cost(500.0, 200, Side.SELL, day, "us")
+    small_in = bracket._cost(500.0, 200, Side.SELL, day, "equity")
+    big_us = bracket._cost(500.0, 4000, Side.SELL, day, "us")
+    big_in = bracket._cost(500.0, 4000, Side.SELL, day, "equity")
+
+    assert small_us > 0
+    assert small_us < small_in
+    assert big_us / big_in < small_us / small_in / 10
 
 
-def test_bracket_charges_us_buys_nothing() -> None:
+def test_bracket_charges_us_buys_the_broker_fee() -> None:
+    """A buy pays no SEC or FINRA fee and still costs 0.25%."""
     day = dt.date(2026, 6, 15)
-    assert bracket._cost(500.0, 200, Side.BUY, day, "us") == 0.0
+    cost = bracket._cost(500.0, 200, Side.BUY, day, "us")
+    assert cost == pytest.approx(25 * 1.18)
+
+
+def test_currency_conversion_is_not_charged_per_trade() -> None:
+    """It is a cost on moving capital, not on trading.
+
+    A strategy that funds an account once and trades it a hundred times pays
+    the markup twice, not two hundred times. Charging it per fill would inflate
+    an active strategy's costs by its own turnover.
+    """
+    fee = us_equity.equity_fee(
+        price=Decimal("500"), quantity=Decimal("1000"), side=Side.BUY, day=PRICED_DAY
+    )
+    lowest_markup = us_equity.FX_MARKUP_RANGE[0] * fee.notional
+    assert fee.total < lowest_markup
 
 
 def test_the_rate_steps_on_its_effective_date() -> None:
@@ -97,16 +172,14 @@ def test_the_rate_steps_on_its_effective_date() -> None:
     assert us_equity.sec_rate(dt.date(2026, 8, 20)) == Decimal("0.0000206")
 
 
-def test_a_zero_rate_still_charges_the_taf() -> None:
-    """Zero Section 31 is a real rate, not a missing one — the TAF is separate."""
-    fee = us_equity.equity_fee(
-        price=Decimal("500"),
-        quantity=Decimal("200"),
-        side=Side.SELL,
-        day=dt.date(2026, 2, 1),
-    )
-    assert fee.sec_fee == Decimal("0")
-    assert fee.taf > Decimal("0")
+def test_the_rate_schedule_still_works_though_nothing_charges_it() -> None:
+    """Kept because it was verified against the regulator and is costly to redo.
+
+    If the pass-throughs are ever switched back on, this is the part that has
+    to still be right.
+    """
+    assert us_equity.sec_rate(dt.date(2026, 4, 3)) == Decimal("0")
+    assert us_equity.sec_rate(dt.date(2026, 4, 4)) == Decimal("0.0000206")
 
 
 def test_dates_before_the_schedule_are_refused() -> None:

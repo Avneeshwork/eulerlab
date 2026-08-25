@@ -36,6 +36,12 @@ class AssetClass(StrEnum):
     OPTIONS = "options"
     CRYPTO = "crypto"
     FX = "fx"
+    US = "us"
+    """US equities, via Alpaca. A separate class from `EQUITY` rather than a
+    universe inside it: the two differ in currency, session, settlement and fee
+    schedule, and every one of those has already caused a wrong number when the
+    distinction was blurred — a QQQ trade charged Indian STT, a dollar result
+    labelled in rupees, an NSE session line under a US tab."""
     MUTUAL_FUND = "mutual_fund"
     """AMFI scheme NAVs, resampled to daily bars by `features/alt_panel`.
 
@@ -463,6 +469,12 @@ def _crypto_signals() -> dict[str, Declaration]:
             published=signal.published,
             tested_on=signal.source,
             recommended_class=AssetClass.CRYPTO.value,
+            # Resolved here as well as in `_paper_signals`, or a crypto signal
+            # with a real paper shows none. `par_deviation` cites Cohen (2023)
+            # and displayed no source for exactly this reason: the field was
+            # only ever populated on the other branch.
+            paper_url=paper_url(f"[{signal.provenance}] {signal.source}"),
+            paper_pdf=paper_pdf(f"[{signal.provenance}] {signal.source}"),
             logic=list(signal.logic),
         )
         for signal in CRYPTO_SIGNALS.values()

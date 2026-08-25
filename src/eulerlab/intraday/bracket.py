@@ -79,8 +79,19 @@ class Trade:
         return self.net_pnl() / risked if risked > 0 else 0.0
 
 
-def _cost(price: float, shares: int, side: Side, day: date, asset_class: str = "equity") -> float:
+def _cost(price: float, shares: int, side: Side, day: date, asset_class: str) -> float:
     """What one fill costs, on the venue it would actually trade on.
+
+    `asset_class` has **no default**, deliberately. It had one, `"equity"`, and
+    two of the six call sites in this file forgot to pass it — the target-1 and
+    target-2 exits, which are the *winning* legs and the most common ones. So
+    every profitable exit on every venue was billed Indian STT, SEBI turnover
+    and stamp duty, while the entry and the stop were billed correctly. A US
+    sell that should have cost $10 cost $167, and the error was invisible
+    because the number it produced was plausible.
+
+    Without a default, a missed call site is a TypeError at import rather than
+    a wrong number at the end of a backtest.
 
     The segment used to be hardcoded to `EQUITY_INTRADAY`, which meant a crypto
     backtest was charged STT, SEBI turnover fees, stamp duty and GST on
@@ -209,7 +220,7 @@ def run(
         if remaining_1 > 0 and candle.high >= plan.target_1:
             fill = max(plan.target_1, candle.open)
             trade.exits.append(Exit(candle.ts, fill, remaining_1, "target 1"))
-            trade.costs += _cost(fill, remaining_1, Side.SELL, day)
+            trade.costs += _cost(fill, remaining_1, Side.SELL, day, asset_class)
             remaining_1 = 0
             if not breakeven_done:
                 stop = max(stop, trade.entry_price)
@@ -218,7 +229,7 @@ def run(
         if remaining_2 > 0 and candle.high >= plan.target_2:
             fill = max(plan.target_2, candle.open)
             trade.exits.append(Exit(candle.ts, fill, remaining_2, "target 2"))
-            trade.costs += _cost(fill, remaining_2, Side.SELL, day)
+            trade.costs += _cost(fill, remaining_2, Side.SELL, day, asset_class)
             remaining_2 = 0
             break
 

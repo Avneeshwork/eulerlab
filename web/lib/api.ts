@@ -20,6 +20,44 @@ export type Provider = {
   is_default: boolean;
 };
 
+/** A strategy run once on the parameters it actually uses, on the market its
+ *  paper tested. For a swept strategy this is the result the library shows —
+ *  `FleetStrategy.result` is the daily engine's, which for an intraday signal
+ *  is a stale run on a different market with the published parameters. */
+export type AdoptedResult = {
+  strategy_id: string;
+  symbol: string;
+  market: string;
+  start: string;
+  end: string;
+  params: Record<string, number>;
+  adopted: boolean;
+  net_pnl: number;
+  gross_pnl: number;
+  costs: number;
+  fills: number;
+  wins: number;
+  sessions: number;
+  sharpe: number | null;
+  /** Cumulative P&L by session, starting at zero. Includes flat days, so the
+   *  line does not compress time for a signal that rarely fires. */
+  curve: number[];
+  max_drawdown: number;
+  best_session: number;
+  worst_session: number;
+  exits: Record<string, number>;
+  rejections: Record<string, number>;
+  at: string;
+};
+
+export type OptimizeSetting = {
+  params: Record<string, number>;
+  net_pnl: number;
+  fills: number;
+  wins: number;
+  sessions: number;
+};
+
 export type OptimizeRow = {
   strategy_id: string;
   title: string;
@@ -36,6 +74,9 @@ export type OptimizeRow = {
   win_rate: number;
   sessions: number;
   best_params: Record<string, number>;
+  // Every setting tried, not just the winner — the grid is what shows whether
+  // the best was a peak or a plateau.
+  settings: OptimizeSetting[];
   error: string;
   profitable: boolean;
   beats_its_median_by: number;
@@ -54,6 +95,8 @@ export type Optimize = {
   // A dry run produces identical numbers and spends no trials, so the flag has
   // to reach the screen: a figure from a dry run is not in the ledger.
   dry_run?: boolean;
+  // False while a sweep is still running. Partial results are shown, labelled.
+  complete?: boolean;
   trials_before?: number;
   trials_after?: number;
   required_t?: number;
@@ -180,6 +223,9 @@ export type StrategyResult = {
 };
 
 export type FleetStrategy = {
+  /** The run on the parameters this strategy actually uses. Null when no
+   *  recorded sweep has covered it. */
+  adopted?: AdoptedResult | null;
   id: string;
   title: string;
   summary: string;
@@ -209,6 +255,10 @@ export type FleetStrategy = {
 
 export type Fleet = {
   bar: number;
+  /** The count the bar was actually computed from — both ledgers summed. Not
+   *  the same as summing each strategy's own trial count, which is what the
+   *  header used to show beside a bar derived from a much larger number. */
+  bar_trials: number;
   bar_sigma_measured: boolean;
   bar_note: string;
   strategies: FleetStrategy[];
@@ -436,6 +486,26 @@ export type Explain = {
     paper_url?: string;
     /** API path serving the fetched PDF, empty when it is not downloaded. */
     paper_pdf?: string;
+    /** What a recorded sweep changed, if anything. Null means no recorded sweep
+     *  has covered this strategy — a different fact from a sweep that ran and
+     *  found nothing worth adopting, which returns a record with adopted:false. */
+    tuning?: {
+      adopted: boolean;
+      reason: string;
+      symbol: string;
+      market: string;
+      swept_at: string;
+      candidates: number;
+      fills: number;
+      sessions: number;
+      best_pnl: number;
+      median_pnl: number;
+      tail_share: number;
+      changed: { name: string; paper: number; adopted: number }[];
+      params: Record<string, number>;
+      paper_params: Record<string, number>;
+      caveat: string;
+    } | null;
     recommended_class: string;
     logic: string[];
     example: {

@@ -87,6 +87,58 @@ def market_for(declaration: object) -> tuple[str, str]:
     return market, SYMBOL_OVERRIDE.get(strategy_id, SYMBOL_FOR[market])
 
 
+def _write(
+    sweeps: list[optimize.Sweep],
+    *,
+    before: int,
+    after: int,
+    start: dt.date,
+    end: dt.date,
+    record: bool,
+    skipped: list[str],
+    run_id: str,
+    complete: bool,
+) -> None:
+    """Persist what has been swept so far. Safe to call after every strategy."""
+    optimize_store.record(
+        [
+            optimize_store.Row(
+                strategy_id=sweep.strategy_id,
+                market=sweep.asset_class,
+                symbol=sweep.symbol,
+                candidates=len(sweep.candidates),
+                best_pnl=sweep.best.net_pnl if sweep.best else 0.0,
+                median_pnl=sweep.median_pnl,
+                fills=sweep.best.fills if sweep.best else 0,
+                win_rate=sweep.best.win_rate if sweep.best else 0.0,
+                sessions=sweep.best.sessions if sweep.best else 0,
+                best_params=dict(sweep.best.params) if sweep.best else {},
+                settings=[
+                    optimize_store.Setting(
+                        params=dict(candidate.params),
+                        net_pnl=candidate.net_pnl,
+                        fills=candidate.fills,
+                        wins=candidate.wins,
+                        sessions=candidate.sessions,
+                    )
+                    for candidate in sweep.candidates
+                ],
+                error=sweep.error,
+            )
+            for sweep in sweeps
+        ],
+        trials_before=before,
+        trials_after=after,
+        required_t=sweeps[-1].required_t if sweeps else 0.0,
+        start=start.isoformat(),
+        end=end.isoformat(),
+        dry_run=not record,
+        skipped=skipped,
+        run_id=run_id,
+        complete=complete,
+    )
+
+
 def run(
     strategy_ids: Sequence[str],
     *,
@@ -106,6 +158,7 @@ def run(
 
     from eulerlab.intraday.paper_scan import ALL_SIGNALS
 
+    run_id = f"{dt.datetime.now(dt.UTC).isoformat()}-{'dry' if not record else 'rec'}"
     out: list[optimize.Sweep] = []
     skipped: list[str] = []
     for strategy_id in strategy_ids:
@@ -142,35 +195,32 @@ def run(
             flush=True,
         )
 
-    after = trials.count()
+        # Written now, not at the end. A half-hour sweep that only writes on
+        # completion loses every finished strategy to one interruption, which
+        # has happened three times.
+        _write(
+            out,
+            before=before,
+            after=trials.count(),
+            start=start,
+            end=end,
+            record=record,
+            skipped=skipped,
+            run_id=run_id,
+            complete=False,
+        )
 
-    # Written before the summary is printed, so an interrupted run still leaves
-    # the rows it finished. A sweep whose results exist only in scrollback
-    # invites the one thing that must not be casual here — running it again.
-    optimize_store.record(
-        [
-            optimize_store.Row(
-                strategy_id=sweep.strategy_id,
-                market=sweep.asset_class,
-                symbol=sweep.symbol,
-                candidates=len(sweep.candidates),
-                best_pnl=sweep.best.net_pnl if sweep.best else 0.0,
-                median_pnl=sweep.median_pnl,
-                fills=sweep.best.fills if sweep.best else 0,
-                win_rate=sweep.best.win_rate if sweep.best else 0.0,
-                sessions=sweep.best.sessions if sweep.best else 0,
-                best_params=dict(sweep.best.params) if sweep.best else {},
-                error=sweep.error,
-            )
-            for sweep in out
-        ],
-        trials_before=before,
-        trials_after=after,
-        required_t=out[-1].required_t if out else 0.0,
-        start=start.isoformat(),
-        end=end.isoformat(),
-        dry_run=not record,
+    after = trials.count()
+    _write(
+        out,
+        before=before,
+        after=after,
+        start=start,
+        end=end,
+        record=record,
         skipped=skipped,
+        run_id=run_id,
+        complete=True,
     )
 
     print("-" * 80)
