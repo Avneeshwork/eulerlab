@@ -289,6 +289,10 @@ daily:
 	-uv run python -m eulerlab.ingest.news
 	@echo "== index levels, movers, sectors =="
 	-uv run python -m eulerlab.indices
+	@echo "== US bars, actions, news =="
+	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars(s, start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
+	@echo "== US panel =="
+	-$(MAKE) --no-print-directory build-us-panel
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
 	@echo "== price panel =="
@@ -360,6 +364,12 @@ us-minute:
 # agree within 0.026% on daily closes against a 0.118% round-trip fee.
 delta-candles:
 	@uv run python -c "from eulerlab.ingest import delta; n,e=delta.land_candles(); print(f'{n:,} rows {e}')"
+
+# The derived US panel the snapshot reads. Built once from the landed bars —
+# 36,446 monthly files live in B2, and touching them per request is the
+# mistake this platform has made twice already.
+build-us-panel:
+	@uv run python -m eulerlab.features.us_panel
 
 us-actions:
 	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); n,e=alpaca.land_actions(s, start='2016-01-01'); print(f'{n:,} rows {e}')"
