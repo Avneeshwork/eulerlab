@@ -381,15 +381,38 @@ def land_sp500(*, root: Path = LANDING) -> tuple[int, str]:
     return len(rows), error
 
 
-def sp500_symbols(*, root: Path = LANDING) -> list[str]:
-    """Symbols from the newest landed snapshot."""
+def sp500_symbols(*, root: Path = LANDING, allow_cloud: bool = True) -> list[str]:
+    """Symbols from the newest landed snapshot, disk or bucket.
+
+    Reads the bucket too. The local-only version returned an empty list the
+    moment `prune-local` moved the snapshot to B2, and every caller treated
+    empty as "no work to do" — `land_actions` exited on `if not symbols` and
+    **reported success having fetched nothing**.
+
+    That is the fourth reader in this codebase written against the disk alone,
+    after the catalog, `crypto_daily` and `indices.load`. Each one works right
+    up until the prune, which is the step that proves the data is safe.
+    """
     folder = root / "sp500"
     files = sorted(folder.glob("????-??-??.jsonl.gz")) if folder.exists() else []
-    if not files:
-        return []
+
+    payloads: list[bytes] = []
+    if files:
+        payloads.append(files[-1].read_bytes())
+    elif allow_cloud:
+        from eulerlab.ingest import landing_reader
+
+        remote = sorted(landing_reader.available("us", "sp500/*.jsonl.gz"))
+        if remote:
+            try:
+                payloads.append(landing_reader.read(remote[-1]))
+            except (OSError, ValueError):
+                return []
+
     out: list[str] = []
-    with gzip.open(files[-1], "rt", encoding="utf-8") as handle:
-        for line in handle:
+    for payload in payloads:
+        text = gzip.decompress(payload).decode("utf-8", errors="replace")
+        for line in text.splitlines():
             if line.strip():
                 try:
                     out.append(str(json.loads(line)["symbol"]))
@@ -504,3 +527,145 @@ def land_minute(
                 touched = True
             written += int(touched)
     return written, new, ""
+
+
+ACTION_TYPES = "cash_dividend,forward_split,reverse_split"
+"""What the panel's adjustment cares about, and what the endpoint accepts.
+
+Dividends and splits move a price series without anything happening to the
+company, which is precisely the distortion a back-adjustment exists to undo.
+`merger` and `spinoff` were in this list and the endpoint answers **400** for
+them — not an empty result, a rejection, so the whole request failed.
+"""
+
+
+def land_actions(
+    symbols: list[str], *, start: str, end: str = "", root: Path = LANDING
+) -> tuple[int, str]:
+    """Land corporate actions. Returns (rows written, error).
+
+    These are what the equity panel currently **infers**. A back-adjusted
+    series is built by detecting a jump and assuming a split or dividend
+    caused it; this is the record of what actually happened, which is a
+    different and better thing to adjust against.
+
+    Landed by `process_date` month, not `ex_date`: the file a row belongs to
+    should not move when an exchange corrects a date after the fact.
+    """
+    if not symbols:
+        return 0, ""
+
+    stamp = datetime.now(UTC).isoformat()
+    written = 0
+    for index in range(0, len(symbols), BAR_BATCH):
+        batch = symbols[index : index + BAR_BATCH]
+        query = urllib.parse.urlencode(
+            {
+                "symbols": ",".join(batch),
+                "types": ACTION_TYPES,
+                "start": start,
+                "limit": 1000,
+                **({"end": end} if end else {}),
+            }
+        )
+        token = ""
+        rows: list[dict[str, object]] = []
+        while True:
+            url = f"{DATA}/v1/corporate-actions?{query}"
+            if token:
+                url += f"&page_token={urllib.parse.quote(token)}"
+            try:
+                page = _get(url)
+            except Exception as exc:
+                return written, f"{type(exc).__name__}: {str(exc)[:110]}"
+
+            actions = page.get("corporate_actions")
+            if isinstance(actions, dict):
+                for kind, entries in actions.items():
+                    if not isinstance(entries, list):
+                        continue
+                    for entry in entries:
+                        if not isinstance(entry, dict):
+                            continue
+                        rows.append(
+                            {
+                                **entry,
+                                "action_type": str(kind),
+                                "knowledge_time": stamp,
+                            }
+                        )
+            nxt = page.get("next_page_token")
+            if not isinstance(nxt, str) or not nxt:
+                break
+            token = nxt
+
+        by_month: dict[str, list[dict[str, object]]] = {}
+        for row in rows:
+            when = str(row.get("process_date") or row.get("ex_date") or "")[:7]
+            if when:
+                by_month.setdefault(when, []).append(row)
+        for month, month_rows in sorted(by_month.items()):
+            path = root / "actions" / f"{month}.jsonl.gz"
+            _, added = _merge(path, month_rows, "id")
+            written += added
+    return written, ""
+
+
+def land_news(
+    symbols: list[str], *, start: str, limit: int = 50, root: Path = LANDING
+) -> tuple[int, str]:
+    """Land US news. Returns (rows written, error).
+
+    Free here, and **402 on FMP's every news endpoint**. It carries the article
+    body and publisher-assigned tickers, where the Google News layer this
+    platform already runs has headlines only and must infer relevance from the
+    title. For US listings this is strictly better data; it does not replace
+    Google News, which covers NSE.
+    """
+    if not symbols:
+        return 0, ""
+
+    stamp = datetime.now(UTC).isoformat()
+    written = 0
+    for index in range(0, len(symbols), 50):
+        batch = symbols[index : index + 50]
+        query = urllib.parse.urlencode(
+            {"symbols": ",".join(batch), "start": start, "limit": limit, "sort": "desc"}
+        )
+        try:
+            page = _get(f"{DATA}/v1beta1/news?{query}")
+        except Exception as exc:
+            return written, f"{type(exc).__name__}: {str(exc)[:110]}"
+
+        rows: list[dict[str, object]] = []
+        entries = page.get("news")
+        for entry in entries if isinstance(entries, list) else []:
+            if not isinstance(entry, dict):
+                continue
+            when = str(entry.get("created_at", ""))
+            if not when:
+                continue
+            rows.append(
+                {
+                    "id": str(entry.get("id", "")),
+                    "headline": str(entry.get("headline", "")),
+                    "summary": str(entry.get("summary", ""))[:2000],
+                    "source": str(entry.get("source", "")),
+                    "author": str(entry.get("author", "")),
+                    "symbols": [str(x) for x in (entry.get("symbols") or [])],
+                    "event_time": when,
+                    # When we pulled it, not when it was published. Backdating
+                    # knowledge to the publish stamp is the leak the read API
+                    # exists to prevent.
+                    "knowledge_time": stamp,
+                }
+            )
+
+        by_month: dict[str, list[dict[str, object]]] = {}
+        for row in rows:
+            by_month.setdefault(str(row["event_time"])[:7], []).append(row)
+        for month, month_rows in sorted(by_month.items()):
+            path = root / "news" / f"{month}.jsonl.gz"
+            _, added = _merge(path, month_rows, "id")
+            written += added
+    return written, ""

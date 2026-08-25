@@ -52,6 +52,9 @@ TREES: tuple[tuple[str, str, str], ...] = (
     ("us/bars", "us", "bars/*/*.jsonl.gz"),
     ("us/minute", "us", "minute/*/*.jsonl.gz"),
     ("us/sp500", "us", "sp500/*.jsonl.gz"),
+    ("us/actions", "us", "actions/*.jsonl.gz"),
+    ("us/news", "us", "news/*.jsonl.gz"),
+    ("delta", "delta", "candles/*/*.jsonl.gz"),
 )
 """(key, tree, pattern) for each census entry.
 

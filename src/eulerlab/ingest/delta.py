@@ -172,3 +172,92 @@ def candles(
         )
     out.sort(key=lambda c: c["time"])
     return out, ""
+
+
+LANDING = __import__("pathlib").Path("data/landing/delta")
+
+
+def candles_path(symbol: str, month: str, *, root: object = None) -> object:
+    from pathlib import Path
+
+    base = root if root is not None else LANDING
+    return Path(str(base)) / "candles" / symbol / f"{month}.jsonl.gz"
+
+
+def land_candles(
+    symbols: tuple[tuple[str, str], ...] = MAJORS,
+    *,
+    resolution: str = "1d",
+    days: int = 900,
+    root: object = None,
+) -> tuple[int, str]:
+    """Land Delta's own candles. Returns (rows written, error).
+
+    Worth holding even though the venue difference turned out immaterial:
+    measured 2026-08-25, Delta's BTCUSD perpetual and Binance's BTCUSDT spot
+    agree within **0.026%** on daily closes, against a round-trip fee of
+    0.118% — four times larger. So the Binance archive is a fair proxy for
+    backtesting, and this is the venue's own record for anything that needs
+    the actual traded price rather than a close proxy.
+
+    Daily by default. Delta serves 1m through 1d, and a minute archive here
+    would duplicate the Binance one at four times the storage for a difference
+    smaller than the spread.
+    """
+    import gzip
+    import json
+    import time
+    from pathlib import Path
+
+    base = Path(str(root)) if root is not None else LANDING
+    now = int(time.time())
+    written = 0
+
+    for symbol, _name in symbols:
+        rows, error = candles(symbol, resolution=resolution, start=now - 86400 * days, end=now)
+        if error:
+            return written, error
+        if not rows:
+            continue
+
+        stamp = datetime.now(UTC).isoformat()
+        by_month: dict[str, list[dict[str, object]]] = {}
+        for row in rows:
+            when = datetime.fromtimestamp(row["time"], UTC)
+            by_month.setdefault(when.strftime("%Y-%m"), []).append(
+                {
+                    "symbol": symbol,
+                    "event_time": when.isoformat(),
+                    "open": row["open"],
+                    "high": row["high"],
+                    "low": row["low"],
+                    "close": row["close"],
+                    "volume": row["volume"],
+                    "venue": "delta",
+                    "knowledge_time": stamp,
+                }
+            )
+
+        for month, month_rows in sorted(by_month.items()):
+            path = base / "candles" / symbol / f"{month}.jsonl.gz"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            existing: dict[str, dict[str, object]] = {}
+            if path.exists():
+                with gzip.open(path, "rt", encoding="utf-8") as handle:
+                    for line in handle:
+                        if line.strip():
+                            try:
+                                old = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            existing[str(old.get("event_time", ""))] = old
+            before = len(existing)
+            for row_out in month_rows:
+                existing[str(row_out["event_time"])] = row_out
+            tmp = path.with_suffix(".partial")
+            with gzip.open(tmp, "wt", encoding="utf-8") as handle:
+                for row_out in sorted(existing.values(), key=lambda r: str(r["event_time"])):
+                    handle.write(json.dumps(row_out) + "\n")
+            tmp.replace(path)
+            written += len(existing) - before
+    return written, ""

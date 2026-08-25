@@ -2547,6 +2547,100 @@ whole day's allowance in under half an hour of page reloads.
 _WORLD: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
+_US_TTL = 300.0
+_US_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _us_band() -> dict[str, Any]:
+    """Breadth, movers and a sector map for the US, from our own bars.
+
+    The US tab has shown a quote ribbon and a sector-average strip since it
+    existed, because there was no US price panel to compute anything from.
+    There is now — 502 symbols of Alpaca daily bars — so this is the same
+    shape the India view has: a count of advancers and decliners, the biggest
+    moves, and a map grouped by sector.
+
+    Reads the derived panel, never the landing zone. 36,446 monthly files live
+    in B2 and touching them per request is the mistake this platform has made
+    twice already.
+    """
+    cached = _US_CACHE.get("band")
+    if cached is not None and time.monotonic() - cached[0] < _US_TTL:
+        return cached[1]
+
+    from eulerlab.features import us_panel
+
+    rows = us_panel.read()
+    if not rows:
+        return {
+            "available": False,
+            "reason": "no US panel built — run `make build-us-panel`",
+            "movers": {"gainers": [], "losers": []},
+            "tiles": [],
+        }
+
+    days = sorted({r.day for r in rows})
+    if len(days) < 2:
+        return {
+            "available": False,
+            "reason": f"only {len(days)} day(s) in the US panel",
+            "movers": {"gainers": [], "losers": []},
+            "tiles": [],
+        }
+
+    today, prior = days[-1], days[-2]
+    by_day: dict[date, dict[str, Any]] = {}
+    for row in rows:
+        if row.day in (today, prior):
+            by_day.setdefault(row.day, {})[row.symbol] = row
+
+    current, previous = by_day.get(today, {}), by_day.get(prior, {})
+    sector_of = us_panel.sectors()
+
+    tiles: list[dict[str, Any]] = []
+    for symbol, row in current.items():
+        was = previous.get(symbol)
+        if was is None or was.close <= 0:
+            continue
+        tiles.append(
+            {
+                "symbol": symbol,
+                "return": row.close / was.close - 1.0,
+                "close": round(row.close, 2),
+                "turnover": row.turnover,
+                "sector": sector_of.get(symbol, ""),
+                "relative_volume": None,
+            }
+        )
+
+    up = sum(1 for t in tiles if t["return"] > 0)
+    down = sum(1 for t in tiles if t["return"] < 0)
+    ranked = sorted(tiles, key=lambda t: -float(t["return"]))
+
+    band = {
+        "available": True,
+        "as_of": today.isoformat(),
+        "previous": prior.isoformat(),
+        "advancers": up,
+        "decliners": down,
+        "unchanged": len(tiles) - up - down,
+        # Equal-weighted, and said so. There is no index in this panel either,
+        # so this is the average S&P constituent rather than the cap-weighted
+        # benchmark — a different number, and the more honest one for breadth.
+        "proxy_return": (sum(float(t["return"]) for t in tiles) / len(tiles) if tiles else 0.0),
+        "movers": {
+            "gainers": ranked[:SNAPSHOT_MOVERS],
+            "losers": ranked[-SNAPSHOT_MOVERS:][::-1],
+        },
+        "tiles": ranked,
+        "symbols": len(tiles),
+        "sectors_known": sum(1 for t in tiles if t["sector"]),
+        "source": "alpaca daily bars",
+    }
+    _US_CACHE["band"] = (time.monotonic(), band)
+    return band
+
+
 def _world_band() -> dict[str, Any]:
     """Index levels, movers and sectors — read from the landed sweep.
 
@@ -3030,6 +3124,7 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "unusual_volume": unusual[:SNAPSHOT_MOVERS],
         },
         "world": _world_band(),
+        "us": _us_band(),
         "quotes": _quotes_band(
             [str(t["symbol"]) for t in [*by_move[:SNAPSHOT_MOVERS], *by_move[-SNAPSHOT_MOVERS:]]]
         ),

@@ -355,6 +355,18 @@ us-bars:
 us-minute:
 	@uv run python -m eulerlab.ingest.us_minute $(if $(LIMIT),--limit $(LIMIT),) $(if $(FROM),--start $(FROM),) $(if $(BATCH),--batch $(BATCH),)
 
+# Delta's own candles. Held even though the venue difference is immaterial —
+# measured 2026-08-25, Delta's BTCUSD perpetual and Binance's BTCUSDT spot
+# agree within 0.026% on daily closes against a 0.118% round-trip fee.
+delta-candles:
+	@uv run python -c "from eulerlab.ingest import delta; n,e=delta.land_candles(); print(f'{n:,} rows {e}')"
+
+us-actions:
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); n,e=alpaca.land_actions(s, start='2016-01-01'); print(f'{n:,} rows {e}')"
+
+us-news:
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); n,e=alpaca.land_news(s, start='2026-06-01'); print(f'{n:,} rows {e}')"
+
 world:
 	@uv run python -m eulerlab.indices
 
