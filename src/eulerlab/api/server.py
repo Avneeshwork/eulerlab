@@ -2100,6 +2100,41 @@ def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[s
     }
 
 
+@app.get("/api/paper/{strategy_id}")
+def paper(strategy_id: str) -> Any:
+    """The source PDF for one strategy, when it has been fetched.
+
+    404 when the file is absent, which is the normal state: the PDFs are
+    deliberately uncommitted — arXiv is a permanent archive and a 1.1 MB binary
+    in git buys nothing one request does not — so
+    `docs/RESEARCH/papers/fetch.sh` populates them and a fresh checkout has
+    none. The message says which, so a reader is not left wondering whether
+    the paper exists or the link is broken.
+    """
+    from fastapi.responses import FileResponse, JSONResponse
+
+    from eulerlab.strategies import REGISTRY
+
+    declaration = REGISTRY.get(strategy_id)
+    if declaration is None or not declaration.paper_pdf:
+        return JSONResponse(
+            {"ok": False, "error": f"no paper recorded for {strategy_id}"}, status_code=404
+        )
+    path = Path(declaration.paper_pdf)
+    if not path.exists():
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": (
+                    f"{path.name} is not fetched. Run "
+                    "`docs/RESEARCH/papers/fetch.sh` to download it."
+                ),
+            },
+            status_code=404,
+        )
+    return FileResponse(path, media_type="application/pdf", filename=path.name)
+
+
 @app.get("/api/data")
 def data_status() -> dict[str, Any]:
     """What data is on disk, counted rather than claimed.
@@ -2360,6 +2395,11 @@ def explain(strategy: str = "") -> dict[str, Any]:
             "published": declaration.published,
             "tested_on": declaration.tested_on,
             "recommended_class": declaration.recommended_class,
+            "paper_url": declaration.paper_url,
+            # Served rather than linked as a file path: the browser cannot open
+            # a repo-relative path, and a link that does nothing is worse than
+            # none because it looks like provenance was provided.
+            "paper_pdf": (f"/api/paper/{declaration.id}" if declaration.paper_pdf else ""),
             "logic": list(declaration.logic),
             "example": _worked_example(declaration),
             "runs_here": len(runs),

@@ -129,6 +129,8 @@ class PaperSignal:
 
     detect: Detect
 
+    paper_url: str = ""
+    paper_pdf: str = ""
     tested_on: str = ""
     """The instrument and market the **paper** tested, in its own words.
 

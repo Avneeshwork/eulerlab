@@ -390,6 +390,11 @@ export type Explain = {
     // signal here was published against MNQ futures or US equities and runs on
     // NSE minute bars.
     tested_on: string;
+    /** Where the source can be read. A citation says what to look for; a link
+     *  is what a reader actually follows. */
+    paper_url?: string;
+    /** API path serving the fetched PDF, empty when it is not downloaded. */
+    paper_pdf?: string;
     recommended_class: string;
     logic: string[];
     example: {

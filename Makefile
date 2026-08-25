@@ -368,6 +368,16 @@ delta-candles:
 # The derived US panel the snapshot reads. Built once from the landed bars —
 # 36,446 monthly files live in B2, and touching them per request is the
 # mistake this platform has made twice already.
+# Sweep every strategy on the market its paper tested. NOT in `daily`: every
+# configuration evaluated is permanent and raises the deflated-Sharpe bar for
+# every result this platform will ever produce, so it runs when an operator
+# asks for it and never on a timer.
+#
+#   make optimize DRY=1        evaluate without spending trials
+#   make optimize ONLY=orb_breakout
+optimize:
+	@uv run python -m eulerlab.optimize_run $(if $(DRY),--dry-run,) $(if $(ONLY),--only $(ONLY),) $(if $(FROM),--start $(FROM),) $(if $(TO),--end $(TO),)
+
 build-us-panel:
 	@uv run python -m eulerlab.features.us_panel
 

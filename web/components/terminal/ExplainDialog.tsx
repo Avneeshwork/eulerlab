@@ -91,6 +91,25 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
               <h3>Where this comes from</h3>
               <div className="paper">
                 <b>{about.source}</b>
+                {/* The link and the PDF are separate affordances on purpose:
+                    the URL always resolves, the PDF only exists once
+                    docs/RESEARCH/papers/fetch.sh has run, and offering a
+                    download that 404s reads as broken provenance rather than
+                    as a file nobody fetched yet. */}
+                {(about.paper_url || about.paper_pdf) && (
+                  <p className="paperlinks">
+                    {about.paper_url && (
+                      <a href={about.paper_url} target="_blank" rel="noreferrer">
+                        Read the paper ↗
+                      </a>
+                    )}
+                    {about.paper_pdf && (
+                      <a href={about.paper_pdf} target="_blank" rel="noreferrer">
+                        PDF ↓
+                      </a>
+                    )}
+                  </p>
+                )}
                 {about.tested_on && (
                   <p>
                     <span>Tested on:</span> {about.tested_on}

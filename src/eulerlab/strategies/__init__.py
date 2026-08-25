@@ -120,6 +120,17 @@ class Declaration:
     without the prior it is arguing against — which matters most when the prior
     is a published failure."""
 
+    paper_url: str = ""
+    """Where the source can be read. A citation says what to look for; a link
+    is what a reader actually follows, and the difference decides whether the
+    provenance is checked or taken on trust."""
+
+    paper_pdf: str = ""
+    """Repo-relative path to the fetched PDF, when `docs/RESEARCH/papers/fetch.sh`
+    has run. Empty is the normal state — the PDFs are deliberately not committed,
+    because arXiv is a permanent archive and a 1.1 MB binary in git buys nothing
+    a single request does not."""
+
     tested_on: str = ""
     """The instrument and market the source paper tested, in its own words.
 
@@ -300,6 +311,51 @@ REGISTRY: dict[str, Declaration] = {
 }
 
 
+PAPERS: dict[str, tuple[str, str]] = {
+    # citation prefix -> (url, repo-relative pdf)
+    "Mesfin (2026) arXiv:2605.04004": (
+        "https://arxiv.org/abs/2605.04004",
+        "docs/RESEARCH/papers/mesfin-2026-arxiv-2605.04004-intraday-falsification.pdf",
+    ),
+    "Zarattini": (
+        "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4729284",
+        "",
+    ),
+    "Cohen (2023)": (
+        "https://www.aimspress.com/article/doi/10.3934/math.2023419",
+        "",
+    ),
+}
+"""Where each cited source can actually be read.
+
+Matched on the citation's prefix rather than stored per signal, because
+seventeen signals cite six sections of one paper and repeating the URL
+seventeen times is seventeen chances for one of them to drift.
+
+The PDF path is empty where the file is not fetchable by script — SSRN answers
+403 — and empty is the honest value. `docs/RESEARCH/papers/fetch.sh` populates
+what it can; the PDFs are deliberately uncommitted.
+"""
+
+
+def paper_url(source: str) -> str:
+    """The link for a citation, or empty when the source is not a paper."""
+    for prefix, (url, _pdf) in PAPERS.items():
+        if source.startswith(prefix):
+            return url
+    return ""
+
+
+def paper_pdf(source: str) -> str:
+    """The local PDF for a citation, if one has been fetched."""
+    from pathlib import Path
+
+    for prefix, (_url, pdf) in PAPERS.items():
+        if source.startswith(prefix) and pdf and Path(pdf).exists():
+            return pdf
+    return ""
+
+
 def _paper_signals() -> dict[str, Declaration]:
     """Declarations for the intraday signals coded from published papers.
 
@@ -332,6 +388,8 @@ def _paper_signals() -> dict[str, Declaration]:
             tested_on=signal.tested_on,
             recommended_class=signal.recommended_class,
             logic=list(signal.logic),
+            paper_url=paper_url(signal.source),
+            paper_pdf=paper_pdf(signal.source),
         )
         for signal in SIGNALS.values()
     }
