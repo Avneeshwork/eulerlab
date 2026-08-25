@@ -79,12 +79,21 @@ def build(*, years: float = 2.0, path: Path = PANEL_PATH) -> tuple[int, int]:
 
     rows: list[UsRow] = []
     symbols: set[str] = set()
+    missed: list[str] = []
     for relative in sorted(relevant):
         try:
             payload = gzip.decompress(landing_reader.read(relative))
-        except (OSError, ValueError, FileNotFoundError):
+        except Exception:
+            # Broad on purpose. The narrow version caught OSError, ValueError
+            # and FileNotFoundError, and botocore raises
+            # `EndpointConnectionError`, which is none of them — so a single
+            # transient network blip killed an hour-long build at symbol 280 of
+            # 502 and lost every file it had already fetched.
+            #
             # A month that cannot be read is absent from the panel, which shows
-            # up in the count. Half-parsing it would not.
+            # up in the row count. One unreadable file must not cost the other
+            # twelve thousand.
+            missed.append(relative)
             continue
         for line in payload.decode("utf-8", errors="replace").splitlines():
             if not line.strip():
@@ -130,6 +139,11 @@ def build(*, years: float = 2.0, path: Path = PANEL_PATH) -> tuple[int, int]:
                 + "\n"
             )
     tmp.replace(path)
+    if missed:
+        # Reported, not swallowed. A build that skipped four hundred files is
+        # a different thing from one that skipped none, and the row count
+        # alone does not distinguish them.
+        print(f"  {len(missed)} file(s) unreadable, e.g. {missed[:2]}")
     return len(rows), len(symbols)
 
 

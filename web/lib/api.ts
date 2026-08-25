@@ -527,6 +527,21 @@ export type Snapshot = {
     panel_date: string;
     reason?: string;
   };
+  us?: {
+    available: boolean;
+    reason?: string;
+    as_of?: string;
+    previous?: string;
+    advancers?: number;
+    decliners?: number;
+    unchanged?: number;
+    proxy_return?: number;
+    movers: { gainers: Tile[]; losers: Tile[] };
+    tiles: Tile[];
+    symbols?: number;
+    sectors_known?: number;
+    source?: string;
+  };
   world: {
     available: boolean;
     india: IndexLevel[];

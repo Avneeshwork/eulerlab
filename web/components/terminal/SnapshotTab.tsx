@@ -462,7 +462,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       ) : (
         <p className="tfine mktgap">
           {market === 'US'
-            ? 'No session line for the US: breadth, volatility and the equal-weighted proxy are all computed from the NSE panel, and this platform holds no US price panel to compute them from. The indices and sectors above are quotes, not a panel.'
+            ? snap.us?.available
+              ? ''
+              : `No session line for the US yet: ${snap.us?.reason ?? 'no US panel built'}. The indices and sectors above are quotes, not a panel.`
             : market === 'CRYPTO'
               ? 'No session line for crypto: breadth needs a population to count advancers in, and six majors is not one. The 1-minute archive underneath covers 20 pairs — enough to backtest against, not enough to call a market.'
               : 'No session line for FX: a currency pair has no advancers and decliners, and volatility here would describe six quotes rather than a market. The 1-minute archive underneath covers 10 pairs with bid and ask.'}
@@ -507,6 +509,96 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           </p>
         )}
       </section>
+      )}
+
+      {/* --- band 1-US: the session, from our own bars ----------------------
+          The US view showed a quote ribbon and sector averages because there
+          was no US price panel to compute anything from. There is now, so it
+          gets the same shape India has: a count of advancers and decliners
+          and an equal-weighted proxy, both from bars this platform holds. */}
+      {market === 'US' && snap.us?.available && (
+        <section className="regime tight">
+          <div className="regime-lead">
+            <div className="theyebrow">The session</div>
+            <div className="thnum">
+              <b className={(snap.us.proxy_return ?? 0) >= 0 ? 'up' : 'dn'}>
+                {pct(snap.us.proxy_return ?? 0)}
+              </b>
+              <span
+                className="unit"
+                title="Equal-weighted across every S&P constituent in the panel. There is no index here, so this is the average stock rather than the cap-weighted benchmark — a different number, and the more honest one for breadth."
+              >
+                equal-weighted, to {snap.us.as_of} <abbr className="whyq">?</abbr>
+              </span>
+            </div>
+          </div>
+          <div className="regime-stats">
+            <div className="rstat">
+              <span>Breadth</span>
+              <b className={(snap.us.advancers ?? 0) >= (snap.us.decliners ?? 0) ? 'up' : 'dn'}>
+                {(snap.us.advancers ?? 0).toLocaleString('en-US')} /{' '}
+                {(snap.us.decliners ?? 0).toLocaleString('en-US')}
+              </b>
+              <i>{(snap.us.unchanged ?? 0).toLocaleString('en-US')} unchanged</i>
+            </div>
+            <div className="rstat">
+              <span>Symbols</span>
+              <b>{(snap.us.symbols ?? 0).toLocaleString('en-US')}</b>
+              <i>{snap.us.sectors_known ?? 0} with a sector</i>
+            </div>
+            <div className="rstat">
+              <span>As of</span>
+              <b>{snap.us.as_of}</b>
+              <i>{snap.us.source}</i>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* --- band 2-US: the map, from our own bars --------------------------- */}
+      {market === 'US' && snap.us?.available && snap.us.tiles.length > 0 && (
+        <section>
+          <h3 className="report-h">
+            The map
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              {snap.us.tiles.length} S&amp;P constituents
+            </span>
+          </h3>
+          <div className="sectors mapscroll">
+            {groupBySector(snap.us.tiles).map(([sector, tiles]) => (
+              <div className="sector" key={sector}>
+                <div className="sector-head">
+                  <b>{sector}</b>
+                  <i className={sectorMove(tiles) >= 0 ? 'up' : 'dn'}>
+                    {pct(sectorMove(tiles), 1)}
+                  </i>
+                  <span>{tiles.length}</span>
+                </div>
+                <div className="heatmap">
+                  {tiles.map((tile, index) => (
+                    <Cell key={tile.symbol} tile={tile} rank={index} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* --- band 3-US: movers, from our own bars ---------------------------- */}
+      {market === 'US' && snap.us?.available && (
+        <section>
+          <h3 className="report-h">
+            Movers
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              from our own bars
+            </span>
+          </h3>
+          <div className="tgrid">
+            <Movers title="Gainers" rows={snap.us.movers.gainers} />
+            <Movers title="Losers" rows={snap.us.movers.losers} />
+          </div>
+        </section>
       )}
 
       {/* --- band 2-US: sectors ---------------------------------------------
