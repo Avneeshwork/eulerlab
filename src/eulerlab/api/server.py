@@ -48,7 +48,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import cloud_results, reports, us_all_run, walk_run
+from eulerlab import cloud_results, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.authoring import translate
@@ -57,14 +57,13 @@ from eulerlab.backtest import event_driven, vector
 from eulerlab.backtest.published import BUILDERS as PUBLISHED
 from eulerlab.backtest.strategies import BuyAndHold
 from eulerlab.backtest.strategy import Strategy
-from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.batch import Item as _BatchItem
 from eulerlab.batch import data_version as batch_data_version
 from eulerlab.batch import runner
 from eulerlab.features import company as company_digest
 from eulerlab.features.alt_panel import coverage as alt_coverage
 from eulerlab.features.library import BY_NAME
-from eulerlab.features.panel import PanelRow, read_panel, trading_days
+from eulerlab.features.panel import PanelRow, trading_days
 from eulerlab.ingest.cloud import load_storage_config
 from eulerlab.intraday import adopted as adopted_mod
 from eulerlab.intraday import scan as tweezer_scan
@@ -97,156 +96,14 @@ JOB_TIMEOUT_SECONDS = 900
 # --- panel cache ------------------------------------------------------------
 
 
-class _Panel:
-    """One copy of the panel and its adjusted index, shared by every request.
-
-    Guarded by a lock because two requests arriving together would otherwise
-    both start a 540 MB read. The index is keyed by the day-window so the
-    common case — the same last-N-days repeatedly — is computed once.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._rows: list[PanelRow] | None = None
-        self._indices: dict[tuple[int, str], dict[str, dict[date, float]]] = {}
-
-    def rows(self, days: int = 0) -> list[PanelRow]:
-        with self._lock:
-            if self._rows is None:
-                self._rows = read_panel()
-        if not days:
-            return self._rows
-        all_days = sorted({r.day for r in self._rows})
-        if days >= len(all_days):
-            return self._rows
-        cutoff = all_days[-days]
-        return [r for r in self._rows if r.day >= cutoff]
-
-    def index(
-        self, days: int, rows: list[PanelRow], universe: str = "all"
-    ) -> dict[str, dict[date, float]]:
-        """Back-adjusted prices for this row set.
-
-        Keyed by the window AND the universe. Keying by window alone was safe
-        only while every run saw the whole panel: once rows are filtered, a
-        nifty50 run at 800 days would hand its index to the next 800-day run
-        over every symbol, which then has no adjusted prices for the symbols
-        nifty50 never contained.
-        """
-        with self._lock:
-            key = (days, universe)
-            if key not in self._indices:
-                self._indices[key] = build_adjusted_index(rows)
-            return self._indices[key]
-
-    def loaded(self) -> bool:
-        return self._rows is not None
-
-
-PANEL = _Panel()
-
-
-class _AltPanel:
-    """Crypto and mutual fund daily bars, loaded once and kept.
-
-    Separate from `_Panel` because these are *derived*: crypto is resampled
-    from 52.5M minute candles and funds from 14,280 NAV series, so a rebuild
-    per request would make the first backtest on either take minutes. Held by
-    asset class, and the lock is the same reason `_Panel` has one — two
-    requests arriving together would otherwise both start the resample.
-    """
-
-    def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._rows: dict[str, list[PanelRow]] = {}
-
-    def rows(self, asset_class: str, days: int = 0) -> list[PanelRow]:
-        with self._lock:
-            if asset_class not in self._rows:
-                self._rows[asset_class] = _load_alt(asset_class)
-        rows = self._rows[asset_class]
-        if not days:
-            return rows
-        # Trailing N *trading* days, matching `_Panel.rows`. Crypto trades every
-        # day and funds only on business days, so neither is forced onto the NSE
-        # calendar; "trading days" is whatever days the data actually has.
-        all_days = sorted({r.day for r in rows})
-        if days >= len(all_days):
-            return rows
-        cutoff = all_days[-days]
-        return [r for r in rows if r.day >= cutoff]
-
-    def loaded(self, asset_class: str) -> bool:
-        return asset_class in self._rows
-
-
-def _load_alt(asset_class: str) -> list[PanelRow]:
-    from eulerlab.features import alt_panel
-
-    if asset_class == AssetClass.CRYPTO.value:
-        return alt_panel.crypto_daily()
-    if asset_class == AssetClass.MUTUAL_FUND.value:
-        return alt_panel.fund_daily()
-    if asset_class == AssetClass.FX.value:
-        return alt_panel.fx_daily()
-    if asset_class == AssetClass.US.value:
-        return alt_panel.us_daily()
-    msg = f"no panel for asset class {asset_class!r}"
-    raise ValueError(msg)
-
-
-ALT = _AltPanel()
-
-COSTED_CLASSES = frozenset({AssetClass.EQUITY.value, AssetClass.FX.value, AssetClass.US.value})
-"""Asset classes the cost model actually covers.
-
-`costs/schedule.py` has segments for equity delivery, equity intraday, futures
-and options — all Indian exchange-traded. Running a Binance spot trade or a
-mutual fund redemption through EQUITY_DELIVERY would apply STT, stamp duty and
-NSE charges to something none of them touch, and produce a confidently wrong
-number rather than an obviously missing one.
-
-So crypto and fund runs are executed gross of costs and labelled as such. That
-is a real limitation, recorded in docs/STUBS.md, not a rounding decision: a
-crypto strategy rebalancing every 21 days pays real Binance taker fees, and a
-result that ignores them is an upper bound.
-
-**FX is the exception, and for a reason worth stating.** It also pays none of
-the Indian charges — but its cost is the bid-ask spread, which is *measured* in
-the landed data and carried on every `PanelRow`. Charging what was observed is
-not the same kind of act as inventing a fee schedule, so FX runs costed.
-
-**US is costed too, from its own published schedule** — `costs/us_equity.py`,
-the SEC Section 31 rate and the FINRA TAF, both verified against the regulator.
-It must never fall through to the Indian segments: a QQQ trade charged STT and
-stamp duty is the same error as the crypto one above, and it has already
-happened once in the intraday engine.
-"""
-
-
-def _rows_for(asset_class: str, days: int) -> list[PanelRow]:
-    """The daily bars for one asset class, trimmed to the window."""
-    if asset_class == AssetClass.EQUITY.value:
-        return PANEL.rows(days)
-    return ALT.rows(asset_class, days)
-
-
-def _no_panel_message(asset_class: str) -> str:
-    if asset_class == AssetClass.CRYPTO.value:
-        return "no crypto landed. Run `make crypto` first."
-    if asset_class == AssetClass.FX.value:
-        return "no FX landed. Run `make fx-bulk` first."
-    if asset_class == AssetClass.US.value:
-        return "no US bars landed. Run `make us-bars` first."
-    if asset_class == AssetClass.MUTUAL_FUND.value:
-        return "no mutual fund NAV history landed. Run `make mf` first."
-    return "no panel on disk. Run `make build-panel` first."
-
-
-def cost_mode_for(asset_class: str) -> str:
-    """`realistic` where the cost model applies, `replication` where it does not."""
-    return "realistic" if asset_class in COSTED_CLASSES else "replication"
-
+# Panels moved to `api/panels`: 145 lines of data access inside an HTTP module,
+# in the same file as cost routing, report building and job management.
+from eulerlab.api.panels import (  # noqa: E402
+    PANEL,
+    _no_panel_message,
+    _rows_for,
+    cost_mode_for,
+)
 
 # --- jobs -------------------------------------------------------------------
 
@@ -651,10 +508,10 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     tenant = workspace_mod.resolve(workspace or None)
     # Read once for the whole payload rather than per strategy: it is one small
     # file and thirty-two reads of it would be thirty-two parses.
-    adopted_results = adopted_mod.read()
-    # The cross-market test: every strategy on QQQ, including the ten whose
-    # papers are crypto. Read once for the payload, like the adopted results.
-    us_all_results = us_all_run.read()
+    # Both kinds from the one file that holds them. Two files with an identical
+    # schema meant the comparison below was encoded as a directory listing.
+    adopted_results = strategy_results.by_kind(strategy_results.HOME)
+    us_all_results = strategy_results.by_kind(strategy_results.US_CROSS)
     # Walk-forward and PBO, where one has been run. The only evidence here that
     # is out of sample, so it belongs beside the Sharpe rather than behind a
     # separate screen.
@@ -948,41 +805,7 @@ def _build_registered(strategy_id: str) -> Strategy:
     return builder()
 
 
-class BatchRunRequest(BaseModel):
-    """A batch of screening runs."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    strategies: list[str] = Field(default_factory=list)
-    days: int = Field(default=800, ge=60, le=3000)
-    tier: Literal["A", "B"] = "B"
-    universe: str = ALL_INSTRUMENTS
-    """Which instruments the strategy may choose from. Part of the cache key
-    and of the stored result's configuration, because the same strategy over
-    nifty50 and over the whole panel are two different answers."""
-
-    asset_class: str = AssetClass.EQUITY.value
-    """Which panel to run against.
-
-    Explicit rather than inferred, because a universe run has no instruments to
-    infer from. Mixing classes in one run is refused: a cross-section that ranks
-    a Binance pair against a mutual fund NAV is comparing series with different
-    calendars, different cost treatment and no shared notion of a trading day.
-    """
-
-    instruments: list[str] = Field(default_factory=list)
-    """A hand-picked list, which overrides `universe` when non-empty.
-
-    Batches are a convenience, not the only way in: a question like "does this
-    work on these eleven banks" is a legitimate backtest and was previously
-    unaskable.
-    """
-
-    use_cache: bool = True
-    workspace: str = ""
-    """Which tenant's results this run belongs to. Empty means the default
-    single-operator workspace (ADR-040)."""
-
+from eulerlab.api.requests import BatchRunRequest  # noqa: E402
 
 ILLUSTRATION = ("ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON")
 ILLUSTRATION_SCORES = (0.42, 0.28, 0.11, -0.06, -0.19)
@@ -1133,185 +956,12 @@ across four hundred.
 INTRADAY_SESSIONS_PER_YEAR = 250
 
 
-def _intraday_symbols(request: BatchRunRequest) -> list[str]:
-    """Which symbols an intraday scan covers.
-
-    Hand-picked instruments win, then the named universe, then whatever has
-    minute bars. Always intersected with what actually has minute data, because
-    a symbol with daily bars and no minute bars is not a smaller sample - it is
-    an absent one.
-    """
-    # The symbol universe follows the asset class, because a crypto signal on
-    # RELIANCE is not a smaller sample, it is a different question.
-    if request.asset_class == AssetClass.CRYPTO.value:
-        from eulerlab.intraday import crypto_store
-
-        try:
-            available = set(crypto_store.symbols())
-        except Exception:
-            available = set()
-    elif request.asset_class == AssetClass.US.value:
-        # Without this the US class fell through to the NSE store, matched
-        # nothing, and every intraday US backtest failed with "no symbols with
-        # minute bars for that selection" — which reads like missing data
-        # rather than a missing branch.
-        from eulerlab.intraday import us_store
-
-        try:
-            available = set(us_store.symbols())
-        except Exception:
-            available = set()
-    else:
-        from eulerlab.intraday import store
-
-        try:
-            available = set(store.available_symbols())
-        except Exception:
-            available = set()
-
-    if request.instruments:
-        wanted = [s.strip().upper() for s in request.instruments if s.strip()]
-    elif request.asset_class != AssetClass.EQUITY.value:
-        # Named batches are equity liquidity slices and mean nothing to another
-        # class, so the whole landed universe is the universe.
-        wanted = sorted(available)
-    elif request.universe != ALL_INSTRUMENTS:
-        wanted = list(catalog.universe(request.universe))
-    else:
-        wanted = sorted(available)
-
-    kept = [s for s in wanted if not available or s in available]
-    return kept[:INTRADAY_SYMBOL_CAP]
-
-
-def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
-    """Scan one paper signal across minute bars and shape the result like a
-    backtest.
-
-    The Sharpe here is computed over **per-session** returns, not per-day
-    returns of a continuously held portfolio. An intraday signal is flat
-    overnight and flat on any session it does not fire, so a session it sat out
-    contributes a zero - which is a real zero, not a missing observation. That
-    makes this comparable to a daily Sharpe in construction but not in meaning,
-    and the tier is recorded as `intraday` so the two are never silently
-    ranked against each other.
-    """
-    from datetime import timedelta
-
-    from eulerlab.intraday import paper_scan
-
-    symbols = _intraday_symbols(request)
-    if not symbols:
-        msg = "no symbols with minute bars for that selection"
-        raise RuntimeError(msg)
-
-    # Timezone-explicit: `date.today()` means whatever the running machine's
-    # locale says, and an intraday window that silently shifts by a day is the
-    # kind of bug that never surfaces as an error.
-    end = datetime.now(UTC).astimezone(IST).date()
-    start = end - timedelta(days=request.days)
-    scans = paper_scan.scan_many(
-        strategy_id, symbols, start=start, end=end, asset_class=request.asset_class
-    )
-    if not scans:
-        msg = f"no minute bars readable for any of {len(symbols)} symbols"
-        raise RuntimeError(msg)
-
-    # Per-session profit and loss, summed across symbols.
-    by_session: dict[date, float] = {}
-    sessions_seen: set[date] = set()
-    fills = 0
-    for scan in scans:
-        for trade in scan.trades:
-            if not trade.filled or trade.entry_ts is None:
-                continue
-            fills += 1
-            day = trade.entry_ts.date()
-            by_session[day] = by_session.get(day, 0.0) + trade.net_pnl()
-    for scan in scans:
-        for trade in scan.trades:
-            if trade.entry_ts is not None:
-                sessions_seen.add(trade.entry_ts.date())
-
-    if fills == 0:
-        msg = (
-            f"no trade filled across {len(symbols)} symbols in {request.days} days. "
-            f"The signal either never fired or never filled - check the rejection "
-            f"reasons rather than reading this as a zero result."
-        )
-        raise RuntimeError(msg)
-
-    cash = 1_000_000.0
-    equity = [cash]
-    for day in sorted(by_session):
-        cash += by_session[day]
-        equity.append(cash)
-
-    returns = [b / a - 1.0 for a, b in pairwise(equity) if a > 0]
-    stats = sharpe_stats(returns, periods_per_year=INTRADAY_SESSIONS_PER_YEAR)
-    outcome: dict[str, Any] = {
-        "sharpe": round(stats.sharpe, 4),
-        "total_return": round(equity[-1] / 1_000_000.0 - 1.0, 6),
-        "max_drawdown": round(_drawdown(equity), 6),
-        "fills": fills,
-        "costs": round(sum(t.costs for s in scans for t in s.trades), 2),
-        "days": len(equity) - 1,
-        "universe": _universe_label(request),
-        "universe_size": len(symbols),
-        "symbols": len({s.symbol for s in scans if s.trades}),
-        "asset_class": request.asset_class,
-        "cost_mode": cost_mode_for(request.asset_class),
-        "curve": result_store.downsample(equity),
-        "sessions_scanned": sum(s.sessions for s in scans),
-        "symbol_cap": INTRADAY_SYMBOL_CAP,
-    }
-    # Carried out rather than saved here, under a private key. A report is
-    # filed under the run's `configuration` hash, and that hash is only known
-    # where the `Run` is built — which is the batch recorder, not this
-    # function. Building a second `Run` here to derive it produced a different
-    # hash (this function has `tier="A"` from the request; the recorder writes
-    # `tier="intraday"` from the payload), so the report landed under a
-    # configuration nothing would ever look up.
-    outcome["_report"] = _intraday_report_material(
-        strategy_id, request, scans, equity, sorted(by_session)
-    )
-    return outcome
-
-
-def _intraday_report_material(
-    strategy_id: str,
-    request: BatchRunRequest,
-    scans: Sequence[Any],
-    equity: list[float],
-    days: list[date],
-) -> dict[str, Any]:
-    """Everything `reports.build` needs except the configuration hash.
-
-    The fill extraction lives in `intraday/report_material` because
-    `adopted_run` writes reports too, and two code paths producing the same
-    report differently is two reports that cannot be compared.
-    """
-    from eulerlab.intraday.report_material import fills_and_marks
-
-    fills, marks = fills_and_marks(list(scans))
-    return {
-        "strategy_id": strategy_id,
-        "universe": _universe_label(request),
-        "instruments": sorted({s.symbol for s in scans}),
-        "tier": request.tier,
-        "asset_class": request.asset_class,
-        "cost_mode": cost_mode_for(request.asset_class),
-        "window_days": request.days,
-        "equity": equity,
-        "days": days,
-        "fills": fills,
-        # The intraday scanner records refusals by reason and count, not by
-        # symbol and day, so the report's per-order rejection list has nothing
-        # to show. Passed empty rather than fabricated.
-        "rejections": [],
-        "marks": marks,
-        "starting_cash": 1_000_000.0,
-    }
+# Intraday running moved to `api/intraday_runs`: ~190 lines of engine work in
+# the module that parses HTTP requests. Nothing in it knows about HTTP, which is
+# why it could move and why keeping it here was arbitrary.
+from eulerlab.api.intraday_runs import (  # noqa: E402
+    _run_intraday,
+)
 
 
 def _run_params(request: BatchRunRequest) -> dict[str, object]:
@@ -2521,10 +2171,11 @@ def _best_asset(
     it loses badly on BTCUSDT, and it makes money on QQQ. Nothing in the row
     said so — the reader had to open the drawer and compare two panels.
     """
+    # Every measurement of this strategy, whatever question it answered. Asking
+    # the store rather than naming two dicts means a third kind — the same
+    # signal on a third market — needs no change here.
     candidates = [
-        result
-        for result in (adopted_results.get(strategy_id), us_all_results.get(strategy_id))
-        if result is not None and result.get("sharpe") is not None
+        row.data for row in strategy_results.for_strategy(strategy_id) if row.sharpe is not None
     ]
     if not candidates:
         return None

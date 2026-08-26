@@ -400,6 +400,12 @@ def merge(results: list[Result], path: Path = RESULTS_PATH) -> None:
     dropped the twenty already measured. Anything that can be invoked with a
     subset has to merge.
     """
+    from eulerlab import strategy_results
+
+    # Also written to the merged store, which is what the API reads. The
+    # per-kind file stays for now so a rollback needs no migration.
+    strategy_results.merge(strategy_results.HOME, [_as_row(r) for r in results])
+
     existing = read(path)
     for result in results:
         existing[result.strategy_id] = {
@@ -434,6 +440,13 @@ def merge(results: list[Result], path: Path = RESULTS_PATH) -> None:
         "".join(json.dumps(row, sort_keys=True) + "\n" for _, row in sorted(existing.items())),
         encoding="utf-8",
     )
+
+
+def _as_row(result: Result) -> dict[str, Any]:
+    """One result as the plain dict both stores hold."""
+    from dataclasses import asdict
+
+    return asdict(result)
 
 
 def read(path: Path = RESULTS_PATH) -> dict[str, dict[str, Any]]:

@@ -12,7 +12,8 @@ from datetime import date
 
 import pytest
 
-from eulerlab.api.server import _Panel, _universe_rows
+from eulerlab.api.panels import _Panel
+from eulerlab.api.server import _universe_rows
 from eulerlab.features.panel import PanelRow
 
 
@@ -117,7 +118,7 @@ def test_costs_are_modelled_only_where_a_schedule_exists() -> None:
     trade pays a taker fee and a fund redemption may pay an exit load; neither
     pays STT or stamp duty. Running them through EQUITY_DELIVERY would produce a
     confidently wrong number rather than an obviously missing one (S-028)."""
-    from eulerlab.api.server import cost_mode_for
+    from eulerlab.api.panels import cost_mode_for
 
     assert cost_mode_for("equity") == "realistic"
     assert cost_mode_for("crypto") == "replication"
@@ -148,7 +149,8 @@ def test_equity_params_are_unchanged_by_the_new_fields() -> None:
     the default. An always-present key would change the configuration hash of
     every run already recorded, inflating the denominator that prices selection
     bias for no reason but a new dict key."""
-    from eulerlab.api.server import BatchRunRequest, _run_params
+    from eulerlab.api.requests import BatchRunRequest
+    from eulerlab.api.server import _run_params
 
     plain = _run_params(BatchRunRequest(strategies=["s"], days=800, universe="all"))
     assert set(plain) == {"days", "tier", "universe"}

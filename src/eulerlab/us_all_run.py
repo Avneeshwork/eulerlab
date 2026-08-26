@@ -110,6 +110,10 @@ def run(*, start: dt.date, end: dt.date, only: Sequence[str] = ()) -> list[adopt
 
 
 def _write(results: list[adopted.Result], path: Path = RESULTS_PATH) -> None:
+    from eulerlab import strategy_results
+
+    strategy_results.merge(strategy_results.US_CROSS, [adopted._as_row(r) for r in results])
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "".join(

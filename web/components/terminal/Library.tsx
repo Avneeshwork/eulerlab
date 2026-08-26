@@ -335,6 +335,61 @@ export function Library({
   );
 }
 
+
+/**
+ * The one thing worth saying about how this result was produced.
+ *
+ * Ordered by how surprising it is, and only the most surprising is shown. A
+ * signal that wins on a market its paper never tested is the finding a reader
+ * would otherwise have to open two drawers to notice; that it also happens to
+ * be tuned is a detail, and it lives in the tooltip.
+ *
+ * Returns empty when nothing about the provenance is unusual, and the row then
+ * carries no chip at all.
+ */
+function provenance(strategy: FleetStrategy, sweep: OptimizeRow | undefined): string {
+  const best = strategy.best_asset;
+  if (best && best.beats > 1 && best.is_away) return `wins on ${best.symbol} ↗`;
+  if (strategy.walk && strategy.walk.pbo > 0.25 && !strategy.walk.most_settings_work) {
+    return 'overfitting risk';
+  }
+  if (strategy.adopted?.adopted) return 'tuned';
+  if (strategy.adopted && sweep) return 'paper params';
+  return '';
+}
+
+function provenanceTone(strategy: FleetStrategy): string {
+  const best = strategy.best_asset;
+  if (best && best.is_away && best.sharpe > 0) return 'sweep-tag on';
+  if (strategy.walk && strategy.walk.pbo > 0.25 && !strategy.walk.most_settings_work) {
+    return 'sweep-tag off';
+  }
+  return '';
+}
+
+/** Everything the chip does not have room for, in one sentence per fact. */
+function provenanceDetail(strategy: FleetStrategy, sweep: OptimizeRow | undefined): string {
+  const parts: string[] = [];
+  const best = strategy.best_asset;
+  if (best && best.beats > 1) {
+    parts.push(
+      best.is_away
+        ? `Does best on ${best.symbol} (Sharpe ${best.sharpe.toFixed(2)}) — not the market its paper tested.`
+        : `Does best on ${best.symbol}, the market its paper tested.`,
+    );
+  }
+  if (strategy.adopted?.adopted) {
+    parts.push(`Running the best of ${sweep?.candidates ?? 9} settings from a recorded sweep.`);
+  } else if (sweep) {
+    parts.push(`Swept ${sweep.candidates} settings; none beat the published parameters.`);
+  }
+  if (strategy.walk) parts.push(strategy.walk.verdict);
+  if (strategy.engine === 'intraday') {
+    parts.push('Runs on minute bars; cannot be expressed as target weights (ADR-037).');
+  }
+  return parts.join(' ');
+}
+
 function Row({
   strategy,
   sweep,
@@ -395,60 +450,27 @@ function Row({
           <div className="nm">{strategy.title}</div>
           <div className="sub">
             {strategy.kind} · {strategy.shape}
-            {strategy.walk && (
+            {/* One provenance chip, not five.
+             *
+             * The row carried PBO, "tuned", "best: QQQ", "intraday" and the
+             * market — five chips saying three things, with the market stated
+             * three times over between them and the columns to the right. Five
+             * pieces of provenance competing with one number is a row nobody
+             * reads; the reader wants the number, and provenance only when
+             * something about it is unusual.
+             *
+             * So it collapses to a single chip reading like a phrase, with the
+             * full detail in its tooltip — and the chip only appears when there
+             * is something to say. A strategy running published parameters, on
+             * its paper's market, with unremarkable overfitting risk gets no
+             * chip at all, which is the correct amount of attention for the
+             * unremarkable case. */}
+            {provenance(strategy, sweep) && (
               <span
-                className={`ttag ${strategy.walk.pbo <= 0.25 || strategy.walk.most_settings_work ? 'sweep-tag on' : 'sweep-tag off'}`}
-                title={strategy.walk.verdict}
+                className={`ttag ${provenanceTone(strategy)}`}
+                title={provenanceDetail(strategy, sweep)}
               >
-                PBO {strategy.walk.pbo.toFixed(2)}
-              </span>
-            )}
-            {strategy.adopted?.adopted && (
-              <span
-                className="ttag sweep-tag on"
-                title={
-                  `Running the best of ${sweep?.candidates ?? 9} settings, chosen by a recorded sweep ` +
-                  `on ${strategy.adopted.symbol}. Open the row for the full report.`
-                }
-              >
-                tuned
-              </span>
-            )}
-            {/* Which market this signal actually does best on. Shown on the
-                row because the alternative is opening the drawer and comparing
-                two panels — and the case that matters most, a signal that wins
-                somewhere other than its paper's market, is exactly the one
-                nobody opens the drawer to look for. */}
-            {strategy.best_asset && strategy.best_asset.beats > 1 && (
-              <span
-                className={`ttag assettag-best ${strategy.best_asset.sharpe > 0 ? 'on' : 'off'}`}
-                title={
-                  strategy.best_asset.is_away
-                    ? `Best on ${strategy.best_asset.symbol} — not the market its paper tested. Sharpe ${strategy.best_asset.sharpe.toFixed(2)} there.`
-                    : `Best on ${strategy.best_asset.symbol}, the market its paper tested. Sharpe ${strategy.best_asset.sharpe.toFixed(2)}.`
-                }
-              >
-                best: {strategy.best_asset.symbol}
-                {strategy.best_asset.is_away ? ' ↗' : ''}
-              </span>
-            )}
-            {strategy.adopted && !strategy.adopted.adopted && sweep && (
-              <span
-                className="ttag"
-                title={
-                  `Swept over ${sweep.candidates} settings on ${sweep.symbol}; none beat the ` +
-                  `published parameters, which are still in use.`
-                }
-              >
-                paper params
-              </span>
-            )}
-            {strategy.engine === 'intraday' && (
-              <span
-                className="ttag"
-                title="Runs on minute bars through the intraday scanner. It cannot be expressed as target weights (ADR-037), which is a different thing from not being runnable."
-              >
-                intraday
+                {provenance(strategy, sweep)}
               </span>
             )}
             {!runnable && (

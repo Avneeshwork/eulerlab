@@ -557,6 +557,30 @@ def _latest_enriched_relative() -> str | None:
     return found[-1] if found else None
 
 
+@lru_cache(maxsize=1)
+def _fund_history_codes() -> frozenset[str]:
+    """Scheme codes with landed NAV history, enumerated once per process.
+
+    This is the one store that cannot be answered from local directory names.
+    FX and US keep a directory per symbol, which survives a prune and says which
+    symbols exist; mutual fund history is **flat** — `mf/history/119551.jsonl.gz`
+    — so pruning leaves nothing behind and the only source is the bucket.
+
+    That enumeration is 14,280 keys and **18.7 seconds**, and it was being paid
+    on every keystroke in the instrument search: the mixed-class picker call
+    took thirteen seconds, and eleven of them were this.
+
+    Cached rather than made cheap, because it cannot be made cheap without
+    recording the code list somewhere. The first search in a process still pays
+    once. Recording the ids in the manifest would remove even that, and is the
+    right fix if this ever matters again.
+    """
+    return frozenset(
+        relative.split("/")[-1].split(".")[0]
+        for relative in _tree_files("mf", "history/*.jsonl.gz")
+    )
+
+
 def fund_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     """Mutual fund schemes from the newest enriched snapshot.
 
@@ -570,10 +594,7 @@ def fund_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     if snapshot_rel is None:
         return []
     needle = query.strip().upper()
-    have_history = {
-        relative.split("/")[-1].split(".")[0]
-        for relative in _tree_files("mf", "history/*.jsonl.gz")
-    }
+    have_history = _fund_history_codes()
     # AMFI publishes one row per ISIN and a scheme has two — growth/payout and
     # reinvestment — so the snapshot lists every scheme_code twice. A picker
     # offers a *scheme* to backtest, not an ISIN variant, and showing 119551
