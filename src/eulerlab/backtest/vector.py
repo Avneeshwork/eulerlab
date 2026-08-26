@@ -43,11 +43,10 @@ from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
-from eulerlab.costs.model import Brokerage, cost_of_trade
+from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.features.panel import (
     PanelRow,
@@ -175,37 +174,30 @@ def _costs_for(
     quantity: int,
     side: Side,
     brokerage: Brokerage | None,
-    asset_class: str = "equity",
+    asset_class: str,
 ) -> float:
-    """The single cost path. Delivery rates: Tier A holds overnight.
+    """What one fill costs, from the one router that knows every venue.
 
-    Routed by asset class, because the Indian schedule is not a default that
-    happens to be wrong elsewhere — it is a specific set of statutory charges.
-    A US equity charged STT, SEBI turnover and stamp duty pays roughly ten
-    basis points it does not owe, on every leg. The intraday engine had exactly
-    this bug and it survived until something actually traded a US instrument.
+    Delivery rates: Tier A holds overnight, so NSE charges STT at the delivery
+    rate rather than the intraday one.
+
+    `asset_class` has no default, and the reason is specific. It had one, and a
+    US branch was added to this function that **never once executed** — none of
+    the three callers passed the argument, so every daily run including US was
+    charged Indian delivery costs while the code above them said otherwise. A
+    required argument makes that a type error instead of a silent wrong number.
     """
-    if asset_class == "us":
-        from eulerlab.costs.us_equity import equity_fee
+    del brokerage  # the router owns the schedule, including the broker's part
+    from eulerlab.costs.router import fill_cost
 
-        return float(
-            equity_fee(
-                price=Decimal(str(price)),
-                quantity=Decimal(str(quantity)),
-                side=side,
-                day=day,
-            ).total
-        )
-
-    breakdown = cost_of_trade(
-        trade_date=day,
-        segment=Segment.EQUITY_DELIVERY,
-        side=side,
-        price=Decimal(str(round(price, 2))),
+    return fill_cost(
+        venue=asset_class,
+        price=price,
         quantity=quantity,
-        brokerage=brokerage,
+        side=side,
+        day=day,
+        segment=Segment.EQUITY_DELIVERY,
     )
-    return float(breakdown.total)
 
 
 def run(
@@ -216,6 +208,7 @@ def run(
     rebalance_every: int = 21,
     gross_cap: float = 1.0,
     cost_mode: str = "realistic",
+    asset_class: str,
     brokerage: Brokerage | None = None,
     warmup: int = 253,
     adjusted_index: dict[str, dict[date, float]] | None = None,
@@ -426,7 +419,8 @@ def run(
                 cost = (
                     0.0
                     if cost_mode == "replication"
-                    else _costs_for(fill_day, price, quantity, side, brokerage) * cost_multiplier
+                    else _costs_for(fill_day, price, quantity, side, brokerage, asset_class)
+                    * cost_multiplier
                 )
                 cash -= delta * price
                 cash -= cost

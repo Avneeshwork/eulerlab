@@ -99,6 +99,8 @@ def test_the_cost_multiplier_reaches_the_engine() -> None:
     from eulerlab.backtest import event_driven
 
     rows = _panel()
-    base = event_driven.run(rows, _HoldFive(), rebalance_every=60)
-    doubled = event_driven.run(rows, _HoldFive(), rebalance_every=60, cost_multiplier=2.0)
+    base = event_driven.run(rows, _HoldFive(), rebalance_every=60, asset_class="equity")
+    doubled = event_driven.run(
+        rows, _HoldFive(), rebalance_every=60, cost_multiplier=2.0, asset_class="equity"
+    )
     assert doubled.total_cost > base.total_cost * 1.9

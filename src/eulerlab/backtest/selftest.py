@@ -167,7 +167,9 @@ def check_accounting_invariants() -> Check:
     """
     name = "accounting invariants"
     rows = alpha_world()
-    result = event_driven.run(rows, HoldFirstN(5), warmup=60, rebalance_every=20)
+    result = event_driven.run(
+        rows, HoldFirstN(5), warmup=60, rebalance_every=20, asset_class="equity"
+    )
     if not result.fills:
         return _fail(name, "no fills produced; the test proved nothing")
 
@@ -195,7 +197,9 @@ def check_cash_conservation() -> Check:
     value of what was bought plus everything paid in costs."""
     name = "cash conservation"
     rows = flat_world()
-    result = event_driven.run(rows, HoldFirstN(5), warmup=60, rebalance_every=1000)
+    result = event_driven.run(
+        rows, HoldFirstN(5), warmup=60, rebalance_every=1000, asset_class="equity"
+    )
     portfolio = result.portfolio
     if portfolio is None or not portfolio.fills:
         return _fail(name, "no fills produced")
@@ -221,7 +225,7 @@ def check_zero_alpha_is_exact_cost_drag() -> Check:
     """
     name = "zero alpha = exact cost drag"
     rows = flat_world()
-    result = event_driven.run(rows, Churn(5), warmup=60, rebalance_every=7)
+    result = event_driven.run(rows, Churn(5), warmup=60, rebalance_every=7, asset_class="equity")
     if not result.fills:
         return _fail(name, "no fills produced; the test proved nothing")
 
@@ -252,7 +256,7 @@ def check_costs_match_an_independent_recomputation() -> Check:
     """
     name = "costs match the cost model"
     rows = flat_world()
-    result = event_driven.run(rows, Churn(5), warmup=60, rebalance_every=7)
+    result = event_driven.run(rows, Churn(5), warmup=60, rebalance_every=7, asset_class="equity")
     if not result.fills:
         return _fail(name, "no fills produced; the test proved nothing")
 
@@ -284,7 +288,9 @@ def check_zero_cost_is_zero_pnl() -> Check:
     """Flat market with costs off must end exactly where it started."""
     name = "flat market, no costs, no P&L"
     rows = flat_world()
-    result = event_driven.run(rows, Churn(5), warmup=60, rebalance_every=7, cost_mode="replication")
+    result = event_driven.run(
+        rows, Churn(5), warmup=60, rebalance_every=7, cost_mode="replication", asset_class="equity"
+    )
     drift = abs(result.final_equity - result.starting_cash)
     if drift > PAISA:
         return _fail(name, f"equity moved by Rs {drift:.2f} with no prices moving and no costs")
@@ -306,7 +312,12 @@ def check_known_alpha_is_recovered() -> Check:
     n_days = 320
     rows = alpha_world(winners=5, winner_drift=winner_drift, n_days=n_days)
     result = event_driven.run(
-        rows, HoldFirstN(5), warmup=60, rebalance_every=1000, cost_mode="replication"
+        rows,
+        HoldFirstN(5),
+        warmup=60,
+        rebalance_every=1000,
+        cost_mode="replication",
+        asset_class="equity",
     )
     if not result.equity:
         return _fail(name, "no equity curve produced")
@@ -339,7 +350,12 @@ def check_no_alpha_is_not_invented() -> Check:
             return dict.fromkeys(flat, 1.0 / len(flat))
 
     result = event_driven.run(
-        rows, HoldLosers(), warmup=60, rebalance_every=1000, cost_mode="replication"
+        rows,
+        HoldLosers(),
+        warmup=60,
+        rebalance_every=1000,
+        cost_mode="replication",
+        asset_class="equity",
     )
     if abs(result.total_return) > 0.001:
         return _fail(name, f"earned {result.total_return:.4%} holding flat instruments")
@@ -354,10 +370,10 @@ def check_determinism() -> Check:
     name = "determinism"
     rows = alpha_world()
     strategy = HoldFirstN(5)
-    a1 = vector.run(rows, strategy, warmup=60, rebalance_every=20)
-    a2 = vector.run(rows, strategy, warmup=60, rebalance_every=20)
-    b1 = event_driven.run(rows, strategy, warmup=60, rebalance_every=20)
-    b2 = event_driven.run(rows, strategy, warmup=60, rebalance_every=20)
+    a1 = vector.run(rows, strategy, asset_class="equity", warmup=60, rebalance_every=20)
+    a2 = vector.run(rows, strategy, asset_class="equity", warmup=60, rebalance_every=20)
+    b1 = event_driven.run(rows, strategy, asset_class="equity", warmup=60, rebalance_every=20)
+    b2 = event_driven.run(rows, strategy, asset_class="equity", warmup=60, rebalance_every=20)
     if a1.equity != a2.equity:
         return _fail(name, "Tier A produced different curves on identical input")
     if b1.equity != b2.equity:
@@ -372,8 +388,8 @@ def check_engines_reconcile() -> Check:
     name = "Tier A / Tier B reconcile"
     rows = alpha_world()
     strategy = HoldFirstN(5)
-    a = vector.run(rows, strategy, warmup=60, rebalance_every=20)
-    b = event_driven.run(rows, strategy, warmup=60, rebalance_every=20)
+    a = vector.run(rows, strategy, asset_class="equity", warmup=60, rebalance_every=20)
+    b = event_driven.run(rows, strategy, asset_class="equity", warmup=60, rebalance_every=20)
     rec = event_driven.reconcile(a.equity, b.equity)
     if not rec.agrees:
         return _fail(name, f"diverged by {rec.max_relative:.2e} relative")
@@ -393,7 +409,9 @@ def _golden_fingerprint() -> dict[str, object]:
     appended is one nobody reads.
     """
     rows = alpha_world()
-    result = event_driven.run(rows, HoldFirstN(5), warmup=60, rebalance_every=20)
+    result = event_driven.run(
+        rows, HoldFirstN(5), warmup=60, rebalance_every=20, asset_class="equity"
+    )
     return {
         "final_equity": round(result.final_equity, 2),
         "total_cost": round(result.total_cost, 2),

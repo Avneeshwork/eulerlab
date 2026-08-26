@@ -394,6 +394,7 @@ def _engine_run(
     rebalance: int,
     universe: str = "all",
     cost_mode: str = "realistic",
+    asset_class: str,
 ) -> _EngineRun:
     """The one place this API calls an engine.
 
@@ -411,6 +412,7 @@ def _engine_run(
             rows,
             strategy,
             starting_cash=starting_cash,
+            asset_class=asset_class,
             rebalance_every=rebalance,
             warmup=warmup,
             adjusted_index=index,
@@ -430,6 +432,7 @@ def _engine_run(
     run_b = event_driven.run(
         rows,
         strategy,
+        asset_class=asset_class,
         starting_cash=starting_cash,
         rebalance_every=rebalance,
         warmup=warmup,
@@ -468,6 +471,11 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
         engine = _engine_run(
             strategy,
             rows,
+            # This endpoint has no asset-class field: it is the single-backtest
+            # path and has only ever run the NSE panel. Stated rather than
+            # inherited, so adding a class to the request is a visible change
+            # here rather than a silent one.
+            asset_class="equity",
             days_window=request.days,
             tier=request.tier,
             starting_cash=request.starting_cash,
@@ -1421,6 +1429,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             engine = _engine_run(
                 strategy,
                 rows,
+                asset_class=request.asset_class,
                 days_window=request.days,
                 tier=request.tier,
                 starting_cash=1_000_000.0,

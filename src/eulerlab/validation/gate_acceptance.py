@@ -67,19 +67,25 @@ def _evidence(
         for rebalance in (21, 63):
             scores_is.append(
                 sharpe_stats(
-                    event_driven.run(train, strategy, rebalance_every=rebalance).daily_returns()
+                    event_driven.run(
+                        train, strategy, rebalance_every=rebalance, asset_class="equity"
+                    ).daily_returns()
                 ).sharpe
             )
             scores_oos.append(
                 sharpe_stats(
-                    event_driven.run(test, strategy, rebalance_every=rebalance).daily_returns()
+                    event_driven.run(
+                        test, strategy, rebalance_every=rebalance, asset_class="equity"
+                    ).daily_returns()
                 ).sharpe
             )
         in_sample.append(scores_is)
         out_sample.append(scores_oos)
 
     pbo = probability_of_backtest_overfitting(in_sample, out_sample)
-    full = event_driven.run(rows, strategy, rebalance_every=21, adjusted_index=index)
+    full = event_driven.run(
+        rows, strategy, rebalance_every=21, adjusted_index=index, asset_class="equity"
+    )
     stats = sharpe_stats(full.daily_returns())
     dsr = deflated_sharpe(stats, n_trials=n_trials)
     stressed = stress.run_all(rows, strategy, rebalance=21)

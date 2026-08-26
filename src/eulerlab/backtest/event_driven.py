@@ -113,6 +113,7 @@ def run(
     rebalance_every: int = 21,
     gross_cap: float = 1.0,
     cost_mode: str = "realistic",
+    asset_class: str,
     brokerage: Brokerage | None = None,
     warmup: int = 253,
     adjusted_index: dict[str, dict[date, float]] | None = None,
@@ -253,7 +254,10 @@ def run(
         return price_index[symbol][days_[position]] if position >= 0 else None
 
     engine: Executor = executor or SimulatedExecutor(
-        cost_mode=cost_mode, brokerage=brokerage, cost_multiplier=cost_multiplier
+        cost_mode=cost_mode,
+        asset_class=asset_class,
+        brokerage=brokerage,
+        cost_multiplier=cost_multiplier,
     )
     portfolio = Portfolio(cash=starting_cash)
     result = TierBResult(

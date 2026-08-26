@@ -48,8 +48,8 @@ def test_the_same_strategy_object_runs_in_both_engines_unadapted() -> None:
     isinstance - if Tier B needed one, the interface would have failed."""
     rows = _panel()
     strategy = BuyAndHold(top_n=10)
-    a = vector.run(rows, strategy, warmup=60, rebalance_every=50)
-    b = event_driven.run(rows, strategy, warmup=60, rebalance_every=50)
+    a = vector.run(rows, strategy, warmup=60, rebalance_every=50, asset_class="equity")
+    b = event_driven.run(rows, strategy, warmup=60, rebalance_every=50, asset_class="equity")
     assert a.equity and b.equity
 
 
@@ -61,8 +61,8 @@ def test_the_two_engines_agree_to_floating_point_noise() -> None:
         BuyAndHold(top_n=10),
         RankAndHold("turnover_liquidity", top_n=10, min_names=5),
     ):
-        a = vector.run(rows, strategy, warmup=70, rebalance_every=50)
-        b = event_driven.run(rows, strategy, warmup=70, rebalance_every=50)
+        a = vector.run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
+        b = event_driven.run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
         r = event_driven.reconcile(a.equity, b.equity)
         assert r.agrees, f"{strategy.describe()} diverged by {r.max_relative:.2e}"
 
@@ -72,8 +72,8 @@ def test_tier_a_is_never_the_optimistic_one() -> None:
     bad. If Tier B comes out lower, Tier A is flattering."""
     rows = _panel()
     strategy = BuyAndHold(top_n=10)
-    a = vector.run(rows, strategy, warmup=70, rebalance_every=50)
-    b = event_driven.run(rows, strategy, warmup=70, rebalance_every=50)
+    a = vector.run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
+    b = event_driven.run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
     assert event_driven.reconcile(a.equity, b.equity).tier_a_is_pessimistic
 
 
@@ -121,7 +121,7 @@ def test_tier_b_records_rejections_that_tier_a_can_only_skip() -> None:
     # Rebalance daily. With a weekly rebalance the fill day happened to land
     # on the same weekday every time and never coincided with a missing one -
     # the test passed vacuously rather than exercising the path.
-    result = event_driven.run(rows, Both(), warmup=60, rebalance_every=1)
+    result = event_driven.run(rows, Both(), warmup=60, rebalance_every=1, asset_class="equity")
     assert result.orders
     assert result.rejections, "no order ever landed on a non-trading day"
     assert all(r.reason for r in result.rejections)
@@ -132,7 +132,9 @@ def test_every_order_carries_a_deterministic_unique_id() -> None:
     """Deterministic ids are what stop a retry double-sending. That property
     is worthless if only live code has it."""
     rows = _panel()
-    result = event_driven.run(rows, BuyAndHold(top_n=10), warmup=60, rebalance_every=40)
+    result = event_driven.run(
+        rows, BuyAndHold(top_n=10), warmup=60, rebalance_every=40, asset_class="equity"
+    )
     ids = [o.client_order_id for o in result.orders]
     assert ids
     assert len(set(ids)) == len(ids)
@@ -222,7 +224,9 @@ def test_equity_is_cash_plus_marked_positions() -> None:
 
 def test_replication_mode_charges_nothing_in_tier_b_either() -> None:
     rows = _panel()
-    result = event_driven.run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="replication")
+    result = event_driven.run(
+        rows, BuyAndHold(top_n=10), warmup=60, cost_mode="replication", asset_class="equity"
+    )
     assert result.total_cost == 0.0
 
 
@@ -230,5 +234,7 @@ def test_realistic_mode_charges_through_the_shared_cost_path() -> None:
     """Tier B has no cost model of its own - that is the double-costing bug
     the reference system had to disable with a comment."""
     rows = _panel()
-    result = event_driven.run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic")
+    result = event_driven.run(
+        rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic", asset_class="equity"
+    )
     assert result.total_cost > 0

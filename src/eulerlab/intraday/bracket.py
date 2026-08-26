@@ -28,9 +28,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal
 
-from eulerlab.costs.model import cost_of_trade
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday.tweezer import Candle, Plan, Rules
 
@@ -80,61 +78,29 @@ class Trade:
 
 
 def _cost(price: float, shares: int, side: Side, day: date, asset_class: str) -> float:
-    """What one fill costs, on the venue it would actually trade on.
+    """What one fill costs, from the one router that knows every venue.
 
-    `asset_class` has **no default**, deliberately. It had one, `"equity"`, and
-    two of the six call sites in this file forgot to pass it — the target-1 and
-    target-2 exits, which are the *winning* legs and the most common ones. So
-    every profitable exit on every venue was billed Indian STT, SEBI turnover
-    and stamp duty, while the entry and the stop were billed correctly. A US
-    sell that should have cost $10 cost $167, and the error was invisible
-    because the number it produced was plausible.
+    This used to hold the routing itself, and so did `vector._costs_for` in the
+    daily engine — two implementations that diverged: this one knew crypto and
+    NSE *intraday*, that one knew NSE *delivery* and no crypto at all. A venue
+    handled here and mishandled there produced a plausible number either way.
 
-    Without a default, a missed call site is a TypeError at import rather than
-    a wrong number at the end of a backtest.
-
-    The segment used to be hardcoded to `EQUITY_INTRADAY`, which meant a crypto
-    backtest was charged STT, SEBI turnover fees, stamp duty and GST on
-    brokerage — an Indian equity bill for a trade on Delta Exchange, which
-    levies none of them. The Delta model has existed and been tested since the
-    crypto signals were written; it was simply never wired to the engine that
-    charges.
-
-    Delta's own schedule instead: 0.05% taker, plus 18% GST **on the fee**, so
-    a round trip is 0.118% of notional. Deliberately not modelled here are
-    funding on perpetuals and India's 30% VDA tax — the first because these
-    signals close intraday and never hold through a funding window, the second
-    because a tax on outcome is not a cost of execution (A-026 to A-028).
+    `asset_class` has no default. It defaulted to `"equity"`, which billed
+    crypto Indian STT, then US Indian STT, then every winning exit Indian STT
+    because two of six call sites in this file kept the default after the others
+    were fixed.
     """
-    if shares <= 0:
-        return 0.0
+    from eulerlab.costs.router import fill_cost
 
-    if asset_class == "crypto":
-        from eulerlab.costs.delta_exchange import futures_fee
-
-        fee = futures_fee(price=Decimal(str(price)), quantity=Decimal(str(shares)))
-        return float(fee.total)
-
-    if asset_class == "us":
-        # Same mistake as the crypto one above, arriving from the other
-        # direction: without this branch a QQQ trade is charged STT, stamp duty
-        # and GST on brokerage. US equities pay no commission on Alpaca and two
-        # sell-side pass-throughs, which is roughly a fortieth of Delta's bill.
-        from eulerlab.costs.us_equity import equity_fee
-
-        us_fee = equity_fee(
-            price=Decimal(str(price)), quantity=Decimal(str(shares)), side=side, day=day
-        )
-        return float(us_fee.total)
-
-    return float(
-        cost_of_trade(
-            trade_date=day,
-            segment=Segment.EQUITY_INTRADAY,
-            side=side,
-            price=Decimal(str(round(price, 2))),
-            quantity=shares,
-        ).total
+    return fill_cost(
+        venue=asset_class,
+        price=price,
+        quantity=shares,
+        side=side,
+        day=day,
+        # Intraday by construction: every signal in this engine is flat at the
+        # close, so NSE charges the intraday rates rather than delivery.
+        segment=Segment.EQUITY_INTRADAY,
     )
 
 
