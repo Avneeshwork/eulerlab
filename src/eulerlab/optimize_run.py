@@ -36,6 +36,41 @@ SPACES: dict[str, dict[str, list[float]]] = {
         "stop_atr_mult": [1.0, 1.4, 2.0],
         "target_r": [1.5, 2.0, 3.0],
     },
+    # --- the NSE adaptations ------------------------------------------------
+    #
+    # Each grid is chosen from *why that strategy failed*, not from a habit of
+    # sweeping the exit. Stop and target are the two knobs every bracket signal
+    # shares, which makes them the obvious sweep and often the wrong one: a
+    # signal with no gross edge cannot be rescued by where it takes profit.
+    #
+    # `ou_reversion_in` is the case that makes the point. It earns +Rs 7,710
+    # gross on NIFTYBEES and pays Rs 22,953 to do it across 56 trades — costs
+    # are three times the edge. No stop or target fixes that; trading less
+    # often might, so the sweep is over selectivity.
+    "ou_reversion_in": {
+        "ou_entry_z": [-2.0, -2.5, -3.0],
+        "ou_lookback": [30, 60, 120],
+    },
+    # Loses gross with 7 fills in 59 sessions, rejecting "range closed down"
+    # 17,268 times. A 5-minute opening range on a quiet index ETF is barely a
+    # range at all, so the lever is how long the range is measured over.
+    "orb_breakout_in": {
+        "opening_range_minutes": [5, 15, 30],
+        "stop_atr_mult": [1.0, 1.4, 2.0],
+    },
+    # Loses gross on 9 fills. NIFTYBEES opens close to its previous close far
+    # more often than QQQ does, so a 0.3% threshold admits noise as a "gap".
+    "gap_continuation_in": {
+        "gap_min_pct": [0.3, 0.75, 1.5],
+        "target_r": [1.5, 2.0, 3.0],
+    },
+    # Three fills. The relative-volume screen *is* the strategy, so the
+    # question is whether its threshold is simply too strict here rather than
+    # what the bracket does afterwards.
+    "orb_in_play_in": {
+        "orb_relative_volume_min": [0.8, 1.0, 1.5],
+        "opening_range_minutes": [5, 15, 30],
+    },
 }
 
 SYMBOL_FOR: dict[str, str] = {
@@ -187,11 +222,15 @@ def run(
         # The paper's market, not ours.
         asset_class, symbol = market_for(declaration)
 
+        # A signal-specific grid where one is declared, the shared exit grid
+        # otherwise. Sweeping the exit on a strategy whose problem is upstream
+        # of the exit spends nine trials to learn nothing.
+        space = SPACES.get(strategy_id, SPACES["default"])
         sweep = optimize.sweep_intraday(
             strategy_id,
             symbol,
             asset_class=asset_class,
-            space=SPACES["default"],
+            space=space,
             start=start,
             end=end,
             record=record,
