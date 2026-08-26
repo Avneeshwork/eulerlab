@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { ASSET_CLASSES } from '@/lib/assetClasses';
 import type { FleetStrategy, Instrument, WindowInfo } from '@/lib/api';
 
 const WINDOWS = [250, 500, 800, 1200, 1800, 2500, 2869];
@@ -213,15 +214,14 @@ export function BacktestDialog({
                   onUniverse('all');
                 }}
               >
-                {/* Every class the backend can actually load a panel for.
-                    US and FX were runnable and simply never offered — the
-                    backend has had `fx_daily` for a while and `us_daily` since
-                    the Alpaca panel landed, while this list stayed at two. */}
-                <option value="equity">Equities (NSE)</option>
-                <option value="us">US equities</option>
-                <option value="crypto">Crypto</option>
-                <option value="fx">FX</option>
-                <option value="mutual_fund">Mutual funds</option>
+                {/* From `lib/assetClasses`, not a local list. Three components
+                    kept their own copies and drifted — US and FX were runnable
+                    and offered nowhere. */}
+                {ASSET_CLASSES.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </label>
             <button

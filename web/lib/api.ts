@@ -50,6 +50,27 @@ export type AdoptedResult = {
   at: string;
 };
 
+/** Walk-forward evidence: does the setting chosen in sample survive on days it
+ *  was not chosen on? The only out-of-sample number this platform produces. */
+export type WalkResult = {
+  strategy_id: string;
+  symbol: string;
+  splits: number;
+  pbo: number;
+  pbo_verdict: string;
+  verdict: string;
+  modal_winner: Record<string, number>;
+  winner_oos_sharpe: number | null;
+  winner_oos_pnl: number;
+  median_oos_pnl: number;
+  oos_positive_splits: number;
+  settings_profitable_oos: number;
+  settings_total: number;
+  /** True when most of the grid works, which makes a high PBO benign — the
+   *  parameter does not matter rather than the search picking noise. */
+  most_settings_work: boolean;
+};
+
 export type OptimizeSetting = {
   params: Record<string, number>;
   net_pnl: number;
@@ -229,6 +250,8 @@ export type FleetStrategy = {
   /** The same strategy on QQQ, whatever market its paper used. For the ten
    *  crypto signals this is the only US evidence there is. */
   on_us?: AdoptedResult | null;
+  /** Walk-forward and PBO for this strategy, when one has been run. */
+  walk?: WalkResult | null;
   id: string;
   title: string;
   summary: string;

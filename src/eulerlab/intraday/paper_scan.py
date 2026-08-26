@@ -121,6 +121,11 @@ class SignalScan:
     symbol: str
     candles: int = 0
     sessions: int = 0
+    _session_dates: list[date] = field(default_factory=list)
+    """Every session date the scan covered, recorded as the bounds are found.
+
+    Kept because `sessions` is only a count, and a walk-forward split needs to
+    know *which* days it is partitioning."""
     plans: int = 0
     trades: list[Trade] = field(default_factory=list)
     rejections: dict[str, int] = field(default_factory=dict)
@@ -136,6 +141,29 @@ class SignalScan:
     @property
     def wins(self) -> int:
         return sum(1 for t in self.trades if t.filled and t.net_pnl() > 0)
+
+    def pnl_by_session(self) -> dict[date, float]:
+        """Net P&L keyed by session date, zero for sessions that traded nothing.
+
+        The dated form, which `session_pnl` flattens. Needed because a
+        walk-forward split partitions *sessions*, and a bare list cannot say
+        which session a number belongs to — the padding in `session_pnl` puts
+        the zeros at the end rather than on the days that were actually flat,
+        which is harmless for a Sharpe over the whole window and wrong for any
+        subset of it.
+        """
+        by_day: dict[date, float] = dict.fromkeys(self.session_days(), 0.0)
+        for trade in self.trades:
+            if trade.entry_ts is None:
+                continue
+            day = trade.entry_ts.date()
+            if day in by_day:
+                by_day[day] += trade.net_pnl()
+        return by_day
+
+    def session_days(self) -> list[date]:
+        """Every session date in the scan, trading or not."""
+        return sorted({candle_day for candle_day in self._session_dates})
 
     def session_pnl(self) -> list[float]:
         """Net P&L per session, including sessions that traded nothing.
@@ -223,6 +251,7 @@ def scan_symbol(
             bounds.append((cursor, index))
             cursor = index
     out.sessions = len(bounds)
+    out._session_dates = [candles[first].ts.date() for first, _ in bounds]
 
     bracket_rules = Rules()
     for first, last in bounds:

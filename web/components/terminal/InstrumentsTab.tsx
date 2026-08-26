@@ -11,18 +11,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
+import { assetClassLabel } from '@/lib/assetClasses';
 import type { InstrumentList } from '@/lib/api';
 
-/** Display names. A class absent from here falls through to its raw id, so a
- *  newly landed asset class is unlabelled rather than invisible — which is how
- *  FX stayed reachable when it was added and US did not need a second edit. */
-const LABEL: Record<string, string> = {
-  equity: 'Equities (NSE)',
-  us: 'US equities',
-  crypto: 'Crypto',
-  fx: 'FX',
-  mutual_fund: 'Mutual funds',
-};
+// Labels come from `lib/assetClasses`, the single source three components used
+// to each keep a private copy of.
 
 export function InstrumentsTab() {
   const [query, setQuery] = useState('');
@@ -146,7 +139,7 @@ export function InstrumentsTab() {
               setBatch('');
             }}
           >
-            {LABEL[name] ?? name}
+            {assetClassLabel(name)}
           </button>
         ))}
       </div>

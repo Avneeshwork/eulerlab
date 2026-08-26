@@ -47,9 +47,15 @@ SPACES: dict[str, dict[str, list[float]]] = {
     # gross on NIFTYBEES and pays Rs 22,953 to do it across 56 trades — costs
     # are three times the edge. No stop or target fixes that; trading less
     # often might, so the sweep is over selectivity.
+    # Extended past the boundary of the previous grid, because the winner sat
+    # on it: -2.0 was the shallowest threshold tested and 120 the longest
+    # window, so the reported optimum was the edge of what was looked at rather
+    # than a peak that was found. Going out to -1.5 and 240 brackets it — and
+    # if the winner lands on an edge again, the answer is a slope and not a
+    # maximum.
     "ou_reversion_in": {
-        "ou_entry_z": [-2.0, -2.5, -3.0],
-        "ou_lookback": [30, 60, 120],
+        "ou_entry_z": [-1.5, -2.0, -2.5, -3.0],
+        "ou_lookback": [60, 120, 180, 240],
     },
     # Loses gross with 7 fills in 59 sessions, rejecting "range closed down"
     # 17,268 times. A 5-minute opening range on a quiet index ETF is barely a

@@ -20,6 +20,7 @@ import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { Spark } from '@/components/terminal/Spark';
 import { AdoptedReport } from '@/components/terminal/AdoptedReport';
 import { SweepPanel } from '@/components/terminal/SweepPanel';
+import { WalkPanel } from '@/components/terminal/WalkPanel';
 import { UniversePicker } from '@/components/terminal/UniversePicker';
 import { api } from '@/lib/api';
 import { runBatch } from '@/lib/run';
@@ -393,6 +394,14 @@ function Row({
           <div className="nm">{strategy.title}</div>
           <div className="sub">
             {strategy.kind} · {strategy.shape}
+            {strategy.walk && (
+              <span
+                className={`ttag ${strategy.walk.pbo <= 0.25 || strategy.walk.most_settings_work ? 'sweep-tag on' : 'sweep-tag off'}`}
+                title={strategy.walk.verdict}
+              >
+                PBO {strategy.walk.pbo.toFixed(2)}
+              </span>
+            )}
             {strategy.adopted?.adopted && (
               <span
                 className="ttag sweep-tag on"
@@ -604,6 +613,9 @@ function Row({
                   }
                 />
               )}
+            {/* After the sweep it judges, and before the facts: the sweep says
+                what was chosen, this says whether choosing that way holds up. */}
+            {strategy.walk && <WalkPanel walk={strategy.walk} />}
             {sweep && <SweepPanel row={sweep} running={sweeping} />}
             {/* Facts about the run shown above it, never a second run's.
                 This grid used to read straight from the daily result store, so

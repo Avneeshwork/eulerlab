@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { UniverseNote, UniversePicker } from '@/components/terminal/UniversePicker';
 import { runBatch } from '@/lib/run';
+import { ASSET_CLASSES } from '@/lib/assetClasses';
 import type { BatchResult, Fleet, Instrument, RunPrice, WindowInfo } from '@/lib/api';
 
 export function RunTab({
@@ -171,9 +172,11 @@ export function RunTab({
               onUniverse('all');
             }}
           >
-            <option value="equity">Equities</option>
-            <option value="crypto">Crypto</option>
-            <option value="mutual_fund">Mutual funds</option>
+            {ASSET_CLASSES.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
         {assetClass === 'equity' && <UniversePicker value={universe} onChange={onUniverse} />}

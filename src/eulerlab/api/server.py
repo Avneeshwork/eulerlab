@@ -48,7 +48,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import cloud_results, reports, us_all_run
+from eulerlab import cloud_results, reports, us_all_run, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.authoring import translate
@@ -647,6 +647,10 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     # The cross-market test: every strategy on QQQ, including the ten whose
     # papers are crypto. Read once for the payload, like the adopted results.
     us_all_results = us_all_run.read()
+    # Walk-forward and PBO, where one has been run. The only evidence here that
+    # is out of sample, so it belongs beside the Sharpe rather than behind a
+    # separate screen.
+    walks = walk_run.read()
     return {
         "bar": round(bar, 3),
         # The denominator the bar was actually computed from. The console used
@@ -699,6 +703,7 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 # which is not redundant: `orb_in_play` is measured on SPY at
                 # home and returns a very different number on QQQ.
                 "on_us": us_all_results.get(row.declaration.id),
+                "walk": walks.get(row.declaration.id),
                 "trials": row.trials,
                 "clears_bar": _clears(tenant, row, bar, adopted_results),
             }

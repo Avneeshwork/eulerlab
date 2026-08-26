@@ -391,6 +391,12 @@ adopted-results:
 us-all:
 	@uv run python -m eulerlab.us_all_run $(if $(ONLY),--only $(ONLY),)
 
+# Walk-forward a strategy's sweep and estimate its probability of backtest
+# overfitting. Spends no trials: candidates are evaluated once and the sessions
+# re-partitioned. `make walk STRATEGY=ou_reversion_in`
+walk:
+	@uv run python -m eulerlab.walk_run $(STRATEGY)
+
 build-us-panel:
 	@uv run python -m eulerlab.features.us_panel
 
