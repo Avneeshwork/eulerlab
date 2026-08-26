@@ -18,19 +18,29 @@ from eulerlab.intraday import adopted
 
 
 def run(*, start: dt.date, end: dt.date, only: Sequence[str] = ()) -> list[adopted.Result]:
-    from eulerlab import optimize_store
     from eulerlab.features import trials
+    from eulerlab.intraday import tuned
 
     before = trials.count()
-    latest = optimize_store.latest()
-    if latest is None:
-        print("no sweep recorded yet — run `make optimize` first")
-        return []
-    if latest.get("dry_run", True):
-        print("the last sweep was a dry run, so nothing has been adopted from it")
+    # Every strategy any recorded sweep has covered, not just the newest
+    # sweep's rows. `make optimize ONLY=...` writes a document containing only
+    # what it swept, and reading that as the whole world meant a four-strategy
+    # sweep produced a four-strategy result file — silently discarding the
+    # twenty already measured.
+    adoptions = tuned.refresh()
+    if not adoptions:
+        print("no recorded sweep yet — run `make optimize` first")
         return []
 
-    rows = [r for r in latest.get("rows", []) if not only or r.get("strategy_id") in only]
+    rows = [
+        {
+            "strategy_id": adoption.strategy_id,
+            "symbol": adoption.symbol,
+            "market": adoption.market,
+        }
+        for adoption in sorted(adoptions.values(), key=lambda a: a.strategy_id)
+        if not only or adoption.strategy_id in only
+    ]
     print(f"{'strategy':22s} {'symbol':7s} {'net':>12} {'sharpe':>7} {'fills':>6} {'params'}")
     print("-" * 84)
 
@@ -48,8 +58,9 @@ def run(*, start: dt.date, end: dt.date, only: Sequence[str] = ()) -> list[adopt
         out.append(result)
         # Written after every strategy: these runs take minutes each and a
         # cache that only appears on completion is a cache that disappears on
-        # any interruption.
-        adopted.write(out)
+        # any interruption. Merged rather than replaced, so `--only` updates
+        # the strategies it ran and leaves the rest standing.
+        adopted.merge(out)
         sharpe = f"{result.sharpe:.2f}" if result.sharpe is not None else "  —"
         params = ", ".join(f"{k}={v}" for k, v in sorted(result.params.items())) or "paper defaults"
         print(

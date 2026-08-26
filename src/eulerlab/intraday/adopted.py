@@ -303,6 +303,50 @@ def write(results: list[Result], path: Path = RESULTS_PATH) -> None:
     )
 
 
+def merge(results: list[Result], path: Path = RESULTS_PATH) -> None:
+    """Write these results over whatever is cached, leaving other strategies alone.
+
+    `write` replaces the file, which is right for a full run and destructive for
+    a partial one: a four-strategy `--only` run wrote a four-strategy cache and
+    dropped the twenty already measured. Anything that can be invoked with a
+    subset has to merge.
+    """
+    existing = read(path)
+    for result in results:
+        existing[result.strategy_id] = {
+            "strategy_id": result.strategy_id,
+            "symbol": result.symbol,
+            "market": result.market,
+            "start": result.start,
+            "end": result.end,
+            "params": result.params,
+            "adopted": result.adopted,
+            "net_pnl": result.net_pnl,
+            "gross_pnl": result.gross_pnl,
+            "costs": result.costs,
+            "fills": result.fills,
+            "wins": result.wins,
+            "sessions": result.sessions,
+            "sharpe": result.sharpe,
+            "alt_broker": result.alt_broker,
+            "alt_net_pnl": result.alt_net_pnl,
+            "alt_costs": result.alt_costs,
+            "alt_sharpe": result.alt_sharpe,
+            "curve": result.curve,
+            "max_drawdown": result.max_drawdown,
+            "best_session": result.best_session,
+            "worst_session": result.worst_session,
+            "exits": result.exits,
+            "rejections": result.rejections,
+            "at": result.at,
+        }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "".join(json.dumps(row, sort_keys=True) + "\n" for _, row in sorted(existing.items())),
+        encoding="utf-8",
+    )
+
+
 def read(path: Path = RESULTS_PATH) -> dict[str, dict[str, Any]]:
     """Every cached headline result, keyed by strategy. Corrupt lines skipped."""
     if not path.exists():

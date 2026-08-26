@@ -53,6 +53,13 @@ but the underlying is the one the paper measured, which is nearer than any NSE
 name and is stated rather than implied."""
 
 SYMBOL_OVERRIDE: dict[str, str] = {
+    # The NSE adaptations run on the NIFTY 50 ETF, the direct analogue of the
+    # QQQ their US counterparts use. `RELIANCE`, the old NSE default, is a
+    # single large-cap and answers a different question than an index tracker.
+    "orb_breakout_in": "NIFTYBEES",
+    "gap_continuation_in": "NIFTYBEES",
+    "ou_reversion_in": "NIFTYBEES",
+    "orb_in_play_in": "NIFTYBEES",
     # Zarattini, Barbon & Aziz test the opening range on a broad US equity
     # cross-section, not on an index. SPY is the cross-section's own benchmark
     # and the honest single-name stand-in; sweeping the actual 7,000 names
@@ -77,7 +84,11 @@ def market_for(declaration: object) -> tuple[str, str]:
         getattr(declaration, "recommended_class", None) or getattr(asset_class, "value", "")
     ).lower()
 
-    if "crypto" in wanted:
+    if strategy_id.endswith("_in"):
+        # NSE adaptations, checked before the override table so they route to
+        # the Indian market rather than to the US one their source used.
+        market = "equity"
+    elif "crypto" in wanted:
         market = "crypto"
     elif "futures" in wanted or "us" in wanted.split() or strategy_id in SYMBOL_OVERRIDE:
         market = "us"

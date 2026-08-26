@@ -111,8 +111,17 @@ def load() -> dict[str, Adoption]:
 
     # The path is read from the module at call time rather than taken from the
     # function's default, which binds once at import and cannot be redirected.
-    latest = optimize_store.latest(optimize_store.SWEEPS_PATH)
-    if latest is None or latest.get("dry_run", True):
+    # Every recorded sweep, oldest first, so a later one overwrites an earlier
+    # adoption for the same strategy and leaves the others alone.
+    #
+    # Reading only the newest sweep was wrong the moment a sweep covered a
+    # subset. `make optimize ONLY=...` on the four NSE adaptations produced a
+    # four-row document, and the twenty US and crypto adoptions vanished — a
+    # partial sweep silently un-adopting every strategy it did not mention.
+    sweeps = [
+        s for s in optimize_store.read_all(optimize_store.SWEEPS_PATH) if not s.get("dry_run", True)
+    ]
+    if not sweeps:
         return {}
 
     # A partial sweep still adopts, for the strategies it finished. Each row is
@@ -122,7 +131,10 @@ def load() -> dict[str, Adoption]:
 
     defaults = PaperRules()
     out: dict[str, Adoption] = {}
-    for row in latest.get("rows", []):
+    rows_with_time = [
+        (str(sweep.get("at", "")), row) for sweep in sweeps for row in sweep.get("rows", [])
+    ]
+    for swept_at, row in rows_with_time:
         strategy_id = str(row.get("strategy_id", ""))
         params = dict(row.get("best_params") or {})
         paper = {name: float(getattr(defaults, name)) for name in params if hasattr(defaults, name)}
@@ -158,7 +170,7 @@ def load() -> dict[str, Adoption]:
             fills=int(row.get("fills") or 0),
             sessions=int(row.get("sessions") or 0),
             candidates=int(row.get("candidates") or 0),
-            swept_at=str(latest.get("at", "")),
+            swept_at=swept_at,
             reason=reason,
         )
     return out

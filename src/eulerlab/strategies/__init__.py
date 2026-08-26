@@ -340,7 +340,7 @@ PAPERS: dict[str, tuple[str, str]] = {
     ),
 }
 
-CITATION_TAGS = ("[paper] ", "[literature] ", "[practitioner] ")
+CITATION_TAGS = ("[paper] ", "[literature] ", "[practitioner] ", "[adaptation] ")
 """Prefixes a declaration may put in front of its citation.
 
 They classify how much weight the source carries — a peer-reviewed paper is not
@@ -434,6 +434,45 @@ def _paper_signals() -> dict[str, Declaration]:
     }
 
 
+def _india_signals() -> dict[str, Declaration]:
+    """The four US signals that cleared the bar, re-declared for NSE.
+
+    Separate registry entries sharing the US `detect` functions. A strategy id
+    that carried both a US and an India result would show one strategy with two
+    Sharpes and no way to say which claim was being made — and would count as
+    one subject where two were tested, which is the denominator the
+    deflated-Sharpe correction uses.
+    """
+    from eulerlab.intraday.india import INDIA_SIGNALS
+
+    return {
+        signal.id: Declaration(
+            id=signal.id,
+            title=signal.title,
+            summary=signal.published,
+            kind="technical",
+            shape="pattern",
+            asset_class=AssetClass.EQUITY,
+            timeframe=Timeframe.MINUTE,
+            emits=Emits.CONDITIONAL_ENTRY,
+            lookback=80,
+            risk_manager="risk-pct",
+            trade_manager="bracket",
+            is_strategy_subclass=False,
+            source=signal.source,
+            published=signal.published,
+            tested_on=signal.tested_on,
+            recommended_class=signal.recommended_class,
+            logic=list(signal.logic),
+            # The adaptation cites the same paper, so the link resolves through
+            # the `[adaptation] ` tag exactly as `[paper] ` does.
+            paper_url=paper_url(signal.source),
+            paper_pdf=paper_pdf(signal.source),
+        )
+        for signal in INDIA_SIGNALS.values()
+    }
+
+
 # The published set joins the hand-written ones. `rank_and_hold` is dropped in
 # favour of `momentum_12_1`, which is the same strategy under its paper's name.
 REGISTRY.pop("rank_and_hold", None)
@@ -483,6 +522,7 @@ def _crypto_signals() -> dict[str, Declaration]:
 
 REGISTRY.update(_paper_signals())
 REGISTRY.update(_crypto_signals())
+REGISTRY.update(_india_signals())
 
 
 @dataclass(frozen=True)

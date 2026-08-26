@@ -78,13 +78,18 @@ def test_no_strategy_claims_a_risk_manager_that_does_not_exist() -> None:
     This started as "only tweezer_bottom", which was true when Tweezer was the
     only bracket strategy and became wrong the moment ten more were coded
     against the same executor — and wrong again when ten crypto signals joined
-    them. Expressing it as a property rather than a list is what makes the
-    third addition free.
-    """
-    from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
-    from eulerlab.intraday.papers import SIGNALS
+    them, and again when four NSE adaptations did.
 
-    bracketed = {"tweezer_bottom", *SIGNALS, *CRYPTO_SIGNALS}
+    It claimed to express a property and was still enumerating modules:
+    `{*SIGNALS, *CRYPTO_SIGNALS}` has to be edited every time a fourth source
+    of bracket signals appears, which is exactly what a list does. `ALL_SIGNALS`
+    is the property — it is what `paper_scan` dispatches on, so a signal is
+    bracketed if and only if the scanner can run it, and the next addition
+    genuinely is free.
+    """
+    from eulerlab.intraday.paper_scan import ALL_SIGNALS
+
+    bracketed = {"tweezer_bottom", *ALL_SIGNALS}
     for declaration in REGISTRY.values():
         if declaration.id not in bracketed:
             assert declaration.risk_manager == "", declaration.id

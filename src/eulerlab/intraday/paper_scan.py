@@ -25,6 +25,7 @@ from eulerlab.intraday import bracket, store
 from eulerlab.intraday.bracket import Trade
 from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
 from eulerlab.intraday.crypto_signals import Detect as Detect
+from eulerlab.intraday.india import INDIA_SIGNALS
 from eulerlab.intraday.papers import SIGNALS, PaperRules
 from eulerlab.intraday.tweezer import Candle, Plan, Rejected, Rules
 
@@ -49,7 +50,11 @@ class _Signal(Protocol):
     def detect(self) -> Detect: ...
 
 
-ALL_SIGNALS: dict[str, _Signal] = {**SIGNALS, **CRYPTO_SIGNALS}
+ALL_SIGNALS: dict[str, _Signal] = {**SIGNALS, **CRYPTO_SIGNALS, **INDIA_SIGNALS}
+"""Every scannable signal. The India entries are separate ids sharing the US
+`detect` functions — a new hypothesis about a different market, not a second
+measurement of an existing one, so it gets its own registry entry and its own
+trial accounting."""
 """Every coded intraday signal, whichever module defined it.
 
 Merged here rather than in either module so neither has to import the other:
