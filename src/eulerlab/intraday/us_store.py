@@ -35,6 +35,8 @@ import gzip
 import json
 import re
 from datetime import UTC, date, datetime, time
+from functools import lru_cache
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from eulerlab.ingest import landing_reader
@@ -43,6 +45,9 @@ from eulerlab.intraday.tweezer import Candle
 TREE = "us"
 SUBTREE = "minute"
 
+LOCAL_ROOT = Path("data/landing/us")
+"""Where the tree lives on disk. Only its directory names are read."""
+
 EXCHANGE = ZoneInfo("America/New_York")
 SESSION_OPEN = time(9, 30)
 SESSION_CLOSE = time(16, 0)
@@ -50,14 +55,42 @@ SESSION_CLOSE = time(16, 0)
 an early close simply yields fewer bars, which is the truth about that day."""
 
 
-def symbols() -> list[str]:
-    """Every landed US symbol, from disk and the bucket together."""
-    found = {
-        p.split("/")[2]
-        for p in landing_reader.available(TREE, f"{SUBTREE}/*/*.jsonl.gz")
-        if p.count("/") >= 3
-    }
-    return sorted(found)
+@lru_cache(maxsize=1)
+def symbols() -> tuple[str, ...]:
+    """Every landed US symbol, read from **directory names** rather than objects.
+
+    The obvious form — `landing_reader.available(TREE, "minute/*/*.jsonl.gz")` —
+    enumerates the whole US minute prefix, which is 71 million bars across tens
+    of thousands of objects. It does not return in any time a web request can
+    wait for: the instrument search timed out at ninety seconds and the picker
+    showed nothing, which is what "US stock search not working" looked like.
+
+    A prune moves the bytes to B2 and leaves the tree behind, so `us/minute/AAPL/`
+    exists locally with nothing in it. That is normally a trap — T-3727 is about
+    exactly this mistake — and here it is the cheap correct answer, because the
+    question is *which symbols exist*, not which bytes are local. `fetch()` still
+    reads through `landing_reader` and does not care where the data lives.
+
+    Cached for the process: the universe changes when a batch is landed, not
+    between two keystrokes in a search box.
+    """
+    root = LOCAL_ROOT / SUBTREE
+    if root.exists():
+        found = {p.name.upper() for p in root.iterdir() if p.is_dir()}
+        if found:
+            return tuple(sorted(found))
+
+    # Nothing on disk at all — a fresh clone. Fall back to the listing, which is
+    # slow but correct, rather than reporting an empty universe.
+    return tuple(
+        sorted(
+            {
+                p.split("/")[2]
+                for p in landing_reader.available(TREE, f"{SUBTREE}/*/*.jsonl.gz")
+                if p.count("/") >= 3
+            }
+        )
+    )
 
 
 def _months(symbol: str) -> list[str]:

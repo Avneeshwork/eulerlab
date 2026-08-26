@@ -1122,6 +1122,17 @@ def _intraday_symbols(request: BatchRunRequest) -> list[str]:
             available = set(crypto_store.symbols())
         except Exception:
             available = set()
+    elif request.asset_class == AssetClass.US.value:
+        # Without this the US class fell through to the NSE store, matched
+        # nothing, and every intraday US backtest failed with "no symbols with
+        # minute bars for that selection" — which reads like missing data
+        # rather than a missing branch.
+        from eulerlab.intraday import us_store
+
+        try:
+            available = set(us_store.symbols())
+        except Exception:
+            available = set()
     else:
         from eulerlab.intraday import store
 

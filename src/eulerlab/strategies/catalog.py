@@ -19,6 +19,7 @@ from __future__ import annotations
 import gzip
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from eulerlab.strategies import AssetClass, Timeframe
@@ -123,7 +124,34 @@ def capabilities() -> list[Capability]:
             _has_files("fx", "*/*/*.jsonl.gz"),
             "resampled from minute bars",
         ),
+        # US arrives last and was missing entirely: 36,000 daily bars and 71
+        # million minute bars sat in the bucket while the matrix said the
+        # platform had no US data, so the picker offered none and a US backtest
+        # could not be started from the interface at all.
+        Capability(
+            AssetClass.US,
+            Timeframe.DAILY,
+            _has_files("us", "bars/*.jsonl.gz"),
+            _us_detail(),
+        ),
+        Capability(
+            AssetClass.US,
+            Timeframe.MINUTE,
+            _has_files("us", "minute/*/*.jsonl.gz"),
+            "1-minute bars, Alpaca IEX feed — prices track the tape, volume does not",
+        ),
     ]
+
+
+def _us_detail() -> str:
+    """Counted from disk and the bucket together, like every other row."""
+    census = _census("us")
+    if census is None:
+        return "US bars landed — count unmeasured (run `make manifest`)"
+    files = getattr(census, "files", 0)
+    if not files:
+        return "no US bars landed — run `make us-bars`"
+    return f"{files:,} landed objects (Alpaca daily and minute)"
 
 
 def _census(tree: str) -> object | None:
@@ -199,6 +227,84 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
         if len(out) >= limit:
             break
     return out
+
+
+def us_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
+    """The landed US universe, read from the bucket and disk together.
+
+    Ranked alphabetically rather than by turnover, and that is a deliberate
+    refusal. The only volume this platform holds for US names is the IEX feed,
+    one venue with a low single-digit share of the consolidated tape (A-031).
+    Ranking by it would produce a confident ordering of *IEX participation* and
+    present it as liquidity — the same class of artefact the FX ranking avoids
+    by using BIS order instead of measured quote frequency.
+    """
+    needle = query.strip().upper()
+    minute, daily = _us_symbols()
+
+    out: list[Instrument] = []
+    for rank, symbol in enumerate(sorted(minute | daily), start=1):
+        if needle and needle not in symbol:
+            continue
+        out.append(
+            Instrument(
+                symbol=symbol,
+                asset_class=AssetClass.US,
+                has_daily=symbol in daily,
+                has_minute=symbol in minute,
+                rank=rank,
+                name=symbol,
+                detail=("daily and 1-minute bars" if symbol in minute else "daily bars"),
+            )
+        )
+        if len(out) >= limit:
+            break
+    return out
+
+
+@lru_cache(maxsize=1)
+def _us_symbols() -> tuple[frozenset[str], frozenset[str]]:
+    """(minute, daily) symbol sets, read cheaply.
+
+    The obvious implementation — glob the landing tree — makes one request per
+    search that enumerates the whole US minute prefix. That is 71 million bars
+    across tens of thousands of objects, and it does not return: the instrument
+    search timed out at ninety seconds and the picker showed nothing, which is
+    what "US stock search not working" looked like from the outside.
+
+    So symbols come from **directory names**, not from object listings. A prune
+    moves the bytes to B2 and leaves the tree behind, so `us/minute/AAPL/` still
+    exists locally with nothing in it — normally a trap (T-3727 is about exactly
+    that mistake) and here the cheap answer, because the question is which
+    symbols exist rather than which bytes are present.
+
+    Cached for the process. The universe changes when a batch is landed, which
+    is not something that happens between two keystrokes in a search box.
+    """
+    from eulerlab.ingest.alpaca import LANDING
+    from eulerlab.intraday.us_store import symbols as minute_symbols
+
+    # One implementation, in `us_store`, so the picker and the intraday scanner
+    # cannot disagree about which symbols exist.
+    minute: set[str] = set(minute_symbols())
+
+    daily: set[str] = set()
+    bars = LANDING / "bars"
+    if bars.exists():
+        daily = {p.name.split(".")[0].upper() for p in bars.iterdir() if p.is_file()}
+
+    # The daily panel is the authority on what can actually be backtested, and
+    # it is local and already parsed elsewhere. Used only to fill gaps, so a
+    # symbol with minute data but no daily row is still offered.
+    if not daily:
+        try:
+            from eulerlab.features import us_panel
+
+            daily = {row.symbol.upper() for row in us_panel.read()}
+        except (OSError, ValueError):
+            daily = set()
+
+    return frozenset(minute), frozenset(daily or minute)
 
 
 def _fund_detail() -> str:
@@ -498,6 +604,8 @@ def search(
         return fund_instruments(query, limit)
     if wanted == AssetClass.FX.value:
         return fx_instruments(query, limit)
+    if wanted == AssetClass.US.value:
+        return us_instruments(query, limit)
     if wanted == AssetClass.EQUITY.value or batch:
         return equity_instruments(query, batch=batch, limit=limit)
 
@@ -515,6 +623,7 @@ def search(
         AssetClass.EQUITY.value: lambda n: equity_instruments(query, limit=n),
         AssetClass.CRYPTO.value: lambda n: crypto_instruments(query, n),
         AssetClass.FX.value: lambda n: fx_instruments(query, n),
+        AssetClass.US.value: lambda n: us_instruments(query, n),
         AssetClass.MUTUAL_FUND.value: lambda n: fund_instruments(query, n),
     }
     usable = _supported_classes()

@@ -213,8 +213,14 @@ export function BacktestDialog({
                   onUniverse('all');
                 }}
               >
-                <option value="equity">Equities</option>
+                {/* Every class the backend can actually load a panel for.
+                    US and FX were runnable and simply never offered — the
+                    backend has had `fx_daily` for a while and `us_daily` since
+                    the Alpaca panel landed, while this list stayed at two. */}
+                <option value="equity">Equities (NSE)</option>
+                <option value="us">US equities</option>
                 <option value="crypto">Crypto</option>
+                <option value="fx">FX</option>
                 <option value="mutual_fund">Mutual funds</option>
               </select>
             </label>
@@ -303,11 +309,35 @@ export function BacktestDialog({
             </p>
           )}
 
+          {/* Which venue's bill this run pays. Stated because it changes the
+              answer more than most parameters do, and because the same engine
+              charges three different schedules depending on this dropdown. */}
+          {assetClass === 'us' && (
+            <p className="tfine" style={{ marginBottom: 10 }}>
+              Costed at <b>INDmoney</b>: 0.25% a leg, capped at $25 per transaction, plus
+              18% GST — a flat $29.50 a leg above $10,000 of notional. The cap is what
+              makes US viable here; uncapped, 0.25% a leg is 0.5% a round trip and no
+              intraday signal survives it. Currency conversion is not included: it is a
+              cost on moving capital, not on trading.
+            </p>
+          )}
+          {assetClass === 'fx' && (
+            <p className="tfine" style={{ marginBottom: 10 }}>
+              Costed at the <b>measured bid-ask spread</b>, carried per bar in the landed
+              data. FX pays no exchange charges, STT or stamp duty — the spread is the
+              cost, and charging what was observed is not the same as inventing a fee.
+            </p>
+          )}
+
           <p className="tfine">
             {custom
               ? `${instruments.length} hand-picked instruments. This overrides the batch and is recorded as a custom run, with the list itself in the configuration hash — so a different list is a different result, not another "custom".`
               : assetClass === 'crypto'
                 ? 'Every landed pair. Binance spot, resampled from the minute archive to daily bars.'
+                : assetClass === 'us'
+                  ? 'The landed S&P 500 names, from Alpaca daily bars. Volume is the IEX feed — one venue with a low single-digit share of the consolidated tape — so prices track closely and volume does not, which matters for anything liquidity-ranked.'
+                  : assetClass === 'fx'
+                    ? 'Every landed pair. FXCM minute bars resampled to daily, carrying the measured spread. Volume is zero and that is a fact rather than a gap: spot FX has no central exchange and therefore no consolidated volume.'
                 : assetClass === 'mutual_fund'
                   ? 'Every scheme with landed NAV history. Direct growth plans only, so a scheme is not counted once per plan variant.'
                   : universe === 'all'
