@@ -23,6 +23,7 @@ import { SweepPanel } from '@/components/terminal/SweepPanel';
 import { WalkPanel } from '@/components/terminal/WalkPanel';
 import { UniversePicker } from '@/components/terminal/UniversePicker';
 import { api } from '@/lib/api';
+import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
 import type { Fleet, FleetStrategy, OptimizeRow } from '@/lib/api';
 
@@ -496,11 +497,8 @@ function Row({
                 `with ${strategy.adopted.fills} fills, on the parameters this strategy now uses.`
               }
             >
-              {strategy.adopted.net_pnl < 0 ? '−' : '+'}
-              {strategy.adopted.market === 'equity' ? '₹' : '$'}
-              {Math.abs(Math.round(strategy.adopted.net_pnl)).toLocaleString(
-                strategy.adopted.market === 'equity' ? 'en-IN' : 'en-US',
-              )}
+              {strategy.adopted.net_pnl >= 0 ? '+' : ''}
+              {money(strategy.adopted.net_pnl, strategy.adopted.market)}
             </Tag>
           )}
           {strategy.adopted ? (
@@ -645,11 +643,7 @@ function Row({
                       quoted in, so the label follows the market. "₹10L" on a
                       QQQ run is wrong by the exchange rate. */}
                   <Fact
-                    label={
-                      strategy.adopted.market === 'equity'
-                        ? 'Return on ₹10L'
-                        : 'Return on $1M'
-                    }
+                    label={`Return on ${currencySymbol(strategy.adopted.market)}1M`}
                     value={fmtPct(strategy.adopted.net_pnl / 1_000_000)}
                   />
                   <Fact

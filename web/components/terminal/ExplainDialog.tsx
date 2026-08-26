@@ -18,12 +18,16 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { money } from '@/lib/money';
 import type { Constituent, Explain, FullReport } from '@/lib/api';
 
-const money = (value: number) =>
-  `${value < 0 ? '−' : '+'}₹${Math.abs(value).toLocaleString('en-IN', {
-    maximumFractionDigits: 0,
-  })}`;
+/** Per-instrument contribution, in the currency of the run it came from.
+ *
+ * This wrote ₹ unconditionally, so a US strategy's attribution showed dollar
+ * figures with a rupee sign — the same defect the report header carried, in the
+ * one place a reader compares instruments against each other. */
+const contribution = (value: number, market: string) =>
+  `${value >= 0 ? '+' : ''}${money(value, market)}`;
 
 export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose: () => void }) {
   const [explain, setExplain] = useState<Explain | null>(null);
@@ -326,8 +330,8 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
                 positions, not an illustration.
               </p>
               <div className="tgrid">
-                <Holdings title="Made the most" rows={winners} />
-                <Holdings title="Cost the most" rows={losers} />
+                <Holdings title="Made the most" rows={winners} market={report?.asset_class ?? "equity"} />
+                <Holdings title="Cost the most" rows={losers} market={report?.asset_class ?? "equity"} />
               </div>
             </section>
           )}
@@ -394,7 +398,18 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
   );
 }
 
-function Holdings({ title, rows }: { title: string; rows: Constituent[] }) {
+function Holdings({
+  title,
+  rows,
+  market,
+}: {
+  title: string;
+  rows: Constituent[];
+  /** The market these figures are denominated in. Passed rather than assumed:
+   *  this component is where a reader compares instruments to each other, so a
+   *  wrong symbol here is wrong in the one place it is most load-bearing. */
+  market: string;
+}) {
   if (rows.length === 0) return null;
   return (
     <div className="tpanel" style={{ padding: 16 }}>
@@ -408,7 +423,7 @@ function Holdings({ title, rows }: { title: string; rows: Constituent[] }) {
                 <div className="tfine">{row.fills} fills · last {row.last_day}</div>
               </td>
               <td className={`r${row.contribution < 0 ? ' neg' : ''}`}>
-                <b>{money(row.contribution)}</b>
+                <b>{contribution(row.contribution, market)}</b>
               </td>
             </tr>
           ))}

@@ -403,6 +403,11 @@ walk:
 prune-runs:
 	@uv run python -m eulerlab.prune_runs $(if $(APPLY),--apply,)
 
+# Where every result and trial lives, and which of them the noise bar is
+# charged for. Read-only.
+evidence:
+	@uv run python -m eulerlab.evidence
+
 build-us-panel:
 	@uv run python -m eulerlab.features.us_panel
 

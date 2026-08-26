@@ -172,7 +172,7 @@ def _plan(entry: float = 100.0, stop: float = 99.0) -> Plan:
 
 def test_an_order_that_never_triggers_never_fills() -> None:
     flat = [_bar(i, 98.0, 98.5, 97.5, 98.0) for i in range(1, 30)]
-    trade = bracket.run(_plan(), flat, RULES)
+    trade = bracket.run(_plan(), flat, RULES, asset_class="equity")
     assert not trade.filled
     assert trade.net_pnl() == 0.0
 
@@ -182,7 +182,7 @@ def test_a_gap_through_the_trigger_fills_at_the_open_not_the_trigger() -> None:
     fabricated fill in the flattering direction."""
     bars = [_bar(1, 99.0, 99.5, 98.5, 99.0), _bar(2, 103.0, 104.0, 102.5, 103.5)]
     bars += [_bar(i, 103.5, 104.0, 103.0, 103.5) for i in range(3, 20)]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     assert trade.filled
     assert trade.entry_price == pytest.approx(103.0)
 
@@ -193,7 +193,7 @@ def test_an_ambiguous_bar_is_resolved_against_us() -> None:
     bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
     bars.append(_bar(3, 100.4, 102.5, 98.0, 99.0))  # hits target 1 AND the stop
     bars += [_bar(i, 99.0, 99.2, 98.8, 99.0) for i in range(4, 12)]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     assert trade.filled
     assert trade.exits[0].reason == "stop"
     assert trade.net_pnl() < 0
@@ -202,7 +202,7 @@ def test_an_ambiguous_bar_is_resolved_against_us() -> None:
 def test_the_position_is_closed_before_the_session_ends() -> None:
     bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
     bars += [_bar(i, 100.4, 100.6, 100.2, 100.4) for i in range(3, 15)]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     assert trade.filled
     assert trade.exits[-1].reason == "session end"
     assert trade.shares_exited == trade.plan.shares
@@ -213,7 +213,7 @@ def test_the_first_target_fills_and_moves_the_stop_to_breakeven() -> None:
     bars.append(_bar(3, 100.4, 102.2, 100.3, 102.0))  # target 1 at 102
     bars.append(_bar(4, 102.0, 102.1, 99.5, 99.8))  # back through entry
     bars += [_bar(i, 99.8, 100.0, 99.6, 99.8) for i in range(5, 12)]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     reasons = [e.reason for e in trade.exits]
     assert "target 1" in reasons
     assert "breakeven stop" in reasons
@@ -224,7 +224,7 @@ def test_both_targets_can_fill() -> None:
     bars.append(_bar(3, 100.4, 102.2, 100.3, 102.0))
     bars.append(_bar(4, 102.0, 103.5, 101.9, 103.2))
     bars += [_bar(i, 103.2, 103.4, 103.0, 103.2) for i in range(5, 12)]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     reasons = [e.reason for e in trade.exits]
     assert "target 1" in reasons and "target 2" in reasons
     assert trade.shares_exited == trade.plan.shares
@@ -234,7 +234,7 @@ def test_both_targets_can_fill() -> None:
 def test_costs_are_charged_on_both_legs() -> None:
     bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
     bars += [_bar(i, 100.4, 100.6, 100.2, 100.4) for i in range(3, 10)]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     assert trade.costs > 0
     assert trade.net_pnl() < trade.gross_pnl()
 
@@ -249,7 +249,7 @@ def test_costs_use_the_candles_own_date_not_today() -> None:
         )
         for i in range(1, 10)
     ]
-    trade = bracket.run(_plan(), bars, RULES)
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
     assert trade.filled
     assert trade.costs > 0
 

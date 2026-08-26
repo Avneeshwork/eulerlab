@@ -14,24 +14,8 @@
  * or a plateau. The median row is marked for the same reason.
  */
 
+import { money } from '@/lib/money';
 import type { OptimizeRow } from '@/lib/api';
-
-/**
- * The currency a market's P&L is denominated in.
- *
- * The rest of this app writes ₹ because every backtest in it was NSE. US bars
- * are the first that are not — Alpaca quotes dollars and the SEC and FINRA fees
- * are dollar amounts — so a US row carrying a rupee sign is wrong by the
- * exchange rate and reads as comparable to the India rows when it is not.
- */
-const CURRENCY: Record<string, string> = { us: '$', crypto: '$', equity: '₹' };
-
-function money(value: number, market: string): string {
-  const symbol = CURRENCY[market] ?? '₹';
-  const locale = symbol === '₹' ? 'en-IN' : 'en-US';
-  const sign = value < 0 ? '−' : '';
-  return `${sign}${symbol}${Math.abs(Math.round(value)).toLocaleString(locale)}`;
-}
 
 function labelParams(params: Record<string, number>): string {
   return Object.entries(params)

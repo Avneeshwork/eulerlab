@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { EquityChart } from '@/components/terminal/EquityChart';
 import { api } from '@/lib/api';
 import { assetClassLabel } from '@/lib/assetClasses';
+import { moneyIn } from '@/lib/money';
 import type { FleetStrategy, FullReport, RunChoice } from '@/lib/api';
 
 type Tab = 'Summary' | 'Instruments' | 'Orders';
@@ -31,11 +32,6 @@ type Tab = 'Summary' | 'Instruments' | 'Orders';
  */
 const SYMBOL: Record<string, string> = { us: '$', crypto: '$', fx: '$' };
 
-const moneyIn = (assetClass: string) => (value: number) => {
-  const symbol = SYMBOL[assetClass] ?? '₹';
-  const locale = symbol === '₹' ? 'en-IN' : 'en-US';
-  return `${symbol}${value.toLocaleString(locale, { maximumFractionDigits: 0 })}`;
-};
 const pct = (value: number | null | undefined, digits = 1) =>
   value === null || value === undefined
     ? '—'

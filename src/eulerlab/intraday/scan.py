@@ -135,7 +135,11 @@ def scan_symbol(
             assert isinstance(outcome, Plan)
             result.plans += 1
             forward = session[index + 1 :]
-            trade = bracket.run(outcome, forward, rules)
+            # NSE, stated rather than inherited. Tweezer only ever runs on
+            # Indian equities, so this was correct while it was a default — and
+            # correct-by-accident is how the same default went wrong in three
+            # other call sites without anyone noticing.
+            trade = bracket.run(outcome, forward, rules, asset_class="equity")
             result.trades.append(trade)
             # Skip past the trade so one setup cannot be counted many times as
             # the same pattern stays visible in successive windows.

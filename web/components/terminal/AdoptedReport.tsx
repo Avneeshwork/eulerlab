@@ -12,16 +12,8 @@
  * evidence for the parameter choice, not the result of the strategy.
  */
 
+import { money } from '@/lib/money';
 import type { AdoptedResult } from '@/lib/api';
-
-const CURRENCY: Record<string, string> = { us: '$', crypto: '$', equity: '₹' };
-
-function money(value: number, market: string): string {
-  const symbol = CURRENCY[market] ?? '₹';
-  const locale = symbol === '₹' ? 'en-IN' : 'en-US';
-  const sign = value < 0 ? '−' : '';
-  return `${sign}${symbol}${Math.abs(Math.round(value)).toLocaleString(locale)}`;
-}
 
 /** The equity path, drawn large enough to read rather than as a sparkline. */
 function Curve({ curve, market }: { curve: number[]; market: string }) {

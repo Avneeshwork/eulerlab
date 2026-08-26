@@ -144,12 +144,22 @@ def run(
     rules: Rules,
     *,
     session_end_index: int | None = None,
-    asset_class: str = "equity",
+    asset_class: str,
 ) -> Trade:
     """Execute `plan` against the candles that followed the signal.
 
     `forward` starts at the candle **after** the signal, so the signal candle
     itself can never fill the order — the trigger was published on its close.
+
+    `asset_class` has **no default**, and the reason is a pattern rather than
+    one bug. It defaulted to `"equity"`, which made this call accidentally
+    correct for the NSE scanner and silently wrong everywhere else: crypto
+    trades billed Indian STT, then US trades billed Indian STT, then — after
+    both were fixed at `_cost` — every *winning* exit billed Indian STT, because
+    two of six call sites inside this function had quietly kept the default.
+
+    Each time the wrong number was plausible, which is what let it survive. A
+    required argument turns all of that into a TypeError at import.
     """
     trade = Trade(plan=plan)
     remaining_1, remaining_2 = plan.shares_1, plan.shares_2
