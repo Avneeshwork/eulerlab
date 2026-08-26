@@ -427,6 +427,9 @@ export type FullReport = {
   universe: string;
   instruments: string[];
   tier: string;
+  /** The market this run was on. Decides the currency the report is written
+   *  in — a QQQ report labelled in rupees is off by the exchange rate. */
+  asset_class?: string;
   window_days: number;
   period: [string | null, string | null];
   starting_cash: number;

@@ -128,30 +128,45 @@ def capabilities() -> list[Capability]:
         # million minute bars sat in the bucket while the matrix said the
         # platform had no US data, so the picker offered none and a US backtest
         # could not be started from the interface at all.
+        # Tree names are `us/bars` and `us/minute`, which is how the manifest
+        # records them. Asking for tree `"us"` with a `bars/...` pattern missed
+        # the census every time and fell through to a bucket enumeration of the
+        # whole US minute prefix — tens of thousands of objects, which does not
+        # return inside a web request. The instrument picker then showed an
+        # empty table and US looked like data the platform did not have.
+        #
+        # The same shape as the `root.name` bug in `_has_files`'s own docstring:
+        # a tree name that does not match what the manifest wrote down.
         Capability(
             AssetClass.US,
             Timeframe.DAILY,
-            _has_files("us", "bars/*.jsonl.gz"),
+            _has_files("us/bars", "*.jsonl.gz"),
             _us_detail(),
         ),
         Capability(
             AssetClass.US,
             Timeframe.MINUTE,
-            _has_files("us", "minute/*/*.jsonl.gz"),
+            _has_files("us/minute", "*/*.jsonl.gz"),
             "1-minute bars, Alpaca IEX feed — prices track the tape, volume does not",
         ),
     ]
 
 
 def _us_detail() -> str:
-    """Counted from disk and the bucket together, like every other row."""
-    census = _census("us")
-    if census is None:
+    """Counted from the manifest, like every other row.
+
+    Reads `us/bars` and `us/minute` separately because that is how the manifest
+    keys them — there is no tree called `us`.
+    """
+    bars = _census("us/bars")
+    minute = _census("us/minute")
+    if bars is None and minute is None:
         return "US bars landed — count unmeasured (run `make manifest`)"
-    files = getattr(census, "files", 0)
-    if not files:
+    daily_files = getattr(bars, "files", 0) if bars is not None else 0
+    minute_files = getattr(minute, "files", 0) if minute is not None else 0
+    if not daily_files and not minute_files:
         return "no US bars landed — run `make us-bars`"
-    return f"{files:,} landed objects (Alpaca daily and minute)"
+    return f"{daily_files:,} daily and {minute_files:,} minute objects (Alpaca)"
 
 
 def _census(tree: str) -> object | None:
@@ -200,28 +215,24 @@ def fx_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
 
     needle = query.strip().upper()
     out: list[Instrument] = []
-    landed_fx: dict[str, int] = {}
-    for relative in _tree_files("fx", "*/*/*.jsonl.gz"):
-        parts = relative.split("/")
-        if len(parts) >= 2:
-            landed_fx[parts[1]] = landed_fx.get(parts[1], 0) + 1
+    landed_fx = _fx_months()
 
     for rank, pair in enumerate(PAIRS, start=1):
         if needle and needle not in pair:
             continue
-        days = landed_fx.get(pair, 0)
-        if days == 0:
+        months = landed_fx.get(pair, 0)
+        if months == 0:
             # Pruned to B2 or never landed. Either way it cannot be read here.
             continue
         out.append(
             Instrument(
                 symbol=pair,
                 asset_class=AssetClass.FX,
-                has_daily=days > 0,
-                has_minute=days > 0,
+                has_daily=months > 0,
+                has_minute=months > 0,
                 rank=rank,
                 name=f"{pair[:3]}/{pair[3:]}",
-                detail=f"{days:,} days landed, BIS turnover rank {rank}",
+                detail=f"{months:,} months landed, BIS turnover rank {rank}",
             )
         )
         if len(out) >= limit:
@@ -305,6 +316,55 @@ def _us_symbols() -> tuple[frozenset[str], frozenset[str]]:
             daily = set()
 
     return frozenset(minute), frozenset(daily or minute)
+
+
+@lru_cache(maxsize=1)
+def _fx_months() -> dict[str, int]:
+    """Months landed per FX pair, counted without enumerating the bucket.
+
+    The direct form globbed `fx/*/*/*.jsonl.gz`, which is 34,051 keys over 35
+    paginated requests and **21.7 seconds** — on a call the instrument picker
+    makes on every page load, and inside a mixed-class search that also pays for
+    crypto and mutual funds. That is most of why the picker appeared to hang.
+
+    `_has_files` learned this lesson one layer up and its docstring says so:
+    "that enumerates the tree to answer a boolean... 62 seconds per call". The
+    builder underneath it kept doing exactly that to answer a count.
+
+    Counted from local directory names instead. A prune moves bytes to B2 and
+    leaves `fx/EURUSD/2015-01/` behind, so the month directories still say how
+    many months landed. Falls back to the listing only when there is no local
+    tree at all, which is a fresh clone rather than a pruned one.
+    """
+    from eulerlab.ingest.fx import LANDING
+
+    counts: dict[str, int] = {}
+    if LANDING.exists():
+        for pair_dir in LANDING.iterdir():
+            if not pair_dir.is_dir():
+                continue
+            # **Months**, not days. The day files are pruned to B2, so a local
+            # glob for them finds nothing and falls through to the enumeration
+            # this function exists to avoid — 23 seconds to learn a number the
+            # month directories already imply.
+            #
+            # Counting the months and calling them days would understate by
+            # twenty-five-fold while looking right, so the caller is told which
+            # unit it received.
+            months = sum(1 for month in pair_dir.iterdir() if month.is_dir())
+            if months:
+                counts[pair_dir.name.upper()] = months
+    if counts:
+        return counts
+
+    # Fresh clone with no local tree at all. Slow, correct, and counting days
+    # rather than months — so the two branches disagree about the unit, which
+    # is why the detail line says which one it got.
+    for relative in _tree_files("fx", "*/*/*.jsonl.gz"):
+        parts = relative.split("/")
+        if len(parts) >= 2:
+            counts[parts[1]] = counts.get(parts[1], 0) + 1
+    return counts
 
 
 def _fund_detail() -> str:

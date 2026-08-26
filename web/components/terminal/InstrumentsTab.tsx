@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
-import { assetClassLabel } from '@/lib/assetClasses';
+import { ASSET_CLASSES, assetClassLabel } from '@/lib/assetClasses';
 import type { InstrumentList } from '@/lib/api';
 
 // Labels come from `lib/assetClasses`, the single source three components used
@@ -86,8 +86,12 @@ export function InstrumentsTab() {
             <b>{list ? list.instruments.length : '—'}</b>
             <span className="unit">shown</span>
           </div>
+          {/* Named from the shared list rather than written out, because this
+              sentence said "equities, crypto and mutual funds" for as long as
+              US and FX were landed, panelled and invisible. Prose that
+              enumerates a list is a fourth copy of that list. */}
           <p className="thsub">
-            Search across equities, crypto and mutual funds. Batches are
+            Search across {ASSET_CLASSES.map((c) => c.label).join(', ')}. NSE batches are
             liquidity-ranked from our own turnover history rather than index membership,
             because a published constituent list only exists as it stands today.
           </p>

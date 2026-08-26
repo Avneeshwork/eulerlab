@@ -1235,7 +1235,7 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
 
     returns = [b / a - 1.0 for a, b in pairwise(equity) if a > 0]
     stats = sharpe_stats(returns, periods_per_year=INTRADAY_SESSIONS_PER_YEAR)
-    return {
+    outcome: dict[str, Any] = {
         "sharpe": round(stats.sharpe, 4),
         "total_return": round(equity[-1] / 1_000_000.0 - 1.0, 6),
         "max_drawdown": round(_drawdown(equity), 6),
@@ -1251,6 +1251,101 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
         "sessions_scanned": sum(s.sessions for s in scans),
         "symbol_cap": INTRADAY_SYMBOL_CAP,
     }
+    # Carried out rather than saved here, under a private key. A report is
+    # filed under the run's `configuration` hash, and that hash is only known
+    # where the `Run` is built — which is the batch recorder, not this
+    # function. Building a second `Run` here to derive it produced a different
+    # hash (this function has `tier="A"` from the request; the recorder writes
+    # `tier="intraday"` from the payload), so the report landed under a
+    # configuration nothing would ever look up.
+    outcome["_report"] = _intraday_report_material(
+        strategy_id, request, scans, equity, sorted(by_session)
+    )
+    return outcome
+
+
+def _intraday_report_material(
+    strategy_id: str,
+    request: BatchRunRequest,
+    scans: Sequence[Any],
+    equity: list[float],
+    days: list[date],
+) -> dict[str, Any]:
+    """Everything `reports.build` needs except the configuration hash.
+
+    Turns one intraday scan into the same report the daily engine produces.
+
+    A bracket trade is one entry and one or more exits, so it becomes several
+    `FillLike` rows rather than one — which is what makes the per-instrument
+    attribution add up. Collapsing a trade to a single row would report half the
+    turnover and none of the partial exits.
+    """
+    from eulerlab.costs.schedule import Side
+
+    fills: list[Any] = []
+    marks: dict[str, float] = {}
+
+    for scan in scans:
+        for trade in scan.trades:
+            if not trade.filled or trade.entry_ts is None:
+                continue
+            shares = sum(leg.shares for leg in trade.exits)
+            if shares:
+                fills.append(
+                    _IntradayFill(
+                        day=trade.entry_ts.date(),
+                        symbol=scan.symbol,
+                        side=Side.BUY,
+                        quantity=shares,
+                        price=trade.entry_price,
+                        cost=trade.costs,
+                    )
+                )
+            for leg in trade.exits:
+                fills.append(
+                    _IntradayFill(
+                        day=leg.ts.date(),
+                        symbol=scan.symbol,
+                        side=Side.SELL,
+                        quantity=leg.shares,
+                        price=leg.price,
+                        # Charged once, on the entry row, so the two do not
+                        # double-count the same bill.
+                        cost=0.0,
+                    )
+                )
+                marks[scan.symbol] = leg.price
+
+    return {
+        "strategy_id": strategy_id,
+        "universe": _universe_label(request),
+        "instruments": sorted({s.symbol for s in scans}),
+        "tier": request.tier,
+        "asset_class": request.asset_class,
+        "cost_mode": cost_mode_for(request.asset_class),
+        "window_days": request.days,
+        "equity": equity,
+        "days": days,
+        "fills": fills,
+        # The intraday scanner records refusals by reason and count, not by
+        # symbol and day, so the report's per-order rejection list has nothing
+        # to show. Passed empty rather than fabricated.
+        "rejections": [],
+        "marks": marks,
+        "starting_cash": 1_000_000.0,
+    }
+
+
+@dataclass(frozen=True)
+class _IntradayFill:
+    """One leg of a bracket trade, in the shape `reports.build` expects."""
+
+    day: date
+    symbol: str
+    side: Any
+    quantity: int
+    price: float
+    cost: float
 
 
 def _run_params(request: BatchRunRequest) -> dict[str, object]:
@@ -1506,30 +1601,39 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             and the library showed "not measured" for work that had demonstrably
             run.
             """
-            result_store.record(
-                workspace,
-                result_store.Run(
-                    strategy_id=item.strategy_id,
-                    sharpe=_as_float(payload, "sharpe"),
-                    total_return=_as_float(payload, "total_return"),
-                    max_drawdown=_as_float(payload, "max_drawdown"),
-                    fills=int(_as_float(payload, "fills")),
-                    days=int(_as_float(payload, "days")),
-                    tier=str(payload.get("tier") or request.tier),
-                    window_days=request.days,
-                    universe=_universe_label(request),
-                    asset_class=request.asset_class,
-                    cost_mode=cost_mode_for(request.asset_class),
-                    symbols=int(_as_float(payload, "symbols")),
-                    data_version=batch_data_version(),
-                    params=dict(item.params),
-                    curve=_as_curve(payload),
-                    # Screening spends no trial (T-3321). The honest value, and
-                    # what lets the library report how much of its own evidence
-                    # the noise bar has never seen.
-                    trial_recorded=False,
-                ),
+            run = result_store.Run(
+                strategy_id=item.strategy_id,
+                sharpe=_as_float(payload, "sharpe"),
+                total_return=_as_float(payload, "total_return"),
+                max_drawdown=_as_float(payload, "max_drawdown"),
+                fills=int(_as_float(payload, "fills")),
+                days=int(_as_float(payload, "days")),
+                tier=str(payload.get("tier") or request.tier),
+                window_days=request.days,
+                universe=_universe_label(request),
+                asset_class=request.asset_class,
+                cost_mode=cost_mode_for(request.asset_class),
+                symbols=int(_as_float(payload, "symbols")),
+                data_version=batch_data_version(),
+                params=dict(item.params),
+                curve=_as_curve(payload),
+                # Screening spends no trial (T-3321). The honest value, and
+                # what lets the library report how much of its own evidence
+                # the noise bar has never seen.
+                trial_recorded=False,
             )
+            result_store.record(workspace, run)
+
+            # The intraday report, filed under the hash this `Run` just
+            # produced. Saved here rather than in `_run_intraday` because the
+            # configuration is a property of the recorded run, and deriving it
+            # anywhere else means deriving it differently.
+            material = payload.get("_report")
+            if isinstance(material, dict):
+                reports.save(
+                    workspace,
+                    reports.build(configuration=run.configuration, **material),
+                )
 
         def progress(index: int, total: int, item: _BatchItem) -> None:
             job.message = f"screened {index}/{total} — {item.strategy_id}"

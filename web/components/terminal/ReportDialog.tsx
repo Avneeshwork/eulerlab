@@ -20,8 +20,21 @@ import type { FleetStrategy, FullReport, RunChoice } from '@/lib/api';
 
 type Tab = 'Summary' | 'Instruments' | 'Orders';
 
-const money = (value: number) =>
-  `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
+/**
+ * Currency follows the market the run was on.
+ *
+ * This wrote ₹ unconditionally, which was right while every backtest here was
+ * NSE and became wrong the moment a US run could be opened: a QQQ report showed
+ * "₹25,894" for a figure in dollars, off by the exchange rate and reading as
+ * directly comparable to the India runs beside it in the same picker.
+ */
+const SYMBOL: Record<string, string> = { us: '$', crypto: '$', fx: '$' };
+
+const moneyIn = (assetClass: string) => (value: number) => {
+  const symbol = SYMBOL[assetClass] ?? '₹';
+  const locale = symbol === '₹' ? 'en-IN' : 'en-US';
+  return `${symbol}${value.toLocaleString(locale, { maximumFractionDigits: 0 })}`;
+};
 const pct = (value: number | null | undefined, digits = 1) =>
   value === null || value === undefined
     ? '—'
@@ -69,6 +82,9 @@ export function ReportDialog({
   }, [report, orderQuery]);
 
   const metrics = report?.metrics;
+  // Bound to the loaded report's market rather than fixed at module level, so
+  // switching runs in the picker switches the currency with them.
+  const money = moneyIn(report?.asset_class ?? strategy.asset_class ?? 'equity');
 
   return (
     <div className="pal-scrim" role="dialog" aria-modal="true" aria-label="Backtest report" onClick={onClose}>

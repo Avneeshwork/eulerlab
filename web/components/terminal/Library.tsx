@@ -688,25 +688,30 @@ function Row({
             </div>
           </div>
           <div className="tside">
-            {/* For a swept strategy this opens the *daily* engine's report,
-                which is a different run on a different market — the stale one
-                whose numbers used to leak into the fact grid above. Labelled
-                for what it is rather than removed: the old run is real, it is
-                simply not this strategy's result any more. */}
+            {/* Opens the stored run — whatever was last executed from this
+                interface, which for a swept strategy is a *different*
+                measurement from the adopted report above it.
+
+                This was disabled for adopted strategies, on the reasoning that
+                the report above is the strategy's real result. That reasoning
+                stranded the operator: running a backtest from this dialog
+                stored the run and left no way to open it. A result someone
+                explicitly asked for has to be reachable, whatever else the row
+                is showing. */}
             <button
               className="tbtn go"
               type="button"
-              disabled={strategy.sharpe === null || Boolean(strategy.adopted)}
+              disabled={strategy.sharpe === null && !result.runs}
               onClick={onReport}
               title={
                 strategy.adopted
-                  ? `The full report for this strategy is above. The daily-engine report covers an older run on a different market and is not this result.`
+                  ? 'The last run executed from this interface — a different measurement from the report above, and possibly on a different market.'
                   : strategy.sharpe === null
                     ? 'Never run, so there is nothing to report on.'
                     : 'Per-instrument attribution, the order ledger, and every metric.'
               }
             >
-              {strategy.adopted ? 'Report is above' : 'Full analysis'}
+              {strategy.adopted ? 'Last run' : 'Full analysis'}
             </button>
             {strategy.adopted ? (
               <div className="tcaveat">
