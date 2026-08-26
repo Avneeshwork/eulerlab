@@ -14,8 +14,9 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Spark } from '@/components/terminal/Spark';
+import { EquityChart } from '@/components/terminal/EquityChart';
 import { api } from '@/lib/api';
+import { assetClassLabel } from '@/lib/assetClasses';
 import type { FleetStrategy, FullReport, RunChoice } from '@/lib/api';
 
 type Tab = 'Summary' | 'Instruments' | 'Orders';
@@ -95,9 +96,12 @@ export function ReportDialog({
             <h2>{strategy.title}</h2>
             {report && (
               <div className="tfine" style={{ marginTop: 4 }}>
-                {report.universe}
-                {report.instruments.length > 0 && ` (${report.instruments.length} chosen)`} · tier{' '}
-                {report.tier} · {report.window_days}d · {report.period[0]} to {report.period[1]}
+                {/* The market first. Every number below is denominated in it,
+                    and a dollar figure read as rupees is wrong by the exchange
+                    rate while looking entirely plausible. */}
+                <span className="assettag">{assetClassLabel(report.asset_class ?? "equity")}</span>
+                {report.instruments.length > 0 ? report.instruments.join(', ') : report.universe} ·{' '}
+                {report.window_days}d · {report.period[0]} to {report.period[1]}
               </div>
             )}
           </div>
@@ -106,32 +110,30 @@ export function ReportDialog({
           </button>
         </header>
 
-        {runs.length > 0 && (
-          <div className="dlg-modes">
-            <label className="tsort" style={{ marginLeft: 0 }}>
-              Run
-              <select value={chosen} onChange={(event) => setChosen(event.target.value)}>
-                <option value="">best stored</option>
-                {runs.map((run) => (
-                  <option key={run.configuration} value={run.configuration}>
-                    {run.sharpe.toFixed(2)} · {run.universe} · {run.window_days}d · tier {run.tier}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {(['Summary', 'Instruments', 'Orders'] as Tab[]).map((name) => (
-              <button
-                key={name}
-                className="tchip"
-                type="button"
-                aria-pressed={tab === name}
-                onClick={() => setTab(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* No run picker. `prune-runs` keeps one stored run per strategy — the
+            adopted one, which is both the configuration the strategy is defined
+            to use and its most recent measurement — so there is nothing to
+            choose between. A picker offering three numbers asked the reader to
+            know which of them was the strategy. */}
+        <div className="dlg-modes">
+          {(['Summary', 'Instruments', 'Orders'] as Tab[]).map((name) => (
+            <button
+              key={name}
+              className="tchip"
+              type="button"
+              aria-pressed={tab === name}
+              onClick={() => setTab(name)}
+            >
+              {name}
+            </button>
+          ))}
+          {runs.length > 1 && (
+            <span className="tfine" style={{ marginLeft: 'auto' }}>
+              stands in for {runs.length - 1} superseded run
+              {runs.length > 2 ? 's' : ''}
+            </span>
+          )}
+        </div>
 
         <div className="dlg-body">
           {error && (
@@ -182,14 +184,14 @@ export function ReportDialog({
                         <span className="unit">from {money(report.starting_cash)}</span>
                       </div>
                     </div>
-                    <Spark
-                      curve={report.equity.values}
-                      clears={metrics.sharpe > 0}
-                      width={280}
-                      height={64}
-                      title={`Equity from ${report.period[0]} to ${report.period[1]}`}
-                    />
                   </div>
+
+                  <EquityChart
+                    values={report.equity.values}
+                    days={report.equity.days}
+                    startingCash={report.starting_cash}
+                    money={money}
+                  />
 
                   <h4 className="report-h">Return and risk</h4>
                   <div className="tfacts">

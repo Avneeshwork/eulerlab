@@ -413,20 +413,24 @@ function Row({
                 tuned
               </span>
             )}
-            {/* A crypto-paper signal that works on QQQ is the finding most
-                easily missed here, since its home-market row shows a loss and
-                the reader never opens it. */}
-            {strategy.on_us &&
-              strategy.adopted &&
-              strategy.adopted.market !== 'us' &&
-              strategy.on_us.net_pnl > 0 && (
-                <span
-                  className="ttag sweep-tag on"
-                  title={`Loses on ${strategy.adopted.symbol}, its paper's market, and makes money on QQQ. Open the row for both.`}
-                >
-                  works on US
-                </span>
-              )}
+            {/* Which market this signal actually does best on. Shown on the
+                row because the alternative is opening the drawer and comparing
+                two panels — and the case that matters most, a signal that wins
+                somewhere other than its paper's market, is exactly the one
+                nobody opens the drawer to look for. */}
+            {strategy.best_asset && strategy.best_asset.beats > 1 && (
+              <span
+                className={`ttag assettag-best ${strategy.best_asset.sharpe > 0 ? 'on' : 'off'}`}
+                title={
+                  strategy.best_asset.is_away
+                    ? `Best on ${strategy.best_asset.symbol} — not the market its paper tested. Sharpe ${strategy.best_asset.sharpe.toFixed(2)} there.`
+                    : `Best on ${strategy.best_asset.symbol}, the market its paper tested. Sharpe ${strategy.best_asset.sharpe.toFixed(2)}.`
+                }
+              >
+                best: {strategy.best_asset.symbol}
+                {strategy.best_asset.is_away ? ' ↗' : ''}
+              </span>
+            )}
             {strategy.adopted && !strategy.adopted.adopted && sweep && (
               <span
                 className="ttag"

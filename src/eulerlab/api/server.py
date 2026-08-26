@@ -704,6 +704,12 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 # home and returns a very different number on QQQ.
                 "on_us": us_all_results.get(row.declaration.id),
                 "walk": walks.get(row.declaration.id),
+                # Which market this signal does best on, derived at read time
+                # from the runs already stored. Not a stored verdict: the
+                # comparison is two numbers and a `max`, and freezing it would
+                # create a third thing to keep in sync with the two it came
+                # from.
+                "best_asset": _best_asset(row.declaration.id, adopted_results, us_all_results),
                 "trials": row.trials,
                 "clears_bar": _clears(tenant, row, bar, adopted_results),
             }
@@ -2484,6 +2490,47 @@ def optimize_results() -> dict[str, Any]:
         "required_t": latest.get("required_t", 0.0),
         "skipped": latest.get("skipped", []),
         "rows": rows,
+    }
+
+
+def _best_asset(
+    strategy_id: str,
+    adopted_results: dict[str, dict[str, Any]],
+    us_all_results: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """The market this signal performs best on, of the ones it has been run on.
+
+    Compares the home-market run against the US cross-test and returns the
+    better, with a flag for whether that is the market its paper used.
+
+    Derived rather than stored. It is a `max` over two numbers that already
+    exist; writing it down would make a third artefact to keep in step with the
+    two it is computed from, and the failure mode of a stale verdict here is a
+    strategy tagged for a market it no longer wins on.
+
+    `session_momentum` is why this is worth showing at all: its paper is crypto,
+    it loses badly on BTCUSDT, and it makes money on QQQ. Nothing in the row
+    said so — the reader had to open the drawer and compare two panels.
+    """
+    candidates = [
+        result
+        for result in (adopted_results.get(strategy_id), us_all_results.get(strategy_id))
+        if result is not None and result.get("sharpe") is not None
+    ]
+    if not candidates:
+        return None
+
+    best = max(candidates, key=lambda r: float(r["sharpe"]))
+    home = adopted_results.get(strategy_id)
+    return {
+        "market": best.get("market", ""),
+        "symbol": best.get("symbol", ""),
+        "sharpe": float(best["sharpe"]),
+        "net_pnl": float(best.get("net_pnl") or 0.0),
+        # True when the best market is not the one its paper tested, which is
+        # the case worth surfacing rather than the case worth assuming.
+        "is_away": bool(home and best.get("symbol") != home.get("symbol")),
+        "beats": len(candidates),
     }
 
 

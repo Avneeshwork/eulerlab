@@ -114,6 +114,20 @@ class Run:
     even if a data revision moved the curve."""
 
     at: str = ""
+    superseded: int = 0
+    """How many dropped configurations this row stands in for.
+
+    `prune-runs` keeps one stored run per strategy and deletes the rest, which
+    would silently shrink the denominator of the selection-bias correction —
+    "a Sharpe of 2.19 means one thing as the only run and another as the highest
+    of forty". The count is carried here so deleting the rows changes what is on
+    disk and not what the statistics believe.
+
+    Deliberately not part of `configuration`: it is bookkeeping about storage,
+    not a property of the evaluation, and folding it into the hash would make a
+    pruned run look like a different configuration from the same run unpruned.
+    """
+
     trial_recorded: bool = False
     """Whether this run appears in the trial ledger.
 
@@ -172,6 +186,7 @@ class Run:
             "params": self.params,
             "curve": self.curve,
             "at": self.at or datetime.now(UTC).isoformat(),
+            "superseded": self.superseded,
             "trial_recorded": self.trial_recorded,
             "configuration": self.configuration,
         }
@@ -254,6 +269,7 @@ def _to_run(row: dict[str, Any]) -> Run:
         params=dict(row.get("params") or {}),
         curve=[float(value) for value in (row.get("curve") or [])],
         at=str(row.get("at", "")),
+        superseded=int(row.get("superseded", 0) or 0),
         trial_recorded=bool(row.get("trial_recorded", False)),
     )
 
@@ -304,7 +320,9 @@ def best(workspace: Workspace, strategy_id: str) -> Best | None:
     top = max(tradeable, key=lambda r: (r.sharpe, r.at))
     return Best(
         run=top,
-        runs=len(tradeable),
+        # Stored rows plus the ones they stand in for. A pruned strategy has one
+        # row and the same denominator it had before pruning.
+        runs=len(tradeable) + sum(r.superseded for r in tradeable),
         unrecorded=sum(1 for r in tradeable if not r.trial_recorded),
     )
 

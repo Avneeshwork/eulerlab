@@ -2220,3 +2220,65 @@
   color: var(--muted);
   max-width: 74ch;
 }
+
+/* --- Equity and drawdown chart ---------------------------------------- */
+/* Two panels sharing one x-axis. The drawdown panel is deliberately short:
+   it is a companion to the equity path, not a rival for attention. */
+
+.eqchart { margin: 0.9rem 0 0; }
+
+.eqchart svg { width: 100%; display: block; }
+.eqchart svg:first-of-type { height: 190px; }
+.eqchart svg:nth-of-type(2) { height: 78px; margin-top: 2px; }
+
+.eq-line { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.eq-line.up { stroke: var(--up, #3fb950); }
+.eq-line.down { stroke: var(--down, #f85149); }
+
+.eq-fill { stroke: none; opacity: 0.11; }
+.eq-fill.up { fill: var(--up, #3fb950); }
+.eq-fill.down { fill: var(--down, #f85149); }
+
+/* The starting balance. Solid rather than dashed — it is a reference the eye
+   should find immediately, not a grid line to look past. */
+.eq-base {
+  stroke: var(--muted);
+  stroke-width: 1;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.dd-line { fill: none; stroke: var(--down, #f85149); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.dd-fill { fill: var(--down, #f85149); opacity: 0.13; stroke: none; }
+
+.eqchart figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.eqchart figcaption .pos { color: var(--up, #3fb950); }
+.eqchart figcaption .neg { color: var(--down, #f85149); }
+
+/* The market a report is denominated in, stated before any number in it. */
+.assettag {
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+/* The market a signal does best on. Neutral by default and only coloured when
+   it wins somewhere other than its paper's market — the arrow carries that,
+   so the colour does not have to shout it too. */
+.assettag-best.on { border-color: var(--up, #3fb950); color: var(--up, #3fb950); }
+.assettag-best.off { border-color: var(--muted); color: var(--muted); }

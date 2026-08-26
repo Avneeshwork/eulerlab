@@ -252,6 +252,18 @@ export type FleetStrategy = {
   on_us?: AdoptedResult | null;
   /** Walk-forward and PBO for this strategy, when one has been run. */
   walk?: WalkResult | null;
+  /** The market this signal does best on, of those it has been run on.
+   *  Derived server-side from the stored runs, never a stored verdict. */
+  best_asset?: {
+    market: string;
+    symbol: string;
+    sharpe: number;
+    net_pnl: number;
+    /** True when the best market is not the one its paper tested — the case
+     *  worth surfacing, and invisible from the row before this existed. */
+    is_away: boolean;
+    beats: number;
+  } | null;
   id: string;
   title: string;
   summary: string;

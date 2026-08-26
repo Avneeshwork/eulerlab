@@ -397,6 +397,12 @@ us-all:
 walk:
 	@uv run python -m eulerlab.walk_run $(STRATEGY)
 
+# Keep one stored run per strategy — the adopted one — and drop superseded
+# payloads. The *count* each keeper stands in for is preserved, so the
+# selection-bias denominator is unchanged. Dry by default; --apply to write.
+prune-runs:
+	@uv run python -m eulerlab.prune_runs $(if $(APPLY),--apply,)
+
 build-us-panel:
 	@uv run python -m eulerlab.features.us_panel
 
