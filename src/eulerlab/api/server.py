@@ -1273,49 +1273,13 @@ def _intraday_report_material(
 ) -> dict[str, Any]:
     """Everything `reports.build` needs except the configuration hash.
 
-    Turns one intraday scan into the same report the daily engine produces.
-
-    A bracket trade is one entry and one or more exits, so it becomes several
-    `FillLike` rows rather than one — which is what makes the per-instrument
-    attribution add up. Collapsing a trade to a single row would report half the
-    turnover and none of the partial exits.
+    The fill extraction lives in `intraday/report_material` because
+    `adopted_run` writes reports too, and two code paths producing the same
+    report differently is two reports that cannot be compared.
     """
-    from eulerlab.costs.schedule import Side
+    from eulerlab.intraday.report_material import fills_and_marks
 
-    fills: list[Any] = []
-    marks: dict[str, float] = {}
-
-    for scan in scans:
-        for trade in scan.trades:
-            if not trade.filled or trade.entry_ts is None:
-                continue
-            shares = sum(leg.shares for leg in trade.exits)
-            if shares:
-                fills.append(
-                    _IntradayFill(
-                        day=trade.entry_ts.date(),
-                        symbol=scan.symbol,
-                        side=Side.BUY,
-                        quantity=shares,
-                        price=trade.entry_price,
-                        cost=trade.costs,
-                    )
-                )
-            for leg in trade.exits:
-                fills.append(
-                    _IntradayFill(
-                        day=leg.ts.date(),
-                        symbol=scan.symbol,
-                        side=Side.SELL,
-                        quantity=leg.shares,
-                        price=leg.price,
-                        # Charged once, on the entry row, so the two do not
-                        # double-count the same bill.
-                        cost=0.0,
-                    )
-                )
-                marks[scan.symbol] = leg.price
-
+    fills, marks = fills_and_marks(list(scans))
     return {
         "strategy_id": strategy_id,
         "universe": _universe_label(request),
@@ -1334,18 +1298,6 @@ def _intraday_report_material(
         "marks": marks,
         "starting_cash": 1_000_000.0,
     }
-
-
-@dataclass(frozen=True)
-class _IntradayFill:
-    """One leg of a bracket trade, in the shape `reports.build` expects."""
-
-    day: date
-    symbol: str
-    side: Any
-    quantity: int
-    price: float
-    cost: float
 
 
 def _run_params(request: BatchRunRequest) -> dict[str, object]:

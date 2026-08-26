@@ -156,6 +156,12 @@ def compute(
 
     alt_broker, alt_net, alt_costs, alt_sharpe = _priced_at_other_broker(scan, market, curve)
 
+    # Filed under the strategy's own configuration so the library can open it
+    # from the run picker, exactly like a backtest run from the interface. A
+    # standing result with no report is the state that made "I can't see the
+    # last backtest" true for every intraday strategy at once.
+    _save_report(strategy_id, scan, symbol, market, start, end, curve)
+
     return Result(
         strategy_id=strategy_id,
         symbol=symbol,
@@ -190,6 +196,89 @@ def compute(
         rejections=dict(sorted(scan.rejections.items(), key=lambda kv: -kv[1])[:6]),
         at=datetime.now(UTC).isoformat(),
     )
+
+
+def _save_report(
+    strategy_id: str,
+    scan: Any,
+    symbol: str,
+    market: str,
+    start: date,
+    end: date,
+    curve: list[float],
+) -> None:
+    """Record this run and write its report, so the library can open it.
+
+    Recorded as a real `result_store.Run` rather than as a private artefact.
+    That has a cost worth naming: `runs` is the denominator behind "best of N"
+    in the library, so adding one per strategy makes each look marginally more
+    searched-over. It is also true — this *is* a run — and a result the
+    interface cannot open is worse than an honest denominator.
+
+    Failures are swallowed. A missing report is a degraded view; an exception
+    here would lose the measurement itself, which is the thing worth keeping.
+    """
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    from eulerlab import reports
+    from eulerlab import results as result_store
+    from eulerlab import workspace as workspace_mod
+    from eulerlab.intraday.report_material import fills_and_marks
+
+    try:
+        tenant = workspace_mod.resolve(None)
+        fills, marks = fills_and_marks([scan])
+
+        # `curve` is cumulative P&L from zero; the report wants an equity path
+        # from `starting_cash`. Handing the raw curve over would draw a
+        # strategy that made $27,855 as one that lost 97% of the account, and
+        # the number would look precise the whole way down.
+        #
+        # One point longer than `days`, matching the daily engine: the opening
+        # balance before the first session, then one close per session.
+        equity = [EQUITY, *(EQUITY + point for point in curve)]
+        sharpe = scan.sharpe(EQUITY)
+        run = result_store.Run(
+            strategy_id=strategy_id,
+            sharpe=round(sharpe, 4) if sharpe is not None else 0.0,
+            total_return=round(scan.net_pnl / EQUITY, 6),
+            max_drawdown=0.0,
+            fills=scan.filled,
+            days=scan.sessions,
+            tier="intraday",
+            window_days=(end - start).days,
+            data_version=f"adopted-{_dt.now(_UTC).date().isoformat()}",
+            universe="adopted",
+            asset_class=market,
+            symbols=1,
+            cost_mode="realistic",
+            params={"instruments": [symbol], "adopted": True},
+            curve=result_store.downsample(equity),
+            trial_recorded=False,
+        )
+        result_store.record(tenant, run)
+        reports.save(
+            tenant,
+            reports.build(
+                strategy_id=strategy_id,
+                configuration=run.configuration,
+                universe="adopted",
+                instruments=[symbol],
+                tier="intraday",
+                asset_class=market,
+                cost_mode="realistic",
+                window_days=(end - start).days,
+                equity=equity,
+                days=sorted(scan.pnl_by_session()),
+                fills=fills,
+                rejections=[],
+                marks=marks,
+                starting_cash=EQUITY,
+            ),
+        )
+    except Exception:
+        return
 
 
 def _priced_at_other_broker(
