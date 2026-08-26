@@ -404,6 +404,20 @@ function Row({
                 tuned
               </span>
             )}
+            {/* A crypto-paper signal that works on QQQ is the finding most
+                easily missed here, since its home-market row shows a loss and
+                the reader never opens it. */}
+            {strategy.on_us &&
+              strategy.adopted &&
+              strategy.adopted.market !== 'us' &&
+              strategy.on_us.net_pnl > 0 && (
+                <span
+                  className="ttag sweep-tag on"
+                  title={`Loses on ${strategy.adopted.symbol}, its paper's market, and makes money on QQQ. Open the row for both.`}
+                >
+                  works on US
+                </span>
+              )}
             {strategy.adopted && !strategy.adopted.adopted && sweep && (
               <span
                 className="ttag"
@@ -570,6 +584,26 @@ function Row({
                 result of the strategy, and leading with it answered "which
                 setting won" to a reader asking "what does this do". */}
             {strategy.adopted && <AdoptedReport result={strategy.adopted} bar={bar} />}
+            {/* Shown only when it is a different measurement. For a strategy
+                already measured on QQQ the two rows are the same run, and
+                printing it twice would suggest two pieces of evidence where
+                there is one. `orb_in_play` is the case that makes this worth
+                checking: measured on SPY at home, and a different number on
+                QQQ. */}
+            {strategy.on_us &&
+              (strategy.adopted?.symbol !== strategy.on_us.symbol ||
+                strategy.adopted?.market !== strategy.on_us.market) && (
+                <AdoptedReport
+                  result={strategy.on_us}
+                  bar={bar}
+                  heading="Also tested on US equity"
+                  note={
+                    strategy.adopted
+                      ? `Its paper tested ${strategy.adopted.market === 'crypto' ? 'crypto' : strategy.adopted.market}, and this is the same signal on QQQ — a different question from the run above, and the only US evidence for it.`
+                      : undefined
+                  }
+                />
+              )}
             {sweep && <SweepPanel row={sweep} running={sweeping} />}
             {/* Facts about the run shown above it, never a second run's.
                 This grid used to read straight from the daily result store, so

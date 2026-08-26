@@ -223,9 +223,12 @@ export type StrategyResult = {
 };
 
 export type FleetStrategy = {
-  /** The run on the parameters this strategy actually uses. Null when no
-   *  recorded sweep has covered it. */
+  /** The run on the parameters this strategy actually uses, on the market its
+   *  paper tested. Null when no recorded sweep has covered it. */
   adopted?: AdoptedResult | null;
+  /** The same strategy on QQQ, whatever market its paper used. For the ten
+   *  crypto signals this is the only US evidence there is. */
+  on_us?: AdoptedResult | null;
   id: string;
   title: string;
   summary: string;

@@ -384,6 +384,13 @@ optimize:
 adopted-results:
 	@uv run python -m eulerlab.adopted_run $(if $(ONLY),--only $(ONLY),)
 
+# Run every strategy on US equity, whatever market its paper used. Asks whether
+# a signal works on QQQ at all, which for the ten crypto signals is a question
+# nothing here has answered. Spends one trial per strategy: a signal on a new
+# instrument is a new configuration.
+us-all:
+	@uv run python -m eulerlab.us_all_run $(if $(ONLY),--only $(ONLY),)
+
 build-us-panel:
 	@uv run python -m eulerlab.features.us_panel
 

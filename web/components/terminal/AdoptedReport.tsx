@@ -56,7 +56,17 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: str
   );
 }
 
-export function AdoptedReport({ result, bar }: { result: AdoptedResult; bar: number }) {
+export function AdoptedReport({
+  result,
+  bar,
+  heading = 'Backtest',
+  note,
+}: {
+  result: AdoptedResult;
+  bar: number;
+  heading?: string;
+  note?: string;
+}) {
   const clears = result.sharpe !== null && result.sharpe >= bar;
   const params = Object.entries(result.params)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -68,7 +78,7 @@ export function AdoptedReport({ result, bar }: { result: AdoptedResult; bar: num
   return (
     <div className="adopted">
       <div className="adopted-head">
-        <h4>Backtest</h4>
+        <h4>{heading}</h4>
         <span className="adopted-where">
           {result.symbol} · {result.start} → {result.end}
         </span>
@@ -80,6 +90,8 @@ export function AdoptedReport({ result, bar }: { result: AdoptedResult; bar: num
               : `Sharpe ${result.sharpe.toFixed(2)} — under the ${bar.toFixed(2)} bar`}
         </span>
       </div>
+
+      {note && <p className="adopted-params">{note}</p>}
 
       <p className="adopted-params">
         Running {result.adopted ? params : 'the paper’s published parameters'}

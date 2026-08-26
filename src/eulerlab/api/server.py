@@ -48,7 +48,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import cloud_results, reports
+from eulerlab import cloud_results, reports, us_all_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.authoring import translate
@@ -644,6 +644,9 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     # Read once for the whole payload rather than per strategy: it is one small
     # file and thirty-two reads of it would be thirty-two parses.
     adopted_results = adopted_mod.read()
+    # The cross-market test: every strategy on QQQ, including the ten whose
+    # papers are crypto. Read once for the payload, like the adopted results.
+    us_all_results = us_all_run.read()
     return {
         "bar": round(bar, 3),
         # The denominator the bar was actually computed from. The console used
@@ -690,6 +693,12 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 # result — the `result` field above is the daily engine's, which
                 # for an intraday signal is a stale run on the wrong market.
                 "adopted": adopted_results.get(row.declaration.id),
+                # The same strategy on QQQ, whatever market its paper used.
+                # Null when it has no intraday form. For a strategy whose home
+                # market *is* US this repeats the run above on QQQ specifically,
+                # which is not redundant: `orb_in_play` is measured on SPY at
+                # home and returns a very different number on QQQ.
+                "on_us": us_all_results.get(row.declaration.id),
                 "trials": row.trials,
                 "clears_bar": _clears(tenant, row, bar, adopted_results),
             }
