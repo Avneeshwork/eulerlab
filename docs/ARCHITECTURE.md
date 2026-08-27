@@ -335,6 +335,46 @@ Two properties of the implementation matter:
 > checked against a real contract note (T-906, A-016). This is the cheapest
 > outstanding verification in the project.
 
+### Four venues, one router
+
+The table above is NSE. It stopped being the whole story when crypto, US equity
+and FX arrived, and the way it stopped is the most instructive bug this
+codebase has produced.
+
+| venue | charge | round trip |
+|---|---|---|
+| NSE (`equity`) | the stack above; Zerodha brokerage capped at ₹20 | ~0.04% |
+| US (`us`) | INDmoney 0.25% a leg **capped at $25**, plus 18% GST | ~0.012% |
+| Crypto (`crypto`) | Delta 0.05% taker plus 18% GST | 0.118% |
+| FX (`fx`) | the measured bid-ask spread, carried per bar | varies |
+| Mutual funds | nothing modelled — gross, and labelled so | — |
+
+Two things in that table are counter-intuitive and both were wrong here first.
+
+**US is the cheapest venue, and only because of the cap.** Uncapped, 0.25% a leg
+is 0.5% a round trip and no intraday signal in the library survives it —
+friction on `orb_breakout` reached 309% of its gross edge. Capped, a $500,000
+position pays $25 instead of $1,250, and the same round trip is 0.012%. A fee
+model missing its cap is not conservative; it is wrong, here by a factor of
+fifty.
+
+**Which venue a trade pays is a required argument, everywhere.** It defaulted to
+`"equity"`, and that default billed crypto Indian STT, then billed US trades
+Indian STT, then — after both were fixed at the leaf — billed every *winning*
+exit Indian STT, because two of six call sites had quietly kept it. Each wrong
+number was plausible: an Indian bill on a US trade is about ten basis points,
+which reads as a cost rather than as a bug.
+
+`costs/router.py` is now the single answer to "what does this fill cost". There
+were three, in different files, with different coverage: the intraday engine
+knew crypto and NSE-intraday, the daily engine knew NSE-*delivery* and no crypto
+at all, and a third place decided separately whether to charge anything. See
+ADR-045.
+
+**Spread and slippage are modelled on none of them** (A-030). That omission is
+consistent across venues, so the four stay comparable to each other — and every
+net figure this platform reports is better than a real fill would be.
+
 ## 4.3 Two backtest engines, and why
 
 | | **Tier A** (vectorised) | **Tier B** (event-driven) |
@@ -652,6 +692,67 @@ refuses the read entirely.
 
 **Acceptance:** three deliberately overfit strategies are fed to the gate; all
 three must die. They do — killed on deflated Sharpe, PBO and worst-regime.
+
+## 5.5 The optimisation pipeline, and what each stage costs
+
+Four commands, each answering a different question. They are separate because
+conflating any two of them loses the distinction that makes the answer readable.
+
+| command | asks | trials |
+|---|---|---|
+| `make optimize` | which parameter setting is best, on the market the paper tested? | **one per candidate** |
+| `make adopted-results` | what does the chosen setting actually do? | none |
+| `make us-all` | does this signal work on US equity at all? | one per strategy |
+| `make walk` | does the setting that won in sample survive out of it? | one per grid point |
+| `make prune-runs` | (housekeeping) keep one stored run per strategy | none |
+| `make evidence` | where does evidence live, and what is the bar charged for? | none |
+
+**`optimize` sweeps on the market the paper tested**, from each signal's
+`recommended_class`, not on whatever data is convenient. Nine of the coded
+signals cite a study run on MNQ futures and were being swept on an Indian
+large-cap; nothing errored and every number was plausible. The wrong market did
+not produce an obviously wrong answer, it produced a **differently shaped** one —
+`orb_breakout` showed an 8× best-to-median spread on RELIANCE and 1.3× on QQQ,
+and the shape is the whole finding. See ADR-043.
+
+**`adopted-results` spends nothing, and the reason is narrow.** A trial is a
+configuration evaluated *in a search*. It re-runs only parameter sets a recorded
+sweep already contains, on the same window, to extract another statistic — a
+Sharpe — from trades the ledger has already paid for. If it ever gained the
+ability to try a setting the ledger has not seen, it would be a search wearing a
+different name and would have to pay like one.
+
+**`walk` is the only out-of-sample evidence here.** The noise bar corrects for
+*how much searching happened*, which is a real correction and a different thing
+from testing on days the choice never saw. Sessions are cut into six blocks and
+two held out at a time, in every combination — fifteen splits.
+
+### Reading PBO requires a second number
+
+A high PBO has two opposite causes and the ratio alone cannot tell them apart.
+
+When **most settings are profitable** they perform near-identically, so which
+one wins in sample is close to a coin toss and PBO climbs toward 0.5 *by
+construction*. That says the parameter does not matter, not that the strategy is
+fitted. When **few settings are profitable**, the same number means the search
+is finding whichever ones happened to work on the training days.
+
+```
+    orb_breakout      PBO 0.47    9/9 settings profitable OOS    13/15 splits
+    ou_reversion_in   PBO 0.07    5/16 settings profitable OOS    8/15 splits
+```
+
+Read naively the first looks worse. It is not. `optimize_walk.verdict` reports
+the profitable share beside the ratio for this reason, and A-039 records it.
+
+### The walk splits by session and does not purge
+
+Splitting by session assumes a session's result does not depend on which other
+sessions were in the training set. For a strategy flat at every close that is
+nearly true and not exactly: with a 120-bar lookback on 375-bar sessions, the
+first 120 bars of each session read into the previous one. `validation/cpcv.py`
+purges exactly this for daily panels; the intraday analogue leaves it explicit
+and undone, which makes every PBO here **mildly optimistic** (A-040).
 
 ---
 
