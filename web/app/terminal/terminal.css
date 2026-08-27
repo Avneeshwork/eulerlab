@@ -2282,3 +2282,7 @@
    so the colour does not have to shout it too. */
 .assettag-best.on { border-color: var(--up, #3fb950); color: var(--up, #3fb950); }
 .assettag-best.off { border-color: var(--muted); color: var(--muted); }
+
+/* Progress in the row that is running, rather than a spinner. */
+.trunprog { font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.trunprog b { font-weight: 500; }

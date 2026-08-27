@@ -81,6 +81,19 @@ export function Library({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
+  // What the running job last said, and when it started. A row that only says
+  // "running…" gives the operator nothing to judge by — a scan that will take
+  // two seconds and one that will take two minutes look identical, so the wait
+  // feels unbounded either way.
+  const [progress, setProgress] = useState('');
+  const [startedAt, setStartedAt] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const timer = window.setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000);
+    return () => window.clearInterval(timer);
+  }, [startedAt]);
   const [note, setNote] = useState('');
   const [failure, setFailure] = useState('');
 
@@ -171,8 +184,14 @@ export function Library({
     async (ids: string[]) => {
       setFailure('');
       setBusy((prev) => new Set([...prev, ...ids]));
+      setStartedAt(Date.now());
+      setElapsed(0);
+      setProgress('starting');
       try {
-        const result = await runBatch(ids, days, tier, universe, instruments, runClass, setNote);
+        const result = await runBatch(ids, days, tier, universe, instruments, runClass, (message) => {
+          setNote(message);
+          setProgress(message);
+        });
         const failed = result.results.filter((r) => r.error);
         setNote(
           `${result.computed} computed, ${result.cached} cached` +
@@ -193,6 +212,8 @@ export function Library({
           for (const id of ids) next.delete(id);
           return next;
         });
+        setStartedAt(0);
+        setProgress('');
       }
     },
     [days, tier, universe, instruments, runClass, onRefresh]
@@ -297,6 +318,8 @@ export function Library({
               checked={selected.has(strategy.id)}
               open={open === strategy.id}
               busy={busy.has(strategy.id)}
+              progress={busy.has(strategy.id) ? progress : ''}
+              elapsed={elapsed}
               onToggle={() => toggle(strategy.id)}
               onOpen={() => setOpen(open === strategy.id ? null : strategy.id)}
               onBacktest={() => onConfigure(strategy)}
@@ -347,6 +370,17 @@ export function Library({
  * Returns empty when nothing about the provenance is unusual, and the row then
  * carries no chip at all.
  */
+/** The job message, trimmed to what fits in a table cell.
+ *
+ * Messages read like "scanned 3/12 — RELIANCE" or "loading the panel". The
+ * counter is the part worth keeping when there is no room: it is the only piece
+ * that says how much is left. */
+function shortProgress(message: string): string {
+  const counted = message.match(/(\d+\/\d+)/);
+  if (counted) return counted[1];
+  return message.length > 18 ? `${message.slice(0, 17)}…` : message;
+}
+
 function provenance(strategy: FleetStrategy, sweep: OptimizeRow | undefined): string {
   const best = strategy.best_asset;
   if (best && best.beats > 1 && best.is_away) return `wins on ${best.symbol} ↗`;
@@ -394,6 +428,8 @@ function Row({
   strategy,
   sweep,
   sweeping,
+  progress,
+  elapsed,
   bar,
   checked,
   open,
@@ -408,6 +444,11 @@ function Row({
   strategy: FleetStrategy;
   sweep: OptimizeRow | undefined;
   sweeping: boolean;
+  /** What the running job last reported, empty when this row is not running. */
+  progress: string;
+  /** Seconds since the batch started. Shown because an unbounded wait and a
+   *  ten-second one feel identical without it. */
+  elapsed: number;
   bar: number;
   checked: boolean;
   open: boolean;
@@ -546,7 +587,13 @@ function Row({
         </div>
         <div className="tgraph">
           {busy ? (
-            <span className="tdim">running…</span>
+            <span className="trunprog" title={progress}>
+              {/* The job's own message rather than a spinner. The API already
+                  reports which symbol it is scanning and how far through it is;
+                  the row was throwing that away and showing "running…". */}
+              <b>{progress ? shortProgress(progress) : 'running'}</b>
+              <span className="tdim">{elapsed > 0 ? ` ${elapsed}s` : ''}</span>
+            </span>
           ) : (
             /* The adopted run's own equity path where there is one. The stored
                curve belongs to the daily engine and, for a swept intraday

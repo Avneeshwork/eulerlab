@@ -128,7 +128,20 @@ def _remote_listing(tree: str, pattern: str) -> tuple[str, ...]:
 
     found: list[str] = []
     store, prefix = _store_and_prefix()
-    for remote in store.list_sizes(f"{prefix}{tree}/"):  # type: ignore[attr-defined]
+    # Narrowed by the pattern's literal prefix before asking the bucket.
+    #
+    # This listed the *whole tree* and filtered in Python. For
+    # `us/minute/QQQ/*.jsonl.gz` that is 52,000 objects enumerated to find four,
+    # and it sat in the hot path of every intraday backtest: loading QQQ's bars
+    # took 58 seconds, of which 42 were this listing and 0.7 were the scan the
+    # operator was waiting for.
+    #
+    # `_literal_prefix` already existed for `has_any` and was not used here. It
+    # narrows only as far as the glob genuinely allows — `*/*/*.jsonl.gz` still
+    # yields nothing and still lists the tree — so this changes how much is
+    # asked for, never which paths match.
+    scoped = f"{prefix}{tree}/{_literal_prefix(pattern)}"
+    for remote in store.list_sizes(scoped):  # type: ignore[attr-defined]
         relative = remote[len(prefix) :]
         if fnmatch.fnmatch(relative, f"{tree}/{pattern}") or fnmatch.fnmatch(
             relative, f"{tree}/{pattern.replace('**/', '')}"
