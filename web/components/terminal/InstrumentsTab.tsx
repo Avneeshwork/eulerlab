@@ -31,6 +31,65 @@ export function InstrumentsTab() {
     if (polling.current) window.clearInterval(polling.current);
   }, []);
 
+  type FeedStep = { name: string; ok: boolean; detail: string };
+  // The source list comes from the code that fetches them. Written by hand it
+  // promised FX while the step list did not include it — the same drift as the
+  // three copies of the asset-class list.
+  const [plan, setPlan] = useState<{ sources: string[]; excluded: string[] } | null>(null);
+  useEffect(() => {
+    api
+      .feedPlan()
+      .then((p) => setPlan(p.ok ? { sources: p.sources, excluded: p.excluded } : null))
+      .catch(() => undefined);
+  }, []);
+
+  const [steps, setSteps] = useState<FeedStep[]>([]);
+
+  /**
+   * Fetch every source, then mirror.
+   *
+   * Polls the same job machinery the mirror uses, and shows the per-source
+   * outcome rather than one verdict: a run where five sources updated and two
+   * failed is not a success and is not a failure, and collapsing it to either
+   * word loses the only part the operator can act on.
+   */
+  async function startFeed() {
+    setSteps([]);
+    setSync({ state: 'running', note: 'starting…' });
+    const started = await api.refreshFeed().catch((e) => ({ ok: false, error: String(e) }));
+    if (!started.ok || !('job' in started) || !started.job) {
+      setSync({ state: 'failed', note: started.error ?? 'could not start' });
+      return;
+    }
+    const id = started.job;
+    polling.current = window.setInterval(async () => {
+      const job = await api.job(id).catch(() => null);
+      if (!job) return;
+      setSync((prev) => ({ state: 'running', note: job.message || prev.note }));
+      if (job.status === 'done' || job.status === 'failed') {
+        if (polling.current) window.clearInterval(polling.current);
+        const result = job.result as
+          | { summary?: string; uploaded?: number; steps?: FeedStep[]; sync_error?: string }
+          | undefined;
+        setSteps(result?.steps ?? []);
+        setSync({
+          state: job.status,
+          note:
+            job.status === 'done'
+              ? `${result?.summary ?? 'finished'} · ${result?.uploaded ?? 0} object${
+                  result?.uploaded === 1 ? '' : 's'
+                } uploaded${result?.sync_error ? ` · mirror failed: ${result.sync_error}` : ''}`
+              : job.error || 'failed',
+        });
+        if (job.status === 'done') {
+          api.instruments(query, assetClass === 'equity' ? batch : '', assetClass, 120)
+            .then(setList)
+            .catch(() => undefined);
+        }
+      }
+    }, 3000);
+  }
+
   async function startSync() {
     setSync({ state: 'running', note: 'starting…' });
     const started = await api.syncData().catch((e) => ({ ok: false, error: String(e) }));
@@ -97,19 +156,46 @@ export function InstrumentsTab() {
           </p>
         </div>
         <div className="tsyncbox">
+          {/* Two buttons, because they do different things and the difference
+              matters. "Update" fetches from every source and then mirrors;
+              "Mirror only" uploads whatever is already on disk — which can
+              push a stale landing zone to the cloud and report success. The
+              fetch is the one an operator almost always wants, so it leads. */}
           <button
             className="tbtn"
+            type="button"
+            onClick={startFeed}
+            disabled={sync.state === 'running'}
+          >
+            {sync.state === 'running' ? 'Working…' : 'Update daily feed'}
+          </button>
+          <button
+            className="tbtn ghost-line"
             type="button"
             onClick={startSync}
             disabled={sync.state === 'running'}
           >
-            {sync.state === 'running' ? 'Syncing…' : 'Sync all data'}
+            Mirror only
           </button>
           <div className="tfine" data-state={sync.state}>
             {sync.state === 'idle'
-              ? 'Mirrors the landing zone to B2 and recounts it. Safe to re-run — already-uploaded files are skipped.'
+              ? plan
+                ? `Fetches ${plan.sources.join(', ')} — then mirrors to B2. ${plan.excluded.join(
+                    '; ',
+                  )}. Nothing local is deleted.`
+                : 'Fetches every source, then mirrors to B2. Nothing local is deleted.'
               : sync.note}
           </div>
+          {steps.length > 0 && (
+            <ul className="feedsteps">
+              {steps.map((step) => (
+                <li key={step.name} data-ok={step.ok}>
+                  <span>{step.name}</span>
+                  <span className="tfine">{step.detail}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

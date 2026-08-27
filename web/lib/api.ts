@@ -958,6 +958,14 @@ export const api = {
       `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}`,
     ),
   syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
+  /** Fetch today's data from every source, then mirror it. Different from
+   *  `syncData`, which uploads whatever is already on disk — that can mirror a
+   *  stale landing zone to the cloud and report success. */
+  feedPlan: () =>
+    get<{ ok: boolean; sources: string[]; excluded: string[]; keeps_local: boolean }>(
+      '/api/data/feed/plan',
+    ),
+  refreshFeed: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/feed', {}),
   snapshot: (workspace = '') =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
   tweezer: (input: { symbols: string[]; start: string; end: string }) =>

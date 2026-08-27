@@ -2317,3 +2317,20 @@
 .bench-row .pos { color: var(--up, #3fb950); }
 .bench-row .neg { color: var(--down, #f85149); }
 .bench-sub { font-size: 0.7rem; color: var(--muted); }
+
+/* Per-source outcome of a feed refresh. Shown as a list rather than folded
+   into one verdict: five updated and two failed is neither a success nor a
+   failure, and the only actionable part is which two. */
+.feedsteps { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+
+.feedsteps li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.15rem 0;
+  font-size: 0.74rem;
+}
+
+.feedsteps li::before { content: '✓'; color: var(--up, #3fb950); width: 0.9rem; }
+.feedsteps li[data-ok='false']::before { content: '✕'; color: var(--down, #f85149); }
+.feedsteps li[data-ok='false'] > span:first-of-type { color: var(--down, #f85149); }

@@ -1765,6 +1765,102 @@ def _run_sync(job: Job) -> None:
         job.finished = time.time()
 
 
+def _run_feed(job: Job) -> None:
+    """Fetch every source, then mirror. Individual failures do not stop the run.
+
+    Reported per source rather than as one verdict: "the feed updated" and "the
+    feed updated except for the two sources you care about" are different
+    sentences, and a Makefile that swallows both says the first.
+    """
+    from eulerlab.ingest import daily_feed
+
+    try:
+        job.status = "running"
+
+        def progress(index: int, total: int, name: str) -> None:
+            job.message = f"{index}/{total} — {name}"
+
+        run = daily_feed.refresh(on_step=progress)
+        job.result = {
+            "kind": "feed",
+            "summary": run.summary,
+            "uploaded": run.synced,
+            "sync_error": run.sync_error,
+            "steps": [
+                {
+                    "name": step.name,
+                    "ok": step.ok,
+                    "detail": step.detail,
+                    "seconds": round(step.seconds, 1),
+                }
+                for step in run.steps
+            ],
+        }
+        job.message = run.summary
+        # Failed sources are not a failed job. The run did what it could and the
+        # per-step detail says what it could not — marking the whole thing
+        # failed would hide the sources that did update.
+        job.status = "done"
+    except Exception as exc:
+        job.status = "failed"
+        job.message = f"{type(exc).__name__}: {exc}"[:200]
+
+
+@app.get("/api/data/feed/plan")
+def data_feed_plan() -> dict[str, Any]:
+    """Which sources a refresh touches, from the list that actually runs.
+
+    Served rather than written into the interface, because a hand-written
+    sentence naming sources drifts from the code that fetches them — this one
+    already claimed FX while the step list did not include it, which is the
+    same failure as the three copies of the asset-class list.
+    """
+    from eulerlab.ingest.daily_feed import STEPS
+
+    return {
+        "ok": True,
+        "sources": [name for name, _work in STEPS],
+        "excluded": [
+            "minute bars — need a Kite token minted today, which a browser button cannot obtain"
+        ],
+        "keeps_local": True,
+    }
+
+
+@app.post("/api/data/feed")
+def data_feed() -> dict[str, Any]:
+    """Fetch today's data from every source, then mirror it to B2.
+
+    Different from `/api/data/sync`, which uploads whatever is already on disk.
+    That button could mirror a stale landing zone to the cloud and report
+    success; this one fetches first.
+
+    Deliberately does **not** prune local files or rebuild the panels. Pruning
+    is correct for an unattended disk-constrained run and surprising as the
+    side effect of clicking refresh; panels are derived products and rebuilding
+    them is a separate decision from fetching what they derive from.
+    """
+    with JOBS_LOCK:
+        running = [
+            j
+            for j in JOBS.values()
+            if j.status in ("queued", "running") and j.result.get("kind") in {"feed", "sync"}
+        ]
+        if running:
+            return {
+                "ok": False,
+                "error": "a data job is already running",
+                "job": running[0].id,
+            }
+
+    job = Job(id=uuid.uuid4().hex[:12])
+    job.result = {"kind": "feed"}
+    with JOBS_LOCK:
+        JOBS[job.id] = job
+    threading.Thread(target=_run_feed, args=(job,), daemon=True).start()
+    return {"ok": True, "job": job.id}
+
+
 @app.post("/api/data/sync")
 def data_sync() -> dict[str, Any]:
     """Start a cloud sync. Returns a job id immediately.
