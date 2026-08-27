@@ -23,6 +23,7 @@ from eulerlab.api.requests import (
     IST,
     BatchRunRequest,
     universe_label,
+    window_of,
 )
 from eulerlab.strategies import AssetClass, catalog
 from eulerlab.validation.statistics import sharpe_stats
@@ -129,10 +130,30 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
     # Timezone-explicit: `date.today()` means whatever the running machine's
     # locale says, and an intraday window that silently shifts by a day is the
     # kind of bug that never surfaces as an error.
-    end = datetime.now(UTC).astimezone(IST).date()
-    start = end - timedelta(days=request.days)
+    # An explicit window when one was given, otherwise the last `days` days.
+    # Without this every question ends today, so "how did this behave in 2022"
+    # could not be asked at all.
+    start, end = window_of(request)
+    if start is None or end is None:
+        end = datetime.now(UTC).astimezone(IST).date()
+        start = end - timedelta(days=request.days)
+    # Sized against the account the run is actually for.
+    #
+    # This omitted `equity`, so the scan sized every position against the
+    # default one million while `total_return` divided by whatever the operator
+    # asked for. A ₹5 lakh run reported **twice** the return it earned: the same
+    # trades, in the numerator, over half the capital in the denominator.
+    #
+    # Position sizing here is a fraction of equity, so halving the account
+    # should halve the P&L and leave the percentage alone. That it doubled is
+    # exactly the tell.
     scans = paper_scan.scan_many(
-        strategy_id, symbols, start=start, end=end, asset_class=request.asset_class
+        strategy_id,
+        symbols,
+        start=start,
+        end=end,
+        equity=request.starting_cash,
+        asset_class=request.asset_class,
     )
     if not scans:
         msg = f"no minute bars readable for any of {len(symbols)} symbols"
@@ -162,7 +183,8 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
         )
         raise RuntimeError(msg)
 
-    cash = 1_000_000.0
+    cash_start = request.starting_cash
+    cash = cash_start
     equity = [cash]
     for day in sorted(by_session):
         cash += by_session[day]
@@ -172,7 +194,7 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
     stats = sharpe_stats(returns, periods_per_year=INTRADAY_SESSIONS_PER_YEAR)
     outcome: dict[str, Any] = {
         "sharpe": round(stats.sharpe, 4),
-        "total_return": round(equity[-1] / 1_000_000.0 - 1.0, 6),
+        "total_return": round(equity[-1] / cash_start - 1.0, 6),
         "max_drawdown": round(_drawdown(equity), 6),
         "fills": fills,
         "costs": round(sum(t.costs for s in scans for t in s.trades), 2),
@@ -231,5 +253,5 @@ def _intraday_report_material(
         # to show. Passed empty rather than fabricated.
         "rejections": [],
         "marks": marks,
-        "starting_cash": 1_000_000.0,
+        "starting_cash": request.starting_cash,
     }

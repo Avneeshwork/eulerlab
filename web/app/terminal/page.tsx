@@ -66,6 +66,11 @@ export default function TerminalPage() {
   // to. The instruments and the period are the two facts that most change a
   // result, and they were the two the operator could not see when deciding.
   const [configuring, setConfiguring] = useState<FleetStrategy | null>(null);
+  // An explicit window and the account it is sized against. Held here beside
+  // the other run settings so they survive closing the dialog — an operator
+  // testing several strategies over the same 2022 window should set it once.
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [startingCash, setStartingCash] = useState(1_000_000);
   const [pendingRun, setPendingRun] = useState<string[]>([]);
 
   const workspace = '';
@@ -213,6 +218,8 @@ export default function TerminalPage() {
               onExplain={setExplaining}
               onReport={setReporting}
               onConfigure={setConfiguring}
+              dateRange={dateRange}
+              startingCash={startingCash}
               pendingRun={pendingRun}
               onRan={() => setPendingRun([])}
             />
@@ -283,6 +290,10 @@ export default function TerminalPage() {
           onUniverse={setUniverse}
           onInstruments={setInstruments}
           onAssetClass={setAssetClass}
+          dateRange={dateRange}
+          onDateRange={setDateRange}
+          startingCash={startingCash}
+          onStartingCash={setStartingCash}
           onRun={() => {
             setPendingRun([configuring.id]);
             setConfiguring(null);

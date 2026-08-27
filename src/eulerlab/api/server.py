@@ -1082,7 +1082,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 asset_class=request.asset_class,
                 days_window=request.days,
                 tier=request.tier,
-                starting_cash=1_000_000.0,
+                starting_cash=request.starting_cash,
                 rebalance=21,
                 universe=index_key(_universe_label(request), resolved, request.asset_class),
                 cost_mode=cost_mode_for(request.asset_class),
@@ -1149,7 +1149,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             stats = sharpe_stats(returns)
             outcome: dict[str, Any] = {
                 "sharpe": round(stats.sharpe, 4),
-                "total_return": round(engine.equity[-1] / 1_000_000.0 - 1.0, 6),
+                "total_return": round(engine.equity[-1] / request.starting_cash - 1.0, 6),
                 "max_drawdown": round(_drawdown(engine.equity), 6),
                 "fills": engine.fills,
                 "costs": round(engine.costs, 2),
@@ -1196,7 +1196,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     fills=list(engine.fill_rows),
                     rejections=list(engine.rejection_rows),
                     marks=engine.marks,
-                    starting_cash=1_000_000.0,
+                    starting_cash=request.starting_cash,
                 ),
             )
 
@@ -2206,13 +2206,34 @@ def _headline_sharpe(
     exists runs on QQQ with a tuned stop. Showing the old number beside the new
     description is how a page lies without containing a false sentence.
 
+    **But a run the operator just executed wins.** This preferred the adopted
+    result unconditionally, so backtesting a strategy over a longer window
+    stored the run, wrote its report, and changed nothing on screen — the row
+    kept showing the adopted figure and the work looked like it had not
+    happened. Recency decides between the two: the adopted result is what a
+    strategy shows until someone asks it a newer question.
+
     Everything else keeps the previous order: the ledger's validated Sharpe
     first, since it is the stronger claim and was paid for, then the most
     recent screened one.
     """
     adopted_row = adopted_results.get(row.declaration.id)
-    if adopted_row is not None and adopted_row.get("sharpe") is not None:
-        return float(adopted_row["sharpe"])
+    adopted_sharpe = adopted_row.get("sharpe") if adopted_row else None
+
+    latest = result_store.latest(tenant, row.declaration.id)
+    # A stored run counts as newer only if it is genuinely later *and* is not
+    # the adopted run itself — `adopted_run` records one, so comparing without
+    # this would have the adopted result perpetually superseding itself.
+    newer_run = (
+        latest is not None
+        and latest.universe != "adopted"
+        and adopted_row is not None
+        and str(latest.at) > str(adopted_row.get("at", ""))
+    )
+    if newer_run and latest is not None:
+        return latest.sharpe
+    if adopted_sharpe is not None:
+        return float(adopted_sharpe)
     return row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row)
 
 

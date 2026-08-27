@@ -34,6 +34,10 @@ export function BacktestDialog({
   onUniverse,
   onInstruments,
   onAssetClass,
+  dateRange,
+  onDateRange,
+  startingCash,
+  onStartingCash,
   onRun,
   onClose,
 }: {
@@ -48,6 +52,14 @@ export function BacktestDialog({
   onUniverse: (name: string) => void;
   onInstruments: (symbols: string[]) => void;
   onAssetClass: (name: string) => void;
+  /** An explicit window, or empty strings for "the last N days".
+   *
+   *  Both or neither: a start with no end could mean "until today" or "for N
+   *  days", and guessing would answer a different question than the one asked. */
+  dateRange: { start: string; end: string };
+  onDateRange: (range: { start: string; end: string }) => void;
+  startingCash: number;
+  onStartingCash: (amount: number) => void;
   onRun: () => void;
   onClose: () => void;
 }) {
@@ -144,6 +156,58 @@ export function BacktestDialog({
               </select>
             </label>
           </div>
+
+          {/* An explicit window and the account it is sized against.
+           *
+           * The presets above always end *today*, so every question they can
+           * ask is about the recent past — "how did this behave through 2022"
+           * was unaskable. And starting cash is not cosmetic: position sizing
+           * is a fraction of equity, so it scales every position and decides
+           * whether a capped fee binds at all. */}
+          <div className="ttools" style={{ marginBottom: 12 }}>
+            <label className="tsort" style={{ marginLeft: 0 }}>
+              From
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(event) => onDateRange({ ...dateRange, start: event.target.value })}
+              />
+            </label>
+            <label className="tsort">
+              To
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(event) => onDateRange({ ...dateRange, end: event.target.value })}
+              />
+            </label>
+            <label className="tsort">
+              Capital
+              <input
+                type="number"
+                min={1000}
+                step={100000}
+                value={startingCash}
+                onChange={(event) => onStartingCash(Number(event.target.value) || 1_000_000)}
+                style={{ width: 130 }}
+              />
+            </label>
+            {(dateRange.start || dateRange.end) && (
+              <button
+                className="tchip"
+                type="button"
+                onClick={() => onDateRange({ start: '', end: '' })}
+                title="Fall back to the day presets above, which always end today."
+              >
+                clear dates
+              </button>
+            )}
+          </div>
+          <p className="tfine" style={{ marginBottom: 12 }}>
+            {dateRange.start && dateRange.end
+              ? `Running ${dateRange.start} to ${dateRange.end}. The presets above are ignored while both dates are set.`
+              : 'Set both dates to run a fixed window; with one or neither, the preset above applies and the run ends today.'}
+          </p>
 
           {!info && (
             <div className="period">

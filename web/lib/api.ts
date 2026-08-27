@@ -891,7 +891,12 @@ export const api = {
     tier: 'A' | 'B',
     universe: string,
     instruments: string[] = [],
-    assetClass = 'equity'
+    assetClass = 'equity',
+    // An options bag rather than a seventh and eighth positional argument.
+    // `runBatch(ids, 800, 'B', 'all', [], 'us', '2022-01-01', '2022-12-31', 500000)`
+    // is a line nobody can read, and a call that transposes two of them is a
+    // different backtest that still runs.
+    options: { start?: string; end?: string; startingCash?: number } = {}
   ) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', {
       strategies,
@@ -900,6 +905,9 @@ export const api = {
       universe,
       instruments,
       asset_class: assetClass,
+      start: options.start ?? '',
+      end: options.end ?? '',
+      starting_cash: options.startingCash ?? 1_000_000,
     }),
   report: (strategy: string, workspace = '', configuration = '') =>
     get<ReportResponse>(

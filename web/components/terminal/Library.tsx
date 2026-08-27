@@ -52,6 +52,8 @@ export function Library({
   onExplain,
   onReport,
   onConfigure,
+  dateRange,
+  startingCash,
   pendingRun,
   onRan,
 }: {
@@ -72,6 +74,9 @@ export function Library({
   onReport: (strategy: FleetStrategy) => void;
   onConfigure: (strategy: FleetStrategy) => void;
   /** Ids the Backtest dialog just confirmed. Run once, then cleared. */
+  /** An explicit window, empty for "the last N days". */
+  dateRange: { start: string; end: string };
+  startingCash: number;
   pendingRun: string[];
   onRan: () => void;
 }) {
@@ -188,10 +193,19 @@ export function Library({
       setElapsed(0);
       setProgress('starting');
       try {
-        const result = await runBatch(ids, days, tier, universe, instruments, runClass, (message) => {
-          setNote(message);
-          setProgress(message);
-        });
+        const result = await runBatch(
+          ids,
+          days,
+          tier,
+          universe,
+          instruments,
+          runClass,
+          (message) => {
+            setNote(message);
+            setProgress(message);
+          },
+          { start: dateRange.start, end: dateRange.end, startingCash },
+        );
         const failed = result.results.filter((r) => r.error);
         setNote(
           `${result.computed} computed, ${result.cached} cached` +
@@ -216,7 +230,7 @@ export function Library({
         setProgress('');
       }
     },
-    [days, tier, universe, instruments, runClass, onRefresh]
+    [days, tier, universe, instruments, runClass, dateRange, startingCash, onRefresh]
   );
 
   useEffect(() => {

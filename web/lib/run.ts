@@ -28,9 +28,18 @@ export async function runBatch(
   universe: string,
   instruments: string[] = [],
   assetClass = 'equity',
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  options: { start?: string; end?: string; startingCash?: number } = {}
 ): Promise<BatchResult> {
-  const started = await api.runBatch(strategies, days, tier, universe, instruments, assetClass);
+  const started = await api.runBatch(
+    strategies,
+    days,
+    tier,
+    universe,
+    instruments,
+    assetClass,
+    options,
+  );
   if (!started.ok || !started.job) throw new RunFailed(started.error ?? 'could not start the run');
 
   const deadline = Date.now() + TIMEOUT_MS;
