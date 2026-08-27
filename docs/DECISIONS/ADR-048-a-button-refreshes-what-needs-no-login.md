@@ -48,10 +48,24 @@ fetches and the mirror, which the current shape has no place for.
 
 The first full run took 14 minutes on a 30-day US window and was cut to 7 days,
 which is enough to cover a long weekend plus a late correction. The run then
-splits about 200s of fetching against 580s of mirroring — the mirror is now the
-dominant cost, and most of that is the manifest rebuild relisting the bucket
-rather than the 833 objects uploaded.
+splits about 200s of fetching against 580s of mirroring, so **the mirror, not
+the fetching, is what a refresh costs.**
 
-That imbalance made the progress display wrong before it made it slow: a single
+Where that goes was measured rather than assumed, because the first guess here
+was wrong — it blamed the manifest rebuild, which is the visibly slow-looking
+step. A mirror-only run that uploaded exactly one object still took 520s, and
+the census accounts for 112s of it (`us/bars` 38s, `fx` 35s, `us/minute` 19s,
+`mf` 14s, and nine trees under 4s each). The remaining ~400s is
+`sync_directory`'s own scan, and the uploads themselves are noise.
+
+**So the bucket is listed twice per mirror.** `sync_directory` lists each tree
+to diff sizes, then `manifest.build` lists every tree again to recount. The
+second pass is the cheaper one. The first is coarser — it lists per tree root,
+so `us/` drags in the minute bars that the census reaches under a narrower
+prefix — which is why it costs three times as much for the same bucket. One
+shared listing is the obvious saving and is not taken here: this is the path
+that decides what gets uploaded, and it is not worth rushing for 20%.
+
+The imbalance made the progress display wrong before it made it slow: a single
 "mirroring to B2" message sat unchanged for nine minutes and read as hung. The
 mirror reports two phases — uploading, then recounting — for that reason alone.
