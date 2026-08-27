@@ -10,10 +10,33 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+
+import { BacktestOptions, BacktestWindowNote } from './BacktestOptions';
+import type { DateRange } from './BacktestOptions';
 import { api } from '@/lib/api';
 import type { Library, Provider, StrategyInput } from '@/lib/api';
 
-export function BuildTab({ onRefresh }: { onRefresh: () => void }) {
+export function BuildTab({
+  onRefresh,
+  window: days,
+  tier,
+  dateRange,
+  startingCash,
+  onWindow,
+  onTier,
+  onDateRange,
+  onStartingCash,
+}: {
+  onRefresh: () => void;
+  window: number;
+  tier: 'A' | 'B';
+  dateRange: DateRange;
+  startingCash: number;
+  onWindow: (days: number) => void;
+  onTier: (tier: 'A' | 'B') => void;
+  onDateRange: (range: DateRange) => void;
+  onStartingCash: (cash: number) => void;
+}) {
   const [library, setLibrary] = useState<Library | null>(null);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [mode, setMode] = useState<'composed' | 'code'>('composed');
@@ -94,7 +117,18 @@ export function BuildTab({ onRefresh }: { onRefresh: () => void }) {
     setError('');
     setStatus('starting…');
     try {
-      const started = await api.backtest({ ...input(), days: 800, tier: 'B', starting_cash: 1_000_000 });
+      // Was `days: 800, tier: 'B', starting_cash: 1_000_000`, written into
+      // the call. A strategy composed here could only ever be tested one way
+      // and nothing on screen said which way that was.
+      const started = await api.backtest({
+        ...input(),
+        days,
+        tier,
+        starting_cash: startingCash,
+        ...(dateRange.start && dateRange.end
+          ? { start: dateRange.start, end: dateRange.end }
+          : {}),
+      });
       if (!started.ok || !started.job) throw new Error(started.error ?? 'could not start');
       for (;;) {
         await new Promise((resolve) => setTimeout(resolve, 700));
@@ -191,6 +225,24 @@ export function BuildTab({ onRefresh }: { onRefresh: () => void }) {
               </p>
             </>
           )}
+
+          {/* The same options the Library's Backtest button offers. They were
+              applied here regardless — as constants in the call — so the only
+              thing missing was the ability to see or change them. */}
+          <h4 className="report-h" style={{ marginTop: 20 }}>
+            How to run it
+          </h4>
+          <BacktestOptions
+            window={days}
+            tier={tier}
+            dateRange={dateRange}
+            startingCash={startingCash}
+            onWindow={onWindow}
+            onTier={onTier}
+            onDateRange={onDateRange}
+            onStartingCash={onStartingCash}
+          />
+          <BacktestWindowNote dateRange={dateRange} />
 
           <div className="tacts" style={{ marginTop: 16 }}>
             <button className="tbtn" type="button" disabled={busy} onClick={validate}>

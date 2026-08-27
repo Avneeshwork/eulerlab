@@ -226,7 +226,19 @@ export default function TerminalPage() {
           </>
         )}
 
-        {tab === 'Build' && <BuildTab onRefresh={refresh} />}
+        {tab === 'Build' && (
+          <BuildTab
+            onRefresh={refresh}
+            window={days}
+            tier={tier}
+            dateRange={dateRange}
+            startingCash={startingCash}
+            onWindow={setDays}
+            onTier={setTier}
+            onDateRange={setDateRange}
+            onStartingCash={setStartingCash}
+          />
+        )}
 
         {tab === 'Run' && (
           <RunTab

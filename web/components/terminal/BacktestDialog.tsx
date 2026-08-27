@@ -19,8 +19,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { ASSET_CLASSES } from '@/lib/assetClasses';
 import type { FleetStrategy, Instrument, WindowInfo } from '@/lib/api';
+import { BacktestOptions, BacktestWindowNote } from './BacktestOptions';
 
-const WINDOWS = [250, 500, 800, 1200, 1800, 2500, 2869];
 
 export function BacktestDialog({
   strategy,
@@ -136,78 +136,17 @@ export function BacktestDialog({
 
         <div className="dlg-body">
           <h4 className="report-h">Period</h4>
-          <div className="ttools" style={{ marginBottom: 12 }}>
-            {WINDOWS.map((value) => (
-              <button
-                key={value}
-                className="tchip"
-                type="button"
-                aria-pressed={days === value}
-                onClick={() => onWindow(value)}
-              >
-                {value >= 2869 ? 'everything' : `${value}d`}
-              </button>
-            ))}
-            <label className="tsort">
-              Tier
-              <select value={tier} onChange={(event) => onTier(event.target.value as 'A' | 'B')}>
-                <option value="B">B — event-driven engine</option>
-                <option value="A">A — vectorised screen</option>
-              </select>
-            </label>
-          </div>
-
-          {/* An explicit window and the account it is sized against.
-           *
-           * The presets above always end *today*, so every question they can
-           * ask is about the recent past — "how did this behave through 2022"
-           * was unaskable. And starting cash is not cosmetic: position sizing
-           * is a fraction of equity, so it scales every position and decides
-           * whether a capped fee binds at all. */}
-          <div className="ttools" style={{ marginBottom: 12 }}>
-            <label className="tsort" style={{ marginLeft: 0 }}>
-              From
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(event) => onDateRange({ ...dateRange, start: event.target.value })}
-              />
-            </label>
-            <label className="tsort">
-              To
-              <input
-                type="date"
-                value={dateRange.end}
-                onChange={(event) => onDateRange({ ...dateRange, end: event.target.value })}
-              />
-            </label>
-            <label className="tsort">
-              Capital
-              <input
-                type="number"
-                min={1000}
-                step={100000}
-                value={startingCash}
-                onChange={(event) => onStartingCash(Number(event.target.value) || 1_000_000)}
-                style={{ width: 130 }}
-              />
-            </label>
-            {(dateRange.start || dateRange.end) && (
-              <button
-                className="tchip"
-                type="button"
-                onClick={() => onDateRange({ start: '', end: '' })}
-                title="Fall back to the day presets above, which always end today."
-              >
-                clear dates
-              </button>
-            )}
-          </div>
-          <p className="tfine" style={{ marginBottom: 12 }}>
-            {dateRange.start && dateRange.end
-              ? `Running ${dateRange.start} to ${dateRange.end}. The presets above are ignored while both dates are set.`
-              : 'Set both dates to run a fixed window; with one or neither, the preset above applies and the run ends today.'}
-          </p>
+          <BacktestOptions
+            window={days}
+            tier={tier}
+            dateRange={dateRange}
+            startingCash={startingCash}
+            onWindow={onWindow}
+            onTier={onTier}
+            onDateRange={onDateRange}
+            onStartingCash={onStartingCash}
+          />
+          <BacktestWindowNote dateRange={dateRange} />
 
           {!info && (
             <div className="period">

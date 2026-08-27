@@ -16,6 +16,8 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { marketsFor, marketsPresent } from '@/lib/assetClasses';
 import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { Spark } from '@/components/terminal/Spark';
 import { AdoptedReport } from '@/components/terminal/AdoptedReport';
@@ -142,16 +144,16 @@ export function Library({
     };
   }, []);
 
-  const classes = useMemo(
-    () => Array.from(new Set(fleet?.strategies.map((s) => s.asset_class) ?? [])).sort(),
-    [fleet]
-  );
+  // Markets, not declared classes. Built from `asset_class` alone this listed
+  // exactly two — equity and crypto — because those are the only tags any
+  // strategy carries, so US equity and FX had no way in from here at all.
+  const classes = useMemo(() => marketsPresent(fleet?.strategies ?? []), [fleet]);
 
   const rows = useMemo(() => {
     if (!fleet) return [];
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
-      if (assetClass && s.asset_class !== assetClass) return false;
+      if (assetClass && !marketsFor(s).includes(assetClass)) return false;
       if (!needle) return true;
       return [s.id, s.title, s.kind, s.shape, s.summary].some((field) =>
         field.toLowerCase().includes(needle)
@@ -258,15 +260,19 @@ export function Library({
         >
           All
         </button>
-        {classes.map((name) => (
+        {/* Labelled, not raw ids: the chips read "US equities" and "FX"
+            rather than "us" and "fx", which is what the rest of the console
+            calls them. */}
+        {classes.map((option) => (
           <button
-            key={name}
+            key={option.value}
             className="tchip"
             type="button"
-            aria-pressed={assetClass === name}
-            onClick={() => setAssetClass(assetClass === name ? '' : name)}
+            title={option.note}
+            aria-pressed={assetClass === option.value}
+            onClick={() => setAssetClass(assetClass === option.value ? '' : option.value)}
           >
-            {name}
+            {option.label}
           </button>
         ))}
         <UniversePicker value={universe} onChange={onUniverse} />

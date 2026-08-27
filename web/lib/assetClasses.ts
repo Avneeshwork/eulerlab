@@ -44,3 +44,38 @@ export function assetClassLabel(value: string): string {
 export function usesBatches(value: string): boolean {
   return value === 'equity';
 }
+
+/** The markets a strategy can actually be pointed at.
+ *
+ * The Library's filter chips were built from the classes the strategies
+ * *declare*, and only two values exist across all 36 — `equity` and `crypto`.
+ * So US equity and FX never appeared, and there was no way into them from the
+ * page that lists what you can run.
+ *
+ * The declared class is not the market, though. It says which engine and cost
+ * model a strategy belongs to, and the market is chosen per run: `orb_breakout`
+ * and `orb_breakout_in` are the same detect function pointed at QQQ and at
+ * NIFTYBEES. Treating the tag as the market is what hid two markets behind it.
+ *
+ * Minute signals run wherever there are minute bars. Daily strategies need a
+ * panel, which exists for the two equity markets. Crypto is its own engine and
+ * its own fee schedule, so it does not mix.
+ */
+export function marketsFor(strategy: { asset_class: string; timeframe: string }): string[] {
+  if (strategy.asset_class === 'crypto') return ['crypto'];
+  if (strategy.timeframe === '1m') return ['equity', 'us', 'fx'];
+  return ['equity', 'us'];
+}
+
+/** Markets at least one of these strategies can run on, in canonical order.
+ *
+ * Derived rather than listed so a chip never appears with nothing behind it —
+ * a filter that always returns zero is worse than an absent one, because it
+ * reads as "we have none of that" rather than "that is not offered here".
+ */
+export function marketsPresent(
+  strategies: { asset_class: string; timeframe: string }[]
+): AssetClassOption[] {
+  const available = new Set(strategies.flatMap(marketsFor));
+  return ASSET_CLASSES.filter((option) => available.has(option.value));
+}
