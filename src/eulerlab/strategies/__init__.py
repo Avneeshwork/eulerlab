@@ -156,6 +156,177 @@ class Declaration:
     ledger_subjects: list[str] = field(default_factory=list)
 
 
+RESEARCH: dict[str, tuple[str, str, str, list[str]]] = {
+    # id -> (citation, what the source reported, what the source tested, steps)
+    #
+    # The steps describe what the code does, not what the paper proposes. Where
+    # the two differ the difference is stated in the step itself, because the
+    # console presents these as "the steps as coded" and a reader comparing
+    # them against the citation has no other way to see the gap.
+    "momentum_12_1": (
+        "Jegadeesh & Titman (1993)",
+        "Winners minus losers earned about 1% a month over 1965-1989, "
+        "before costs and before the crash risk later work identified.",
+        "NYSE and AMEX common stocks, monthly, 1965-1989",
+        [
+            "Score each name by its total return from 252 trading days ago to "
+            "21 days ago — twelve months, skipping the most recent one.",
+            "The skip is the construction, not a detail: 12-month momentum and "
+            "1-month reversal point opposite ways, so an unskipped return "
+            "averages a signal with its own opposite.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+            "Needs 263 days of history per name, so the first 263 days of any "
+            "window produce no position at all.",
+        ],
+    ),
+    "momentum_6_1": (
+        "Jegadeesh & Titman (1993)",
+        "The same paper's shorter formation window; weaker than 12-1 in their own results.",
+        "NYSE and AMEX common stocks, monthly, 1965-1989",
+        [
+            "Score each name by its total return from 126 trading days ago to "
+            "21 days ago — six months, skipping the most recent one.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+            "Needs 158 days of history per name.",
+        ],
+    ),
+    "short_term_reversal": (
+        "Jegadeesh (1990)",
+        "Last month's losers outperformed last month's winners over 1934-1987 "
+        "— the opposite sign to momentum at a longer horizon.",
+        "NYSE common stocks, monthly, 1934-1987",
+        [
+            "Score each name by its last 21 trading days' return, negated, so "
+            "the worst recent performer ranks highest.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+            "Needs 32 days of history per name.",
+        ],
+    ),
+    "low_volatility": (
+        "Baker, Bradley & Wurgler (2011)",
+        "The lowest-volatility quintile beat the highest over 1968-2008, "
+        "which is the opposite of what a risk premium predicts.",
+        "US equities, monthly, 1968-2008",
+        [
+            "Score each name by the median absolute deviation of its daily "
+            "returns over the last 63 trading days, negated — quietest ranks "
+            "highest.",
+            "Median absolute deviation rather than standard deviation: one "
+            "spike dominates a stdev, so the score would describe a single day "
+            "rather than the stock.",
+            "Needs at least 20 usable returns, or the name is unscored.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+        ],
+    ),
+    "fifty_two_week_high": (
+        "George & Hwang (2004)",
+        "Nearness to the 52-week high forecast returns and, unlike momentum, "
+        "the forecasts did not reverse over the long run.",
+        "US equities, monthly, 1963-2001",
+        [
+            "Score each name by its last close divided by the highest close in "
+            "the last 252 trading days — 1.0 means sitting at its 52-week high.",
+            "Needs at least 200 rows in that window, or the name is unscored.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+        ],
+    ),
+    "illiquidity_premium": (
+        "Amihud (2002)",
+        "Illiquid stocks earned a premium for being illiquid, over 1964-1997.",
+        "NYSE common stocks, 1964-1997",
+        [
+            "Score each name by the median of |daily return| / turnover over "
+            "the last 63 trading days, negated.",
+            "The negation makes the *most liquid* name score highest, and the "
+            "engine holds the highest — so as coded this buys the most liquid "
+            "names, which is the opposite end from the premium Amihud "
+            "measured. Recorded as S-032; not silently flipped, because "
+            "turning it round changes what the strategy trades.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+            "Market impact is not modelled anywhere in this engine, so a real "
+            "illiquidity premium would be collected here without paying the "
+            "cost that is the whole reason it exists.",
+        ],
+    ),
+    "small_size": (
+        "Banz (1981)",
+        "Small firms outearned large ones over 1936-1975 after adjusting for beta.",
+        "NYSE common stocks, 1936-1975",
+        [
+            "Score each name by the negated log of its last close, so a "
+            "low-priced name ranks highest.",
+            "This is a weak proxy and is here to be measured, not believed: "
+            "size is price times shares outstanding, and the share count is "
+            "not in the bhavcopy. A low price is not a small company — it is "
+            "often a normal one after a split.",
+            "Sit the day out unless at least 50 names can be scored.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+        ],
+    ),
+    "quality_composite": (
+        "",
+        "",
+        "",
+        [
+            "Not from a paper. The three components each have their own "
+            "literature; combining them is a choice made here, and it is the "
+            "kind of choice the trial ledger exists to count.",
+            "Score each name three times — negated return dispersion over 63 "
+            "days, negated worst 6-month drawdown, and log median turnover "
+            "over 63 days.",
+            "Convert each score to a within-feature percentile rank, then average the three.",
+            "Drop any name not scored by all three: a name ranked on two "
+            "features is not comparable to one ranked on three.",
+            "Sit the day out unless at least 20 names survive.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+        ],
+    ),
+    "momentum_quality": (
+        "",
+        "",
+        "",
+        [
+            "Not from a paper. Momentum's known failure is the crash — winners "
+            "are high-beta going into a reversal — and averaging its rank with "
+            "drawdown and volatility is the standard response to that. Whether "
+            "it helps on this data is an open question.",
+            "Score each name on 12-1 momentum, negated worst 6-month drawdown, "
+            "and negated 63-day return dispersion.",
+            "Convert each to a percentile rank within its feature and average "
+            "the three; drop names missing any of them.",
+            "Sit the day out unless at least 20 names survive.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+        ],
+    ),
+    "value_reversal": (
+        "",
+        "",
+        "",
+        [
+            "Not from a paper. Reversal is strongest in illiquid names and most "
+            "expensive to trade there; this pairing exposes that tension rather "
+            "than resolving it.",
+            "Score each name on negated 21-day return and on log median turnover over 63 days.",
+            "Convert each to a percentile rank within its feature and average "
+            "the two; drop names missing either.",
+            "Sit the day out unless at least 20 names survive.",
+            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
+        ],
+    ),
+}
+"""Citation, published result, tested universe and coded steps, per strategy.
+
+Separate from the `_published` spec because that tuple is positional and
+already long enough that a seventh field would be read by counting commas.
+"""
+
+
 def _published() -> dict[str, Declaration]:
     """The ten from `docs/RESEARCH/017`, each citing its paper.
 
@@ -266,6 +437,13 @@ def _published() -> dict[str, Declaration]:
             emits=Emits.TARGET_WEIGHT,
             lookback=lookback,
             ledger_subjects=subjects,
+            source=RESEARCH.get(key, ("", "", "", []))[0],
+            published=RESEARCH.get(key, ("", "", "", []))[1],
+            tested_on=RESEARCH.get(key, ("", "", "", []))[2],
+            recommended_class=AssetClass.EQUITY if RESEARCH.get(key, ("",))[0] else "",
+            logic=RESEARCH.get(key, ("", "", "", []))[3],
+            paper_url=paper_url(RESEARCH.get(key, ("",))[0]),
+            paper_pdf=paper_pdf(RESEARCH.get(key, ("",))[0]),
         )
         for key, title, summary, kind, shape, lookback, subjects in spec
     }
@@ -296,6 +474,15 @@ REGISTRY: dict[str, Declaration] = {
         timeframe=Timeframe.DAILY,
         emits=Emits.TARGET_WEIGHT,
         lookback=2,
+        logic=[
+            "Not from a paper — this is the engine's control, and it is here "
+            "to be compared against, not traded.",
+            "Rank every instrument by the turnover on its latest row and take the 30 largest.",
+            "Hold them equally weighted and never rebalance.",
+            "Its return should track the market and its cost should be one "
+            "round of entry charges. If either is wrong the engine is wrong, "
+            "which is far easier to see here than inside a real strategy.",
+        ],
     ),
     "tweezer_bottom": Declaration(
         id="tweezer_bottom",
@@ -313,6 +500,24 @@ REGISTRY: dict[str, Declaration] = {
         risk_manager="risk-pct",
         trade_manager="bracket",
         is_strategy_subclass=False,
+        logic=[
+            "Not from a paper — a practitioner candlestick pattern, coded to "
+            "be measured rather than because the literature supports it.",
+            "Require candle 1 bearish, its body at least 30% of its range, "
+            "and its range at least 0.05% of price.",
+            "Require candle 2 bullish, body at least 60% of its range, same range floor.",
+            "Require the two lows to match within 0.15% — that matching pair is the tweezer.",
+            "Require a downtrend into it: candle 2 closes below a falling 20-period SMA.",
+            "Require the pair to sit within 0.5% of the swing low of the 10 "
+            "candles before candle 1.",
+            "Require ADX between 25 and 50, and ATR at least a floor "
+            "percentage of price, so a flat tape cannot produce a setup.",
+            "Enter on a stop above candle 2's high, stop under the matched "
+            "low, and reject unless the resulting risk is inside a band.",
+            "Take half at 2R and half at 3R, sized so the stop costs 1% of "
+            "equity; forced flat at the session close.",
+            "Extremely rare by construction: 2 setups in 136,740 candles.",
+        ],
     ),
 }
 
@@ -336,6 +541,35 @@ PAPERS: dict[str, tuple[str, str]] = {
     # written by whoever declares the signal and the lookup has to survive that.
     "Cohen, G. (2023)": (
         "https://www.aimspress.com/article/doi/10.3934/math.2023419",
+        "",
+    ),
+    # The daily cross-sectional factors. DOIs rather than publisher pages: a
+    # DOI is the identifier that does not rot when a journal re-platforms.
+    # Each was resolved against Crossref before being written here, because a
+    # citation that links to the wrong paper is worse than one that links
+    # nowhere — it is confidently wrong, and nobody re-checks a working link.
+    "Jegadeesh & Titman (1993)": (
+        "https://doi.org/10.1111/j.1540-6261.1993.tb04702.x",
+        "",
+    ),
+    "Jegadeesh (1990)": (
+        "https://doi.org/10.1111/j.1540-6261.1990.tb05110.x",
+        "",
+    ),
+    "Baker, Bradley & Wurgler (2011)": (
+        "https://doi.org/10.2469/faj.v67.n1.4",
+        "",
+    ),
+    "George & Hwang (2004)": (
+        "https://doi.org/10.1111/j.1540-6261.2004.00695.x",
+        "",
+    ),
+    "Amihud (2002)": (
+        "https://doi.org/10.1016/S1386-4181(01)00024-6",
+        "",
+    ),
+    "Banz (1981)": (
+        "https://doi.org/10.1016/0304-405X(81)90018-0",
         "",
     ),
 }
