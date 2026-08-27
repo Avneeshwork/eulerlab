@@ -238,14 +238,23 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
             </section>
           )}
 
-          {about && (
+          {/* `how_it_decides` is gone from here. It was generated from the
+              engine's shape, so it read the same under every strategy but for
+              one number, and everything it said the steps below now say
+              precisely — "every 21 trading days it scores each instrument"
+              against "hold the top 30 equally weighted, rebalancing every 21
+              trading days".
+
+              `summary` is kept only where it is a description. For the 24
+              signals carrying a published verdict it is that verdict, which
+              the provenance box above already shows under "it reported", so
+              showing it again under a heading called "The idea" said the same
+              sentence twice and called the second one an idea. */}
+          {about && about.summary && about.summary.trim() !== about.published?.trim() && (
             <section className="explain-block">
               <h3>The idea</h3>
               <p className="tdesc" style={{ fontSize: 17 }}>
                 {about.summary}
-              </p>
-              <p className="tdesc" style={{ fontSize: 17, marginTop: 10 }}>
-                {about.how_it_decides}
               </p>
             </section>
           )}

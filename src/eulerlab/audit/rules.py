@@ -138,7 +138,50 @@ def unpaginated_listing(tree: ast.AST, path: Path) -> list[Finding]:
     return out
 
 
+def us_overnight_without_adjustment() -> list[Finding]:
+    """A US strategy that holds overnight, while US prices are unadjusted.
+
+    S-030: `corp_actions/alpaca_feed.py` was built and wired to nothing, so the
+    US panel serves raw exchange prices. No current result is affected, and the
+    reason is structural rather than lucky — every US strategy runs through
+    `intraday/bracket.py`, which forces a close at the session end, so no
+    position spans the boundary a split is applied across.
+
+    That makes the gap invisible right up until it is not. An unadjusted split
+    is a clean-looking overnight gap, so the first multi-day US strategy would
+    read one as a real move and nothing would raise. This turns the invariant
+    the STUBS entry describes into something that fails a run instead of a
+    sentence someone has to remember.
+    """
+    from eulerlab.strategies import REGISTRY
+
+    adjusted = (REPO / "src" / "eulerlab" / "corp_actions" / "us_factors.py").exists()
+    if adjusted:
+        return []
+    out: list[Finding] = []
+    for declaration in REGISTRY.values():
+        holds_overnight = str(getattr(declaration, "timeframe", "")) == "1d"
+        if not holds_overnight or str(getattr(declaration, "asset_class", "")) != "us":
+            continue
+        out.append(
+            Finding(
+                rule="us-overnight-unadjusted",
+                severity=Severity.FAIL,
+                message=(
+                    f"{declaration.id} holds US positions overnight, but US prices "
+                    f"carry no split or dividend adjustment"
+                ),
+                path="src/eulerlab/corp_actions/alpaca_feed.py",
+                because="an unadjusted split reads as a real overnight gap (S-030)",
+            )
+        )
+    return out
+
+
 CHECKS = (unbounded_window_reads, defaulted_asset_class, unpaginated_listing)
+
+STANDALONE = (us_overnight_without_adjustment,)
+"""Checks about the codebase as a whole rather than one file at a time."""
 
 
 def run(root: Path = REPO) -> tuple[list[Finding], int]:
@@ -152,4 +195,6 @@ def run(root: Path = REPO) -> tuple[list[Finding], int]:
             continue
         for check in CHECKS:
             findings.extend(check(tree, path))
+    for standalone in STANDALONE:
+        findings.extend(standalone())
     return findings, len(files)

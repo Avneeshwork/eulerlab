@@ -239,3 +239,41 @@ def test_a_reachable_model_produces_notes(monkeypatch: pytest.MonkeyPatch) -> No
     assert skipped == ""
     assert len(found) == 1
     assert found[0].severity is Severity.NOTE
+
+
+# --- the US adjustment boundary --------------------------------------------
+
+
+def test_the_us_adjustment_guard_is_quiet_while_nothing_holds_overnight() -> None:
+    """No US strategy holds overnight today, so it must not cry wolf."""
+    from eulerlab.audit.rules import us_overnight_without_adjustment
+
+    assert us_overnight_without_adjustment() == []
+
+
+def test_the_us_adjustment_guard_fires_on_a_daily_us_strategy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """S-030 as a failing run rather than a sentence someone must remember.
+
+    US prices carry no split adjustment. Nothing is wrong today because every
+    US strategy is forced flat at the session close, so no position spans the
+    boundary a split is applied across. The first one that holds overnight
+    would read an unadjusted split as a real gap, silently.
+    """
+    from dataclasses import replace
+
+    from eulerlab.audit.rules import us_overnight_without_adjustment
+    from eulerlab.strategies import REGISTRY, AssetClass, Declaration, Timeframe
+
+    sample = next(iter(REGISTRY.values()))
+    overnight = replace(
+        sample, id="us_swing_test", asset_class=AssetClass.US, timeframe=Timeframe.DAILY
+    )
+    assert isinstance(overnight, Declaration)
+    monkeypatch.setattr("eulerlab.strategies.REGISTRY", {**REGISTRY, "us_swing_test": overnight})
+
+    found = us_overnight_without_adjustment()
+    assert any(f.rule == "us-overnight-unadjusted" for f in found)
+    assert any("us_swing_test" in f.message for f in found)
+    assert all(f.severity is Severity.FAIL for f in found)
