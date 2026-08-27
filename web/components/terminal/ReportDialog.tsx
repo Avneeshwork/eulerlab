@@ -96,8 +96,8 @@ export function ReportDialog({
                     and a dollar figure read as rupees is wrong by the exchange
                     rate while looking entirely plausible. */}
                 <span className="assettag">{assetClassLabel(report.asset_class ?? "equity")}</span>
-                {report.instruments.length > 0 ? report.instruments.join(', ') : report.universe} ·{' '}
-                {report.window_days}d · {report.period[0]} to {report.period[1]}
+                {report.instruments.length > 0 ? report.instruments.join(', ') : report.universe} ·
+                traded {report.period[0]} to {report.period[1]}
               </div>
             )}
           </div>
@@ -106,11 +106,21 @@ export function ReportDialog({
           </button>
         </header>
 
-        {/* No run picker. `prune-runs` keeps one stored run per strategy — the
-            adopted one, which is both the configuration the strategy is defined
-            to use and its most recent measurement — so there is nothing to
-            choose between. A picker offering three numbers asked the reader to
-            know which of them was the strategy. */}
+        {/* Asked-for, seen, and traded — because the three differ and only the
+            last was ever shown. Two runs asking 90 and 180 days both traded the
+            same window and filled 24 times, and returned different P&L: the
+            longer one fetched three more sessions of leading history, which
+            moved the ATR warmup and the early stops. Showing only the traded
+            window made the date range look like it did nothing. */}
+        {report?.data_window && report.data_window.length === 2 && (
+          <p className="tfine" style={{ margin: '0 0 8px' }}>
+            Asked for {report.requested_days}d · saw {report.sessions_seen} sessions from{' '}
+            {report.data_window[0]} · traded on {report.equity.days.length} of them. A run that
+            saw more leading history is a different measurement even when the traded window and
+            the fill count match.
+          </p>
+        )}
+
         <div className="dlg-modes">
           {(['Summary', 'Instruments', 'Orders'] as Tab[]).map((name) => (
             <button
@@ -123,10 +133,30 @@ export function ReportDialog({
               {name}
             </button>
           ))}
+          {/* Other stored runs, reachable again.
+           *
+           * The picker came out when `prune-runs` left one run per strategy,
+           * and that stopped being true the moment anyone ran a second
+           * backtest: six accumulated and only the newest could be opened.
+           * Chips rather than the old dropdown — the point is to compare them,
+           * and a dropdown shows one label at a time. */}
           {runs.length > 1 && (
-            <span className="tfine" style={{ marginLeft: 'auto' }}>
-              stands in for {runs.length - 1} superseded run
-              {runs.length > 2 ? 's' : ''}
+            <span className="runpick">
+              {runs
+                .slice()
+                .sort((a, b) => b.window_days - a.window_days)
+                .map((run) => (
+                  <button
+                    key={run.configuration}
+                    className="tchip sm"
+                    type="button"
+                    aria-pressed={run.configuration === (chosen || report?.configuration)}
+                    onClick={() => setChosen(run.configuration)}
+                    title={`${run.universe} · tier ${run.tier} · Sharpe ${run.sharpe.toFixed(2)}`}
+                  >
+                    {run.window_days}d
+                  </button>
+                ))}
             </span>
           )}
         </div>
@@ -181,6 +211,57 @@ export function ReportDialog({
                       </div>
                     </div>
                   </div>
+
+                  {/* Against holding the thing it traded — first, because it
+                      reframes every number under it. A strategy returning
+                      +2.6% has done something remarkable if the instrument
+                      fell 2.7% over the same days and nothing at all if it
+                      rose 8%, and until this existed the report could not tell
+                      those apart. */}
+                  {report.benchmark && (
+                    <div className="bench">
+                      <div className="bench-row">
+                        <span>This strategy</span>
+                        <b className={report.final_equity >= report.starting_cash ? 'pos' : 'neg'}>
+                          {money(report.final_equity - report.starting_cash)}
+                        </b>
+                        <span className="bench-sub">
+                          Sharpe {metrics.sharpe.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="bench-row">
+                        <span>Holding {report.benchmark.symbol}</span>
+                        <b className={report.benchmark.net_pnl >= 0 ? 'pos' : 'neg'}>
+                          {money(report.benchmark.net_pnl)}
+                        </b>
+                        <span className="bench-sub">
+                          {report.benchmark.sharpe === null
+                            ? '—'
+                            : `Sharpe ${report.benchmark.sharpe.toFixed(2)}`}
+                          {' · worst fall '}
+                          {(report.benchmark.max_drawdown * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="bench-row excess">
+                        <span>Difference</span>
+                        <b
+                          className={
+                            report.final_equity - report.starting_cash - report.benchmark.net_pnl >= 0
+                              ? 'pos'
+                              : 'neg'
+                          }
+                        >
+                          {money(
+                            report.final_equity - report.starting_cash - report.benchmark.net_pnl,
+                          )}
+                        </b>
+                        <span className="bench-sub">
+                          the strategy was in the market {(metrics.invested_fraction * 100).toFixed(0)}% of
+                          the time; holding is 100%, so this is not risk-adjusted
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <EquityChart
                     values={report.equity.values}

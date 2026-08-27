@@ -443,6 +443,22 @@ export type FullReport = {
    *  in — a QQQ report labelled in rupees is off by the exchange rate. */
   asset_class?: string;
   window_days: number;
+  /** The window the scan *saw*, which is not the window it traded. Two runs can
+   *  trade the same days and fill identically while seeing different leading
+   *  history — which changes indicator warmup and therefore the result. */
+  /** Holding the instrument over the same sessions. Null where the run touched
+   *  more than one name — a basket is a different claim than "holding this". */
+  benchmark?: {
+    symbol: string;
+    net_pnl: number;
+    total_return: number;
+    sharpe: number | null;
+    max_drawdown: number;
+    costs: number;
+  } | null;
+  data_window?: string[];
+  sessions_seen?: number;
+  requested_days?: number;
   period: [string | null, string | null];
   starting_cash: number;
   final_equity: number;

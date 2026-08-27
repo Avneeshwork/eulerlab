@@ -289,6 +289,10 @@ def build(
     asset_class: str = "equity",
     cost_mode: str = "realistic",
     window_days: int,
+    benchmark: dict[str, Any] | None = None,
+    data_window: list[str] | None = None,
+    sessions_seen: int = 0,
+    requested_days: int = 0,
     equity: list[float],
     days: list[date],
     fills: Sequence[FillLike],
@@ -382,6 +386,16 @@ def build(
     return {
         "strategy_id": strategy_id,
         "configuration": configuration,
+        # What the scan *saw*, beside what it traded. A run that fetched more
+        # leading history is a different measurement even when the traded window
+        # and the fill count match exactly.
+        # Holding the instrument over the same sessions. None where the run
+        # touched more than one name — a basket is a different and larger claim
+        # than "holding this one thing".
+        "benchmark": benchmark,
+        "data_window": data_window or [],
+        "sessions_seen": sessions_seen,
+        "requested_days": requested_days,
         "universe": universe,
         "instruments": instruments,
         "tier": tier,

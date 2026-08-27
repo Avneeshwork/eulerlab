@@ -184,10 +184,25 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
         raise RuntimeError(msg)
 
     cash_start = request.starting_cash
+    # Every session the scan covered, not only the ones that traded.
+    #
+    # This walked `by_session`, which holds trading days alone — so a signal
+    # firing on 24 of 63 sessions produced a 24-point equity curve with no flat
+    # days in it. Three things were wrong at once: the report said "invested
+    # 100% of the time, 0 flat days" of a strategy flat two thirds of it, the
+    # volatility was measured over only the days it acted, and the Sharpe came
+    # out **5.37 against the 3.69** the same run scores through
+    # `SignalScan.sharpe`, which pads.
+    #
+    # That padding is the correct treatment and its docstring says why: a
+    # session sat out is a real zero, not a missing observation, and dropping
+    # it reports a daily trader's volatility for an occasional one — inflating
+    # the ratio by roughly the square root of how rarely it fires.
+    all_sessions = sorted({day for scan in scans for day in scan.session_days()})
     cash = cash_start
     equity = [cash]
-    for day in sorted(by_session):
-        cash += by_session[day]
+    for day in all_sessions or sorted(by_session):
+        cash += by_session.get(day, 0.0)
         equity.append(cash)
 
     returns = [b / a - 1.0 for a, b in pairwise(equity) if a > 0]
@@ -216,9 +231,59 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
     # `tier="intraday"` from the payload), so the report landed under a
     # configuration nothing would ever look up.
     outcome["_report"] = _intraday_report_material(
-        strategy_id, request, scans, equity, sorted(by_session)
+        # The same session list the equity curve walks, so the report's day
+        # count and its curve cannot disagree about how long the run was.
+        strategy_id,
+        request,
+        scans,
+        equity,
+        all_sessions or sorted(by_session),
     )
     return outcome
+
+
+def _benchmark_for(scans: Sequence[Any], request: BatchRunRequest) -> dict[str, Any] | None:
+    """Buy-and-hold of the traded instrument, over the sessions it traded.
+
+    Single-instrument only. A universe run would need an equal-weight basket to
+    be comparable, and computing one from the fetched bars is a different and
+    larger claim than "holding this one thing"; returning None is honest where
+    that is not available, and a missing benchmark reads as missing rather than
+    as zero.
+    """
+    from eulerlab import benchmark
+    from eulerlab.intraday.paper_scan import candles_for
+
+    traded = {scan.symbol for scan in scans if scan.trades}
+    if len(traded) != 1:
+        return None
+
+    symbol = next(iter(traded))
+    scan = next(s for s in scans if s.symbol == symbol)
+    sessions = set(scan.pnl_by_session())
+    if not sessions:
+        return None
+
+    end = datetime.now(UTC).astimezone(IST).date()
+    start = end - timedelta(days=request.days)
+    held = benchmark.hold(
+        candles_for(symbol, start, end, asset_class=request.asset_class),
+        symbol=symbol,
+        asset_class=request.asset_class,
+        starting_cash=1_000_000.0,
+        traded_days=sessions,
+    )
+    if held is None:
+        return None
+
+    return {
+        "symbol": held.symbol,
+        "net_pnl": held.net_pnl,
+        "total_return": held.total_return,
+        "sharpe": held.sharpe,
+        "max_drawdown": held.max_drawdown,
+        "costs": held.costs,
+    }
 
 
 def _intraday_report_material(
@@ -237,9 +302,27 @@ def _intraday_report_material(
     from eulerlab.intraday.report_material import fills_and_marks
 
     fills, marks = fills_and_marks(list(scans))
+    # The window of data the scan *saw*, which is not the window it traded.
+    #
+    # Two runs asking for 90 and 180 days both traded 2026-05-29..2026-08-20 and
+    # both filled 24 times, and returned different P&L — because the longer
+    # request fetched three more sessions of leading history, which changes ATR
+    # warmup and therefore where the early stops sat. Reporting only the traded
+    # window made two genuinely different runs look identical and the date range
+    # look broken.
+    seen = sorted({candle_day for scan in scans for candle_day in scan.session_days()})
+
+    # What holding the instrument would have done over the same sessions.
+    # Without it a return figure is a number rather than a result: +2.6% on QQQ
+    # means one thing if QQQ rose 8% and the opposite if it fell 3%.
+    bench = _benchmark_for(scans, request)
     return {
         "strategy_id": strategy_id,
         "universe": universe_label(request),
+        "benchmark": bench,
+        "data_window": [seen[0].isoformat(), seen[-1].isoformat()] if seen else [],
+        "sessions_seen": len(seen),
+        "requested_days": request.days,
         "instruments": sorted({s.symbol for s in scans}),
         "tier": request.tier,
         "asset_class": request.asset_class,

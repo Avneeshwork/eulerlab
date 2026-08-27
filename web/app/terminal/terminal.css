@@ -2286,3 +2286,34 @@
 /* Progress in the row that is running, rather than a spinner. */
 .trunprog { font-size: 0.76rem; font-variant-numeric: tabular-nums; }
 .trunprog b { font-weight: 500; }
+
+/* Other stored runs, as chips rather than a dropdown: the point is comparing
+   them, and a dropdown shows one label at a time. */
+.runpick { display: inline-flex; gap: 0.3rem; margin-left: auto; flex-wrap: wrap; }
+.tchip.sm { padding: 0.1rem 0.45rem; font-size: 0.68rem; }
+
+/* Strategy against holding what it traded. Placed above the equity chart
+   because it reframes every number beneath it. */
+.bench {
+  margin: 0.9rem 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bench-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(6rem, auto) 1fr;
+  gap: 0.9rem;
+  align-items: baseline;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.bench-row:last-child { border-bottom: none; }
+.bench-row.excess { background: color-mix(in srgb, var(--fg) 4%, transparent); }
+.bench-row b { font-variant-numeric: tabular-nums; font-size: 0.95rem; }
+.bench-row .pos { color: var(--up, #3fb950); }
+.bench-row .neg { color: var(--down, #f85149); }
+.bench-sub { font-size: 0.7rem; color: var(--muted); }
