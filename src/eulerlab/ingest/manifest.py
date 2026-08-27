@@ -81,8 +81,29 @@ class TreeCensus:
 
     newest: str = ""
 
+    ids: tuple[str, ...] = ()
+    """The leaf names in this tree, for the few trees that need them.
+
+    Empty for almost every tree, and deliberately so: `us/minute` alone is
+    15,952 keys and storing them all would turn a small census into a large one
+    for no reader.
+
+    `mf/history` needs them. It is the one landed tree whose leaf names cannot
+    be recovered from disk after a prune — fund history is flat
+    (`mf/history/119551.jsonl.gz`), so there are no directories left behind, and
+    the instrument picker had to enumerate 14,280 bucket keys, 18.7 seconds, to
+    learn which schemes have data. `build()` already walks every key, so
+    recording them here costs nothing it was not already paying."""
+
     def to_row(self) -> dict[str, object]:
-        return {"files": self.files, "groups": self.groups, "newest": self.newest}
+        row: dict[str, object] = {
+            "files": self.files,
+            "groups": self.groups,
+            "newest": self.newest,
+        }
+        if self.ids:
+            row["ids"] = list(self.ids)
+        return row
 
 
 @dataclass
@@ -92,6 +113,21 @@ class Manifest:
 
     def census(self, tree: str) -> TreeCensus | None:
         return self.trees.get(tree)
+
+
+ID_TREES: frozenset[str] = frozenset({"mf"})
+"""Trees whose leaf names are recorded, not just counted.
+
+The key is `"mf"`, which is what `TREES` calls the fund-history tree — not
+`"mf/history"`, which is what its *pattern* suggests. Written wrong the first
+time, which is the third occurrence of that mistake in this codebase: a name
+that does not match what the manifest records reads as "no such tree" and falls
+through to the bucket, silently and slowly. ADR-046 is about the same shape.
+
+Only where the names cannot be recovered any other way. Every other landed tree
+keeps a directory per symbol, which survives a prune and answers "which symbols
+exist" for free; fund history is flat, so pruning leaves nothing and the bucket
+is the only source."""
 
 
 def build(*, allow_cloud: bool = True) -> Manifest:
@@ -106,6 +142,11 @@ def build(*, allow_cloud: bool = True) -> Manifest:
             files=len(found),
             groups=len(groups),
             newest=max(found).split("/")[-1] if found else "",
+            ids=(
+                tuple(sorted(r.split("/")[-1].split(".")[0] for r in found))
+                if key in ID_TREES
+                else ()
+            ),
         )
     return out
 
@@ -140,6 +181,7 @@ def load(path: Path = PATH) -> Manifest | None:
         if isinstance(row, dict):
             out.trees[str(name)] = TreeCensus(
                 files=int(row.get("files", 0)),
+                ids=tuple(str(x) for x in (row.get("ids") or [])),
                 groups=int(row.get("groups", 0)),
                 newest=str(row.get("newest", "")),
             )

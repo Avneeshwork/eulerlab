@@ -575,6 +575,14 @@ def _fund_history_codes() -> frozenset[str]:
     once. Recording the ids in the manifest would remove even that, and is the
     right fix if this ever matters again.
     """
+    # The manifest records these ids explicitly, because they are the one set
+    # that cannot be recovered from disk after a prune. Falls through to the
+    # bucket only when the manifest has never been built.
+    census = _census("mf")
+    ids = getattr(census, "ids", ()) if census is not None else ()
+    if ids:
+        return frozenset(ids)
+
     return frozenset(
         relative.split("/")[-1].split(".")[0]
         for relative in _tree_files("mf", "history/*.jsonl.gz")

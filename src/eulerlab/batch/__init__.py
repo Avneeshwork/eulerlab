@@ -175,5 +175,22 @@ def read_cached(key: str, *, directory: Path = CACHE_DIR) -> dict[str, object] |
 
 
 def write_cached(key: str, result: dict[str, object], *, directory: Path = CACHE_DIR) -> None:
+    """Cache one result, minus anything the run wants to hand on but not store.
+
+    **Keys beginning with an underscore are dropped.** They carry live objects
+    for the caller to consume once — the intraday runner passes report material
+    this way, holding `date`s and dataclass instances, and `json.dumps` refused
+    it: `TypeError: Object of type date is not JSON serializable`, which failed
+    the whole backtest rather than just the caching of it.
+
+    Dropping them is not a workaround for the serialiser, it is what the cache
+    means. A cache hit says *this run did not happen again*, so there is no new
+    report to write and nothing for that material to be used for. Storing it
+    would preserve a side effect that is only correct the first time.
+
+    Anything else that will not serialise is a real defect and still raises
+    here. The rule is about privacy, not about convenience.
+    """
     directory.mkdir(parents=True, exist_ok=True)
-    (directory / f"{key}.json").write_text(json.dumps(result, sort_keys=True), encoding="utf-8")
+    storable = {key_: value for key_, value in result.items() if not key_.startswith("_")}
+    (directory / f"{key}.json").write_text(json.dumps(storable, sort_keys=True), encoding="utf-8")
