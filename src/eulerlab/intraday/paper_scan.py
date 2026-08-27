@@ -74,9 +74,7 @@ range would shorten a backtest without saying so.
 """
 
 
-def candles_for(
-    symbol: str, start: date, end: date, *, asset_class: str = "equity"
-) -> list[Candle]:
+def candles_for(symbol: str, start: date, end: date, *, asset_class: str) -> list[Candle]:
     """Minute bars for one symbol and window, read once per process.
 
     The source is chosen by asset class rather than guessed from the symbol:
@@ -218,7 +216,7 @@ def scan_symbol(
     end: date,
     rules: PaperRules | None = None,
     equity: float = 1_000_000.0,
-    asset_class: str = "equity",
+    asset_class: str,
 ) -> SignalScan:
     """Evaluate one signal bar by bar across every session in the range.
 
@@ -289,7 +287,7 @@ def scan_many(
     end: date,
     rules: PaperRules | None = None,
     equity: float = 1_000_000.0,
-    asset_class: str = "equity",
+    asset_class: str,
 ) -> list[SignalScan]:
     """Every symbol, one signal. Failures are skipped, never silently zeroed."""
     out: list[SignalScan] = []

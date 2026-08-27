@@ -113,7 +113,7 @@ def hold(
     whatever those extra days happened to do.
     """
     from eulerlab.costs.router import fill_cost
-    from eulerlab.costs.schedule import Side
+    from eulerlab.costs.schedule import Segment, Side
 
     usable = [
         candle for candle in candles if traded_days is None or candle.ts.date() in traded_days
@@ -135,10 +135,26 @@ def hold(
 
     first_day = usable[0].ts.date()
     last_day = usable[-1].ts.date()
+    # Delivery, not intraday. This said neither and took the router's default,
+    # which was intraday — for a position held for years. On NSE that is the
+    # difference between Rs 412 and Rs 2,250 on a Rs 1M round trip, because
+    # delivery STT is 0.1% on both sides against 0.025% on the sell alone. It
+    # understated what holding costs, which flatters the benchmark and so
+    # understates every strategy measured against it.
     costs = fill_cost(
-        venue=asset_class, price=entry, quantity=shares, side=Side.BUY, day=first_day
+        venue=asset_class,
+        price=entry,
+        quantity=shares,
+        side=Side.BUY,
+        day=first_day,
+        segment=Segment.EQUITY_DELIVERY,
     ) + fill_cost(
-        venue=asset_class, price=exit_price, quantity=shares, side=Side.SELL, day=last_day
+        venue=asset_class,
+        price=exit_price,
+        quantity=shares,
+        side=Side.SELL,
+        day=last_day,
+        segment=Segment.EQUITY_DELIVERY,
     )
 
     # Marked at each session's close, so the drawdown is the one a holder

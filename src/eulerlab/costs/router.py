@@ -86,7 +86,7 @@ def fill_cost(
     quantity: int,
     side: Side,
     day: date,
-    segment: Segment = Segment.EQUITY_INTRADAY,
+    segment: Segment,
 ) -> float:
     """The charge for one fill. Zero for venues that are deliberately uncosted.
 

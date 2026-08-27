@@ -15,7 +15,7 @@ import pytest
 
 from eulerlab.backtest import vector
 from eulerlab.costs.router import UnknownVenue, Venue, fill_cost, is_costed
-from eulerlab.costs.schedule import Side
+from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import bracket
 
 DAY = dt.date(2026, 6, 15)
@@ -27,7 +27,14 @@ def test_every_venue_charges_something_different() -> None:
     If two of these ever agree exactly, one of them has stopped routing.
     """
     charges = {
-        venue: fill_cost(venue=venue, price=500.0, quantity=200, side=Side.SELL, day=DAY)
+        venue: fill_cost(
+            venue=venue,
+            price=500.0,
+            quantity=200,
+            side=Side.SELL,
+            day=DAY,
+            segment=Segment.EQUITY_INTRADAY,
+        )
         for venue in ("equity", "us", "crypto")
     }
     assert len(set(charges.values())) == 3, charges
@@ -36,7 +43,14 @@ def test_every_venue_charges_something_different() -> None:
 def test_an_unknown_venue_refuses_rather_than_guessing() -> None:
     """Every wrong-cost bug here came from a default that looked like an answer."""
     with pytest.raises(UnknownVenue):
-        fill_cost(venue="futures", price=100.0, quantity=1, side=Side.BUY, day=DAY)
+        fill_cost(
+            venue="futures",
+            price=100.0,
+            quantity=1,
+            side=Side.BUY,
+            day=DAY,
+            segment=Segment.EQUITY_INTRADAY,
+        )
 
 
 def test_uncosted_venues_are_named_not_missing() -> None:
@@ -44,7 +58,17 @@ def test_uncosted_venues_are_named_not_missing() -> None:
     assert not is_costed("mutual_fund")
     assert is_costed("equity")
     assert Venue.MUTUAL_FUND in {v for v in Venue if not is_costed(v.value)}
-    assert fill_cost(venue="mutual_fund", price=100.0, quantity=10, side=Side.BUY, day=DAY) == 0.0
+    assert (
+        fill_cost(
+            venue="mutual_fund",
+            price=100.0,
+            quantity=10,
+            side=Side.BUY,
+            day=DAY,
+            segment=Segment.EQUITY_INTRADAY,
+        )
+        == 0.0
+    )
 
 
 def test_the_daily_engine_actually_routes() -> None:
@@ -80,4 +104,14 @@ def test_both_engines_agree_on_a_venue_they_share() -> None:
 
 
 def test_zero_quantity_costs_nothing() -> None:
-    assert fill_cost(venue="us", price=500.0, quantity=0, side=Side.BUY, day=DAY) == 0.0
+    assert (
+        fill_cost(
+            venue="us",
+            price=500.0,
+            quantity=0,
+            side=Side.BUY,
+            day=DAY,
+            segment=Segment.EQUITY_INTRADAY,
+        )
+        == 0.0
+    )

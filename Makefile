@@ -446,3 +446,12 @@ check-crypto:
 # Install / inspect the launchd job that actually runs `make daily`.
 schedule:
 	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)
+
+# The project's own auditor: defect shapes this codebase actually produces,
+# a smoke run of every registered strategy, and the strategy-to-file map.
+# REVIEW=1 adds an advisory model pass over the working diff.
+audit:
+	@uv run python -m eulerlab.audit $(if $(REVIEW),--review,) $(if $(PROVIDER),--provider $(PROVIDER),)
+
+audit-strategies:
+	@uv run python -m eulerlab.audit --inventory
