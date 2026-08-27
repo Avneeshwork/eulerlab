@@ -22,6 +22,13 @@ export function InstrumentsTab() {
   const [assetClass, setAssetClass] = useState('');
   const [batch, setBatch] = useState('');
   const [list, setList] = useState<InstrumentList | null>(null);
+  // A finished feed or sync bumps this rather than re-reading the list itself.
+  // The two pollers used to call `api.instruments` directly, which captured the
+  // filters as they stood when the poller was created — start a refresh on "all
+  // classes", switch to FX while it runs, and the list came back unfiltered
+  // under a highlighted FX pill.
+  const [reloadAt, setReloadAt] = useState(0);
+
   const [sync, setSync] = useState<{ state: string; note: string }>({ state: 'idle', note: '' });
   const polling = useRef<number | null>(null);
 
@@ -81,11 +88,7 @@ export function InstrumentsTab() {
                 } uploaded${result?.sync_error ? ` · mirror failed: ${result.sync_error}` : ''}`
               : job.error || 'failed',
         });
-        if (job.status === 'done') {
-          api.instruments(query, assetClass === 'equity' ? batch : '', assetClass, 120)
-            .then(setList)
-            .catch(() => undefined);
-        }
+        if (job.status === 'done') setReloadAt(Date.now());
       }
     }, 3000);
   }
@@ -113,11 +116,7 @@ export function InstrumentsTab() {
         });
         // A finished sync changes what is landed, so the list is re-read
         // rather than left showing the counts from before it ran.
-        if (job.status === 'done') {
-          api.instruments(query, assetClass === 'equity' ? batch : '', assetClass, 120)
-            .then(setList)
-            .catch(() => undefined);
-        }
+        if (job.status === 'done') setReloadAt(Date.now());
       } else {
         setSync({ state: 'running', note: job.message || 'syncing…' });
       }
@@ -132,7 +131,7 @@ export function InstrumentsTab() {
         .catch(() => setList(null));
     }, 180);
     return () => clearTimeout(timer);
-  }, [query, batch, assetClass]);
+  }, [query, batch, assetClass, reloadAt]);
 
   const classes = list?.asset_classes ?? [];
 
