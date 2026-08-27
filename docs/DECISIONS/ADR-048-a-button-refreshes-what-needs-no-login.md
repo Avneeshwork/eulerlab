@@ -48,23 +48,49 @@ fetches and the mirror, which the current shape has no place for.
 
 The first full run took 14 minutes on a 30-day US window and was cut to 7 days,
 which is enough to cover a long weekend plus a late correction. The run then
-splits about 200s of fetching against 580s of mirroring, so **the mirror, not
-the fetching, is what a refresh costs.**
+split about 200s of fetching against 580s of mirroring, so **the mirror, not
+the fetching, was what a refresh cost.**
 
-Where that goes was measured rather than assumed, because the first guess here
+Where that went was measured rather than assumed, because the first guess here
 was wrong — it blamed the manifest rebuild, which is the visibly slow-looking
-step. A mirror-only run that uploaded exactly one object still took 520s, and
-the census accounts for 112s of it (`us/bars` 38s, `fx` 35s, `us/minute` 19s,
-`mf` 14s, and nine trees under 4s each). The remaining ~400s is
-`sync_directory`'s own scan, and the uploads themselves are noise.
+step. Counted properly, the mirror listed the bucket **twenty-five times**:
 
-**So the bucket is listed twice per mirror.** `sync_directory` lists each tree
-to diff sizes, then `manifest.build` lists every tree again to recount. The
-second pass is the cheaper one. The first is coarser — it lists per tree root,
-so `us/` drags in the minute bars that the census reaches under a narrower
-prefix — which is why it costs three times as much for the same bucket. One
-shared listing is the obvious saving and is not taken here: this is the path
-that decides what gets uploaded, and it is not worth rushing for 20%.
+| listing group | count | time | keys |
+| --- | --- | --- | --- |
+| whole prefix, for the bhavcopy diff | 1 | 103.2s | 142,007 |
+| per tree, `sync_directory` | 12 | 128.6s | 134,600 |
+| per tree again, `manifest.build` | 12 | 81.8s | 104,060 |
+| | **25** | **313.6s** | |
+
+Every one of those is a subset of the first. 314 of the mirror's 578 seconds
+was asking B2 again for keys it had already returned. An earlier revision of
+this ADR called the sharing "not worth rushing for 20%"; that estimate was made
+without counting, and the real figure is 54%.
+
+So one enumeration is taken per run and every consumer slices it:
+`plan_sync`, `sync` and `sync_directory` accept a `remote_sizes` already in
+hand, and `landing_reader.prime_listing` fills the census cache from the same
+result through the same `_matches` test the network path uses — so a primed
+answer and a fetched one cannot disagree. Sweeps after the first still list,
+because a tree that appeared mid-run is by definition absent from a listing
+taken before it existed.
+
+The one remaining enumeration is itself mostly waiting: a LIST returns 1,000
+keys and the next request needs the previous one'"'"'s continuation token, so
+142,000 objects is 142 strictly sequential round trips. The sub-prefixes are
+independent, so `list_sizes_fanned` discovers them with one delimited request —
+from the bucket, not from a list in the code, so an unremembered tree is still
+walked — and enumerates them twelve at a time. Verified against the real
+bucket: identical 142,007-key result, 103.7s to 47.6s.
+
+`sync()` also uploaded serially while `sync_directory` had used a thread pool
+for months — the same work against the same store at two speeds, because the
+two functions were written apart. It now uses the same pool.
+
+Measured end to end, the same button: **781s to 281s.** The mirror went 578s to
+117s. The two runs are not quite like-for-like — the slow one uploaded 833
+objects and the fast one 417 — so normalised per object the mirror is about 3x,
+and the listing that dominated it is 6.6x.
 
 The imbalance made the progress display wrong before it made it slow: a single
 "mirroring to B2" message sat unchanged for nine minutes and read as hung. The

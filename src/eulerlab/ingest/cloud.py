@@ -125,6 +125,7 @@ def plan_sync(
     config: StorageConfig,
     *,
     verify: bool = False,
+    remote_sizes: dict[str, int] | None = None,
 ) -> SyncPlan:
     """Decide what to upload.
 
@@ -140,7 +141,8 @@ def plan_sync(
     exists and is exact, but it is an occasional audit rather than something
     every sync pays for. Same split as `make check-landing` locally.
     """
-    remote_sizes = store.list_sizes(config.prefix)
+    if remote_sizes is None:
+        remote_sizes = store.list_sizes(config.prefix)
 
     upload: list[ManifestEntry] = []
     present: list[ManifestEntry] = []
@@ -180,32 +182,42 @@ def sync(
     *,
     dry_run: bool = False,
     verify: bool = False,
+    remote_sizes: dict[str, int] | None = None,
 ) -> SyncResult:
     """Upload anything the bucket does not already have."""
-    plan = plan_sync(landing, store, config, verify=verify)
+    plan = plan_sync(landing, store, config, verify=verify, remote_sizes=remote_sizes)
     mismatched = [object_key(config.prefix, e) for e in plan.mismatched]
     failed: list[str] = []
 
     if dry_run:
         return SyncResult(0, len(plan.already_present), mismatched, failed)
 
-    uploaded = 0
-    for entry in plan.upload:
-        local = landing.root / entry.path
-        payload = local.read_bytes()
+    def send(entry: ManifestEntry) -> str | None:
+        """Upload one entry. Returns a problem description, or None."""
+        payload = (landing.root / entry.path).read_bytes()
 
         # Re-hash before sending. If the local file has rotted, uploading it
         # would propagate the damage into the copy meant to protect us from it.
         if sha256_of(payload) != entry.sha256:
-            failed.append(f"{entry.path}: local file no longer matches the manifest")
-            continue
+            return f"{entry.path}: local file no longer matches the manifest"
 
         try:
             store.put(object_key(config.prefix, entry), payload, entry.sha256)
         except Exception as exc:  # one bad object must not abort the whole sync
-            failed.append(f"{entry.path}: {exc}")
-            continue
-        uploaded += 1
+            return f"{entry.path}: {exc}"
+        return None
+
+    # Concurrent, like `sync_directory` already was. This loop was serial, so
+    # the bhavcopy tree uploaded one round trip at a time while every other
+    # tree went twelve at a time — same work, same store, two speeds, for no
+    # reason beyond the two functions having been written months apart.
+    #
+    # `map` preserves input order, so `failed` reads in landing order and a
+    # re-run reports problems in the same sequence.
+    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
+        problems = list(pool.map(send, plan.upload))
+    failed.extend(p for p in problems if p is not None)
+    uploaded = sum(1 for p in problems if p is None)
 
     return SyncResult(uploaded, len(plan.already_present), mismatched, failed)
 
@@ -243,6 +255,9 @@ class S3ObjectStore:
                 connect_timeout=10,
                 read_timeout=30,
                 retries={"max_attempts": 3, "mode": "standard"},
+                # Default is 10, which would throttle both the upload pool and
+                # the listing fan-out back to serial at their edges.
+                max_pool_connections=LISTING_WORKERS + UPLOAD_WORKERS,
             ),
         )
         self._bucket = config.bucket
@@ -264,6 +279,58 @@ class S3ObjectStore:
             if not response.get("IsTruncated"):
                 return sizes
             token = response.get("NextContinuationToken")
+
+    def list_groups(self, prefix: str) -> list[str]:
+        """The immediate child prefixes of `prefix`, one delimited request."""
+        groups: list[str] = []
+        token: str | None = None
+        while True:
+            kwargs = {
+                "Bucket": self._bucket,
+                "Prefix": prefix,
+                "Delimiter": "/",
+                "MaxKeys": 1000,
+            }
+            if token is not None:
+                kwargs["ContinuationToken"] = token
+            response = self._client.list_objects_v2(**kwargs)
+            groups.extend(
+                item["Prefix"]
+                for item in response.get("CommonPrefixes", [])
+                if isinstance(item.get("Prefix"), str)
+            )
+            if not response.get("IsTruncated"):
+                return groups
+            token = response.get("NextContinuationToken")
+
+    def list_sizes_fanned(self, prefix: str) -> dict[str, int]:
+        """`list_sizes`, but with the pagination spread across sub-prefixes.
+
+        A LIST returns 1,000 keys per request and the next request needs the
+        previous one's continuation token, so enumerating 142,000 objects is
+        142 strictly sequential round trips — 103 seconds, most of it waiting.
+
+        The sub-prefixes are independent, though: `cm/` and `us/` can be walked
+        at the same time. The groups are discovered from the bucket with one
+        delimited request rather than assumed from a list in the code, so a
+        tree nobody remembered to name is still enumerated.
+        """
+        groups = self.list_groups(prefix)
+        if len(groups) < 2:
+            return self.list_sizes(prefix)
+
+        # Keys sitting directly under the prefix rather than in any group. The
+        # delimited request already returned them; re-walking would miss them.
+        sizes: dict[str, int] = {}
+        with ThreadPoolExecutor(max_workers=LISTING_WORKERS) as pool:
+            for part in pool.map(self.list_sizes, groups):
+                sizes.update(part)
+        loose = self._client.list_objects_v2(Bucket=self._bucket, Prefix=prefix, Delimiter="/")
+        for item in loose.get("Contents", []):
+            key, size = item.get("Key"), item.get("Size")
+            if isinstance(key, str) and isinstance(size, int):
+                sizes[key] = size
+        return sizes
 
     def any_under(self, prefix: str) -> bool:
         """Whether *any* object exists under a prefix, in one request.
@@ -330,6 +397,29 @@ class S3ObjectStore:
         )
 
 
+LISTING_WORKERS = 12
+"""Sub-prefixes enumerated at once by `list_sizes_fanned`."""
+
+
+def full_listing(store: ObjectStore, prefix: str) -> dict[str, int]:
+    """One enumeration of the bucket, for every consumer of one to share.
+
+    A mirror used to list the bucket twenty-five times: once for the bhavcopy
+    diff, once per tree for the directory sync, once per tree again for the
+    census — 314 of the 578 seconds, all of it asking for subsets of what the
+    first call already returned. Every caller now takes a slice of this.
+
+    Falls back to a plain `list_sizes` for any store without the fanned
+    variant, which is every fake in the tests — they are dicts in memory, so
+    there is nothing to parallelise and nothing to gain.
+    """
+    fanned = getattr(store, "list_sizes_fanned", None)
+    if fanned is None:
+        return store.list_sizes(prefix)
+    listing: dict[str, int] = fanned(prefix)
+    return listing
+
+
 UPLOAD_WORKERS = 12
 """Concurrent uploads for a directory tree.
 
@@ -358,6 +448,7 @@ def sync_directory(
     prefix: str,
     pattern: str = "**/*",
     dry_run: bool = False,
+    remote_sizes: dict[str, int] | None = None,
 ) -> TreeSyncResult:
     """Mirror an arbitrary directory tree, comparing by size.
 
@@ -370,7 +461,13 @@ def sync_directory(
     Comparison for *what to upload* is by size, which is one LIST call for the
     whole tree rather than one HEAD per file.
     """
-    remote = store.list_sizes(prefix)
+    # A caller holding a listing of the whole bucket can hand it over rather
+    # than make this tree ask again; the slice it needs is already in there.
+    remote = (
+        {k: v for k, v in remote_sizes.items() if k.startswith(prefix)}
+        if remote_sizes is not None
+        else store.list_sizes(prefix)
+    )
     local = sorted(p for p in root.glob(pattern) if p.is_file())
 
     pending: list[tuple[Path, str]] = []

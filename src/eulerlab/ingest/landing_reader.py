@@ -34,6 +34,7 @@ from __future__ import annotations
 import contextlib
 import fnmatch
 import os
+from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
 
@@ -143,13 +144,42 @@ def _remote_listing(tree: str, pattern: str) -> tuple[str, ...]:
     scoped = f"{prefix}{tree}/{_literal_prefix(pattern)}"
     for remote in store.list_sizes(scoped):  # type: ignore[attr-defined]
         relative = remote[len(prefix) :]
-        if fnmatch.fnmatch(relative, f"{tree}/{pattern}") or fnmatch.fnmatch(
-            relative, f"{tree}/{pattern.replace('**/', '')}"
-        ):
+        if _matches(relative, tree, pattern):
             found.append(relative)
     out = tuple(found)
     _LISTED[key] = (now, out)
     return out
+
+
+def _matches(relative: str, tree: str, pattern: str) -> bool:
+    """Whether a landing-relative path is what `tree`/`pattern` asked for."""
+    return fnmatch.fnmatch(relative, f"{tree}/{pattern}") or fnmatch.fnmatch(
+        relative, f"{tree}/{pattern.replace('**/', '')}"
+    )
+
+
+def prime_listing(keys: Iterable[str], prefix: str, wanted: Iterable[tuple[str, str]]) -> int:
+    """Fill the listing cache from an enumeration of the bucket already held.
+
+    The mirror lists the whole bucket to decide what to upload and then the
+    census lists it again, tree by tree, to count what is now there — twelve
+    more round trips for keys the first listing already returned. Handing that
+    result here answers all twelve from memory.
+
+    Only ever *adds* what a real listing would have produced, through the same
+    `_matches` test the network path uses, so a primed entry and a fetched one
+    cannot disagree. Returns how many pairs were filled.
+    """
+    import time
+
+    relatives = [k[len(prefix) :] for k in keys if k.startswith(prefix)]
+    now = time.monotonic()
+    filled = 0
+    for tree, pattern in wanted:
+        found = tuple(sorted(r for r in relatives if _matches(r, tree, pattern)))
+        _LISTED[(tree, pattern)] = (now, found)
+        filled += 1
+    return filled
 
 
 def available(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> list[str]:

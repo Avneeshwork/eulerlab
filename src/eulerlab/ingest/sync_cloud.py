@@ -6,17 +6,20 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from eulerlab.ingest import landing_reader
 from eulerlab.ingest.cloud import (
     InsufficientCapabilities,
     MissingCredentials,
     S3ObjectStore,
     SyncResult,
+    full_listing,
     load_storage_config,
     plan_sync,
     sync,
     sync_directory,
 )
 from eulerlab.ingest.landing import Landing
+from eulerlab.ingest.manifest import TREES
 
 DEFAULT_LANDING = Path("data/landing/nse")
 DEFAULT_CONFIG = Path("config/storage.yaml")
@@ -84,17 +87,24 @@ def main(argv: Sequence[str] | None = None) -> int:
     check = "sha256" if args.verify else "size"
     print(f"comparing by: {check}")
 
+    # One enumeration of the bucket, shared by everything below. Previously the
+    # bhavcopy diff listed the whole prefix, then each tree listed its own
+    # again, then the census listed all twelve a third time: 25 listings and
+    # 314 of the mirror's 578 seconds, every one of them a subset of the first.
+    remote_sizes = full_listing(store, config.prefix)
+    print(f"listed: {len(remote_sizes):,} objects")
+
     # NB: dry-run must NOT return early here. It did once, which meant it
     # reported only on the nse tree and printed a reassuring "would upload: 0"
     # while thousands of files in other trees were unsynced.
     if args.dry_run:
-        plan = plan_sync(landing, store, config, verify=args.verify)
+        plan = plan_sync(landing, store, config, verify=args.verify, remote_sizes=remote_sizes)
         print(f"would upload : {len(plan.upload)}")
         print(f"already there: {len(plan.already_present)}")
         print(f"mismatched   : {len(plan.mismatched)}")
         result = SyncResult(0, len(plan.already_present), [], [])
     else:
-        result = sync(landing, store, config, verify=args.verify)
+        result = sync(landing, store, config, verify=args.verify, remote_sizes=remote_sizes)
         print(f"uploaded : {result.uploaded}")
         print(f"skipped  : {result.skipped}  (already present, matching {check})")
 
@@ -134,6 +144,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 store,
                 prefix=f"{config.prefix}{tree_root.name}/",
                 dry_run=args.dry_run,
+                # Sweeps after the first re-list: a tree that appeared mid-run
+                # is by definition not in a listing taken before it existed.
+                remote_sizes=remote_sizes if sweep == 1 else None,
             )
             print(f"  uploaded : {tree.uploaded}")
             print(f"  skipped  : {tree.skipped}")
@@ -147,6 +160,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     result.mismatched,
                     [*result.failed, *tree.failed],
                 )
+
+    # The census reads the bucket next, tree by tree. It can read this instead.
+    landing_reader.prime_listing(remote_sizes, config.prefix, [(t, p) for _, t, p in TREES])
 
     if result.mismatched:
         print("\nMISMATCHED — in the bucket with a different hash, left untouched:")
