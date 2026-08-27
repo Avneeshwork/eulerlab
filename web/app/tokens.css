@@ -89,6 +89,24 @@
   --r-lg: 16px;
   --r-pill: 999px;
 
+  /* Control geometry.
+     ----------------
+     One height, so a filter row lines up. Measured before this existed, a
+     single row held five: a 34px select beside a 37px chip beside a 38px
+     button beside a 47px search field beside a 32px icon. Nothing was broken
+     and every edge was a few pixels off every other edge, which is most of
+     what reads as unfinished.
+
+     Radius is chosen by what a control *does*, not by which component wrote
+     it. A pill is a toggle — press it and it stays pressed. A rounded rect
+     is an action or a field. Two shapes, one rule, so shape carries meaning
+     instead of recording who styled it last. */
+  --control-h: 38px;
+  --control-h-sm: 30px;
+  --control-pad-x: var(--s3);
+  --control-radius: var(--r-sm);
+  --control-radius-toggle: var(--r-pill);
+
   --shadow: 0 1px 2px rgba(18, 22, 11, 0.04), 0 8px 24px -12px rgba(18, 22, 11, 0.14);
   --shadow-lift: 0 2px 4px rgba(18, 22, 11, 0.06), 0 18px 44px -18px rgba(18, 22, 11, 0.22);
 

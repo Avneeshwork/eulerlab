@@ -2334,3 +2334,140 @@
 .feedsteps li::before { content: '✓'; color: var(--up, #3fb950); width: 0.9rem; }
 .feedsteps li[data-ok='false']::before { content: '✕'; color: var(--down, #f85149); }
 .feedsteps li[data-ok='false'] > span:first-of-type { color: var(--down, #f85149); }
+
+/* ============================ controls ============================
+   One geometry for every control, appended last so it settles the
+   disagreements above rather than adding a sixth opinion.
+
+   The audit that prompted this measured a single filter row holding a 34px
+   select, a 37px chip, a 38px button, a 47px search field and a 32px icon
+   button, with pill and 6px radii alternating along it. Each component was
+   internally consistent and none of them agreed with its neighbours.
+
+   Selects also carried `appearance: auto`, so the browser drew its own
+   control inside our border — an OS widget sitting in the middle of a
+   designed page, which is the single loudest tell that a UI was assembled
+   rather than drawn. */
+
+.tsort select,
+.tform select,
+.trunbar select,
+select.tselect {
+  appearance: none;
+  -webkit-appearance: none;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 calc(var(--control-pad-x) + 18px) 0 var(--control-pad-x);
+  border-radius: var(--control-radius);
+  border: 1px solid var(--rule-2);
+  background-color: var(--surface);
+  /* The chevron is drawn rather than fetched: a background-image URL is a
+     request the CSP has to allow and a file that can go missing. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% + 1px),
+    calc(100% - 11px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.tsort select:hover,
+.tform select:hover,
+.trunbar select:hover,
+select.tselect:hover {
+  border-color: var(--ink-4);
+}
+
+/* Text fields and actions share the control height and the action radius. */
+.tbtn,
+.tform input,
+input.tinput {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  border-radius: var(--control-radius);
+}
+
+.tbtn.sm,
+.ticon.sm {
+  height: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+}
+
+/* A pill is a toggle. Chips, market switches and the command bar keep it;
+   nothing that performs an action does. */
+.tchip,
+.tcmd,
+.ticon,
+.chip {
+  border-radius: var(--control-radius-toggle);
+}
+
+.tcmd {
+  height: var(--control-h);
+  min-height: var(--control-h);
+}
+
+.tchip,
+.chip {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+}
+
+.tchip.sm,
+.chip.sm {
+  height: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+}
+
+.ticon {
+  height: var(--control-h-sm);
+  width: var(--control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The search field was the loudest outlier at 47px. It stays visually the
+   primary control on its row by being wide, not by being taller than
+   everything beside it. */
+input.tsearch {
+  height: var(--control-h);
+  min-height: var(--control-h);
+}
+
+/* One focus treatment. Several controls had none, which is both an
+   accessibility gap and the reason keyboard use felt unfinished. */
+.tbtn:focus-visible,
+.tchip:focus-visible,
+.tcmd:focus-visible,
+.ticon:focus-visible,
+.chip:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--neon-deep);
+  outline-offset: 2px;
+}
+
+/* Actions in a tools bar travel together and sit at the far end. Loose in the
+   flex row each one wrapped on its own, so a two-button pair could break with
+   one button stranded on the next line. */
+.ttools-actions {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}

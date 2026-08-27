@@ -208,16 +208,23 @@ export function RunTab({
             <option value="A">A — vectorised screen</option>
           </select>
         </label>
-        <button
-          className="tchip"
-          type="button"
-          onClick={() => setPicked(new Set(runnable.map((s) => s.id)))}
-        >
-          Select all {runnable.length}
-        </button>
-        <button className="tchip" type="button" onClick={() => setPicked(new Set())}>
-          Clear
-        </button>
+        {/* Grouped, so the pair wraps as one. Loose in the flex row they
+            wrapped separately and left "Clear" alone on a line of its own.
+            Also pushed right: these act on the selection, the controls to
+            their left filter it, and putting a verb next to a filter reads
+            as another filter. */}
+        <div className="ttools-actions">
+          <button
+            className="tchip"
+            type="button"
+            onClick={() => setPicked(new Set(runnable.map((s) => s.id)))}
+          >
+            Select all {runnable.length}
+          </button>
+          <button className="tchip" type="button" onClick={() => setPicked(new Set())}>
+            Clear
+          </button>
+        </div>
       </div>
 
       {!info && (
