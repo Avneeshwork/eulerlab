@@ -184,8 +184,9 @@ def _sma_tail(window: Sequence[Candle], period: int, *, back: int = 1) -> list[f
     `detect` runs once per bar with every bar so far, so `sma(_closes(window),
     n)` built a list of every close and a full moving-average series on each of
     120,960 crypto bars — about 1.5e10 operations for two numbers at the end of
-    it. `trend_pullback` was the last signal in the library that still did this;
-    it did not finish a single parameter set.
+    it. `trend_pullback` did not finish a single parameter set. It was not the last:
+    `ou_mean_reversion` was still doing it in its own way until 2026-08-27,
+    which is why a 1,244-session NSE request timed out and showed nothing.
     """
     tail = window[-(period + back) :]
     return sma(_closes(tail), period)
@@ -588,7 +589,16 @@ def ou_mean_reversion(
     """
     if len(window) < rules.ou_lookback + 1:
         return Rejected("warmup")
-    closes = _closes(window)[-(rules.ou_lookback + 1) :]
+    # Bound the window *before* extracting, not after. This read
+    # `_closes(window)[-(ou_lookback + 1):]`, which built a list of every close
+    # since the start of the backtest and then kept the last 21 — once per bar,
+    # so O(n) per call and O(n^2) per run. It is the exact hazard `_bounded_sma`
+    # above documents, and that docstring named `trend_pullback` as the last
+    # signal doing it while this one still was.
+    #
+    # The two forms are the same values: the last N closes of the whole window
+    # are the closes of the last N candles.
+    closes = _closes(window[-(rules.ou_lookback + 1) :])
     reference, signal = closes[:-1], window[-1]
     spread = statistics.pstdev(reference)
     if spread <= 0:
