@@ -276,9 +276,8 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
               )}
               <p className="tfine" style={{ marginTop: 10 }}>
                 These are the steps as coded, not a description written beside the code.
-                The exits are this platform's bracket rather than the paper's, which is
-                stated in `intraday/papers.py` and means nothing here is a replication of
-                its tables.
+                {about.emits === 'ConditionalEntry' &&
+                  " The exits are this platform's bracket rather than the paper's, which is stated in `intraday/papers.py` and means nothing here is a replication of its tables."}
               </p>
             </section>
           )}
@@ -381,7 +380,11 @@ export function ExplainDialog({ strategy, onClose }: { strategy: string; onClose
             </section>
           )}
 
-          {explain && (
+          {/* Only on the standalone dialog, which the top-bar button opens for
+              exactly this. On a strategy panel it was seven paragraphs about
+              the engine — identical under all 36 strategies — sitting below
+              the part that is actually about the strategy. */}
+          {explain && !about && (
             <section className="explain-block">
               <h3>How a backtest runs here</h3>
               {explain.procedure.map((step) => (
