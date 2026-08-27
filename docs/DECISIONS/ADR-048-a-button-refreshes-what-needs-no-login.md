@@ -92,6 +92,33 @@ Measured end to end, the same button: **781s to 281s.** The mirror went 578s to
 objects and the fast one 417 — so normalised per object the mirror is about 3x,
 and the listing that dominated it is 6.6x.
 
+Reviewing that change afterwards turned up three things worth naming, because
+each was invisible in a passing test run.
+
+**The fanned listing dropped loose keys past the first page.** `list_groups`
+followed continuation tokens; the delimited request that picks up keys sitting
+directly under the prefix did not. Every key in this bucket lives inside a
+tree, so the count came out right and the bug was pure latency — until someone
+drops more than a thousand objects at the root, at which point the overflow
+reads as absent, the sync re-uploads it and the census undercounts. Pagination
+is now one primitive, `_list_page_by_page`, so a new call site cannot forget
+the loop.
+
+**`sync()` let a read failure escape.** The re-hash guard was inside the try
+and the `read_bytes` above it was not, so a file deleted between the plan and
+the upload raised out of the pool and took the run with it — with the comment
+beside it promising one bad object could not do that. `sync_directory` had it
+right; the two were simply written apart.
+
+**Priming used a listing taken before the uploads.** The census counts local
+and remote together, so a file uploaded this run is still counted — it is on
+disk. That holds only until something prunes local files between the sync and
+the census, which is precisely what `make daily` does. It survives today
+because `sync-cloud`, `prune-local` and `manifest` are three processes and the
+cache never crosses between them. Resting a correctness guarantee on that is
+not a design, so `SyncResult` and `TreeSyncResult` now report the keys they
+actually wrote and the prime takes the union.
+
 The imbalance made the progress display wrong before it made it slow: a single
 "mirroring to B2" message sat unchanged for nine minutes and read as hung. The
 mirror reports two phases — uploading, then recounting — for that reason alone.

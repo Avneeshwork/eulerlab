@@ -124,6 +124,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     # is picked up, until a pass finds nothing new. Bounded, because a
     # sufficiently fast writer could otherwise keep it going forever - and
     # anything still arriving after that is genuinely the next run's job.
+    tree_uploads: list[str] = []
     done: set[str] = set()
     for sweep in range(1, MAX_DISCOVERY_SWEEPS + 1):
         others = sorted(
@@ -148,6 +149,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # is by definition not in a listing taken before it existed.
                 remote_sizes=remote_sizes if sweep == 1 else None,
             )
+            tree_uploads.extend(tree.uploaded_keys)
             print(f"  uploaded : {tree.uploaded}")
             print(f"  skipped  : {tree.skipped}")
             if tree.failed:
@@ -161,8 +163,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     [*result.failed, *tree.failed],
                 )
 
-    # The census reads the bucket next, tree by tree. It can read this instead.
-    landing_reader.prime_listing(remote_sizes, config.prefix, [(t, p) for _, t, p in TREES])
+    # The census reads the bucket next, tree by tree. It can read this instead
+    # — but the listing was taken *before* the uploads, so what this run just
+    # wrote is added to it first. Without that the primed answer describes the
+    # bucket as it was on arrival, and a caller that prunes local files
+    # between the sync and the census would see the files uploaded this run in
+    # neither place and count them as gone. Today the two run in separate
+    # processes so the cache never crosses; relying on that is not a design.
+    post_upload = {*remote_sizes, *result.uploaded_keys, *tree_uploads}
+    landing_reader.prime_listing(post_upload, config.prefix, [(t, p) for _, t, p in TREES])
 
     if result.mismatched:
         print("\nMISMATCHED — in the bucket with a different hash, left untouched:")

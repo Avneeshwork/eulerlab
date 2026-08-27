@@ -22,7 +22,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from threading import Lock
 from typing import Protocol
@@ -108,6 +108,10 @@ class SyncResult:
     skipped: int
     mismatched: list[str]
     failed: list[str]
+    # The object keys this run actually wrote. A listing taken before the
+    # uploads plus these is the state of the bucket after them, which is what
+    # anyone reusing that listing needs.
+    uploaded_keys: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -194,14 +198,19 @@ def sync(
 
     def send(entry: ManifestEntry) -> str | None:
         """Upload one entry. Returns a problem description, or None."""
-        payload = (landing.root / entry.path).read_bytes()
-
-        # Re-hash before sending. If the local file has rotted, uploading it
-        # would propagate the damage into the copy meant to protect us from it.
-        if sha256_of(payload) != entry.sha256:
-            return f"{entry.path}: local file no longer matches the manifest"
-
+        # The read is inside the guard, as `sync_directory` already had it.
+        # It was outside: a file deleted or made unreadable between the plan
+        # and the upload raised straight out of the loop and took the whole
+        # sync with it, while the comment below promised the opposite.
         try:
+            payload = (landing.root / entry.path).read_bytes()
+
+            # Re-hash before sending. If the local file has rotted, uploading
+            # it would propagate the damage into the copy meant to protect us
+            # from it.
+            if sha256_of(payload) != entry.sha256:
+                return f"{entry.path}: local file no longer matches the manifest"
+
             store.put(object_key(config.prefix, entry), payload, entry.sha256)
         except Exception as exc:  # one bad object must not abort the whole sync
             return f"{entry.path}: {exc}"
@@ -217,9 +226,15 @@ def sync(
     with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
         problems = list(pool.map(send, plan.upload))
     failed.extend(p for p in problems if p is not None)
-    uploaded = sum(1 for p in problems if p is None)
+    landed = [
+        object_key(config.prefix, entry)
+        for entry, problem in zip(plan.upload, problems, strict=True)
+        if problem is None
+    ]
 
-    return SyncResult(uploaded, len(plan.already_present), mismatched, failed)
+    return SyncResult(
+        len(landed), len(plan.already_present), mismatched, failed, uploaded_keys=landed
+    )
 
 
 class S3ObjectStore:
@@ -262,12 +277,24 @@ class S3ObjectStore:
         )
         self._bucket = config.bucket
 
-    def list_sizes(self, prefix: str) -> dict[str, int]:
-        """One paginated LIST instead of one HEAD per object."""
+    def _list_page_by_page(self, prefix: str, *, delimiter: str | None = None) -> dict[str, int]:
+        """Keys under a prefix, following continuation tokens to the end.
+
+        The single place that drives S3 pagination, because doing it by hand
+        per call site is how a request ends up reading only its first 1,000
+        results — which is exactly what the delimited call in
+        `list_sizes_fanned` did.
+        """
         sizes: dict[str, int] = {}
         token: str | None = None
         while True:
-            kwargs = {"Bucket": self._bucket, "Prefix": prefix, "MaxKeys": 1000}
+            kwargs: dict[str, object] = {
+                "Bucket": self._bucket,
+                "Prefix": prefix,
+                "MaxKeys": 1000,
+            }
+            if delimiter is not None:
+                kwargs["Delimiter"] = delimiter
             if token is not None:
                 kwargs["ContinuationToken"] = token
             response = self._client.list_objects_v2(**kwargs)
@@ -279,6 +306,10 @@ class S3ObjectStore:
             if not response.get("IsTruncated"):
                 return sizes
             token = response.get("NextContinuationToken")
+
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        """One paginated LIST instead of one HEAD per object."""
+        return self._list_page_by_page(prefix)
 
     def list_groups(self, prefix: str) -> list[str]:
         """The immediate child prefixes of `prefix`, one delimited request."""
@@ -325,11 +356,12 @@ class S3ObjectStore:
         with ThreadPoolExecutor(max_workers=LISTING_WORKERS) as pool:
             for part in pool.map(self.list_sizes, groups):
                 sizes.update(part)
-        loose = self._client.list_objects_v2(Bucket=self._bucket, Prefix=prefix, Delimiter="/")
-        for item in loose.get("Contents", []):
-            key, size = item.get("Key"), item.get("Size")
-            if isinstance(key, str) and isinstance(size, int):
-                sizes[key] = size
+        # Paginated like everything else. It was a single request, which is
+        # correct for a bucket whose keys all live inside a tree and silently
+        # wrong for one with more than 1,000 objects loose at the root: the
+        # overflow would read as absent, so the sync would re-upload it and
+        # the census would undercount by however many were dropped.
+        sizes.update(self._list_page_by_page(prefix, delimiter="/"))
         return sizes
 
     def any_under(self, prefix: str) -> bool:
@@ -416,7 +448,15 @@ def full_listing(store: ObjectStore, prefix: str) -> dict[str, int]:
     fanned = getattr(store, "list_sizes_fanned", None)
     if fanned is None:
         return store.list_sizes(prefix)
-    listing: dict[str, int] = fanned(prefix)
+    try:
+        listing: dict[str, int] = fanned(prefix)
+    except Exception:
+        # Twelve concurrent connections are twelve chances at a transient
+        # network error, and one of them killed a run during development. A
+        # mirror that falls back to the slow enumeration still mirrors; one
+        # that aborts leaves the bucket a day behind for no better reason than
+        # that the fast path is newer.
+        return store.list_sizes(prefix)
     return listing
 
 
@@ -435,6 +475,7 @@ class TreeSyncResult:
     uploaded: int
     skipped: int
     failed: list[str]
+    uploaded_keys: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -484,6 +525,7 @@ def sync_directory(
 
     uploaded = 0
     failed: list[str] = []
+    landed: list[str] = []
     lock = Lock()
 
     def send(job: tuple[Path, str]) -> None:
@@ -498,6 +540,7 @@ def sync_directory(
             return
         with lock:
             uploaded += 1
+            landed.append(key)
 
     # Uploaded concurrently, and the reason is the same one the Dukascopy
     # backfill taught: the throttle is per-connection, not per-account. Serially
@@ -510,7 +553,9 @@ def sync_directory(
     with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
         list(pool.map(send, pending))
 
-    return TreeSyncResult(uploaded=uploaded, skipped=skipped, failed=failed)
+    return TreeSyncResult(
+        uploaded=uploaded, skipped=skipped, failed=failed, uploaded_keys=sorted(landed)
+    )
 
 
 def load_storage_config(path: Path) -> StorageConfig:

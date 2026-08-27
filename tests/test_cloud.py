@@ -449,3 +449,45 @@ def test_sync_reports_failures_in_landing_order(tmp_path: Path) -> None:
     first, second = (p.split(":")[0] for p in result.failed)
     order = [e.path for e in landing.entries().values()]
     assert order.index(first) < order.index(second)
+
+
+def test_sync_survives_a_file_that_vanished_after_planning(tmp_path: Path) -> None:
+    """A read failure is one object's problem, not the run's.
+
+    The read sat outside the try, so a file deleted between the plan and the
+    upload raised out of the pool and took every other upload with it — while
+    the comment beside it promised one bad object could not abort the sync.
+    """
+    landing = _landing(tmp_path, days=5)
+    store = FakeStore()
+    doomed = list(landing.entries().values())[2]
+    (landing.root / doomed.path).unlink()
+
+    result = sync(landing, store, CONFIG)
+
+    assert result.uploaded == 4, "the four readable entries must still land"
+    assert len(result.failed) == 1
+    assert doomed.path in result.failed[0]
+
+
+def test_sync_reports_the_keys_it_uploaded(tmp_path: Path) -> None:
+    """A listing taken before the sync, plus these, is the state after it."""
+    landing = _landing(tmp_path, days=3)
+    store = FakeStore()
+    result = sync(landing, store, CONFIG)
+
+    assert sorted(result.uploaded_keys) == sorted(store.puts)
+    assert len(result.uploaded_keys) == result.uploaded
+
+
+def test_uploaded_keys_excludes_what_failed(tmp_path: Path) -> None:
+    """Priming with a key that never landed would invent a file."""
+    landing = _landing(tmp_path, days=4)
+    store = FakeStore()
+    doomed = object_key(CONFIG.prefix, list(landing.entries().values())[1])
+    store.fail_on = {doomed}
+
+    result = sync(landing, store, CONFIG)
+
+    assert doomed not in result.uploaded_keys
+    assert len(result.uploaded_keys) == 3
