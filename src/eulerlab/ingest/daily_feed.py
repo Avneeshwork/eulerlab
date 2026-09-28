@@ -130,11 +130,36 @@ def _news() -> str:
     return "per-instrument headlines"
 
 
+class PartialSource(RuntimeError):
+    """Some sub-sources of a step landed and some did not."""
+
+
 def _indices() -> str:
+    """Index levels, and a failure when any sub-source did not land.
+
+    This called `indices._main()`, which prints its errors and returns None,
+    so the feed recorded the step as OK no matter what happened inside it. On
+    2026-09-09 that reported "index levels 30.4s OK" for a run whose own
+    output said `! india: TokenException` and `! world: HTTP 402`. India index
+    levels were stale and the summary said everything was fine.
+
+    `land()` returns those errors; only `_main` was throwing them away. A step
+    that cannot fail cannot be trusted when it passes.
+    """
     from eulerlab import indices
 
-    indices._main()
-    return "index levels, movers, sectors"
+    payload = indices.land()
+    counts = {k: len(v) for k, v in payload.items() if isinstance(v, list)}
+    landed = ", ".join(f"{name} {count}" for name, count in sorted(counts.items()) if count)
+
+    errors = payload.get("errors")
+    if isinstance(errors, dict) and errors:
+        named = "; ".join(f"{name}: {str(why)[:60]}" for name, why in sorted(errors.items()))
+        # Raised rather than returned, because the feed marks a step OK on any
+        # return value. Partial is not OK — it is the state most worth seeing.
+        msg = f"{len(errors)} of {len(counts) + len(errors)} sources failed — {named}"
+        raise PartialSource(msg)
+    return f"index levels, movers, sectors ({landed})" if landed else "index levels"
 
 
 def _us(on_detail: Callable[[str], None] | None = None) -> str:
