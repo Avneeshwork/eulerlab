@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from eulerlab.ingest import cloud
 from eulerlab.ingest.cloud import (
     MissingCredentials,
     S3ObjectStore,
@@ -491,3 +492,64 @@ def test_uploaded_keys_excludes_what_failed(tmp_path: Path) -> None:
 
     assert doomed not in result.uploaded_keys
     assert len(result.uploaded_keys) == 3
+
+
+# --- upload retry -----------------------------------------------------------
+
+
+class FlakyClient:
+    """A boto3 client stub that drops the connection a set number of times."""
+
+    def __init__(self, drops: int, error: Exception | None = None) -> None:
+        self.drops = drops
+        self.calls = 0
+        from botocore.exceptions import ConnectionClosedError
+
+        self.error = error or ConnectionClosedError(endpoint_url="https://b2.invalid")
+
+    def put_object(self, **kwargs: object) -> dict[str, str]:
+        self.calls += 1
+        if self.calls <= self.drops:
+            raise self.error
+        return {"ETag": "ok"}
+
+
+def test_a_dropped_connection_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The failure that broke a nightly run: 48 files, connection closed.
+
+    botocore's own three attempts were not enough on that link, and one
+    dropped upload exited `sync-cloud` non-zero and failed the whole job.
+    """
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    client = FlakyClient(drops=2)
+    _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == 3, "it must keep trying past a transient drop"
+
+
+def test_it_gives_up_rather_than_retrying_forever(monkeypatch: pytest.MonkeyPatch) -> None:
+    from botocore.exceptions import ConnectionClosedError
+
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    client = FlakyClient(drops=99)
+    with pytest.raises(ConnectionClosedError):
+        _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == cloud.UPLOAD_ATTEMPTS
+
+
+def test_a_credentials_error_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retrying a 403 turns a clear error into a slow one."""
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    denied = ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+    client = FlakyClient(drops=99, error=denied)
+    with pytest.raises(ClientError):
+        _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == 1, "a permission failure must surface on the first try"
+
+
+def test_a_successful_upload_makes_one_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    client = FlakyClient(drops=0)
+    _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == 1

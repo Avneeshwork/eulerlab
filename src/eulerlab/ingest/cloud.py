@@ -20,6 +20,7 @@ against B2, Cloudflare R2, AWS S3 or Wasabi — only ``endpoint_url`` differs.
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
@@ -421,13 +422,53 @@ class S3ObjectStore:
         return body
 
     def put(self, key: str, payload: bytes, sha256: str) -> None:
-        self._client.put_object(
-            Bucket=self._bucket,
-            Key=key,
-            Body=payload,
-            Metadata={SHA_METADATA_KEY: sha256},
-        )
+        """Upload one object, retrying a dropped connection.
 
+        Retrying is safe here and would not be for a partial write: this is a
+        whole object under a fixed key with a fixed body, so the second attempt
+        either lands the same bytes or does not land at all. There is no state
+        for a repeat to corrupt.
+
+        botocore already retries three times, and on this network that was not
+        enough — a nightly `make daily` reported 48 crypto files failed with
+        "Connection was closed before we received a valid response", which
+        exited `sync-cloud` non-zero and failed the whole job. The files were
+        the large monthly minute archives, so the drops cluster on the longest
+        uploads, which is what a flaky link does.
+
+        Only connection faults are retried. A 403 is not transient, and
+        retrying one would turn a clear credentials error into a slow one.
+        """
+        from botocore.exceptions import BotoCoreError
+        from botocore.exceptions import ConnectionError as BotoConnectionError
+
+        last: Exception | None = None
+        for attempt in range(UPLOAD_ATTEMPTS):
+            try:
+                self._client.put_object(
+                    Bucket=self._bucket,
+                    Key=key,
+                    Body=payload,
+                    Metadata={SHA_METADATA_KEY: sha256},
+                )
+            except (BotoConnectionError, BotoCoreError) as exc:
+                last = exc
+                if attempt == UPLOAD_ATTEMPTS - 1:
+                    break
+                # Backoff, so a link that is briefly saturated is given time
+                # rather than hammered by four attempts inside a second.
+                time.sleep(UPLOAD_BACKOFF * (2**attempt))
+                continue
+            return
+        assert last is not None
+        raise last
+
+
+UPLOAD_ATTEMPTS = 4
+"""Tries per object, on top of botocore's own three."""
+
+UPLOAD_BACKOFF = 0.5
+"""Seconds before the second try, doubling after that."""
 
 LISTING_WORKERS = 12
 """Sub-prefixes enumerated at once by `list_sizes_fanned`."""
