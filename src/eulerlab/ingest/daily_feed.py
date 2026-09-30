@@ -35,6 +35,8 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 
 
@@ -217,6 +219,48 @@ def _wants_detail(work: Callable[..., str]) -> bool:
     return bool(inspect.signature(work).parameters)
 
 
+STEP_DEADLINE = 1800.0
+"""Seconds any one source may take before the feed gives up on it.
+
+Every individual request in this pipeline is already bounded — `crypto._fetch`
+allows 120s and three attempts, which is correct. What was unbounded is the
+*sum*. The crypto step builds one job per symbol per day: twenty symbols
+across a month is 560 jobs, each worth up to 363 seconds of perfectly
+well-behaved timeouts, six at a time. On 2026-09-08, with the network path
+failing, that arithmetic came to 9.4 hours and the run sat there for 9h11m.
+
+So the fix is not a shorter socket timeout. A bounded request repeated enough
+times is still unbounded work, and the thing that needed a limit was the step.
+"""
+
+
+def _run_step(work: Callable[..., str], arg: Callable[[str], None] | None) -> str:
+    """Run one step, or raise `TimeoutError` when it overruns.
+
+    The overrunning thread is **not** killed — Python cannot — so it keeps
+    running until the process exits. That is worth stating plainly rather than
+    implying a clean cancellation: what this buys is that the remaining
+    sources still get their turn and the operator gets a report, instead of
+    one stalled source holding the whole feed overnight. The threads are
+    daemons, so they do not keep the process alive at the end.
+    """
+    # Deliberately not a `with` block. The context manager exits through
+    # `shutdown(wait=True)`, which blocks until the worker finishes — so an
+    # abandoned step was still held for its full runtime while reporting that
+    # it had been abandoned. A test caught it: the step reported "exceeded" and
+    # took thirty seconds anyway.
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="feed-step")
+    future = pool.submit(work, arg) if arg is not None else pool.submit(work)
+    try:
+        detail = future.result(timeout=STEP_DEADLINE)
+    except FuturesTimeout:
+        pool.shutdown(wait=False, cancel_futures=True)
+        msg = f"exceeded {STEP_DEADLINE:.0f}s and was abandoned"
+        raise TimeoutError(msg) from None
+    pool.shutdown(wait=False)
+    return detail
+
+
 def refresh(
     *,
     only: Sequence[str] = (),
@@ -250,9 +294,9 @@ def refresh(
                     if on_step:
                         on_step(at, total, f"{step} · {text}")
 
-                detail = work(note)
+                detail = _run_step(work, note)
             else:
-                detail = work()
+                detail = _run_step(work, None)
         except Exception as exc:
             run.steps.append(
                 StepResult(
