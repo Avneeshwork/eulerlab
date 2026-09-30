@@ -13,8 +13,38 @@ before this had its lookbacks silently divided by three.
 from __future__ import annotations
 
 import datetime as dt
+import os
+
+import pytest
 
 from eulerlab.intraday import store
+
+
+def _archive_reachable() -> bool:
+    """Whether the B2 minute archive can be read on this machine at all."""
+    from eulerlab.env import load_env
+
+    load_env()
+    return bool(
+        os.environ.get("B2_KEY_ID", "").strip() and os.environ.get("B2_APP_KEY", "").strip()
+    )
+
+
+# Skipped rather than faked when the archive is unreachable.
+#
+# What these assert is a property of the *real* archive — that its chunks
+# overlap and the reader deduplicates them — so a fixture would have to
+# recreate the overlap first and would then be testing the fixture. There is
+# nothing to check without the thing being checked.
+#
+# They also cannot simply run and find nothing: `store.fetch` reaches
+# `env.require`, which raises `SystemExit` on a missing key. That is right for
+# a command and wrong inside a test, and it is why CI reported three hard
+# failures on a runner that legitimately has no credentials.
+pytestmark = pytest.mark.skipif(
+    not _archive_reachable(),
+    reason="B2 credentials absent; these read the real NSE minute archive",
+)
 
 WINDOW = (dt.date(2026, 6, 1), dt.date(2026, 8, 23))
 NSE_SESSION_MINUTES = 375
