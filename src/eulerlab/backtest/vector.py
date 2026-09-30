@@ -43,11 +43,10 @@ from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
-from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
-from eulerlab.costs.model import Brokerage, cost_of_trade
+from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.features.panel import (
     PanelRow,
@@ -91,6 +90,9 @@ class BacktestResult:
     fills: list[Fill] = field(default_factory=list)
     starting_cash: float = 1_000_000.0
     cost_mode: str = "realistic"
+    final_marks: dict[str, float] = field(default_factory=dict)
+    """The prices open positions were valued at on the last day. See the same
+    field on TierBResult for why this is returned rather than reconstructed."""
 
     @property
     def total_cost(self) -> float:
@@ -149,19 +151,53 @@ def build_adjusted_index(rows: Sequence[PanelRow]) -> dict[str, dict[date, float
     return index
 
 
+def spread_cost(price: float, quantity: int, spread: float) -> float:
+    """What crossing the book costs, for instruments priced by spread alone.
+
+    Spot FX has no exchange, no STT and no stamp duty — the cost of trading it
+    *is* the bid-ask spread. A trade crosses half of it on entry and half on
+    exit, so a single leg pays half the quoted spread on its notional.
+
+    Charged from the spread the data actually recorded, not a rate invented for
+    it. That is the difference between this and the `replication` mode crypto
+    and mutual funds run in, which pays nothing because nothing is known
+    (S-028).
+    """
+    if spread <= 0 or quantity <= 0 or price <= 0:
+        return 0.0
+    return (spread / 2.0) * quantity
+
+
 def _costs_for(
-    day: date, price: float, quantity: int, side: Side, brokerage: Brokerage | None
+    day: date,
+    price: float,
+    quantity: int,
+    side: Side,
+    brokerage: Brokerage | None,
+    asset_class: str,
 ) -> float:
-    """The single cost path. Delivery rates: Tier A holds overnight."""
-    breakdown = cost_of_trade(
-        trade_date=day,
-        segment=Segment.EQUITY_DELIVERY,
-        side=side,
-        price=Decimal(str(round(price, 2))),
+    """What one fill costs, from the one router that knows every venue.
+
+    Delivery rates: Tier A holds overnight, so NSE charges STT at the delivery
+    rate rather than the intraday one.
+
+    `asset_class` has no default, and the reason is specific. It had one, and a
+    US branch was added to this function that **never once executed** — none of
+    the three callers passed the argument, so every daily run including US was
+    charged Indian delivery costs while the code above them said otherwise. A
+    required argument makes that a type error instead of a silent wrong number.
+    """
+    del brokerage  # the router owns the schedule, including the broker's part
+    from eulerlab.costs.router import fill_cost
+
+    return fill_cost(
+        venue=asset_class,
+        price=price,
         quantity=quantity,
-        brokerage=brokerage,
+        side=side,
+        day=day,
+        segment=Segment.EQUITY_DELIVERY,
     )
-    return float(breakdown.total)
 
 
 def run(
@@ -172,6 +208,7 @@ def run(
     rebalance_every: int = 21,
     gross_cap: float = 1.0,
     cost_mode: str = "realistic",
+    asset_class: str,
     brokerage: Brokerage | None = None,
     warmup: int = 253,
     adjusted_index: dict[str, dict[date, float]] | None = None,
@@ -382,7 +419,8 @@ def run(
                 cost = (
                     0.0
                     if cost_mode == "replication"
-                    else _costs_for(fill_day, price, quantity, side, brokerage) * cost_multiplier
+                    else _costs_for(fill_day, price, quantity, side, brokerage, asset_class)
+                    * cost_multiplier
                 )
                 cash -= delta * price
                 cash -= cost
@@ -394,5 +432,10 @@ def run(
 
         result.days.append(fill_day)
         result.equity.append(portfolio_value(fill_day))
+        result.final_marks = {
+            symbol: price
+            for symbol in holdings
+            if (price := mark_price(symbol, fill_day)) is not None
+        }
 
     return result

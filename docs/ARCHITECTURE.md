@@ -335,6 +335,46 @@ Two properties of the implementation matter:
 > checked against a real contract note (T-906, A-016). This is the cheapest
 > outstanding verification in the project.
 
+### Four venues, one router
+
+The table above is NSE. It stopped being the whole story when crypto, US equity
+and FX arrived, and the way it stopped is the most instructive bug this
+codebase has produced.
+
+| venue | charge | round trip |
+|---|---|---|
+| NSE (`equity`) | the stack above; Zerodha brokerage capped at ₹20 | ~0.04% |
+| US (`us`) | INDmoney 0.25% a leg **capped at $25**, plus 18% GST | ~0.012% |
+| Crypto (`crypto`) | Delta 0.05% taker plus 18% GST | 0.118% |
+| FX (`fx`) | the measured bid-ask spread, carried per bar | varies |
+| Mutual funds | nothing modelled — gross, and labelled so | — |
+
+Two things in that table are counter-intuitive and both were wrong here first.
+
+**US is the cheapest venue, and only because of the cap.** Uncapped, 0.25% a leg
+is 0.5% a round trip and no intraday signal in the library survives it —
+friction on `orb_breakout` reached 309% of its gross edge. Capped, a $500,000
+position pays $25 instead of $1,250, and the same round trip is 0.012%. A fee
+model missing its cap is not conservative; it is wrong, here by a factor of
+fifty.
+
+**Which venue a trade pays is a required argument, everywhere.** It defaulted to
+`"equity"`, and that default billed crypto Indian STT, then billed US trades
+Indian STT, then — after both were fixed at the leaf — billed every *winning*
+exit Indian STT, because two of six call sites had quietly kept it. Each wrong
+number was plausible: an Indian bill on a US trade is about ten basis points,
+which reads as a cost rather than as a bug.
+
+`costs/router.py` is now the single answer to "what does this fill cost". There
+were three, in different files, with different coverage: the intraday engine
+knew crypto and NSE-intraday, the daily engine knew NSE-*delivery* and no crypto
+at all, and a third place decided separately whether to charge anything. See
+ADR-045.
+
+**Spread and slippage are modelled on none of them** (A-030). That omission is
+consistent across venues, so the four stay comparable to each other — and every
+net figure this platform reports is better than a real fill would be.
+
 ## 4.3 Two backtest engines, and why
 
 | | **Tier A** (vectorised) | **Tier B** (event-driven) |
@@ -458,6 +498,23 @@ where `γ ≈ 0.5772` (the Euler–Mascheroni constant), `Φ⁻¹` is the invers
 CDF, and `σ_SR` is the standard deviation of Sharpes across trials.
 
 **This is the bar to beat.** It rises with every strategy you try.
+
+> **σ_SR is assumed, not measured, and it scales the whole bar (A-021).** The
+> implementation defaults it to 1.0 and nothing has ever overridden it. The
+> same 19 trials give a bar of **0.94** at σ_SR = 0.5, **1.88** at 1.0, and
+> **2.82** at 1.5 — a range that spans this project's best-ever result of 1.27.
+> So the sentence "the gate has killed everything it has seen" rests on this
+> constant as much as on the evidence.
+>
+> `ledger.sharpe_dispersion()` measures it from the trial ledger and, at the
+> time of writing, **refuses**: only 3 entries carry a Sharpe and all three are
+> H-0001 at successive stages. Dispersion is taken across *distinct subjects*,
+> never across entries — one hypothesis re-evaluated eight times is one
+> strategy, and counting the repeats would report our own re-measurement noise
+> as the spread between ideas, shrinking σ_SR and lowering the bar. `ic` trials
+> have no Sharpe at all, since they measure rank correlation, so they can never
+> contribute. The API reports `noise_bar_sigma_measured: false` and the
+> workbench marks the bar **assumed** until five distinct subjects exist.
 
 The **Deflated Sharpe Ratio** then gives the probability that the true Sharpe
 is above zero, given that `N` attempts were made:
@@ -635,6 +692,67 @@ refuses the read entirely.
 
 **Acceptance:** three deliberately overfit strategies are fed to the gate; all
 three must die. They do — killed on deflated Sharpe, PBO and worst-regime.
+
+## 5.5 The optimisation pipeline, and what each stage costs
+
+Four commands, each answering a different question. They are separate because
+conflating any two of them loses the distinction that makes the answer readable.
+
+| command | asks | trials |
+|---|---|---|
+| `make optimize` | which parameter setting is best, on the market the paper tested? | **one per candidate** |
+| `make adopted-results` | what does the chosen setting actually do? | none |
+| `make us-all` | does this signal work on US equity at all? | one per strategy |
+| `make walk` | does the setting that won in sample survive out of it? | one per grid point |
+| `make prune-runs` | (housekeeping) keep one stored run per strategy | none |
+| `make evidence` | where does evidence live, and what is the bar charged for? | none |
+
+**`optimize` sweeps on the market the paper tested**, from each signal's
+`recommended_class`, not on whatever data is convenient. Nine of the coded
+signals cite a study run on MNQ futures and were being swept on an Indian
+large-cap; nothing errored and every number was plausible. The wrong market did
+not produce an obviously wrong answer, it produced a **differently shaped** one —
+`orb_breakout` showed an 8× best-to-median spread on RELIANCE and 1.3× on QQQ,
+and the shape is the whole finding. See ADR-043.
+
+**`adopted-results` spends nothing, and the reason is narrow.** A trial is a
+configuration evaluated *in a search*. It re-runs only parameter sets a recorded
+sweep already contains, on the same window, to extract another statistic — a
+Sharpe — from trades the ledger has already paid for. If it ever gained the
+ability to try a setting the ledger has not seen, it would be a search wearing a
+different name and would have to pay like one.
+
+**`walk` is the only out-of-sample evidence here.** The noise bar corrects for
+*how much searching happened*, which is a real correction and a different thing
+from testing on days the choice never saw. Sessions are cut into six blocks and
+two held out at a time, in every combination — fifteen splits.
+
+### Reading PBO requires a second number
+
+A high PBO has two opposite causes and the ratio alone cannot tell them apart.
+
+When **most settings are profitable** they perform near-identically, so which
+one wins in sample is close to a coin toss and PBO climbs toward 0.5 *by
+construction*. That says the parameter does not matter, not that the strategy is
+fitted. When **few settings are profitable**, the same number means the search
+is finding whichever ones happened to work on the training days.
+
+```
+    orb_breakout      PBO 0.47    9/9 settings profitable OOS    13/15 splits
+    ou_reversion_in   PBO 0.07    5/16 settings profitable OOS    8/15 splits
+```
+
+Read naively the first looks worse. It is not. `optimize_walk.verdict` reports
+the profitable share beside the ratio for this reason, and A-039 records it.
+
+### The walk splits by session and does not purge
+
+Splitting by session assumes a session's result does not depend on which other
+sessions were in the training set. For a strategy flat at every close that is
+nearly true and not exactly: with a 120-bar lookback on 375-bar sessions, the
+first 120 bars of each session read into the previous one. `validation/cpcv.py`
+purges exactly this for daily panels; the intraday analogue leaves it explicit
+and undone, which makes every PBO here **mildly optimistic** (A-040).
 
 ---
 
@@ -917,6 +1035,97 @@ verified, kept so nobody mistakes the system for more than it is.
 | T-1310 | Excess kurtosis ≈ 155 unexplained on one configuration | Fat tails not fully understood |
 | — | Compliance (Sprints 29–30) | Static IP, broker confirmation, CA review — all outstanding |
 | — | **No capital has ever been traded** | Nothing has been live |
+
+---
+
+# Appendix — The module map
+
+177 modules across 22 packages. This maps the **packages**, not the files:
+packages change rarely and files change weekly, so a per-file index would be
+stale before it was useful. Every module carries its own docstring explaining
+what it is for; this is the map that tells you which one to open.
+
+## Data in
+
+| package | what lives there | start at |
+|---|---|---|
+| `ingest/` | every source that lands raw data — Kite, Binance, Alpaca, Delta, AMFI, FXCM, news, screener. The largest package, and mostly one module per vendor | `landing_reader`, `manifest` |
+| `record/` | live recorders for data that cannot be bought back later | `universe` |
+| `bitemporal/` | the two-clock store: what was true, and when it became knowable | `store`, `provenance` |
+| `master/` | the security master — what an instrument *was* on any past date, through renames and successions | `identity`, `succession` |
+| `corp_actions/` | splits, bonuses, dividends, rights; the factor store that adjusts prices per `as_of` | `build_factors`, `adjust` |
+| `quality/` | what is wrong with the data we collected, stated rather than cleaned away | `run`, `reconcile` |
+| `fundamentals/`, `options/` | screener financials; options chains and no-arbitrage checks | `screener_parse`, `arbitrage` |
+
+## Deciding
+
+| package | what lives there | start at |
+|---|---|---|
+| `features/` | the daily panel, indicators, the feature library, IC | `panel`, `alt_panel`, `us_panel` |
+| `strategies/` | the registry: every strategy declared, and the capability catalog | `__init__`, `catalog` |
+| `intraday/` | the minute-bar engine — signals, the bracket executor, and one store per market | `paper_scan`, `bracket`, `us_store` |
+| `backtest/` | Tier A vectorised and Tier B event-driven, plus the self-tests that check they agree | `vector`, `event_driven`, `selftest` |
+| `costs/` | what a fill costs, on the venue it would actually trade on | **`router`**, `model`, `us_equity`, `delta_exchange` |
+| `authoring/`, `llm/` | turning a description into a strategy, and the provider layer under it | `translate` |
+
+## Judging
+
+| package | what lives there | start at |
+|---|---|---|
+| `validation/` | the gate: CPCV, deflated Sharpe, PBO, stress, and the hash-chained ledger | `statistics`, `cpcv`, `ledger` |
+| `research/` | costing a search *before* running it, and the hypothesis loop | `budget` |
+
+Top-level modules carry the optimisation pipeline, and the order they run in is
+in §5.5:
+
+| module | what it answers |
+|---|---|
+| `optimize`, `optimize_run`, `optimize_store` | which parameter setting is best, and what the sweep cost |
+| `intraday/tuned`, `intraday/adopted`, `adopted_run` | which setting the strategy now uses, and what it does |
+| `optimize_walk`, `walk_run` | does the in-sample winner survive out of sample |
+| `us_all_run` | does this signal work on US equity at all |
+| `strategy_results` | every measured result, discriminated by the question it answered (ADR-047) |
+| `evidence` | where evidence lives, and what the noise bar is charged for (ADR-046) |
+| `prune_runs` | one stored run per strategy, denominator preserved |
+| `results`, `reports` | stored runs and the detail behind one |
+| `gates`, `gate_run` | the promotion gate |
+
+## Acting
+
+| package | what lives there | start at |
+|---|---|---|
+| `oms/` | the order state machine, write-ahead journal, kill switch, reconciliation | `states`, `journal`, `killswitch` |
+| `broker/`, `paper/` | Kite session handling; the paper-trading runner and its attribution | `kite_login`, `runner` |
+| `batch/` | running many strategies without losing the ones that finished | `runner` |
+
+## Serving
+
+| package | what lives there | start at |
+|---|---|---|
+| `api/` | the HTTP layer, and three modules that are *not* — panels, intraday runs, and the request shapes both need | `server`, `panels`, `intraday_runs` |
+
+## Live data and plumbing
+
+The remaining top-level modules. Small, and load-bearing in the way plumbing is:
+
+| module | what it does |
+|---|---|
+| `quotes` | live prices, Zerodha first and Yahoo second |
+| `indices` | index levels — India from the broker, the world from FMP |
+| `macro` | macro series from TradingView's keyless public scanner |
+| `workspace` | what is shared between tenants and what emphatically is not (ADR-040) |
+| `cloud_results` | results mirrored to the bucket the market data lives in (ADR-042) |
+| `config`, `env` | typed config from `config/`, and one place that loads `.env` |
+| `notify` | telling the operator when an unattended job fails |
+| `schemas` | **stub.** Not the order schema — that lives in `oms/` |
+
+`api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
+loading panels, running intraday signals, building reports — and the first three
+have been pulled out. The seam is that **nothing in `panels` or `intraday_runs`
+knows about HTTP**: they take a request object for its fields and return plain
+dicts, which is why they could move and why keeping them in the transport layer
+was arbitrary. `requests.py` exists because both the parser and the answerer are
+entitled to know the shape of the question.
 
 ---
 

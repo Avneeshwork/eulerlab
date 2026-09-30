@@ -20,11 +20,121 @@ export type Provider = {
   is_default: boolean;
 };
 
+/** A strategy run once on the parameters it actually uses, on the market its
+ *  paper tested. For a swept strategy this is the result the library shows —
+ *  `FleetStrategy.result` is the daily engine's, which for an intraday signal
+ *  is a stale run on a different market with the published parameters. */
+export type AdoptedResult = {
+  strategy_id: string;
+  symbol: string;
+  market: string;
+  start: string;
+  end: string;
+  params: Record<string, number>;
+  adopted: boolean;
+  net_pnl: number;
+  gross_pnl: number;
+  costs: number;
+  fills: number;
+  wins: number;
+  sessions: number;
+  sharpe: number | null;
+  /** Cumulative P&L by session, starting at zero. Includes flat days, so the
+   *  line does not compress time for a signal that rarely fires. */
+  curve: number[];
+  max_drawdown: number;
+  best_session: number;
+  worst_session: number;
+  exits: Record<string, number>;
+  rejections: Record<string, number>;
+  at: string;
+};
+
+/** Walk-forward evidence: does the setting chosen in sample survive on days it
+ *  was not chosen on? The only out-of-sample number this platform produces. */
+export type WalkResult = {
+  strategy_id: string;
+  symbol: string;
+  splits: number;
+  pbo: number;
+  pbo_verdict: string;
+  verdict: string;
+  modal_winner: Record<string, number>;
+  winner_oos_sharpe: number | null;
+  winner_oos_pnl: number;
+  median_oos_pnl: number;
+  oos_positive_splits: number;
+  settings_profitable_oos: number;
+  settings_total: number;
+  /** True when most of the grid works, which makes a high PBO benign — the
+   *  parameter does not matter rather than the search picking noise. */
+  most_settings_work: boolean;
+};
+
+export type OptimizeSetting = {
+  params: Record<string, number>;
+  net_pnl: number;
+  fills: number;
+  wins: number;
+  sessions: number;
+};
+
+export type OptimizeRow = {
+  strategy_id: string;
+  title: string;
+  source: string;
+  tested_on: string;
+  paper_url?: string;
+  paper_pdf?: string;
+  market: string;
+  symbol: string;
+  candidates: number;
+  best_pnl: number;
+  median_pnl: number;
+  fills: number;
+  win_rate: number;
+  sessions: number;
+  best_params: Record<string, number>;
+  // Every setting tried, not just the winner — the grid is what shows whether
+  // the best was a peak or a plateau.
+  settings: OptimizeSetting[];
+  error: string;
+  profitable: boolean;
+  beats_its_median_by: number;
+  // Null whenever the median is not positive. A ratio against a losing median
+  // is arithmetic without meaning, and the API sends null rather than a number
+  // the UI would have to know not to trust.
+  spread_ratio: number | null;
+};
+
+export type Optimize = {
+  ran: boolean;
+  note?: string;
+  at?: string;
+  start?: string;
+  end?: string;
+  // A dry run produces identical numbers and spends no trials, so the flag has
+  // to reach the screen: a figure from a dry run is not in the ledger.
+  dry_run?: boolean;
+  // False while a sweep is still running. Partial results are shown, labelled.
+  complete?: boolean;
+  trials_before?: number;
+  trials_after?: number;
+  required_t?: number;
+  skipped?: string[];
+  rows: OptimizeRow[];
+};
+
 export type Health = {
   ok: boolean;
   panel_loaded: boolean;
   trials_logged: number;
   noise_bar: number;
+  // The bar is scaled by a dispersion of Sharpes that has never been measured
+  // (A-021). Carried in the payload so the caveat travels with the number.
+  noise_bar_sigma_measured: boolean;
+  noise_bar_sigma: number | null;
+  noise_bar_note: string;
 };
 
 export type Result = {
@@ -93,6 +203,675 @@ export type StrategyInput = {
   min_turnover: number;
 };
 
+// --- the fleet ------------------------------------------------------------
+
+export type Stage = 'registered' | 'backtested' | 'forward_testing' | 'live' | 'retired';
+
+export type StrategyResult = {
+  sharpe: number | null;
+  total_return?: number;
+  max_drawdown?: number;
+  fills?: number;
+  tier?: string;
+  window_days?: number;
+  // How many distinct configurations have been tried. The headline is the most
+  // recent of them, not the best — a maximum over N is a biased estimate of any
+  // one of them, and the latest run is simply a measurement.
+  runs: number;
+  // The best across configurations, carried beside the latest so a better run
+  // does not silently disappear now that the headline is not a maximum.
+  best_sharpe?: number | null;
+  configuration?: string;
+  // Which instruments the run could choose from, and how many actually traded.
+  // A result without its universe is ambiguous: the same strategy over nifty50
+  // and over four thousand names are different answers.
+  universe?: string;
+  symbols?: number;
+  // Which panel the run was pointed at. The declaration says what a strategy is
+  // designed for; this says what it was actually run on, and they can differ.
+  asset_class?: string;
+  // "replication" means no cost model covered that class, so the figure is
+  // gross of costs and not comparable to a net one.
+  cost_mode?: string;
+  // The real equity curve of the best run, downsampled by the server. Empty
+  // when nothing has been run — the sparkline renders nothing rather than a
+  // flat line, because a flat line is a claim about a run that did not happen.
+  curve?: number[];
+  unrecorded?: number;
+  is_a_maximum?: boolean;
+  at?: string;
+  caveat: string;
+};
+
+export type FleetStrategy = {
+  /** The run on the parameters this strategy actually uses, on the market its
+   *  paper tested. Null when no recorded sweep has covered it. */
+  adopted?: AdoptedResult | null;
+  /** The same strategy on QQQ, whatever market its paper used. For the ten
+   *  crypto signals this is the only US evidence there is. */
+  on_us?: AdoptedResult | null;
+  /** Walk-forward and PBO for this strategy, when one has been run. */
+  walk?: WalkResult | null;
+  /** The market this signal does best on, of those it has been run on.
+   *  Derived server-side from the stored runs, never a stored verdict. */
+  best_asset?: {
+    market: string;
+    symbol: string;
+    sharpe: number;
+    net_pnl: number;
+    /** True when the best market is not the one its paper tested — the case
+     *  worth surfacing, and invisible from the row before this existed. */
+    is_away: boolean;
+    beats: number;
+  } | null;
+  id: string;
+  title: string;
+  summary: string;
+  kind: string;
+  shape: string;
+  asset_class: string;
+  timeframe: string;
+  emits: string;
+  lookback: number;
+  risk_manager: string;
+  trade_manager: string;
+  is_strategy_subclass: boolean;
+  // Whether the interface can run it. Distinct from is_strategy_subclass: an
+  // intraday signal cannot be expressed as target weights (ADR-037) and still
+  // runs fine through the minute-bar scanner.
+  runnable: boolean;
+  engine: 'daily' | 'intraday';
+  source: string;
+  published: string;
+  stage: Stage;
+  // null means never measured. It is NOT zero and must never render as zero.
+  sharpe: number | null;
+  trials: number;
+  clears_bar: boolean;
+  result: StrategyResult;
+};
+
+export type Fleet = {
+  bar: number;
+  /** The count the bar was actually computed from — both ledgers summed. Not
+   *  the same as summing each strategy's own trial count, which is what the
+   *  header used to show beside a bar derived from a much larger number. */
+  bar_trials: number;
+  bar_sigma_measured: boolean;
+  bar_note: string;
+  strategies: FleetStrategy[];
+};
+
+export type PreflightCheck = {
+  name: string;
+  passed: boolean;
+  detail: string;
+  blocking: boolean;
+};
+
+export type Preflight = {
+  ok: boolean;
+  mode: 'paper' | 'live';
+  strategy: string;
+  checks: PreflightCheck[];
+  blockers: number;
+};
+
+export type PanelStatus = {
+  loaded: boolean;
+  rows: number;
+  symbols?: number;
+  days?: number;
+  first?: string | null;
+  last?: string | null;
+  thinnest?: number;
+  fattest?: number;
+  error?: string;
+};
+
+export type DataSource = {
+  name: string;
+  present: boolean;
+  files: number;
+  bytes?: number;
+  newest: string | null;
+};
+
+export type DataStatus = {
+  panel: PanelStatus;
+  universes: { name: string; symbols: number; error?: string }[];
+  universe_caveat: string;
+  sources: DataSource[];
+};
+
+export type Universe = {
+  name: string;
+  symbols: number;
+  recommended: boolean;
+  note: string;
+};
+
+export type UniverseList = {
+  universes: Universe[];
+  default: string;
+  caveat: string;
+};
+
+// --- the full report ------------------------------------------------------
+
+export type Constituent = {
+  symbol: string;
+  fills: number;
+  bought_qty: number;
+  sold_qty: number;
+  bought_value: number;
+  sold_value: number;
+  costs: number;
+  open_qty: number;
+  mark: number;
+  open_value: number;
+  contribution: number;
+  traded_value: number;
+  first_day: string;
+  last_day: string;
+};
+
+export type OrderRow = {
+  day: string;
+  symbol: string;
+  side: string;
+  quantity: number;
+  price: number;
+  notional: number;
+  cost: number;
+  client_order_id: string;
+};
+
+export type Drawdown = {
+  depth: number;
+  peak_day: string | null;
+  trough_day: string | null;
+  recovered_day: string | null;
+  still_underwater: boolean;
+};
+
+export type Metrics = {
+  sharpe: number;
+  sortino: number | null;
+  total_return: number;
+  annualised: number | null;
+  volatility: number;
+  trading_days: number;
+  years: number;
+  flat_days: number;
+  // How much of the run was actually invested. A Sharpe over a mostly-flat
+  // series is not comparable to one from a fully-invested run.
+  invested_fraction: number;
+  first_move_day: string | null;
+  hit_rate: number | null;
+  hit_rate_invested: number | null;
+  best_day: number | null;
+  worst_day: number | null;
+  average_gain: number | null;
+  average_loss: number | null;
+  skew: number;
+  kurtosis: number;
+  costs: number;
+  traded_value: number;
+  cost_drag: number | null;
+  turnover_x: number | null;
+  drawdown: Drawdown;
+};
+
+export type Reconciliation = {
+  equity_change: number;
+  attributed: number;
+  residual: number;
+  // False means the per-instrument decomposition does not add up to the
+  // headline result, and the reader must know before trusting either.
+  exact: boolean;
+  unmarked_symbols: string[];
+};
+
+export type FullReport = {
+  strategy_id: string;
+  configuration: string;
+  universe: string;
+  instruments: string[];
+  tier: string;
+  /** The market this run was on. Decides the currency the report is written
+   *  in — a QQQ report labelled in rupees is off by the exchange rate. */
+  asset_class?: string;
+  window_days: number;
+  /** The window the scan *saw*, which is not the window it traded. Two runs can
+   *  trade the same days and fill identically while seeing different leading
+   *  history — which changes indicator warmup and therefore the result. */
+  /** Holding the instrument over the same sessions. Null where the run touched
+   *  more than one name — a basket is a different claim than "holding this". */
+  benchmark?: {
+    symbol: string;
+    net_pnl: number;
+    total_return: number;
+    sharpe: number | null;
+    max_drawdown: number;
+    costs: number;
+  } | null;
+  data_window?: string[];
+  sessions_seen?: number;
+  requested_days?: number;
+  period: [string | null, string | null];
+  starting_cash: number;
+  final_equity: number;
+  metrics: Metrics;
+  warnings: string[];
+  constituents: Constituent[];
+  reconciliation: Reconciliation;
+  orders: OrderRow[];
+  rejections: { day: string; symbol: string; reason: string }[];
+  equity: { days: string[]; values: number[] };
+};
+
+export type RunChoice = {
+  configuration: string;
+  sharpe: number;
+  tier: string;
+  window_days: number;
+  universe: string;
+  symbols: number;
+  at: string;
+};
+
+export type ReportResponse = {
+  ok: boolean;
+  error?: string;
+  report?: FullReport;
+  runs?: RunChoice[];
+};
+
+export type WindowInfo = {
+  ok: boolean;
+  error?: string;
+  requested_days: number;
+  available_days: number;
+  window_days: number;
+  truncated: boolean;
+  panel_first: string | null;
+  panel_last: string | null;
+  window_first: string | null;
+  window_last: string | null;
+  // The leading stretch is never traded. Showing "1200 days" while the
+  // strategy trades 947 of them invites reading a result as covering a period
+  // it does not.
+  warmup_days: number;
+  asset_class?: string;
+  // "replication" means no cost model covers this class, so the run paid
+  // nothing to trade and the result is an upper bound.
+  cost_mode?: string;
+  traded_first: string | null;
+  traded_last: string | null;
+  traded_days: number;
+  universe: string;
+};
+
+export type ExplainSection = { title: string; body: string };
+
+export type Explain = {
+  procedure: ExplainSection[];
+  asset_classes: Capability[];
+  strategy: {
+    id: string;
+    title: string;
+    summary: string;
+    kind: string;
+    shape: string;
+    asset_class: string;
+    timeframe: string;
+    emits: string;
+    lookback: number;
+    is_strategy_subclass: boolean;
+    risk_manager: string;
+    trade_manager: string;
+    how_it_decides: string;
+    source: string;
+    published: string;
+    // What the PAPER tested, which is not what we run it on. Every intraday
+    // signal here was published against MNQ futures or US equities and runs on
+    // NSE minute bars.
+    tested_on: string;
+    /** Where the source can be read. A citation says what to look for; a link
+     *  is what a reader actually follows. */
+    paper_url?: string;
+    /** API path serving the fetched PDF, empty when it is not downloaded. */
+    paper_pdf?: string;
+    /** What a recorded sweep changed, if anything. Null means no recorded sweep
+     *  has covered this strategy — a different fact from a sweep that ran and
+     *  found nothing worth adopting, which returns a record with adopted:false. */
+    tuning?: {
+      adopted: boolean;
+      reason: string;
+      symbol: string;
+      market: string;
+      swept_at: string;
+      candidates: number;
+      fills: number;
+      sessions: number;
+      best_pnl: number;
+      median_pnl: number;
+      tail_share: number;
+      changed: { name: string; paper: number; adopted: number }[];
+      params: Record<string, number>;
+      paper_params: Record<string, number>;
+      caveat: string;
+    } | null;
+    recommended_class: string;
+    logic: string[];
+    example: {
+      headline: string;
+      rows: { symbol: string; score: number; held: boolean }[];
+      held_count: number;
+      weight_pct: number;
+      footer: string;
+      real_note: string;
+    } | null;
+    runs_here: number;
+    latest_sharpe: number | null;
+    best_sharpe: number | null;
+    best_window_days: number | null;
+    best_universe: string;
+    best_period_note: string;
+    bar: number;
+    clears_bar: boolean;
+  } | null;
+  starting_cash: number;
+  rebalance_days: number;
+};
+
+// --- the trader snapshot --------------------------------------------------
+
+export type Tile = {
+  symbol: string;
+  return: number;
+  turnover: number;
+  close: number;
+  // Today's turnover against its own recent median. Null when there is too
+  // little history to say — not zero, which would read as "no interest".
+  relative_volume: number | null;
+  sector: string;
+  industry: string;
+  market_cap: number | null;
+  pe: number | null;
+};
+
+export type IndexLevel = {
+  symbol: string;
+  name: string;
+  last: number;
+  change_pct: number;
+  region: string;
+  source: string;
+};
+
+export type WorldMover = {
+  symbol: string;
+  name: string;
+  price: number;
+  change_pct: number;
+  exchange: string;
+  /** `gainer` | `loser` | `active` */
+  kind: string;
+};
+
+export type Bar = {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+export type History = {
+  ok: boolean;
+  error?: string;
+  symbol?: string;
+  asset_class?: string;
+  bars: Bar[];
+  /** Where the bars came from — "price panel", "crypto archive". */
+  source?: string;
+  first?: string;
+  last?: string;
+};
+
+export type MacroReading = {
+  symbol: string;
+  name: string;
+  unit: string;
+  last: number;
+  change_pct: number;
+  /** `energy` | `metals` | `risk` | `yields` */
+  group: string;
+};
+
+export type Story = {
+  title: string;
+  publisher: string;
+  link: string;
+  symbols: string[];
+  /** Every listed company the headline names, not just the one queried. A
+   *  sector piece naming four lenders is one event with four exposures. */
+  affects?: string[];
+  /** Sectors those companies sit in. */
+  sectors?: string[];
+  /** Hours since publication. Shown on every headline, because a story with no
+   *  visible age is indistinguishable from a stale one. */
+  age_hours: number;
+};
+
+export type Snapshot = {
+  ok: boolean;
+  error?: string;
+  as_of: string;
+  previous: string;
+  regime: {
+    advancers: number;
+    decliners: number;
+    unchanged: number;
+    breadth_ratio: number | null;
+    proxy_return_20d: number;
+    volatility: number;
+    volatility_before: number | null;
+    volatility_rising: boolean;
+    proxy_note: string;
+  };
+  map: {
+    tiles: Tile[];
+    sized_by: string;
+    note: string;
+    grouped: boolean;
+    covered?: number;
+    missing: string;
+  };
+  movers: { gainers: Tile[]; losers: Tile[]; unusual_volume: Tile[] };
+  freshness?: {
+    live: boolean;
+    quoted: number;
+    of: number;
+    taken_at: string;
+    panel_date: string;
+    reason?: string;
+  };
+  us?: {
+    available: boolean;
+    reason?: string;
+    as_of?: string;
+    previous?: string;
+    advancers?: number;
+    decliners?: number;
+    unchanged?: number;
+    proxy_return?: number;
+    movers: { gainers: Tile[]; losers: Tile[] };
+    tiles: Tile[];
+    symbols?: number;
+    sectors_known?: number;
+    source?: string;
+  };
+  world: {
+    available: boolean;
+    india: IndexLevel[];
+    world: IndexLevel[];
+    crypto?: IndexLevel[];
+    fx?: IndexLevel[];
+    movers: WorldMover[];
+    sectors?: { sector: string; change_pct: number; exchange: string }[];
+    macro?: MacroReading[];
+    macro_2s10s?: number | null;
+    taken_at?: string;
+    /** Groups carrying values older than `taken_at`, and how old. */
+    stale_groups?: string[];
+    stale_since?: string;
+    errors?: Record<string, string>;
+  };
+  quotes: {
+    available: boolean;
+    reason?: string;
+    /** Which source priced most of them — `zerodha` or `yahoo`. */
+    source?: string;
+    sources?: Record<string, number>;
+    errors?: Record<string, string>;
+    asked?: number;
+    quotes: Record<
+      string,
+      { last: number; previous_close: number; change_pct: number; source: string; at: string }
+    >;
+    note?: string;
+  };
+  news: {
+    available: boolean;
+    reason?: string;
+    /** Freshest qualifying story per symbol. Absent means no story, not no check. */
+    stories: Record<string, Story>;
+    tape: Story[];
+    covered?: number;
+    asked?: number;
+    window?: string;
+    note?: string;
+  };
+  catalysts: {
+    available: boolean;
+    reason: string;
+    events?: {
+      title: string;
+      country: string;
+      at: string;
+      impact: string;
+      forecast: string;
+      previous: string;
+      past: boolean;
+    }[];
+    total?: number;
+    high_impact?: number;
+  };
+  cross_asset: {
+    asset_class: string;
+    label: string;
+    instruments: number;
+    as_of: string;
+    detail: string;
+  }[];
+  evidence: {
+    bar: number;
+    strategies: number;
+    clearing: number;
+    clearing_names: string[];
+    trials: number;
+  };
+  gaps: string[];
+};
+
+export type CloudStatus = {
+  configured: boolean;
+  reason: string;
+  workspace: string;
+  bucket: string;
+  prefix: string;
+  local_files: string[];
+  remote_files: string[];
+  reachable: boolean;
+};
+
+export type MirrorResult = {
+  ok: boolean;
+  pushed: number;
+  pulled: number;
+  merged_rows: number;
+  failed: string[];
+};
+
+export type Capability = {
+  asset_class: string;
+  timeframe: string;
+  supported: boolean;
+  detail: string;
+};
+
+export type Instrument = {
+  symbol: string;
+  asset_class: string;
+  has_daily: boolean;
+  has_minute: boolean;
+  rank: number;
+  // A scheme code is not a name. Empty for equities and crypto, where the
+  // ticker already is one.
+  name?: string;
+  detail?: string;
+};
+
+export type InstrumentList = {
+  ok: boolean;
+  error?: string;
+  batches: string[];
+  batch_caveat: string;
+  // Classes with data on disk. Anything absent here has no instruments to show.
+  asset_classes: string[];
+  instruments: Instrument[];
+};
+
+export type RunPrice = {
+  logged: number;
+  configurations: number;
+  cached: number;
+  new_evaluations: number;
+  // Always 0. A batch of backtests writes nothing to the ledger; only
+  // `make validate` and `make gate` do, and neither is reachable from here.
+  spends_trials: number;
+  bar_now: number;
+  // Where the bar WOULD stand if this search were recorded. It will not be.
+  would_move_bar_to: number;
+  unrecorded_search: boolean;
+  note: string;
+};
+
+export type BatchResult = {
+  total: number;
+  cached: number;
+  computed: number;
+  failed: number;
+  // Configurations evaluated that the trial ledger will never know about.
+  unrecorded: number;
+  spent_trials: number;
+  note: string;
+  // Whether the results reached the bucket. Present because a run that
+  // succeeded locally but did not mirror is a real state the UI must be able
+  // to show, rather than one it silently reports as a clean success.
+  cloud?: { ok: boolean; pushed: number; pulled: number; failed: string[] };
+  results: {
+    strategy: string;
+    cached: boolean;
+    error: string;
+    result?: { sharpe: number; total_return: number; max_drawdown: number; fills: number };
+  }[];
+};
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: 'no-store' });
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -112,6 +891,54 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const api = {
   health: () => get<Health>('/api/health'),
   library: () => get<Library>('/api/library'),
+  fleet: () => get<Fleet>('/api/fleet'),
+  capabilities: () => get<{ matrix: Capability[] }>('/api/capabilities'),
+  instruments: (q: string, batch: string, assetClass = '', limit = 60) =>
+    get<InstrumentList>(
+      `/api/instruments?q=${encodeURIComponent(q)}&batch=${encodeURIComponent(batch)}` +
+        `&asset_class=${encodeURIComponent(assetClass)}&limit=${limit}`
+    ),
+  universes: () => get<UniverseList>('/api/universes'),
+  priceRun: (configurations: number, cached: number) =>
+    post<RunPrice>('/api/run/price', { configurations, cached }),
+  runBatch: (
+    strategies: string[],
+    days: number,
+    tier: 'A' | 'B',
+    universe: string,
+    instruments: string[] = [],
+    assetClass = 'equity',
+    // An options bag rather than a seventh and eighth positional argument.
+    // `runBatch(ids, 800, 'B', 'all', [], 'us', '2022-01-01', '2022-12-31', 500000)`
+    // is a line nobody can read, and a call that transposes two of them is a
+    // different backtest that still runs.
+    options: { start?: string; end?: string; startingCash?: number } = {}
+  ) =>
+    post<{ ok: boolean; job?: string; error?: string }>('/api/run/batch', {
+      strategies,
+      days,
+      tier,
+      universe,
+      instruments,
+      asset_class: assetClass,
+      start: options.start ?? '',
+      end: options.end ?? '',
+      starting_cash: options.startingCash ?? 1_000_000,
+    }),
+  report: (strategy: string, workspace = '', configuration = '') =>
+    get<ReportResponse>(
+      `/api/report?strategy=${encodeURIComponent(strategy)}` +
+        `&workspace=${encodeURIComponent(workspace)}` +
+        `&configuration=${encodeURIComponent(configuration)}`
+    ),
+  window: (days: number, universe = 'all', assetClass = 'equity') =>
+    get<WindowInfo>(
+      `/api/window?days=${days}&universe=${encodeURIComponent(universe)}` +
+        `&asset_class=${encodeURIComponent(assetClass)}`
+    ),
+  explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
+  optimize: () => get<Optimize>('/api/optimize'),
+  batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>
     post<{ ok: boolean; label?: string; error?: string }>('/api/validate', input),
@@ -120,6 +947,27 @@ export const api = {
   backtest: (input: StrategyInput & { days: number; tier: 'A' | 'B'; starting_cash: number }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/backtest', input),
   job: (id: string) => get<Job>(`/api/jobs/${id}`),
+  cloudStatus: (workspace = '') =>
+    get<CloudStatus>(`/api/cloud/status?workspace=${encodeURIComponent(workspace)}`),
+  mirror: (workspace = '') => post<MirrorResult>('/api/cloud/mirror', { workspace }),
+  preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
+    post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
+  data: () => get<DataStatus>('/api/data'),
+  history: (symbol: string, assetClass = 'equity', days = 400) =>
+    get<History>(
+      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}`,
+    ),
+  syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
+  /** Fetch today's data from every source, then mirror it. Different from
+   *  `syncData`, which uploads whatever is already on disk — that can mirror a
+   *  stale landing zone to the cloud and report success. */
+  feedPlan: () =>
+    get<{ ok: boolean; sources: string[]; excluded: string[]; keeps_local: boolean }>(
+      '/api/data/feed/plan',
+    ),
+  refreshFeed: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/feed', {}),
+  snapshot: (workspace = '') =>
+    get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
   tweezer: (input: { symbols: string[]; start: string; end: string }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/tweezer', input),
 };

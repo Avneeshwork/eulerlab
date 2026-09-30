@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from eulerlab.ingest import cloud
 from eulerlab.ingest.cloud import (
     MissingCredentials,
     S3ObjectStore,
@@ -366,3 +367,189 @@ def test_one_unreadable_file_does_not_stop_the_tree(tmp_path: Path) -> None:
     assert result.uploaded == 1
     assert len(result.failed) == 1
     assert not result.ok
+
+
+@dataclass
+class CountingStore(FakeStore):
+    """A FakeStore that records how many times the bucket was enumerated."""
+
+    listings: list[str] = field(default_factory=list)
+
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        self.listings.append(prefix)
+        return super().list_sizes(prefix)
+
+
+def test_a_shared_listing_plans_the_same_uploads(tmp_path: Path) -> None:
+    """Handing `plan_sync` a listing must not change what it decides.
+
+    The whole point of sharing one enumeration between the sync and the census
+    is that it is the *same* data. If the shared path could plan differently
+    from the fetching path, the saving would be bought with correctness.
+    """
+    landing = _landing(tmp_path, days=4)
+    store = CountingStore()
+    entries = list(landing.entries().values())
+    # Two of the four already in the bucket, so the plan is a real mixture.
+    for entry in entries[:2]:
+        payload = (landing.root / entry.path).read_bytes()
+        store.objects[object_key(CONFIG.prefix, entry)] = (payload, entry.sha256)
+
+    fetched = plan_sync(landing, store, CONFIG)
+    shared = plan_sync(landing, store, CONFIG, remote_sizes=store.list_sizes(CONFIG.prefix))
+
+    assert [e.path for e in shared.upload] == [e.path for e in fetched.upload]
+    assert [e.path for e in shared.already_present] == [e.path for e in fetched.already_present]
+    assert [e.path for e in shared.mismatched] == [e.path for e in fetched.mismatched]
+    assert shared.upload, "the fixture should leave something to upload"
+
+
+def test_a_shared_listing_means_the_bucket_is_not_enumerated_again(tmp_path: Path) -> None:
+    landing = _landing(tmp_path, days=2)
+    store = CountingStore()
+    listing = store.list_sizes(CONFIG.prefix)
+    store.listings.clear()
+
+    plan_sync(landing, store, CONFIG, remote_sizes=listing)
+    assert store.listings == [], "a caller supplying the listing must not trigger another"
+
+    plan_sync(landing, store, CONFIG)
+    assert store.listings == [CONFIG.prefix], "without one it must still fetch"
+
+
+def test_sync_uploads_concurrently_without_losing_failures(tmp_path: Path) -> None:
+    """Every entry is attempted, and one refusal does not take the rest down.
+
+    The loop became a thread pool. A pool that swallowed an exception would
+    report a clean sync while objects were missing, which is the failure this
+    mirror exists to prevent.
+    """
+    landing = _landing(tmp_path, days=6)
+    store = FakeStore()
+    doomed = object_key(CONFIG.prefix, list(landing.entries().values())[2])
+    store.fail_on = {doomed}
+
+    result = sync(landing, store, CONFIG)
+
+    assert len(result.failed) == 1
+    assert doomed.split("/")[-1] in result.failed[0]
+    assert result.uploaded == 5, "the other five must still be up"
+    assert len(store.puts) == 5
+
+
+def test_sync_reports_failures_in_landing_order(tmp_path: Path) -> None:
+    """`pool.map` preserves input order, so a re-run reads the same way."""
+    landing = _landing(tmp_path, days=6)
+    store = FakeStore()
+    keys = [object_key(CONFIG.prefix, e) for e in landing.entries().values()]
+    store.fail_on = {keys[4], keys[1]}
+
+    result = sync(landing, store, CONFIG)
+
+    assert len(result.failed) == 2
+    first, second = (p.split(":")[0] for p in result.failed)
+    order = [e.path for e in landing.entries().values()]
+    assert order.index(first) < order.index(second)
+
+
+def test_sync_survives_a_file_that_vanished_after_planning(tmp_path: Path) -> None:
+    """A read failure is one object's problem, not the run's.
+
+    The read sat outside the try, so a file deleted between the plan and the
+    upload raised out of the pool and took every other upload with it — while
+    the comment beside it promised one bad object could not abort the sync.
+    """
+    landing = _landing(tmp_path, days=5)
+    store = FakeStore()
+    doomed = list(landing.entries().values())[2]
+    (landing.root / doomed.path).unlink()
+
+    result = sync(landing, store, CONFIG)
+
+    assert result.uploaded == 4, "the four readable entries must still land"
+    assert len(result.failed) == 1
+    assert doomed.path in result.failed[0]
+
+
+def test_sync_reports_the_keys_it_uploaded(tmp_path: Path) -> None:
+    """A listing taken before the sync, plus these, is the state after it."""
+    landing = _landing(tmp_path, days=3)
+    store = FakeStore()
+    result = sync(landing, store, CONFIG)
+
+    assert sorted(result.uploaded_keys) == sorted(store.puts)
+    assert len(result.uploaded_keys) == result.uploaded
+
+
+def test_uploaded_keys_excludes_what_failed(tmp_path: Path) -> None:
+    """Priming with a key that never landed would invent a file."""
+    landing = _landing(tmp_path, days=4)
+    store = FakeStore()
+    doomed = object_key(CONFIG.prefix, list(landing.entries().values())[1])
+    store.fail_on = {doomed}
+
+    result = sync(landing, store, CONFIG)
+
+    assert doomed not in result.uploaded_keys
+    assert len(result.uploaded_keys) == 3
+
+
+# --- upload retry -----------------------------------------------------------
+
+
+class FlakyClient:
+    """A boto3 client stub that drops the connection a set number of times."""
+
+    def __init__(self, drops: int, error: Exception | None = None) -> None:
+        self.drops = drops
+        self.calls = 0
+        from botocore.exceptions import ConnectionClosedError
+
+        self.error = error or ConnectionClosedError(endpoint_url="https://b2.invalid")
+
+    def put_object(self, **kwargs: object) -> dict[str, str]:
+        self.calls += 1
+        if self.calls <= self.drops:
+            raise self.error
+        return {"ETag": "ok"}
+
+
+def test_a_dropped_connection_is_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The failure that broke a nightly run: 48 files, connection closed.
+
+    botocore's own three attempts were not enough on that link, and one
+    dropped upload exited `sync-cloud` non-zero and failed the whole job.
+    """
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    client = FlakyClient(drops=2)
+    _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == 3, "it must keep trying past a transient drop"
+
+
+def test_it_gives_up_rather_than_retrying_forever(monkeypatch: pytest.MonkeyPatch) -> None:
+    from botocore.exceptions import ConnectionClosedError
+
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    client = FlakyClient(drops=99)
+    with pytest.raises(ConnectionClosedError):
+        _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == cloud.UPLOAD_ATTEMPTS
+
+
+def test_a_credentials_error_is_not_retried(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Retrying a 403 turns a clear error into a slow one."""
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    denied = ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+    client = FlakyClient(drops=99, error=denied)
+    with pytest.raises(ClientError):
+        _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == 1, "a permission failure must surface on the first try"
+
+
+def test_a_successful_upload_makes_one_call(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cloud, "UPLOAD_BACKOFF", 0)
+    client = FlakyClient(drops=0)
+    _store_with(client).put("k", b"payload", "sha")
+    assert client.calls == 1

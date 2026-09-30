@@ -124,7 +124,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     modes = ("replication", "realistic") if args.compare else (args.cost_mode,)
     results = []
     for mode in modes:
-        result = run(rows, strategy, rebalance_every=args.rebalance, cost_mode=mode)
+        result = run(
+            rows, strategy, rebalance_every=args.rebalance, cost_mode=mode, asset_class="equity"
+        )
         results.append(result)
         print(render(result))
 

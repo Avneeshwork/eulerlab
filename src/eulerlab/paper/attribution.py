@@ -286,7 +286,12 @@ def compare(
     """
     index = build_adjusted_index(rows)
     backtest = event_driven.run(
-        rows, strategy, rebalance_every=rebalance, warmup=warmup, adjusted_index=index
+        rows,
+        strategy,
+        rebalance_every=rebalance,
+        warmup=warmup,
+        adjusted_index=index,
+        asset_class="equity",
     )
 
     for name in ("orders.jsonl", "paper_broker.json", "KILL_SWITCH"):

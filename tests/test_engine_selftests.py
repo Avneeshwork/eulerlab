@@ -70,22 +70,27 @@ def test_skipping_the_cost_on_sells_is_caught(monkeypatch: pytest.MonkeyPatch) -
     original = vector._costs_for
 
     def buy_only(
-        day: object, price: object, quantity: object, side: object, brokerage: object
+        day: object,
+        price: object,
+        quantity: object,
+        side: object,
+        brokerage: object,
+        asset_class: object,
     ) -> float:
         if side is Side.SELL:
             return 0.0
-        return original(day, price, quantity, side, brokerage)  # type: ignore[arg-type]
+        return original(day, price, quantity, side, brokerage, asset_class)  # type: ignore[arg-type]
 
     monkeypatch.setattr(vector, "_costs_for", buy_only)
     # Cash conservation still holds (fills agree with cash), but the zero-alpha
     # identity is unaffected too - so this must be caught by comparing against
     # an engine that charges correctly.
     broken = event_driven.run(
-        selftest.flat_world(), selftest.Churn(5), warmup=60, rebalance_every=7
+        selftest.flat_world(), selftest.Churn(5), warmup=60, rebalance_every=7, asset_class="equity"
     )
     monkeypatch.undo()
     correct = event_driven.run(
-        selftest.flat_world(), selftest.Churn(5), warmup=60, rebalance_every=7
+        selftest.flat_world(), selftest.Churn(5), warmup=60, rebalance_every=7, asset_class="equity"
     )
     assert broken.total_cost < correct.total_cost
 

@@ -70,7 +70,8 @@ help:
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo ""
 	@echo "  -- order path (sprints 19-28) --"
-	@echo "  make tweezer [SYMBOLS=A,B FROM=... TO=...]  intraday Tweezer Bottom scan"
+	@echo "  make tweezer [UNIVERSE=nifty50|nifty100|nifty250] [DAY=YYYY-MM-DD]"
+	@echo "                    intraday Tweezer Bottom scan; defaults to nifty50"
 	@echo "  make montecarlo [FEATURE=... DAYS=n]  drawdown path risk + Sharpe interval"
 	@echo "  make chaos        kill it mid-order and check it tells the truth"
 	@echo "  make kill-status  is the kill switch tripped, and why"
@@ -227,7 +228,7 @@ acceptance:
 	@uv run python tools/acceptance.py $(if $(ALL),--all,)
 
 tweezer:
-	@uv run python -m eulerlab.intraday.scan $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(PRUNE),--prune,)
+	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
 
 montecarlo:
 	@uv run python -m eulerlab.validation.montecarlo_run $(if $(FEATURE),--feature $(FEATURE),) $(if $(DAYS),--days $(DAYS),) $(if $(SIMS),--simulations $(SIMS),)
@@ -251,6 +252,20 @@ attribution:
 reconcile-book:
 	@uv run python -m eulerlab.oms.book
 
+# Is the Kite token from today, or from a day the market has since moved past?
+#
+# The token expires at 6 AM and reminting it needs an interactive login, so an
+# unattended job cannot renew it. Checking first turns "the minute ingest
+# silently did nothing" into a line in the log that names the cause — which is
+# the difference between noticing on the day and noticing in a month.
+kite-fresh:
+	@uv run python -c "import datetime as d, sys; from eulerlab.broker.kite_session import load; s = load(); 	  sys.exit(0) if s and d.datetime.fromisoformat(s.minted_at).date() == d.datetime.now(d.UTC).date() 	  else (print('kite token is stale or absent - run: make kite-login'), sys.exit(1))"
+
+# Minute bars for the last few sessions. NOT a backfill: --years 5 is a one-off
+# of ~13,500 chunks, this keeps the tail current.
+daily-minute:
+	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
+
 daily:
 	@echo "== EOD bhavcopy =="
 	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
@@ -258,6 +273,185 @@ daily:
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
 	@echo "== fundamentals =="
 	-uv run python -m eulerlab.fundamentals.backfill
+	@echo "== mutual fund NAVs =="
+	-uv run python -m eulerlab.ingest.mf_backfill --snapshot-only
+	@echo "== economic calendar =="
+	-uv run python -m eulerlab.ingest.forexfactory
+	@echo "== minute bars (needs a token minted today) =="
+	-$(MAKE) --no-print-directory daily-minute
+	@echo "== crypto (Binance public archive, no auth) =="
+	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
+	@echo "== crypto month-end gap (Binance daily archive) =="
+	-uv run python -m eulerlab.ingest.crypto_fill
+	@echo "== FX (FXCM weekly candles) =="
+	-uv run python -m eulerlab.ingest.fx_bulk_backfill --from-year $$(date +%Y)
+	@echo "== per-instrument news (equity, crypto, FX) =="
+	-uv run python -m eulerlab.ingest.news
+	@echo "== index levels, movers, sectors =="
+	-uv run python -m eulerlab.indices
+	@echo "== US bars, actions, news =="
+	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars(s, start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
+	@echo "== US panel =="
+	-$(MAKE) --no-print-directory build-us-panel
 	@echo "== sync and prune =="
 	$(MAKE) sync-cloud
+	@echo "== price panel =="
+	-$(MAKE) --no-print-directory build-panel
 	$(MAKE) prune-local
+	@echo "== landing census =="
+	-$(MAKE) --no-print-directory manifest
+
+# Mutual fund NAVs. --snapshot-only is what `daily` runs (one request, the
+# whole universe); the full history backfill is ~14,000 requests and is a
+# one-off, so it is not in the daily path.
+mf-ingest:
+	@uv run python -m eulerlab.ingest.mf_backfill $(if $(SNAPSHOT),--snapshot-only,) $(if $(LIMIT),--limit $(LIMIT),) $(if $(PACE),--pace $(PACE),)
+
+# Morningstar star / medalist ratings — the one thing AMFI does not publish.
+# Reports how far the name-based join to AMFI reaches, every run, because that
+# compromise should stay visible (ADR-039).
+morningstar:
+	@uv run python -m eulerlab.ingest.morningstar_run $(if $(PACE),--pace $(PACE),) $(if $(NOJOIN),--no-join,)
+
+# Minute-level crypto from Binance's bulk archive. NOT ccxt: five years of 1m
+# bars for 20 coins is ~52,000 paginated REST calls versus ~1,200 monthly ZIPs.
+# FX minute bars from Dukascopy's public tick feed. Resumable: a day already on
+# disk costs no requests, so run it repeatedly rather than once for ten years.
+fx:
+	@uv run python -m eulerlab.ingest.fx_backfill $(if $(PAIRS),--pairs $(PAIRS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(LIMIT),--limit $(LIMIT),)
+
+# FX in bulk from FXCM's weekly candle files. This is the backfill path; `make
+# fx` (Dukascopy, per hour) is 100x slower and kept only as a second opinion.
+# Sector, market cap and headline ratios, reduced from the fundamentals tree to
+# one small JSON. 2,353 Parquet files is far too slow for a screen that should
+# feel instant.
+# The ForexFactory weekly calendar. History has to be accumulated - the feed
+# publishes one week and has no past endpoint - so this runs daily and merges.
+calendar:
+	@uv run python -m eulerlab.ingest.forexfactory
+
+news:
+	@uv run python -m eulerlab.ingest.news
+
+# Counts every landing tree once, so the capability matrix never lists the
+# bucket to render. Runs at the end of `daily`, after the sync has settled.
+# One sweep of index levels, movers and sector performance. Landed rather than
+# fetched per page render: a sweep is 29 FMP calls against a 250/day free
+# budget, so rendering it live would spend the day's allowance before lunch.
+# Fills the window the monthly archive does not cover yet. Binance publishes
+# months after they end, so without this the corpus stops at the last
+# month-end however often the backfill runs.
+crypto-fill:
+	@uv run python -m eulerlab.ingest.crypto_fill $(if $(SINCE),--since=$(SINCE),)
+
+# US market data from Alpaca. The S&P snapshot is landed dated and used for
+# labelling only — ADR-008 rejects published index membership for selecting a
+# backtest universe, because today's list applied across history drops
+# everything that was removed.
+us-sp500:
+	@uv run python -c "from eulerlab.ingest import alpaca; n,e=alpaca.land_sp500(); print(f'{n} constituents{chr(32)}{e}')"
+
+us-bars:
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); w,n,e=alpaca.land_bars(s, start='$(FROM)' or '2016-01-01'); print(f'{w} symbols, {n:,} bars {e}')"
+
+# Fetch, sync and prune a batch at a time: the full window is ~3 GB against
+# ~4 GB of free disk, so landing it all and syncing afterwards would run out.
+us-minute:
+	@uv run python -m eulerlab.ingest.us_minute $(if $(LIMIT),--limit $(LIMIT),) $(if $(FROM),--start $(FROM),) $(if $(BATCH),--batch $(BATCH),)
+
+# Delta's own candles. Held even though the venue difference is immaterial —
+# measured 2026-08-25, Delta's BTCUSD perpetual and Binance's BTCUSDT spot
+# agree within 0.026% on daily closes against a 0.118% round-trip fee.
+delta-candles:
+	@uv run python -c "from eulerlab.ingest import delta; n,e=delta.land_candles(); print(f'{n:,} rows {e}')"
+
+# The derived US panel the snapshot reads. Built once from the landed bars —
+# 36,446 monthly files live in B2, and touching them per request is the
+# mistake this platform has made twice already.
+# Sweep every strategy on the market its paper tested. NOT in `daily`: every
+# configuration evaluated is permanent and raises the deflated-Sharpe bar for
+# every result this platform will ever produce, so it runs when an operator
+# asks for it and never on a timer.
+#
+#   make optimize DRY=1        evaluate without spending trials
+#   make optimize ONLY=orb_breakout
+optimize:
+	@uv run python -m eulerlab.optimize_run $(if $(DRY),--dry-run,) $(if $(ONLY),--only $(ONLY),) $(if $(FROM),--start $(FROM),) $(if $(TO),--end $(TO),)
+
+# Run every swept strategy once on the parameters it actually uses, and cache
+# the result the library shows. Spends no trials: it re-runs only settings a
+# recorded sweep already contains.
+adopted-results:
+	@uv run python -m eulerlab.adopted_run $(if $(ONLY),--only $(ONLY),)
+
+# Run every strategy on US equity, whatever market its paper used. Asks whether
+# a signal works on QQQ at all, which for the ten crypto signals is a question
+# nothing here has answered. Spends one trial per strategy: a signal on a new
+# instrument is a new configuration.
+us-all:
+	@uv run python -m eulerlab.us_all_run $(if $(ONLY),--only $(ONLY),)
+
+# Walk-forward a strategy's sweep and estimate its probability of backtest
+# overfitting. Spends no trials: candidates are evaluated once and the sessions
+# re-partitioned. `make walk STRATEGY=ou_reversion_in`
+walk:
+	@uv run python -m eulerlab.walk_run $(STRATEGY)
+
+# Keep one stored run per strategy — the adopted one — and drop superseded
+# payloads. The *count* each keeper stands in for is preserved, so the
+# selection-bias denominator is unchanged. Dry by default; --apply to write.
+prune-runs:
+	@uv run python -m eulerlab.prune_runs $(if $(APPLY),--apply,)
+
+# Where every result and trial lives, and which of them the noise bar is
+# charged for. Read-only.
+evidence:
+	@uv run python -m eulerlab.evidence
+
+build-us-panel:
+	@uv run python -m eulerlab.features.us_panel
+
+us-actions:
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); n,e=alpaca.land_actions(s, start='2016-01-01'); print(f'{n:,} rows {e}')"
+
+us-news:
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); n,e=alpaca.land_news(s, start='2026-06-01'); print(f'{n:,} rows {e}')"
+
+world:
+	@uv run python -m eulerlab.indices
+
+manifest:
+	@uv run python -m eulerlab.ingest.manifest
+
+fmp-probe:
+	@uv run python -m eulerlab.ingest.fmp --probe
+
+fmp-news:
+	@uv run python -m eulerlab.ingest.fmp
+
+company-digest:
+	@uv run python -c "from eulerlab.features import company; d=company.build_digest(); p=company.save_digest(d); print(f'{len(d):,} companies -> {p}')"
+
+fx-bulk:
+	@uv run python -m eulerlab.ingest.fx_bulk_backfill $(if $(PAIRS),--pairs $(PAIRS),) $(if $(FROM),--from-year $(FROM),) $(if $(TO),--to-year $(TO),)
+
+crypto:
+	@uv run python -m eulerlab.ingest.crypto_backfill $(if $(COINS),--coins $(COINS),) $(if $(YEARS),--years $(YEARS),) $(if $(PACE),--pace $(PACE),) $(if $(VERIFY),--verify,) $(if $(UNIVERSE),--universe-only,)
+
+# Is the archive worth trusting? Internal coherence always; the Coinbase
+# cross-check needs `uv sync --extra crypto`.
+check-crypto:
+	@uv run python -m eulerlab.quality.crypto_check $(if $(NOCROSS),--no-cross,) $(if $(SYMBOLS),--symbols $(SYMBOLS),)
+
+# Install / inspect the launchd job that actually runs `make daily`.
+schedule:
+	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)
+
+# The project's own auditor: defect shapes this codebase actually produces,
+# a smoke run of every registered strategy, and the strategy-to-file map.
+# REVIEW=1 adds an advisory model pass over the working diff.
+audit:
+	@uv run python -m eulerlab.audit $(if $(REVIEW),--review,) $(if $(PROVIDER),--provider $(PROVIDER),)
+
+audit-strategies:
+	@uv run python -m eulerlab.audit --inventory

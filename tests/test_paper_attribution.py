@@ -78,7 +78,9 @@ def test_the_paper_path_actually_placed_the_orders(tmp_path: Path) -> None:
     run that traded nothing would also match a backtest that traded nothing."""
     rows = _panel()
     oms = runner.fresh_oms(tmp_path)
-    outcome = runner.run(rows, BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30)
+    outcome = runner.run(
+        rows, BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30, asset_class="equity"
+    )
     assert outcome.executor.submitted > 0
     assert len(outcome.result.fills) > 0
     assert oms.adapter.positions()
@@ -91,7 +93,12 @@ def test_the_executor_is_the_only_difference(tmp_path: Path) -> None:
     rows = _panel()
     index = build_adjusted_index(rows)
     plain = event_driven.run(
-        rows, BuyAndHold(top_n=6), rebalance_every=20, warmup=30, adjusted_index=index
+        rows,
+        BuyAndHold(top_n=6),
+        rebalance_every=20,
+        warmup=30,
+        adjusted_index=index,
+        asset_class="equity",
     )
     explicit = event_driven.run(
         rows,
@@ -99,7 +106,8 @@ def test_the_executor_is_the_only_difference(tmp_path: Path) -> None:
         rebalance_every=20,
         warmup=30,
         adjusted_index=index,
-        executor=SimulatedExecutor(),
+        executor=SimulatedExecutor(asset_class="equity"),
+        asset_class="equity",
     )
     assert plain.equity == explicit.equity
 
@@ -132,10 +140,20 @@ def test_a_missing_term_would_be_caught() -> None:
     rows = _panel()
     index = build_adjusted_index(rows)
     backtest = event_driven.run(
-        rows, BuyAndHold(top_n=6), rebalance_every=20, warmup=30, adjusted_index=index
+        rows,
+        BuyAndHold(top_n=6),
+        rebalance_every=20,
+        warmup=30,
+        adjusted_index=index,
+        asset_class="equity",
     )
     faked = event_driven.run(
-        rows, BuyAndHold(top_n=4), rebalance_every=20, warmup=30, adjusted_index=index
+        rows,
+        BuyAndHold(top_n=4),
+        rebalance_every=20,
+        warmup=30,
+        adjusted_index=index,
+        asset_class="equity",
     )
     result = attribution.attribute(backtest, faked, marks={})
     assert not result.closes, "an unexplained gap was reported as closing"
@@ -155,7 +173,7 @@ def test_a_paper_run_recovers_before_it_trades(tmp_path: Path) -> None:
     top is how a bad morning becomes a bad week."""
     rows = _panel()
     oms = runner.fresh_oms(tmp_path, faults=PaperFaults(unreachable_on_place=1))
-    runner.run(rows, BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30)
+    runner.run(rows, BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30, asset_class="equity")
     assert oms.unresolved() == [], "an order was left UNKNOWN across the run"
 
 
@@ -164,14 +182,18 @@ def test_a_paper_run_is_repeatable(tmp_path: Path) -> None:
     equities = []
     for name in ("a", "b"):
         oms = runner.fresh_oms(tmp_path / name)
-        outcome = runner.run(rows, BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30)
+        outcome = runner.run(
+            rows, BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30, asset_class="equity"
+        )
         equities.append(outcome.result.equity)
     assert equities[0] == equities[1]
 
 
 def test_the_paper_report_names_the_simulation(tmp_path: Path) -> None:
     oms = runner.fresh_oms(tmp_path)
-    outcome = runner.run(_panel(), BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30)
+    outcome = runner.run(
+        _panel(), BuyAndHold(top_n=6), oms=oms, rebalance=20, warmup=30, asset_class="equity"
+    )
     assert "paper run" in outcome.render()
     assert outcome.result.final_equity == pytest.approx(outcome.result.final_equity)
 

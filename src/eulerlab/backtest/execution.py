@@ -63,10 +63,15 @@ class SimulatedExecutor:
         self,
         *,
         cost_mode: str = "realistic",
+        asset_class: str,
         brokerage: Brokerage | None = None,
         cost_multiplier: float = 1.0,
     ) -> None:
         self.cost_mode = cost_mode
+        # Required, not defaulted. The venue decides the bill, and a default
+        # here is how US trades came to be charged Indian delivery costs while
+        # the routing code above them said otherwise.
+        self.asset_class = asset_class
         self.brokerage = brokerage
         self.cost_multiplier = cost_multiplier
 
@@ -83,7 +88,9 @@ class SimulatedExecutor:
         cost = (
             0.0
             if self.cost_mode == "replication"
-            else vector._costs_for(day, price, order.quantity, order.side, self.brokerage)
+            else vector._costs_for(
+                day, price, order.quantity, order.side, self.brokerage, self.asset_class
+            )
             * self.cost_multiplier
         )
         return Fill(

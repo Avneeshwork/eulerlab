@@ -1,0 +1,2473 @@
+/* Terminal layout. Tokens live in tokens.css; this file spends them.
+ *
+ * Built from the Robinhood reference (docs/RESEARCH/018): structural
+ * whitespace, one precise sans against one warm serif, big numbers, and
+ * progressive disclosure — a row shows little and opens to show the rest.
+ *
+ * Two inversions, both deliberate:
+ *   1. Their hero number is your money. Here it is the noise bar — the number a
+ *      strategy has to beat — because that is what actually decides anything.
+ *   2. Their accent tracks profit. Here it tracks evidence. See tokens.css.
+ */
+
+.terminal {
+  min-height: 100vh;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+}
+.terminal *,
+.terminal *::before,
+.terminal *::after { box-sizing: border-box; }
+
+.terminal :focus-visible {
+  outline: 2px solid var(--clear);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ============================ top bar ============================ */
+
+.tbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  padding: 0 var(--s5);
+  height: 60px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.tbrand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--t-lead);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+/* The mark: an upward tick in the accent. The reference reduced its own symbol
+   to the arrow inside the feather; this is that idea at 12px. */
+.tmark {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: var(--neon);
+  display: grid;
+  place-items: center;
+  color: #12160b;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tnav { display: flex; gap: 2px; margin-left: var(--s4); align-self: stretch; }
+.tnav button {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--t-small);
+  font-weight: 500;
+  padding: var(--s2) var(--s3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.tnav button { border-radius: 0; }
+.tnav button:hover:not(:disabled) { color: var(--ink); }
+.tnav button:disabled { cursor: not-allowed; opacity: 0.45; }
+.tnav button[aria-current='page'] { color: var(--ink); font-weight: 600; }
+.tnav button[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: var(--s3);
+  right: var(--s3);
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+}
+
+.tright { margin-left: auto; display: flex; align-items: center; gap: var(--s2); }
+
+.tws {
+  font-size: var(--t-micro);
+  font-weight: 500;
+  color: var(--ink-3);
+  padding: var(--s1) var(--s2);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.tws b { color: var(--ink-2); font-weight: 600; }
+
+.tcmd {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font: inherit;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-pill);
+  padding: var(--s2) var(--s3) var(--s2) var(--s3);
+  background: var(--surface);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.tcmd:hover { border-color: var(--ink-4); color: var(--ink-2); }
+.tcmd kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+
+.ticon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  transition: border-color 0.15s ease;
+}
+.ticon:hover { border-color: var(--ink-4); }
+
+/* ============================ page shell ============================ */
+
+.tpage {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: var(--s6) var(--s5) var(--s8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* ============================ the hero ============================
+   Robinhood opens on one big number. Theirs is the portfolio value. Ours is the
+   bar, because the bar is the only number on this page that decides anything —
+   and putting a strategy's return here instead is precisely the move that turns
+   a research tool into a slot machine. */
+
+.thero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s6);
+  align-items: end;
+  padding: var(--s6) 0 var(--s5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.theyebrow {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: var(--s3);
+}
+
+.thnum {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+.thnum b {
+  font-size: var(--t-hero);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+}
+.thnum .unit {
+  font-family: var(--serif);
+  font-size: var(--t-head);
+  font-style: italic;
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.thsub {
+  font-family: var(--serif);
+  font-size: var(--t-lead);
+  line-height: 1.45;
+  color: var(--ink-2);
+  max-width: var(--measure);
+  margin-top: var(--s3);
+  text-wrap: pretty;
+}
+
+/* The stat rail. Four figures, mono, tabular, right of the hero. */
+.thstats {
+  display: flex;
+  gap: var(--s6);
+  padding-bottom: var(--s2);
+}
+.thstat { display: flex; flex-direction: column; gap: var(--s1); }
+.thstat span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.thstat b {
+  font-size: var(--t-head);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.thstat b.on { color: var(--clear); }
+
+/* ============================ notes ============================ */
+
+.tnote {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--ink-2);
+  background: var(--caveat-wash);
+  border: 1px solid color-mix(in srgb, var(--caveat) 26%, transparent);
+  border-radius: var(--r-md);
+  padding: var(--s3) var(--s4);
+}
+.tnote.bad { background: var(--fail-wash); border-color: color-mix(in srgb, var(--fail) 26%, transparent); }
+.tnote b { color: var(--ink); font-weight: 600; }
+.tnote .mk { color: var(--caveat); font-weight: 700; flex: none; }
+.tnote.bad .mk { color: var(--fail); }
+
+/* ============================ toolbar ============================ */
+
+.ttools {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tsearch {
+  flex: 1 1 260px;
+  min-width: 200px;
+  font: inherit;
+  font-size: var(--t-body);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color 0.15s ease;
+}
+.tsearch::placeholder { color: var(--ink-4); }
+.tsearch:focus { outline: none; border-color: var(--ink); }
+
+.tchip {
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 500;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.tchip:hover { border-color: var(--ink-4); }
+.tchip[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+}
+
+.tsort {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tsort select {
+  font: inherit;
+  font-size: var(--t-small);
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-pill);
+  padding: var(--s2) var(--s3);
+  cursor: pointer;
+}
+
+/* ============================ the list ============================
+   Not a table. A stack of modular rows sharing one grid template, so columns
+   still align but a row can open into a detail panel underneath itself. */
+
+.tlist { display: flex; flex-direction: column; gap: var(--s2); }
+
+.tcols,
+.trow-top {
+  display: grid;
+  grid-template-columns:
+    26px minmax(180px, 1fr) 148px 146px minmax(140px, 168px) 178px;
+  gap: var(--s4);
+  align-items: center;
+}
+
+.tmeta { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+
+.tcols {
+  padding: 0 var(--s4) var(--s2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tcols .r { text-align: right; }
+
+.trow {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.trow:hover { border-color: var(--rule-2); box-shadow: var(--shadow); }
+.trow[data-open='true'] { border-color: var(--ink-4); box-shadow: var(--shadow-lift); }
+
+.trow-top {
+  padding: var(--s4);
+  cursor: pointer;
+}
+.trow-top input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.tname { min-width: 0; }
+.tname .nm {
+  font-size: var(--t-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tname .sub {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* ---- the number, and what it was the best of ----
+   These sit in one cell on purpose. results.py makes it impossible to obtain a
+   best result without its denominator; this is the same rule expressed in the
+   layout, so the figure cannot be read alone even at a glance. */
+
+.tnum { text-align: right; font-variant-numeric: tabular-nums; }
+.tnum .big {
+  font-size: var(--t-title);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  display: block;
+}
+/* The accent, spent here and almost nowhere else. */
+.tnum .big.clear { color: var(--clear); }
+.tnum .big.none { font-size: var(--t-body); font-weight: 500; color: var(--ink-4); letter-spacing: 0; }
+.tnum .foot {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* The bar, drawn. A meter is faster to read than two numbers, and the position
+   of the tick is the whole argument. */
+.tmeter {
+  position: relative;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  margin-top: var(--s2);
+  overflow: hidden;
+}
+.tmeter i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--ink-4);
+  border-radius: 2px;
+}
+.tmeter i.clear { background: var(--clear); }
+.tmeter u {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.75;
+}
+
+.truns {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-body);
+  font-weight: 500;
+}
+.truns .mx {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--caveat);
+  margin-top: 1px;
+}
+.ttrials {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-body);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.tdim { color: var(--ink-4); }
+
+/* ---- evidence pill ---- */
+
+.tpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rule-2);
+  color: var(--ink-2);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.tpill::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.tpill[data-stage='live'] { color: var(--clear); border-color: color-mix(in srgb, var(--clear) 40%, transparent); background: var(--clear-wash); }
+.tpill[data-stage='forward_testing'] { color: var(--caveat); border-color: color-mix(in srgb, var(--caveat) 34%, transparent); background: var(--caveat-wash); }
+.tpill[data-stage='retired'] { color: var(--ink-4); }
+
+.ttag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+
+.tflag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fail);
+  background: var(--fail-wash);
+  border-radius: 4px;
+  padding: 2px 5px;
+}
+
+/* ---- the opened panel ---- */
+
+.tdetail {
+  border-top: 1px solid var(--rule);
+  padding: var(--s5) var(--s4) var(--s4) calc(26px + var(--s4) * 2);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+  gap: var(--s6);
+  animation: topen 0.18s ease;
+}
+@keyframes topen {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tdetail { animation: none; }
+}
+
+.tdesc {
+  font-family: var(--serif);
+  font-size: var(--t-lead);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+.tfacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  gap: var(--s4) var(--s5);
+  margin-top: var(--s5);
+}
+.tfact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tfact span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tfact b {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+.tfact b.neg { color: var(--fail); }
+.tfact b.dim { color: var(--ink-4); font-weight: 500; }
+
+.tside { display: flex; flex-direction: column; gap: var(--s3); }
+.tcaveat {
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--ink-2);
+  background: var(--caveat-wash);
+  border: 1px solid color-mix(in srgb, var(--caveat) 26%, transparent);
+  border-radius: var(--r-md);
+  padding: var(--s3) var(--s4);
+}
+.tcaveat h4 {
+  margin: 0 0 var(--s2);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--caveat);
+}
+
+.tacts { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.tbtn {
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 600;
+  padding: var(--s2) var(--s4);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--rule-2);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tbtn:hover:not(:disabled) { border-color: var(--ink); }
+.tbtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.tbtn.go { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.tbtn.go:hover:not(:disabled) { background: var(--ink-2); border-color: var(--ink-2); }
+
+/* ============================ selection bar ============================
+   Appears only when rows are selected. The price of the run is stated on the
+   bar itself, before the click, because an interface that makes running feel
+   free is how somebody spends fifty trials in an afternoon. */
+
+.tsel {
+  position: sticky;
+  bottom: var(--s4);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  margin-top: var(--s2);
+  padding: var(--s3) var(--s3) var(--s3) var(--s5);
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--ground);
+  box-shadow: var(--shadow-lift);
+  animation: tup 0.2s ease;
+}
+@keyframes tup {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .tsel { animation: none; } }
+.tsel b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.tsel .price {
+  margin-left: auto;
+  font-size: var(--t-small);
+  opacity: 0.72;
+}
+.tsel .tbtn {
+  background: var(--neon);
+  border-color: var(--neon);
+  color: #12160b;
+}
+.tsel .tbtn:hover:not(:disabled) { background: #d3ff5c; border-color: #d3ff5c; }
+.tsel .ghost {
+  background: none;
+  border-color: color-mix(in srgb, var(--ground) 34%, transparent);
+  color: var(--ground);
+}
+.tsel .ghost:hover:not(:disabled) { border-color: var(--ground); }
+
+.tempty {
+  padding: var(--s8) var(--s5);
+  text-align: center;
+  color: var(--ink-3);
+  font-family: var(--serif);
+  font-size: var(--t-lead);
+}
+
+/* ============================ command palette ============================ */
+
+.pal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: color-mix(in srgb, var(--ink) 34%, transparent);
+  backdrop-filter: blur(3px);
+  display: flex;
+  justify-content: center;
+  padding-top: 14vh;
+}
+.pal {
+  width: min(620px, 92vw);
+  height: fit-content;
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+.pal-input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--t-head);
+  letter-spacing: -0.02em;
+  padding: var(--s5);
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  background: none;
+  color: var(--ink);
+}
+.pal-input:focus { outline: none; }
+.pal-input::placeholder { color: var(--ink-4); }
+.pal-list { max-height: 46vh; overflow-y: auto; padding: var(--s2); }
+.pal-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: var(--t-body);
+}
+.pal-row[aria-selected='true'] { background: var(--surface-2); }
+.pal-kind {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  background: var(--surface-3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  flex: none;
+  width: 52px;
+  text-align: center;
+}
+.pal-meta { margin-left: auto; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; }
+.pal-hint {
+  padding: var(--s3) var(--s5);
+  border-top: 1px solid var(--rule);
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  background: var(--surface-2);
+}
+
+/* ============================ responsive ============================ */
+
+@media (max-width: 1080px) {
+  .tcols { display: none; }
+  .trow-top {
+    grid-template-columns: 26px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'sel name num'
+      'sel meta num'
+      'sel acts acts';
+    row-gap: var(--s3);
+    align-items: start;
+  }
+  .trow-top > .c-sel { grid-area: sel; padding-top: 3px; }
+  .trow-top > .tname { grid-area: name; }
+  .trow-top > .tmeta { grid-area: meta; }
+  .trow-top > .tnum { grid-area: num; align-self: center; }
+  .trow-top > .tacts-cell { grid-area: acts; justify-content: flex-start; }
+  .trow-top > .tgraph,
+  .trow-top > .c-hide { display: none; }
+  .tdetail { grid-template-columns: minmax(0, 1fr); padding-left: var(--s4); }
+  .thero { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .thstats { flex-wrap: wrap; gap: var(--s5); }
+}
+@media (max-width: 720px) {
+  .tbar { gap: var(--s3); padding: 0 var(--s4); }
+  .tnav { display: none; }
+  .tpage { padding: var(--s4) var(--s4) var(--s8); }
+  .terminal { --t-hero: 40px; --t-title: 26px; }
+}
+
+
+/* ============================ graph cell ============================
+   The real equity path of the best stored run. A strategy that has never run
+   draws nothing: a flat line would be a picture of a run that did not happen,
+   and a generated squiggle would be worse. */
+
+.tgraph { display: flex; align-items: center; min-width: 0; }
+.sparkempty {
+  display: block;
+  width: 132px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--rule-2) 0 3px, transparent 3px 7px);
+}
+.spark { overflow: visible; }
+.spark-fill { fill: var(--ink); opacity: 0.07; }
+.spark-line { stroke: var(--ink-2); stroke-width: 1.4; stroke-linejoin: round; }
+.spark-base { stroke: var(--rule-2); stroke-width: 1; stroke-dasharray: 2 3; }
+.spark-end { fill: var(--ink); }
+.spark.clear .spark-fill { fill: var(--clear); opacity: 0.16; }
+.spark.clear .spark-line { stroke: var(--clear); }
+.spark.clear .spark-end { fill: var(--clear); }
+
+/* ============================ row actions ============================ */
+
+.tacts-cell { display: flex; gap: var(--s2); justify-content: flex-end; }
+
+.tbtn.sm { padding: 5px var(--s3); font-size: var(--t-micro); }
+.tbtn.ghost-line { background: none; }
+
+/* ============================ panels ============================ */
+
+.tgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--s4);
+  align-items: start;
+}
+
+.tpanel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  padding: var(--s5);
+  min-width: 0;
+}
+.tpanel h3 {
+  margin: 0 0 var(--s4);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.tfine {
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--ink-3);
+  max-width: var(--measure);
+}
+.tfine code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--surface-2);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.trunning {
+  font-family: var(--mono);
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: var(--s3) var(--s4);
+}
+
+/* ============================ plain tables ============================ */
+
+.ttable { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
+.ttable th {
+  text-align: left;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 var(--s3) var(--s2);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+}
+.ttable td {
+  padding: var(--s3);
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.ttable tr:last-child td { border-bottom: 0; }
+.ttable .r { text-align: right; font-variant-numeric: tabular-nums; }
+.ttable b { font-weight: 600; }
+.ttable .neg { color: var(--fail); }
+
+.tscroll { overflow: auto; }
+
+/* ============================ forms ============================ */
+
+.tform { display: flex; flex-direction: column; gap: var(--s4); }
+.tform label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.tform input,
+.tform select {
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+}
+.tform input:focus,
+.tform select:focus { outline: none; border-color: var(--ink); }
+
+.tcode {
+  width: 100%;
+  min-height: 280px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--sunken);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  padding: var(--s3);
+  resize: vertical;
+}
+.tcode:focus { outline: none; border-color: var(--ink); }
+
+/* ============================ check lists ============================
+   Used by the deploy gate and the order-path summary. Each line is a real
+   check, so the failing ones are styled to be read rather than dismissed. */
+
+.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s3); }
+.checks li {
+  display: flex;
+  gap: var(--s3);
+  align-items: flex-start;
+  padding: var(--s3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+}
+.checks li[data-passed='false'] { background: var(--fail-wash); }
+.checks .ck {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--clear);
+  color: var(--ground);
+}
+.checks li[data-passed='false'] .ck { background: var(--fail); }
+.checks b { font-size: var(--t-small); font-weight: 600; }
+.checks p { margin: 3px 0 0; font-size: var(--t-small); color: var(--ink-2); line-height: 1.5; }
+
+/* ============================ dialog ============================ */
+
+.dlg {
+  width: min(680px, 94vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+.dlg-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+  padding: var(--s5) var(--s5) var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+.dlg-head h2 {
+  margin: 0;
+  font-size: var(--t-head);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.dlg-head .ticon { margin-left: auto; }
+.dlg-modes { display: flex; gap: var(--s2); padding: var(--s4) var(--s5) 0; }
+.dlg-body { padding: var(--s4) var(--s5) var(--s5); overflow-y: auto; }
+.dlg-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+.verdict {
+  margin-right: auto;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--fail);
+}
+.verdict[data-ok='true'] { color: var(--clear); }
+
+/* ============================ wide dialogs ============================ */
+
+.dlg.wide { width: min(940px, 95vw); }
+.dlg.tall { max-height: 88vh; }
+
+.ticon.sm { width: 26px; height: 26px; font-size: 11px; font-style: italic; font-weight: 600; }
+
+/* ============================ explain ============================ */
+
+.explain-block { margin-bottom: var(--s6); }
+.explain-block:last-child { margin-bottom: 0; }
+.explain-block h3 {
+  margin: 0 0 var(--s4);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.explain-step { margin-bottom: var(--s4); }
+.explain-step b { font-size: var(--t-body); font-weight: 600; }
+.explain-step p {
+  margin: var(--s1) 0 0;
+  font-family: var(--serif);
+  font-size: var(--t-lead);
+  line-height: 1.5;
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+/* ============================ report ============================
+   The reconciliation sits above everything and is styled to be read: an
+   attribution that does not add up must not look like one that does. */
+
+.recon {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-md);
+  background: var(--clear-wash);
+  border: 1px solid color-mix(in srgb, var(--clear) 30%, transparent);
+  margin-bottom: var(--s5);
+}
+.recon[data-exact='false'] {
+  background: var(--fail-wash);
+  border-color: color-mix(in srgb, var(--fail) 32%, transparent);
+}
+.recon > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.recon span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.recon b { font-size: var(--t-lead); font-weight: 600; font-variant-numeric: tabular-nums; }
+.recon p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.report-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  padding-bottom: var(--s5);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--s5);
+}
+.report-hero .thnum b { font-size: var(--t-title); }
+
+.report-h {
+  margin: var(--s6) 0 var(--s3);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.report-h:first-of-type { margin-top: 0; }
+
+/* ============================ chosen instruments ============================ */
+
+.chosen-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  padding: var(--s3) var(--s5) 0;
+  max-height: 116px;
+  overflow-y: auto;
+}
+.chosen-chip {
+  font: inherit;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  padding: 4px var(--s2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--ground);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chosen-chip span { opacity: 0.6; margin-left: 2px; }
+.chosen-chip:hover span { opacity: 1; }
+
+@media (max-width: 720px) {
+  .recon { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ============================ period preview ============================
+   A day count is not a period a person can reason about, and the window is not
+   the same as the part actually traded. */
+
+.period {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+}
+.period > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.period span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.period b { font-size: var(--t-body); font-weight: 600; font-variant-numeric: tabular-nums; }
+.period i { font-style: normal; font-size: var(--t-small); color: var(--ink-3); }
+.period p {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--caveat);
+}
+
+/* The worked example. The line under the held rows is the rule itself made
+   visible — everything above it is bought, everything below is not. */
+.ttable.example tr[data-held='true'] td { background: var(--clear-wash); }
+.ttable.example tr[data-cut='true'] td { border-top: 2px solid var(--ink); }
+.ttable.example tr[data-held='false'] td { color: var(--ink-3); }
+
+/* Text inside a dialog fills its width.
+   The 68ch measure is right for a page, where a paragraph sits in a column
+   beside other things. In a dialog it leaves half the panel empty and reads as
+   a layout bug rather than as typography, so it is lifted here only. */
+.dlg-body .tdesc,
+.dlg-body .tfine,
+.dlg-body .explain-step p,
+.dlg-body p {
+  max-width: none;
+}
+
+/* The paper a strategy came from. Set apart because provenance is a different
+   kind of claim from a measurement — this is what someone else found, not what
+   we did. */
+.paper {
+  padding: var(--s4);
+  border-left: 2px solid var(--ink);
+  background: var(--surface-2);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.paper > b { font-size: var(--t-body); font-weight: 600; display: block; }
+.paper p { margin: var(--s2) 0 0; font-size: var(--t-small); line-height: 1.55; color: var(--ink-2); }
+.paper p span {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-right: 6px;
+}
+
+/* Implementation steps. Numbered because they are a sequence — each one runs
+   after the last, which is information rather than decoration. */
+.logic { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--s2); }
+.logic li { font-size: var(--t-body); line-height: 1.55; color: var(--ink-2); }
+.logic li::marker { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* Where the paper's market and ours differ. Marked, because a result read as a
+   replication when it is not is the worst thing this page can produce. */
+.paper .mismatch { color: var(--caveat); }
+.paper .mismatch span { color: var(--caveat); }
+
+/* ============================ the snapshot ============================
+   Designed against Finviz, Benzinga Pro and Koyfin (docs/RESEARCH/021). The
+   band order is the design: regime before price, because +0.4% in a calm
+   uptrend and +0.4% inside a volatility spike are different facts. */
+
+.regime {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--s6);
+  align-items: end;
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+.regime-lead .thnum b { font-size: var(--t-hero); }
+.regime-lead .thnum b.up { color: var(--clear); }
+.regime-lead .thnum b.dn { color: var(--fail); }
+
+.regime-stats { display: flex; gap: var(--s6); padding-bottom: var(--s2); }
+.rstat { display: flex; flex-direction: column; gap: 2px; }
+.rstat span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.rstat b { font-size: var(--t-head); font-weight: 600; font-variant-numeric: tabular-nums; }
+.rstat b.up { color: var(--clear); }
+.rstat b.dn { color: var(--fail); }
+.rstat i { font-style: normal; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* Breadth as one bar. The ratio is a number; this is a picture, and on a day
+   the index rises against falling breadth the picture is the story. */
+.breadth-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: var(--s3);
+  background: var(--surface-3);
+}
+.breadth-bar i { display: block; height: 100%; }
+.breadth-bar i.up { background: var(--clear); }
+.breadth-bar i.flat { background: var(--ink-4); opacity: 0.4; }
+.breadth-bar i.dn { background: var(--fail); }
+
+/* ---- the map ----
+   Six colour steps, not a gradient: a ramp makes every tile a slightly
+   different shade and none of them readable, where steps let the eye bin a
+   tile instantly. That binning is the whole reason a map beats a table. */
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(74px, 1fr));
+  grid-auto-rows: 46px;
+  gap: 3px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--r-sm);
+  padding: 2px 4px;
+  overflow: hidden;
+  text-decoration: none;
+  cursor: default;
+}
+.tile b {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tile span { font-size: 10px; font-variant-numeric: tabular-nums; opacity: 0.85; }
+
+.tile[data-size='xl'] { grid-column: span 2; grid-row: span 2; }
+.tile[data-size='xl'] b { font-size: 14px; }
+.tile[data-size='xl'] span { font-size: 12.5px; }
+.tile[data-size='lg'] { grid-column: span 2; }
+.tile[data-size='lg'] b { font-size: 12px; }
+
+.tile[data-band='up3'] { background: #0f7a3d; color: #eafff2; }
+.tile[data-band='up2'] { background: #2f9e5c; color: #f2fff7; }
+.tile[data-band='up1'] { background: #cdead8; color: #14351f; }
+.tile[data-band='dn1'] { background: #f4d9d5; color: #40100a; }
+.tile[data-band='dn2'] { background: #c8503f; color: #fff4f2; }
+.tile[data-band='dn3'] { background: #9d2b1c; color: #ffeeea; }
+
+:root:not([data-theme='light']) .tile[data-band='up1'],
+.terminal[data-theme='dark'] .tile[data-band='up1'] { background: #1d3a28; color: #b9e6cb; }
+:root:not([data-theme='light']) .tile[data-band='dn1'],
+.terminal[data-theme='dark'] .tile[data-band='dn1'] { background: #3d211d; color: #eec0b8; }
+
+/* ---- cross-asset ---- */
+
+.cross {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--s3);
+}
+.cross-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.cross-cell span {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.cross-cell b { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.02em; }
+.cross-cell i { font-style: normal; font-size: var(--t-small); color: var(--ink-3); }
+
+/* ---- what is missing ----
+   Styled to be read rather than skimmed past. A panel that names its absent
+   source is a shopping list; the same panel omitted is invisible. */
+
+.gaps { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: var(--s2); }
+.gaps li { font-size: var(--t-body); line-height: 1.5; color: var(--ink-2); }
+.gaps li::marker { color: var(--caveat); }
+
+.ttable b.up { color: var(--clear); }
+.ttable b.dn { color: var(--fail); }
+
+@media (max-width: 900px) {
+  .regime { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .regime-stats { flex-wrap: wrap; gap: var(--s5); }
+}
+
+/* Sector blocks. The grouping is what turns a bag of tiles into a map: an
+   individually red tile is one company's problem, a red block is a rotation. */
+.sectors { display: flex; flex-direction: column; gap: var(--s4); }
+.sector { border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s3); background: var(--surface); }
+.sector-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  margin-bottom: var(--s2);
+}
+.sector-head b { font-size: var(--t-small); font-weight: 600; }
+.sector-head i {
+  font-style: normal;
+  font-size: var(--t-small);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sector-head i.up { color: var(--clear); }
+.sector-head i.dn { color: var(--fail); }
+.sector-head span { margin-left: auto; font-size: var(--t-micro); color: var(--ink-3); }
+
+/* The economic calendar. Impact is the only thing worth colouring: a Low-impact
+   release is noise on the schedule and a High one moves the whole tape. */
+.ccy {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+.impact {
+  display: inline-block;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  text-transform: uppercase;
+}
+.impact[data-level='high'] { background: var(--fail-wash); color: var(--fail); }
+.impact[data-level='medium'] { background: var(--caveat-wash); color: var(--caveat); }
+.impact[data-level='low'] { background: var(--surface-3); color: var(--ink-3); }
+.impact[data-level='holiday'] { background: var(--surface-2); color: var(--ink-4); }
+
+/* A released event is history; an upcoming one is actionable. Dimming the
+   first is the whole distinction. */
+.ttable tr[data-past='true'] td { opacity: 0.55; }
+
+/* --- news ------------------------------------------------------------------
+   The story sits under the ticker as a reason, not in a column of its own: the
+   point of the band is that a mover carries its explanation, and a separate
+   column would let the eye read the ranking without it. */
+.tstory {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  text-decoration: none;
+  max-width: 34ch;
+}
+.tstory:hover { text-decoration: underline; }
+
+.tage {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+/* Absence, said out loud. A blank cell reads as "not checked"; this reads as
+   "checked, nothing there" - which about a large move is information. */
+.tnostory {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-style: italic;
+}
+
+.ttape { list-style: none; margin: 0; padding: 0; }
+.ttape li {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  gap: 2px 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+}
+.ttape li:last-child { border-bottom: 0; }
+.ttape li .tage { margin: 0; text-align: right; }
+.ttape li a { color: var(--ink); text-decoration: none; font-size: 12.5px; }
+.ttape li a:hover { text-decoration: underline; }
+.ttape li .tfine { grid-column: 2; }
+
+/* The sector a tagged company sits in. Set apart from the tickers because it
+   answers a different question: the tickers say who, the sector says whether
+   this is one company's problem or a rotation. */
+.tsector {
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+/* Calendar and tape scroll inside their own panel rather than setting the
+   length of the page. A hundred calendar events and forty headlines pushed
+   every band below them off the screen, which buried the cross-asset and
+   evidence bands the page deliberately puts last — the band order is the
+   design, and a list long enough to hide it breaks that.
+
+   Capped in rem rather than by row count so it holds when the row heights
+   change, and the sticky header keeps the column meanings visible while the
+   body scrolls under it. */
+.tscroll {
+  max-height: 26rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tscroll table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+/* The sync control sits beside the instrument count because that is the number
+   it changes. Its caption says the operation is re-runnable, since the honest
+   worry about a button labelled "sync all data" is what it might overwrite:
+   already-uploaded files are skipped, nothing local is removed. */
+.tsyncbox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 22rem;
+  text-align: right;
+}
+.tsyncbox .tfine[data-state='failed'] { color: var(--down, #d2544b); }
+.tsyncbox .tfine[data-state='done'] { color: var(--ink-2); }
+
+/* Live quotes. The dot is the only animated thing on this page, and it earns
+   that by marking the one number here that is not end-of-day. */
+.tlive { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.tdot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--neon-deep);
+  flex: none;
+  animation: tpulse 2.4s ease-in-out infinite;
+}
+@keyframes tpulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.35 } }
+@media (prefers-reduced-motion: reduce) { .tdot { animation: none } }
+
+.tlivepx {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- the index ribbon ------------------------------------------------------
+   First thing on the page, because every number below it is relative to these.
+   A horizontal strip rather than a card grid: it is reference, not content,
+   and it should cost as little vertical space as a row of numbers can. */
+.ixribbon {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  margin-bottom: 14px;
+}
+.ixribbon.empty {
+  padding: 10px 12px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.ixcell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 14px;
+  border-right: 1px solid var(--rule);
+  white-space: nowrap;
+  flex: none;
+}
+.ixcell:last-child { border-right: 0; }
+
+.ixname {
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.ixlast {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.ixchg { font-size: 11px; font-variant-numeric: tabular-nums; }
+
+/* Marks where India ends and the overnight world begins. A rule rather than a
+   label: the cells are already named, and a second heading would cost another
+   line of height on the one band that exists to save it. */
+.ixsplit {
+  width: 0;
+  border-left: 2px solid var(--rule-2);
+  margin: 6px 0;
+  flex: none;
+}
+
+/* The session block, tightened. It was a 96px number over three lines of
+   caveat, which put the map — and therefore everything after it — below the
+   fold on a laptop. The caveat is a tooltip now. */
+.regime.tight { padding-block: 14px; }
+.regime.tight .thnum b { font-size: 40px; line-height: 1.05; }
+.regime.tight .thnum .unit { font-size: 12px; }
+
+.whyq {
+  display: inline-block;
+  margin-left: 4px;
+  width: 13px;
+  height: 13px;
+  line-height: 13px;
+  text-align: center;
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  font-size: 9px;
+  color: var(--ink-3);
+  cursor: help;
+  text-decoration: none;
+}
+
+/* The map is reference too, and it was taking the whole viewport. Capped so
+   the bands after it — movers, world, tape — are reachable without scrolling
+   past a full screen of tiles. It scrolls inside itself instead. */
+.mapscroll {
+  max-height: 30rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* --- market toggle ---------------------------------------------------------
+   Above the ribbon, because it changes what the ribbon leads with. Two states
+   only: this platform has a full panel for one market and quotes for the
+   other, and a third tab would imply a symmetry that does not exist. */
+.mkttoggle {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 10px;
+}
+.mkttoggle button {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+.mkttoggle button:first-of-type { border-radius: 5px 0 0 5px; }
+.mkttoggle button:last-of-type { border-radius: 0 5px 5px 0; border-left: 0; }
+.mkttoggle button.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+  font-weight: 600;
+}
+.mkttoggle button:focus-visible { outline: 2px solid var(--neon-deep); outline-offset: 1px; }
+.mktnote { margin-left: 12px; }
+
+/* The unselected market stays on the ribbon, demoted. An Indian trader reads
+   NIFTY against last night's S&P, so hiding the other side would remove the
+   comparison that makes the strip worth having. */
+.ixcell.muted { opacity: 0.55; }
+.ixcell.muted .ixlast { font-weight: 500; }
+
+/* --- US sectors ------------------------------------------------------------
+   Ranked bars, not a treemap. Eleven averages is what the free data supports,
+   and a treemap drawn from eleven numbers would imply constituent detail that
+   is not there. */
+.secstrip {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.secrow {
+  display: grid;
+  grid-template-columns: 13rem 1fr 4.5rem;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.secrow:last-child { border-bottom: 0; }
+.secname { font-size: 12px; color: var(--ink); }
+.secbar { display: block; height: 7px; background: var(--sunken); border-radius: 2px; }
+.secbar i { display: block; height: 100%; border-radius: 2px; }
+.secbar i.up { background: var(--neon-deep); }
+.secbar i.dn { background: #c9524a; }
+.secrow b { text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Says what the US view cannot compute, rather than leaving a gap the reader
+   fills with the India numbers that used to sit here. */
+.mktgap {
+  padding: 12px 14px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 6px;
+  margin-bottom: 14px;
+  max-width: 62ch;
+}
+
+/* --- the freshness stamp ---------------------------------------------------
+   Beside the market toggle, always on screen. The page used to show a settled
+   panel date while quoting live prices underneath it; the stamp makes which
+   one you are looking at a fact rather than an assumption. */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 12px;
+  padding: 4px 9px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+  white-space: nowrap;
+}
+.stamp.live { color: var(--ink); border-color: var(--neon-deep); }
+
+/* --- glass -----------------------------------------------------------------
+   A slight frost on the surfaces that float above the page — the ribbon, the
+   panels, the toggle. Kept subtle on purpose: this is a screen for reading
+   numbers, and a heavy blur costs contrast that the numbers need. Guarded so
+   browsers without backdrop-filter get the solid surface rather than a
+   washed-out one. */
+@supports (backdrop-filter: blur(8px)) {
+  .ixribbon,
+  .tpanel,
+  .secstrip,
+  .mkttoggle button,
+  .stamp {
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    backdrop-filter: blur(10px) saturate(1.15);
+    -webkit-backdrop-filter: blur(10px) saturate(1.15);
+  }
+  .mkttoggle button.on {
+    background: color-mix(in srgb, var(--ink) 90%, transparent);
+  }
+}
+
+/* A hairline highlight along the top edge reads as glass without costing any
+   contrast in the body, where the numbers are. */
+.ixribbon,
+.tpanel,
+.secstrip {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--ground) 55%, transparent),
+    0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+/* Status on the heading rather than a paragraph under it. The facts still have
+   to be reachable — how many instruments are quoted live, how many movers
+   carry a reason — but stacked above a table they read as an apology for it. */
+.hstat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 12px;
+  font-weight: 400;
+  cursor: help;
+}
+
+/* --- the chart -------------------------------------------------------------
+   A real pixel height, not a percentage. The TradingView widget measures its
+   container on mount, and a container that is auto-height at that instant
+   measures zero and renders nothing at all — a blank panel with no error. */
+.chartholder {
+  height: min(72vh, 780px);
+  min-height: 460px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+/* Quick symbols for the selected market. Chips rather than a dropdown: the
+   point is to move between four or five instruments without losing the drawing
+   you just made, and a dropdown hides them behind a click. */
+.chipbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 12px;
+}
+.chip {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--rule-2); color: var(--ink); }
+.chip.on {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+  font-weight: 600;
+}
+.chip:focus-visible { outline: 2px solid var(--neon-deep); outline-offset: 1px; }
+
+/* --- macro band ------------------------------------------------------------
+   Below the chart: what a trader checks around a price rather than in it. */
+.macrogrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.mgroup, .curvebox {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px;
+}
+.mgrouphead, .curvehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.curvehead b { font-size: 11px; letter-spacing: 0; text-transform: none; }
+
+.mtiles { display: flex; flex-direction: column; gap: 6px; }
+.mtile {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+}
+.mname { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.mlast { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.munit { font-size: 9px; color: var(--ink-4); font-style: normal; margin-left: 3px; }
+.mchg { font-size: 11px; font-variant-numeric: tabular-nums; min-width: 4.2rem; text-align: right; }
+
+/* The curve is drawn rather than listed because inversion is a shape. Four
+   numbers in a row do not answer "is the front end above the long end" at a
+   glance; a line that slopes the wrong way does. */
+.curvesvg { width: 100%; height: 46px; display: block; }
+.curveaxis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-4);
+  margin: 3px 0 6px;
+}
+
+/* --- our own chart ---------------------------------------------------------
+   Sits under the embed for instruments we actually hold. Deliberately plainer:
+   the embed has the drawing tools, this has the provenance, and dressing it up
+   to look equivalent would obscure which is which. */
+.ownchart {
+  margin-top: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 10px 12px 12px;
+}
+.ownhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.ownhead b { font-size: 13px; }
+.ownholder { height: 320px; width: 100%; }
+
+/* --- macro mini charts -----------------------------------------------------
+   Each series with its own history. The scanner behind the numbers view
+   returns one reading per symbol, which says where crude is and nothing about
+   what it has been doing — which is most of why anyone looks at crude. */
+/* Two per row. `auto-fit` packed four or five across on a wide screen, which
+   made each chart too small to read a trend off — the whole point of showing a
+   line rather than a number. */
+.minigrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (max-width: 720px) {
+  .minigrid { grid-template-columns: minmax(0, 1fr); }
+}
+.minichart {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 8px 10px 4px;
+}
+.minihead {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 2px;
+}
+.miniholder { height: 190px; }
+.minichart { min-height: 0; }
+
+/* Paper links in the (i) dialog. Two affordances rather than one: the URL
+   always resolves, the PDF exists only once fetch.sh has run. */
+.paperlinks { display: flex; gap: 14px; margin: 6px 0 2px; }
+.paperlinks a {
+  font-size: 11.5px;
+  color: var(--neon-deep);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.paperlinks a:hover { border-bottom-color: var(--neon-deep); }
+
+/* --- Parameter sweep, inside a library row ---------------------------- */
+/* Best and median carry the same weight. A panel that styles the winner
+   larger teaches the reader to read the winner, which is the exact misreading
+   the median row exists to prevent. */
+
+.sweep {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.sweep-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.sweep-head h4 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.sweep-sym {
+  margin-left: 0.35rem;
+  font-weight: 400;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.sweep-read {
+  margin: 0 0 0.5rem;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  max-width: 68ch;
+}
+
+.sweep-read.dim { color: var(--muted); }
+
+.sweep-scroll {
+  overflow-x: auto;
+  margin: 0.6rem 0;
+}
+
+.sweep-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.sweep-table th {
+  text-align: left;
+  font-weight: 500;
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0.3rem 0.6rem 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.sweep-table td {
+  padding: 0.32rem 0.6rem 0.32rem 0;
+  border-bottom: 1px solid var(--line-faint, var(--line));
+  white-space: nowrap;
+}
+
+.sweep-table .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sweep-table .pos { color: var(--up, #3fb950); }
+.sweep-table .neg { color: var(--down, #f85149); }
+
+/* A left rule, not a fill: the winner is marked, not celebrated. */
+.sweep-table .is-best td:first-child { box-shadow: inset 2px 0 0 var(--up, #3fb950); padding-left: 0.5rem; }
+.sweep-table .is-median td:first-child { box-shadow: inset 2px 0 0 var(--muted); padding-left: 0.5rem; }
+
+.sweep-table .mark {
+  margin-left: 0.45rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--up, #3fb950);
+}
+
+.sweep-table .mark.dim { color: var(--muted); }
+
+.sweep-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 0.7rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+}
+
+.sweep-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.sweep-facts span {
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sweep-facts b {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sweep-facts .pos { color: var(--up, #3fb950); }
+.sweep-facts .neg { color: var(--down, #f85149); }
+
+.sweep-tag.on { border-color: var(--up, #3fb950); color: var(--up, #3fb950); }
+.sweep-tag.off { border-color: var(--down, #f85149); color: var(--down, #f85149); }
+
+.verdict {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.66rem;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.verdict-ok { border-color: var(--up, #3fb950); color: var(--up, #3fb950); }
+.verdict-flat { border-color: var(--up, #3fb950); color: var(--up, #3fb950); opacity: 0.75; }
+.verdict-tail { border-color: #d29922; color: #d29922; }
+.verdict-loss { border-color: var(--down, #f85149); color: var(--down, #f85149); }
+.verdict-error { border-color: var(--muted); color: var(--muted); }
+
+/* --- Tuned parameters, in the (i) dialog ------------------------------ */
+/* The paper's value is kept legible rather than struck through: it is the
+   prior the new value argues against, not a mistake that was corrected. */
+
+.ttable.tuned { margin-top: 0.7rem; font-variant-numeric: tabular-nums; }
+.ttable.tuned .r { text-align: right; }
+.ttable.tuned .was { color: var(--muted); }
+.ttable.tuned .now { color: var(--up, #3fb950); font-weight: 600; }
+
+.tuned-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.4rem;
+  margin-top: 0.9rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.tuned-facts div { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.tuned-facts span {
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tuned-facts b { font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.tuned-facts .pos { color: var(--up, #3fb950); }
+.tuned-facts .neg { color: var(--down, #f85149); }
+
+/* --- The adopted run's backtest report -------------------------------- */
+
+.adopted {
+  margin: 0.75rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.adopted-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.adopted-head h4 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.adopted-where { font-size: 0.72rem; color: var(--muted); }
+
+.adopted-params {
+  margin: 0 0 0.7rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  max-width: 70ch;
+}
+
+.adopted-curve {
+  width: 100%;
+  height: 110px;
+  display: block;
+  margin: 0.3rem 0 0.8rem;
+}
+
+.adopted-line { fill: none; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.adopted-line.pos { stroke: var(--up, #3fb950); }
+.adopted-line.neg { stroke: var(--down, #f85149); }
+
+/* Zero drawn explicitly: without it a losing curve and a winning curve have
+   the same shape. */
+.adopted-zero {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.adopted-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+  gap: 0.85rem 1.1rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.adopted-stat { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.adopted-stat span {
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.adopted-stat b { font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.adopted-stat .pos { color: var(--up, #3fb950); }
+.adopted-stat .neg { color: var(--down, #f85149); }
+
+.adopted-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2.5rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.adopted-breakdown h5 {
+  margin: 0 0 0.35rem;
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.adopted-breakdown ul { list-style: none; margin: 0; padding: 0; }
+
+.adopted-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  font-size: 0.76rem;
+  padding: 0.12rem 0;
+}
+
+.adopted-breakdown li b { font-variant-numeric: tabular-nums; }
+
+.adopted-fine {
+  margin: 0.8rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 72ch;
+}
+
+/* --- Walk-forward panel ----------------------------------------------- */
+
+.walk {
+  margin: 0.75rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.walk-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+.walk-head h4 {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.walk-where { font-size: 0.72rem; color: var(--muted); }
+
+.walk-read {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  max-width: 72ch;
+}
+
+.walk-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.85rem 1.1rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--line);
+}
+
+.walk-stats div { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.walk-stats span {
+  font-size: 0.63rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.walk-stats b { font-size: 0.92rem; font-variant-numeric: tabular-nums; }
+.walk-stats .pos { color: var(--up, #3fb950); }
+.walk-stats .neg { color: var(--down, #f85149); }
+
+.walk-fine {
+  margin: 0.8rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 74ch;
+}
+
+/* --- Equity and drawdown chart ---------------------------------------- */
+/* Two panels sharing one x-axis. The drawdown panel is deliberately short:
+   it is a companion to the equity path, not a rival for attention. */
+
+.eqchart { margin: 0.9rem 0 0; }
+
+.eqchart svg { width: 100%; display: block; }
+.eqchart svg:first-of-type { height: 190px; }
+.eqchart svg:nth-of-type(2) { height: 78px; margin-top: 2px; }
+
+.eq-line { fill: none; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.eq-line.up { stroke: var(--up, #3fb950); }
+.eq-line.down { stroke: var(--down, #f85149); }
+
+.eq-fill { stroke: none; opacity: 0.11; }
+.eq-fill.up { fill: var(--up, #3fb950); }
+.eq-fill.down { fill: var(--down, #f85149); }
+
+/* The starting balance. Solid rather than dashed — it is a reference the eye
+   should find immediately, not a grid line to look past. */
+.eq-base {
+  stroke: var(--muted);
+  stroke-width: 1;
+  opacity: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.dd-line { fill: none; stroke: var(--down, #f85149); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.dd-fill { fill: var(--down, #f85149); opacity: 0.13; stroke: none; }
+
+.eqchart figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.eqchart figcaption .pos { color: var(--up, #3fb950); }
+.eqchart figcaption .neg { color: var(--down, #f85149); }
+
+/* The market a report is denominated in, stated before any number in it. */
+.assettag {
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0.08rem 0.42rem;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--fg);
+}
+
+/* The market a signal does best on. Neutral by default and only coloured when
+   it wins somewhere other than its paper's market — the arrow carries that,
+   so the colour does not have to shout it too. */
+.assettag-best.on { border-color: var(--up, #3fb950); color: var(--up, #3fb950); }
+.assettag-best.off { border-color: var(--muted); color: var(--muted); }
+
+/* Progress in the row that is running, rather than a spinner. */
+.trunprog { font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.trunprog b { font-weight: 500; }
+
+/* Other stored runs, as chips rather than a dropdown: the point is comparing
+   them, and a dropdown shows one label at a time. */
+.runpick { display: inline-flex; gap: 0.3rem; margin-left: auto; flex-wrap: wrap; }
+.tchip.sm { padding: 0.1rem 0.45rem; font-size: 0.68rem; }
+
+/* Strategy against holding what it traded. Placed above the equity chart
+   because it reframes every number beneath it. */
+.bench {
+  margin: 0.9rem 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bench-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(6rem, auto) 1fr;
+  gap: 0.9rem;
+  align-items: baseline;
+  padding: 0.55rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.82rem;
+}
+
+.bench-row:last-child { border-bottom: none; }
+.bench-row.excess { background: color-mix(in srgb, var(--fg) 4%, transparent); }
+.bench-row b { font-variant-numeric: tabular-nums; font-size: 0.95rem; }
+.bench-row .pos { color: var(--up, #3fb950); }
+.bench-row .neg { color: var(--down, #f85149); }
+.bench-sub { font-size: 0.7rem; color: var(--muted); }
+
+/* Per-source outcome of a feed refresh. Shown as a list rather than folded
+   into one verdict: five updated and two failed is neither a success nor a
+   failure, and the only actionable part is which two. */
+.feedsteps { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+
+.feedsteps li {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.15rem 0;
+  font-size: 0.74rem;
+}
+
+.feedsteps li::before { content: '✓'; color: var(--up, #3fb950); width: 0.9rem; }
+.feedsteps li[data-ok='false']::before { content: '✕'; color: var(--down, #f85149); }
+.feedsteps li[data-ok='false'] > span:first-of-type { color: var(--down, #f85149); }
+
+/* ============================ controls ============================
+   One geometry for every control, appended last so it settles the
+   disagreements above rather than adding a sixth opinion.
+
+   The audit that prompted this measured a single filter row holding a 34px
+   select, a 37px chip, a 38px button, a 47px search field and a 32px icon
+   button, with pill and 6px radii alternating along it. Each component was
+   internally consistent and none of them agreed with its neighbours.
+
+   Selects also carried `appearance: auto`, so the browser drew its own
+   control inside our border — an OS widget sitting in the middle of a
+   designed page, which is the single loudest tell that a UI was assembled
+   rather than drawn. */
+
+.tsort select,
+.tform select,
+.trunbar select,
+select.tselect {
+  appearance: none;
+  -webkit-appearance: none;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 calc(var(--control-pad-x) + 18px) 0 var(--control-pad-x);
+  border-radius: var(--control-radius);
+  border: 1px solid var(--rule-2);
+  background-color: var(--surface);
+  /* The chevron is drawn rather than fetched: a background-image URL is a
+     request the CSP has to allow and a file that can go missing. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink-3) 50%),
+    linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position:
+    calc(100% - 16px) calc(50% + 1px),
+    calc(100% - 11px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.tsort select:hover,
+.tform select:hover,
+.trunbar select:hover,
+select.tselect:hover {
+  border-color: var(--ink-4);
+}
+
+/* Text fields and actions share the control height and the action radius. */
+.tbtn,
+.tform input,
+input.tinput {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  border-radius: var(--control-radius);
+}
+
+.tbtn.sm,
+.ticon.sm {
+  height: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+}
+
+/* A pill is a toggle. Chips, market switches and the command bar keep it;
+   nothing that performs an action does. */
+.tchip,
+.tcmd,
+.ticon,
+.chip {
+  border-radius: var(--control-radius-toggle);
+}
+
+.tcmd {
+  height: var(--control-h);
+  min-height: var(--control-h);
+}
+
+.tchip,
+.chip {
+  height: var(--control-h);
+  min-height: var(--control-h);
+  display: inline-flex;
+  align-items: center;
+}
+
+.tchip.sm,
+.chip.sm {
+  height: var(--control-h-sm);
+  min-height: var(--control-h-sm);
+}
+
+.ticon {
+  height: var(--control-h-sm);
+  width: var(--control-h-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The search field was the loudest outlier at 47px. It stays visually the
+   primary control on its row by being wide, not by being taller than
+   everything beside it. */
+input.tsearch {
+  height: var(--control-h);
+  min-height: var(--control-h);
+}
+
+/* One focus treatment. Several controls had none, which is both an
+   accessibility gap and the reason keyboard use felt unfinished. */
+.tbtn:focus-visible,
+.tchip:focus-visible,
+.tcmd:focus-visible,
+.ticon:focus-visible,
+.chip:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--neon-deep);
+  outline-offset: 2px;
+}
+
+/* Actions in a tools bar travel together and sit at the far end. Loose in the
+   flex row each one wrapped on its own, so a two-button pair could break with
+   one button stranded on the next line. */
+.ttools-actions {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+  margin-left: auto;
+  flex-shrink: 0;
+}

@@ -195,6 +195,110 @@ def count(path: Path = LEDGER_PATH) -> int:
     return len(read(path))
 
 
+SHARPE_KEY = "sharpe"
+"""The canonical place a trial records the Sharpe it realised.
+
+New writers use this. `sharpe_of` also accepts the older
+`best_full_sample_sharpe`, because the ledger is append-only and hash-chained:
+renaming a key in the eleven entries that already exist would rewrite history
+and break every link after it, which is precisely the tampering the chain is
+built to expose. Old rows keep their old key forever.
+"""
+
+_LEGACY_SHARPE_KEYS = ("best_full_sample_sharpe",)
+
+
+def sharpe_of(entry: LedgerEntry) -> float | None:
+    """The Sharpe this trial realised, or None when it never produced one.
+
+    None is a real answer, not a gap to paper over. An `ic` trial measures rank
+    correlation between a feature and forward returns; it has no Sharpe to
+    report, and inventing one would be worse than admitting the absence.
+    """
+    for key in (SHARPE_KEY, *_LEGACY_SHARPE_KEYS):
+        value = entry.outcome.get(key)
+        if isinstance(value, int | float) and not isinstance(value, bool):
+            return float(value)
+    return None
+
+
+MIN_SUBJECTS_FOR_DISPERSION = 5
+"""Distinct strategies needed before a dispersion of Sharpes means anything.
+
+A judgement, not a result. A standard deviation exists at two points and is
+worthless there; five is the point at which it stops being an artefact of which
+two things happened to be measured. Set deliberately so that refusing is the
+default — the failure this guards against is quoting a confident sigma computed
+from almost nothing, which would scale the entire noise bar.
+"""
+
+
+@dataclass(frozen=True)
+class Dispersion:
+    """How much the Sharpes of distinct evaluated strategies vary.
+
+    This is sigma_SR in the expected-maximum-Sharpe correction, where it scales
+    the whole bar. `usable` is False far more often than people expect, and the
+    honest response to that is to say so rather than to return a number anyway.
+    """
+
+    observations: int
+    """Ledger entries carrying a Sharpe at all."""
+
+    subjects: int
+    """Distinct subjects among them. This is the number that matters."""
+
+    sigma: float | None
+    usable: bool
+    reason: str
+
+
+def sharpe_dispersion(path: Path = LEDGER_PATH) -> Dispersion:
+    """Measure sigma_SR from the ledger, or explain why it cannot be measured.
+
+    **One Sharpe per subject, not one per entry.** H-0001 appears three times
+    with Sharpes 1.0088, 1.0088 and 1.2667 — that is one hypothesis measured at
+    three stages, not three strategies. Averaging them into a sample of three
+    would report the noise of our own re-measurement as if it were the spread
+    between different ideas, and it would shrink sigma toward zero, which lowers
+    the bar. The flattering direction is exactly the one to distrust.
+
+    The last value per subject wins, being the most complete evaluation.
+    """
+    entries = read(path)
+    scored = [(e.subject, s) for e in entries if (s := sharpe_of(e)) is not None]
+
+    by_subject: dict[str, float] = {}
+    for subject, value in scored:
+        by_subject[subject] = value
+
+    observations, subjects = len(scored), len(by_subject)
+    if subjects < MIN_SUBJECTS_FOR_DISPERSION:
+        return Dispersion(
+            observations=observations,
+            subjects=subjects,
+            sigma=None,
+            usable=False,
+            reason=(
+                f"{observations} entr{'y' if observations == 1 else 'ies'} carry a Sharpe, "
+                f"covering {subjects} distinct subject{'' if subjects == 1 else 's'}; "
+                f"{MIN_SUBJECTS_FOR_DISPERSION} are needed before a dispersion means anything. "
+                f"Until then the bar's assumed sigma is an assumption, not a measurement (A-021)"
+            ),
+        )
+
+    values = list(by_subject.values())
+    mean = sum(values) / len(values)
+    sigma = (sum((v - mean) ** 2 for v in values) / (len(values) - 1)) ** 0.5
+    return Dispersion(
+        observations=observations,
+        subjects=subjects,
+        sigma=sigma,
+        usable=True,
+        reason=f"measured across {subjects} distinct subjects",
+    )
+
+
 def migrate_from_trials(source: Path, path: Path = LEDGER_PATH) -> int:
     """Fold Sprint 8's unchained `trials.jsonl` into the chain.
 

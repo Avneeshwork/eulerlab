@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from eulerlab.research import orchestrator
+from eulerlab.validation.ledger import LEDGER_PATH
 
 
 def _cards(tmp_path: Path, n: int = 2) -> Path:
@@ -68,9 +70,22 @@ def test_the_real_hypotheses_directory_surveys_cleanly() -> None:
     assert {c.id for c in cards} >= {"H-0001", "H-0002"}
 
 
+@pytest.mark.skipif(
+    not LEDGER_PATH.exists(),
+    reason=(
+        "needs the real trial ledger, which is gitignored and absent in CI. "
+        "This asserts accumulated project state, not code behaviour, so it "
+        "belongs with `make acceptance` rather than `make verify`"
+    ),
+)
 def test_the_gate_verdict_is_read_from_the_ledger() -> None:
     """H-0001 was killed by the real gate; the report must reflect that rather
-    than tracking its own state."""
+    than tracking its own state.
+
+    Deliberately *not* made hermetic. The whole claim is that the verdict comes
+    from the real ledger instead of state the orchestrator keeps for itself, and
+    a synthetic ledger would assert that against evidence this test wrote.
+    """
     cards = {c.id: c for c in orchestrator.survey(Path("hypotheses"), years=11.4)}
     assert cards["H-0001"].gate_verdict == "KILL"
 

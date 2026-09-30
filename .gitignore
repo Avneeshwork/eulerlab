@@ -33,3 +33,9 @@ htmlcov/
 .vscode/
 *.swp
 config/contract_notes.json
+
+# Paper PDFs are fetched, not committed. arXiv is a permanent public archive,
+# so a megabyte of binary in git buys nothing a single request does not — and
+# the large-file guard is right to refuse it. `docs/RESEARCH/papers/fetch.sh`
+# is the artifact; the PDFs are its output.
+docs/RESEARCH/papers/*.pdf

@@ -40,7 +40,9 @@ def main(argv: list[str] | None = None) -> int:
 
     strategy = RankAndHold(BY_NAME[args.feature], top_n=args.top_n)
     warmup = min(253, max(20, len(trading_days(rows)) // 4))
-    result = event_driven.run(rows, strategy, rebalance_every=args.rebalance, warmup=warmup)
+    result = event_driven.run(
+        rows, strategy, rebalance_every=args.rebalance, warmup=warmup, asset_class="equity"
+    )
     returns = result.daily_returns()
     if len(returns) < 30:
         print(f"only {len(returns)} return days; widen --days")

@@ -76,7 +76,9 @@ def _sharpe_of(rows: Sequence[PanelRow], config: dict[str, object]) -> float:
     if len(trading_days(rows)) < 300:
         return 0.0
     strategy, rebalance = _strategy_for(config)
-    result = event_driven.run(rows, strategy, rebalance_every=rebalance, warmup=253)
+    result = event_driven.run(
+        rows, strategy, rebalance_every=rebalance, warmup=253, asset_class="equity"
+    )
     return sharpe_stats(result.daily_returns()).sharpe
 
 
@@ -138,7 +140,9 @@ def evaluate(
 
 def _returns_of(rows: Sequence[PanelRow], config: dict[str, object]) -> list[float]:
     strategy, rebalance = _strategy_for(config)
-    return event_driven.run(rows, strategy, rebalance_every=rebalance, warmup=253).daily_returns()
+    return event_driven.run(
+        rows, strategy, rebalance_every=rebalance, warmup=253, asset_class="equity"
+    ).daily_returns()
 
 
 def _label(config: dict[str, object]) -> str:
@@ -282,6 +286,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             "pbo": round(pbo.pbo, 4),
             "n_paths": pbo.n_paths,
             "best_full_sample_sharpe": best_sharpe,
+            # The canonical key `sharpe_dispersion` reads. Written alongside the
+            # original rather than replacing it: the eleven existing entries are
+            # hash-chained and cannot be renamed, so both keys must be readable
+            # forever and only new rows can carry the canonical one.
+            ledger.SHARPE_KEY: best_sharpe,
         },
     )
 

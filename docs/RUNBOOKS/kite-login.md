@@ -32,7 +32,7 @@ would strip them, so the key ended up with `"` characters baked into it —
 19 characters instead of 16, and rejected by Zerodha.
 
 **Fix.** No quotes around values in `.env`. Plain
-`ZERODHA_API_KEY=rbg8fp2m2vtvli94`.
+`ZERODHA_API_KEY=your_key_here`.
 
 **Prevention.** `.env.example` documents every key but must stay empty
 (enforced by `tests/test_no_secrets.py`); it gives no example of formatting.

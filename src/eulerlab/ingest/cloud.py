@@ -20,9 +20,12 @@ against B2, Cloudflare R2, AWS S3 or Wasabi — only ``endpoint_url`` differs.
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import Iterator
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
+from threading import Lock
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
@@ -59,6 +62,19 @@ class ObjectStore(Protocol):
     def put(self, key: str, payload: bytes, sha256: str) -> None: ...
 
 
+class ReadableStore(ObjectStore, Protocol):
+    """An ObjectStore that can also be read back.
+
+    Separate from `ObjectStore` because the upload paths — the landing-zone
+    sync, the pruner — genuinely never download, and widening the protocol they
+    depend on would force every fake in their tests to grow a method none of
+    them uses.
+    """
+
+    def get(self, key: str) -> bytes:
+        """The object's bytes. Raises if it is not there."""
+
+
 class MissingCredentials(RuntimeError):
     """Set B2_KEY_ID and B2_APP_KEY in .env before syncing."""
 
@@ -93,6 +109,10 @@ class SyncResult:
     skipped: int
     mismatched: list[str]
     failed: list[str]
+    # The object keys this run actually wrote. A listing taken before the
+    # uploads plus these is the state of the bucket after them, which is what
+    # anyone reusing that listing needs.
+    uploaded_keys: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -110,6 +130,7 @@ def plan_sync(
     config: StorageConfig,
     *,
     verify: bool = False,
+    remote_sizes: dict[str, int] | None = None,
 ) -> SyncPlan:
     """Decide what to upload.
 
@@ -125,7 +146,8 @@ def plan_sync(
     exists and is exact, but it is an occasional audit rather than something
     every sync pays for. Same split as `make check-landing` locally.
     """
-    remote_sizes = store.list_sizes(config.prefix)
+    if remote_sizes is None:
+        remote_sizes = store.list_sizes(config.prefix)
 
     upload: list[ManifestEntry] = []
     present: list[ManifestEntry] = []
@@ -165,34 +187,55 @@ def sync(
     *,
     dry_run: bool = False,
     verify: bool = False,
+    remote_sizes: dict[str, int] | None = None,
 ) -> SyncResult:
     """Upload anything the bucket does not already have."""
-    plan = plan_sync(landing, store, config, verify=verify)
+    plan = plan_sync(landing, store, config, verify=verify, remote_sizes=remote_sizes)
     mismatched = [object_key(config.prefix, e) for e in plan.mismatched]
     failed: list[str] = []
 
     if dry_run:
         return SyncResult(0, len(plan.already_present), mismatched, failed)
 
-    uploaded = 0
-    for entry in plan.upload:
-        local = landing.root / entry.path
-        payload = local.read_bytes()
-
-        # Re-hash before sending. If the local file has rotted, uploading it
-        # would propagate the damage into the copy meant to protect us from it.
-        if sha256_of(payload) != entry.sha256:
-            failed.append(f"{entry.path}: local file no longer matches the manifest")
-            continue
-
+    def send(entry: ManifestEntry) -> str | None:
+        """Upload one entry. Returns a problem description, or None."""
+        # The read is inside the guard, as `sync_directory` already had it.
+        # It was outside: a file deleted or made unreadable between the plan
+        # and the upload raised straight out of the loop and took the whole
+        # sync with it, while the comment below promised the opposite.
         try:
+            payload = (landing.root / entry.path).read_bytes()
+
+            # Re-hash before sending. If the local file has rotted, uploading
+            # it would propagate the damage into the copy meant to protect us
+            # from it.
+            if sha256_of(payload) != entry.sha256:
+                return f"{entry.path}: local file no longer matches the manifest"
+
             store.put(object_key(config.prefix, entry), payload, entry.sha256)
         except Exception as exc:  # one bad object must not abort the whole sync
-            failed.append(f"{entry.path}: {exc}")
-            continue
-        uploaded += 1
+            return f"{entry.path}: {exc}"
+        return None
 
-    return SyncResult(uploaded, len(plan.already_present), mismatched, failed)
+    # Concurrent, like `sync_directory` already was. This loop was serial, so
+    # the bhavcopy tree uploaded one round trip at a time while every other
+    # tree went twelve at a time — same work, same store, two speeds, for no
+    # reason beyond the two functions having been written months apart.
+    #
+    # `map` preserves input order, so `failed` reads in landing order and a
+    # re-run reports problems in the same sequence.
+    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
+        problems = list(pool.map(send, plan.upload))
+    failed.extend(p for p in problems if p is not None)
+    landed = [
+        object_key(config.prefix, entry)
+        for entry, problem in zip(plan.upload, problems, strict=True)
+        if problem is None
+    ]
+
+    return SyncResult(
+        len(landed), len(plan.already_present), mismatched, failed, uploaded_keys=landed
+    )
 
 
 class S3ObjectStore:
@@ -207,21 +250,52 @@ class S3ObjectStore:
             raise MissingCredentials(msg)
 
         import boto3  # imported lazily so the ingest path never pays for it
+        from botocore.config import Config as BotoConfig
 
+        # Bounded, because unbounded is not a default this project can wear.
+        # boto3 ships a 60s connect timeout and five attempts, so one stalled
+        # TCP handshake costs five minutes per call and a pruned tree needs
+        # many. That is exactly what happened: a test run sat in SYN_SENT
+        # against B2 for **33 minutes**, hanging every commit behind it,
+        # burning five seconds of CPU the whole time.
+        #
+        # A short connect timeout is the one that matters — a handshake that
+        # has not completed in ten seconds is not going to. The read timeout is
+        # longer because a large object legitimately takes a while.
         self._client = boto3.client(
             "s3",
             endpoint_url=config.endpoint_url,
             aws_access_key_id=key_id,
             aws_secret_access_key=app_key,
+            config=BotoConfig(
+                connect_timeout=10,
+                read_timeout=30,
+                retries={"max_attempts": 3, "mode": "standard"},
+                # Default is 10, which would throttle both the upload pool and
+                # the listing fan-out back to serial at their edges.
+                max_pool_connections=LISTING_WORKERS + UPLOAD_WORKERS,
+            ),
         )
         self._bucket = config.bucket
 
-    def list_sizes(self, prefix: str) -> dict[str, int]:
-        """One paginated LIST instead of one HEAD per object."""
+    def _list_page_by_page(self, prefix: str, *, delimiter: str | None = None) -> dict[str, int]:
+        """Keys under a prefix, following continuation tokens to the end.
+
+        The single place that drives S3 pagination, because doing it by hand
+        per call site is how a request ends up reading only its first 1,000
+        results — which is exactly what the delimited call in
+        `list_sizes_fanned` did.
+        """
         sizes: dict[str, int] = {}
         token: str | None = None
         while True:
-            kwargs = {"Bucket": self._bucket, "Prefix": prefix, "MaxKeys": 1000}
+            kwargs: dict[str, object] = {
+                "Bucket": self._bucket,
+                "Prefix": prefix,
+                "MaxKeys": 1000,
+            }
+            if delimiter is not None:
+                kwargs["Delimiter"] = delimiter
             if token is not None:
                 kwargs["ContinuationToken"] = token
             response = self._client.list_objects_v2(**kwargs)
@@ -233,6 +307,82 @@ class S3ObjectStore:
             if not response.get("IsTruncated"):
                 return sizes
             token = response.get("NextContinuationToken")
+
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        """One paginated LIST instead of one HEAD per object."""
+        return self._list_page_by_page(prefix)
+
+    def list_groups(self, prefix: str) -> list[str]:
+        """The immediate child prefixes of `prefix`, one delimited request."""
+        groups: list[str] = []
+        token: str | None = None
+        while True:
+            kwargs = {
+                "Bucket": self._bucket,
+                "Prefix": prefix,
+                "Delimiter": "/",
+                "MaxKeys": 1000,
+            }
+            if token is not None:
+                kwargs["ContinuationToken"] = token
+            response = self._client.list_objects_v2(**kwargs)
+            groups.extend(
+                item["Prefix"]
+                for item in response.get("CommonPrefixes", [])
+                if isinstance(item.get("Prefix"), str)
+            )
+            if not response.get("IsTruncated"):
+                return groups
+            token = response.get("NextContinuationToken")
+
+    def list_sizes_fanned(self, prefix: str) -> dict[str, int]:
+        """`list_sizes`, but with the pagination spread across sub-prefixes.
+
+        A LIST returns 1,000 keys per request and the next request needs the
+        previous one's continuation token, so enumerating 142,000 objects is
+        142 strictly sequential round trips — 103 seconds, most of it waiting.
+
+        The sub-prefixes are independent, though: `cm/` and `us/` can be walked
+        at the same time. The groups are discovered from the bucket with one
+        delimited request rather than assumed from a list in the code, so a
+        tree nobody remembered to name is still enumerated.
+        """
+        groups = self.list_groups(prefix)
+        if len(groups) < 2:
+            return self.list_sizes(prefix)
+
+        # Keys sitting directly under the prefix rather than in any group. The
+        # delimited request already returned them; re-walking would miss them.
+        sizes: dict[str, int] = {}
+        with ThreadPoolExecutor(max_workers=LISTING_WORKERS) as pool:
+            for part in pool.map(self.list_sizes, groups):
+                sizes.update(part)
+        # Paginated like everything else. It was a single request, which is
+        # correct for a bucket whose keys all live inside a tree and silently
+        # wrong for one with more than 1,000 objects loose at the root: the
+        # overflow would read as absent, so the sync would re-upload it and
+        # the census would undercount by however many were dropped.
+        sizes.update(self._list_page_by_page(prefix, delimiter="/"))
+        return sizes
+
+    def any_under(self, prefix: str) -> bool:
+        """Whether *any* object exists under a prefix, in one request.
+
+        Deliberately on the concrete store and on **neither protocol**. Adding
+        it to `ObjectStore` broke 37 sync tests and adding it to
+        `ReadableStore` broke 9 results-mirror tests - in both cases forcing
+        fakes to implement a method that path never calls. Only the landing
+        reader asks this, and it already reaches the store dynamically, so a
+        protocol entry would buy nothing and cost every fake in the suite.
+
+        `list_sizes` paginates the whole tree, which is the right shape for a
+        sync and absurd for a yes/no question. Asking "does the fx tree hold
+        data" enumerated 34,051 keys across 35 round trips, and the capability
+        matrix asked it on every call — 62 seconds, every time, for a boolean.
+        MaxKeys=1 answers the same question with one request.
+        """
+        response = self._client.list_objects_v2(Bucket=self._bucket, Prefix=prefix, MaxKeys=1)
+        return bool(response.get("Contents"))
 
     def head_sha256(self, key: str) -> str | None:
         """SHA-256 recorded for an object, or None when it genuinely is not there.
@@ -272,12 +422,93 @@ class S3ObjectStore:
         return body
 
     def put(self, key: str, payload: bytes, sha256: str) -> None:
-        self._client.put_object(
-            Bucket=self._bucket,
-            Key=key,
-            Body=payload,
-            Metadata={SHA_METADATA_KEY: sha256},
-        )
+        """Upload one object, retrying a dropped connection.
+
+        Retrying is safe here and would not be for a partial write: this is a
+        whole object under a fixed key with a fixed body, so the second attempt
+        either lands the same bytes or does not land at all. There is no state
+        for a repeat to corrupt.
+
+        botocore already retries three times, and on this network that was not
+        enough — a nightly `make daily` reported 48 crypto files failed with
+        "Connection was closed before we received a valid response", which
+        exited `sync-cloud` non-zero and failed the whole job. The files were
+        the large monthly minute archives, so the drops cluster on the longest
+        uploads, which is what a flaky link does.
+
+        Only connection faults are retried. A 403 is not transient, and
+        retrying one would turn a clear credentials error into a slow one.
+        """
+        from botocore.exceptions import BotoCoreError
+        from botocore.exceptions import ConnectionError as BotoConnectionError
+
+        last: Exception | None = None
+        for attempt in range(UPLOAD_ATTEMPTS):
+            try:
+                self._client.put_object(
+                    Bucket=self._bucket,
+                    Key=key,
+                    Body=payload,
+                    Metadata={SHA_METADATA_KEY: sha256},
+                )
+            except (BotoConnectionError, BotoCoreError) as exc:
+                last = exc
+                if attempt == UPLOAD_ATTEMPTS - 1:
+                    break
+                # Backoff, so a link that is briefly saturated is given time
+                # rather than hammered by four attempts inside a second.
+                time.sleep(UPLOAD_BACKOFF * (2**attempt))
+                continue
+            return
+        assert last is not None
+        raise last
+
+
+UPLOAD_ATTEMPTS = 4
+"""Tries per object, on top of botocore's own three."""
+
+UPLOAD_BACKOFF = 0.5
+"""Seconds before the second try, doubling after that."""
+
+LISTING_WORKERS = 12
+"""Sub-prefixes enumerated at once by `list_sizes_fanned`."""
+
+
+def full_listing(store: ObjectStore, prefix: str) -> dict[str, int]:
+    """One enumeration of the bucket, for every consumer of one to share.
+
+    A mirror used to list the bucket twenty-five times: once for the bhavcopy
+    diff, once per tree for the directory sync, once per tree again for the
+    census — 314 of the 578 seconds, all of it asking for subsets of what the
+    first call already returned. Every caller now takes a slice of this.
+
+    Falls back to a plain `list_sizes` for any store without the fanned
+    variant, which is every fake in the tests — they are dicts in memory, so
+    there is nothing to parallelise and nothing to gain.
+    """
+    fanned = getattr(store, "list_sizes_fanned", None)
+    if fanned is None:
+        return store.list_sizes(prefix)
+    try:
+        listing: dict[str, int] = fanned(prefix)
+    except Exception:
+        # Twelve concurrent connections are twelve chances at a transient
+        # network error, and one of them killed a run during development. A
+        # mirror that falls back to the slow enumeration still mirrors; one
+        # that aborts leaves the bucket a day behind for no better reason than
+        # that the fast path is newer.
+        return store.list_sizes(prefix)
+    return listing
+
+
+UPLOAD_WORKERS = 12
+"""Concurrent uploads for a directory tree.
+
+Twelve rather than more for the reason the FX ingest found: past a dozen
+simultaneous connections the local resolver, not the remote service, becomes
+the failure point — and a DNS error looks nothing like a rate limit while
+being just as fatal to the file it was fetching.
+"""
 
 
 @dataclass(frozen=True)
@@ -285,6 +516,7 @@ class TreeSyncResult:
     uploaded: int
     skipped: int
     failed: list[str]
+    uploaded_keys: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -298,6 +530,7 @@ def sync_directory(
     prefix: str,
     pattern: str = "**/*",
     dry_run: bool = False,
+    remote_sizes: dict[str, int] | None = None,
 ) -> TreeSyncResult:
     """Mirror an arbitrary directory tree, comparing by size.
 
@@ -310,30 +543,60 @@ def sync_directory(
     Comparison for *what to upload* is by size, which is one LIST call for the
     whole tree rather than one HEAD per file.
     """
-    remote = store.list_sizes(prefix)
+    # A caller holding a listing of the whole bucket can hand it over rather
+    # than make this tree ask again; the slice it needs is already in there.
+    remote = (
+        {k: v for k, v in remote_sizes.items() if k.startswith(prefix)}
+        if remote_sizes is not None
+        else store.list_sizes(prefix)
+    )
     local = sorted(p for p in root.glob(pattern) if p.is_file())
 
-    uploaded = skipped = 0
-    failed: list[str] = []
-
+    pending: list[tuple[Path, str]] = []
+    skipped = 0
     for path in local:
         key = f"{prefix}{path.relative_to(root).as_posix()}"
-        size = path.stat().st_size
-        if remote.get(key) == size:
+        if remote.get(key) == path.stat().st_size:
             skipped += 1
             continue
-        if dry_run:
-            uploaded += 1
-            continue
+        pending.append((path, key))
+
+    if dry_run:
+        return TreeSyncResult(uploaded=len(pending), skipped=skipped, failed=[])
+
+    uploaded = 0
+    failed: list[str] = []
+    landed: list[str] = []
+    lock = Lock()
+
+    def send(job: tuple[Path, str]) -> None:
+        nonlocal uploaded
+        path, key = job
         try:
             payload = path.read_bytes()
             store.put(key, payload, sha256_of(payload))
         except Exception as exc:  # one bad object must not stop the tree
-            failed.append(f"{path.relative_to(root)}: {exc}")
-            continue
-        uploaded += 1
+            with lock:
+                failed.append(f"{path.relative_to(root)}: {exc}")
+            return
+        with lock:
+            uploaded += 1
+            landed.append(key)
 
-    return TreeSyncResult(uploaded=uploaded, skipped=skipped, failed=failed)
+    # Uploaded concurrently, and the reason is the same one the Dukascopy
+    # backfill taught: the throttle is per-connection, not per-account. Serially
+    # this managed 58 objects a minute, which is eight hours for the 34,773
+    # FX pair-days — a tree of many small files is bound by round trips rather
+    # than by bandwidth.
+    #
+    # The counter and the failure list are guarded because they are the only
+    # shared state; each upload is otherwise independent.
+    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
+        list(pool.map(send, pending))
+
+    return TreeSyncResult(
+        uploaded=uploaded, skipped=skipped, failed=failed, uploaded_keys=sorted(landed)
+    )
 
 
 def load_storage_config(path: Path) -> StorageConfig:

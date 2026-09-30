@@ -1,0 +1,61 @@
+id: H-0004
+title: Opening range breakout confined to stocks in play
+status: under_validation
+
+claim: >
+  A five-minute opening range breakout is unprofitable on a broad NSE universe
+  but profitable once restricted to stocks whose opening volume is unusually
+  high relative to their own recent history.
+
+rationale: >
+  Zarattini, Barbon & Aziz (2024) report Sharpe 2.81 and over 1,600% across
+  2016-2023 on a top-20 basket of US equities. Their own summary states the
+  plain breakout is weak and that the relative-volume selection does almost all
+  the work.
+  .
+  This is the one positive prior among the intraday papers surveyed, and it
+  contradicts Mesfin's ORB result. The contradiction is informative rather than
+  awkward: Mesfin tests a single index future with no selection step; this is a
+  cross-sectional result over roughly 7,000 names. Both can hold if the edge
+  lives in choosing which instrument to apply the breakout to rather than in
+  the breakout itself.
+  .
+  That makes the selection step the actual hypothesis, and it is what H-0003's
+  orb_breakout gives a control for: same trigger, no screen.
+
+source: >
+  Zarattini, C., Barbon, A., & Aziz, A. (2024). A Profitable Day Trading
+  Strategy For The U.S. Equity Market. SSRN 4729284. Primary text NOT retrieved
+  - SSRN returned 403 on 2026-08-22. Rules recovered from the publisher's own
+  summary and an independent third-party reproduction, which agree. See
+  docs/RESEARCH/019.
+
+configurations:
+  - {signal: orb_in_play, relative_volume_min: 1.0, stop_atr_mult: 1.4}
+  - {signal: orb_in_play, relative_volume_min: 1.5, stop_atr_mult: 1.4}
+  - {signal: orb_in_play, relative_volume_min: 2.0, stop_atr_mult: 1.4}
+  - {signal: orb_breakout, relative_volume_min: null, stop_atr_mult: 1.4}
+
+red_flags:
+  - >
+    The primary source was never read. Both secondary sources agree on every
+    number used here, which is why this was coded at all - but a rule recovered
+    from summaries can differ from the paper in a detail neither summary
+    thought worth stating. Any result should be treated as testing *our reading*
+    of the strategy until the paper itself is obtained.
+  - >
+    Sharpe 2.81 on a day-trading strategy is extraordinary. The reported
+    stop-out rate is around 83%, so the result depends entirely on the
+    remaining 17% being large enough - which makes it acutely sensitive to
+    execution assumptions the paper may not state and our engine certainly
+    models optimistically.
+  - >
+    The selection step needs fourteen prior sessions of opening volume per
+    symbol. Where the scan window does not span them the signal refuses rather
+    than degrading to a plain breakout, so a low firing rate here may be a data
+    coverage fact rather than a market fact. Check the rejection reasons before
+    reading anything into the trade count.
+  - >
+    US and Indian market opens are not comparable. NSE has a pre-open call
+    auction ending 09:15 and different circuit rules; "the first five minutes"
+    is not the same object in the two markets.

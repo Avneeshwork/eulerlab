@@ -64,6 +64,16 @@ class PanelRow:
     isin: str = ""
     """Internal instrument key, for joining to corporate-action factors."""
 
+    spread: float = 0.0
+    """Measured cost of crossing, in price units. Zero for equities.
+
+    FX has no exchange, no STT and no stamp duty — its transaction cost *is*
+    the bid-ask spread, and it varies by pair and by hour. Carrying the
+    measured value per row means an FX backtest can charge what the data
+    actually showed rather than a rate invented for it, which is the difference
+    between a cost model and a guess (S-028).
+    """
+
     open: float = 0.0
     high: float = 0.0
     low: float = 0.0

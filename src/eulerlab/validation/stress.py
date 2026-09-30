@@ -92,7 +92,9 @@ def cost_multiple(
     """
     index = index or build_adjusted_index(rows)
     base = _sharpe(
-        event_driven.run(rows, strategy, rebalance_every=rebalance, adjusted_index=index)
+        event_driven.run(
+            rows, strategy, asset_class="equity", rebalance_every=rebalance, adjusted_index=index
+        )
     )
     out: list[StressResult] = []
     for multiple in multiples:
@@ -102,6 +104,7 @@ def cost_multiple(
             event_driven.run(
                 rows,
                 strategy,
+                asset_class="equity",
                 rebalance_every=rebalance,
                 cost_multiplier=multiple,
                 adjusted_index=index,
@@ -135,10 +138,18 @@ def execution_delay(
     """
     index = index or build_adjusted_index(rows)
     base = _sharpe(
-        event_driven.run(rows, strategy, rebalance_every=rebalance, adjusted_index=index)
+        event_driven.run(
+            rows, strategy, asset_class="equity", rebalance_every=rebalance, adjusted_index=index
+        )
     )
     slower = _sharpe(
-        event_driven.run(rows, strategy, rebalance_every=rebalance * 2, adjusted_index=index)
+        event_driven.run(
+            rows,
+            strategy,
+            asset_class="equity",
+            rebalance_every=rebalance * 2,
+            adjusted_index=index,
+        )
     )
     return StressResult(
         name="signal staleness (proxy)",
@@ -164,7 +175,9 @@ def drop_best_contributors(
     are not going to be those five.
     """
     index = index or build_adjusted_index(rows)
-    base_run = event_driven.run(rows, strategy, rebalance_every=rebalance, adjusted_index=index)
+    base_run = event_driven.run(
+        rows, strategy, asset_class="equity", rebalance_every=rebalance, adjusted_index=index
+    )
     base = _sharpe(base_run)
 
     contribution: dict[str, float] = {}
@@ -174,7 +187,9 @@ def drop_best_contributors(
     best = sorted(contribution, key=lambda s: -contribution[s])[:drop]
 
     trimmed = [r for r in rows if r.symbol not in set(best)]
-    stressed = _sharpe(event_driven.run(trimmed, strategy, rebalance_every=rebalance))
+    stressed = _sharpe(
+        event_driven.run(trimmed, strategy, rebalance_every=rebalance, asset_class="equity")
+    )
     return StressResult(
         name=f"drop best {drop} names",
         detail=f"removed {', '.join(best[:3])}...: Sharpe {base:.2f} -> {stressed:.2f}",
@@ -205,12 +220,16 @@ def by_regime(
 
     out: list[StressResult] = []
     base = _sharpe(
-        event_driven.run(rows, strategy, rebalance_every=rebalance, adjusted_index=index)
+        event_driven.run(
+            rows, strategy, asset_class="equity", rebalance_every=rebalance, adjusted_index=index
+        )
     )
     for label, subset in (("first half", first), ("second half", second)):
         if len({r.day for r in subset}) < 400:
             continue
-        stressed = _sharpe(event_driven.run(subset, strategy, rebalance_every=rebalance))
+        stressed = _sharpe(
+            event_driven.run(subset, strategy, rebalance_every=rebalance, asset_class="equity")
+        )
         out.append(
             StressResult(
                 name=f"regime: {label}",

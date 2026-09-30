@@ -1,0 +1,29 @@
+# Top crypto by Binance USDT quote volume, filtered to those with
+# minute history back to 2025-09.
+# as_of: 2026-09-29
+# count: 20
+#
+# SURVIVORSHIP: these are the coins that survived to today with volume
+# today. The top twenty of 2021 included names now delisted, so a
+# backtest over this list is selected on hindsight (see ADR-008 for the
+# same argument in equities).
+BTCUSDT
+ETHUSDT
+ZECUSDT
+SOLUSDT
+XRPUSDT
+NEARUSDT
+QNTUSDT
+SUIUSDT
+HBARUSDT
+BABYUSDT
+AVAXUSDT
+LINKUSDT
+BNBUSDT
+UNIUSDT
+PUMPUSDT
+AAVEUSDT
+DOGEUSDT
+XLMUSDT
+WLDUSDT
+TAOUSDT

@@ -19,7 +19,13 @@ jobs:
           enable-cache: true
 
       - name: Install
-        run: uv sync --extra dev
+        # `web` is included even though nothing in verify *runs* the API,
+        # because mypy is strict over all of src/ and src/eulerlab/api/server.py
+        # imports fastapi. Without it the import is unresolved, every route
+        # decorator becomes untyped, and the type gate fails on code that is
+        # perfectly fine. Installing the extra is what lets mypy check that file
+        # properly rather than what lets it skip it.
+        run: uv sync --extra dev --extra web
 
       - name: Lint
         run: |

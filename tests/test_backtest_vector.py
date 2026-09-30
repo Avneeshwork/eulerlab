@@ -59,7 +59,9 @@ def test_buy_and_hold_tracks_a_uniformly_drifting_market() -> None:
     stock rises at the same known rate, nothing else it says is worth reading.
     """
     rows = _panel(n_symbols=40, n_days=320, drift=0.001)
-    result = run(rows, BuyAndHold(top_n=20), warmup=60, rebalance_every=10_000)
+    result = run(
+        rows, BuyAndHold(top_n=20), warmup=60, rebalance_every=10_000, asset_class="equity"
+    )
     assert result.final_equity > result.starting_cash
     # 259 remaining days at 0.1% a day, less entry costs. Generous bounds:
     # the test is that it is in the right order of magnitude, not exact.
@@ -68,7 +70,9 @@ def test_buy_and_hold_tracks_a_uniformly_drifting_market() -> None:
 
 def test_a_falling_market_loses_money() -> None:
     rows = _panel(n_symbols=40, n_days=320, drift=-0.001)
-    result = run(rows, BuyAndHold(top_n=20), warmup=60, rebalance_every=10_000)
+    result = run(
+        rows, BuyAndHold(top_n=20), warmup=60, rebalance_every=10_000, asset_class="equity"
+    )
     assert result.final_equity < result.starting_cash
 
 
@@ -90,7 +94,7 @@ def test_a_strategy_cannot_see_beyond_its_decision_date() -> None:
                 seen.append((view.as_of, last))
             return {}
 
-    run(rows, Spy(), warmup=60, rebalance_every=50)
+    run(rows, Spy(), warmup=60, rebalance_every=50, asset_class="equity")
     assert seen
     for as_of, last_row in seen:
         assert last_row <= as_of
@@ -109,7 +113,7 @@ def test_the_fill_happens_after_the_decision_day() -> None:
             decision_days.append(view.as_of)
             return {"SYM000": 1.0}
 
-    result = run(rows, Recorder(), warmup=60, rebalance_every=50)
+    result = run(rows, Recorder(), warmup=60, rebalance_every=50, asset_class="equity")
     assert result.fills
     for fill in result.fills:
         assert any(fill.day > d for d in decision_days)
@@ -120,13 +124,15 @@ def test_the_fill_happens_after_the_decision_day() -> None:
 
 def test_replication_mode_charges_nothing() -> None:
     rows = _panel(n_symbols=20, n_days=320)
-    result = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="replication")
+    result = run(
+        rows, BuyAndHold(top_n=10), warmup=60, cost_mode="replication", asset_class="equity"
+    )
     assert result.total_cost == 0.0
 
 
 def test_realistic_mode_charges_something_on_every_fill() -> None:
     rows = _panel(n_symbols=20, n_days=320)
-    result = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic")
+    result = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic", asset_class="equity")
     assert result.fills
     assert result.total_cost > 0
     assert all(f.cost > 0 for f in result.fills)
@@ -136,8 +142,8 @@ def test_costs_reduce_the_final_equity() -> None:
     """The two modes must differ by exactly the costs, which is what makes
     'does this survive costs?' a single flag."""
     rows = _panel(n_symbols=20, n_days=320)
-    free = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="replication")
-    paid = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic")
+    free = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="replication", asset_class="equity")
+    paid = run(rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic", asset_class="equity")
     assert paid.final_equity < free.final_equity
 
 
@@ -150,12 +156,14 @@ def test_more_frequent_rebalancing_costs_more() -> None:
         RankAndHold("turnover_liquidity", top_n=10, min_names=20),
         warmup=70,
         rebalance_every=100,
+        asset_class="equity",
     )
     often = run(
         rows,
         RankAndHold("turnover_liquidity", top_n=10, min_names=20),
         warmup=70,
         rebalance_every=5,
+        asset_class="equity",
     )
     assert often.total_cost > rare.total_cost
 
@@ -201,7 +209,7 @@ def test_the_engine_publishes_its_approximations() -> None:
 
 def test_a_panel_shorter_than_the_warmup_returns_nothing_rather_than_guessing() -> None:
     rows = _panel(n_symbols=5, n_days=30)
-    result = run(rows, BuyAndHold(top_n=3), warmup=253)
+    result = run(rows, BuyAndHold(top_n=3), warmup=253, asset_class="equity")
     assert result.equity == []
     assert result.final_equity == result.starting_cash
 
@@ -210,7 +218,7 @@ def test_a_thin_cross_section_holds_nothing_rather_than_whatever_qualified() -> 
     """Otherwise the early portfolio is an accident of data coverage."""
     rows = _panel(n_symbols=5, n_days=300)
     strategy = RankAndHold("turnover_liquidity", top_n=3, min_names=50)
-    result = run(rows, strategy, warmup=70, rebalance_every=50)
+    result = run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
     assert result.fills == []
 
 
@@ -242,7 +250,13 @@ def test_a_holding_is_marked_at_its_last_known_price_when_it_does_not_trade() ->
                 )
             )
 
-    result = run(rows, _Constant(["ANCHOR", "GAPPY"]), warmup=200, rebalance_every=10_000)
+    result = run(
+        rows,
+        _Constant(["ANCHOR", "GAPPY"]),
+        warmup=200,
+        rebalance_every=10_000,
+        asset_class="equity",
+    )
     assert result.equity
     # Prices are flat, so equity must be flat too. Any dip is the artefact.
     worst = min(result.equity)
@@ -267,7 +281,9 @@ def test_an_instrument_that_did_not_trade_cannot_be_traded() -> None:
                 )
             )
 
-    result = run(rows, _Constant(["ANCHOR", "HALTED"]), warmup=260, rebalance_every=10)
+    result = run(
+        rows, _Constant(["ANCHOR", "HALTED"]), warmup=260, rebalance_every=10, asset_class="equity"
+    )
     assert all(f.symbol != "HALTED" for f in result.fills)
 
 

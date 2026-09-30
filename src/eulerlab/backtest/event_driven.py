@@ -70,6 +70,16 @@ class TierBResult:
     starting_cash: float = 1_000_000.0
     cost_mode: str = "realistic"
     orders: list[Order] = field(default_factory=list)
+    final_marks: dict[str, float] = field(default_factory=dict)
+    """The prices open positions were valued at on the last day.
+
+    Returned rather than left for a caller to reconstruct. The report's
+    per-instrument attribution has to mark open positions at exactly what the
+    equity curve marked them at, and rebuilding those prices from the panel
+    got it wrong twice — raw closes instead of adjusted, then an index whose
+    symbol set did not match. Handing back the dict the engine already has
+    removes the whole class of mismatch.
+    """
 
     @property
     def final_equity(self) -> float:
@@ -103,6 +113,7 @@ def run(
     rebalance_every: int = 21,
     gross_cap: float = 1.0,
     cost_mode: str = "realistic",
+    asset_class: str,
     brokerage: Brokerage | None = None,
     warmup: int = 253,
     adjusted_index: dict[str, dict[date, float]] | None = None,
@@ -243,7 +254,10 @@ def run(
         return price_index[symbol][days_[position]] if position >= 0 else None
 
     engine: Executor = executor or SimulatedExecutor(
-        cost_mode=cost_mode, brokerage=brokerage, cost_multiplier=cost_multiplier
+        cost_mode=cost_mode,
+        asset_class=asset_class,
+        brokerage=brokerage,
+        cost_multiplier=cost_multiplier,
     )
     portfolio = Portfolio(cash=starting_cash)
     result = TierBResult(
@@ -306,6 +320,7 @@ def run(
         }
         result.days.append(fill_day)
         result.equity.append(portfolio.equity(marks))
+        result.final_marks = marks
 
     result.portfolio = portfolio
     return result

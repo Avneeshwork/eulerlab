@@ -88,7 +88,25 @@ def _overlaps(key: str, start: date | None, end: date | None) -> bool:
 
 
 def fetch(symbol: str, *, start: date | None = None, end: date | None = None) -> list[Candle]:
-    """All minute candles for `symbol`, downloading what is not cached."""
+    """All minute candles for `symbol`, downloading what is not cached.
+
+    **One bar per timestamp**, which is not what concatenating the chunks
+    gives. The archive's 60-day windows overlap: `NIFTYBEES` on 2026-06-02 is
+    covered by three separate files (04-21→06-19, 04-23→06-21, 05-25→07-23),
+    so a naive read returned every minute of that day three times — 1,125 rows
+    for a 375-minute session.
+
+    That is not a cosmetic duplicate. Every indicator here counts bars, so a
+    60-period mean covered twenty real minutes instead of sixty, ATR and the
+    volume z-score were computed over a third of their intended window, and
+    session volume was tripled. Any NSE intraday result produced before this
+    was measuring a signal with its lookbacks silently divided by three.
+
+    Where two chunks disagree about a bar the **later** one wins. Keys sort by
+    start date, so the last chunk containing a timestamp is the most recently
+    fetched, and a re-fetch is more likely to be a correction than a
+    regression.
+    """
     import pyarrow.parquet as pq
 
     client = _client()
@@ -127,6 +145,13 @@ def fetch(symbol: str, *, start: date | None = None, end: date | None = None) ->
                     volume=float(row.get("volume") or 0.0),  # type: ignore[arg-type]
                 )
             )
+    # Deduplicated before sorting, keeping the last occurrence: `_keys_for`
+    # yields chunks in start-date order, so "last" is the newest file that
+    # covers the bar.
+    by_stamp: dict[datetime, Candle] = {}
+    for candle in out:
+        by_stamp[candle.ts] = candle
+    out = list(by_stamp.values())
     out.sort(key=lambda c: c.ts)
     return out
 

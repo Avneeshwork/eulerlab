@@ -28,9 +28,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal
 
-from eulerlab.costs.model import cost_of_trade
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday.tweezer import Candle, Plan, Rules
 
@@ -79,17 +77,30 @@ class Trade:
         return self.net_pnl() / risked if risked > 0 else 0.0
 
 
-def _cost(price: float, shares: int, side: Side, day: date) -> float:
-    if shares <= 0:
-        return 0.0
-    return float(
-        cost_of_trade(
-            trade_date=day,
-            segment=Segment.EQUITY_INTRADAY,
-            side=side,
-            price=Decimal(str(round(price, 2))),
-            quantity=shares,
-        ).total
+def _cost(price: float, shares: int, side: Side, day: date, asset_class: str) -> float:
+    """What one fill costs, from the one router that knows every venue.
+
+    This used to hold the routing itself, and so did `vector._costs_for` in the
+    daily engine — two implementations that diverged: this one knew crypto and
+    NSE *intraday*, that one knew NSE *delivery* and no crypto at all. A venue
+    handled here and mishandled there produced a plausible number either way.
+
+    `asset_class` has no default. It defaulted to `"equity"`, which billed
+    crypto Indian STT, then US Indian STT, then every winning exit Indian STT
+    because two of six call sites in this file kept the default after the others
+    were fixed.
+    """
+    from eulerlab.costs.router import fill_cost
+
+    return fill_cost(
+        venue=asset_class,
+        price=price,
+        quantity=shares,
+        side=side,
+        day=day,
+        # Intraday by construction: every signal in this engine is flat at the
+        # close, so NSE charges the intraday rates rather than delivery.
+        segment=Segment.EQUITY_INTRADAY,
     )
 
 
@@ -99,11 +110,22 @@ def run(
     rules: Rules,
     *,
     session_end_index: int | None = None,
+    asset_class: str,
 ) -> Trade:
     """Execute `plan` against the candles that followed the signal.
 
     `forward` starts at the candle **after** the signal, so the signal candle
     itself can never fill the order — the trigger was published on its close.
+
+    `asset_class` has **no default**, and the reason is a pattern rather than
+    one bug. It defaulted to `"equity"`, which made this call accidentally
+    correct for the NSE scanner and silently wrong everywhere else: crypto
+    trades billed Indian STT, then US trades billed Indian STT, then — after
+    both were fixed at `_cost` — every *winning* exit billed Indian STT, because
+    two of six call sites inside this function had quietly kept the default.
+
+    Each time the wrong number was plausible, which is what let it survive. A
+    required argument turns all of that into a TypeError at import.
     """
     trade = Trade(plan=plan)
     remaining_1, remaining_2 = plan.shares_1, plan.shares_2
@@ -128,7 +150,7 @@ def run(
                 trade.entry_ts = candle.ts
                 trade.entry_price = fill
                 peak = candle.high
-                trade.costs += _cost(fill, plan.shares, Side.BUY, day)
+                trade.costs += _cost(fill, plan.shares, Side.BUY, day, asset_class)
             elif index >= last_index:
                 break
             else:
@@ -144,7 +166,7 @@ def run(
         # --- forced close at the session end (Step 9) ---
         if index >= last_index:
             trade.exits.append(Exit(candle.ts, candle.close, held, "session end"))
-            trade.costs += _cost(candle.close, held, Side.SELL, day)
+            trade.costs += _cost(candle.close, held, Side.SELL, day, asset_class)
             remaining_1 = remaining_2 = 0
             break
 
@@ -155,7 +177,7 @@ def run(
             fill = min(stop, candle.open)
             reason = "breakeven stop" if breakeven_done else "stop"
             trade.exits.append(Exit(candle.ts, fill, held, reason))
-            trade.costs += _cost(fill, held, Side.SELL, day)
+            trade.costs += _cost(fill, held, Side.SELL, day, asset_class)
             remaining_1 = remaining_2 = 0
             break
 
@@ -166,7 +188,7 @@ def run(
             trail = peak * (1.0 - rules.trail_giveback)
             if candle.close < trail:
                 trade.exits.append(Exit(candle.ts, candle.close, held, "trailing stop"))
-                trade.costs += _cost(candle.close, held, Side.SELL, day)
+                trade.costs += _cost(candle.close, held, Side.SELL, day, asset_class)
                 remaining_1 = remaining_2 = 0
                 break
 
@@ -174,7 +196,7 @@ def run(
         if remaining_1 > 0 and candle.high >= plan.target_1:
             fill = max(plan.target_1, candle.open)
             trade.exits.append(Exit(candle.ts, fill, remaining_1, "target 1"))
-            trade.costs += _cost(fill, remaining_1, Side.SELL, day)
+            trade.costs += _cost(fill, remaining_1, Side.SELL, day, asset_class)
             remaining_1 = 0
             if not breakeven_done:
                 stop = max(stop, trade.entry_price)
@@ -183,7 +205,7 @@ def run(
         if remaining_2 > 0 and candle.high >= plan.target_2:
             fill = max(plan.target_2, candle.open)
             trade.exits.append(Exit(candle.ts, fill, remaining_2, "target 2"))
-            trade.costs += _cost(fill, remaining_2, Side.SELL, day)
+            trade.costs += _cost(fill, remaining_2, Side.SELL, day, asset_class)
             remaining_2 = 0
             break
 

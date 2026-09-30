@@ -63,8 +63,9 @@ class OMSExecutor:
 
     name = "oms"
 
-    def __init__(self, oms: OMS, *, brokerage: Brokerage | None = None) -> None:
+    def __init__(self, oms: OMS, *, asset_class: str, brokerage: Brokerage | None = None) -> None:
         self.oms = oms
+        self.asset_class = asset_class
         self.brokerage = brokerage
         self.submitted = 0
         self.rejected = 0
@@ -103,7 +104,7 @@ class OMSExecutor:
                 order.client_order_id, day, order.symbol, "filled but no execution recorded"
             )
         cost = vector._costs_for(
-            day, execution.price, execution.quantity, order.side, self.brokerage
+            day, execution.price, execution.quantity, order.side, self.brokerage, self.asset_class
         )
         return Fill(
             client_order_id=order.client_order_id,
@@ -197,6 +198,11 @@ def run(
     rebalance: int = 21,
     starting_cash: float = 1_000_000.0,
     warmup: int = 253,
+    # The venue this account trades on. Defaulted here and nowhere deeper:
+    # paper trading is NSE-only today, and this is the *account's* property
+    # rather than a guess about the data — which is the distinction that makes
+    # a default safe here and unsafe at every level below.
+    asset_class: str = "equity",
     brokerage: Brokerage | None = None,
     adjusted_index: dict[str, dict[date, float]] | None = None,
 ) -> PaperRun:
@@ -207,10 +213,11 @@ def run(
     bad week.
     """
     oms.recover()
-    executor = OMSExecutor(oms, brokerage=brokerage)
+    executor = OMSExecutor(oms, brokerage=brokerage, asset_class=asset_class)
     result = event_driven.run(
         rows,
         strategy,
+        asset_class=asset_class,
         starting_cash=starting_cash,
         rebalance_every=rebalance,
         warmup=warmup,

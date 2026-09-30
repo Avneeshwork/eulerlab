@@ -12,12 +12,46 @@ everything. The rejection histogram is the first thing to read.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures as cf
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
 
 from eulerlab.intraday import bracket, store
 from eulerlab.intraday.tweezer import Plan, Rejected, Rules, detect
+
+UNIVERSE_FILE = Path("config/universe_top250.txt")
+
+UNIVERSES = {"nifty50": 50, "nifty100": 100, "nifty250": 250}
+"""Index-sized slices of our own liquidity ranking — **not** index membership.
+
+ADR-008 settled this: a published constituent list is only available as it
+stands *today*, so using one across history is survivorship bias of the exact
+kind Sprint 4 exists to prevent. The 2015 scan would be run on the companies
+that survived to 2026.
+
+So `nifty50` means "the 50 most-traded names as of the ranking date", which is a
+liquidity proxy for the index rather than the index. The distinction matters
+whenever a result is reported, and the scan prints it every time.
+"""
+
+
+def universe(name: str, *, path: Path = UNIVERSE_FILE) -> list[str]:
+    """Resolve a universe name to symbols, longest-lived first."""
+    key = name.lower().replace(" ", "").replace("-", "")
+    if key not in UNIVERSES:
+        msg = f"unknown universe {name!r}; try {', '.join(sorted(UNIVERSES))}"
+        raise ValueError(msg)
+    if not path.exists():
+        msg = f"{path} is missing; the universe is derived from it"
+        raise FileNotFoundError(msg)
+    symbols = [
+        line.strip()
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+    return symbols[: UNIVERSES[key]]
 
 
 @dataclass
@@ -101,7 +135,11 @@ def scan_symbol(
             assert isinstance(outcome, Plan)
             result.plans += 1
             forward = session[index + 1 :]
-            trade = bracket.run(outcome, forward, rules)
+            # NSE, stated rather than inherited. Tweezer only ever runs on
+            # Indian equities, so this was correct while it was a default — and
+            # correct-by-accident is how the same default went wrong in three
+            # other call sites without anyone noticing.
+            trade = bracket.run(outcome, forward, rules, asset_class="equity")
             result.trades.append(trade)
             # Skip past the trade so one setup cannot be counted many times as
             # the same pattern stays visible in successive windows.
@@ -110,31 +148,120 @@ def scan_symbol(
     return result
 
 
+def scan_many(
+    symbols: Sequence[str],
+    *,
+    start: date,
+    end: date,
+    rules: Rules | None = None,
+    equity: float = 1_000_000.0,
+    workers: int = 8,
+    on_done: object = None,
+) -> list[ScanResult]:
+    """Scan a whole universe.
+
+    Threaded because the work is dominated by waiting on B2, not by arithmetic.
+    A symbol that fails is reported as an empty result rather than killing the
+    run — one delisted name should not cost a 250-symbol scan.
+    """
+    rules = rules or Rules()
+
+    def one(symbol: str) -> ScanResult:
+        try:
+            return scan_symbol(symbol, start=start, end=end, rules=rules, equity=equity)
+        except Exception as exc:
+            result = ScanResult(symbol=symbol)
+            result.rejections[f"unavailable: {type(exc).__name__}"] = 1
+            return result
+
+    out: list[ScanResult] = []
+    with cf.ThreadPoolExecutor(max_workers=workers) as pool:
+        for result in pool.map(one, symbols):
+            out.append(result)
+            if callable(on_done):
+                on_done(result, len(out), len(symbols))
+    return out
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Scan for Tweezer Bottom setups.")
-    parser.add_argument("--symbols", default="RELIANCE,TCS,INFY,HDFCBANK,ICICIBANK")
+    parser.add_argument(
+        "--universe",
+        default="",
+        help="nifty50 | nifty100 | nifty250 (liquidity-ranked, see ADR-008)",
+    )
+    parser.add_argument("--symbols", default="")
+    parser.add_argument("--day", default="", help="scan a single session")
     parser.add_argument("--from", dest="start", default="2024-01-01")
     parser.add_argument("--to", dest="end", default="2024-06-30")
+    parser.add_argument("--workers", type=int, default=8)
+    parser.add_argument("--quiet", action="store_true", help="totals only")
     parser.add_argument("--equity", type=float, default=1_000_000.0)
     parser.add_argument("--prune", action="store_true", help="delete the local cache when done")
     args = parser.parse_args(argv)
 
-    start, end = date.fromisoformat(args.start), date.fromisoformat(args.end)
-    symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+    if args.day:
+        start = end = date.fromisoformat(args.day)
+    else:
+        start, end = date.fromisoformat(args.start), date.fromisoformat(args.end)
 
-    total_pnl = 0.0
-    total_filled = 0
-    for symbol in symbols:
-        result = scan_symbol(symbol, start=start, end=end, equity=args.equity)
-        print(result.render())
-        total_pnl += result.net_pnl()
-        total_filled += len(result.filled)
+    label = ""
+    if args.universe:
+        try:
+            symbols = universe(args.universe)
+        except (ValueError, FileNotFoundError) as exc:
+            print(exc)
+            return 2
+        label = f"{args.universe} ({len(symbols)} names, liquidity-ranked — ADR-008)"
+    else:
+        symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+        label = f"{len(symbols)} named symbols"
+    if not symbols:
+        print("nothing to scan: pass --universe or --symbols")
+        return 2
 
-    print(f"\n{'=' * 60}")
-    print(f"{len(symbols)} symbols, {total_filled} filled trades, net {total_pnl:,.0f}")
+    print(f"scanning {label}")
+    print(f"  {start} to {end}\n")
+
+    def progress(result: ScanResult, done: int, total: int) -> None:
+        if not args.quiet and (result.plans or done % 25 == 0 or done == total):
+            mark = f"{result.plans} setup(s)" if result.plans else "-"
+            print(f"  [{done:>3}/{total}] {result.symbol:<14} {mark}")
+
+    results = scan_many(
+        symbols,
+        start=start,
+        end=end,
+        equity=args.equity,
+        workers=args.workers,
+        on_done=progress,
+    )
+
+    for result in results:
+        if result.plans and not args.quiet:
+            print(result.render())
+
+    total_pnl = sum(r.net_pnl() for r in results)
+    total_filled = sum(len(r.filled) for r in results)
+    wins = sum(r.wins() for r in results)
+    candles = sum(r.candles for r in results)
+    unavailable = sum(1 for r in results if any(k.startswith("unavailable") for k in r.rejections))
+
+    print(f"\n{'=' * 62}")
+    print(f"{label}")
+    print(f"  {start} to {end}   {candles:,} candles")
+    print(f"  setups {sum(r.plans for r in results)}   filled {total_filled}   wins {wins}")
+    print(f"  net {total_pnl:,.0f}")
+    if unavailable:
+        print(f"  {unavailable} symbol(s) had no minute data and were skipped")
+    if 0 < total_filled < 20:
+        print(
+            f"\n  {total_filled} trades is far too few to read a win rate from. It says\n"
+            f"  the setup is RARE, not that it works."
+        )
     print(
-        "\nThis spent no trial. It is not a validated result: one symbol set,\n"
-        "one window, chosen by hand. Run `make validate` if it is ever a candidate."
+        "\nThis spent no trial. It is not a validated result: one universe, one\n"
+        "window. Run `make validate` if it ever becomes a candidate."
     )
     if args.prune:
         files, gigabytes = store.prune()
