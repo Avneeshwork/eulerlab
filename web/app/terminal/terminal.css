@@ -2503,3 +2503,35 @@ textarea:focus-visible {
   background: var(--fail-wash);
   color: var(--fail);
 }
+
+/* ============================ option chain ============================
+   Calls left, strike centre, puts right — the layout every option trader
+   already reads, so the screen costs nothing to learn.
+
+   Untraded contracts are dimmed, not hidden. Their price is NSE's settlement
+   model output rather than a transaction, so it means something different
+   from the number beside it, and rendering both identically is what invites
+   someone to average them. */
+.ttable.chain td.r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ttable.chain td.strike {
+  text-align: center;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+}
+
+.ttable.chain td.untraded {
+  color: var(--ink-4);
+}
+
+.ttable.chain tr.atm td {
+  background: var(--neon-wash);
+}
+
+.ttable.chain tr.atm td.strike {
+  color: var(--neon-deep);
+}

@@ -936,6 +936,36 @@ export const api = {
       `/api/window?days=${days}&universe=${encodeURIComponent(universe)}` +
         `&asset_class=${encodeURIComponent(assetClass)}`
     ),
+  optionChain: (underlying: string, expiry = '') =>
+    get<{
+      ok: boolean;
+      underlying: string;
+      day: string;
+      expiry: string;
+      expiries: string[];
+      days_to_expiry: number;
+      forward: number | null;
+      forward_source: string;
+      discount: number;
+      strikes: {
+        strike: number;
+        call_price: number | null;
+        call_oi: number | null;
+        call_iv: number | null;
+        call_traded: boolean;
+        put_price: number | null;
+        put_oi: number | null;
+        put_iv: number | null;
+        put_traded: boolean;
+      }[];
+      findings: { check: string; severity: string; detail: string }[];
+      findings_note: string;
+      error?: string;
+      available?: string[];
+    }>(
+      `/api/options/chain?underlying=${encodeURIComponent(underlying)}` +
+        (expiry ? `&expiry=${encodeURIComponent(expiry)}` : '')
+    ),
   mode: () =>
     get<{
       ok: boolean;

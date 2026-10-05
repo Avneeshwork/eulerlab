@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { BuildTab } from '@/components/terminal/BuildTab';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
+import { OptionsTab } from '@/components/terminal/OptionsTab';
 import { RiskTab } from '@/components/terminal/RiskTab';
 import { BacktestDialog } from '@/components/terminal/BacktestDialog';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
@@ -39,7 +40,17 @@ import type { Fleet, FleetStrategy } from '@/lib/api';
 // Data is deliberately not here. Results still mirror to the bucket after every
 // backtest — that is automatic and unaffected; what is gone is the manual
 // pull-merge-push button and the on-disk counts.
-const NAV = ['Snapshot', 'Chart', 'Library', 'Build', 'Run', 'Instruments', 'Risk', 'Live'] as const;
+const NAV = [
+  'Snapshot',
+  'Chart',
+  'Options',
+  'Library',
+  'Build',
+  'Run',
+  'Instruments',
+  'Risk',
+  'Live',
+] as const;
 type Tab = (typeof NAV)[number];
 
 export default function TerminalPage() {
@@ -174,6 +185,7 @@ export default function TerminalPage() {
       </header>
 
       <div className="tpage">
+        {tab === 'Options' && <OptionsTab />}
         {tab === 'Risk' && <RiskTab />}
         {tab === 'Snapshot' && <SnapshotTab workspace={workspace} />}
 

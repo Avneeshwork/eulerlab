@@ -3460,3 +3460,140 @@ def mode() -> dict[str, Any]:
         "why": "no live broker adapter exists (S-015); no capital has ever been traded",
         "kill_switch_tripped": killswitch.KillSwitch().is_tripped(),
     }
+
+
+@app.get("/api/options/chain")
+def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") -> dict[str, Any]:
+    """One option chain, with implied vol and the no-arbitrage findings.
+
+    The options package has parsed chains, solved Black-76 implied vol and run
+    five no-arbitrage checks since the options-quality sprint, and none of it
+    has ever been reachable from the interface — the capability matrix has read
+    "chains parsed, no strategy path" the whole time. This does not add
+    analysis; it stops hiding the analysis that exists.
+
+    Violations are reported with `traded` beside them on purpose. An untraded
+    contract's price is NSE's model output, so a "violation" involving one is a
+    statement about that model rather than about a tradable edge, and the two
+    must never be presented as the same finding.
+    """
+    import datetime as dt
+    from decimal import Decimal
+
+    from eulerlab.ingest import landing_reader
+    from eulerlab.master.derivatives import Right
+    from eulerlab.options.arbitrage import implied_forward_and_discount, run_chain_checks
+    from eulerlab.options.chain import build_chains, quotes_from_fo_bhavcopy
+    from eulerlab.options.iv import implied_vol, years_to_expiry
+
+    found = landing_reader.available("fo", "**/*_udiff.zip", allow_cloud=True)
+    if not found:
+        return {"ok": False, "error": "no F&O bhavcopy has been landed"}
+
+    def day_of(path: str) -> str:
+        return path.rsplit("/", 1)[-1].split("_")[0]
+
+    wanted = day or max(day_of(p) for p in found)
+    match = next((p for p in found if day_of(p) == wanted), "")
+    if not match:
+        return {"ok": False, "error": f"no F&O bhavcopy for {wanted}"}
+
+    try:
+        payload = landing_reader.read(match)
+        trade_day = dt.date.fromisoformat(wanted)
+        chains = build_chains(quotes_from_fo_bhavcopy(payload), trade_day)
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
+
+    mine = [c for c in chains if c.underlying.upper() == underlying.upper()]
+    if not mine:
+        names = sorted({c.underlying for c in chains})[:40]
+        return {"ok": False, "error": f"no chain for {underlying}", "available": names}
+
+    mine.sort(key=lambda c: c.expiry)
+    chain = next((c for c in mine if c.expiry.isoformat() == expiry), mine[0])
+
+    # The forward is fitted from put-call parity before it is taken from the
+    # future, for two reasons. Index futures are monthly and the options are
+    # weekly, so an exact-expiry future exists for roughly one chain in four —
+    # every weekly priced `forward: None` and showed no implied vol at all.
+    # And the fit returns the discount factor with it, which was otherwise
+    # hardcoded to 1.0 and silently shifted every vol on the screen.
+    fitted = implied_forward_and_discount(chain, traded_only=True)
+    if fitted is not None:
+        forward, discount = fitted
+        forward_source = "fitted from put-call parity"
+    elif chain.future is not None:
+        forward, discount = chain.future.price, 1.0
+        forward_source = "the exact-expiry future, undiscounted"
+    else:
+        forward, discount = None, 1.0
+        forward_source = "unavailable — no parity fit and no matching future"
+    days_out = max((chain.expiry - trade_day).days, 0)
+    tenor = years_to_expiry(days_out)
+
+    rows: list[dict[str, Any]] = []
+    for strike in chain.strikes:
+        call, put = chain.calls.get(strike), chain.puts.get(strike)
+
+        def vol(quote: Any, right: Right, *, at: Decimal = strike) -> float | None:
+            if quote is None or forward is None or tenor <= 0 or quote.price <= 0:
+                return None
+            try:
+                return implied_vol(
+                    price=quote.price,
+                    forward=forward,
+                    strike=float(at),
+                    years=tenor,
+                    discount=discount,
+                    right=right,
+                )
+            except Exception:
+                # A strike the solver cannot price is blank, never zero. Zero
+                # vol is a number someone will average.
+                return None
+
+        rows.append(
+            {
+                "strike": float(strike),
+                "call_price": call.price if call else None,
+                "call_oi": call.open_interest if call else None,
+                "call_volume": call.volume if call else None,
+                "call_traded": bool(call and call.traded),
+                "call_iv": vol(call, Right.CALL),
+                "put_price": put.price if put else None,
+                "put_oi": put.open_interest if put else None,
+                "put_volume": put.volume if put else None,
+                "put_traded": bool(put and put.traded),
+                "put_iv": vol(put, Right.PUT),
+            }
+        )
+
+    findings = [
+        {
+            "check": f.check,
+            "severity": str(getattr(f.severity, "value", f.severity)),
+            "detail": f.detail,
+        }
+        for f in run_chain_checks(chain, traded_only=True)
+    ]
+
+    return {
+        "ok": True,
+        "underlying": chain.underlying,
+        "day": wanted,
+        "expiry": chain.expiry.isoformat(),
+        "expiries": [c.expiry.isoformat() for c in mine],
+        "days_to_expiry": days_out,
+        "forward": forward,
+        "forward_source": forward_source,
+        "discount": discount,
+        "strikes": rows,
+        "findings": findings,
+        # Stated because it changes what a finding means, and the distinction
+        # is invisible in the numbers themselves.
+        "findings_note": (
+            "Checked against traded contracts only. An untraded contract's price is NSE's "
+            "model output, so a violation involving one describes that model, not an edge."
+        ),
+    }
