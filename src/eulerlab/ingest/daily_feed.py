@@ -136,6 +136,26 @@ class PartialSource(RuntimeError):
     """Some sub-sources of a step landed and some did not."""
 
 
+def _option_chain() -> str:
+    """Snapshot the live NSE option chain.
+
+    The only source here that cannot be caught up later. The bhavcopy is
+    published after the close and can be fetched for any past day; a chain
+    snapshot carries a bid and an ask, which exist only while the market is
+    open and are gone the moment it shuts. Every session this does not run is
+    a session of spreads nobody can recover.
+    """
+    from eulerlab.ingest import nse_chain
+
+    written, problems = nse_chain.snapshot_all()
+    if not written:
+        joined = "; ".join(problems[:3]) or "no snapshots"
+        msg = f"no chain landed — {joined}"
+        raise RuntimeError(msg)
+    detail = f"{len(written)} chain snapshots"
+    return f"{detail} ({len(problems)} expiries unavailable)" if problems else detail
+
+
 def _indices() -> str:
     """Index levels, and a failure when any sub-source did not land.
 
@@ -202,6 +222,7 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("FX", _fx),
     ("news", _news),
     ("index levels", _indices),
+    ("option chain", _option_chain),
     ("US bars and actions", _us),
 )
 """The sources a daily refresh touches, in the order `make daily` runs them.
