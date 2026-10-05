@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
+import { PayoffBuilder } from './PayoffBuilder';
 import {
   GammaChart,
   MaxPainChart,
@@ -36,6 +37,15 @@ type Strike = {
   put_oi: number | null;
   put_iv: number | null;
   put_traded: boolean;
+  call_delta: number | null;
+  call_gamma: number | null;
+  call_vega: number | null;
+  call_theta: number | null;
+  put_delta: number | null;
+  put_gamma: number | null;
+  put_vega: number | null;
+  put_theta: number | null;
+  lot_size: number | null;
 };
 
 type Chain = {
@@ -74,7 +84,7 @@ type Chain = {
 
 const UNDERLYINGS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'];
 
-const VIEWS = ['Chain', 'Smile', 'Max pain', 'Gamma', 'Positioning', 'Checks'] as const;
+const VIEWS = ['Chain', 'Payoff', 'Smile', 'Max pain', 'Gamma', 'Positioning', 'Checks'] as const;
 type View = (typeof VIEWS)[number];
 
 /** How many strikes either side of the money to show.
@@ -313,6 +323,18 @@ export function OptionsTab() {
               </i>
             </div>
           </div>
+
+          {view === 'Payoff' && (
+            <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
+              <h3>Payoff at expiry</h3>
+              <PayoffBuilder
+                rows={near(chain.strikes)}
+                forward={chain.forward}
+                atm={chain.atm_strike}
+                lotSize={chain.strikes.find((r) => r.lot_size)?.lot_size ?? 1}
+              />
+            </div>
+          )}
 
           {view === 'Smile' && (
             <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>

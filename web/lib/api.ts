@@ -966,6 +966,7 @@ export const api = {
         put_gamma: number | null;
         put_vega: number | null;
         put_theta: number | null;
+        lot_size: number | null;
       }[];
       atm_strike: number | null;
       max_pain: { strike: number; payout: number; curve: [number, number][] } | null;

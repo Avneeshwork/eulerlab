@@ -3561,6 +3561,10 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
                 "call_oi": call.open_interest if call else None,
                 "call_volume": call.volume if call else None,
                 "call_traded": bool(call and call.traded),
+                # Lot size travels with the chain because a payoff in rupees
+                # needs it and it is a time-versioned contract field, never a
+                # constant to hardcode (CLAUDE.md).
+                "lot_size": (call.lot_size if call else None) or (put.lot_size if put else None),
                 "call_iv": vol(call, Right.CALL),
                 "put_price": put.price if put else None,
                 "put_oi": put.open_interest if put else None,
