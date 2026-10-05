@@ -19,6 +19,12 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
+import {
+  GammaChart,
+  MaxPainChart,
+  PositioningPanel,
+  SmileChart,
+} from './OptionsCharts';
 
 type Strike = {
   strike: number;
@@ -43,6 +49,23 @@ type Chain = {
   forward_source: string;
   discount: number;
   strikes: Strike[];
+  atm_strike: number | null;
+  max_pain: { strike: number; payout: number; curve: [number, number][] } | null;
+  put_call_ratio: {
+    by_open_interest: number | null;
+    by_volume: number | null;
+    call_open_interest: number;
+    put_open_interest: number;
+    call_volume: number;
+    put_volume: number;
+  };
+  gamma: {
+    total: number;
+    flip: number | null;
+    convention: string;
+    points: { strike: number; exposure: number }[];
+  };
+  smile: { strike: number; moneyness: number; call_iv: number | null; put_iv: number | null }[];
   findings: { check: string; severity: string; detail: string }[];
   findings_note: string;
   error?: string;
@@ -50,6 +73,9 @@ type Chain = {
 };
 
 const UNDERLYINGS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'];
+
+const VIEWS = ['Chain', 'Smile', 'Max pain', 'Gamma', 'Positioning', 'Checks'] as const;
+type View = (typeof VIEWS)[number];
 
 function pct(value: number | null): string {
   return value === null ? '—' : `${(value * 100).toFixed(1)}%`;
@@ -64,6 +90,7 @@ export function OptionsTab() {
   const [expiry, setExpiry] = useState('');
   const [chain, setChain] = useState<Chain | null>(null);
   const [busy, setBusy] = useState(true);
+  const [view, setView] = useState<View>('Chain');
 
   useEffect(() => {
     let alive = true;
@@ -130,6 +157,22 @@ export function OptionsTab() {
         )}
       </div>
 
+      {chain?.ok && (
+        <div className="ttools" style={{ marginBottom: 20 }}>
+          {VIEWS.map((name) => (
+            <button
+              key={name}
+              className="tchip"
+              type="button"
+              aria-pressed={view === name}
+              onClick={() => setView(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {busy && <p className="tdesc">Reading the chain…</p>}
 
       {!busy && chain && !chain.ok && (
@@ -163,6 +206,35 @@ export function OptionsTab() {
             </div>
           </div>
 
+          {view === 'Smile' && (
+            <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
+              <h3>Implied volatility by strike</h3>
+              <SmileChart smile={chain.smile} atm={chain.atm_strike} />
+            </div>
+          )}
+
+          {view === 'Max pain' && (
+            <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
+              <h3>Writer payout by settlement</h3>
+              <MaxPainChart pain={chain.max_pain} forward={chain.forward} />
+            </div>
+          )}
+
+          {view === 'Gamma' && (
+            <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
+              <h3>Gamma exposure by strike</h3>
+              <GammaChart gamma={chain.gamma} atm={chain.atm_strike} />
+            </div>
+          )}
+
+          {view === 'Positioning' && (
+            <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
+              <h3>Put-call ratio</h3>
+              <PositioningPanel ratio={chain.put_call_ratio} />
+            </div>
+          )}
+
+          {view === 'Checks' && (
           <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
             <h3>No-arbitrage checks</h3>
             {chain.findings.length === 0 ? (
@@ -194,7 +266,9 @@ export function OptionsTab() {
               {chain.findings_note}
             </p>
           </div>
+          )}
 
+          {view === 'Chain' && (
           <div className="tpanel" style={{ padding: 16, overflowX: 'auto' }}>
             <h3>{chain.strikes.length} strikes</h3>
             <table className="ttable chain">
@@ -242,6 +316,7 @@ export function OptionsTab() {
               number beside it.
             </p>
           </div>
+          )}
         </>
       )}
     </section>

@@ -30,6 +30,7 @@ deterministic — a project-wide rule.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 
 from eulerlab.master.derivatives import Right
 
@@ -129,3 +130,69 @@ def years_to_expiry(days: int, *, days_per_year: float = 365.0) -> float:
     single most common silent disagreement between two IV calculations.
     """
     return max(days, 0) / days_per_year
+
+
+def _norm_pdf(x: float) -> float:
+    """Standard normal density."""
+    return math.exp(-0.5 * x * x) / math.sqrt(2.0 * math.pi)
+
+
+@dataclass(frozen=True)
+class Greeks:
+    """Black-76 sensitivities, with respect to the **forward**.
+
+    Not the spot. Every price this platform has for an option comes from the
+    F&O bhavcopy, and the forward is fitted from put-call parity across that
+    same chain, so a forward delta is the quantity the inputs actually
+    support. Converting to a spot delta needs a carry assumption this data
+    does not contain, and inventing one would make a precise-looking number
+    out of a guess.
+    """
+
+    delta: float
+    gamma: float
+    vega: float
+    """Per 1.00 of vol, not per 1%. Scaling is the caller's decision, and a
+    vega already divided by 100 is one that gets divided twice."""
+    theta: float
+    """Per year, negative for a long option. Per-day is `theta / 365`, and
+    calendar days are right here because `years_to_expiry` counts them."""
+
+
+def greeks(
+    *, forward: float, strike: float, years: float, vol: float, discount: float, right: Right
+) -> Greeks | None:
+    """Black-76 Greeks, or None where they are not defined.
+
+    None rather than zero at expiry or at zero vol. Delta is genuinely
+    discontinuous there and gamma is unbounded, so any number returned would
+    be a convention rather than a measurement — and a zero would be averaged
+    into a portfolio total as though it meant "no exposure".
+    """
+    if years <= 0 or vol <= 0 or forward <= 0 or strike <= 0:
+        return None
+
+    sqrt_t = math.sqrt(years)
+    d1 = (math.log(forward / strike) + 0.5 * vol * vol * years) / (vol * sqrt_t)
+    pdf = _norm_pdf(d1)
+
+    # Delta differs by right; gamma and vega do not. That is put-call parity:
+    # C - P = DF*(F - K) is linear in F, so its second derivative vanishes and
+    # it carries no vol. `test_options_greeks` pins both.
+    delta = discount * _norm_cdf(d1) if right is Right.CALL else -discount * _norm_cdf(-d1)
+
+    gamma = discount * pdf / (forward * vol * sqrt_t)
+    vega = discount * forward * pdf * sqrt_t
+
+    # theta = r*V - DF*F*phi(d1)*vol / (2*sqrt(T)), with r recovered from the
+    # fitted discount factor rather than assumed. The decay term dominates at
+    # the short tenors this chain carries, and the carry term is what makes a
+    # deep-in-the-money put's theta positive — dropping it would hide a real
+    # sign change rather than simplify one away.
+    rate = -math.log(discount) / years if discount > 0 else 0.0
+    value = black76_price(
+        forward=forward, strike=strike, years=years, vol=vol, discount=discount, right=right
+    )
+    theta = rate * value - discount * forward * pdf * vol / (2.0 * sqrt_t)
+
+    return Greeks(delta=delta, gamma=gamma, vega=vega, theta=theta)

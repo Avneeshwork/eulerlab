@@ -957,6 +957,36 @@ export const api = {
         put_oi: number | null;
         put_iv: number | null;
         put_traded: boolean;
+        call_delta: number | null;
+        call_gamma: number | null;
+        call_vega: number | null;
+        call_theta: number | null;
+        put_delta: number | null;
+        put_gamma: number | null;
+        put_vega: number | null;
+        put_theta: number | null;
+      }[];
+      atm_strike: number | null;
+      max_pain: { strike: number; payout: number; curve: [number, number][] } | null;
+      put_call_ratio: {
+        by_open_interest: number | null;
+        by_volume: number | null;
+        call_open_interest: number;
+        put_open_interest: number;
+        call_volume: number;
+        put_volume: number;
+      };
+      gamma: {
+        total: number;
+        flip: number | null;
+        convention: string;
+        points: { strike: number; exposure: number }[];
+      };
+      smile: {
+        strike: number;
+        moneyness: number;
+        call_iv: number | null;
+        put_iv: number | null;
       }[];
       findings: { check: string; severity: string; detail: string }[];
       findings_note: string;

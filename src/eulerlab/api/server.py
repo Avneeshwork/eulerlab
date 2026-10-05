@@ -3482,6 +3482,7 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
 
     from eulerlab.ingest import landing_reader
     from eulerlab.master.derivatives import Right
+    from eulerlab.options import analytics
     from eulerlab.options.arbitrage import implied_forward_and_discount, run_chain_checks
     from eulerlab.options.chain import build_chains, quotes_from_fo_bhavcopy
     from eulerlab.options.iv import implied_vol, years_to_expiry
@@ -3578,6 +3579,27 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
         for f in run_chain_checks(chain, traded_only=True)
     ]
 
+    # The derived views. Solved once from one enriched set of rows, so every
+    # tool on the screen is reading the same vol and the same Greeks — six
+    # separate solves would be six chances to use a different forward.
+    enriched = analytics.enrich(chain, forward=forward or 0.0, discount=discount, years=tenor)
+    pain = analytics.max_pain(chain)
+    ratio = analytics.put_call_ratio(chain)
+    gamma = analytics.gamma_exposure(enriched, forward=forward or 0.0)
+    curve = analytics.smile(enriched, forward=forward or 0.0)
+    at_the_money = analytics.atm_strike(chain.strikes, forward or 0.0)
+
+    for row, enriched_row in zip(rows, enriched, strict=False):
+        call_g, put_g = enriched_row.call_greeks, enriched_row.put_greeks
+        row["call_delta"] = call_g.delta if call_g else None
+        row["call_gamma"] = call_g.gamma if call_g else None
+        row["call_vega"] = call_g.vega if call_g else None
+        row["call_theta"] = call_g.theta / 365.0 if call_g else None
+        row["put_delta"] = put_g.delta if put_g else None
+        row["put_gamma"] = put_g.gamma if put_g else None
+        row["put_vega"] = put_g.vega if put_g else None
+        row["put_theta"] = put_g.theta / 365.0 if put_g else None
+
     return {
         "ok": True,
         "underlying": chain.underlying,
@@ -3589,6 +3611,33 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
         "forward_source": forward_source,
         "discount": discount,
         "strikes": rows,
+        "atm_strike": at_the_money,
+        "max_pain": (
+            {"strike": pain.strike, "payout": pain.payout, "curve": pain.curve} if pain else None
+        ),
+        "put_call_ratio": {
+            "by_open_interest": ratio.by_open_interest,
+            "by_volume": ratio.by_volume,
+            "call_open_interest": ratio.call_open_interest,
+            "put_open_interest": ratio.put_open_interest,
+            "call_volume": ratio.call_volume,
+            "put_volume": ratio.put_volume,
+        },
+        "gamma": {
+            "total": gamma.total,
+            "flip": gamma.flip,
+            "convention": gamma.convention,
+            "points": [{"strike": p.strike, "exposure": p.gamma_exposure} for p in gamma.points],
+        },
+        "smile": [
+            {
+                "strike": p.strike,
+                "moneyness": p.moneyness,
+                "call_iv": p.call_iv,
+                "put_iv": p.put_iv,
+            }
+            for p in curve
+        ],
         "findings": findings,
         # Stated because it changes what a finding means, and the distinction
         # is invisible in the numbers themselves.
