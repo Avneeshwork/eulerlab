@@ -2535,3 +2535,20 @@ textarea:focus-visible {
 .ttable.chain tr.atm td.strike {
   color: var(--neon-deep);
 }
+
+/* A chart you can read a value off, rather than a picture of one. */
+.readout {
+  display: flex;
+  gap: var(--s4);
+  align-items: baseline;
+  min-height: 22px;
+  margin-top: var(--s2);
+  font-size: var(--t-small);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+
+.readout b {
+  color: var(--ink);
+  font-weight: 600;
+}

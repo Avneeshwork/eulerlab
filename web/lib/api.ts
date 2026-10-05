@@ -936,7 +936,8 @@ export const api = {
       `/api/window?days=${days}&universe=${encodeURIComponent(universe)}` +
         `&asset_class=${encodeURIComponent(assetClass)}`
     ),
-  optionChain: (underlying: string, expiry = '') =>
+  optionDays: () => get<{ ok: boolean; days: string[]; total: number }>('/api/options/days'),
+  optionChain: (underlying: string, expiry = '', day = '') =>
     get<{
       ok: boolean;
       underlying: string;
@@ -994,7 +995,8 @@ export const api = {
       available?: string[];
     }>(
       `/api/options/chain?underlying=${encodeURIComponent(underlying)}` +
-        (expiry ? `&expiry=${encodeURIComponent(expiry)}` : '')
+        (expiry ? `&expiry=${encodeURIComponent(expiry)}` : '') +
+        (day ? `&day=${encodeURIComponent(day)}` : '')
     ),
   mode: () =>
     get<{

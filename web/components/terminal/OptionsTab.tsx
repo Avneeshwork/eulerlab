@@ -77,6 +77,13 @@ const UNDERLYINGS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'];
 const VIEWS = ['Chain', 'Smile', 'Max pain', 'Gamma', 'Positioning', 'Checks'] as const;
 type View = (typeof VIEWS)[number];
 
+/** How many strikes either side of the money to show.
+ *
+ * A NIFTY board lists 140-odd strikes and the far wings barely trade, so the
+ * default opens on the part with the open interest in it rather than making
+ * every chart autoscale to a tail nobody is looking at. `0` means all. */
+const RANGES = [10, 20, 40, 0] as const;
+
 function pct(value: number | null): string {
   return value === null ? '—' : `${(value * 100).toFixed(1)}%`;
 }
@@ -91,12 +98,22 @@ export function OptionsTab() {
   const [chain, setChain] = useState<Chain | null>(null);
   const [busy, setBusy] = useState(true);
   const [view, setView] = useState<View>('Chain');
+  const [day, setDay] = useState('');
+  const [days, setDays] = useState<string[]>([]);
+  const [range, setRange] = useState<number>(20);
+
+  useEffect(() => {
+    api
+      .optionDays()
+      .then((d) => d.ok && setDays(d.days))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     let alive = true;
     setBusy(true);
     api
-      .optionChain(underlying, expiry)
+      .optionChain(underlying, expiry, day)
       .then((c) => {
         if (!alive) return;
         setChain(c);
@@ -106,7 +123,7 @@ export function OptionsTab() {
     return () => {
       alive = false;
     };
-  }, [underlying, expiry]);
+  }, [underlying, expiry, day]);
 
   // The strike nearest the forward, so the table can open where the money is
   // rather than at the lowest strike listed.
@@ -120,6 +137,18 @@ export function OptionsTab() {
           chain.strikes[0]?.strike ?? 0
         )
       : null;
+
+  // Applied once, here, so every view narrows together. Filtering inside each
+  // chart would let the smile and the gamma profile disagree about which
+  // strikes are on screen, which is the kind of mismatch nobody notices and
+  // everybody misreads.
+  const near = <T extends { strike: number }>(rows: T[]): T[] => {
+    if (!range || !chain?.ok || chain.atm_strike === null) return rows;
+    const sorted = [...rows].sort(
+      (a, b) => Math.abs(a.strike - chain.atm_strike!) - Math.abs(b.strike - chain.atm_strike!)
+    );
+    return sorted.slice(0, range * 2 + 1).sort((a, b) => a.strike - b.strike);
+  };
 
   return (
     <section className="tsection">
@@ -155,6 +184,27 @@ export function OptionsTab() {
             </select>
           </label>
         )}
+        {/* 678 bhavcopy days are landed and the screen only ever showed the
+            newest. Stepping through them is the difference between a chart of
+            today and a tool you can ask a question with. */}
+        {days.length > 0 && (
+          <label className="tsort">
+            Day
+            <select
+              value={day || days[0]}
+              onChange={(event) => {
+                setDay(event.target.value);
+                setExpiry('');
+              }}
+            >
+              {days.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
 
       {chain?.ok && (
@@ -170,6 +220,22 @@ export function OptionsTab() {
               {name}
             </button>
           ))}
+          <div className="ttools-actions">
+            <span className="tfine" style={{ marginRight: 6 }}>
+              strikes
+            </span>
+            {RANGES.map((n) => (
+              <button
+                key={n}
+                className="tchip sm"
+                type="button"
+                aria-pressed={range === n}
+                onClick={() => setRange(n)}
+              >
+                {n === 0 ? 'all' : `±${n}`}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -209,7 +275,7 @@ export function OptionsTab() {
           {view === 'Smile' && (
             <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
               <h3>Implied volatility by strike</h3>
-              <SmileChart smile={chain.smile} atm={chain.atm_strike} />
+              <SmileChart smile={near(chain.smile)} atm={chain.atm_strike} />
             </div>
           )}
 
@@ -223,7 +289,10 @@ export function OptionsTab() {
           {view === 'Gamma' && (
             <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
               <h3>Gamma exposure by strike</h3>
-              <GammaChart gamma={chain.gamma} atm={chain.atm_strike} />
+              <GammaChart
+                gamma={{ ...chain.gamma, points: near(chain.gamma.points) }}
+                atm={chain.atm_strike}
+              />
             </div>
           )}
 
@@ -270,7 +339,10 @@ export function OptionsTab() {
 
           {view === 'Chain' && (
           <div className="tpanel" style={{ padding: 16, overflowX: 'auto' }}>
-            <h3>{chain.strikes.length} strikes</h3>
+            <h3>
+              {near(chain.strikes).length} strikes
+              {range > 0 && <span className="tfine"> of {chain.strikes.length}</span>}
+            </h3>
             <table className="ttable chain">
               <thead>
                 <tr>
@@ -293,7 +365,7 @@ export function OptionsTab() {
                 </tr>
               </thead>
               <tbody>
-                {chain.strikes.map((row) => (
+                {near(chain.strikes).map((row) => (
                   <tr key={row.strike} className={row.strike === atm ? 'atm' : undefined}>
                     <td className={`r ${row.call_traded ? '' : 'untraded'}`}>{num(row.call_oi)}</td>
                     <td className={`r ${row.call_traded ? '' : 'untraded'}`}>{pct(row.call_iv)}</td>

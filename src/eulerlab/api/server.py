@@ -3646,3 +3646,18 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
             "model output, so a violation involving one describes that model, not an edge."
         ),
     }
+
+
+@app.get("/api/options/days")
+def options_days(limit: int = 400) -> dict[str, Any]:
+    """Trade dates with a landed F&O bhavcopy, newest first.
+
+    Served separately from the chain itself. The chain endpoint parses a whole
+    bhavcopy to answer, and listing 678 dates alongside every chain request
+    would make the cheap question pay the cost of the expensive one.
+    """
+    from eulerlab.ingest import landing_reader
+
+    found = landing_reader.available("fo", "**/*_udiff.zip", allow_cloud=True)
+    days = sorted({p.rsplit("/", 1)[-1].split("_")[0] for p in found}, reverse=True)
+    return {"ok": True, "days": days[:limit], "total": len(days)}
