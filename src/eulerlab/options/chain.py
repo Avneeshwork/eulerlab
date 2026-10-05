@@ -49,6 +49,14 @@ SETTLE_FIELDS = ("SttlmPric", "SETTLE_PR")
 VOLUME_FIELDS = ("TtlTradgVol", "CONTRACTS")
 OI_FIELDS = ("OpnIntrst", "OPEN_INT")
 UNDERLYING_FIELDS = ("UndrlygPric",)
+OPEN_FIELDS = ("OpnPric", "OPEN")
+HIGH_FIELDS = ("HghPric", "HIGH")
+LOW_FIELDS = ("LwPric", "LOW")
+LAST_FIELDS = ("LastPric",)
+OI_CHANGE_FIELDS = ("ChngInOpnIntrst", "CHG_IN_OI")
+TURNOVER_FIELDS = ("TtlTrfVal", "VAL_INLAKH")
+TRADES_FIELDS = ("TtlNbOfTxsExctd",)
+LOT_FIELDS = ("NewBrdLotQty",)
 
 
 def _text(row: dict[str, str], names: tuple[str, ...]) -> str:
@@ -85,6 +93,25 @@ class Quote:
     volume: float = 0.0
     open_interest: float = 0.0
     underlying_price: float | None = None
+
+    # The rest of what the bhavcopy already carries.
+    #
+    # These columns have been in every file this project has ever landed and
+    # were simply not read. The parser kept the settlement price, volume and
+    # open interest and dropped the rest, so three months of intraday range,
+    # open-interest *change*, turnover and trade count sat in B2 unreadable —
+    # and the gap looked like missing data rather than an unfinished parser.
+    # Checked against the live NSE chain before adding: this is a superset of
+    # what jugaad-data's historical endpoint returns, so there was nothing to
+    # go and fetch.
+    open_price: float | None = None
+    high: float | None = None
+    low: float | None = None
+    last_price: float | None = None
+    open_interest_change: float = 0.0
+    turnover: float = 0.0
+    trades: float = 0.0
+    lot_size: float | None = None
 
     @property
     def traded(self) -> bool:
@@ -159,6 +186,14 @@ def quotes_from_fo_bhavcopy(payload: bytes) -> Iterator[Quote]:
                     volume=_number(row, VOLUME_FIELDS) or 0.0,
                     open_interest=_number(row, OI_FIELDS) or 0.0,
                     underlying_price=_number(row, UNDERLYING_FIELDS),
+                    open_price=_number(row, OPEN_FIELDS),
+                    high=_number(row, HIGH_FIELDS),
+                    low=_number(row, LOW_FIELDS),
+                    last_price=_number(row, LAST_FIELDS),
+                    open_interest_change=_number(row, OI_CHANGE_FIELDS) or 0.0,
+                    turnover=_number(row, TURNOVER_FIELDS) or 0.0,
+                    trades=_number(row, TRADES_FIELDS) or 0.0,
+                    lot_size=_number(row, LOT_FIELDS),
                 )
 
 
