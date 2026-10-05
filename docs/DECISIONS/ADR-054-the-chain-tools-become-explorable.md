@@ -58,3 +58,31 @@ The range control changes what is displayed and never what is computed — max
 pain, the put-call ratio and the arbitrage checks all still run over the full
 chain, because narrowing the input to those would change the answers rather
 than the view.
+
+## Addendum, same day: Greeks in the chain
+
+The Greeks were computed and returned by the endpoint from the day they were
+written, and the chain table rendered none of them. Added as **toggleable**
+columns rather than always-on: four Greeks on two sides is eight more columns,
+which turns a chain you can scan into one you have to scroll. Delta is on by
+default; the rest are a click.
+
+Three things the columns state rather than assume:
+
+- **Vega is per 1.00 of vol, not per 1%**, and **theta is per calendar day**.
+  Both are conventions that differ between platforms, and they are in the
+  header `title` because a number whose convention is a guess is not a number.
+- **Delta is with respect to the forward, not spot.** Converting needs a carry
+  assumption this data does not contain.
+- **A missing Greek renders as an em dash, never zero.** The solver returns
+  none at expiry and at zero vol because delta is genuinely discontinuous
+  there, and a zero would read as "no exposure" and average into a total as
+  one.
+
+Columns keep declaration order rather than click order, so turning one off and
+back on does not reshuffle the table.
+
+The at-the-money row checks the whole stack at a glance: call delta 0.509
+against put -0.490 sums to the discount factor; gamma agrees to 0.00002 and
+vega to the rupee across the two rights, as parity requires; both thetas are
+negative; and the two implied vols agree to a tenth of a point.

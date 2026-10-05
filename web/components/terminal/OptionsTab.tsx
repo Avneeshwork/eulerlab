@@ -84,6 +84,43 @@ type View = (typeof VIEWS)[number];
  * every chart autoscale to a tail nobody is looking at. `0` means all. */
 const RANGES = [10, 20, 40, 0] as const;
 
+/** The Greeks, and how each one should be read.
+ *
+ * Off by default except delta, because eight extra columns turns a chain you
+ * can scan into one you have to scroll. The units are stated in the header
+ * title rather than assumed: vega here is per 1.00 of vol and not per 1%, and
+ * theta is per calendar day — both are conventions that differ between
+ * platforms, and a number whose convention is a guess is not a number.
+ */
+const GREEKS = [
+  {
+    key: 'delta',
+    label: 'Δ',
+    title: 'Delta, with respect to the forward (not spot)',
+    format: (v: number) => v.toFixed(3),
+  },
+  {
+    key: 'gamma',
+    label: 'Γ',
+    title: 'Gamma, with respect to the forward',
+    format: (v: number) => v.toFixed(5),
+  },
+  {
+    key: 'vega',
+    label: 'ν',
+    title: 'Vega, per 1.00 of vol — not per 1%',
+    format: (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 0 }),
+  },
+  {
+    key: 'theta',
+    label: 'Θ',
+    title: 'Theta, per calendar day',
+    format: (v: number) => v.toFixed(1),
+  },
+] as const;
+
+type GreekKey = (typeof GREEKS)[number]['key'];
+
 function pct(value: number | null): string {
   return value === null ? '—' : `${(value * 100).toFixed(1)}%`;
 }
@@ -101,6 +138,7 @@ export function OptionsTab() {
   const [day, setDay] = useState('');
   const [days, setDays] = useState<string[]>([]);
   const [range, setRange] = useState<number>(20);
+  const [shown, setShown] = useState<Set<GreekKey>>(new Set(['delta']));
 
   useEffect(() => {
     api
@@ -149,6 +187,10 @@ export function OptionsTab() {
     );
     return sorted.slice(0, range * 2 + 1).sort((a, b) => a.strike - b.strike);
   };
+
+  // In GREEKS order, not click order, so the columns do not reshuffle
+  // themselves when a reader turns one off and back on.
+  const active = GREEKS.filter((g) => shown.has(g.key));
 
   return (
     <section className="tsection">
@@ -339,47 +381,111 @@ export function OptionsTab() {
 
           {view === 'Chain' && (
           <div className="tpanel" style={{ padding: 16, overflowX: 'auto' }}>
-            <h3>
-              {near(chain.strikes).length} strikes
-              {range > 0 && <span className="tfine"> of {chain.strikes.length}</span>}
-            </h3>
+            <div className="ttools" style={{ marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>
+                {near(chain.strikes).length} strikes
+                {range > 0 && <span className="tfine"> of {chain.strikes.length}</span>}
+              </h3>
+              <div className="ttools-actions">
+                <span className="tfine" style={{ marginRight: 6 }}>
+                  greeks
+                </span>
+                {GREEKS.map((g) => (
+                  <button
+                    key={g.key}
+                    className="tchip sm"
+                    type="button"
+                    title={g.title}
+                    aria-pressed={shown.has(g.key)}
+                    onClick={() =>
+                      setShown((current) => {
+                        const next = new Set(current);
+                        if (next.has(g.key)) next.delete(g.key);
+                        else next.add(g.key);
+                        return next;
+                      })
+                    }
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <table className="ttable chain">
               <thead>
                 <tr>
-                  <th colSpan={3} style={{ textAlign: 'center' }}>
+                  <th colSpan={3 + active.length} style={{ textAlign: 'center' }}>
                     Calls
                   </th>
                   <th style={{ textAlign: 'center' }}>Strike</th>
-                  <th colSpan={3} style={{ textAlign: 'center' }}>
+                  <th colSpan={3 + active.length} style={{ textAlign: 'center' }}>
                     Puts
                   </th>
                 </tr>
                 <tr>
                   <th style={{ textAlign: 'right' }}>OI</th>
                   <th style={{ textAlign: 'right' }}>IV</th>
+                  {/* Greeks sit between IV and price on the call side and
+                      mirror back on the put side, so both halves read outward
+                      from the strike exactly as the prices do. */}
+                  {active.map((g) => (
+                    <th key={`ch-${g.key}`} style={{ textAlign: 'right' }} title={g.title}>
+                      {g.label}
+                    </th>
+                  ))}
                   <th style={{ textAlign: 'right' }}>Price</th>
                   <th />
                   <th style={{ textAlign: 'right' }}>Price</th>
+                  {[...active].reverse().map((g) => (
+                    <th key={`ph-${g.key}`} style={{ textAlign: 'right' }} title={g.title}>
+                      {g.label}
+                    </th>
+                  ))}
                   <th style={{ textAlign: 'right' }}>IV</th>
                   <th style={{ textAlign: 'right' }}>OI</th>
                 </tr>
               </thead>
               <tbody>
-                {near(chain.strikes).map((row) => (
-                  <tr key={row.strike} className={row.strike === atm ? 'atm' : undefined}>
-                    <td className={`r ${row.call_traded ? '' : 'untraded'}`}>{num(row.call_oi)}</td>
-                    <td className={`r ${row.call_traded ? '' : 'untraded'}`}>{pct(row.call_iv)}</td>
-                    <td className={`r ${row.call_traded ? '' : 'untraded'}`}>
-                      {num(row.call_price)}
-                    </td>
-                    <td className="r strike">{num(row.strike)}</td>
-                    <td className={`r ${row.put_traded ? '' : 'untraded'}`}>
-                      {num(row.put_price)}
-                    </td>
-                    <td className={`r ${row.put_traded ? '' : 'untraded'}`}>{pct(row.put_iv)}</td>
-                    <td className={`r ${row.put_traded ? '' : 'untraded'}`}>{num(row.put_oi)}</td>
-                  </tr>
-                ))}
+                {near(chain.strikes).map((row) => {
+                  const cell = (side: 'call' | 'put', g: (typeof GREEKS)[number]) => {
+                    const value = row[`${side}_${g.key}` as keyof typeof row] as number | null;
+                    const traded = side === 'call' ? row.call_traded : row.put_traded;
+                    return (
+                      <td key={`${side}-${g.key}`} className={`r ${traded ? '' : 'untraded'}`}>
+                        {/* Blank, never zero. The solver returns no Greek at
+                            expiry or at zero vol because delta is genuinely
+                            discontinuous there, and a zero would read as "no
+                            exposure" and average into a total as one. */}
+                        {value === null || value === undefined ? '—' : g.format(value)}
+                      </td>
+                    );
+                  };
+                  return (
+                    <tr key={row.strike} className={row.strike === atm ? 'atm' : undefined}>
+                      <td className={`r ${row.call_traded ? '' : 'untraded'}`}>
+                        {num(row.call_oi)}
+                      </td>
+                      <td className={`r ${row.call_traded ? '' : 'untraded'}`}>
+                        {pct(row.call_iv)}
+                      </td>
+                      {active.map((g) => cell('call', g))}
+                      <td className={`r ${row.call_traded ? '' : 'untraded'}`}>
+                        {num(row.call_price)}
+                      </td>
+                      <td className="r strike">{num(row.strike)}</td>
+                      <td className={`r ${row.put_traded ? '' : 'untraded'}`}>
+                        {num(row.put_price)}
+                      </td>
+                      {[...active].reverse().map((g) => cell('put', g))}
+                      <td className={`r ${row.put_traded ? '' : 'untraded'}`}>
+                        {pct(row.put_iv)}
+                      </td>
+                      <td className={`r ${row.put_traded ? '' : 'untraded'}`}>
+                        {num(row.put_oi)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             <p className="tfine" style={{ marginTop: 10 }}>
