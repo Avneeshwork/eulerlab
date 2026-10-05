@@ -2471,3 +2471,35 @@ textarea:focus-visible {
   margin-left: auto;
   flex-shrink: 0;
 }
+
+/* ============================ mode badge ============================
+   First element in the top bar, on every screen. The architecture document's
+   first design principle is that mode is always visible so nobody places a
+   real order by mistake. Quiet by default and loud only when tripped: a badge
+   that shouts in the normal state is one people stop reading. */
+.tmode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: var(--control-h-sm);
+  padding: 0 var(--s3);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--control-radius-toggle);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.tmode b {
+  font-weight: 400;
+  color: var(--ink-4);
+  letter-spacing: 0;
+}
+
+.tmode.tripped {
+  border-color: var(--fail);
+  background: var(--fail-wash);
+  color: var(--fail);
+}

@@ -936,6 +936,23 @@ export const api = {
       `/api/window?days=${days}&universe=${encodeURIComponent(universe)}` +
         `&asset_class=${encodeURIComponent(assetClass)}`
     ),
+  mode: () =>
+    get<{
+      ok: boolean;
+      mode: string;
+      live_possible: boolean;
+      why: string;
+      kill_switch_tripped: boolean;
+    }>('/api/mode'),
+  risk: () =>
+    get<{
+      ok: boolean;
+      tripped: boolean;
+      reason: string;
+      limits: { name: string; value: number; unit: string; note: string }[];
+      reset_note: string;
+      error?: string;
+    }>('/api/risk'),
   explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
   optimize: () => get<Optimize>('/api/optimize'),
   batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),

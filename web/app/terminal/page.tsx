@@ -20,6 +20,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { BuildTab } from '@/components/terminal/BuildTab';
+import { ModeBadge } from '@/components/terminal/ModeBadge';
+import { RiskTab } from '@/components/terminal/RiskTab';
 import { BacktestDialog } from '@/components/terminal/BacktestDialog';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
 import { ExplainDialog } from '@/components/terminal/ExplainDialog';
@@ -37,7 +39,7 @@ import type { Fleet, FleetStrategy } from '@/lib/api';
 // Data is deliberately not here. Results still mirror to the bucket after every
 // backtest — that is automatic and unaffected; what is gone is the manual
 // pull-merge-push button and the on-disk counts.
-const NAV = ['Snapshot', 'Chart', 'Library', 'Build', 'Run', 'Instruments', 'Live'] as const;
+const NAV = ['Snapshot', 'Chart', 'Library', 'Build', 'Run', 'Instruments', 'Risk', 'Live'] as const;
 type Tab = (typeof NAV)[number];
 
 export default function TerminalPage() {
@@ -133,6 +135,12 @@ export default function TerminalPage() {
           ))}
         </nav>
         <div className="tright">
+          {/* Mode first, before anything else in the bar. The architecture
+              document's first design principle is that mode is always visible
+              so nobody places a real order by mistake. Here it is stronger
+              than a toggle: no live broker adapter exists, so PAPER is a fact
+              about the build rather than a setting someone can flip. */}
+          <ModeBadge />
           <span
             className="tws"
             title="Evidence, strategies and credentials are scoped to this workspace (ADR-040)."
@@ -166,6 +174,7 @@ export default function TerminalPage() {
       </header>
 
       <div className="tpage">
+        {tab === 'Risk' && <RiskTab />}
         {tab === 'Snapshot' && <SnapshotTab workspace={workspace} />}
 
         {tab === 'Chart' && <ChartTab />}

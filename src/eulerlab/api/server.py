@@ -3372,3 +3372,91 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
             "and a mover cannot be read against the market",
         ],
     }
+
+
+@app.get("/api/risk")
+def risk() -> dict[str, Any]:
+    """Limits, breaches and the kill switch, for the Risk screen.
+
+    The architecture document puts risk on the home screen, one click away,
+    and it was reachable only from a terminal. The numbers here are the ones
+    `oms/killswitch.py` actually enforces, read from the same config file it
+    reads — not a second copy that could drift from the enforced values.
+    """
+    from eulerlab.oms import killswitch
+
+    try:
+        limits = killswitch.load_limits()
+    except Exception as exc:  # a malformed config must not blank the screen
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
+
+    switch = killswitch.KillSwitch()
+    tripped = switch.is_tripped()
+    return {
+        "ok": True,
+        "tripped": tripped,
+        "reason": switch.reason() if tripped else "",
+        "limits": [
+            {
+                "name": "max daily loss",
+                "value": limits.max_daily_loss,
+                "unit": "INR",
+                "note": "realised plus unrealised",
+            },
+            {
+                "name": "max orders per day",
+                "value": limits.max_orders_per_day,
+                "unit": "orders",
+                "note": "",
+            },
+            {
+                "name": "max consecutive rejections",
+                "value": limits.max_consecutive_rejections,
+                "unit": "orders",
+                "note": "a run of these means something is misconfigured",
+            },
+            {
+                "name": "max position notional",
+                "value": limits.max_position_notional,
+                "unit": "INR",
+                "note": "in any single name",
+            },
+            {
+                "name": "max unresolved orders",
+                "value": limits.max_unresolved_orders,
+                "unit": "orders",
+                "note": "orders stuck in UNKNOWN; the broker link is unhealthy",
+            },
+        ],
+        # Stated rather than implied. The switch is reset by a separate process
+        # with separate credentials, so the interface cannot offer a button for
+        # it — and a screen that showed one would be lying about who can act.
+        "reset_note": (
+            "The kill switch is tripped and reset by a separate process with separate "
+            "credentials. This screen reports it; it cannot change it."
+        ),
+    }
+
+
+@app.get("/api/mode")
+def mode() -> dict[str, Any]:
+    """Which mode the platform is in, for the badge on every screen.
+
+    The first design principle in the architecture document is that mode is
+    always visible so nobody places a real order by mistake. This platform
+    cannot place one at all: `Stage.LIVE` and `Stage.FORWARD_TESTING` exist in
+    the enum and nothing produces them, there is no live broker adapter
+    (S-015), and no capital has ever been traded.
+
+    So the badge reads PAPER and says why, which is a stronger claim than a
+    live/paper toggle: it is not a setting someone can flip by accident.
+    """
+    from eulerlab.oms import killswitch
+
+    return {
+        "ok": True,
+        "mode": "paper",
+        "live_possible": False,
+        "why": "no live broker adapter exists (S-015); no capital has ever been traded",
+        "kill_switch_tripped": killswitch.KillSwitch().is_tripped(),
+    }
