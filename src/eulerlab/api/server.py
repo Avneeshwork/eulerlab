@@ -538,6 +538,21 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     # is out of sample, so it belongs beside the Sharpe rather than behind a
     # separate screen.
     walks = walk_run.read()
+    payload = _fleet_payload(tenant, bar, dispersion, adopted_results, us_all_results, walks)
+    for item in payload["strategies"]:
+        item["table"] = _table_figures(tenant, item, bar)
+    payload["market"] = _market_line()
+    return payload
+
+
+def _fleet_payload(
+    tenant: workspace_mod.Workspace,
+    bar: float,
+    dispersion: Any,
+    adopted_results: dict[str, dict[str, Any]],
+    us_all_results: dict[str, dict[str, Any]],
+    walks: dict[str, Any],
+) -> dict[str, Any]:
     return {
         "bar": round(bar, 3),
         # The denominator the bar was actually computed from. The console used
@@ -572,6 +587,7 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 "engine": ("intraday" if row.declaration.id in INTRADAY_RUNNABLE else "daily"),
                 "source": row.declaration.source,
                 "published": row.declaration.published,
+                "logic": list(row.declaration.logic),
                 "stage": row.stage.value,
                 # The ledger's Sharpe (a validated result) takes precedence over
                 # a screened one: it is the stronger claim and was paid for.
@@ -606,6 +622,68 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     }
 
 
+def _table_figures(
+    tenant: workspace_mod.Workspace, item: dict[str, Any], bar: float
+) -> dict[str, Any]:
+    """What one row of the Strategies table shows, in plain terms.
+
+    The verdict is the bar's judgement put in words, not a new rule: "beats the
+    bar" is exactly `clears_bar`; "positive, not proven" is a positive Sharpe
+    and return that luck could explain; "loses money" is a negative return.
+    Annual return and the Nifty comparison are over the period the report says
+    the strategy actually traded, so a strategy that needed five years of
+    warm-up is not compared with ten years of the index.
+    """
+    from datetime import date as _date
+
+    from eulerlab import benchmark
+
+    result = item.get("result") or {}
+    sharpe = item.get("sharpe")
+    total = result.get("total_return")
+    figures: dict[str, Any] = {
+        "annual_return": None,
+        "trades": None,
+        "win_rate": None,
+        "period": [None, None],
+        "nifty_return": None,
+    }
+    configuration = result.get("configuration")
+    if configuration:
+        figures.update(reports.headline(tenant, str(item["id"]), str(configuration)))
+    start, end = figures["period"]
+    if start and end and total is not None:
+        years = (_date.fromisoformat(end) - _date.fromisoformat(start)).days / 365.25
+        if years > 0.25 and total > -1:
+            figures["annual_return"] = round((1 + float(total)) ** (1 / years) - 1, 4)
+        adopted = item.get("adopted") or {}
+        ran_on = adopted.get("market") or result.get("asset_class") or item.get("asset_class")
+        if ran_on == "equity":
+            nifty = benchmark.nifty_return(_date.fromisoformat(start), _date.fromisoformat(end))
+            figures["nifty_return"] = round(nifty, 4) if nifty is not None else None
+    if sharpe is None:
+        verdict = "not_run"
+    elif item.get("clears_bar"):
+        verdict = "beats_bar"
+    elif (total is None or total > 0) and sharpe > 0:
+        verdict = "positive"
+    else:
+        verdict = "loses"
+    figures["verdict"] = verdict
+    return figures
+
+
+def _market_line() -> dict[str, Any]:
+    """The index over the whole panel, for the page's one-line headline."""
+    from datetime import date as _date
+
+    from eulerlab import benchmark
+
+    start, end = _date(2016, 1, 1), datetime.now(UTC).date()
+    value = benchmark.nifty_return(start, end)
+    return {"symbol": "NIFTYBEES", "since": start.isoformat(), "total_return": value}
+
+
 def _builder_row(tenant: workspace_mod.Workspace, spec: Any, bar: float) -> dict[str, Any]:
     """A saved builder strategy, in the shape the Strategies page lists.
 
@@ -631,6 +709,7 @@ def _builder_row(tenant: workspace_mod.Workspace, spec: Any, bar: float) -> dict
         "engine": "daily",
         "source": "",
         "published": "",
+        "logic": summarise(spec)[1:],
         "stage": "backtested" if sharpe is not None else "registered",
         "sharpe": sharpe,
         "result": result,

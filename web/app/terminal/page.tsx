@@ -355,31 +355,21 @@ export default function TerminalPage() {
 
         {page === 'strategies' && (
           <>
-            <section className="tstats" aria-label="Summary">
-              <div className="tstat-card" title={fleet?.bar_note}>
-                <span>Sharpe to beat</span>
-                <b>{fleet ? fleet.bar.toFixed(2) : '—'}</b>
-                <i>
-                  {fleet?.bar_trials ?? 0} trials recorded
-                  {fleet && !fleet.bar_sigma_measured ? ' · assumed' : ''}
-                </i>
-              </div>
-              <div className="tstat-card">
-                <span>Strategies</span>
-                <b>{fleet?.strategies.length ?? '—'}</b>
-                <i>in the registry</i>
-              </div>
-              <div className="tstat-card">
-                <span>Measured</span>
-                <b>{fleet ? measured : '—'}</b>
-                <i>have a backtest result</i>
-              </div>
-              <div className="tstat-card">
-                <span>Clearing the bar</span>
-                <b className={clearing > 0 ? 'on' : ''}>{fleet ? clearing : '—'}</b>
-                <i>Sharpe above what luck explains</i>
-              </div>
-            </section>
+            <p className="st-headline" title={fleet?.bar_note}>
+              <b>{fleet?.strategies.length ?? '—'}</b> strategies · <b>{fleet ? clearing : '—'}</b> beat the noise bar
+              (Sharpe {fleet ? fleet.bar.toFixed(2) : '—'}, from {fleet?.bar_trials ?? 0} trials) · {fleet ? measured : '—'}{' '}
+              backtested
+              {fleet?.market?.total_return !== null && fleet?.market?.total_return !== undefined && (
+                <>
+                  {' '}
+                  · Nifty held since {fleet.market.since.slice(0, 4)}:{' '}
+                  <b>
+                    {fleet.market.total_return >= 0 ? '+' : ''}
+                    {(fleet.market.total_return * 100).toFixed(0)}%
+                  </b>
+                </>
+              )}
+            </p>
 
             <Library
               fleet={fleet}

@@ -1018,6 +1018,17 @@ numbers (research 063). From the Strategies page Tweezer backtests through the
 same intraday batch path as the paper signals (`intraday_runs._run_intraday`),
 on 15-minute candles, flat at the close, up to 50 names.
 
+### The Strategies table
+
+`/api/fleet` gives each strategy a `table` block (`server._table_figures`):
+annual return over the period its report says it traded, trades and win rate
+from the report (`reports.headline`, cached by file time), NIFTYBEES over the
+same period for NSE runs (`benchmark.nifty_return`), and a verdict that is the
+bar put in words — `beats_bar` is exactly `clears_bar`, `positive` a positive
+Sharpe and return luck could explain, `loses` a loss, `not_run` no result.
+`web/components/terminal/Library.tsx` draws it as a sortable table with a
+side panel.
+
 ### Indian-equity paper strategies
 
 `backtest/india_papers.py` holds one strategy per paper in `research/papers/`

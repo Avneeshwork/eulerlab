@@ -9,6 +9,18 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## The Strategies page, as a table (2026-10-06)
+
+Operator: "the ui of the strategy tab is very difficult to understand, ideate other platforms". Modelled on Composer's, QuantConnect's and Streak's strategy lists.
+Verify: `make workbench` → Strategies.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3988 | **Cards with jargon and one number** | DONE — a sortable table: name, equity sparkline, annual return, the Nifty over the same period, max drawdown, Sharpe, win rate, trades and a plain verdict (Beats the bar / Positive, not proven / Loses money / Not run). Filters by market, style, source and verdict. A side panel holds the rules, key stats, Backtest, Full report, How it works and Deploy, with the old detail beneath. The four summary boxes are one line |
+| T-3989 | Win rate and trades are blank for runs recorded before reports carried trades | OPEN — re-running a strategy fills them |
+
+---
+
 ## Twenty papers on Indian equities (2026-10-06)
 
 Operator: "gather 20 research paper based on Indian equity market and do backtest", then "whatever done push it, left out backtest we will do later". Research 064.

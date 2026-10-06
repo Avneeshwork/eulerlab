@@ -289,9 +289,26 @@ export type FleetStrategy = {
   trials: number;
   clears_bar: boolean;
   result: StrategyResult;
+  /** The rules, one sentence each. */
+  logic?: string[];
+  /** What one row of the Strategies table shows, in plain terms. */
+  table?: StrategyTableFigures;
+};
+
+export type StrategyVerdict = 'beats_bar' | 'positive' | 'loses' | 'not_run';
+
+export type StrategyTableFigures = {
+  annual_return: number | null;
+  trades: number | null;
+  win_rate: number | null;
+  period: [string | null, string | null];
+  /** NIFTYBEES held over the same period, before costs. Equity strategies only. */
+  nifty_return: number | null;
+  verdict: StrategyVerdict;
 };
 
 export type Fleet = {
+  market?: { symbol: string; since: string; total_return: number | null };
   bar: number;
   /** The count the bar was actually computed from — both ledgers summed. Not
    *  the same as summing each strategy's own trial count, which is what the

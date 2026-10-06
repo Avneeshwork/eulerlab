@@ -26,9 +26,49 @@ import { WalkPanel } from '@/components/terminal/WalkPanel';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
-import type { Fleet, FleetStrategy, OptimizeRow } from '@/lib/api';
+import type { Fleet, FleetStrategy, OptimizeRow, StrategyVerdict } from '@/lib/api';
+import './strategies.css';
 
-type Sort = 'evidence' | 'name' | 'sharpe';
+type Sort = 'verdict' | 'name' | 'annual' | 'drawdown' | 'sharpe' | 'win' | 'trades';
+type Style = '' | 'intraday' | 'daily';
+type Source = '' | 'paper' | 'builder' | 'coded';
+
+const VERDICTS: { value: StrategyVerdict; label: string; hint: string }[] = [
+  { value: 'beats_bar', label: 'Beats the bar', hint: 'Sharpe above what luck across every trial so far explains.' },
+  { value: 'positive', label: 'Positive, not proven', hint: 'Made money, but luck could explain a Sharpe this size.' },
+  { value: 'loses', label: 'Loses money', hint: 'Lost money over its latest run, after costs.' },
+  { value: 'not_run', label: 'Not run', hint: 'Never backtested in this workspace.' },
+];
+const VERDICT_ORDER: Record<StrategyVerdict, number> = { beats_bar: 0, positive: 1, loses: 2, not_run: 3 };
+
+function verdictOf(s: FleetStrategy): StrategyVerdict {
+  return s.table?.verdict ?? (s.sharpe === null ? 'not_run' : s.clears_bar ? 'beats_bar' : 'positive');
+}
+
+function styleOf(s: FleetStrategy): Exclude<Style, ''> {
+  return s.engine === 'intraday' || s.timeframe === '1m' ? 'intraday' : 'daily';
+}
+
+function sourceOf(s: FleetStrategy): Exclude<Source, ''> {
+  if (s.kind === 'builder') return 'builder';
+  if (s.source.startsWith('[paper]') || s.source.startsWith('[adaptation]') || s.published) return 'paper';
+  return 'coded';
+}
+
+const SOURCE_LABEL: Record<Exclude<Source, ''>, string> = {
+  paper: 'From a paper',
+  builder: 'My builder',
+  coded: 'Coded',
+};
+
+function pct(value: number | null | undefined, digits = 1): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(digits)}%`;
+}
+
+function annualOf(s: FleetStrategy): number | null {
+  return s.table?.annual_return ?? null;
+}
 
 const RUNG_ORDER: Record<string, number> = {
   live: 0,
@@ -80,7 +120,11 @@ export function Library({
 }) {
   const [query, setQuery] = useState('');
   const [assetClass, setAssetClass] = useState('');
-  const [sort, setSort] = useState<Sort>('evidence');
+  const [sort, setSort] = useState<Sort>('verdict');
+  const [descending, setDescending] = useState(true);
+  const [style, setStyle] = useState<Style>('');
+  const [source, setSource] = useState<Source>('');
+  const [verdict, setVerdict] = useState<StrategyVerdict | ''>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -150,29 +194,68 @@ export function Library({
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
       if (assetClass && !marketsFor(s).includes(assetClass)) return false;
+      if (style && styleOf(s) !== style) return false;
+      if (source && sourceOf(s) !== source) return false;
+      if (verdict && verdictOf(s) !== verdict) return false;
       if (!needle) return true;
-      return [s.id, s.title, s.kind, s.shape, s.summary].some((field) =>
+      return [s.id, s.title, s.kind, s.shape, s.summary, s.source].some((field) =>
         field.toLowerCase().includes(needle)
       );
     });
 
+    // Unmeasured always sorts last, never as zero: null means nobody looked.
+    const value = (s: FleetStrategy): number | null => {
+      switch (sort) {
+        case 'annual':
+          return annualOf(s);
+        case 'drawdown':
+          return s.result.max_drawdown ?? null;
+        case 'sharpe':
+          return s.sharpe;
+        case 'win':
+          return s.table?.win_rate ?? null;
+        case 'trades':
+          return s.table?.trades ?? null;
+        default:
+          return null;
+      }
+    };
     const ordered = [...filtered];
-    if (sort === 'sharpe') {
-      // Unmeasured sorts last, never as zero: null means nobody looked, zero is
-      // a measurement meaning no edge, and the two must not collapse.
-      ordered.sort((a, b) => (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity));
-    } else if (sort === 'name') {
-      ordered.sort((a, b) => a.id.localeCompare(b.id));
-    } else {
+    if (sort === 'name') {
+      ordered.sort((a, b) => (descending ? -1 : 1) * b.title.localeCompare(a.title));
+    } else if (sort === 'verdict') {
       ordered.sort(
         (a, b) =>
-          (RUNG_ORDER[a.stage] ?? 9) - (RUNG_ORDER[b.stage] ?? 9) ||
-          b.trials - a.trials ||
-          a.id.localeCompare(b.id)
+          VERDICT_ORDER[verdictOf(a)] - VERDICT_ORDER[verdictOf(b)] ||
+          (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity)
       );
+    } else {
+      ordered.sort((a, b) => {
+        const x = value(a);
+        const y = value(b);
+        if (x === null && y === null) return a.title.localeCompare(b.title);
+        if (x === null) return 1;
+        if (y === null) return -1;
+        return descending ? y - x : x - y;
+      });
     }
     return ordered;
-  }, [fleet, query, assetClass, sort]);
+  }, [fleet, query, assetClass, style, source, verdict, sort, descending]);
+
+  const sortBy = useCallback(
+    (next: Sort) => {
+      if (next === sort) setDescending((d) => !d);
+      else {
+        setSort(next);
+        setDescending(next !== 'drawdown' && next !== 'name');
+      }
+    },
+    [sort]
+  );
+  const openStrategy = useMemo(
+    () => (open ? (fleet?.strategies.find((s) => s.id === open) ?? null) : null),
+    [open, fleet]
+  );
 
   const toggle = useCallback((id: string) => {
     setSelected((prev) => {
@@ -271,17 +354,30 @@ export function Library({
             {option.label}
           </button>
         ))}
-        <label
-          className="tsort"
-          title="Ranking a library by return and taking the top row is the selection procedure the overfitting test measures. The bar, not the order, is what decides anything."
-        >
-          Sort
-          <select value={sort} onChange={(event) => setSort(event.target.value as Sort)}>
-            <option value="evidence">Evidence</option>
-            <option value="name">Name</option>
-            <option value="sharpe">Sharpe</option>
-          </select>
-        </label>
+      </div>
+
+      <div className="st-filters">
+        <ChipGroup
+          label="Style"
+          value={style}
+          onChange={(v) => setStyle(v as Style)}
+          options={[
+            { value: 'intraday', label: 'Intraday' },
+            { value: 'daily', label: 'Daily' },
+          ]}
+        />
+        <ChipGroup
+          label="Source"
+          value={source}
+          onChange={(v) => setSource(v as Source)}
+          options={(['paper', 'builder', 'coded'] as const).map((v) => ({ value: v, label: SOURCE_LABEL[v] }))}
+        />
+        <ChipGroup
+          label="Verdict"
+          value={verdict}
+          onChange={(v) => setVerdict(v as StrategyVerdict | '')}
+          options={VERDICTS.map((v) => ({ value: v.value, label: v.label, title: v.hint }))}
+        />
       </div>
 
       {note && !failure && <div className="trunning">{note}</div>}
@@ -303,40 +399,165 @@ export function Library({
         </div>
       )}
 
-      <div className="tcols" aria-hidden="true">
-        <span />
-        <span>Strategy</span>
-        <span>Asset</span>
-        <span>Backtest</span>
-        <span className="r">Sharpe vs bar</span>
-        <span className="r">Actions</span>
-      </div>
-
-      <div className="tlist">
-        {fleet &&
-          rows.map((strategy) => (
-            <Row
-              key={strategy.id}
-              strategy={strategy}
-              sweep={sweeps.get(strategy.id)}
-              sweeping={sweeping}
-              bar={fleet.bar}
-              checked={selected.has(strategy.id)}
-              open={open === strategy.id}
-              busy={busy.has(strategy.id)}
-              progress={busy.has(strategy.id) ? progress : ''}
-              elapsed={elapsed}
-              onToggle={() => toggle(strategy.id)}
-              onOpen={() => setOpen(open === strategy.id ? null : strategy.id)}
-              onBacktest={() => onConfigure([strategy])}
-              onDeploy={() => onDeploy(strategy)}
-              onExplain={() => onExplain(strategy.id)}
-              onReport={() => onReport(strategy)}
-            />
-          ))}
-        {fleet && rows.length === 0 && <div className="tempty">Nothing matches that filter.</div>}
+      <div className="st-wrap">
+        <table className="st-table">
+          <thead>
+            <tr>
+              <th className="st-sel" aria-label="Select" />
+              <SortHead label="Strategy" sort="name" current={sort} descending={descending} onSort={sortBy} align="left" />
+              <th className="st-spark">Equity</th>
+              <SortHead label="Annual return" sort="annual" current={sort} descending={descending} onSort={sortBy} />
+              <th title="NIFTYBEES held over the same period, before costs">Nifty, same period</th>
+              <SortHead label="Max drawdown" sort="drawdown" current={sort} descending={descending} onSort={sortBy} />
+              <SortHead label="Sharpe" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
+              <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
+              <SortHead label="Trades" sort="trades" current={sort} descending={descending} onSort={sortBy} />
+              <SortHead label="Verdict" sort="verdict" current={sort} descending={descending} onSort={sortBy} align="left" />
+              <th aria-label="Actions" />
+            </tr>
+          </thead>
+          <tbody>
+            {fleet &&
+              rows.map((strategy) => {
+                const v = verdictOf(strategy);
+                const t = strategy.table;
+                const running = busy.has(strategy.id);
+                return (
+                  <tr
+                    key={strategy.id}
+                    className="st-row"
+                    data-open={open === strategy.id}
+                    tabIndex={0}
+                    onClick={() => setOpen(open === strategy.id ? null : strategy.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') setOpen(open === strategy.id ? null : strategy.id);
+                    }}
+                  >
+                    <td className="st-sel" onClick={(event) => event.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(strategy.id)}
+                        onChange={() => toggle(strategy.id)}
+                        disabled={!strategy.runnable}
+                        aria-label={`Select ${strategy.title}`}
+                      />
+                    </td>
+                    <td className="st-name">
+                      <b>{strategy.title}</b>
+                      <span>
+                        {(strategy.adopted?.market ?? strategy.result.asset_class ?? strategy.asset_class) || 'equity'} ·{' '}
+                        {styleOf(strategy) === 'intraday' ? 'intraday' : 'daily'} · {SOURCE_LABEL[sourceOf(strategy)].toLowerCase()}
+                      </span>
+                    </td>
+                    <td className="st-spark">
+                      {running ? (
+                        <span className="tdim">{progress ? shortProgress(progress) : 'running'} {elapsed > 0 ? `${elapsed}s` : ''}</span>
+                      ) : (
+                        <Spark
+                          curve={strategy.adopted ? strategy.adopted.curve : strategy.result.curve}
+                          clears={strategy.clears_bar}
+                          title={curveTitle(strategy)}
+                          width={96}
+                          height={26}
+                        />
+                      )}
+                    </td>
+                    <td className={`num ${(annualOf(strategy) ?? 0) >= 0 ? 'pos' : 'neg'}`}>{pct(annualOf(strategy))}</td>
+                    <td className="num tdim">{pct(t?.nifty_return ?? null, 0)}</td>
+                    <td className="num neg">{pct(strategy.result.max_drawdown ?? null, 0)}</td>
+                    <td className="num">{strategy.sharpe === null ? '—' : strategy.sharpe.toFixed(2)}</td>
+                    <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
+                    <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
+                    <td>
+                      <span className={`st-verdict v-${v}`} title={VERDICTS.find((x) => x.value === v)?.hint}>
+                        {VERDICTS.find((x) => x.value === v)?.label}
+                      </span>
+                    </td>
+                    <td className="st-act" onClick={(event) => event.stopPropagation()}>
+                      <button
+                        className="tbtn sm"
+                        type="button"
+                        disabled={running || !strategy.runnable}
+                        onClick={() => onConfigure([strategy])}
+                      >
+                        {running ? '…' : 'Backtest'}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+        {fleet && rows.length === 0 && <div className="tempty">Nothing matches those filters.</div>}
         {!fleet && !problem && <div className="tempty">Reading the registry…</div>}
       </div>
+
+      {openStrategy && fleet && (
+        <aside className="st-drawer" aria-label={`${openStrategy.title} details`}>
+          <div className="st-drawer-head">
+            <div>
+              <h2>{openStrategy.title}</h2>
+              <span className={`st-verdict v-${verdictOf(openStrategy)}`}>
+                {VERDICTS.find((x) => x.value === verdictOf(openStrategy))?.label}
+              </span>
+            </div>
+            <button className="ticon" type="button" aria-label="Close" onClick={() => setOpen(null)}>
+              ×
+            </button>
+          </div>
+          <p className="st-summary">{openStrategy.summary}</p>
+          <div className="st-stats">
+            <Fact label="Annual return" value={pct(annualOf(openStrategy))} />
+            <Fact label="Nifty, same period" value={pct(openStrategy.table?.nifty_return ?? null, 0)} />
+            <Fact label="Total return" value={pct(openStrategy.result.total_return ?? null, 0)} />
+            <Fact label="Max drawdown" value={pct(openStrategy.result.max_drawdown ?? null, 0)} />
+            <Fact label="Sharpe" value={openStrategy.sharpe === null ? '—' : `${openStrategy.sharpe.toFixed(2)} (bar ${fleet.bar.toFixed(2)})`} />
+            <Fact label="Period" value={openStrategy.table?.period?.[0] ? `${openStrategy.table.period[0]} → ${openStrategy.table.period[1]}` : '—'} />
+          </div>
+          <div className="st-drawer-actions">
+            <button className="tbtn go" type="button" disabled={!openStrategy.runnable || busy.has(openStrategy.id)} onClick={() => onConfigure([openStrategy])}>
+              Backtest
+            </button>
+            <button className="tbtn" type="button" disabled={openStrategy.sharpe === null} onClick={() => onReport(openStrategy)}>
+              Full report
+            </button>
+            <button className="tbtn" type="button" onClick={() => onExplain(openStrategy.id)}>
+              How it works
+            </button>
+            <button className="tbtn ghost-line" type="button" onClick={() => onDeploy(openStrategy)}>
+              Deploy
+            </button>
+          </div>
+          {openStrategy.logic && openStrategy.logic.length > 0 && (
+            <section className="st-rules">
+              <h3>The rules</h3>
+              <ol>
+                {openStrategy.logic.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ol>
+            </section>
+          )}
+          <Row
+            strategy={openStrategy}
+            sweep={sweeps.get(openStrategy.id)}
+            sweeping={sweeping}
+            bar={fleet.bar}
+            checked={false}
+            open
+            detailOnly
+            busy={busy.has(openStrategy.id)}
+            progress=""
+            elapsed={0}
+            onToggle={() => undefined}
+            onOpen={() => undefined}
+            onBacktest={() => onConfigure([openStrategy])}
+            onDeploy={() => onDeploy(openStrategy)}
+            onExplain={() => onExplain(openStrategy.id)}
+            onReport={() => onReport(openStrategy)}
+          />
+        </aside>
+      )}
 
       {selected.size > 0 && (
         <div className="tsel">
@@ -445,7 +666,10 @@ function Row({
   onDeploy,
   onExplain,
   onReport,
+  detailOnly = false,
 }: {
+  /** Only the detail panel, for the side drawer; the table row is drawn elsewhere. */
+  detailOnly?: boolean;
   strategy: FleetStrategy;
   sweep: OptimizeRow | undefined;
   sweeping: boolean;
@@ -469,7 +693,8 @@ function Row({
   const runnable = strategy.runnable;
   const ranOn = result.asset_class;
   return (
-    <div className="trow" data-open={open}>
+    <div className={detailOnly ? 'trow st-detail' : 'trow'} data-open={open}>
+      {!detailOnly && (
       <div
         className="trow-top"
         role="button"
@@ -659,6 +884,7 @@ function Row({
           </button>
         </div>
       </div>
+      )}
 
       {open && (
         <div className="tdetail">
@@ -863,6 +1089,65 @@ function Fact({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="tfact">
       <span>{label}</span>
       <b>{value}</b>
+    </div>
+  );
+}
+
+function SortHead({
+  label,
+  sort,
+  current,
+  descending,
+  onSort,
+  align = 'right',
+}: {
+  label: string;
+  sort: Sort;
+  current: Sort;
+  descending: boolean;
+  onSort: (sort: Sort) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = current === sort;
+  return (
+    <th className={align === 'left' ? 'l' : 'r'} aria-sort={active ? (descending ? 'descending' : 'ascending') : 'none'}>
+      <button type="button" className="st-sort" onClick={() => onSort(sort)}>
+        {label}
+        <span aria-hidden="true">{active ? (descending ? ' ↓' : ' ↑') : ''}</span>
+      </button>
+    </th>
+  );
+}
+
+function ChipGroup({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string; title?: string }[];
+}) {
+  return (
+    <div className="st-chips" role="group" aria-label={label}>
+      <span className="st-chips-label">{label}</span>
+      <button className="tchip sm" type="button" aria-pressed={value === ''} onClick={() => onChange('')}>
+        All
+      </button>
+      {options.map((option) => (
+        <button
+          key={option.value}
+          className="tchip sm"
+          type="button"
+          title={option.title}
+          aria-pressed={value === option.value}
+          onClick={() => onChange(value === option.value ? '' : option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

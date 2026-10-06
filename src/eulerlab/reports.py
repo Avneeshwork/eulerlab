@@ -615,3 +615,27 @@ def history(workspace: Workspace, strategy_id: str, configuration: str) -> list[
             }
         )
     return out
+
+
+_HEADLINE_CACHE: dict[tuple[str, int], dict[str, Any]] = {}
+
+
+def headline(workspace: Workspace, strategy_id: str, configuration: str) -> dict[str, Any]:
+    """The few report figures a list of strategies shows: trades, win rate and
+    the period traded. Cached by the file's modification time, because a
+    report can be 600 KB and the list reads one per strategy on every load."""
+    if not all(_safe_name(name) for name in (strategy_id, configuration)):
+        return {}
+    path = _path(workspace, strategy_id, configuration)
+    if not path.exists():
+        return {}
+    key = (str(path), path.stat().st_mtime_ns)
+    if key not in _HEADLINE_CACHE:
+        payload = load(workspace, strategy_id, configuration) or {}
+        summary = payload.get("trade_summary") or {}
+        _HEADLINE_CACHE[key] = {
+            "trades": summary.get("closed"),
+            "win_rate": summary.get("win_rate"),
+            "period": payload.get("period") or [None, None],
+        }
+    return _HEADLINE_CACHE[key]

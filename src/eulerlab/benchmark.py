@@ -177,3 +177,54 @@ def hold(
         starting_cash=starting_cash,
         equity=equity,
     )
+
+
+# --- the market, for the Strategies table -------------------------------------
+
+
+def _nifty_closes() -> list[tuple[date, float]]:
+    """NIFTYBEES closes from the panel, chained across its 2019 1:10 split.
+
+    Read once per process and per panel file version. The ETF is the investable
+    Nifty 50, so "what the market did" on the Strategies page is what holding
+    it did, before costs.
+    """
+    import json
+
+    from eulerlab.features.panel import PANEL_PATH
+
+    if not PANEL_PATH.exists():
+        return []
+    stamp = PANEL_PATH.stat().st_mtime_ns
+    cached = _NIFTY_CACHE.get(stamp)
+    if cached is not None:
+        return cached
+    raw: list[tuple[date, float]] = []
+    with PANEL_PATH.open(encoding="utf-8") as handle:
+        for line in handle:
+            if '"s": "NIFTYBEES"' in line:
+                row = json.loads(line)
+                raw.append((date.fromisoformat(row["d"]), float(row["c"])))
+    raw.sort()
+    chained: list[tuple[date, float]] = []
+    level = 1.0
+    for index, (day, close) in enumerate(raw):
+        if index:
+            ratio = close / raw[index - 1][1]
+            level *= 10 * ratio if ratio < 0.2 else ratio
+        chained.append((day, level))
+    _NIFTY_CACHE.clear()
+    _NIFTY_CACHE[stamp] = chained
+    return chained
+
+
+_NIFTY_CACHE: dict[int, list[tuple[date, float]]] = {}
+
+
+def nifty_return(start: date, end: date) -> float | None:
+    """NIFTYBEES held from the first close on or after `start` to the last on
+    or before `end`, before costs. None when the panel does not cover it."""
+    series = [(d, v) for d, v in _nifty_closes() if start <= d <= end]
+    if len(series) < 2:
+        return None
+    return series[-1][1] / series[0][1] - 1.0
