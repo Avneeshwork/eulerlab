@@ -202,6 +202,74 @@ class RankTop(Strategy):
         return dict.fromkeys(chosen, 1.0 / len(chosen))
 
 
+class DoubleSort(Strategy):
+    """Sort on one score, then within the selection on a second.
+
+    `first` keeps the top `first_fraction` (highest), then `second` keeps the
+    top `second_fraction` of those (highest, or lowest with `second_low`).
+    Equal-weighted, long only.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        first: Score,
+        second: Score,
+        *,
+        first_fraction: float,
+        second_fraction: float,
+        second_low: bool,
+        rebalance_every: int,
+        lookback: int,
+    ) -> None:
+        self.name = name
+        self.first = first
+        self.second = second
+        self.first_fraction = first_fraction
+        self.second_fraction = second_fraction
+        self.second_low = second_low
+        self.rebalance_every = rebalance_every
+        self.lookback = lookback
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        firsts: list[tuple[float, str]] = []
+        for symbol in liquid_universe(view):
+            value = self.first(view.history[symbol])
+            if value is not None and math.isfinite(value):
+                firsts.append((value, symbol))
+        if len(firsts) < 30:
+            return {}
+        firsts.sort(key=lambda item: (-item[0], item[1]))
+        kept = [s for _, s in firsts[: max(1, round(len(firsts) * self.first_fraction))]]
+        seconds: list[tuple[float, str]] = []
+        for symbol in kept:
+            value = self.second(view.history[symbol])
+            if value is not None and math.isfinite(value):
+                seconds.append((value, symbol))
+        if not seconds:
+            return {}
+        seconds.sort(key=lambda item: (item[0] if self.second_low else -item[0], item[1]))
+        chosen = [s for _, s in seconds[: max(1, round(len(seconds) * self.second_fraction))]]
+        return dict.fromkeys(chosen, 1.0 / len(chosen))
+
+
+def sharpe_momentum(rows: Sequence[PanelRow]) -> float | None:
+    """12-month return divided by 12-month daily volatility (annualised)."""
+    if len(rows) < YEAR + 1:
+        return None
+    window = rows[-YEAR - 1 :]
+    first, last = window[0].close, window[-1].close
+    sd = _sd(_returns(window))
+    if first <= 0 or not sd:
+        return None
+    return (last / first - 1.0) / (sd * math.sqrt(YEAR))
+
+
+def median_turnover(rows: Sequence[PanelRow]) -> float | None:
+    values = sorted(r.turnover for r in rows[-3 * MONTH :] if r.turnover > 0)
+    return values[len(values) // 2] if len(values) >= MONTH else None
+
+
 class LowBeta(Strategy):
     """The long leg of Betting Against Beta (Agarwalla et al. 2014).
 
@@ -284,20 +352,30 @@ class IndexCalendar(Strategy):
     def __init__(
         self,
         name: str,
-        calendar: Sequence[date],
+        calendar: Sequence[date] | Callable[[], Sequence[date]],
         holds: Callable[[Sequence[date], int], bool],
     ) -> None:
         self.name = name
-        self.calendar = list(calendar)
+        # A loader is called on first use, not at construction: building a
+        # strategy must not need the 550 MB panel (the registry builds every
+        # strategy to check it can be invoked, in CI where there is no panel).
+        self._calendar = calendar
         self.holds = holds
         self.hold_unchanged = True
 
+    @property
+    def calendar(self) -> list[date]:
+        if callable(self._calendar):
+            self._calendar = list(self._calendar())
+        return list(self._calendar)
+
     def target_weights(self, view: MarketView) -> dict[str, float]:
-        position = bisect_right(self.calendar, view.as_of) - 1
+        calendar = self.calendar
+        position = bisect_right(calendar, view.as_of) - 1
         target = position + 2
-        if position < 0 or target >= len(self.calendar):
+        if position < 0 or target >= len(calendar):
             return {}
-        return {INDEX_ETF: 1.0} if self.holds(self.calendar, target) else {}
+        return {INDEX_ETF: 1.0} if self.holds(calendar, target) else {}
 
 
 class PairRatio(Strategy):
@@ -426,6 +504,8 @@ def trading_calendar() -> tuple[date, ...]:
 
     days: set[date] = set()
     marker = f'"s": "{INDEX_ETF}"'
+    if not PANEL_PATH.exists():
+        return ()
     with PANEL_PATH.open(encoding="utf-8") as handle:
         for line in handle:
             if marker in line:
@@ -489,7 +569,7 @@ def _macd_buy() -> Strategy:
 
 
 def _calendar(name: str, rule: Callable[[Sequence[date], int], bool]) -> Callable[[], Strategy]:
-    return lambda: IndexCalendar(name, trading_calendar(), rule)
+    return lambda: IndexCalendar(name, trading_calendar, rule)
 
 
 INDEX_ONLY = (INDEX_ETF,)
@@ -705,6 +785,156 @@ STRATEGIES: tuple[PaperStrategy, ...] = (
         _calendar("india_post_holiday", post_holiday),
         "all",
         INDEX_ONLY,
+    ),
+    PaperStrategy(
+        "india_momentum_3x6",
+        "Momentum 3-month formation, 6-month hold (India)",
+        "maheshwari-2015-momentum-seasonality-india",
+        "Maheshwari & Dhankar (2015), Journal of Commerce and Accounting Research 4(3-4)",
+        "Hold the top decile of the point-in-time top 250 by 3-month return, re-formed every 6 months.",
+        (
+            "Formation: return over the past 3 months. Hold the top decile for 6 months.",
+            "3x6 is the paper's best-reported combination (0.87%/month); only the abstract "
+            "could be read, so the decile and weighting are assumed.",
+        ),
+        4 * MONTH,
+        lambda: RankTop(
+            "india_momentum_3x6",
+            momentum(3 * MONTH, 0),
+            fraction=0.1,
+            highest=True,
+            rebalance_every=6 * MONTH,
+            lookback=4 * MONTH,
+        ),
+    ),
+    PaperStrategy(
+        "india_sharpe_momentum",
+        "Volatility-adjusted momentum, top 30 (India)",
+        "vijaykumar-2020-momentum-india",
+        "Vijaykumar (2020), SSRN 3614509",
+        "Hold the 30 stocks of the point-in-time top 250 with the best 12-month return per unit of volatility.",
+        (
+            "Score: 12-month return divided by annualised 12-month daily volatility.",
+            "Hold the top 30, equal-weighted, rebalanced monthly. The paper's exact rules "
+            "were not readable; this is the volatility-adjusted ranking its summary credits.",
+        ),
+        YEAR + 5,
+        lambda: RankTop(
+            "india_sharpe_momentum",
+            sharpe_momentum,
+            fraction=30 / LIQUID_TOP,
+            highest=True,
+            rebalance_every=MONTH,
+            lookback=YEAR + 5,
+        ),
+    ),
+    PaperStrategy(
+        "india_momentum_12_noskip",
+        "12-month momentum, no skip, top 30 (India)",
+        "vijaykumar-2026-which-momentum-india",
+        "Vijaykumar (2026), SSRN 7394980",
+        "Hold the 30 stocks of the point-in-time top 250 with the best 12-month return, rebalanced monthly.",
+        (
+            "Score: 12-month return including the last month, one of the two best of the "
+            "ten definitions the paper compares.",
+            "Top 30, equal-weighted, monthly. The paper's top-50 holding buffer is not "
+            "applied: a strategy here cannot see what it already holds.",
+        ),
+        YEAR + 5,
+        lambda: RankTop(
+            "india_momentum_12_noskip",
+            momentum(YEAR, 0),
+            fraction=30 / LIQUID_TOP,
+            highest=True,
+            rebalance_every=MONTH,
+            lookback=YEAR + 5,
+        ),
+    ),
+    PaperStrategy(
+        "india_52w_high",
+        "Nearest the 52-week high, top decile (India)",
+        "raju-2023-52-week-high-india",
+        "Raju (2023), SSRN 4587697",
+        "Hold the decile of the point-in-time top 250 closest to its 52-week high, rebalanced monthly.",
+        (
+            "Score: today's close over the highest close of the past 52 weeks (George & Hwang).",
+            "Top decile, equal-weighted, monthly. Assumed: only the abstract was readable.",
+        ),
+        YEAR + 5,
+        lambda: RankTop(
+            "india_52w_high",
+            nearness_to_52w_high,
+            fraction=0.1,
+            highest=True,
+            rebalance_every=MONTH,
+            lookback=YEAR + 5,
+        ),
+    ),
+    PaperStrategy(
+        "india_weekly_momentum",
+        "Weekly momentum, top decile (India)",
+        "sapate-2017-weekly-momentum-india",
+        "Sapate (2017), SSRN 3065621",
+        "Hold last week's top decile of the point-in-time top 250 for one week.",
+        (
+            "Score: return over the past 5 trading days. Hold the top decile for 5 days.",
+            "Assumed: the paper's abstract states no formation or holding length.",
+        ),
+        2 * MONTH,
+        lambda: RankTop(
+            "india_weekly_momentum",
+            momentum(5, 0),
+            fraction=0.1,
+            highest=True,
+            rebalance_every=5,
+            lookback=2 * MONTH,
+        ),
+    ),
+    PaperStrategy(
+        "india_illiquid_winners",
+        "Illiquid winners (India)",
+        "aziz-2014-momentum-illiquidity-india",
+        "Aziz & Ansari (2014), SSRN 2416637",
+        "Among the top 30% by 6-month return, hold the more illiquid half by Amihud's measure.",
+        (
+            "Winners: top 30% of the point-in-time top 250 by 6-month return.",
+            "Of those, hold the half with the highest Amihud illiquidity, equal-weighted, "
+            "monthly. Formation and split are assumed: only the abstract was readable.",
+        ),
+        YEAR + 5,
+        lambda: DoubleSort(
+            "india_illiquid_winners",
+            momentum(6 * MONTH, 0),
+            amihud_illiquidity,
+            first_fraction=0.3,
+            second_fraction=0.5,
+            second_low=False,
+            rebalance_every=MONTH,
+            lookback=YEAR + 5,
+        ),
+    ),
+    PaperStrategy(
+        "india_liquid_winners",
+        "Liquid winners (India)",
+        "chui-2023-momentum-reversals-liquidity-india",
+        "Chui, Ranganathan, Rohit & Veeraraghavan (2023), Pacific-Basin Finance Journal 82",
+        "Among the top 30% by 6-month return, hold the more liquid half by turnover.",
+        (
+            "Winners: top 30% of the point-in-time top 250 by 6-month return.",
+            "Of those, hold the half with the highest median rupee turnover (the paper uses "
+            "share turnover ratio; shares outstanding are not in the panel). Monthly.",
+        ),
+        YEAR + 5,
+        lambda: DoubleSort(
+            "india_liquid_winners",
+            momentum(6 * MONTH, 0),
+            median_turnover,
+            first_fraction=0.3,
+            second_fraction=0.5,
+            second_low=False,
+            rebalance_every=MONTH,
+            lookback=YEAR + 5,
+        ),
     ),
 )
 
