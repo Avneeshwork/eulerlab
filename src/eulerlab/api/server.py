@@ -34,7 +34,7 @@ import threading
 import time
 import traceback
 import uuid
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
@@ -230,6 +230,13 @@ class _EngineRun:
 
     rejection_rows: tuple[tuple[str, str, str], ...] = ()
 
+    closes: Mapping[str, Mapping[date, float]] = field(default_factory=dict)
+    """The back-adjusted closes the engine marked at, per symbol.
+
+    The report measures each trade's MAE and MFE against these, so a trade's
+    worst point is read from the same prices that moved the equity curve.
+    """
+
     marks: dict[str, float] = field(default_factory=dict)
     """The prices the engine valued open positions at on the last day.
 
@@ -284,6 +291,7 @@ def _engine_run(
             len({fill.symbol for fill in run.fills}),
             run.fills,
             marks=dict(run.final_marks),
+            closes=index,
         )
 
     run_b = event_driven.run(
@@ -308,6 +316,7 @@ def _engine_run(
             (reject.day.isoformat(), reject.symbol, reject.reason) for reject in run_b.rejections
         ),
         marks=dict(run_b.final_marks),
+        closes=index,
     )
 
 
@@ -1197,6 +1206,9 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     rejections=list(engine.rejection_rows),
                     marks=engine.marks,
                     starting_cash=request.starting_cash,
+                    closes=engine.closes,
+                    params=dict(item.params),
+                    data_version=saved.data_version,
                 ),
             )
 
@@ -1249,7 +1261,12 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             if isinstance(material, dict):
                 reports.save(
                     workspace,
-                    reports.build(configuration=run.configuration, **material),
+                    reports.build(
+                        configuration=run.configuration,
+                        params=dict(run.params),
+                        data_version=run.data_version,
+                        **material,
+                    ),
                 )
 
         def progress(index: int, total: int, item: _BatchItem) -> None:
@@ -2119,12 +2136,15 @@ def cloud_mirror(request: MirrorRequest) -> dict[str, Any]:
 
 
 @app.get("/api/report")
-def report(strategy: str, workspace: str = "", configuration: str = "") -> dict[str, Any]:
+def report(
+    strategy: str, workspace: str = "", configuration: str = "", run: str = ""
+) -> dict[str, Any]:
     """The full analysis of one run.
 
     Defaults to the configuration behind the strategy's best stored result, so
     the report opens on the run the library is showing. Passing `configuration`
-    explicitly opens any other run of the same strategy.
+    explicitly opens any other run of the same strategy, and `run` opens one
+    earlier stored run of that configuration rather than its latest.
     """
     tenant = workspace_mod.resolve(workspace or None)
     runs = result_store.distinct(tenant, strategy)
@@ -2141,7 +2161,7 @@ def report(strategy: str, workspace: str = "", configuration: str = "") -> dict[
             return {"ok": False, "error": f"{strategy} has no tradeable run to report on"}
         target = recent.configuration
 
-    payload = reports.load(tenant, strategy, target)
+    payload = reports.load(tenant, strategy, target, run)
     if payload is None:
         return {
             "ok": False,
@@ -2149,9 +2169,14 @@ def report(strategy: str, workspace: str = "", configuration: str = "") -> dict[
                 "no report stored for that run. Reports are written when a backtest runs, "
                 "so a result recorded before reports existed has none — re-run it to get one."
             ),
-            "runs": [_run_choice(run) for run in runs],
+            "runs": [_run_choice(choice) for choice in runs],
         }
-    return {"ok": True, "report": payload, "runs": [_run_choice(run) for run in runs]}
+    return {
+        "ok": True,
+        "report": payload,
+        "runs": [_run_choice(choice) for choice in runs],
+        "history": reports.history(tenant, strategy, target),
+    }
 
 
 def _run_choice(run: result_store.Run) -> dict[str, Any]:

@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -101,13 +102,22 @@ def _rewrite(tenant: Any, strategy_id: str, keeper: Any, *, superseded: int) -> 
 
 
 def _drop_reports(tenant: Any, strategy_id: str, *, keep: str) -> None:
-    """Delete report payloads for configurations no longer stored."""
+    """Delete report payloads for configurations no longer stored.
+
+    Their per-run history goes too: it is the same payload, kept per run, of a
+    configuration this command has just decided not to keep.
+    """
     folder = Path(tenant.root) / "reports" / strategy_id
     if not folder.exists():
         return
     for report in folder.iterdir():
         if report.is_file() and report.stem != keep:
             report.unlink()
+    history = folder / "runs"
+    if history.is_dir():
+        for configuration in history.iterdir():
+            if configuration.is_dir() and configuration.name != keep:
+                shutil.rmtree(configuration)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

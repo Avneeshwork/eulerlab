@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Twelve times this project was wrong
+## Thirteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -126,6 +126,15 @@ project state rather than code behaviour, so it skips when the ledger is absent
 and is marked as belonging with `make acceptance`. **The general lesson is that
 a green gate downstream of a red one proves nothing** — five merges of "verify
 is 7 of 7" covered a suite that CI had not actually finished running.
+
+**13. A re-run destroyed the report it superseded.** (2026-10-06) `results/`
+was described as append-only, and it is, but the full report beside it was one
+file per configuration, `reports/<strategy>/<configuration>.json`, replaced on
+every re-run. So the summary row of an earlier run survived while its orders,
+attribution and equity curve did not, and nothing recorded which commit had
+produced either. No published number is invalidated: the latest report of each
+configuration was always the one shown. Fixed by keeping every run under its
+own id with its commit and cost-model stamp (ADR-057).
 
 ---
 

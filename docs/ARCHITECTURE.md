@@ -425,6 +425,28 @@ tests actually catch them. This found a real hole — the zero-alpha identity
 does *not* catch double-charged costs, because both sides of the identity
 double. An independent recomputation was added to catch it.
 
+### Where a backtest result is stored
+
+Two layers per workspace. `results/<strategy>.jsonl` holds one small row per
+run: the headline numbers, a 64-point curve and the configuration hash
+(`results.py`). `reports/<strategy>/` holds the full report: every fill,
+per-instrument attribution, the daily equity curve, closed trades and the
+parameters.
+
+Every run gets an id (`<UTC time>-<payload digest>`) and its own file,
+`reports/<strategy>/runs/<configuration>/<run_id>.json`, written once and
+never replaced. `reports/<strategy>/<configuration>.json` is a copy of the
+latest run, so a re-run updates what the library shows without destroying
+what it showed before. Each report's `provenance` names the git commit, the
+uncommitted paths and the cost-model stamp. `/api/report?run=<id>` opens an
+earlier run; the response's `history` lists them.
+
+Closed trades (`trades.py`) are matched first in, first out per symbol, one
+trade per closing fill, the same rule as the report page. MAE and MFE are the
+worst and best unrealised P&L between entry and exit, read from the adjusted
+closes the engine marked at, so they miss intraday extremes. The intraday paths
+pass no closes, and their MAE/MFE is `None`.
+
 ---
 
 # Part III — Validation: catching self-deception

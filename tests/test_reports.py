@@ -210,7 +210,90 @@ def test_hit_rate_is_offered_over_invested_days_too() -> None:
 def test_a_report_round_trips(space: ws.Workspace) -> None:
     payload = {"strategy_id": "demo", "configuration": "cfg", "metrics": {}}
     reports.save(space, payload)
-    assert reports.load(space, "demo", "cfg") == payload
+    loaded = reports.load(space, "demo", "cfg")
+    assert loaded is not None
+    assert {k: v for k, v in loaded.items() if k != "provenance"} == payload
+
+
+def test_a_rerun_keeps_the_report_it_supersedes(space: ws.Workspace) -> None:
+    """The bug this fixes: one file per configuration, replaced on a re-run."""
+    first = reports.save(space, {"strategy_id": "demo", "configuration": "cfg", "n": 1})
+    second = reports.save(space, {"strategy_id": "demo", "configuration": "cfg", "n": 2})
+    assert first != second
+    assert first.exists() and second.exists()
+
+    latest = reports.load(space, "demo", "cfg")
+    assert latest is not None and latest["n"] == 2
+
+    history = reports.history(space, "demo", "cfg")
+    assert [entry["run_id"] for entry in history] == [first.stem, second.stem]
+    earlier = reports.load(space, "demo", "cfg", first.stem)
+    assert earlier is not None and earlier["n"] == 1
+
+
+def test_a_saved_report_names_the_code_that_produced_it(space: ws.Workspace) -> None:
+    reports.save(space, {"strategy_id": "demo", "configuration": "cfg"})
+    loaded = reports.load(space, "demo", "cfg")
+    assert loaded is not None
+    provenance = loaded["provenance"]
+    assert provenance["run_id"]
+    assert provenance["recorded_at"]
+    assert set(provenance["code"]) == {"commit", "dirty", "dirty_paths"}
+    assert provenance["cost_model"]
+
+
+def test_a_stored_run_is_never_overwritten(space: ws.Workspace) -> None:
+    payload = {"strategy_id": "demo", "configuration": "cfg"}
+    path = reports.save(space, payload)
+    stored = reports.load(space, "demo", "cfg")
+    assert stored is not None
+    with pytest.raises(FileExistsError):
+        reports.save(space, stored)  # same provenance, same run id
+    assert path.exists()
+
+
+def test_a_report_written_before_run_ids_still_loads(space: ws.Workspace) -> None:
+    legacy = space.root / "reports" / "demo" / "cfg.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text('{"strategy_id": "demo", "configuration": "cfg"}', encoding="utf-8")
+    assert reports.load(space, "demo", "cfg") == {"strategy_id": "demo", "configuration": "cfg"}
+    assert reports.history(space, "demo", "cfg") == []
+
+
+@pytest.mark.parametrize("bad", ["../../etc", "a/b", ".hidden", "a\\b"])
+def test_a_name_that_leaves_the_folder_is_refused(space: ws.Workspace, bad: str) -> None:
+    reports.save(space, {"strategy_id": "demo", "configuration": "cfg"})
+    assert reports.load(space, "demo", "cfg", bad) is None
+    assert reports.load(space, "demo", bad) is None
+    assert reports.history(space, "demo", bad) == []
+
+
+def test_a_built_report_carries_its_trades_and_parameters() -> None:
+    fills = [
+        _Fill(date(2026, 1, 2), "AAA", Side.BUY, 100, 10.0, 5.0),
+        _Fill(date(2026, 1, 9), "AAA", Side.SELL, 100, 12.0, 5.0),
+    ]
+    payload = reports.build(
+        strategy_id="demo",
+        configuration="cfg",
+        universe="custom",
+        instruments=["AAA"],
+        tier="B",
+        window_days=10,
+        equity=[1000.0, 1000.0, 1190.0],
+        days=_days(3),
+        fills=fills,
+        rejections=[],
+        marks={},
+        starting_cash=1000.0,
+        params={"lookback": 20},
+        data_version="v1",
+    )
+    assert payload["params"] == {"lookback": 20}
+    assert payload["data_version"] == "v1"
+    assert len(payload["trades"]) == 1
+    assert payload["trades"][0]["net"] == 190.0
+    assert payload["trade_summary"]["wins"] == 1
 
 
 def test_a_missing_report_is_none_not_an_error(space: ws.Workspace) -> None:
@@ -225,3 +308,14 @@ def test_reports_do_not_leak_between_workspaces(
     b = ws.Workspace(id="tenant-b").ensure()
     reports.save(a, {"strategy_id": "demo", "configuration": "cfg"})
     assert reports.load(b, "demo", "cfg") is None
+
+
+def test_pruning_a_configuration_drops_its_history_too(space: ws.Workspace) -> None:
+    from eulerlab.prune_runs import _drop_reports
+
+    kept = reports.save(space, {"strategy_id": "demo", "configuration": "keep"})
+    dropped = reports.save(space, {"strategy_id": "demo", "configuration": "drop"})
+    _drop_reports(space, "demo", keep="keep")
+    assert kept.exists()
+    assert not dropped.exists()
+    assert reports.load(space, "demo", "drop") is None

@@ -275,6 +275,8 @@ def _save_report(
                 rejections=[],
                 marks=marks,
                 starting_cash=EQUITY,
+                params=dict(run.params),
+                data_version=run.data_version,
             ),
         )
     except Exception:

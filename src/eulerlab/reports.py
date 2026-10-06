@@ -15,6 +15,22 @@ to carry data almost every read does not want. So reports live at
 The configuration hash is the same one `results.Run` uses, so a report and the
 row that summarises it cannot drift apart or be mismatched.
 
+### Every run is kept, under its own id
+
+`reports/{strategy}/{configuration}.json` is the *latest* run of that
+configuration, and it is replaced on a re-run. Before run ids, that replacement
+was the only copy, so re-running a configuration destroyed the report it
+superseded. Now every save also writes
+`reports/{strategy}/runs/{configuration}/{run_id}.json`, which is never
+overwritten — the shape LEAN uses, one result file per backtest id
+(`docs/RESEARCH/061-backtest-result-storage.md`). The latest file stays where
+it was so every existing reader, and every report written before this, works
+unchanged.
+
+Each saved report carries `provenance`: its run id, when it was recorded, the
+git commit that produced it (and whether the tree had uncommitted edits), and
+the cost-model stamp. A number whose code cannot be named cannot be reproduced.
+
 ### Attribution is reconciled, not asserted
 
 Per-instrument contribution is computed from the fills — cash out on a buy,
@@ -27,15 +43,19 @@ invites the reader to trust a decomposition that does not add up.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import UTC, date, datetime
+from functools import lru_cache
 from itertools import pairwise
 from pathlib import Path
 from typing import Any, Protocol
 
+from eulerlab import trades as trade_book
 from eulerlab.costs.schedule import Side
 from eulerlab.validation.statistics import sharpe_stats
 from eulerlab.workspace import Workspace
@@ -299,6 +319,9 @@ def build(
     rejections: Sequence[tuple[str, str, str]],
     marks: dict[str, float],
     starting_cash: float,
+    closes: Mapping[str, Mapping[date, float]] | None = None,
+    params: dict[str, Any] | None = None,
+    data_version: str = "",
 ) -> dict[str, Any]:
     """Assemble the full report from one engine run.
 
@@ -306,6 +329,9 @@ def build(
     positions still open at the end. A symbol missing from it is marked at zero
     and flagged, rather than silently dropped — a dropped position would make
     the attribution reconcile by losing the thing that broke it.
+
+    `closes` is the price series the engine marked at, per symbol. Given, each
+    closed trade carries its MAE and MFE; absent, those are None.
     """
     per_symbol: dict[str, Constituent] = defaultdict(lambda: Constituent(symbol=""))
     unmarked: list[str] = []
@@ -383,6 +409,7 @@ def build(
             )
         warnings.append(note)
 
+    book = trade_book.round_trips(fills, closes)
     return {
         "strategy_id": strategy_id,
         "configuration": configuration,
@@ -431,6 +458,10 @@ def build(
             }
             for fill in fills
         ],
+        "trades": book,
+        "trade_summary": trade_book.summary(book),
+        "params": params or {},
+        "data_version": data_version,
         "rejections": [{"day": d, "symbol": s, "reason": r} for d, s, r in rejections],
         "equity": {
             "days": [day.isoformat() for day in days],
@@ -443,19 +474,101 @@ def _path(workspace: Workspace, strategy_id: str, configuration: str) -> Path:
     return workspace.root / "reports" / strategy_id / f"{configuration}.json"
 
 
-def save(workspace: Workspace, payload: dict[str, Any]) -> Path:
-    path = _path(workspace, str(payload["strategy_id"]), str(payload["configuration"]))
+def _run_path(workspace: Workspace, strategy_id: str, configuration: str, run_id: str) -> Path:
+    return workspace.root / "reports" / strategy_id / "runs" / configuration / f"{run_id}.json"
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@lru_cache(maxsize=1)
+def code_version() -> dict[str, Any]:
+    """The commit this process is running, and whether the tree was edited.
+
+    Cached per process: `make workbench` runs the API with `--reload`, which
+    restarts it on any source change, so a stale answer cannot outlive the
+    code it describes. Uncommitted paths are listed, capped, because "dirty"
+    alone does not say whether the edit could have moved the number.
+    """
+
+    def git(*args: str) -> str:
+        # Trailing newline only: porcelain lines start with a status column
+        # that may be a space, and stripping it would eat a path's first letter.
+        return subprocess.run(
+            ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, timeout=5, check=True
+        ).stdout.rstrip("\n")
+
+    try:
+        commit = git("rev-parse", "HEAD")
+        dirty = git("status", "--porcelain", "--untracked-files=no").splitlines()
+    except (OSError, subprocess.SubprocessError):
+        return {"commit": "unknown", "dirty": None, "dirty_paths": []}
+    return {
+        "commit": commit,
+        "dirty": bool(dirty),
+        "dirty_paths": [line[3:] for line in dirty[:20]],
+    }
+
+
+def _provenance(payload: dict[str, Any]) -> dict[str, Any]:
+    from eulerlab.batch import cost_model_version
+
+    now = datetime.now(UTC)
+    digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:8]
+    return {
+        # Time first so ids sort in the order the runs happened; the digest
+        # separates two saves inside the same microsecond.
+        "run_id": f"{now.strftime('%Y%m%dT%H%M%S%fZ')}-{digest}",
+        "recorded_at": now.isoformat(),
+        "code": code_version(),
+        "cost_model": cost_model_version(),
+    }
+
+
+def _write(path: Path, payload: dict[str, Any], *, exclusive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if exclusive and path.exists():
+        raise FileExistsError(f"{path} already exists; a stored run is never overwritten")
     tmp = path.with_suffix(".partial")
     tmp.write_text(json.dumps(payload), encoding="utf-8")
     # Atomic rename, so a crash mid-write leaves no half-report that would read
     # as a real one — the same reason the crypto landing zone writes .partial.
     tmp.replace(path)
-    return path
 
 
-def load(workspace: Workspace, strategy_id: str, configuration: str) -> dict[str, Any] | None:
-    path = _path(workspace, strategy_id, configuration)
+def save(workspace: Workspace, payload: dict[str, Any]) -> Path:
+    """Store one run: its own permanent file, then the configuration's latest.
+
+    Returns the permanent file. The run is written first, so a crash between
+    the two writes leaves a run on record and the previous latest in place,
+    never a latest that points at nothing.
+    """
+    strategy_id = str(payload["strategy_id"])
+    configuration = str(payload["configuration"])
+    if "provenance" not in payload:
+        payload = {**payload, "provenance": _provenance(payload)}
+    run_id = str(payload["provenance"]["run_id"])
+    permanent = _run_path(workspace, strategy_id, configuration, run_id)
+    _write(permanent, payload, exclusive=True)
+    _write(_path(workspace, strategy_id, configuration), payload)
+    return permanent
+
+
+def load(
+    workspace: Workspace, strategy_id: str, configuration: str, run_id: str = ""
+) -> dict[str, Any] | None:
+    """The latest run of a configuration, or one named run of it.
+
+    The names arrive from a query string and become a path, so anything that
+    could step outside the reports folder is refused rather than resolved.
+    """
+    if not all(_safe_name(name) for name in (strategy_id, configuration, run_id or "x")):
+        return None
+    path = (
+        _run_path(workspace, strategy_id, configuration, run_id)
+        if run_id
+        else _path(workspace, strategy_id, configuration)
+    )
     if not path.exists():
         return None
     try:
@@ -463,3 +576,42 @@ def load(workspace: Workspace, strategy_id: str, configuration: str) -> dict[str
     except (json.JSONDecodeError, OSError):
         return None
     return loaded if isinstance(loaded, dict) else None
+
+
+def _safe_name(name: str) -> bool:
+    return bool(name) and not name.startswith(".") and "/" not in name and "\\" not in name
+
+
+def history(workspace: Workspace, strategy_id: str, configuration: str) -> list[dict[str, Any]]:
+    """Every stored run of one configuration, oldest first.
+
+    Read from the provenance in each file, not the file name, so what is listed
+    is what the run says about itself. A report written before run ids has no
+    entry here; it exists only as the latest file.
+    """
+    if not (_safe_name(strategy_id) and _safe_name(configuration)):
+        return []
+    folder = workspace.root / "reports" / strategy_id / "runs" / configuration
+    if not folder.is_dir():
+        return []
+    out: list[dict[str, Any]] = []
+    for path in sorted(folder.glob("*.json")):
+        try:
+            loaded = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        provenance = loaded.get("provenance") if isinstance(loaded, dict) else None
+        if not isinstance(provenance, dict):
+            continue
+        metrics = loaded.get("metrics") or {}
+        out.append(
+            {
+                "run_id": provenance.get("run_id", path.stem),
+                "recorded_at": provenance.get("recorded_at"),
+                "commit": (provenance.get("code") or {}).get("commit"),
+                "dirty": (provenance.get("code") or {}).get("dirty"),
+                "sharpe": metrics.get("sharpe"),
+                "final_equity": loaded.get("final_equity"),
+            }
+        )
+    return out

@@ -9,6 +9,21 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Backtest result storage (2026-10-06)
+
+Operator: "check how the backtest results are stored in different platforms and store that one". ADR-057, research 061.
+Verify: `uv run pytest -q tests/test_trades.py tests/test_reports.py`, then `make verify`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3965 | **A re-run overwrote its report** | DONE — every run kept at `reports/<strategy>/runs/<configuration>/<run_id>.json`; the configuration file is the latest copy. `/api/report?run=` opens an older run, `history` lists them |
+| T-3966 | **A result could not name its code** | DONE — `provenance` on every report: run id, time, git commit, uncommitted paths, cost-model stamp |
+| T-3967 | **Closed trades existed only in the browser** | DONE — `trades.py`, FIFO round trips with MAE/MFE on adjusted daily closes, plus `trade_summary`. Same rule as `lib/backtestStats.ts` |
+| T-3968 | The report page still matches trades client-side | OPEN — it could read the stored `trades` and show MAE/MFE. Left alone because another thread owns that page |
+| T-3969 | Intraday trades have no MAE/MFE | OPEN — those paths pass no price series; needs the session candles |
+
+---
+
 ## The interface — one home per feature (2026-10-06)
 
 Operator: "make it the same as OpenAlgo's UI, keep one thing in one place". ADR-056.
