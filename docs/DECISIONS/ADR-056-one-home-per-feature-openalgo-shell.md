@@ -55,3 +55,5 @@ choosing one goes there.
 Nothing computed changed: every number on screen comes from the same API call
 as before, and only where controls live moved. Reverting the look is removing
 one import; reverting the structure is one file, `app/terminal/page.tsx`.
+
+**Addendum (2026-10-06), the rest of OpenAlgo.** Added what fits a research platform: OI tracker, vol surface and straddle/IV history under Options, and a SIP backtester under Tools. Left out: the live-trading pages (orderbook, tradebook, positions, holdings, funds, P&L tracker, action center, scalping) and their plumbing (broker login, API keys, webhooks, Telegram, flow editor, strategy hosting), because no live broker adapter exists (S-015) and the money-safety rules govern that work. Left out the portfolio backtester as a separate calculator, because returns computed outside the engine skip the cost model and the trial ledger; the Backtest dialog's buy-and-hold over chosen instruments covers it. Cost if wrong: those pages get built later behind the OMS.

@@ -512,3 +512,77 @@
 .heat-dn3 { background: color-mix(in srgb, var(--down) 40%, transparent); }
 
 .rpt-card .ttable td { white-space: nowrap; }
+
+/* ============================ options tools ============================ */
+
+.oi-rows { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.oi-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s3);
+  padding: 3px 0;
+}
+.oi-row.oi-head { color: var(--ink-3); font-size: 12px; font-weight: 500; }
+.oi-row.oi-head span:nth-child(2) { text-align: center; }
+.oi-row.oi-head span:last-child { text-align: left; }
+.oi-row.oi-head span:first-child { text-align: right; }
+.oi-row > b { text-align: center; font-variant-numeric: tabular-nums; }
+.oi-row.atm { background: var(--surface-2); border-radius: var(--r-sm); }
+.oi-side { position: relative; display: flex; align-items: center; min-height: 26px; }
+.oi-side.call { justify-content: flex-end; }
+.oi-side .oi-bar {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 3px;
+  opacity: 0.28;
+}
+.oi-side.call .oi-bar { right: 0; background: var(--down); }
+.oi-side.put .oi-bar { left: 0; background: var(--up); }
+.oi-side span {
+  position: relative;
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
+}
+.oi-side em { font-style: normal; font-size: 11px; }
+.oi-side em.up { color: var(--up); }
+.oi-side em.dn { color: var(--down); }
+.terminal .tstat-card b.oi-change { font-size: 20px; }
+.terminal .tstat-card .pos { color: var(--up); }
+.terminal .tstat-card .neg { color: var(--down); }
+.terminal .ttable tr.untraded td { opacity: 0.55; }
+
+/* The starting-balance and expiry-roll rules: dashed, so they read as
+   references rather than as data. */
+.terminal .eq-base { fill: none; stroke: var(--ink-4); stroke-dasharray: 4 4; opacity: 1; }
+
+/* SIP plan form: a row of labelled fields that wraps. */
+.sip-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--s3);
+}
+.sip-form .wide { grid-column: span 2; }
+.sip-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.sip-form input,
+.sip-form select {
+  font: inherit;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+@media (max-width: 720px) { .sip-form .wide { grid-column: auto; } }

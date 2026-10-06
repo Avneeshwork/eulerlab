@@ -52,6 +52,14 @@
   --up: #16a34a;
   --down: #dc2626;
 
+  /* Names later components used without ever defining. Each fell back to
+     nothing — --muted strokes and text were invisible, --line borders absent —
+     so they are aliases now rather than a second palette. */
+  --muted: var(--ink-3);
+  --fg: var(--ink);
+  --line: var(--rule);
+  --line-faint: var(--rule);
+
   /* --- type -------------------------------------------------------------
      Robinhood pairs one precise sans with one warm serif (Phonic + Martina
      Plantijn today, Capsule + Nib before). Neither is licensable, so:

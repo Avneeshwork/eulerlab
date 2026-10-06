@@ -471,6 +471,32 @@ export type FullReport = {
   equity: { days: string[]; values: number[] };
 };
 
+export type OptionHistoryPoint = {
+  day: string;
+  expiry: string;
+  days_to_expiry: number;
+  forward: number | null;
+  atm_strike: number;
+  call: number;
+  put: number;
+  straddle: number;
+  atm_iv: number | null;
+  pcr_oi: number | null;
+  max_pain: number | null;
+  traded: boolean;
+};
+
+export type OptionHistory = {
+  ok: boolean;
+  error?: string;
+  underlying?: string;
+  points?: OptionHistoryPoint[];
+  skipped: string[];
+};
+
+/** One chain as the options endpoint returns it. */
+export type OptionChain = Awaited<ReturnType<(typeof api)['optionChain']>>;
+
 export type RunChoice = {
   configuration: string;
   sharpe: number;
@@ -935,6 +961,11 @@ export const api = {
     get<WindowInfo>(
       `/api/window?days=${days}&universe=${encodeURIComponent(universe)}` +
         `&asset_class=${encodeURIComponent(assetClass)}`
+    ),
+  /** One point per landed day: the nearest-expiry ATM straddle, its IV and the forward. */
+  optionHistory: (underlying: string, days = 30) =>
+    get<OptionHistory>(
+      `/api/options/history?underlying=${encodeURIComponent(underlying)}&days=${days}`
     ),
   optionDays: () => get<{ ok: boolean; days: string[]; total: number }>('/api/options/days'),
   optionChain: (underlying: string, expiry = '', day = '') =>

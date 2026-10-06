@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
 import { PayoffBuilder } from './PayoffBuilder';
+import { OiTracker, StraddleHistory, VolSurface } from './OptionsTools';
 import {
   GammaChart,
   MaxPainChart,
@@ -84,7 +85,18 @@ type Chain = {
 
 const UNDERLYINGS = ['NIFTY', 'BANKNIFTY', 'FINNIFTY', 'MIDCPNIFTY'];
 
-const VIEWS = ['Chain', 'Payoff', 'Smile', 'Max pain', 'Gamma', 'Positioning', 'Checks'] as const;
+const VIEWS = [
+  'Chain',
+  'OI tracker',
+  'Straddle & IV',
+  'Vol surface',
+  'Payoff',
+  'Smile',
+  'Max pain',
+  'Gamma',
+  'Positioning',
+  'Checks',
+] as const;
 type View = (typeof VIEWS)[number];
 
 /** How many strikes either side of the money to show.
@@ -322,6 +334,20 @@ export function OptionsTab() {
               </i>
             </div>
           </div>
+
+          {view === 'OI tracker' && (
+            <OiTracker
+              chain={chain}
+              rows={near(chain.strikes)}
+              previousDay={
+                days.includes(chain.day) ? (days[days.indexOf(chain.day) + 1] ?? '') : ''
+              }
+            />
+          )}
+
+          {view === 'Straddle & IV' && <StraddleHistory underlying={chain.underlying} />}
+
+          {view === 'Vol surface' && <VolSurface chain={chain} />}
 
           {view === 'Payoff' && (
             <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>

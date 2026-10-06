@@ -17,7 +17,8 @@
  *   Options     the option chain, its analytics and the payoff builder
  *   Live        deployment readiness and the risk limits that stop trading
  *               (was two tabs, Live and Risk, describing one question)
- *   Tools       the strategy builder, the instrument catalog, data status
+ *   Tools       the strategy builder, the instrument catalog, the SIP
+ *               backtester, data status
  *
  * Backtest settings — period, tier, instruments, capital — are asked in the
  * Backtest dialog. They used to be editable from the Library toolbar, the Run
@@ -47,6 +48,7 @@ import {
   SunMoon,
   Wrench,
   Hammer,
+  PiggyBank,
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -63,6 +65,7 @@ import { ChartTab } from '@/components/terminal/ChartTab';
 import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
 import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
+import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
 import { api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
@@ -77,6 +80,7 @@ type PageId =
   | 'builder'
   | 'instruments'
   | 'data'
+  | 'sip'
   | 'report';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
@@ -108,6 +112,13 @@ const TOOLS: Tool[] = [
     icon: ListTree,
   },
   {
+    id: 'sip',
+    title: 'SIP Backtester',
+    description:
+      'Invest a fixed amount every month in one instrument and see the value, XIRR and how it compares with investing once.',
+    icon: PiggyBank,
+  },
+  {
     id: 'data',
     title: 'Data Status',
     description:
@@ -123,11 +134,19 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
     sub: 'Every strategy with its full backtest report. Select one or several and press Backtest to run them.',
   },
   charts: { title: 'Charts', sub: 'Charting, drawing and the macro picture.' },
-  options: { title: 'Options', sub: 'Option chain, Greeks, implied volatility, positioning and payoff.' },
+  options: {
+    title: 'Options',
+    sub: 'Option chain, OI tracker, straddle and IV history, vol surface, payoff and the analytics behind them.',
+  },
   live: { title: 'Live & Risk', sub: 'What is ready to deploy, and the limits that stop trading.' },
   tools: { title: 'Tools', sub: 'Building strategies, browsing instruments and checking data.' },
   builder: { title: 'Strategy Builder', sub: 'Compose or write a strategy, then validate and backtest it.', parent: 'tools' },
   instruments: { title: 'Instruments', sub: 'Every instrument that has data.', parent: 'tools' },
+  sip: {
+    title: 'SIP Backtester',
+    sub: 'A monthly investment plan over landed closes. A calculator, not an engine run.',
+    parent: 'tools',
+  },
   data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
 };
@@ -461,6 +480,7 @@ export default function TerminalPage() {
           />
         )}
         {page === 'instruments' && <InstrumentsTab />}
+        {page === 'sip' && <SipTab />}
         {page === 'data' && <DataTab workspace={workspace} />}
       </div>
 

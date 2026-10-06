@@ -242,3 +242,96 @@ export function tradeStats(trades: Trade[]): TradeStats {
     expectancy: closed.length ? (grossProfit + grossLoss) / closed.length : null,
   };
 }
+
+/* ============================ SIP ============================ */
+
+export type SipInstalment = { day: string; price: number; amount: number; units: number };
+
+export type SipResult = {
+  instalments: SipInstalment[];
+  invested: number;
+  units: number;
+  value: number;
+  /** Money-weighted annual return, solved from the dated cash flows. */
+  xirr: number | null;
+  /** Value path at every bar, beside cumulative money put in. */
+  path: { day: string; invested: number; value: number }[];
+  /** The same total invested once on the first instalment day, for comparison. */
+  lumpSum: number;
+};
+
+/**
+ * A monthly investment: on the first bar on or after `dayOfMonth` in each
+ * month, buy `amount` of the instrument at that bar's close. Fractional units,
+ * no costs and no taxes — it is a calculator over landed closes, not an
+ * engine result. `stepUp` raises the instalment by that fraction every twelve
+ * instalments.
+ */
+export function sip(
+  bars: { time: string; close: number }[],
+  amount: number,
+  dayOfMonth = 1,
+  stepUp = 0
+): SipResult | null {
+  const usable = bars.filter((b) => b.close > 0);
+  if (usable.length < 2 || amount <= 0) return null;
+  const instalments: SipInstalment[] = [];
+  const bought = new Set<string>();
+  let units = 0;
+  let invested = 0;
+  const path: SipResult['path'] = [];
+  for (const bar of usable) {
+    const month = bar.time.slice(0, 7);
+    if (!bought.has(month) && Number(bar.time.slice(8, 10)) >= dayOfMonth) {
+      bought.add(month);
+      const step = Math.floor(instalments.length / 12);
+      const due = amount * (1 + stepUp) ** step;
+      const got = due / bar.close;
+      units += got;
+      invested += due;
+      instalments.push({ day: bar.time, price: bar.close, amount: due, units: got });
+    }
+    path.push({ day: bar.time, invested, value: units * bar.close });
+  }
+  if (instalments.length === 0) return null;
+  const last = usable[usable.length - 1];
+  const value = units * last.close;
+  const flows = [
+    ...instalments.map((i) => ({ day: i.day, amount: -i.amount })),
+    { day: last.time, amount: value },
+  ];
+  return {
+    instalments,
+    invested,
+    units,
+    value,
+    xirr: xirr(flows),
+    path,
+    lumpSum: (invested / instalments[0].price) * last.close,
+  };
+}
+
+/** Annual rate r with sum(amount / (1 + r)^(years since first)) = 0. */
+export function xirr(flows: { day: string; amount: number }[]): number | null {
+  if (flows.length < 2) return null;
+  const t0 = Date.parse(flows[0].day);
+  const years = flows.map((f) => (Date.parse(f.day) - t0) / (365 * 86_400_000));
+  const npv = (r: number) => flows.reduce((s, f, i) => s + f.amount / (1 + r) ** years[i], 0);
+  // Bisection on a bracket that holds any sane return: robust where Newton
+  // diverges on a run with one instalment and a large swing.
+  let low = -0.9999;
+  let high = 10;
+  let fLow = npv(low);
+  if (fLow * npv(high) > 0) return null;
+  for (let k = 0; k < 200; k += 1) {
+    const mid = (low + high) / 2;
+    const fMid = npv(mid);
+    if (Math.abs(fMid) < 1e-7) return mid;
+    if (fLow * fMid < 0) high = mid;
+    else {
+      low = mid;
+      fLow = fMid;
+    }
+  }
+  return (low + high) / 2;
+}

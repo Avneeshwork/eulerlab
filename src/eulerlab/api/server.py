@@ -3652,6 +3652,39 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
     }
 
 
+@app.get("/api/options/history")
+def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]:
+    """The at-the-money straddle, its implied vol and the forward, day by day.
+
+    The straddle chart and the option-Greeks history are OpenAlgo tools that
+    need a series where the chain endpoint gives a point. This walks the most
+    recent landed bhavcopy days and reduces each day's nearest-expiry chain with
+    `options.history.history_point`, so every point is the same computation the
+    chain screen shows for that day. A day whose chain cannot be read or has no
+    priced at-the-money pair is listed in `skipped`, never drawn as zero.
+
+    Each day parses a whole bhavcopy, so `days` is capped at 120.
+    """
+    from eulerlab.options.history import history_point
+
+    listed = options_days(limit=max(1, min(days, 120)))
+    points: list[dict[str, Any]] = []
+    skipped: list[str] = []
+    for day in reversed(listed["days"]):
+        point = history_point(options_chain(underlying=underlying, day=day))
+        if point is None:
+            skipped.append(day)
+        else:
+            points.append(point)
+    if not points:
+        return {
+            "ok": False,
+            "error": f"no priced at-the-money straddle for {underlying}",
+            "skipped": skipped,
+        }
+    return {"ok": True, "underlying": underlying.upper(), "points": points, "skipped": skipped}
+
+
 @app.get("/api/options/days")
 def options_days(limit: int = 400) -> dict[str, Any]:
     """Trade dates with a landed F&O bhavcopy, newest first.
