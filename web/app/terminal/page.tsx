@@ -1,92 +1,184 @@
 'use client';
 
 /**
- * The terminal shell: top bar, hero, and whichever surface is selected.
+ * The terminal shell: one navigation bar, one page at a time.
  *
- * Built from the Robinhood reference (docs/RESEARCH/018) with two deliberate
- * inversions, both recorded in ADR-041:
+ * Laid out after OpenAlgo's interface: a sticky top bar of icon-and-label
+ * links, a page title with one line under it, and everything secondary behind
+ * a Tools page of cards rather than in the main bar.
  *
- *   1. Their hero number is your money. Ours is the noise bar, because that is
- *      the number that actually decides anything. A strategy's return in that
- *      slot would be the layout itself arguing that return is what matters.
- *   2. Their accent tracks profit. Ours tracks evidence — green means "cleared
- *      the bar", never "did well".
+ * The rule the layout enforces is that every feature has exactly one home:
  *
- * Window and tier live here rather than in the Run tab because the library's
- * per-row Backtest button uses them too, and two surfaces silently running
- * different windows would produce two incomparable numbers under one name.
+ *   Dashboard   the market today (was Snapshot)
+ *   Strategies  every strategy, its report, and the one way to backtest it
+ *               (was Library, plus the Run tab, which was a second way)
+ *   Charts      the charting surface and the macro band
+ *   Options     the option chain, its analytics and the payoff builder
+ *   Live        deployment readiness and the risk limits that stop trading
+ *               (was two tabs, Live and Risk, describing one question)
+ *   Tools       the strategy builder, the instrument catalog, data status
+ *
+ * Backtest settings — period, tier, instruments, capital — are asked in the
+ * Backtest dialog. They used to be editable from the Library toolbar, the Run
+ * tab and the dialog, and a run's real settings could only be known by checking
+ * all three. The Strategy Builder is the one exception, because what it runs is
+ * not in the registry yet; it renders the same BacktestOptions bound to the
+ * same state, so the two cannot disagree.
+ *
+ * The page is kept in the URL hash so a page can be bookmarked and the back
+ * button works.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Boxes,
+  CandlestickChart,
+  ChevronRight,
+  Database,
+  Info,
+  LayoutDashboard,
+  ListTree,
+  Moon,
+  Search,
+  ShieldCheck,
+  Sigma,
+  Sun,
+  SunMoon,
+  Wrench,
+  Hammer,
+  type LucideIcon,
+} from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { BuildTab } from '@/components/terminal/BuildTab';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
 import { OptionsTab } from '@/components/terminal/OptionsTab';
 import { RiskTab } from '@/components/terminal/RiskTab';
 import { BacktestDialog } from '@/components/terminal/BacktestDialog';
+import { DataTab } from '@/components/terminal/DataTab';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
 import { ExplainDialog } from '@/components/terminal/ExplainDialog';
-import { InstrumentChooser } from '@/components/terminal/InstrumentChooser';
 import { ReportDialog } from '@/components/terminal/ReportDialog';
 import { ChartTab } from '@/components/terminal/ChartTab';
 import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
 import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
-import { RunTab } from '@/components/terminal/RunTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
 import { api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
-// Data is deliberately not here. Results still mirror to the bucket after every
-// backtest — that is automatic and unaffected; what is gone is the manual
-// pull-merge-push button and the on-disk counts.
-const NAV = [
-  'Snapshot',
-  'Chart',
-  'Options',
-  'Library',
-  'Build',
-  'Run',
-  'Instruments',
-  'Risk',
-  'Live',
-] as const;
-type Tab = (typeof NAV)[number];
+type PageId =
+  | 'dashboard'
+  | 'strategies'
+  | 'charts'
+  | 'options'
+  | 'live'
+  | 'tools'
+  | 'builder'
+  | 'instruments'
+  | 'data';
+
+type NavItem = { id: PageId; label: string; icon: LucideIcon };
+
+const NAV: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'strategies', label: 'Strategies', icon: Boxes },
+  { id: 'charts', label: 'Charts', icon: CandlestickChart },
+  { id: 'options', label: 'Options', icon: Sigma },
+  { id: 'live', label: 'Live & Risk', icon: ShieldCheck },
+  { id: 'tools', label: 'Tools', icon: Wrench },
+];
+
+type Tool = { id: PageId; title: string; description: string; icon: LucideIcon };
+
+const TOOLS: Tool[] = [
+  {
+    id: 'builder',
+    title: 'Strategy Builder',
+    description:
+      'Compose a strategy from the feature library or write it as code, validate it, and backtest it.',
+    icon: Hammer,
+  },
+  {
+    id: 'instruments',
+    title: 'Instruments',
+    description:
+      'Every instrument that has data, across NSE, US equities, crypto, FX and mutual funds. Search, filter and refresh feeds.',
+    icon: ListTree,
+  },
+  {
+    id: 'data',
+    title: 'Data Status',
+    description:
+      'What is landed on disk, which universes exist, and which results are mirrored to the cloud.',
+    icon: Database,
+  },
+];
+
+const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = {
+  dashboard: { title: 'Dashboard', sub: 'The market today: regime, breadth, movers and the map.' },
+  strategies: {
+    title: 'Strategies',
+    sub: 'Every strategy with its full backtest report. Select one or several and press Backtest to run them.',
+  },
+  charts: { title: 'Charts', sub: 'Charting, drawing and the macro picture.' },
+  options: { title: 'Options', sub: 'Option chain, Greeks, implied volatility, positioning and payoff.' },
+  live: { title: 'Live & Risk', sub: 'What is ready to deploy, and the limits that stop trading.' },
+  tools: { title: 'Tools', sub: 'Building strategies, browsing instruments and checking data.' },
+  builder: { title: 'Strategy Builder', sub: 'Compose or write a strategy, then validate and backtest it.', parent: 'tools' },
+  instruments: { title: 'Instruments', sub: 'Every instrument that has data.', parent: 'tools' },
+  data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
+};
+
+const PAGE_IDS = Object.keys(TITLES) as PageId[];
+
+function readHash(): PageId {
+  if (typeof window === 'undefined') return 'dashboard';
+  const id = window.location.hash.replace(/^#\/?/, '') as PageId;
+  return PAGE_IDS.includes(id) ? id : 'dashboard';
+}
 
 export default function TerminalPage() {
-  const [tab, setTab] = useState<Tab>('Snapshot');
+  const [page, setPageState] = useState<PageId>('dashboard');
+  const [liveView, setLiveView] = useState<'deploy' | 'risk'>('deploy');
   const [fleet, setFleet] = useState<Fleet | null>(null);
   const [problem, setProblem] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [dark, setDark] = useState<boolean | null>(null);
   const [deploying, setDeploying] = useState<FleetStrategy | null>(null);
+  // Every backtest setting lives here, once. The Backtest dialog edits it, and
+  // the Strategy Builder renders the same controls over the same state.
   const [days, setDays] = useState(800);
   const [tier, setTier] = useState<'A' | 'B'>('B');
-  // Which instruments a run may choose from. Held here with window and tier
-  // because the library's per-row Backtest uses them too, and two surfaces
-  // silently running different universes would produce two numbers that look
-  // comparable and are not.
   const [universe, setUniverse] = useState('all');
   const [assetClass, setAssetClass] = useState('equity');
-  // A hand-picked list overrides the universe when non-empty. Held beside it so
-  // the library row's Backtest and the Run tab cannot disagree about what a run
-  // was pointed at.
   const [instruments, setInstruments] = useState<string[]>([]);
-  const [choosing, setChoosing] = useState(false);
-  const [explaining, setExplaining] = useState<string | null>(null);
-  const [reporting, setReporting] = useState<FleetStrategy | null>(null);
-  // Backtest opens a dialog rather than firing on whatever the toolbar was set
-  // to. The instruments and the period are the two facts that most change a
-  // result, and they were the two the operator could not see when deciding.
-  const [configuring, setConfiguring] = useState<FleetStrategy | null>(null);
-  // An explicit window and the account it is sized against. Held here beside
-  // the other run settings so they survive closing the dialog — an operator
-  // testing several strategies over the same 2022 window should set it once.
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [startingCash, setStartingCash] = useState(1_000_000);
+  const [explaining, setExplaining] = useState<string | null>(null);
+  const [reporting, setReporting] = useState<FleetStrategy | null>(null);
+  const [configuring, setConfiguring] = useState<FleetStrategy[] | null>(null);
   const [pendingRun, setPendingRun] = useState<string[]>([]);
 
   const workspace = '';
+
+  const setPage = useCallback((next: PageId) => {
+    setPageState(next);
+    if (typeof window !== 'undefined' && window.location.hash !== `#${next}`) {
+      window.history.pushState(null, '', `#${next}`);
+    }
+    window.scrollTo({ top: 0 });
+  }, []);
+
+  useEffect(() => {
+    setPageState(readHash());
+    const onHash = () => setPageState(readHash());
+    window.addEventListener('popstate', onHash);
+    window.addEventListener('hashchange', onHash);
+    return () => {
+      window.removeEventListener('popstate', onHash);
+      window.removeEventListener('hashchange', onHash);
+    };
+  }, []);
 
   const refresh = useCallback(() => {
     api
@@ -100,8 +192,7 @@ export default function TerminalPage() {
 
   useEffect(refresh, [refresh]);
 
-  // Null means "follow the OS", which is the state most people are in. Only an
-  // explicit choice stamps the attribute.
+  // Null means "follow the OS". Only an explicit choice stamps the attribute.
   useEffect(() => {
     const root = document.querySelector('.terminal');
     if (!root) return;
@@ -122,53 +213,61 @@ export default function TerminalPage() {
 
   const measured = fleet?.strategies.filter((s) => s.sharpe !== null).length ?? 0;
   const clearing = fleet?.strategies.filter((s) => s.clears_bar).length ?? 0;
-  const trials = fleet?.strategies.reduce((sum, s) => sum + s.trials, 0) ?? 0;
+
+  const paletteTargets = useMemo(
+    () => [
+      ...NAV.map((item) => ({ id: item.id, label: item.label, meta: 'page' })),
+      ...TOOLS.map((tool) => ({ id: tool.id, label: tool.title, meta: 'tool' })),
+    ],
+    []
+  );
+
+  const heading = TITLES[page];
+  const activeNav: PageId = heading.parent ?? page;
 
   return (
     <>
       <header className="tbar">
-        <span className="tbrand">
+        <button className="tbrand" type="button" onClick={() => setPage('dashboard')}>
           <span className="tmark" aria-hidden="true">
             ↗
           </span>
-          eulerlab
-        </span>
+          <span className="tbrand-name">EulerLab</span>
+        </button>
         <nav className="tnav" aria-label="Sections">
-          {NAV.map((item) => (
-            <button
-              key={item}
-              type="button"
-              aria-current={item === tab ? 'page' : undefined}
-              onClick={() => setTab(item)}
-            >
-              {item}
-            </button>
-          ))}
+          {NAV.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                title={item.label}
+                aria-current={item.id === activeNav ? 'page' : undefined}
+                onClick={() => setPage(item.id)}
+              >
+                <Icon size={16} strokeWidth={2} aria-hidden="true" />
+                <span className="tnav-label">{item.label}</span>
+              </button>
+            );
+          })}
         </nav>
         <div className="tright">
-          {/* Mode first, before anything else in the bar. The architecture
-              document's first design principle is that mode is always visible
-              so nobody places a real order by mistake. Here it is stronger
-              than a toggle: no live broker adapter exists, so PAPER is a fact
+          {/* Mode first: no live broker adapter exists, so PAPER is a fact
               about the build rather than a setting someone can flip. */}
           <ModeBadge />
-          <span
-            className="tws"
-            title="Evidence, strategies and credentials are scoped to this workspace (ADR-040)."
-          >
-            workspace <b>default</b>
-          </span>
+          <button className="tcmd" type="button" onClick={() => setPaletteOpen(true)}>
+            <Search size={14} aria-hidden="true" />
+            <span className="tcmd-label">Search</span>
+            <kbd>⌘K</kbd>
+          </button>
           <button
             className="ticon"
             type="button"
             onClick={() => setExplaining('')}
             title="What a backtest here actually does, and which asset classes have data."
-            aria-label="What this means"
+            aria-label="How backtests work"
           >
-            i
-          </button>
-          <button className="tcmd" type="button" onClick={() => setPaletteOpen(true)}>
-            Jump to anything <kbd>⌘K</kbd>
+            <Info size={16} aria-hidden="true" />
           </button>
           <button
             className="ticon"
@@ -179,48 +278,59 @@ export default function TerminalPage() {
             }
             aria-label="Change theme"
           >
-            {dark === null ? '◐' : dark ? '●' : '○'}
+            {dark === null ? (
+              <SunMoon size={16} aria-hidden="true" />
+            ) : dark ? (
+              <Moon size={16} aria-hidden="true" />
+            ) : (
+              <Sun size={16} aria-hidden="true" />
+            )}
           </button>
         </div>
       </header>
 
       <div className="tpage">
-        {tab === 'Options' && <OptionsTab />}
-        {tab === 'Risk' && <RiskTab />}
-        {tab === 'Snapshot' && <SnapshotTab workspace={workspace} />}
+        <div className="tpage-head">
+          {heading.parent && (
+            <nav className="tcrumb" aria-label="Breadcrumb">
+              <button type="button" onClick={() => setPage(heading.parent as PageId)}>
+                {TITLES[heading.parent].title}
+              </button>
+              <ChevronRight size={14} aria-hidden="true" />
+              <span>{heading.title}</span>
+            </nav>
+          )}
+          <h1>{heading.title}</h1>
+          <p>{heading.sub}</p>
+        </div>
 
-        {tab === 'Chart' && <ChartTab />}
+        {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 
-        {tab === 'Library' && (
+        {page === 'strategies' && (
           <>
-            <section className="thero">
-              <div>
-                <div className="theyebrow">The number to beat</div>
-                <div className="thnum">
-                  <b>{fleet ? fleet.bar.toFixed(2) : '—'}</b>
-                  <span className="unit" title={fleet?.bar_note}>
-                    Sharpe{fleet && !fleet.bar_sigma_measured ? ', assumed' : ''}
-                  </span>
-                </div>
-                <p className="thsub">
-                  {fleet?.bar_trials ?? trials} trials have been recorded, so this is the Sharpe the luckiest
-                  worthless strategy would be expected to show by chance alone. A backtest
-                  below it is not evidence of anything.
-                </p>
+            <section className="tstats" aria-label="Summary">
+              <div className="tstat-card" title={fleet?.bar_note}>
+                <span>Sharpe to beat</span>
+                <b>{fleet ? fleet.bar.toFixed(2) : '—'}</b>
+                <i>
+                  {fleet?.bar_trials ?? 0} trials recorded
+                  {fleet && !fleet.bar_sigma_measured ? ' · assumed' : ''}
+                </i>
               </div>
-              <div className="thstats">
-                <div className="thstat">
-                  <span>Strategies</span>
-                  <b>{fleet?.strategies.length ?? '—'}</b>
-                </div>
-                <div className="thstat">
-                  <span>Measured</span>
-                  <b>{fleet ? measured : '—'}</b>
-                </div>
-                <div className="thstat">
-                  <span>Clearing it</span>
-                  <b className={clearing > 0 ? 'on' : ''}>{fleet ? clearing : '—'}</b>
-                </div>
+              <div className="tstat-card">
+                <span>Strategies</span>
+                <b>{fleet?.strategies.length ?? '—'}</b>
+                <i>in the registry</i>
+              </div>
+              <div className="tstat-card">
+                <span>Measured</span>
+                <b>{fleet ? measured : '—'}</b>
+                <i>have a backtest result</i>
+              </div>
+              <div className="tstat-card">
+                <span>Clearing the bar</span>
+                <b className={clearing > 0 ? 'on' : ''}>{fleet ? clearing : '—'}</b>
+                <i>Sharpe above what luck explains</i>
               </div>
             </section>
 
@@ -230,10 +340,8 @@ export default function TerminalPage() {
               window={days}
               tier={tier}
               universe={universe}
-              onUniverse={setUniverse}
               instruments={instruments}
               runClass={assetClass}
-              onChoose={() => setChoosing(true)}
               onRefresh={refresh}
               onDeploy={setDeploying}
               onExplain={setExplaining}
@@ -247,7 +355,67 @@ export default function TerminalPage() {
           </>
         )}
 
-        {tab === 'Build' && (
+        {page === 'charts' && <ChartTab />}
+        {page === 'options' && <OptionsTab />}
+
+        {page === 'live' && (
+          <>
+            <div className="tseg" role="tablist" aria-label="Live and risk">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={liveView === 'deploy'}
+                onClick={() => setLiveView('deploy')}
+              >
+                Deployment
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={liveView === 'risk'}
+                onClick={() => setLiveView('risk')}
+              >
+                Risk limits &amp; kill switch
+              </button>
+            </div>
+            {liveView === 'deploy' ? (
+              <LiveTab
+                fleet={fleet?.strategies ?? []}
+                workspace={workspace}
+                onDeploy={setDeploying}
+              />
+            ) : (
+              <RiskTab />
+            )}
+          </>
+        )}
+
+        {page === 'tools' && (
+          <div className="ttool-grid">
+            {TOOLS.map((tool) => {
+              const Icon = tool.icon;
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  className="ttool-card"
+                  onClick={() => setPage(tool.id)}
+                >
+                  <span className="ttool-icon" aria-hidden="true">
+                    <Icon size={20} />
+                  </span>
+                  <b>
+                    {tool.title}
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </b>
+                  <span>{tool.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {page === 'builder' && (
           <BuildTab
             onRefresh={refresh}
             window={days}
@@ -260,38 +428,21 @@ export default function TerminalPage() {
             onStartingCash={setStartingCash}
           />
         )}
-
-        {tab === 'Run' && (
-          <RunTab
-            fleet={fleet}
-            window={days}
-            tier={tier}
-            universe={universe}
-            instruments={instruments}
-            assetClass={assetClass}
-            onAssetClass={setAssetClass}
-            onWindow={setDays}
-            onTier={setTier}
-            onUniverse={setUniverse}
-            onInstruments={setInstruments}
-            onRefresh={refresh}
-          />
-        )}
-
-        {tab === 'Instruments' && <InstrumentsTab />}
-
-        {tab === 'Live' && (
-          <LiveTab
-            fleet={fleet?.strategies ?? []}
-            workspace={workspace}
-            onDeploy={setDeploying}
-          />
-        )}
-
+        {page === 'instruments' && <InstrumentsTab />}
+        {page === 'data' && <DataTab workspace={workspace} />}
       </div>
 
       {paletteOpen && (
-        <CommandPalette strategies={fleet?.strategies ?? []} onClose={() => setPaletteOpen(false)} />
+        <CommandPalette
+          pages={paletteTargets}
+          strategies={fleet?.strategies ?? []}
+          onPage={(id) => setPage(id as PageId)}
+          onStrategy={(id) => {
+            setPage('strategies');
+            setExplaining(id);
+          }}
+          onClose={() => setPaletteOpen(false)}
+        />
       )}
       {deploying && (
         <DeployDialog
@@ -312,7 +463,7 @@ export default function TerminalPage() {
       )}
       {configuring && (
         <BacktestDialog
-          strategy={configuring}
+          strategies={configuring}
           window={days}
           tier={tier}
           universe={universe}
@@ -328,17 +479,10 @@ export default function TerminalPage() {
           startingCash={startingCash}
           onStartingCash={setStartingCash}
           onRun={() => {
-            setPendingRun([configuring.id]);
+            setPendingRun(configuring.map((s) => s.id));
             setConfiguring(null);
           }}
           onClose={() => setConfiguring(null)}
-        />
-      )}
-      {choosing && (
-        <InstrumentChooser
-          chosen={instruments}
-          onChange={setInstruments}
-          onClose={() => setChoosing(false)}
         />
       )}
     </>

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import '../tokens.css';
 import './terminal.css';
+import './shell.css';
 
 export const metadata: Metadata = {
-  title: 'EulerLab Terminal',
+  title: 'EulerLab',
   description: 'Strategies ranked by evidence, not by return.',
 };
 

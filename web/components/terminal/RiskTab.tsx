@@ -59,7 +59,6 @@ export function RiskTab() {
   if (!risk.ok) {
     return (
       <section className="tsection">
-        <div className="theyebrow">Risk</div>
         <h2>Limits could not be read</h2>
         <p className="tdesc">{risk.error}</p>
         <p className="tfine">
@@ -74,7 +73,6 @@ export function RiskTab() {
 
   return (
     <section className="tsection">
-      <div className="theyebrow">Risk</div>
       <h2 className="thero">
         {risk.tripped ? 'Tripped' : 'Armed'} <i>kill switch</i>
       </h2>

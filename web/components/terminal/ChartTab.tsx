@@ -228,7 +228,6 @@ export function ChartTab() {
     <>
       <section className="thero">
         <div>
-          <div className="theyebrow">Chart</div>
           <div className="thnum">
             <b style={{ fontSize: 28 }}>{symbol.split(':').pop()}</b>
             <span className="unit">{symbol}</span>

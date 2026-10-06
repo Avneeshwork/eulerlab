@@ -204,7 +204,6 @@ export function OptionsTab() {
 
   return (
     <section className="tsection">
-      <div className="theyebrow">Options</div>
       <h2 className="thero">
         {chain?.ok ? chain.underlying : underlying} <i>chain</i>
       </h2>

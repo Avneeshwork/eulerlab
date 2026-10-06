@@ -186,8 +186,8 @@
 .theyebrow {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   margin-bottom: var(--s3);
 }
@@ -233,8 +233,8 @@
 .thstat span {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -316,8 +316,8 @@
   gap: var(--s2);
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .tsort select {
@@ -355,8 +355,8 @@
   padding: 0 var(--s4) var(--s2);
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .tcols .r { text-align: right; }
@@ -459,8 +459,8 @@
   display: block;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--caveat);
   margin-top: 1px;
 }
@@ -517,8 +517,8 @@
   display: inline-block;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--fail);
   background: var(--fail-wash);
   border-radius: 4px;
@@ -562,8 +562,8 @@
 .tfact span {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .tfact b {
@@ -589,8 +589,8 @@
   margin: 0 0 var(--s2);
   font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--caveat);
 }
 
@@ -713,7 +713,7 @@
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0;
   color: var(--ink-3);
   background: var(--surface-3);
   border-radius: 4px;
@@ -811,8 +811,8 @@
   margin: 0 0 var(--s4);
   font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 
@@ -846,8 +846,8 @@
   text-align: left;
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   padding: 0 var(--s3) var(--s2);
   border-bottom: 1px solid var(--rule);
@@ -874,8 +874,8 @@
   gap: var(--s2);
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .tform input,
@@ -999,8 +999,8 @@
   margin: 0 0 var(--s4);
   font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .explain-step { margin-bottom: var(--s4); }
@@ -1037,8 +1037,8 @@
 .recon span {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .recon b { font-size: var(--t-lead); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1066,8 +1066,8 @@
   margin: var(--s6) 0 var(--s3);
   font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .report-h:first-of-type { margin-top: 0; }
@@ -1118,8 +1118,8 @@
 .period span {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .period b { font-size: var(--t-body); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1163,8 +1163,8 @@
 .paper p span {
   font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   margin-right: 6px;
 }
@@ -1202,8 +1202,8 @@
 .rstat span {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   white-space: nowrap;
 }
@@ -1299,8 +1299,8 @@
 .cross-cell span {
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .cross-cell b { font-size: var(--t-title); font-weight: 600; letter-spacing: -0.02em; }
@@ -1359,10 +1359,10 @@
   display: inline-block;
   font-size: var(--t-micro);
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
   padding: 2px 7px;
   border-radius: var(--r-pill);
-  text-transform: uppercase;
+  text-transform: none;
 }
 .impact[data-level='high'] { background: var(--fail-wash); color: var(--fail); }
 .impact[data-level='medium'] { background: var(--caveat-wash); color: var(--caveat); }
@@ -1521,8 +1521,8 @@
 
 .ixname {
   font-size: 9.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 .ixlast {
@@ -1662,8 +1662,8 @@
   border: 1px solid var(--rule);
   border-radius: 999px;
   font-size: 10.5px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
   cursor: help;
@@ -1776,8 +1776,8 @@
   justify-content: space-between;
   align-items: baseline;
   font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   margin-bottom: 8px;
 }
@@ -1790,7 +1790,7 @@
   gap: 10px;
   align-items: baseline;
 }
-.mname { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.mname { font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--ink-3); }
 .mlast { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
 .munit { font-size: 9px; color: var(--ink-4); font-style: normal; margin-left: 3px; }
 .mchg { font-size: 11px; font-variant-numeric: tabular-nums; min-width: 4.2rem; text-align: right; }
@@ -1851,8 +1851,8 @@
 }
 .minihead {
   font-size: 10px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
   margin-bottom: 2px;
 }
@@ -1894,7 +1894,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .sweep-sym {
@@ -1929,8 +1929,8 @@
   text-align: left;
   font-weight: 500;
   font-size: 0.66rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted);
   padding: 0.3rem 0.6rem 0.3rem 0;
   border-bottom: 1px solid var(--line);
@@ -1958,8 +1958,8 @@
 .sweep-table .mark {
   margin-left: 0.45rem;
   font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--up, #3fb950);
 }
 
@@ -1982,8 +1982,8 @@
 
 .sweep-facts span {
   font-size: 0.64rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted);
 }
 
@@ -2036,8 +2036,8 @@
 
 .tuned-facts span {
   font-size: 0.64rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted);
 }
 
@@ -2067,7 +2067,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .adopted-where { font-size: 0.72rem; color: var(--muted); }
@@ -2111,8 +2111,8 @@
 
 .adopted-stat span {
   font-size: 0.63rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted);
 }
 
@@ -2132,8 +2132,8 @@
 .adopted-breakdown h5 {
   margin: 0 0 0.35rem;
   font-size: 0.63rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted);
   font-weight: 500;
 }
@@ -2180,7 +2180,7 @@
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.03em;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .walk-where { font-size: 0.72rem; color: var(--muted); }
@@ -2204,8 +2204,8 @@
 
 .walk-stats span {
   font-size: 0.63rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--muted);
 }
 
@@ -2273,7 +2273,7 @@
   border-radius: 3px;
   font-size: 0.66rem;
   letter-spacing: 0.03em;
-  text-transform: uppercase;
+  text-transform: none;
   color: var(--fg);
 }
 
@@ -2487,7 +2487,7 @@ textarea:focus-visible {
   border-radius: var(--control-radius-toggle);
   font-size: var(--t-micro);
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0;
   color: var(--ink-3);
   white-space: nowrap;
 }

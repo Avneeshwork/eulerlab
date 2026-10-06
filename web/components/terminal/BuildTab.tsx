@@ -158,7 +158,6 @@ export function BuildTab({
     <>
       <section className="thero">
         <div>
-          <div className="theyebrow">Build</div>
           <div className="thnum">
             <b>{library?.features.length ?? '—'}</b>
             <span className="unit">features available</span>

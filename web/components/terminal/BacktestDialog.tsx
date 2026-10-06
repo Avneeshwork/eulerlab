@@ -13,17 +13,22 @@
  * window from the part actually traded. A 1200-day window spends 253 days on
  * warmup; calling the result "1200 days" would describe a period the strategy
  * never traded in.
+ *
+ * This is the only place a backtest is configured. One strategy (a row's
+ * Backtest button) and several (the selection bar) open the same dialog; the
+ * separate Run tab that used to offer a second, smaller set of the same
+ * controls is gone, so a run's settings can only ever be read from here.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { ASSET_CLASSES } from '@/lib/assetClasses';
-import type { FleetStrategy, Instrument, WindowInfo } from '@/lib/api';
+import type { FleetStrategy, Instrument, RunPrice, WindowInfo } from '@/lib/api';
 import { BacktestOptions, BacktestWindowNote } from './BacktestOptions';
 
 
 export function BacktestDialog({
-  strategy,
+  strategies,
   window: days,
   tier,
   universe,
@@ -41,7 +46,8 @@ export function BacktestDialog({
   onRun,
   onClose,
 }: {
-  strategy: FleetStrategy;
+  /** One strategy from a row, or the whole selection. */
+  strategies: FleetStrategy[];
   window: number;
   tier: 'A' | 'B';
   universe: string;
@@ -67,6 +73,22 @@ export function BacktestDialog({
   const [query, setQuery] = useState('');
   const [found, setFound] = useState<Instrument[]>([]);
   const [batches, setBatches] = useState<string[]>([]);
+  const [price, setPrice] = useState<RunPrice | null>(null);
+  const single = strategies.length === 1 ? strategies[0] : null;
+  const lookback = Math.max(0, ...strategies.map((s) => s.lookback));
+
+  // What the run would do to the noise bar, shown before the button. It used
+  // to live only on the Run tab, so a run started from the library never saw it.
+  useEffect(() => {
+    let live = true;
+    api
+      .priceRun(strategies.length, 0)
+      .then((quote) => live && setPrice(quote))
+      .catch(() => live && setPrice(null));
+    return () => {
+      live = false;
+    };
+  }, [strategies.length]);
 
   useEffect(() => {
     setInfo(null);
@@ -115,7 +137,7 @@ export function BacktestDialog({
 
   const custom = instruments.length > 0;
   const tooShort = info?.ok ? info.traded_days <= 0 : false;
-  const lookbackTooLong = info?.ok ? strategy.lookback >= info.traded_days : false;
+  const lookbackTooLong = info?.ok ? lookback >= info.traded_days : false;
 
   return (
     <div className="pal-scrim" role="dialog" aria-modal="true" aria-label="Backtest" onClick={onClose}>
@@ -123,10 +145,11 @@ export function BacktestDialog({
         <header className="dlg-head">
           <div style={{ minWidth: 0 }}>
             <div className="theyebrow">Backtest</div>
-            <h2>{strategy.title}</h2>
+            <h2>{single ? single.title : `${strategies.length} strategies`}</h2>
             <div className="tfine" style={{ marginTop: 4 }}>
-              {strategy.kind} · {strategy.asset_class} · {strategy.timeframe} · needs{' '}
-              {strategy.lookback} days of history
+              {single
+                ? `${single.kind} · ${single.asset_class} · ${single.timeframe} · needs ${single.lookback} days of history`
+                : `${strategies.map((s) => s.title).join(', ')} · the longest needs ${lookback} days of history`}
             </div>
           </div>
           <button className="ticon" type="button" onClick={onClose} aria-label="Close">
@@ -197,8 +220,8 @@ export function BacktestDialog({
             <div className="tnote bad" style={{ marginTop: 12 }}>
               <span className="mk">▲</span>
               <div>
-                <b>This window is too short for this strategy.</b> It needs{' '}
-                {strategy.lookback} days of history and only {info?.traded_days} are traded,
+                <b>This window is too short for {single ? 'this strategy' : 'the longest of these'}.</b> It needs{' '}
+                {lookback} days of history and only {info?.traded_days} are traded,
                 so it will hold nothing. The run refuses rather than reporting a Sharpe of
                 zero — zero is a measurement, and this would be an absence.
               </div>
@@ -348,6 +371,23 @@ export function BacktestDialog({
                     : `The ${universe} batch — liquidity-ranked from our own turnover history, not index membership.`}
           </p>
 
+          {price && (
+            <div className="tfacts" style={{ margin: '4px 0 12px' }}>
+              <div className="tfact">
+                <span>Bar now</span>
+                <b>{price.bar_now.toFixed(2)}</b>
+              </div>
+              <div className="tfact">
+                <span>Bar if recorded</span>
+                <b>{price.would_move_bar_to.toFixed(2)}</b>
+              </div>
+              <div className="tfact">
+                <span>Trials spent</span>
+                <b>{price.spends_trials}</b>
+              </div>
+            </div>
+          )}
+
           <div className="dlg-foot">
             <div className="verdict" data-ok={!lookbackTooLong}>
               {assetClass !== 'equity' ? `${assetClass.replace('_', ' ')} · ` : ''}
@@ -359,7 +399,7 @@ export function BacktestDialog({
               Cancel
             </button>
             <button className="tbtn go" type="button" disabled={tooShort} onClick={onRun}>
-              Run backtest
+              {single ? 'Run backtest' : `Backtest ${strategies.length}`}
             </button>
           </div>
         </div>

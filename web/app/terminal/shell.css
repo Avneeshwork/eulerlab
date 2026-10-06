@@ -1,0 +1,388 @@
+/* The OpenAlgo shell, loaded after terminal.css.
+ *
+ * terminal.css still owns every component's layout. This file only changes how
+ * the shared pieces look so they match OpenAlgo's shadcn/ui interface: a 56px
+ * sticky bar of icon-and-label links with the active one filled, a page title
+ * with one muted line beneath it, bordered white cards, 6px-radius controls,
+ * and filled toggles instead of pills. Kept separate so the move can be read
+ * in one file and reverted in one line.
+ */
+
+/* ============================ top bar ============================ */
+
+.terminal .tbar {
+  height: 56px;
+  gap: var(--s4);
+  padding: 0 var(--s4);
+  background: color-mix(in srgb, var(--ground) 95%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.terminal .tbrand {
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  margin-right: var(--s2);
+}
+.terminal .tmark {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-md);
+  background: var(--ink);
+  color: var(--ground);
+  font-size: 15px;
+}
+
+.terminal .tnav {
+  margin-left: 0;
+  align-self: center;
+  gap: 2px;
+}
+.terminal .tnav button {
+  gap: 6px;
+  height: 36px;
+  padding: 0 var(--s3);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.terminal .tnav button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.terminal .tnav button[aria-current='page'] {
+  background: var(--ink);
+  color: var(--ground);
+  font-weight: 500;
+}
+.terminal .tnav button[aria-current='page']::after { display: none; }
+
+.terminal .tcmd {
+  border-radius: var(--r-sm);
+  height: 36px;
+  min-height: 36px;
+  color: var(--ink-3);
+  gap: 6px;
+}
+.terminal .ticon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  border-color: var(--rule);
+  color: var(--ink-2);
+}
+.terminal .ticon:hover { background: var(--surface-2); }
+
+/* Labels drop to icons on narrow screens, the way OpenAlgo's bar does below xl. */
+@media (max-width: 1180px) {
+  .terminal .tnav-label,
+  .terminal .tcmd-label { display: none; }
+  .terminal .tnav button { padding: 0 10px; }
+}
+/* Phones get OpenAlgo's bottom navigation: the same six links, fixed to the
+   bottom edge with the label under the icon. */
+@media (max-width: 720px) {
+  .terminal .tbrand-name,
+  .terminal .tcmd kbd { display: none; }
+  /* A backdrop filter makes the bar the containing block for fixed children,
+     which would pin the bottom nav to the top bar instead of the viewport. */
+  .terminal .tbar { backdrop-filter: none; background: var(--ground); }
+  .terminal .tnav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    justify-content: space-around;
+    gap: 0;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: var(--ground);
+    border-top: 1px solid var(--rule);
+  }
+  .terminal .tnav button {
+    flex: 1 1 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    height: 52px;
+    padding: 0 2px;
+    font-size: 11px;
+  }
+  .terminal .tnav .tnav-label { display: inline; white-space: nowrap; }
+  .terminal .tpage { padding-bottom: 96px; }
+  .terminal .tsel { bottom: 72px; }
+  .terminal .tstats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3); }
+  .terminal .tstat-card { padding: var(--s3) var(--s4); }
+  .terminal .tstat-card b { font-size: 22px; }
+}
+
+/* ============================ page ============================ */
+
+.terminal .tpage {
+  padding: var(--s5) var(--s4) var(--s8);
+  gap: var(--s5);
+}
+
+.tpage-head h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+.tpage-head p {
+  margin: 4px 0 0;
+  color: var(--ink-3);
+  font-size: 14px;
+}
+
+.tcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.tcrumb button {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.tcrumb button:hover { color: var(--ink); text-decoration: underline; }
+
+/* Summary cards, OpenAlgo's dashboard row. */
+.tstats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s4);
+}
+.tstat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s4) var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+.tstat-card span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+.tstat-card b {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.tstat-card b.on { color: var(--clear); }
+.tstat-card i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* Each page's own summary band becomes a card, not a magazine hero. */
+.terminal .thero {
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  align-items: center;
+}
+/* Options and Risk use the hero class on a plain heading ("NIFTY chain",
+   "Armed kill switch"); that is a title line, not a card. */
+.terminal h2.thero {
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  font-size: 20px;
+  font-weight: 600;
+}
+.terminal h2.thero i { font-style: normal; font-weight: 400; color: var(--ink-3); }
+.terminal .thnum b { font-size: 30px; letter-spacing: -0.02em; line-height: 1.1; }
+.terminal .thnum .unit {
+  font-style: normal;
+  font-size: 14px;
+  color: var(--ink-3);
+}
+.terminal .thsub { font-size: 14px; color: var(--ink-3); }
+.terminal .theyebrow {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: var(--s2);
+}
+.terminal .thstat span {
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+.terminal .tempty { font-size: 14px; }
+
+/* Segmented control, shadcn's Tabs list. */
+.tseg {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+}
+.tseg button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  height: 30px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.tseg button[aria-selected='true'] {
+  background: var(--ground);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+/* Tools grid, OpenAlgo's /tools page. */
+.ttool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--s5);
+}
+.ttool-card {
+  font: inherit;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s5);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.ttool-card:hover { box-shadow: var(--shadow-lift); border-color: var(--rule-2); }
+.ttool-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-md);
+  display: grid;
+  place-items: center;
+  background: var(--ink);
+  color: var(--ground);
+  margin-bottom: var(--s2);
+}
+.ttool-card b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.ttool-card b svg { opacity: 0; transition: opacity 0.15s ease; }
+.ttool-card:hover b svg { opacity: 1; }
+.ttool-card span:last-child { font-size: 14px; color: var(--ink-3); }
+
+/* ============================ cards and rows ============================ */
+
+.terminal .tpanel {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+.terminal .tpanel h3 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+.terminal .trow { border-radius: var(--r-md); }
+.terminal .tcols {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12px;
+  font-weight: 500;
+}
+.terminal .report-h {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+}
+
+/* ============================ controls ============================ */
+
+.terminal .tchip {
+  border-radius: var(--r-sm);
+  border-color: var(--rule);
+  color: var(--ink-2);
+}
+.terminal .tchip:hover { background: var(--surface-2); }
+.terminal .tchip[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+}
+.terminal .tbtn { border-radius: var(--r-sm); border-color: var(--rule); font-weight: 500; }
+.terminal .tbtn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--rule-2); }
+.terminal .tbtn.go { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.terminal .tbtn.go:hover:not(:disabled) { background: var(--ink-2); border-color: var(--ink-2); }
+.terminal .tsearch,
+.terminal .tsort select { border-radius: var(--r-sm); border-color: var(--rule); }
+.terminal .tsort {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* The selection bar's primary action follows the theme's primary, not a
+   fixed neon that only read on one background. */
+.terminal .tsel .tbtn {
+  background: var(--ground);
+  border-color: var(--ground);
+  color: var(--ink);
+}
+.terminal .tsel .tbtn:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--surface-2);
+}
+
+.terminal .pal,
+.terminal .dlg { border-radius: var(--r-lg); }
+
+/* Form labels in sentence case at body weight, as shadcn's Label. The small
+   capitals across terminal.css were switched off at the source. */
+.terminal .tform label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+}

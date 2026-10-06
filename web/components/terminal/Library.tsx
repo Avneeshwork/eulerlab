@@ -23,7 +23,6 @@ import { Spark } from '@/components/terminal/Spark';
 import { AdoptedReport } from '@/components/terminal/AdoptedReport';
 import { SweepPanel } from '@/components/terminal/SweepPanel';
 import { WalkPanel } from '@/components/terminal/WalkPanel';
-import { UniversePicker } from '@/components/terminal/UniversePicker';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
@@ -45,10 +44,8 @@ export function Library({
   window: days,
   tier,
   universe,
-  onUniverse,
   instruments,
   runClass,
-  onChoose,
   onRefresh,
   onDeploy,
   onExplain,
@@ -64,17 +61,16 @@ export function Library({
   window: number;
   tier: 'A' | 'B';
   universe: string;
-  onUniverse: (name: string) => void;
   instruments: string[];
   /** The asset class a run will use. Chosen in the Backtest dialog, shown here
    * so the selection bar cannot claim a run over the wrong panel. */
   runClass: string;
-  onChoose: () => void;
   onRefresh: () => void;
   onDeploy: (strategy: FleetStrategy) => void;
   onExplain: (strategy: string) => void;
   onReport: (strategy: FleetStrategy) => void;
-  onConfigure: (strategy: FleetStrategy) => void;
+  /** Opens the one backtest dialog, for a row or for the whole selection. */
+  onConfigure: (strategies: FleetStrategy[]) => void;
   /** Ids the Backtest dialog just confirmed. Run once, then cleared. */
   /** An explicit window, empty for "the last N days". */
   dateRange: { start: string; end: string };
@@ -275,16 +271,6 @@ export function Library({
             {option.label}
           </button>
         ))}
-        <UniversePicker value={universe} onChange={onUniverse} />
-        <button
-          className="tchip"
-          type="button"
-          aria-pressed={instruments.length > 0}
-          onClick={onChoose}
-          title="Pick individual instruments instead of a batch. Overrides the universe."
-        >
-          {instruments.length > 0 ? `${instruments.length} instruments` : 'Pick instruments'}
-        </button>
         <label
           className="tsort"
           title="Ranking a library by return and taking the top row is the selection procedure the overfitting test measures. The bar, not the order, is what decides anything."
@@ -342,7 +328,7 @@ export function Library({
               elapsed={elapsed}
               onToggle={() => toggle(strategy.id)}
               onOpen={() => setOpen(open === strategy.id ? null : strategy.id)}
-              onBacktest={() => onConfigure(strategy)}
+              onBacktest={() => onConfigure([strategy])}
               onDeploy={() => onDeploy(strategy)}
               onExplain={() => onExplain(strategy.id)}
               onReport={() => onReport(strategy)}
@@ -356,10 +342,7 @@ export function Library({
         <div className="tsel">
           <b>{selected.size}</b> selected
           <span className="price">
-            {runClass !== 'equity' ? `${runClass} · ` : ''}
-            {instruments.length > 0 ? `${instruments.length} chosen instruments` : universe} ·{' '}
-            {days}-day window · tier {tier} · spends no trial, so the bar will not learn
-            this search happened
+            Instruments, period and capital are chosen in the next step.
           </span>
           <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
             Clear
@@ -368,7 +351,9 @@ export function Library({
             className="tbtn"
             type="button"
             disabled={busy.size > 0}
-            onClick={() => backtest([...selected])}
+            onClick={() =>
+              onConfigure((fleet?.strategies ?? []).filter((s) => selected.has(s.id)))
+            }
           >
             {busy.size > 0 ? 'Running…' : `Backtest ${selected.size}`}
           </button>

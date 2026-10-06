@@ -139,7 +139,6 @@ export function InstrumentsTab() {
     <>
       <section className="thero">
         <div>
-          <div className="theyebrow">Instruments</div>
           <div className="thnum">
             <b>{list ? list.instruments.length : '—'}</b>
             <span className="unit">shown</span>

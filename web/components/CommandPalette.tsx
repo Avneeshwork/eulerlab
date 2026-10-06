@@ -1,25 +1,21 @@
 'use client';
 
 /**
- * Bloomberg's mnemonics, without the keyboard.
+ * Jump to anything: every page, every tool and every strategy from one input.
  *
- * `AAPL US Equity DES` is faster than any menu and — the part usually missed —
- * it is *learnable*: the same three letters mean the same thing everywhere. At
- * a hundred strategies a menu is fine; at a thousand it is not, and this system
- * is explicitly built for a thousand.
- *
- * One input reaches strategies, features, papers and actions. The prefixes are
- * the mnemonics: `STRAT`, `FEAT`, `PAPER`, `RUN`.
+ * It used to list strategies and a "RUN" action that did nothing when chosen —
+ * a search box whose results could not be opened. Every entry here goes
+ * somewhere: a page or tool navigates, a strategy opens its explanation.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FleetStrategy } from '@/lib/api';
 
-type Entry = {
-  kind: 'STRAT' | 'FEAT' | 'PAPER' | 'RUN';
-  label: string;
-  meta: string;
-};
+export type PaletteTarget = { id: string; label: string; meta: string };
+
+type Entry =
+  | { kind: 'PAGE'; label: string; meta: string; id: string }
+  | { kind: 'STRAT'; label: string; meta: string; id: string };
 
 const STAGE_META: Record<string, string> = {
   registered: 'screened',
@@ -30,10 +26,16 @@ const STAGE_META: Record<string, string> = {
 };
 
 export function CommandPalette({
+  pages,
   strategies,
+  onPage,
+  onStrategy,
   onClose,
 }: {
+  pages: PaletteTarget[];
   strategies: FleetStrategy[];
+  onPage: (id: string) => void;
+  onStrategy: (id: string) => void;
   onClose: () => void;
 }) {
   const [query, setQuery] = useState('');
@@ -47,33 +49,37 @@ export function CommandPalette({
   const entries = useMemo<Entry[]>(() => {
     const needle = query.trim().toLowerCase();
     const out: Entry[] = [];
-
+    for (const page of pages) {
+      if (!needle || `${page.label} ${page.meta}`.toLowerCase().includes(needle)) {
+        out.push({ kind: 'PAGE', ...page });
+      }
+    }
     for (const s of strategies) {
-      if (!needle || s.id.toLowerCase().includes(needle) || s.kind.includes(needle)) {
+      if (
+        !needle ||
+        [s.id, s.title, s.kind].some((field) => field.toLowerCase().includes(needle))
+      ) {
         out.push({
           kind: 'STRAT',
-          label: s.id,
+          id: s.id,
+          label: s.title,
           meta: `${s.asset_class} · ${STAGE_META[s.stage] ?? s.stage}`,
         });
       }
     }
-    if (needle.length >= 2) {
-      out.push({
-        kind: 'RUN',
-        // The palette is also where a run gets priced. Showing the cost here
-        // rather than after the click is the whole point: an interface that
-        // makes running cheap is what lets somebody spend fifty trials in an
-        // afternoon.
-        label: `screen ${needle}* on nifty100`,
-        meta: 'spends no trial · unrecorded search',
-      });
-    }
-    return out.slice(0, 12);
-  }, [strategies, query]);
+    return out.slice(0, 14);
+  }, [pages, strategies, query]);
 
   useEffect(() => {
     setCursor(0);
   }, [query]);
+
+  const choose = (entry: Entry | undefined) => {
+    if (!entry) return;
+    if (entry.kind === 'PAGE') onPage(entry.id);
+    else onStrategy(entry.id);
+    onClose();
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -96,28 +102,32 @@ export function CommandPalette({
       className="pal-scrim"
       role="dialog"
       aria-modal="true"
-      aria-label="Command palette"
+      aria-label="Jump to anything"
       onClick={onClose}
     >
       <div className="pal" onClick={(event) => event.stopPropagation()}>
         <input
           ref={inputRef}
           className="pal-input"
-          placeholder="strategy, feature, paper, or an action…"
+          placeholder="A page, a tool or a strategy…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') choose(entries[cursor]);
+          }}
           aria-label="Search everything"
         />
         <div className="pal-list" role="listbox">
           {entries.map((entry, index) => (
             <div
-              key={`${entry.kind}-${entry.label}`}
+              key={`${entry.kind}-${entry.id}`}
               className="pal-row"
               role="option"
               aria-selected={index === cursor}
               onMouseEnter={() => setCursor(index)}
+              onClick={() => choose(entry)}
             >
-              <span className="pal-kind">{entry.kind}</span>
+              <span className="pal-kind">{entry.kind === 'PAGE' ? 'GO' : 'STRAT'}</span>
               <span>{entry.label}</span>
               <span className="pal-meta">{entry.meta}</span>
             </div>
@@ -128,7 +138,7 @@ export function CommandPalette({
             </div>
           )}
         </div>
-        <div className="pal-hint">↑↓ move · esc close · prefixes: STRAT FEAT PAPER RUN</div>
+        <div className="pal-hint">↑↓ move · enter open · esc close</div>
       </div>
     </div>
   );

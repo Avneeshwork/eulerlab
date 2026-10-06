@@ -9,6 +9,21 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## The interface — one home per feature (2026-10-06)
+
+Operator: "make it the same as OpenAlgo's UI, keep one thing in one place". ADR-056.
+Verify: `cd web && npx tsc --noEmit && npm run build`, then `make workbench`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3956 | **Nine tabs, three places to configure one backtest** | DONE — six pages (Dashboard, Strategies, Charts, Options, Live & Risk, Tools). The Backtest dialog is the only place a run is configured, for one strategy or a selection; the Run tab and the Library's universe and instrument pickers are gone |
+| T-3957 | **The Data tab existed and could not be reached** | DONE — it is Data Status under Tools, beside the Strategy Builder and Instruments |
+| T-3958 | **⌘K listed things it could not open** | DONE — entries were inert and one ("RUN") did nothing. Every entry now navigates: a page, a tool, or a strategy's explanation |
+| T-3959 | OpenAlgo's look | DONE — zinc tokens, icon navigation, card summaries, sentence-case labels, a bottom bar on phones. `app/terminal/shell.css` |
+| T-3960 | The Run tab's per-strategy result table has no successor | OPEN — a selection backtest updates each row in place and reports counts; a side-by-side table of the batch just run would need its own place in the Strategies page |
+
+---
+
 ## Tweezer Bottom — intraday candlestick strategy (2026-08-20)
 
 Operator-supplied rules. Verify: `uv run pytest tests/test_intraday_tweezer.py`
