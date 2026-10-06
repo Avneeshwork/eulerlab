@@ -1,0 +1,115 @@
+/* The strategy builder. Built on the shell's tokens; nothing here sets a colour
+   of its own, so it follows light and dark with the rest of the terminal. */
+
+.sb-page { display: flex; flex-direction: column; gap: var(--s4); align-items: stretch; }
+
+.sb-top { display: flex; flex-direction: column; gap: var(--s3); }
+.sb-name { display: flex; flex-direction: column; gap: var(--s2); }
+.sb-name input {
+  font: inherit;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  padding: 4px 8px;
+  margin-left: -8px;
+}
+.sb-name input:first-child { font-size: 22px; font-weight: 600; }
+.sb-name input:hover,
+.sb-name input:focus { border-color: var(--rule-2); outline: none; background: var(--surface); }
+.sb-desc { font-size: var(--t-body); color: var(--ink-2); }
+
+.sb-starts { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.sb-starts .tfine { min-width: 72px; }
+.sb-saved { display: inline-flex; align-items: center; }
+.sb-saved em { font-style: normal; color: var(--ink-3); }
+
+.sb-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--s4);
+  align-items: start;
+}
+.sb-steps { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
+.sb-side { position: sticky; top: 72px; }
+.sb-side .tpanel { display: flex; flex-direction: column; gap: var(--s3); }
+.sb-side .tpanel h3 { margin-bottom: 0; }
+.sb-h3 { margin-top: var(--s3) !important; }
+
+.sb-step h3 { display: flex; align-items: center; gap: var(--s2); font-size: 15px; color: var(--ink); }
+.sb-n {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ground);
+  font-size: 12px;
+  font-weight: 700;
+}
+.sb-step .tfine { margin: var(--s3) 0 0; }
+
+.sb-rules { display: flex; flex-direction: column; gap: var(--s3); align-items: flex-start; }
+.sb-rules-head { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: center; justify-content: space-between; width: 100%; }
+.sb-match { display: inline-flex; gap: var(--s2); }
+.sb-none { font-style: italic; }
+
+.sb-rule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  background: var(--ground);
+  max-width: 100%;
+}
+.sb-joiner { font-size: 13px; font-weight: 600; color: var(--ink-3); min-width: 36px; }
+.sb-operand { display: inline-flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+
+.sb-rule select,
+.sb-num {
+  font: inherit;
+  font-size: 14px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+.sb-rule select { width: auto; flex: none; max-width: 100%; }
+.sb-num { flex: none; }
+.sb-op { font-weight: 600; }
+.sb-param { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+
+.sb-remove {
+  border: none;
+  background: none;
+  color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+}
+.sb-remove:hover { color: var(--fail); background: var(--fail-wash); }
+
+.sb-rank { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s3); align-items: flex-start; }
+.sb-check { display: inline-flex; gap: var(--s2); align-items: center; font-size: 14px; color: var(--ink-2); }
+
+.sb-summary { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.45; color: var(--ink); }
+.sb-actions { display: flex; gap: var(--s2); }
+.sb-actions .go { flex: 1; }
+.sb-result { display: flex; flex-direction: column; gap: var(--s3); }
+.sb-result .rpt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sb-result .rpt-grid .tstat-card b { font-size: 18px; }
+.sb-report { text-align: center; text-decoration: none; }
+.sb-caveats { margin: 0; padding-left: 16px; }
+
+@media (max-width: 980px) {
+  .sb-body { grid-template-columns: minmax(0, 1fr); }
+  .sb-side { position: static; }
+}

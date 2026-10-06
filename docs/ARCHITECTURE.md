@@ -944,14 +944,45 @@ The reality gap decomposes into five terms:
 
 # Part V — The workbench
 
-## 7.1 Three ways to author a strategy
+## 7.1 The strategy builder
 
-The web interface (`make workbench`) offers three routes, all producing the
-same `Strategy` object:
+Tools → Strategy Builder (`web/components/terminal/StrategyBuilder.tsx`,
+`src/eulerlab/builder/`). A strategy is declared in five steps, in the order it
+acts: what it may trade (market, universe, instruments, price and turnover
+filters), when it buys (rules), when it sells (rules), how much it holds (slots,
+equal or volatility-scaled, optional ranking) and what stops it (stop loss, take
+profit, trailing stop, maximum days held). Research 062 and ADR-058.
 
-1. **Describe** — plain English → a language model drafts a spec.
-2. **Compose** — pick a feature, a holding count and a rebalance period.
-3. **Code** — write `weights(view)` directly.
+A rule is `indicator comparator operand`, e.g. `Close crosses above SMA(50)` or
+`RSI(2) below 10`, combined as all or any. The 22 indicators are streaming
+(`builder/indicators.py`): RSI and ATR use Wilder smoothing, EMA is seeded with
+the SMA, Donchian high/low exclude the current bar.
+
+**The spec is data, compiled to the one `Strategy` interface.** `BuiltStrategy`
+returns target weights like any other strategy. Each instrument's position is
+re-derived from the view by replaying the rules bar by bar — entry, then the
+first of exit rule, stop, target, trailing stop or holding limit — so stops need
+no memory between calls. The replay is cached per instrument and extended by
+new bars; the cache is discarded when the view's history is no longer a prefix
+of the one it was built on, which is what a newly knowable corporate action
+does. A cached replay and a fresh one give identical weights (tested).
+
+Decisions are made on each close (`rebalance_every = 1`). Entry price is the
+signal close; stops are judged on closes. Long only.
+
+**Holding without drift.** A builder strategy sets `hold_unchanged`: both
+engines leave a held position at its quantity while its target weight is the
+same as at the previous decision, so only entries, exits and changed weights
+trade. Without it, daily rebalancing to exact weights turned a 10-slot golden
+cross into 1,853 round trips in 800 days; with it, 39.
+
+**Saved per workspace** as `workspaces/<id>/strategies/b_<name>.json`. A builder
+strategy is listed in Strategies and backtested through `/api/run/batch` like a
+registered one. Its spec digest goes into the run's params, so an edited
+strategy is never served from cache and every result names the rules behind it.
+
+The language-model draft and sandboxed code routes (`authoring/`) still exist on
+the API; the builder page no longer offers them.
 
 ## 7.2 The sandbox: how "paste code" stays safe
 

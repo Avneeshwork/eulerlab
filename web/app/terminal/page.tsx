@@ -23,9 +23,9 @@
  * Backtest settings — period, tier, instruments, capital — are asked in the
  * Backtest dialog. They used to be editable from the Library toolbar, the Run
  * tab and the dialog, and a run's real settings could only be known by checking
- * all three. The Strategy Builder is the one exception, because what it runs is
- * not in the registry yet; it renders the same BacktestOptions bound to the
- * same state, so the two cannot disagree.
+ * all three. The Strategy Builder is the one exception: it saves what it builds
+ * and backtests it through the same batch endpoint, with its own window and tier
+ * beside the rules being tested.
  *
  * The page is kept in the URL hash so a page can be bookmarked and the back
  * button works.
@@ -52,7 +52,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
-import { BuildTab } from '@/components/terminal/BuildTab';
+import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
 import { OptionsTab } from '@/components/terminal/OptionsTab';
 import { RiskTab } from '@/components/terminal/RiskTab';
@@ -101,7 +101,7 @@ const TOOLS: Tool[] = [
     id: 'builder',
     title: 'Strategy Builder',
     description:
-      'Compose a strategy from the feature library or write it as code, validate it, and backtest it.',
+      'Build a strategy from rules: what to trade, when to buy and sell, how much, and where to stop.',
     icon: Hammer,
   },
   {
@@ -140,7 +140,7 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   },
   live: { title: 'Live & Risk', sub: 'What is ready to deploy, and the limits that stop trading.' },
   tools: { title: 'Tools', sub: 'Building strategies, browsing instruments and checking data.' },
-  builder: { title: 'Strategy Builder', sub: 'Compose or write a strategy, then validate and backtest it.', parent: 'tools' },
+  builder: { title: 'Strategy Builder', sub: 'Pick what to trade, write the rules, size it, set the stops, then backtest.', parent: 'tools' },
   instruments: { title: 'Instruments', sub: 'Every instrument that has data.', parent: 'tools' },
   sip: {
     title: 'SIP Backtester',
@@ -466,19 +466,7 @@ export default function TerminalPage() {
           </div>
         )}
 
-        {page === 'builder' && (
-          <BuildTab
-            onRefresh={refresh}
-            window={days}
-            tier={tier}
-            dateRange={dateRange}
-            startingCash={startingCash}
-            onWindow={setDays}
-            onTier={setTier}
-            onDateRange={setDateRange}
-            onStartingCash={setStartingCash}
-          />
-        )}
+        {page === 'builder' && <StrategyBuilder onRefresh={refresh} />}
         {page === 'instruments' && <InstrumentsTab />}
         {page === 'sip' && <SipTab />}
         {page === 'data' && <DataTab workspace={workspace} />}

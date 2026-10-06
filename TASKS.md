@@ -9,6 +9,23 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Strategy builder, rebuilt (2026-10-06)
+
+Operator: "strategy builder is very vague right now ... research better and build whole new strategy builder without any old code preference". ADR-058, research 062.
+Verify: `uv run pytest -q tests/test_builder.py`, then `make workbench` → Tools → Strategy Builder → a template → Save and backtest.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3970 | **A builder you can read back** | DONE — five steps (universe, entry, exit, sizing, risk), rules as sentences, 22 streaming indicators, four templates, a plain-English summary checked by the server on every edit. The old Compose/Code page is removed |
+| T-3971 | **Built strategies were never kept** | DONE — saved per workspace, listed in Strategies, backtested through `/api/run/batch` with the full report. The spec digest is in every run's params |
+| T-3972 | **Daily rebalancing traded drift** | DONE — `Strategy.hold_unchanged`, read by both engines. Golden cross on nifty100: 1,853 round trips → 39 |
+| T-3973 | **The view adjusted the close and not the bar** | FIXED — `PanelRow.adjusted()` divides open, high, low and close. HISTORY #14 |
+| T-3974 | Volume is not split-adjusted | OPEN — a split spikes "volume above its average" rules. Needs volume multiplied by the factor in the view; it would change any volume feature |
+| T-3975 | Stops are judged on closes, from the signal close | OPEN — intraday stops need the minute bars and a fill-price entry; stated on the page |
+| T-3976 | The whole equity panel is slow for a builder strategy | OPEN — about 40s on nifty100–250 over 800 days; "all" (4,000 names) is much longer. The page warns |
+
+---
+
 ## Backtest result storage (2026-10-06)
 
 Operator: "check how the backtest results are stored in different platforms and store that one". ADR-057, research 061.

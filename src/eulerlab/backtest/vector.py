@@ -41,7 +41,7 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from collections.abc import Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -339,9 +339,7 @@ def run(
                 while cursor >= 0 and events[cursor][0] > row.day:
                     cumulative *= events[cursor][1]
                     cursor -= 1
-                adjusted.append(
-                    row if cumulative == 1.0 else replace(row, close=row.close / cumulative)
-                )
+                adjusted.append(row.adjusted(cumulative))
             adjusted.reverse()
             out[symbol] = adjusted
         return out
@@ -385,6 +383,7 @@ def run(
                 total += price * quantity
         return total
 
+    previous_targets: dict[str, float] = {}
     for index in range(warmup, len(days) - 1):
         today = days[index]
         # Fills land on the NEXT bar's close. Using today's close would let a
@@ -402,6 +401,12 @@ def run(
                 price = traded_price(symbol, fill_day)
                 if price and price > 0:
                     desired[symbol] = int((equity * weight) / price)
+            # The same rule as Tier B, so the two engines still agree.
+            if strategy.hold_unchanged:
+                for symbol, quantity in holdings.items():
+                    if symbol in targets and previous_targets.get(symbol) == targets[symbol]:
+                        desired[symbol] = quantity
+            previous_targets = targets
 
             for symbol in set(holdings) | set(desired):
                 delta = desired.get(symbol, 0) - holdings.get(symbol, 0)

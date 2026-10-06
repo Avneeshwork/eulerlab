@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from collections.abc import Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from functools import partial
 from zoneinfo import ZoneInfo
@@ -231,9 +231,7 @@ def run(
                 while cursor >= 0 and events[cursor][0] > row.day:
                     cumulative *= events[cursor][1]
                     cursor -= 1
-                adjusted.append(
-                    row if cumulative == 1.0 else replace(row, close=row.close / cumulative)
-                )
+                adjusted.append(row.adjusted(cumulative))
             adjusted.reverse()
             out[symbol] = adjusted
         return out
@@ -264,6 +262,7 @@ def run(
         strategy=strategy.describe(), starting_cash=starting_cash, cost_mode=cost_mode
     )
     sequence = 0
+    previous_targets: dict[str, float] = {}
 
     for index in range(warmup, len(days) - 1):
         today = days[index]
@@ -282,6 +281,11 @@ def run(
             equity = portfolio.equity(marks)
 
             desired = target_quantities(equity, targets, partial(traded_price, day=fill_day))
+            if strategy.hold_unchanged:
+                for symbol, quantity in portfolio.holdings().items():
+                    if symbol in targets and previous_targets.get(symbol) == targets[symbol]:
+                        desired[symbol] = quantity
+            previous_targets = targets
 
             # --- create orders ---
             # `plan_orders` is shared verbatim with paper trading and live.

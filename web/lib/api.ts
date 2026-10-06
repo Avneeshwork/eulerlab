@@ -914,7 +914,103 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+/* ---------------- strategy builder ---------------- */
+
+export type BuilderParam = {
+  name: string;
+  label: string;
+  default: number;
+  min: number;
+  max: number;
+  integer: boolean;
+};
+
+export type BuilderIndicator = {
+  name: string;
+  label: string;
+  group: string;
+  description: string;
+  unit: 'price' | 'percent' | 'ratio' | 'volume';
+  params: BuilderParam[];
+};
+
+export type BuilderOperand = {
+  kind: 'indicator' | 'value';
+  name: string;
+  params: Record<string, number>;
+  multiplier: number;
+  value: number;
+};
+
+export type BuilderComparator = 'above' | 'below' | 'crosses_above' | 'crosses_below';
+
+export type BuilderRule = { left: BuilderOperand; op: BuilderComparator; right: BuilderOperand };
+
+export type BuilderRuleGroup = { match: 'all' | 'any'; rules: BuilderRule[] };
+
+export type BuilderSpec = {
+  id: string;
+  name: string;
+  description: string;
+  universe: {
+    asset_class: string;
+    universe: string;
+    instruments: string[];
+    min_price: number;
+    max_price: number;
+    min_turnover: number;
+  };
+  entry: BuilderRuleGroup;
+  exit: BuilderRuleGroup;
+  sizing: {
+    method: 'equal' | 'volatility_scaled';
+    max_positions: number;
+    vol_target_pct: number;
+    ranking: { by: BuilderOperand; order: 'highest' | 'lowest' } | null;
+  };
+  risk: {
+    stop_loss_pct: number;
+    take_profit_pct: number;
+    trailing_stop_pct: number;
+    max_hold_days: number;
+  };
+};
+
+export type BuilderCatalog = {
+  indicators: BuilderIndicator[];
+  comparators: { name: BuilderComparator; label: string }[];
+  templates: BuilderSpec[];
+  limits: { max_rules: number; max_positions: number };
+  caveats: string[];
+};
+
+export type BuilderCheck =
+  | { ok: true; id: string; summary: string[]; warmup: number; digest: string }
+  | { ok: false; errors: string[] };
+
+export type SavedBuilderStrategy = {
+  spec: BuilderSpec;
+  summary: string[];
+  result: { sharpe: number | null; runs: number; caveat: string; total_return?: number; max_drawdown?: number; fills?: number };
+};
+
+async function del<T>(path: string): Promise<T> {
+  const response = await fetch(path, { method: 'DELETE' });
+  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+  return (await response.json()) as T;
+}
+
 export const api = {
+  builderCatalog: () => get<BuilderCatalog>('/api/builder/catalog'),
+  builderValidate: (spec: BuilderSpec) => post<BuilderCheck>('/api/builder/validate', { spec }),
+  builderSave: (spec: BuilderSpec) =>
+    post<
+      | { ok: true; id: string; summary: string[]; spec: BuilderSpec }
+      | { ok: false; errors: string[] }
+    >('/api/builder/save', { spec }),
+  builderStrategies: () => get<{ strategies: SavedBuilderStrategy[] }>('/api/builder/strategies'),
+  builderDelete: (id: string) =>
+    del<{ ok: boolean; error?: string }>(`/api/builder/strategies/${encodeURIComponent(id)}`),
   health: () => get<Health>('/api/health'),
   library: () => get<Library>('/api/library'),
   fleet: () => get<Fleet>('/api/fleet'),

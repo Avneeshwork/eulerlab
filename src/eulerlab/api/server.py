@@ -51,6 +51,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab import cloud_results, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
+from eulerlab.api import builder_routes
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
@@ -60,6 +61,9 @@ from eulerlab.backtest.strategy import Strategy
 from eulerlab.batch import Item as _BatchItem
 from eulerlab.batch import data_version as batch_data_version
 from eulerlab.batch import runner
+from eulerlab.builder import store as builder_store
+from eulerlab.builder.compile import compile_spec
+from eulerlab.builder.spec import is_builder_id, summarise
 from eulerlab.features import company as company_digest
 from eulerlab.features.alt_panel import coverage as alt_coverage
 from eulerlab.features.library import BY_NAME
@@ -79,6 +83,7 @@ from eulerlab.validation.ledger import sharpe_dispersion
 from eulerlab.validation.statistics import sharpe_stats
 
 app = FastAPI(title="EulerLab", version="0.1.0")
+app.include_router(builder_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,
@@ -588,7 +593,45 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 "clears_bar": _clears(tenant, row, bar, adopted_results),
             }
             for row in strategy_fleet(tenant.ledger)
-        ],
+        ]
+        + [_builder_row(tenant, spec, bar) for spec in builder_store.all_specs(tenant)],
+    }
+
+
+def _builder_row(tenant: workspace_mod.Workspace, spec: Any, bar: float) -> dict[str, Any]:
+    """A saved builder strategy, in the shape the Strategies page lists.
+
+    Judged on its latest stored run like any other strategy, against the same
+    bar. It has no paper, no adopted sweep and no ledger trials of its own.
+    """
+    result = result_store.summary(tenant, spec.id)
+    sharpe = result.get("sharpe")
+    return {
+        "id": spec.id,
+        "title": spec.name,
+        "summary": spec.description or " ".join(summarise(spec)[1:3]),
+        "kind": "builder",
+        "shape": "rules",
+        "asset_class": spec.universe.asset_class,
+        "timeframe": "daily",
+        "emits": "weights",
+        "lookback": spec.warmup(),
+        "risk_manager": "",
+        "trade_manager": "",
+        "is_strategy_subclass": True,
+        "runnable": True,
+        "engine": "daily",
+        "source": "",
+        "published": "",
+        "stage": "backtested" if sharpe is not None else "registered",
+        "sharpe": sharpe,
+        "result": result,
+        "adopted": None,
+        "on_us": None,
+        "walk": None,
+        "best_asset": None,
+        "trials": 0,
+        "clears_bar": sharpe is not None and float(sharpe) >= bar,
     }
 
 
@@ -999,6 +1042,19 @@ def _universe_label(request: BatchRunRequest) -> str:
     return CUSTOM_UNIVERSE if request.instruments else request.universe
 
 
+def _spec_params(workspace: workspace_mod.Workspace, strategy_id: str) -> dict[str, object]:
+    """A builder strategy's rules, by digest, so an edit is never served from cache.
+
+    In params rather than in the configuration hash: params feed the batch
+    cache key and are stored with every run and report, so an edited strategy
+    recomputes and every result names the exact rules behind it.
+    """
+    if not is_builder_id(strategy_id):
+        return {}
+    spec = builder_store.load(workspace, strategy_id)
+    return {"spec": spec.digest()} if spec is not None else {}
+
+
 def _as_float(payload: dict[str, object], key: str) -> float:
     """Read a number out of an untyped result payload.
 
@@ -1041,17 +1097,24 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # whole-panel backtest would count as a new configuration and
                 # inflate the denominator that prices selection bias — for no
                 # reason but a new dict key.
-                params=_run_params(request),
+                params=_run_params(request) | _spec_params(workspace, name),
             )
             for name in request.strategies
         ]
 
         def compute(item: _BatchItem) -> dict[str, Any]:
+            # A builder strategy is a saved spec in this workspace, not a
+            # registry entry; it runs through everything below unchanged.
+            custom = (
+                builder_store.load(workspace, item.strategy_id)
+                if is_builder_id(item.strategy_id)
+                else None
+            )
             declaration = REGISTRY.get(item.strategy_id)
-            if declaration is None:
+            if declaration is None and custom is None:
                 msg = f"unknown strategy {item.strategy_id!r}"
                 raise KeyError(msg)
-            if not declaration.is_strategy_subclass:
+            if declaration is not None and not declaration.is_strategy_subclass:
                 # Intraday signals run through the minute-bar scanner instead of
                 # refusing. They still cannot satisfy the `Strategy` interface —
                 # a conditional entry with a bracket is not a target weight
@@ -1084,7 +1147,9 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 whole_panel=request.asset_class != AssetClass.EQUITY.value,
             )
 
-            strategy = _build_registered(item.strategy_id)
+            strategy = (
+                compile_spec(custom) if custom is not None else _build_registered(item.strategy_id)
+            )
             engine = _engine_run(
                 strategy,
                 rows,
@@ -1092,7 +1157,9 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 days_window=request.days,
                 tier=request.tier,
                 starting_cash=request.starting_cash,
-                rebalance=21,
+                # Monthly unless the strategy decides more often: a builder
+                # rule can fire on any close.
+                rebalance=int(getattr(strategy, "rebalance_every", 21)),
                 universe=index_key(_universe_label(request), resolved, request.asset_class),
                 cost_mode=cost_mode_for(request.asset_class),
             )
@@ -1110,7 +1177,13 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # strategy's declared lookback: the feature returns None on
                 # every symbol, nothing gets ranked, and the strategy holds
                 # nothing all the way through.
-                needed = declaration.lookback
+                needed = (
+                    declaration.lookback
+                    if declaration is not None
+                    else custom.warmup()
+                    if custom is not None
+                    else 0
+                )
                 # Name the cause rather than guessing at it. There are two, and
                 # they are not the same fix: a window shorter than the lookback,
                 # or a universe smaller than the strategy's min_names — one

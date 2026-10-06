@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Thirteen times this project was wrong
+## Fourteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -135,6 +135,16 @@ attribution and equity curve did not, and nothing recorded which commit had
 produced either. No published number is invalidated: the latest report of each
 configuration was always the one shown. Fixed by keeping every run under its
 own id with its commit and cost-model stamp (ADR-057).
+
+**14. Corporate-action adjustment moved the close and left the bar behind.**
+(2026-10-06) Both engines back-adjusted a view by replacing `close` alone, so a
+pre-split bar kept its raw open, high and low around a halved close. Any range
+read from `row.ohlc()` — a candle body, an ATR, a 52-week high — saw the split
+as a price move. Found while building the strategy builder's ATR and Donchian
+indicators. `PanelRow.adjusted()` now divides all four prices. The engine
+self-test golden file is unchanged, because its synthetic panel has no
+recorded ranges; results of candle-shape strategies on instruments with
+corporate actions inside their window may move.
 
 ---
 

@@ -35,7 +35,7 @@ from __future__ import annotations
 import concurrent.futures as cf
 import json
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -88,6 +88,24 @@ class PanelRow:
 
     Use `ohlc()` rather than reading these directly; a strategy that reads
     `row.high` on an older row silently gets 0.0 and computes nonsense."""
+
+    def adjusted(self, divisor: float) -> PanelRow:
+        """This row back-adjusted for corporate actions: every price divided.
+
+        Open, high and low with the close, not the close alone. Adjusting only
+        the close left a pre-split bar whose high sat far above its close, so
+        any range — ATR, a Donchian high, a candle body — read a corporate
+        action as a price move. A zero (not recorded) stays zero.
+        """
+        if divisor == 1.0:
+            return self
+        return replace(
+            self,
+            close=self.close / divisor,
+            open=self.open / divisor,
+            high=self.high / divisor,
+            low=self.low / divisor,
+        )
 
     def ohlc(self) -> tuple[float, float, float, float]:
         """Open, high, low, close — falling back to a flat bar at the close.

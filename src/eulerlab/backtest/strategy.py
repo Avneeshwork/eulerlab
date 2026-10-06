@@ -88,6 +88,22 @@ class Strategy(ABC):
     belongs with the code that knows the answer.
     """
 
+    hold_unchanged: bool = False
+    """Leave a holding alone while its target weight has not changed.
+
+    Off by default, which is the rebalancing every strategy here was built on:
+    each decision trades every position back to its exact target, so a winner
+    is trimmed and a loser topped up. That is right for a monthly ranked book
+    and wrong for a signal strategy deciding daily, where "still 10%" means
+    "keep holding" — rebalancing it every day turned a golden cross with ten
+    slots into 1,853 small round trips in 800 days, paying costs on drift.
+
+    Read by both engines through the same rule, so Tier A and Tier B still
+    agree: a symbol held at the decision, whose normalised target equals its
+    target at the previous decision, keeps its current quantity. Entries,
+    exits and changed weights trade exactly as before.
+    """
+
     @abstractmethod
     def target_weights(self, view: MarketView) -> dict[str, float]:
         """Desired portfolio weights on `view.as_of`.
