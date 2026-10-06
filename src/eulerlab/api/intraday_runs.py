@@ -56,7 +56,17 @@ across four hundred.
 INTRADAY_SESSIONS_PER_YEAR = 250
 
 
-def _intraday_symbols(request: BatchRunRequest) -> list[str]:
+TWEEZER = "tweezer_bottom"
+"""The one intraday strategy that is not a paper signal: it runs through the
+Tweezer scanner (`intraday/scan.py`) rather than `paper_scan`."""
+
+TWEEZER_SYMBOL_CAP = 50
+"""Tweezer reads 15-minute candles, a fifteenth of the minute bars a paper
+signal replays, and the operator's report is a Nifty 50 result. Twelve names
+would answer a different question from the one the report asks."""
+
+
+def _intraday_symbols(request: BatchRunRequest, cap: int = INTRADAY_SYMBOL_CAP) -> list[str]:
     """Which symbols an intraday scan covers.
 
     Hand-picked instruments win, then the named universe, then whatever has
@@ -104,7 +114,7 @@ def _intraday_symbols(request: BatchRunRequest) -> list[str]:
         wanted = sorted(available)
 
     kept = [s for s in wanted if not available or s in available]
-    return kept[:INTRADAY_SYMBOL_CAP]
+    return kept[:cap]
 
 
 def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
@@ -122,7 +132,8 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
 
     from eulerlab.intraday import paper_scan
 
-    symbols = _intraday_symbols(request)
+    cap = TWEEZER_SYMBOL_CAP if strategy_id == TWEEZER else INTRADAY_SYMBOL_CAP
+    symbols = _intraday_symbols(request, cap)
     if not symbols:
         msg = "no symbols with minute bars for that selection"
         raise RuntimeError(msg)
@@ -147,14 +158,27 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
     # Position sizing here is a fraction of equity, so halving the account
     # should halve the P&L and leave the percentage alone. That it doubled is
     # exactly the tell.
-    scans = paper_scan.scan_many(
-        strategy_id,
-        symbols,
-        start=start,
-        end=end,
-        equity=request.starting_cash,
-        asset_class=request.asset_class,
-    )
+    scans: Sequence[Any]
+    if strategy_id == TWEEZER:
+        # The operator's rules, on 15-minute candles (the report's own sizes are
+        # 15, 30 and 60; `make tweezer-report` measures all three). NSE only:
+        # the pattern's thresholds and the 15:00 cutoff are Indian-session facts.
+        if request.asset_class != AssetClass.EQUITY.value:
+            msg = "Tweezer Bottom is specified for NSE equities only"
+            raise RuntimeError(msg)
+        from eulerlab.intraday import scan as tweezer_scan
+
+        scans = tweezer_scan.scan_many(symbols, start=start, end=end, equity=request.starting_cash)
+        scans = [s for s in scans if s.days]
+    else:
+        scans = paper_scan.scan_many(
+            strategy_id,
+            symbols,
+            start=start,
+            end=end,
+            equity=request.starting_cash,
+            asset_class=request.asset_class,
+        )
     if not scans:
         msg = f"no minute bars readable for any of {len(symbols)} symbols"
         raise RuntimeError(msg)
@@ -221,7 +245,7 @@ def _run_intraday(strategy_id: str, request: BatchRunRequest) -> dict[str, Any]:
         "cost_mode": cost_mode_for(request.asset_class),
         "curve": result_store.downsample(equity),
         "sessions_scanned": sum(s.sessions for s in scans),
-        "symbol_cap": INTRADAY_SYMBOL_CAP,
+        "symbol_cap": cap,
     }
     # Carried out rather than saved here, under a private key. A report is
     # filed under the run's `configuration` hash, and that hash is only known

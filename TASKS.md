@@ -21,6 +21,7 @@ Verify: `uv run pytest -q tests/test_intraday_tweezer.py tests/test_research_lib
 | T-3979 | **A research library** | DONE — `research/papers/*.yaml`, Tools → Research Library: summary, trade idea, implementation logic, red flags, reported results, linked strategies with results and Backtest. Seeded with the Tweezer report, Mesfin (2026), Zarattini (2024) |
 | T-3980 | The paper signals cannot fill on the candle after the signal | OPEN — `bracket.run` skipped `forward[0]` for every caller; Tweezer now passes `first_fillable=0`, the nine paper signals keep the old behaviour until their recorded results are re-run |
 | T-3981 | The report's trade list | OPEN — needed to compare trade by trade; its PENDING fill rule and holding limit are unstated |
+| T-3983 | **Tweezer Bottom showed "not runnable" on Strategies** | FIXED — only paper signals and weight strategies counted. It now runs through the same intraday batch path (`intraday_runs._run_intraday`) on 15-minute candles, records a result and a report, and scans up to 50 names rather than the paper signals' 12. Verified: Nifty 50, Jun 2025–Jun 2026, report opens |
 | T-3982 | Papers added from the page are uncommitted files | OPEN — the API writes `research/papers/`; commit them like any other research |
 
 ---

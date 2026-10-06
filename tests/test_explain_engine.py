@@ -40,7 +40,7 @@ def test_an_intraday_signal_is_not_described_as_rebalancing() -> None:
 
 
 def test_a_daily_strategy_still_gets_the_daily_description() -> None:
-    body = _body("tweezer_bottom", "What a backtest here is")
+    body = _body("momentum_12_1", "What a backtest here is")
     assert "rebalance" in body.lower()
 
 
@@ -51,13 +51,13 @@ def test_intraday_sections_are_intraday_only() -> None:
     assert "What a sweep costs" in intraday
     assert "Why the rejections are counted" in intraday
 
-    daily = _titles("tweezer_bottom")
+    daily = _titles("momentum_12_1")
     assert "Tier A and Tier B" in daily
     assert "What a sweep costs" not in daily
 
 
 def test_shared_sections_appear_on_both() -> None:
-    for strategy in ("orb_breakout", "tweezer_bottom"):
+    for strategy in ("orb_breakout", "momentum_12_1"):
         titles = _titles(strategy)
         assert "What it cannot see" in titles
         assert "What the Sharpe is measured against" in titles

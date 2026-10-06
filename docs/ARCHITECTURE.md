@@ -1014,7 +1014,9 @@ pattern low minus the larger of 0.1% and one ATR; half at 2R, rest at 3R, a
 C2 may fill (`bracket.run(first_fillable=0)`). `max_hold_sessions` sets how
 many sessions a trade may stay open; 1 is flat at the close. `make
 tweezer-report` re-measures the report's window and prints both sets of
-numbers (research 063).
+numbers (research 063). From the Strategies page Tweezer backtests through the
+same intraday batch path as the paper signals (`intraday_runs._run_intraday`),
+on 15-minute candles, flat at the close, up to 50 names.
 
 ## 7.2 The sandbox: how "paste code" stays safe
 

@@ -82,6 +82,10 @@ from eulerlab.validation.ledger import count as trial_count
 from eulerlab.validation.ledger import sharpe_dispersion
 from eulerlab.validation.statistics import sharpe_stats
 
+INTRADAY_RUNNABLE = frozenset({*PAPER_SIGNALS, "tweezer_bottom"})
+"""Strategies that are not target weights but run through the minute-bar
+scanners: the paper signals, and Tweezer Bottom through its own scanner."""
+
 app = FastAPI(title="EulerLab", version="0.1.0")
 app.include_router(builder_routes.router)
 app.include_router(research_routes.router)
@@ -563,9 +567,9 @@ def fleet(workspace: str = "") -> dict[str, Any]:
                 # perfectly well through the minute-bar scanner. Conflating the
                 # two left eleven coded strategies greyed out.
                 "runnable": (
-                    row.declaration.is_strategy_subclass or row.declaration.id in PAPER_SIGNALS
+                    row.declaration.is_strategy_subclass or row.declaration.id in INTRADAY_RUNNABLE
                 ),
-                "engine": ("intraday" if row.declaration.id in PAPER_SIGNALS else "daily"),
+                "engine": ("intraday" if row.declaration.id in INTRADAY_RUNNABLE else "daily"),
                 "source": row.declaration.source,
                 "published": row.declaration.published,
                 "stage": row.stage.value,
@@ -1125,7 +1129,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # (ADR-037) — but "cannot be expressed as weights" is not the
                 # same as "cannot be evaluated", and treating it as such left
                 # eleven coded strategies unrunnable from the interface.
-                if item.strategy_id in PAPER_SIGNALS:
+                if item.strategy_id in INTRADAY_RUNNABLE:
                     intraday = _run_intraday(item.strategy_id, request)
                     intraday["tier"] = "intraday"
                     store_one(item, intraday)
@@ -2499,7 +2503,7 @@ def explain(strategy: str = "") -> dict[str, Any]:
     # the daily engine to someone reading an intraday result explains a run the
     # code did not perform. This module's own docstring calls that worse than no
     # explanation, and it was doing it for all twenty swept signals.
-    intraday = bool(strategy) and strategy in PAPER_SIGNALS
+    intraday = bool(strategy) and strategy in INTRADAY_RUNNABLE
 
     if intraday:
         from eulerlab.intraday.paper_scan import WARMUP_BARS

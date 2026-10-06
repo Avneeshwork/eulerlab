@@ -62,10 +62,26 @@ class ScanResult:
     plans: int = 0
     trades: list[bracket.Trade] = field(default_factory=list)
     rejections: dict[str, int] = field(default_factory=dict)
+    days: list[date] = field(default_factory=list)
+    """Every session scanned inside the window, traded or not."""
 
     @property
     def filled(self) -> list[bracket.Trade]:
         return [t for t in self.trades if t.filled]
+
+    # The two methods the batch runner reads from a paper signal's scan, so a
+    # Tweezer run is recorded, reported and drawn through the same code.
+    def session_days(self) -> list[date]:
+        return list(self.days)
+
+    def pnl_by_session(self) -> dict[date, float]:
+        """Net P&L by the session each trade entered in."""
+        out: dict[date, float] = {}
+        for trade in self.filled:
+            if trade.entry_ts is not None:
+                day = trade.entry_ts.date()
+                out[day] = out.get(day, 0.0) + trade.net_pnl()
+        return out
 
     def net_pnl(self) -> float:
         return sum(t.net_pnl() for t in self.filled)
@@ -141,8 +157,9 @@ def scan_symbol(
         position += len(session)
         session_of.extend([number] * len(session))
         session_ends.append(position - 1)
-        if _day >= start:
+        if start <= _day <= end:
             result.sessions += 1
+            result.days.append(_day)
 
     width = timedelta(minutes=rules.timeframe_minutes)
     needed = max(rules.htf_sma_period, rules.swing_lookback + 2, rules.adx_period * 2)

@@ -328,3 +328,23 @@ def test_a_trade_held_into_the_next_session_can_reach_its_target() -> None:
     assert same_day.exits[-1].reason == "session end"
     held = bracket.run(_plan(), day1 + day2, RULES, asset_class="equity", first_fillable=0)
     assert "target 2" in [e.reason for e in held.exits]
+
+
+def test_tweezer_is_runnable_from_the_strategies_page() -> None:
+    from eulerlab.api import server
+
+    row = next(r for r in server.fleet()["strategies"] if r["id"] == "tweezer_bottom")
+    assert row["runnable"] is True
+    assert row["engine"] == "intraday"
+
+
+def test_a_tweezer_scan_reads_like_a_paper_signal_scan() -> None:
+    """The batch runner reads `session_days` and `pnl_by_session`."""
+    from eulerlab.intraday.scan import ScanResult
+
+    bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
+    bars.append(_bar(3, 100.4, 103.5, 100.3, 103.2))
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
+    result = ScanResult(symbol="X", trades=[trade], days=[START.date()])
+    assert result.session_days() == [START.date()]
+    assert result.pnl_by_session() == {START.date(): pytest.approx(trade.net_pnl())}
