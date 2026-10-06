@@ -1018,6 +1018,18 @@ numbers (research 063). From the Strategies page Tweezer backtests through the
 same intraday batch path as the paper signals (`intraday_runs._run_intraday`),
 on 15-minute candles, flat at the close, up to 50 names.
 
+### Indian-equity paper strategies
+
+`backtest/india_papers.py` holds one strategy per paper in `research/papers/`
+on Indian equities, registered as `india_*` and built through
+`published.BUILDERS`. Cross-sectional ones (`RankTop`, `LowBeta`) take the
+whole panel and keep the 250 most-traded stocks by median turnover over the
+previous 60 sessions **at each decision date** (`liquid_universe`), because the
+named universes are not point-in-time (HISTORY #16). Calendar ones
+(`IndexCalendar`) hold NIFTYBEES over the days a rule selects, deciding two
+trading days ahead from the panel's calendar (A-041). `make india-papers`
+runs them all and writes `data/derived/india_papers.json`.
+
 ## 7.2 The sandbox: how "paste code" stays safe
 
 Executing arbitrary Python would discard the lookahead firewall, because

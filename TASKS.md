@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Twenty papers on Indian equities (2026-10-06)
+
+Operator: "gather 20 research paper based on Indian equity market and do backtest", then "whatever done push it, left out backtest we will do later". Research 064.
+Verify: `uv run pytest -q tests/test_india_papers.py`; `make india-papers`; Tools → Research Library.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3985 | **Thirteen Indian-equity papers in the library, twelve backtested** | DONE — 11 read in full, 1 abstract only, 1 unreadable. Strategies in `backtest/india_papers.py`, registered and run 2016–2026, Tier B, after costs. None clears the bar; results in research 064 |
+| T-3986 | The seven momentum papers | OPEN — Maheshwari & Dhankar; Vijaykumar (two); Raju 2023 (52-week high); Sapate (weekly); Aziz & Ansari (illiquid winners); "Momentum, reversals and liquidity" (PBFJ 2023). Read, add to the library, code and run with `make india-papers` |
+| T-3984 | **Named universes are not point-in-time** | OPEN — HISTORY #16. The India-paper strategies re-rank a top 250 at each date; every other daily strategy on `nifty50/100/250` is still biased |
+| T-3987 | The intraday-momentum paper could not be read | OPEN — in the library as an idea with no strategy |
+
+---
+
 ## Tweezer to the operator's report, and a research library (2026-10-06)
 
 Operator: "tweezer bottom strategy i am providing properly ... build a research paper repo ... every paper have summary, trade idea and implementation logic". ADR-059, research 063.

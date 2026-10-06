@@ -1,0 +1,32 @@
+id: maher-2013-turn-of-month-india
+title: 'The turn of the month effect in India: A case of large institutional trading pattern
+  as a source of higher liquidity'
+authors: Maher, D., Parikh, A.
+year: 2013
+kind: paper
+source_url: https://ideas.repec.org/a/eee/finana/v28y2013icp57-69.html
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Indian size-conditioned indices
+summary: Tests the turn-of-the-month effect on Indian indices of several sizes and finds it
+  exists. Payday and US-macro explanations get little support; foreign and domestic institutions
+  raise their buying at month end, which may push prices up. Only the abstract could be read.
+trade_idea: Institutions buy at month end, possibly to dress up month-end valuations, lifting
+  prices over the last day of the month and the first days of the next.
+implementation: |-
+  - Long the index over the turn of the month. The exact window is not confirmed; a search summary gave [-1, +2].
+
+  Here: india_turn_of_month holds NIFTYBEES over trading days -1, +1 and +2 around each month end.
+red_flags:
+- 'Abstract only: the window, period and test design are unverified.'
+- If the cause is window dressing, the effect may have faded since 2013.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: No numbers available from the abstract; it reports the effect exists.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_turn_of_month
+  note: ''
+  timeframe: 0

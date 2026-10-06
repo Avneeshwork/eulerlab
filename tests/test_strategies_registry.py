@@ -182,9 +182,11 @@ def test_every_registered_strategy_can_actually_be_built() -> None:
 
 
 def test_ten_published_strategies_are_registered() -> None:
+    from eulerlab.backtest.india_papers import BUILDERS as INDIA
     from eulerlab.backtest.published import BUILDERS
 
-    assert len(BUILDERS) == 10
+    # The ten from docs/RESEARCH/017, plus one per Indian-equity paper (064).
+    assert len(BUILDERS) == 10 + len(INDIA)
     for name in BUILDERS:
         assert name in REGISTRY, f"{name} builds but is not declared"
 

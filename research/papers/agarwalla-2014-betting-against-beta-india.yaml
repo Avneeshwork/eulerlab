@@ -1,0 +1,43 @@
+id: agarwalla-2014-betting-against-beta-india
+title: Betting Against Beta in the Indian Market
+authors: Agarwalla, S. K., Jacob, J., Varma, J. R., Vasudevan, E.
+year: 2014
+kind: paper
+source_url: https://faculty.iima.ac.in/iffm/Indian-Equities/2014-07-01-Betting-Against-Beta-SSRN-id2464097.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- BSE stocks, 1998-2013
+summary: 'Builds the Frazzini-Pedersen betting-against-beta factor from all BSE stocks, 1998-2013:
+  long low-beta stocks and short high-beta stocks, levered to be beta-neutral. BAB earns 1.70%
+  a month with a Sharpe of 0.86, beating size, value and momentum, and returns fall almost
+  monotonically across beta deciles.'
+trade_idea: Investors who cannot borrow buy high-beta stocks to get more market exposure,
+  bidding them up. Low-beta stocks are left cheap, so they earn more per unit of risk than
+  CAPM predicts.
+implementation: |-
+  - Market: Sensex (here NIFTYBEES). Risk-free: 91-day T-bill.
+  - Beta = correlation of 3-day overlapping returns over 5 years (750+ days) x ratio of 1-year daily volatilities (120+ days); shrunk 0.6 x beta + 0.4.
+  - Each month split at the median beta; weight each side by distance from the mean rank.
+  - BAB = (1/beta_L)(R_L - Rf) - (1/beta_H)(R_H - Rf), rebalanced monthly.
+
+  Here: india_bab_low_beta holds the low-beta side, rank-weighted, unlevered and long only.
+red_flags:
+- The short leg is not feasible in Indian cash equities; the long leg alone is a different,
+  unlevered bet.
+- BAB needs about 1.3x leverage on the long side; this runs at 1x.
+- No transaction costs; universe dominated by illiquid BSE small caps; very lumpy (2003 +97%,
+  2008 -34%).
+- Our panel starts in 2015 and beta needs 5 years of history, so the first decision is in
+  2020.
+- 'Run long only on the 250 most-traded stocks as of each decision date, equal-weighted: the liquid end of the market
+  and the panel has no share counts for value weights.'
+reported_results: BAB 1.70%/month excess; CAPM alpha 1.67%, 3-factor 1.35%, 4-factor 1.08%/month;
+  volatility 23.8%/yr, Sharpe 0.86; average annual 29.1% (1998-2012).
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_bab_low_beta
+  note: ''
+  timeframe: 0

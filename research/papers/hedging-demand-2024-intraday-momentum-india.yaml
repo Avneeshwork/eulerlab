@@ -1,0 +1,27 @@
+id: hedging-demand-2024-intraday-momentum-india
+title: Hedging Demand and Intraday Momentum within the Indian Stock Market
+authors: ''
+year: 2024
+kind: paper
+source_url: https://www.researchgate.net/publication/383567351
+pdf: ''
+added: '2026-10-06'
+status: idea
+markets:
+- Nifty, intraday
+summary: 'Reported to test whether the first half-hour return of the Nifty predicts its last
+  half-hour return, and whether option dealers'' gamma hedging explains it. The paper could
+  not be read: ResearchGate refused access and no other copy was found.'
+trade_idea: Dealers hedging options exposure trade in the direction of the day's move into
+  the close, so a strong open predicts the last half hour.
+implementation: |-
+  Unknown: the paper was not readable. The template it reportedly adapts (Gao, Han, Li and Zhou 2018) goes long or short the index at the last half hour by the sign of the return from the previous close to 30 minutes after the open.
+
+  Not backtested here until the paper itself is read.
+red_flags:
+- 'Not read: nothing about its rules or results is verified.'
+- The gamma variant needs option open interest by strike; the last half hour in India includes
+  the closing-price window.
+reported_results: Unavailable. A search snippet mentions a 13% Sharpe improvement, unverified.
+hypothesis: ''
+strategies: []

@@ -1,0 +1,35 @@
+id: agarwalla-2013-four-factor-india
+title: Four factor model in Indian equities market
+authors: Agarwalla, S. K., Jacob, J., Varma, J. R.
+year: 2013
+kind: paper
+source_url: https://faculty.iima.ac.in/iffm/legacy/four-factors-India-90s-onwards-IIM-WP-Version-original-Sep13.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- BSE stocks, 1993-2012
+summary: Builds Fama-French size and value factors and a momentum factor for India, 1993-2012,
+  the basis of the IIMA factor library. Momentum (WML) earns about 21% a year, value 6%, and
+  size nothing.
+trade_idea: Winners over the past year keep winning for another month; the momentum factor
+  is the strongest of the four in India.
+implementation: |-
+  - WML: return from month t-12 to t-1; winners top 30%, losers bottom 30%; crossed with size (top 10% by cap = big); value-weighted; held one month.
+  - SMB and HML from yearly size and book-to-market sorts at end-September.
+
+  Here: india_wml_12_1 holds the top 30% of the point-in-time top 250 by 12-1 momentum, equal-weighted, monthly. SMB and HML are not run: market cap and book value are not point-in-time here.
+red_flags:
+- Factors are long-short; only the winner leg is run.
+- The sample ends in 2012, before the momentum crashes since.
+- Monthly rebalancing with no costs; the authors flag this themselves.
+- 'Run long only on the 250 most-traded stocks as of each decision date, equal-weighted: the liquid end of the market
+  and the panel has no share counts for value weights.'
+reported_results: 'Annual log-return means 1993-2012: WML 20.7%, HML 5.9%, SMB -0.8%, market
+  excess 3.5%.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_wml_12_1
+  note: ''
+  timeframe: 0

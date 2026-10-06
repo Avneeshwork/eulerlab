@@ -1,0 +1,36 @@
+id: sehgal-2024-lottery-factor-india
+title: 'Lottery factor and stock returns: Evidence from India'
+authors: Sehgal, S., Vasishth, V., Deisting, F.
+year: 2024
+kind: paper
+source_url: https://www.econstor.eu/bitstream/10419/340477/1/1898197709.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- NSE stocks, 2001-2021
+summary: 'Tests three lottery (MAX) measures on NSE stocks, 2001-2021. Only the new MAX(L5),
+  the best day in the last five sessions of the month, gives a significant low-minus-high
+  premium: 1.33% a month value-weighted, t = 3.89, surviving controls for beta, IVOL, skewness,
+  size and value.'
+trade_idea: Retail investors overpay for stocks that just had an extreme up day, which then
+  underperform. Hold the stocks with the smallest recent spikes.
+implementation: |-
+  - MAX(L5) = largest daily return in the last 5 trading days of the previous month (3 of 5 needed).
+  - 10 deciles, value-weighted, rebalanced monthly; long-short P1 (low) minus P10 (high).
+
+  Here: india_low_max_l5 holds the lowest MAX(L5) decile of the point-in-time top 250, equal-weighted, monthly, long only as the authors suggest for India.
+red_flags:
+- 'Delisted stocks were deleted: explicit survivorship bias.'
+- 'Three measures tried and only the authors'' new one is significant: a data-mining risk.'
+- No transaction costs with monthly decile turnover.
+- 'Run long only on the 250 most-traded stocks as of each decision date, equal-weighted: the liquid end of the market
+  and the panel has no share counts for value weights.'
+reported_results: Low-minus-high MAX(L5) 1.327%/month (t 3.89) value-weighted, 1.13% equal-weighted;
+  FF5 alpha 0.92%/month (t 2.65); low-MAX(L5) decile alone 2.27%/month.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_low_max_l5
+  note: ''
+  timeframe: 0

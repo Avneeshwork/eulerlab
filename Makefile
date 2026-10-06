@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -229,6 +229,9 @@ acceptance:
 
 tweezer:
 	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
+
+india-papers:
+	@uv run --extra web python -m eulerlab.research.run_india $(if $(ONLY),--only $(ONLY),)
 
 tweezer-report:
 	@uv run python -m eulerlab.intraday.tweezer_report $(if $(HOLD),--hold $(HOLD),--hold 1,5,20) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),)

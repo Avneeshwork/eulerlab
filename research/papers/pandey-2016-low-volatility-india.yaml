@@ -1,0 +1,38 @@
+id: pandey-2016-low-volatility-india
+title: An Investigation of Low Volatility Anomaly in Indian Stock Market
+authors: Pandey, S., Samanta, A.
+year: 2016
+kind: paper
+source_url: https://www.vbu.ac.in/ftpwebapps/vbu/resources/vbu_web/dept/mba/Dr.%20Sitaram%20Pandey%20Journal%208.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- CNX 100 stocks, 2006-2014
+summary: 'Sorts about 80 large NSE stocks into volatility quintiles each month by 60-month
+  return volatility, 2006-2014. Finds no low-volatility anomaly: excess returns rise from
+  the low-volatility quintile to the high-volatility one, which the authors read as support
+  for CAPM.'
+trade_idea: Tested for low-volatility outperformance and found the reverse. Taken at its word,
+  the trade is to hold the most volatile large caps.
+implementation: |-
+  - Monthly adjusted closes, log returns, 2001-2014; first formation Jan 2006.
+  - Sort: standard deviation of the prior 60 monthly returns; 5 equal-weighted quintiles, held one month.
+
+  Here: india_high_vol60 holds the highest-volatility quintile of the point-in-time top 250, monthly.
+red_flags:
+- 'Uses today''s index constituents back to 2001: survivorship and look-ahead bias.'
+- About 80 stocks and 110 months; inconsistent universe description; no t-statistic above
+  1.96 despite claims of significance.
+- Contradicts the BAB and low-risk papers in this library. Weak evidence.
+- Needs 60 months of history, so decisions start in 2020 on our panel.
+- 'Run long only on the 250 most-traded stocks as of each decision date, equal-weighted: the liquid end of the market
+  and the panel has no share counts for value weights.'
+reported_results: Mean monthly excess return P1 (low vol) 1.96% to P5 (high vol) 3.77%; CAPM
+  alphas 1.69% (P1) and 3.13% (P5), t below 1.8.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_high_vol60
+  note: ''
+  timeframe: 0

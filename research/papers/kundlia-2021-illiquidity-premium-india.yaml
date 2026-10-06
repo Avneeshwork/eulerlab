@@ -1,0 +1,36 @@
+id: kundlia-2021-illiquidity-premium-india
+title: 'Illiquidity Premium in the Indian Stock Market: An Empirical Study'
+authors: Kundlia, S., Verma, D.
+year: 2021
+kind: paper
+source_url: https://archive.aessweb.com/index.php/5002/article/download/2103/3353
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- NSE stocks, 2000-2019
+summary: Sorts NSE stocks on Amihud illiquidity, 2000-2019. Returns fall almost monotonically
+  from the most illiquid decile (2.68% a month excess) to the most liquid (0.76%), a premium
+  of about 23% a year, and an illiquid-minus-liquid factor makes CAPM and Fama-French intercepts
+  insignificant.
+trade_idea: Hard-to-trade stocks must pay investors more to hold them.
+implementation: |-
+  - Amihud = mean |daily return| / rupee value traded; firms trading at least 50 days a year.
+  - Deciles formed yearly; returns start a month after formation; IML factor value-weighted within volatility terciles.
+
+  Here: india_illiquid_decile holds the most illiquid decile of the point-in-time top 250 (Amihud over the past year), rebalanced yearly.
+red_flags:
+- 'Keeps only firms continuously listed since 1999: a survivor-only universe.'
+- The paper's illiquid decile is micro-caps with 14% monthly volatility; within the top 250 the
+  illiquid decile is still a large-cap stock, so the premium may be much smaller.
+- No costs; the window and weighting are under-specified.
+- 'Run long only on the 250 most-traded stocks as of each decision date, equal-weighted: the liquid end of the market
+  and the panel has no share counts for value weights.'
+reported_results: Decile excess returns 2.679%/month (most illiquid) to 0.755% (most liquid);
+  IML factor 1.436%/month (t 3.25); about 23% a year.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_illiquid_decile
+  note: ''
+  timeframe: 0

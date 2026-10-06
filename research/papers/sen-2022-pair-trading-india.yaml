@@ -1,0 +1,35 @@
+id: sen-2022-pair-trading-india
+title: Designing Efficient Pair-Trading Strategies Using Cointegration for the Indian Stock
+  Market
+authors: Sen, J.
+year: 2022
+kind: paper
+source_url: https://arxiv.org/abs/2211.07080
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- NSE sector stocks, 2018-2021
+summary: Finds cointegrated pairs among the top ten stocks of five NSE sectors on 2018-2020
+  prices and trades them through 2021. Auto and realty pairs were all profitable, Bharat Forge
+  / Ashok Leyland best at 17.6%; some IT, banking and pharma pairs lost money.
+trade_idea: Two cointegrated stocks drift back together, so when their price ratio stretches,
+  buy the cheap one and sell the rich one.
+implementation: |-
+  - Pairs by statsmodels coint (p < 0.05), OLS and ADF.
+  - Ratio z-scored; above +1 short asset1 and long asset2, otherwise the reverse; always in the market.
+
+  Here: india_pair_bharatforg_ashokley holds whichever of BHARATFORG and ASHOKLEY is cheap (z beyond +/-1 over a one-year window), long only.
+red_flags:
+- 'The stock list came from NSE''s report at the end of the test year: look-ahead.'
+- The paper's best pair, BF-AL, failed its own ADF test and was traded anyway.
+- One test year, no costs; the short leg needs stock futures in India.
+- Long-only, this becomes a rotation between two auto stocks, not a market-neutral spread.
+reported_results: '2021 returns: Bharat Forge/Ashok Leyland 17.63%, Eicher/Ashok Leyland 13.89%;
+  all six auto and seven realty pairs positive.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_pair_bharatforg_ashokley
+  note: ''
+  timeframe: 0

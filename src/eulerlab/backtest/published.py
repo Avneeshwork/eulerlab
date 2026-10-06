@@ -22,7 +22,7 @@ class.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from eulerlab.backtest.strategies import RankAndHold
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
@@ -201,7 +201,7 @@ def value_reversal(top_n: int = 30, min_names: int = 20) -> Strategy:
     return Composite(["reversal_1m", "turnover_liquidity"], top_n=top_n, min_names=min_names)
 
 
-BUILDERS = {
+BUILDERS: dict[str, Callable[..., Strategy]] = {
     "momentum_12_1": momentum_12_1,
     "momentum_6_1": momentum_6_1,
     "short_term_reversal": short_term_reversal,
@@ -215,3 +215,10 @@ BUILDERS = {
 }
 """Name to builder. The registry and the batch runner both read this, so a
 strategy cannot appear in the console without something able to build it."""
+
+# Strategies from papers on Indian equities (`research/papers/`). Kept in their
+# own module because each follows its own paper's rules rather than the shared
+# `RankAndHold` shape.
+from eulerlab.backtest.india_papers import BUILDERS as _INDIA  # noqa: E402
+
+BUILDERS.update(_INDIA)

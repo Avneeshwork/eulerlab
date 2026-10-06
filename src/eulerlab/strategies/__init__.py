@@ -756,9 +756,36 @@ def _crypto_signals() -> dict[str, Declaration]:
     }
 
 
+def _india_papers() -> dict[str, Declaration]:
+    """Strategies from papers on Indian equities, one per paper in
+    `research/papers/`, built by `backtest.india_papers`."""
+    from eulerlab.backtest.india_papers import STRATEGIES
+
+    return {
+        s.id: Declaration(
+            id=s.id,
+            title=s.title,
+            summary=s.summary,
+            kind="quant",
+            shape="cross-section" if s.universe != "all" else "single-instrument",
+            asset_class=AssetClass.EQUITY,
+            timeframe=Timeframe.DAILY,
+            emits=Emits.TARGET_WEIGHT,
+            lookback=s.lookback,
+            source=f"[paper] {s.citation}",
+            published=s.summary,
+            tested_on="NSE equities",
+            recommended_class=AssetClass.EQUITY,
+            logic=list(s.logic),
+        )
+        for s in STRATEGIES
+    }
+
+
 REGISTRY.update(_paper_signals())
 REGISTRY.update(_crypto_signals())
 REGISTRY.update(_india_signals())
+REGISTRY.update(_india_papers())
 
 
 @dataclass(frozen=True)

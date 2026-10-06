@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Fifteen times this project was wrong
+## Sixteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -155,6 +155,16 @@ hour itself. The operator's report specifies 15/30/60-minute candles and none
 of the rest. Every earlier Tweezer number (the "2 setups in 136,740 candles")
 measured a different strategy. Re-measured on the report's rules in research
 063: the report's result is not reproduced.
+
+**16. Named universes are today's list applied to every past date.**
+(2026-10-06) `nifty50/100/250` are the most-traded names as of the ranking
+date, so a backtest from 2016 runs on stocks chosen for having become liquid
+by 2026 — largely the ones that rose. Measured on the Indian-paper strategies:
+an illiquid-decile strategy made +4,204% on `nifty250` and +585% on a top 250
+re-ranked at each decision date; 12-1 momentum +1,098% against +474%. Every
+cross-sectional result run on a named universe is inflated by this, by an
+unknown amount until re-run (T-3984). ADR-008 avoided index membership for
+this reason and the liquidity list reintroduced it.
 
 ---
 

@@ -1,0 +1,31 @@
+id: lu-2016-festivity-anomaly-india
+title: Festivity Anomaly in Indian Stock Market
+authors: Lu, X., Patel, N.
+year: 2016
+kind: paper
+source_url: http://hdl.handle.net/2022/26598
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- BSE indices, 2005-2012
+summary: Regresses daily returns of six BSE indices on pre- and post-holiday dummies, 2005-2012.
+  There is no pre-holiday effect, but a significant post-holiday effect on the Sensex, BSE
+  100 and BSE 500, which appears only after September 2008.
+trade_idea: Returns are higher on the first trading day after an exchange holiday.
+implementation: |-
+  - R_t = a + b1 Pre_Holiday + b2 Post_Holiday; about 15 holidays a year.
+
+  Here: india_post_holiday holds NIFTYBEES from the close before a holiday to the close of the first day after it. Holidays are weekdays missing from the exchange calendar.
+red_flags:
+- About 120 events; significance marginal and confined to the 2008-2012 crisis window.
+- The return includes the holiday gap, so it may be plain gap risk.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: Post-holiday Sensex +0.25%/day (p 0.048), BSE 100 +0.24% (p 0.047); pre-crisis
+  not significant.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_post_holiday
+  note: ''
+  timeframe: 0

@@ -1,0 +1,35 @@
+id: joshipura-2017-low-risk-india
+title: Returns to Low Risk Investment Strategy
+authors: Joshipura, M., Peswani, S.
+year: 2017
+kind: paper
+source_url: https://ojs.aut.ac.nz/applied-finance-letters/1/article/download/65/63
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- All NSE stocks, 2004-2016
+summary: Sorts all past and present NSE stocks on 36-month total volatility, idiosyncratic
+  volatility and beta, 2004-2016. The lowest-volatility quintile beats the highest and the
+  equal-weighted market in every size bucket, and alphas survive Fama-French and Carhart;
+  total volatility works best.
+trade_idea: Investors overpay for risky, lottery-like stocks because of leverage limits, benchmarking
+  and bias, so the calmest stocks earn more. It works long only.
+implementation: |-
+  - Risk from the past 36 monthly excess log returns (12 at least).
+  - Equal-weighted quintiles within large/mid/small buckets and the whole market, sorted monthly, held one month.
+
+  Here: india_low_tvol36 holds the lowest 36-month volatility quintile of the point-in-time top 250, monthly.
+red_flags:
+- 'Drops firms with no return in the month after formation: a look-ahead filter.'
+- Equal-weighted, no costs; short sample including 2008.
+- 'Run long only on the 250 most-traded stocks as of each decision date, equal-weighted: the liquid end of the market
+  and the panel has no share counts for value weights.'
+reported_results: 'Large caps: low-vol quintile +8.28%/yr excess vs high-vol -15.28%; CAPM
+  alpha 8.64% (t 3.24); P1-P5 4-factor alpha 19.76%/yr.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_low_tvol36
+  note: ''
+  timeframe: 0

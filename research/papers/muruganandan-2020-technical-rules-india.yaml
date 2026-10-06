@@ -1,0 +1,36 @@
+id: muruganandan-2020-technical-rules-india
+title: 'Testing the Profitability of Technical Trading Rules across Market Cycles: Evidence
+  from India'
+authors: Muruganandan, S.
+year: 2020
+kind: paper
+source_url: https://mgmt.cmb.ac.lk/cbj/wp-content/uploads/2020/06/2.-Technical-trading-rules.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Sensex, 2000-2018
+summary: Tests RSI and MACD rules on the Sensex, 2000-2018, across nine bull, bear and sideways
+  phases. RSI fails even before costs; MACD sell signals earn a significant return but buy
+  signals do not, and the author finds no consistent abnormal return.
+trade_idea: Oscillator signals mark turning points; in practice only MACD's bearish crossovers
+  carried information.
+implementation: |-
+  - MACD = EMA12 - EMA26; signal = 9-day SMA of MACD.
+  - Buy at next open if MACD < 0, signal < 0 and signal > MACD; sell/short if MACD > 0, signal > 0 and signal < MACD. One-day open-to-close trades.
+
+  Here: india_macd_buy holds NIFTYBEES for one day after the buy signal, close to close. The profitable sell side cannot be run long only.
+red_flags:
+- The paper's buy signals lost money; this tests the side it found did not work.
+- Market phases were defined after the fact; open-to-close returns differ from this engine's
+  close-to-close.
+- The builder's MACD signal line is an EMA, not the paper's SMA.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: 'MACD buys: 858 signals, mean -0.128%/day (n.s.); MACD sells: 1,522, mean
+  +0.086% (t 4.43); RSI insignificant.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_macd_buy
+  note: ''
+  timeframe: 0

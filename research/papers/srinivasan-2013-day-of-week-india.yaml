@@ -1,0 +1,32 @@
+id: srinivasan-2013-day-of-week-india
+title: Day-of-the-Week Effects in the Indian stock market
+authors: Srinivasan, P., Kalaivani, M.
+year: 2013
+kind: paper
+source_url: https://mpra.ub.uni-muenchen.de/46805/1/MPRA_paper_46805.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Nifty and Sensex, 1997-2012
+summary: Fits GARCH-family models with weekday dummies to daily Nifty and Sensex returns,
+  1997-2012, and finds positive Monday and Wednesday effects in returns and lower volatility
+  on Tuesdays.
+trade_idea: 'Weekday seasonality: returns are higher on Mondays and Wednesdays.'
+implementation: |-
+  - Mean equation with five weekday dummies and an AR(1) term; GARCH(1,1), EGARCH, TGARCH.
+  - No trading rule is given.
+
+  Here: india_monday_wednesday holds NIFTYBEES over Mondays and Wednesdays only.
+red_flags:
+- Significance is borderline (z about 1.9 to 2.3); other studies find different 'best' weekdays.
+- No out-of-sample test or costs; trading twice a week makes costs large relative to the effect.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: Nifty GARCH(1,1) Monday 0.18%/day (z 2.34), Wednesday 0.15% (z 1.94); other
+  days insignificant.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_monday_wednesday
+  note: ''
+  timeframe: 0
