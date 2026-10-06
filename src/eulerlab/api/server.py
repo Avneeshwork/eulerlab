@@ -51,7 +51,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab import cloud_results, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
-from eulerlab.api import builder_routes
+from eulerlab.api import builder_routes, research_routes
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
@@ -84,6 +84,7 @@ from eulerlab.validation.statistics import sharpe_stats
 
 app = FastAPI(title="EulerLab", version="0.1.0")
 app.include_router(builder_routes.router)
+app.include_router(research_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,
@@ -151,6 +152,9 @@ class TweezerRequest(BaseModel):
     """
 
     model_config = ConfigDict(extra="forbid")
+
+    timeframe: int = Field(default=15, ge=1, le=60)
+    """Candle minutes. The operator's report scans 15, 30 and 60."""
 
     universe: str = "nifty50"
     """`nifty50` / `nifty100` / `nifty250`, or empty to use `symbols`.
@@ -1496,7 +1500,7 @@ def _run_tweezer(job: Job, request: TweezerRequest) -> None:
     try:
         job.status = "running"
         start, end = date.fromisoformat(request.start), date.fromisoformat(request.end)
-        rules = Rules()
+        rules = Rules(timeframe_minutes=request.timeframe)
         names = (
             tweezer_scan.universe(request.universe)
             if request.universe

@@ -208,15 +208,45 @@ def test_the_position_is_closed_before_the_session_ends() -> None:
     assert trade.shares_exited == trade.plan.shares
 
 
-def test_the_first_target_fills_and_moves_the_stop_to_breakeven() -> None:
+def _back_through_entry() -> list[Candle]:
     bars = [_bar(1, 99.5, 99.8, 99.2, 99.6), _bar(2, 100.0, 100.5, 100.0, 100.4)]
     bars.append(_bar(3, 100.4, 102.2, 100.3, 102.0))  # target 1 at 102
     bars.append(_bar(4, 102.0, 102.1, 99.5, 99.8))  # back through entry
     bars += [_bar(i, 99.8, 100.0, 99.6, 99.8) for i in range(5, 12)]
-    trade = bracket.run(_plan(), bars, RULES, asset_class="equity")
+    return bars
+
+
+def test_the_first_target_can_move_the_stop_to_breakeven() -> None:
+    rules = Rules(breakeven_after_t1=True)
+    trade = bracket.run(_plan(), _back_through_entry(), rules, asset_class="equity")
     reasons = [e.reason for e in trade.exits]
     assert "target 1" in reasons
     assert "breakeven stop" in reasons
+
+
+def test_the_report_leaves_the_remainder_to_the_trail_not_breakeven() -> None:
+    """The operator's report books half at T1 and does not move the stop."""
+    trade = bracket.run(_plan(), _back_through_entry(), RULES, asset_class="equity")
+    reasons = [e.reason for e in trade.exits]
+    assert reasons == ["target 1", "trailing stop"]
+
+
+def test_the_candle_after_the_signal_can_fill_when_asked() -> None:
+    """C3, the breakout candle, is the first bar after C2."""
+    bars = [_bar(1, 100.0, 100.5, 99.9, 100.4)]
+    bars += [_bar(i, 100.4, 100.6, 100.2, 100.4) for i in range(2, 10)]
+    assert not bracket.run(_plan(), bars[:1], RULES, asset_class="equity").filled
+    trade = bracket.run(_plan(), bars, RULES, asset_class="equity", first_fillable=0)
+    assert trade.entry_ts == bars[0].ts
+
+
+def test_the_stop_is_the_reports_formula() -> None:
+    """patternLow - max(0.1% of patternLow, 1 x ATR)."""
+    window = _with_pattern(_downtrend())
+    plan = detect(window, RULES, equity=5e5)
+    if isinstance(plan, Plan):
+        pattern_low = min(window[-1].low, window[-2].low)
+        assert plan.stop <= pattern_low * 0.999 + 1e-9
 
 
 def test_both_targets_can_fill() -> None:
@@ -257,3 +287,44 @@ def test_costs_use_the_candles_own_date_not_today() -> None:
 def test_r_multiple_is_zero_when_nothing_was_risked() -> None:
     plan = Plan(START, 100.0, 100.0, 100.0, 100.0, 0.0, 0, 0, 0.0)
     assert bracket.Trade(plan=plan).r_multiple() == 0.0
+
+
+# --- candle size and holding period ------------------------------------------
+
+
+def test_minutes_roll_up_into_session_anchored_candles() -> None:
+    from eulerlab.intraday import store
+
+    open_ = datetime(2025, 6, 2, 9, 15, tzinfo=IST)
+    minutes = [
+        Candle(open_ + timedelta(minutes=i), 100 + i, 100.5 + i, 99.5 + i, 100.2 + i, 10)
+        for i in range(75)
+    ]
+    rolled = store.resample(minutes, 60)
+    assert [c.ts.strftime("%H:%M") for c in rolled] == ["09:15", "10:15"]
+    first = rolled[0]
+    assert (first.open, first.close) == (100, 100.2 + 59)
+    assert first.high == 100.5 + 59 and first.low == 99.5
+    assert first.volume == 600
+    assert rolled[1].volume == 150
+
+
+def test_a_trade_held_into_the_next_session_can_reach_its_target() -> None:
+    """With `max_hold_sessions=1` the close ends it; held, the target fills."""
+    day1 = [_bar(i, 100.0, 100.5, 99.9, 100.4) for i in range(1, 6)]
+    next_day = START + timedelta(days=1)
+    day2 = [
+        Candle(next_day + timedelta(minutes=i), 100.4, 103.5, 100.3, 103.2, 1000.0)
+        for i in range(5)
+    ]
+    same_day = bracket.run(
+        _plan(),
+        day1 + day2,
+        RULES,
+        asset_class="equity",
+        session_end_index=len(day1) - 1,
+        first_fillable=0,
+    )
+    assert same_day.exits[-1].reason == "session end"
+    held = bracket.run(_plan(), day1 + day2, RULES, asset_class="equity", first_fillable=0)
+    assert "target 2" in [e.reason for e in held.exits]

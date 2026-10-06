@@ -984,6 +984,38 @@ strategy is never served from cache and every result names the rules behind it.
 The language-model draft and sandboxed code routes (`authoring/`) still exist on
 the API; the builder page no longer offers them.
 
+## 7.1a The research library
+
+Tools → Research Library (`web/components/terminal/ResearchLibrary.tsx`,
+`src/eulerlab/research/library.py`, `/api/research/*`). One YAML file per paper
+in `research/papers/`: title, authors, year, link, **summary**, **trade idea**,
+**implementation logic**, red flags, what the source itself reported, an
+optional hypothesis (`H-NNNN`), and links to the strategies that test it.
+
+A link is `builder` (a saved Strategy Builder spec), `registered` (a coded
+strategy) or `tweezer` (the Tweezer scanner on a stated candle size). Each link
+shows its latest stored result; builder and registered links backtest through
+the shared Backtest dialog and `/api/run/batch`, Tweezer through
+`/api/tweezer`. "Build its rules" opens the Strategy Builder with the paper
+remembered for the browser session; the next save links the new strategy to
+the paper and moves an `idea` to `specified`.
+
+ADR-059.
+
+### Tweezer Bottom, to the operator's report
+
+`intraday/tweezer.py` and `scan.py` follow the operator's June 2026 report
+(`research/papers/protective-collar-2026-tweezer-bottom.yaml`): 15, 30 or
+60-minute candles rolled up from Kite minute bars, anchored at each session's
+first minute (`store.resample`); indicators over the last 100 candles across
+sessions; no signal from a candle closing at or after 15:00; stop at the
+pattern low minus the larger of 0.1% and one ATR; half at 2R, rest at 3R, a
+0.5% trail after +1.5R, no breakeven move. The breakout candle straight after
+C2 may fill (`bracket.run(first_fillable=0)`). `max_hold_sessions` sets how
+many sessions a trade may stay open; 1 is flat at the close. `make
+tweezer-report` re-measures the report's window and prints both sets of
+numbers (research 063).
+
 ## 7.2 The sandbox: how "paste code" stays safe
 
 Executing arbitrary Python would discard the lookahead firewall, because

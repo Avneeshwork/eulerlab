@@ -9,6 +9,22 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Tweezer to the operator's report, and a research library (2026-10-06)
+
+Operator: "tweezer bottom strategy i am providing properly ... build a research paper repo ... every paper have summary, trade idea and implementation logic". ADR-059, research 063.
+Verify: `uv run pytest -q tests/test_intraday_tweezer.py tests/test_research_library.py`; `make tweezer-report`; Tools → Research Library.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3977 | **Tweezer did not follow the operator's report** | FIXED — 15/30/60-minute candles, indicators across sessions over 100 candles, 15:00 signal cutoff, the report's stop formula, no breakeven move, the breakout candle after C2 can fill. HISTORY #15 |
+| T-3978 | **The report's result, re-measured** | DONE — not reproduced. 15-minute: PF 1.31, +0.12%/trade, +24% summed after costs vs the report's 2.65, +0.95%, +169% before costs. 30-minute loses. Research 063 |
+| T-3979 | **A research library** | DONE — `research/papers/*.yaml`, Tools → Research Library: summary, trade idea, implementation logic, red flags, reported results, linked strategies with results and Backtest. Seeded with the Tweezer report, Mesfin (2026), Zarattini (2024) |
+| T-3980 | The paper signals cannot fill on the candle after the signal | OPEN — `bracket.run` skipped `forward[0]` for every caller; Tweezer now passes `first_fillable=0`, the nine paper signals keep the old behaviour until their recorded results are re-run |
+| T-3981 | The report's trade list | OPEN — needed to compare trade by trade; its PENDING fill rule and holding limit are unstated |
+| T-3982 | Papers added from the page are uncommitted files | OPEN — the API writes `research/papers/`; commit them like any other research |
+
+---
+
 ## Strategy builder, rebuilt (2026-10-06)
 
 Operator: "strategy builder is very vague right now ... research better and build whole new strategy builder without any old code preference". ADR-058, research 062.

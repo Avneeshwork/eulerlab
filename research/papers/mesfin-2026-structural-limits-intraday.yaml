@@ -1,0 +1,73 @@
+id: mesfin-2026-structural-limits-intraday
+title: 'Structural Limits of OHLCV-Based Intraday Signals in MNQ Futures: A Systematic Falsification
+  Study'
+authors: Mesfin, M.
+year: 2026
+kind: paper
+source_url: https://arxiv.org/abs/2605.04004
+pdf: docs/RESEARCH/papers/mesfin-2026-arxiv-2605.04004-intraday-falsification.pdf
+added: '2026-08-22'
+status: backtested
+markets:
+- MNQ futures (paper)
+- NSE equities and crypto (here)
+summary: 'Fourteen intraday signal families tested on 947 days of five-minute Micro Nasdaq
+  futures bars against five criteria: walk-forward validation, t of at least 2, at least 30
+  trades, positive net return after a 2-point round-trip cost, and consistency across years.
+  None passed. The best gross return of any family was 1.05-1.50 points against a 2.0-point
+  cost.'
+trade_idea: 'The paper''s claim is negative: on five-minute bars in a liquid market, the gross
+  edge of an OHLCV signal competes down to roughly the friction cost of the marginal trader.
+  If that transfers, these signals should fail on NSE minute bars too, and a success here
+  is first a reason to suspect the harness.'
+implementation: |-
+  Nine of the families are coded in src/eulerlab/intraday/papers.py with the paper's triggers and thresholds: orb_breakout, range_expansion, liquidity_grab, gap_fill_fade, gap_continuation, volume_spike, volume_dryup, volatility_regime, ou_reversion.
+
+  Entries are the paper's. Exits are not: the paper measures a fixed-horizon return, while this platform's intraday engine is a bracket (stop, two targets, flat at the close). Long only. See docs/RESEARCH/019 and hypotheses/H-0003.yaml.
+red_flags:
+- Exits differ from the paper (bracket here, fixed horizon there), so no result here is a
+  replication of its tables.
+- Long only; the paper's short results differ materially from its long ones.
+- The friction ceiling is in index points on one future; Indian costs are percentages, so
+  whether it transfers is the open question, not an assumption.
+reported_results: 'No family passed all five criteria. Examples: ORB long t=1.50 (failed on
+  year instability: -1.42 in 2022, +2.43 in 2023, +7.04 in 2024); Asia liquidity grab t=-14.12;
+  gap continuation short t=3.23 but only 22 trades.'
+hypothesis: H-0003
+strategies:
+- kind: registered
+  id: orb_breakout
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: range_expansion
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: liquidity_grab
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: gap_fill_fade
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: gap_continuation
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: volume_spike
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: volume_dryup
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: volatility_regime
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: ou_reversion
+  note: ''
+  timeframe: 0

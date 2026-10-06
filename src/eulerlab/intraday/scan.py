@@ -1,8 +1,8 @@
 """`make tweezer` — run the Tweezer Bottom setup over real minute data.
 
-One symbol at a time, one session at a time. Within a session the detector is
-handed a window ending at the candle being evaluated and nothing after it, so
-the lookahead firewall holds the same way it does in the daily engine.
+One symbol at a time, on the report's candle size. The detector is handed a
+window ending at the candle being evaluated and nothing after it, so the
+lookahead firewall holds the same way it does in the daily engine.
 
 **Every rejection is counted.** A scan that reports only the trades cannot tell
 you whether a filter is doing any work or whether it has quietly excluded
@@ -15,11 +15,11 @@ import argparse
 import concurrent.futures as cf
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from eulerlab.intraday import bracket, store
-from eulerlab.intraday.tweezer import Plan, Rejected, Rules, detect
+from eulerlab.intraday.tweezer import IST, Plan, Rejected, Rules, detect
 
 UNIVERSE_FILE = Path("config/universe_top250.txt")
 
@@ -108,6 +108,11 @@ class ScanResult:
         return "\n".join(lines)
 
 
+WARMUP_DAYS = 30
+"""Calendar days fetched before `start` so the indicators are warm on day one.
+SMA(80) on 60-minute candles needs about fourteen sessions."""
+
+
 def scan_symbol(
     symbol: str,
     *,
@@ -116,35 +121,72 @@ def scan_symbol(
     rules: Rules | None = None,
     equity: float = 1_000_000.0,
 ) -> ScanResult:
+    """Every Tweezer Bottom in [start, end] on `rules.timeframe_minutes` candles.
+
+    Indicators see the last `rules.lookback_candles` candles **across
+    sessions**, as the report's scanner does; the trade itself never leaves
+    the session it was signalled in. A signal from a candle that closes at or
+    after `rules.signal_cutoff` is not taken.
+    """
     rules = rules or Rules()
-    candles = store.fetch(symbol, start=start, end=end)
+    raw = store.fetch(symbol, start=start - timedelta(days=WARMUP_DAYS), end=end)
+    candles = store.resample(raw, rules.timeframe_minutes)
     result = ScanResult(symbol=symbol, candles=len(candles))
 
-    for _day, session in store.by_session(candles):
-        result.sessions += 1
-        warmup = max(rules.htf_sma_period, rules.adx_period * 2) + 2
-        index = warmup
-        while index < len(session) - 1:
-            window = session[: index + 1]
-            outcome = detect(window, rules, equity=equity)
-            if isinstance(outcome, Rejected):
-                result.rejections[outcome.reason] = result.rejections.get(outcome.reason, 0) + 1
-                index += 1
-                continue
+    # For each candle, which session it is in, and where each session ends.
+    session_of: list[int] = []
+    session_ends: list[int] = []
+    position = 0
+    for number, (_day, session) in enumerate(store.by_session(candles)):
+        position += len(session)
+        session_of.extend([number] * len(session))
+        session_ends.append(position - 1)
+        if _day >= start:
+            result.sessions += 1
 
-            assert isinstance(outcome, Plan)
-            result.plans += 1
-            forward = session[index + 1 :]
-            # NSE, stated rather than inherited. Tweezer only ever runs on
-            # Indian equities, so this was correct while it was a default — and
-            # correct-by-accident is how the same default went wrong in three
-            # other call sites without anyone noticing.
-            trade = bracket.run(outcome, forward, rules, asset_class="equity")
-            result.trades.append(trade)
-            # Skip past the trade so one setup cannot be counted many times as
-            # the same pattern stays visible in successive windows.
-            index += max(1, len(forward) if not trade.filled else 2)
-        # a session ends flat; nothing carries overnight
+    width = timedelta(minutes=rules.timeframe_minutes)
+    needed = max(rules.htf_sma_period, rules.swing_lookback + 2, rules.adx_period * 2)
+    index = needed
+    while index < len(candles) - 1:
+        signal = candles[index]
+        if signal.ts.date() < start or signal.ts.date() > end:
+            index += 1
+            continue
+        closes_at = (signal.ts + width).astimezone(IST).time()
+        if closes_at >= rules.signal_cutoff:
+            result.rejections["after cutoff"] = result.rejections.get("after cutoff", 0) + 1
+            index += 1
+            continue
+
+        window = candles[max(0, index - rules.lookback_candles + 1) : index + 1]
+        outcome = detect(window, rules, equity=equity)
+        if isinstance(outcome, Rejected):
+            result.rejections[outcome.reason] = result.rejections.get(outcome.reason, 0) + 1
+            index += 1
+            continue
+
+        assert isinstance(outcome, Plan)
+        result.plans += 1
+        # The forced close: the end of this session, or of the last session the
+        # trade may be held into.
+        hold = max(1, rules.max_hold_sessions)
+        last = session_ends[min(session_of[index] + hold - 1, len(session_ends) - 1)]
+        forward = candles[index + 1 : last + 1]
+        if not forward:
+            index += 1
+            continue
+        # NSE, stated rather than inherited. `first_fillable=0`: the candle
+        # straight after C2 is C3, the breakout the rules enter on.
+        trade = bracket.run(outcome, forward, rules, asset_class="equity", first_fillable=0)
+        result.trades.append(trade)
+        # Skip past the trade so one setup is not counted again while the same
+        # pattern stays in view; an untriggered order expires at the session end.
+        if trade.filled and trade.exits:
+            exit_ts = trade.exits[-1].ts
+            while index < len(candles) - 1 and candles[index].ts <= exit_ts:
+                index += 1
+        else:
+            index = session_ends[session_of[index]] + 1
     return result
 
 
@@ -194,6 +236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--day", default="", help="scan a single session")
     parser.add_argument("--from", dest="start", default="2024-01-01")
     parser.add_argument("--to", dest="end", default="2024-06-30")
+    parser.add_argument("--timeframe", type=int, default=15, help="candle minutes: 1, 15, 30, 60")
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--quiet", action="store_true", help="totals only")
     parser.add_argument("--equity", type=float, default=1_000_000.0)
@@ -232,6 +275,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         symbols,
         start=start,
         end=end,
+        rules=Rules(timeframe_minutes=args.timeframe),
         equity=args.equity,
         workers=args.workers,
         on_done=progress,

@@ -184,6 +184,47 @@ def by_session(candles: Sequence[Candle]) -> Iterator[tuple[date, list[Candle]]]
         yield day, current
 
 
+def resample(candles: Sequence[Candle], minutes: int) -> list[Candle]:
+    """Minute candles rolled up into `minutes`-minute candles, per session.
+
+    Buckets start at each session's first candle — 09:15 on a normal NSE day —
+    so a 60-minute chart reads 09:15, 10:15, ... 14:15 and a short last bar
+    15:15-15:29, as Kite draws it. Anchoring to the clock hour instead would
+    give a 45-minute first bar. A bucket's timestamp is its start; open is its
+    first open, close its last close, high and low the extremes, volume the sum.
+    """
+    if minutes <= 1:
+        return list(candles)
+    out: list[Candle] = []
+    for _day, session in by_session(candles):
+        anchor = session[0].ts
+        bucket: list[Candle] = []
+        bucket_index = -1
+        for candle in session:
+            index = int((candle.ts - anchor).total_seconds() // 60) // minutes
+            if index != bucket_index and bucket:
+                out.append(_roll(bucket, anchor, bucket_index, minutes))
+                bucket = []
+            bucket_index = index
+            bucket.append(candle)
+        if bucket:
+            out.append(_roll(bucket, anchor, bucket_index, minutes))
+    return out
+
+
+def _roll(bucket: list[Candle], anchor: datetime, index: int, minutes: int) -> Candle:
+    from datetime import timedelta
+
+    return Candle(
+        ts=anchor + timedelta(minutes=index * minutes),
+        open=bucket[0].open,
+        high=max(c.high for c in bucket),
+        low=min(c.low for c in bucket),
+        close=bucket[-1].close,
+        volume=sum(c.volume for c in bucket),
+    )
+
+
 def cached_size() -> tuple[int, float]:
     """Files and gigabytes currently on disk, for reporting before a prune."""
     if not CACHE.exists():

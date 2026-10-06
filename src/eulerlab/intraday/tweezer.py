@@ -43,7 +43,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time
 from zoneinfo import ZoneInfo
 
 from eulerlab.features.indicators import (
@@ -107,6 +107,30 @@ class Rules:
     risk_per_trade: float = 0.01
     trail_activate_r: float = 1.5
     trail_giveback: float = 0.005
+
+    # From the operator's report (Protective Collar AI, "Tweezer Bottom
+    # Strategy — Performance & Backtest Report", June 2026), section 8.
+    timeframe_minutes: int = 15
+    """Candle size. The report scans 15, 30 and 60; 1 is the raw minute."""
+
+    lookback_candles: int = 100
+    """Candles of history per decision, carried across sessions. Indicators
+    restarting every morning would leave a 60-minute chart with six bars a day
+    and no SMA(80) until mid-way through the third week."""
+
+    signal_cutoff: time = time(15, 0)
+    """No signal from a candle that closes at or after this time (IST)."""
+
+    max_hold_sessions: int = 1
+    """Sessions a trade may stay open, counting the one it entered in. 1 is
+    flat by the close. The report's exit table has 7 time exits in 178 trades,
+    so its trades mostly ran across days to a stop or target; its holding
+    limit is not stated."""
+
+    breakeven_after_t1: bool = False
+    """The report books half at T1 and leaves the rest to T2 or the trail; it
+    does not move the stop to breakeven. Kept as a switch because the earlier
+    version of this port did."""
 
 
 @dataclass(frozen=True)
@@ -239,8 +263,10 @@ def detect(window: Sequence[Candle], rules: Rules, *, equity: float) -> Plan | R
     if entry <= 0:
         return Rejected("bad price")
 
-    stop_buffer = max(0.001, atr_now / entry)
-    stop = pattern_low * (1.0 - stop_buffer)
+    # The report's rule, literally: patternLow - max(0.1%, 1 x ATR). The 0.1%
+    # is of the pattern low. An earlier port scaled ATR by entry instead, which
+    # put the stop a fraction of a tick higher than the rule says.
+    stop = pattern_low - max(0.001 * pattern_low, atr_now)
     r = entry - stop
     if r <= 0:
         return Rejected("stop above entry")

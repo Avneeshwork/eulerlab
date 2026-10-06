@@ -32,6 +32,7 @@ import type {
   UniverseList,
 } from '@/lib/api';
 import { ASSET_CLASSES } from '@/lib/assetClasses';
+import { BUILDER_PAPER_KEY } from './ResearchLibrary';
 import './builder.css';
 
 const WINDOWS = [
@@ -338,7 +339,29 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
   const [tier, setTier] = useState<'A' | 'B'>('B');
   const [run, setRun] = useState<RunState>({ status: 'idle', message: '' });
   const [loadError, setLoadError] = useState('');
+  const [forPaper, setForPaper] = useState('');
   const alive = useRef(true);
+
+  // Opened from a paper in the Research Library: what is saved here gets
+  // linked to it, so the paper lists the strategy that tests it.
+  useEffect(() => {
+    try {
+      setForPaper(window.sessionStorage.getItem(BUILDER_PAPER_KEY) ?? '');
+    } catch {
+      setForPaper('');
+    }
+  }, []);
+
+  const linkToPaper = async (strategyId: string) => {
+    if (!forPaper) return;
+    await api.linkPaper(forPaper, { kind: 'builder', id: strategyId });
+    try {
+      window.sessionStorage.removeItem(BUILDER_PAPER_KEY);
+    } catch {
+      /* nothing to clear */
+    }
+    setForPaper('');
+  };
 
   useEffect(() => {
     alive.current = true;
@@ -393,6 +416,7 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
         return;
       }
       setSpec(stored.spec);
+      await linkToPaper(stored.id);
       refreshSaved();
       onRefresh();
       const u = stored.spec.universe;
@@ -436,6 +460,7 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
     const stored = await api.builderSave(spec);
     if (stored.ok) {
       setSpec(stored.spec);
+      await linkToPaper(stored.id);
       refreshSaved();
       onRefresh();
       setRun({ status: 'idle', message: `Saved as ${stored.id}.` });
@@ -468,6 +493,28 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
 
   return (
     <div className="sb-page">
+      {forPaper && (
+        <div className="tnote">
+          <span className="mk">●</span>
+          <div>
+            Building rules for the paper <b>{forPaper}</b>. The strategy you save is linked to it in the Research Library.{' '}
+            <button
+              type="button"
+              className="tbtn sm"
+              onClick={() => {
+                try {
+                  window.sessionStorage.removeItem(BUILDER_PAPER_KEY);
+                } catch {
+                  /* nothing to clear */
+                }
+                setForPaper('');
+              }}
+            >
+              Don&apos;t link
+            </button>
+          </div>
+        </div>
+      )}
       <div className="tpanel sb-top">
         <div className="sb-name">
           <input

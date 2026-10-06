@@ -994,6 +994,61 @@ export type SavedBuilderStrategy = {
   result: { sharpe: number | null; runs: number; caveat: string; total_return?: number; max_drawdown?: number; fills?: number };
 };
 
+/* ---------------- research library ---------------- */
+
+export type ResearchLinkKind = 'builder' | 'registered' | 'tweezer';
+
+export type ResearchLink = { kind: ResearchLinkKind; id: string; note: string; timeframe: number };
+
+export type ResearchStats = {
+  trades: number;
+  win_rate: number | null;
+  profit_factor: number | null;
+  avg_win_pct: number | null;
+  avg_loss_pct: number | null;
+  expectancy_pct: number | null;
+  total_pct: number;
+  max_drawdown_pct: number;
+};
+
+export type ResearchLinkView = ResearchLink & {
+  title: string;
+  exists: boolean;
+  runnable: boolean;
+  result: SavedBuilderStrategy['result'] | null;
+  measured?: {
+    window: [string, string];
+    universe: string;
+    hold_sessions: number;
+    signals: number;
+    triggered: number;
+    gross: ResearchStats;
+    net: ResearchStats;
+  }[];
+};
+
+export type Paper = {
+  id: string;
+  title: string;
+  authors: string;
+  year: number | null;
+  kind: 'paper' | 'report' | 'book' | 'note';
+  source_url: string;
+  pdf: string;
+  added: string;
+  status: 'idea' | 'specified' | 'backtested' | 'rejected' | 'adopted';
+  markets: string[];
+  summary: string;
+  trade_idea: string;
+  implementation: string;
+  red_flags: string[];
+  reported_results: string;
+  hypothesis: string;
+  strategies: ResearchLink[];
+};
+
+export type PaperView = { paper: Paper; links: ResearchLinkView[] };
+
 async function del<T>(path: string): Promise<T> {
   const response = await fetch(path, { method: 'DELETE' });
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -1002,6 +1057,11 @@ async function del<T>(path: string): Promise<T> {
 
 export const api = {
   builderCatalog: () => get<BuilderCatalog>('/api/builder/catalog'),
+  papers: () => get<{ papers: PaperView[] }>('/api/research/papers'),
+  savePaper: (paper: Partial<Paper>) =>
+    post<({ ok: true } & PaperView) | { ok: false; errors: string[] }>('/api/research/papers', { paper }),
+  linkPaper: (paperId: string, link: Partial<ResearchLink>) =>
+    post<{ ok: boolean; errors?: string[] }>(`/api/research/papers/${encodeURIComponent(paperId)}/links`, { link }),
   builderValidate: (spec: BuilderSpec) => post<BuilderCheck>('/api/builder/validate', { spec }),
   builderSave: (spec: BuilderSpec) =>
     post<
@@ -1175,7 +1235,13 @@ export const api = {
   refreshFeed: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/feed', {}),
   snapshot: (workspace = '') =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
-  tweezer: (input: { symbols: string[]; start: string; end: string }) =>
+  tweezer: (input: {
+    symbols: string[];
+    start: string;
+    end: string;
+    universe?: string;
+    timeframe?: number;
+  }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/tweezer', input),
 };
 

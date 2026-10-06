@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Fourteen times this project was wrong
+## Fifteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -145,6 +145,16 @@ indicators. `PanelRow.adjusted()` now divides all four prices. The engine
 self-test golden file is unchanged, because its synthetic panel has no
 recorded ranges; results of candle-shape strategies on instruments with
 corporate actions inside their window may move.
+
+**15. The Tweezer port was not the operator's strategy.** (2026-10-06) The
+first port ran on 1-minute candles, restarted its indicators every morning,
+moved the stop to breakeven after T1, had no 15:00 signal cutoff, scaled the
+ATR stop buffer by entry, and — through `bracket.run` — never let the candle
+straight after the signal fill, which on 60-minute candles is the breakout
+hour itself. The operator's report specifies 15/30/60-minute candles and none
+of the rest. Every earlier Tweezer number (the "2 setups in 136,740 candles")
+measured a different strategy. Re-measured on the report's rules in research
+063: the report's result is not reproduced.
 
 ---
 

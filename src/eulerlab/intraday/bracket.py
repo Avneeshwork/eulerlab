@@ -111,6 +111,7 @@ def run(
     *,
     session_end_index: int | None = None,
     asset_class: str,
+    first_fillable: int = 1,
 ) -> Trade:
     """Execute `plan` against the candles that followed the signal.
 
@@ -126,6 +127,15 @@ def run(
 
     Each time the wrong number was plausible, which is what let it survive. A
     required argument turns all of that into a TypeError at import.
+
+    `first_fillable` is the first index of `forward` allowed to trigger the
+    entry. It defaults to 1, which is what this function has always done: the
+    candle straight after the signal could not fill. Every caller already
+    passes `forward` starting after the signal, so that skipped one real bar.
+    On minute bars that is a minute; on the Tweezer report's 60-minute bars it
+    is the hour in which C3 — the confirmation candle the rules define as the
+    entry — trades. The Tweezer scan passes 0. The paper signals keep 1 until
+    their recorded results are re-run (T-3980).
     """
     trade = Trade(plan=plan)
     remaining_1, remaining_2 = plan.shares_1, plan.shares_2
@@ -143,7 +153,7 @@ def run(
 
         # --- entry ---
         if not trade.filled:
-            if index > 0 and candle.high >= plan.entry:
+            if index >= first_fillable and candle.high >= plan.entry:
                 # A bar that opens above the trigger never offered the trigger
                 # price. Fill at the open, which is worse and is what happened.
                 fill = max(plan.entry, candle.open)
@@ -198,7 +208,9 @@ def run(
             trade.exits.append(Exit(candle.ts, fill, remaining_1, "target 1"))
             trade.costs += _cost(fill, remaining_1, Side.SELL, day, asset_class)
             remaining_1 = 0
-            if not breakeven_done:
+            # The paper signals' rules move the stop to breakeven here; the
+            # Tweezer report does not, and leaves the remainder to the trail.
+            if not breakeven_done and getattr(rules, "breakeven_after_t1", True):
                 stop = max(stop, trade.entry_price)
                 breakeven_done = True
 

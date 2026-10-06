@@ -488,21 +488,24 @@ REGISTRY: dict[str, Declaration] = {
         id="tweezer_bottom",
         title="Tweezer Bottom",
         summary=(
-            "Two-candle reversal on minute bars, with a stop-entry bracket. "
-            "Extremely rare: 2 setups in 136,740 candles."
+            "Two-candle intraday reversal on 15, 30 or 60-minute candles, entered on a "
+            "break of the first candle's high, as specified in the operator's report "
+            "(research/papers/protective-collar-2026-tweezer-bottom.yaml)."
         ),
         kind="technical",
         shape="pattern",
         asset_class=AssetClass.EQUITY,
         timeframe=Timeframe.MINUTE,
         emits=Emits.CONDITIONAL_ENTRY,
-        lookback=60,
+        lookback=100,
         risk_manager="risk-pct",
         trade_manager="bracket",
         is_strategy_subclass=False,
         logic=[
-            "Not from a paper — a practitioner candlestick pattern, coded to "
-            "be measured rather than because the literature supports it.",
+            "A practitioner candlestick pattern, specified in the operator's June 2026 "
+            "report rather than a published paper.",
+            "Candles of 15, 30 or 60 minutes built from Kite minute bars; indicators "
+            "read the last 100 candles across sessions.",
             "Require candle 1 bearish, its body at least 30% of its range, "
             "and its range at least 0.05% of price.",
             "Require candle 2 bullish, body at least 60% of its range, same range floor.",
@@ -510,13 +513,12 @@ REGISTRY: dict[str, Declaration] = {
             "Require a downtrend into it: candle 2 closes below a falling 20-period SMA.",
             "Require the pair to sit within 0.5% of the swing low of the 10 "
             "candles before candle 1.",
-            "Require ADX between 25 and 50, and ATR at least a floor "
-            "percentage of price, so a flat tape cannot produce a setup.",
-            "Enter on a stop above candle 2's high, stop under the matched "
-            "low, and reject unless the resulting risk is inside a band.",
-            "Take half at 2R and half at 3R, sized so the stop costs 1% of "
-            "equity; forced flat at the session close.",
-            "Extremely rare by construction: 2 setups in 136,740 candles.",
+            "Require 25 <= ADX(14) < 50, 25 <= RSI(14) <= 40, and ATR(14) at least 0.3% "
+            "of price. No signal from a candle closing at or after 15:00.",
+            "Enter on a stop at candle 1's high; stop at the pattern low minus the larger "
+            "of 0.1% and one ATR; skip unless risk is 1.0-1.5% of entry.",
+            "Half off at 2R, the rest at 3R; after +1.5R trail 0.5% below the peak. "
+            "Sized so the stop costs 1% of equity.",
         ],
     ),
 }

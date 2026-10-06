@@ -1,0 +1,46 @@
+id: zarattini-2024-profitable-day-trading
+title: A Profitable Day Trading Strategy For The U.S. Equity Market
+authors: Zarattini, C., Barbon, A., Aziz, A.
+year: 2024
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4729284
+pdf: ''
+added: '2026-08-22'
+status: specified
+markets:
+- US equities (paper)
+- NSE and US equities (here)
+summary: 'A five-minute opening range breakout traded only on ''stocks in play'': names whose
+  first-five-minute volume is unusually high against their own last 14 days. The publisher''s
+  summary reports Sharpe 2.81 and over 1,600% from 2016 to 2023 on the top 20 such stocks
+  each day.'
+trade_idea: A breakout means more when unusual attention is behind it. The plain opening range
+  breakout is weak; selecting which stocks to apply it to, by relative opening volume, is
+  where the edge is claimed to be.
+implementation: |-
+  - Opening range: the first 5 minutes; its high and low.
+  - Direction: long if the opening range closed above its open (short otherwise; long only here).
+  - Entry: stop order at the opening-range high.
+  - Stop: entry - 1.4 x daily ATR(14). Exit at the stop or the close.
+  - Universe: liquid names, price > $5, ATR > $0.50; trade the top 20 by relative first-5-minute volume (> 1).
+
+  Coded as orb_in_play (and the India variant orb_in_play_in). The rules were recovered from the publisher's own summary and a QuantConnect reproduction that agree; the paper itself returned 403. See docs/RESEARCH/019 and hypotheses/H-0004.yaml.
+red_flags:
+- The paper was not retrieved (SSRN 403). Any result tests our reading of two secondary sources
+  until the PDF is in docs/RESEARCH/papers/.
+- The selection is cross-sectional across thousands of names; the scanner here runs symbol
+  by symbol, so the top-20 basket is approximated.
+- Directly contradicts Mesfin on ORB; the two are consistent only if the edge is in selection,
+  which is what the test must show.
+reported_results: Sharpe 2.81, over 1,600% total return 2016-2023 on the top-20 stocks-in-play
+  basket (publisher's summary).
+hypothesis: H-0004
+strategies:
+- kind: registered
+  id: orb_in_play
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: orb_in_play_in
+  note: India variant
+  timeframe: 0

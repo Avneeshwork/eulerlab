@@ -1,0 +1,73 @@
+id: protective-collar-2026-tweezer-bottom
+title: Tweezer Bottom Strategy — Performance & Backtest Report
+authors: Protective Collar AI Technology Private Limited
+year: 2026
+kind: report
+source_url: ''
+pdf: ''
+added: '2026-10-06'
+status: backtested
+markets:
+- NSE equities, intraday
+summary: An intraday two-candle reversal scanned on 15, 30 and 60-minute NSE equity candles.
+  The report backtests 195 signals across 49 Nifty stocks from June 2025 to June 2026 and
+  finds 178 triggered trades, a 51% win rate and a 2.65 profit factor, before costs, measuring
+  each trade's return on the money put in and summing them.
+trade_idea: After a downtrend, a bearish candle followed by a strong bullish candle with almost
+  the same low marks a level where sellers ran out. If the next candle breaks the bearish
+  candle's high, buyers have taken control, and the move has room to run to two and three
+  times the risk taken.
+implementation: |-
+  Pattern
+  - C1 bearish, body at least 30% of its range; C2 bullish, body at least 60% of its range.
+  - Lows within 0.15% of each other; each candle's range at least 0.05% of the close.
+
+  Context (all must pass)
+  - Close below a falling SMA(20).
+  - C2's low within 0.5% of the lowest low of the 10 candles before C1.
+  - ATR(14) at least 0.3% of the close; 25 <= ADX(14) < 50; 25 <= RSI(14) <= 40.
+  - No signal from a candle that closes at or after 15:00 IST. No volume filter.
+
+  Trade
+  - Buy stop at C1's high (C3 breaking it is the entry). 0% buffer.
+  - Stop: pattern low - max(0.1% of pattern low, 1 x ATR).
+  - Risk (entry - stop) must be 1.0% to 1.5% of entry, else skip. Reward:risk at least 1.5.
+  - Size so the stop costs 1% of equity. Book half at 2R, the rest at 3R.
+  - After +1.5R, trail 0.5% below the highest price. Flat by the session close.
+
+  Here
+  - Coded in src/eulerlab/intraday/tweezer.py and scan.py; candles resampled from Kite minute bars, indicators carried across sessions over the last 100 candles.
+  - make tweezer-report re-runs the report's window and prints both sets of numbers.
+red_flags:
+- The report sums per-trade percentage returns and states 'costs not included'. On a 1.0-1.5%
+  stop, a round trip of Indian intraday costs is a meaningful fraction of the risk.
+- One year of data, 178 trades, and the report's own monthly table shows February and March
+  2026 contributing +90% of the +169% total. One strong stretch can carry a short sample.
+- Several thresholds were raised or removed after looking at results (ADX floor 20 to 25,
+  volume filter removed), and section 10 suggests more. Each is a configuration tried; none
+  is in the trial ledger.
+- '''Nifty stocks'' here are the 50 most-traded names by our own turnover ranking (ADR-008),
+  not the index list the report used.'
+- How long an untriggered buy stop stays live is not stated; here it expires at the session
+  close.
+- 'Re-measured here on the report''s window (research 063): not reproduced. Best variant,
+  15-minute candles, profit factor 1.31 and +0.12% per trade after costs; 30-minute loses
+  money. 32% of the report''s trades reach 3R; here about 4% do.'
+reported_results: '195 signals, 178 triggered. Win rate 51.12%, profit factor 2.65, average
+  win +2.97%, average loss -1.17%, expectancy +0.947% per trade, sum of returns +168.51%,
+  max drawdown -11.81%, before costs. By candle size: 15-min 56 trades, 51.8% win, +55.46%;
+  30-min 66 trades, 45.5%, +50.57%; 60-min 56 trades, 57.1%, +62.48%.'
+hypothesis: ''
+strategies:
+- kind: tweezer
+  id: tweezer_bottom
+  note: 15-minute candles
+  timeframe: 15
+- kind: tweezer
+  id: tweezer_bottom
+  note: 30-minute candles
+  timeframe: 30
+- kind: tweezer
+  id: tweezer_bottom
+  note: 60-minute candles, the report's preferred size
+  timeframe: 60

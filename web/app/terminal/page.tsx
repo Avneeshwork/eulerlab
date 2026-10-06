@@ -49,9 +49,11 @@ import {
   Wrench,
   Hammer,
   PiggyBank,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
+import { ResearchLibrary } from '@/components/terminal/ResearchLibrary';
 import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
 import { OptionsTab } from '@/components/terminal/OptionsTab';
@@ -81,6 +83,7 @@ type PageId =
   | 'instruments'
   | 'data'
   | 'sip'
+  | 'research'
   | 'report';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
@@ -97,6 +100,13 @@ const NAV: NavItem[] = [
 type Tool = { id: PageId; title: string; description: string; icon: LucideIcon };
 
 const TOOLS: Tool[] = [
+  {
+    id: 'research',
+    title: 'Research Library',
+    description:
+      'Papers and reports, each with its summary, trade idea, implementation logic and red flags, and the strategies that test it.',
+    icon: BookOpen,
+  },
   {
     id: 'builder',
     title: 'Strategy Builder',
@@ -148,6 +158,7 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
     parent: 'tools',
   },
   data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
+  research: { title: 'Research Library', sub: 'Every paper behind a strategy, and how its strategies did.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
 };
 
@@ -467,6 +478,18 @@ export default function TerminalPage() {
         )}
 
         {page === 'builder' && <StrategyBuilder onRefresh={refresh} />}
+        {page === 'research' && (
+          <ResearchLibrary
+            selected={reportId}
+            onSelect={(id) => setPage('research', id)}
+            onBacktest={(ids) => {
+              const chosen = (fleet?.strategies ?? []).filter((s) => ids.includes(s.id));
+              if (chosen.length) setConfiguring(chosen);
+            }}
+            onReport={(id) => setPage('report', id)}
+            onBuild={() => setPage('builder')}
+          />
+        )}
         {page === 'instruments' && <InstrumentsTab />}
         {page === 'sip' && <SipTab />}
         {page === 'data' && <DataTab workspace={workspace} />}
@@ -514,6 +537,8 @@ export default function TerminalPage() {
           onRun={() => {
             setPendingRun(configuring.map((s) => s.id));
             setConfiguring(null);
+            // The run happens on the Strategies page, where its progress shows.
+            setPage('strategies');
           }}
           onClose={() => setConfiguring(null)}
         />
