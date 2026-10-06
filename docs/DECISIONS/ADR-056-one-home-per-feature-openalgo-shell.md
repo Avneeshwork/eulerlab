@@ -40,6 +40,13 @@ navigation bar on phones. Icons from `lucide-react`, the set OpenAlgo uses.
 Implemented as token changes in `tokens.css` plus one override file,
 `app/terminal/shell.css`, so the change reads in one place.
 
+**The backtest report is a page, not a dialog.** `#report/<strategy>` shows
+OpenAlgo's results layout: stat cards (net profit, CAGR, max drawdown, Sharpe
+against the bar, Sortino, win rate, profit factor, costs) and tabs for the
+equity curve, drawdown episodes, a monthly-returns heatmap, the list of
+trades, instruments and fills. Trades are round trips matched first in, first
+out from the fill ledger, client-side, so no endpoint changed.
+
 **The palette navigates.** Every entry is a page, a tool or a strategy, and
 choosing one goes there.
 

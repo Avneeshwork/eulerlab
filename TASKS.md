@@ -21,6 +21,7 @@ Verify: `cd web && npx tsc --noEmit && npm run build`, then `make workbench`.
 | T-3958 | **⌘K listed things it could not open** | DONE — entries were inert and one ("RUN") did nothing. Every entry now navigates: a page, a tool, or a strategy's explanation |
 | T-3959 | OpenAlgo's look | DONE — zinc tokens, icon navigation, card summaries, sentence-case labels, a bottom bar on phones. `app/terminal/shell.css` |
 | T-3960 | The Run tab's per-strategy result table has no successor | OPEN — a selection backtest updates each row in place and reports counts; a side-by-side table of the batch just run would need its own place in the Strategies page |
+| T-3961 | **The backtest report had no list of trades** | DONE — the report is a page now (`#report/<id>`), laid out after OpenAlgo's results: eight stat cards, then Overview, Equity, Drawdown, Returns, Trades, Instruments and Orders tabs. Round trips are matched FIFO from the fills (`lib/backtestStats.ts`, hand-checked on a five-fill ledger including a partial exit and a short), with win rate, profit factor, expectancy and a CSV export. Drawdown episodes and a monthly-returns heatmap are compounded from the equity curve |
 
 ---
 

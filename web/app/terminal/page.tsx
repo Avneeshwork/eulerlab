@@ -10,7 +10,8 @@
  * The rule the layout enforces is that every feature has exactly one home:
  *
  *   Dashboard   the market today (was Snapshot)
- *   Strategies  every strategy, its report, and the one way to backtest it
+ *   Strategies  every strategy and the one way to backtest it; each strategy's
+ *               report opens as its own page (#report/<id>)
  *               (was Library, plus the Run tab, which was a second way)
  *   Charts      the charting surface and the macro band
  *   Options     the option chain, its analytics and the payoff builder
@@ -57,7 +58,7 @@ import { BacktestDialog } from '@/components/terminal/BacktestDialog';
 import { DataTab } from '@/components/terminal/DataTab';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
 import { ExplainDialog } from '@/components/terminal/ExplainDialog';
-import { ReportDialog } from '@/components/terminal/ReportDialog';
+import { BacktestReport } from '@/components/terminal/BacktestReport';
 import { ChartTab } from '@/components/terminal/ChartTab';
 import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
 import { Library } from '@/components/terminal/Library';
@@ -75,7 +76,8 @@ type PageId =
   | 'tools'
   | 'builder'
   | 'instruments'
-  | 'data';
+  | 'data'
+  | 'report';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
 
@@ -127,14 +129,17 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   builder: { title: 'Strategy Builder', sub: 'Compose or write a strategy, then validate and backtest it.', parent: 'tools' },
   instruments: { title: 'Instruments', sub: 'Every instrument that has data.', parent: 'tools' },
   data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
+  report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
 };
 
 const PAGE_IDS = Object.keys(TITLES) as PageId[];
 
-function readHash(): PageId {
-  if (typeof window === 'undefined') return 'dashboard';
-  const id = window.location.hash.replace(/^#\/?/, '') as PageId;
-  return PAGE_IDS.includes(id) ? id : 'dashboard';
+/** `#strategies`, or `#report/<strategy id>` for one strategy's report. */
+function readHash(): { page: PageId; strategy: string } {
+  if (typeof window === 'undefined') return { page: 'dashboard', strategy: '' };
+  const [id, strategy = ''] = window.location.hash.replace(/^#\/?/, '').split('/');
+  const page = PAGE_IDS.includes(id as PageId) ? (id as PageId) : 'dashboard';
+  return { page, strategy: decodeURIComponent(strategy) };
 }
 
 export default function TerminalPage() {
@@ -155,23 +160,32 @@ export default function TerminalPage() {
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [startingCash, setStartingCash] = useState(1_000_000);
   const [explaining, setExplaining] = useState<string | null>(null);
-  const [reporting, setReporting] = useState<FleetStrategy | null>(null);
+  // Which strategy the report page shows. An id rather than the object, so a
+  // bookmarked report resolves once the registry has loaded.
+  const [reportId, setReportId] = useState('');
   const [configuring, setConfiguring] = useState<FleetStrategy[] | null>(null);
   const [pendingRun, setPendingRun] = useState<string[]>([]);
 
   const workspace = '';
 
-  const setPage = useCallback((next: PageId) => {
+  const setPage = useCallback((next: PageId, strategy = '') => {
     setPageState(next);
-    if (typeof window !== 'undefined' && window.location.hash !== `#${next}`) {
-      window.history.pushState(null, '', `#${next}`);
+    setReportId(strategy);
+    const hash = strategy ? `#${next}/${encodeURIComponent(strategy)}` : `#${next}`;
+    if (typeof window !== 'undefined' && window.location.hash !== hash) {
+      window.history.pushState(null, '', hash);
     }
     window.scrollTo({ top: 0 });
   }, []);
 
   useEffect(() => {
-    setPageState(readHash());
-    const onHash = () => setPageState(readHash());
+    const apply = () => {
+      const { page: next, strategy } = readHash();
+      setPageState(next);
+      setReportId(strategy);
+    };
+    apply();
+    const onHash = apply;
     window.addEventListener('popstate', onHash);
     window.addEventListener('hashchange', onHash);
     return () => {
@@ -222,6 +236,7 @@ export default function TerminalPage() {
     []
   );
 
+  const reporting = fleet?.strategies.find((s) => s.id === reportId) ?? null;
   const heading = TITLES[page];
   const activeNav: PageId = heading.parent ?? page;
 
@@ -290,19 +305,21 @@ export default function TerminalPage() {
       </header>
 
       <div className="tpage">
-        <div className="tpage-head">
-          {heading.parent && (
-            <nav className="tcrumb" aria-label="Breadcrumb">
-              <button type="button" onClick={() => setPage(heading.parent as PageId)}>
-                {TITLES[heading.parent].title}
-              </button>
-              <ChevronRight size={14} aria-hidden="true" />
-              <span>{heading.title}</span>
-            </nav>
-          )}
-          <h1>{heading.title}</h1>
-          <p>{heading.sub}</p>
-        </div>
+        {page !== 'report' && (
+          <div className="tpage-head">
+            {heading.parent && (
+              <nav className="tcrumb" aria-label="Breadcrumb">
+                <button type="button" onClick={() => setPage(heading.parent as PageId)}>
+                  {TITLES[heading.parent].title}
+                </button>
+                <ChevronRight size={14} aria-hidden="true" />
+                <span>{heading.title}</span>
+              </nav>
+            )}
+            <h1>{heading.title}</h1>
+            <p>{heading.sub}</p>
+          </div>
+        )}
 
         {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 
@@ -345,7 +362,7 @@ export default function TerminalPage() {
               onRefresh={refresh}
               onDeploy={setDeploying}
               onExplain={setExplaining}
-              onReport={setReporting}
+              onReport={(strategy) => setPage('report', strategy.id)}
               onConfigure={setConfiguring}
               dateRange={dateRange}
               startingCash={startingCash}
@@ -354,6 +371,21 @@ export default function TerminalPage() {
             />
           </>
         )}
+
+        {page === 'report' &&
+          (reporting ? (
+            <BacktestReport
+              key={reporting.id}
+              strategy={reporting}
+              bar={fleet?.bar ?? null}
+              workspace={workspace}
+              onBack={() => setPage('strategies')}
+            />
+          ) : (
+            <div className="tempty">
+              {fleet ? 'No strategy by that name in the registry.' : 'Reading the registry…'}
+            </div>
+          ))}
 
         {page === 'charts' && <ChartTab />}
         {page === 'options' && <OptionsTab />}
@@ -453,13 +485,6 @@ export default function TerminalPage() {
       )}
       {explaining !== null && (
         <ExplainDialog strategy={explaining} onClose={() => setExplaining(null)} />
-      )}
-      {reporting && (
-        <ReportDialog
-          strategy={reporting}
-          workspace={workspace}
-          onClose={() => setReporting(null)}
-        />
       )}
       {configuring && (
         <BacktestDialog

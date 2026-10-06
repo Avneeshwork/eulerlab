@@ -1,7 +1,7 @@
 /**
  * One money formatter, because five of them disagreed.
  *
- * `ReportDialog`, `ExplainDialog`, `AdoptedReport`, `SweepPanel` and `Library`
+ * `ReportDialog` (now `BacktestReport`), `ExplainDialog`, `AdoptedReport`, `SweepPanel` and `Library`
  * each grew their own, with three different signatures — `money(v)`,
  * `money(v, market)` and `moneyIn(class)(v)`. The one that took no market wrote
  * ₹ unconditionally, which was right while every backtest here was NSE and

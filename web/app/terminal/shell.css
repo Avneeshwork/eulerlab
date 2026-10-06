@@ -386,3 +386,129 @@
   font-weight: 500;
   color: var(--ink-2);
 }
+
+/* ============================ backtest report ============================
+   OpenAlgo's results page: title and period, a grid of stat cards, tabs, then
+   one card per question. */
+
+.rpt-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+.rpt-head h1 {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.rpt-head p { margin: 4px 0 0; color: var(--ink-3); font-size: 14px; }
+.rpt-back {
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font-size: 13px;
+  cursor: pointer;
+}
+.rpt-back:hover { color: var(--ink); }
+.rpt-runs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rpt-runs > span { font-size: 13px; color: var(--ink-3); margin-right: 2px; }
+
+.rpt-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.rpt-grid .tstat-card b { font-size: 24px; }
+.terminal .tstat-card b.pos { color: var(--up); }
+.terminal .tstat-card b.neg { color: var(--down); }
+@media (max-width: 900px) {
+  .rpt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.rpt-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  overflow-x: auto;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.rpt-tabs button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  height: 30px;
+  padding: 0 var(--s3);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.rpt-tabs button[aria-selected='true'] {
+  background: var(--ground);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.terminal .rpt-card h3 { margin-bottom: 2px; }
+.rpt-sub { margin: 0 0 var(--s4); font-size: 13px; color: var(--ink-3); }
+.rpt-two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--s4);
+  align-items: start;
+}
+.rpt-stack { display: flex; flex-direction: column; gap: var(--s4); }
+
+.rpt-kv { margin: 0; display: flex; flex-direction: column; }
+.rpt-kv > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+}
+.rpt-kv > div:last-child { border-bottom: 0; }
+.rpt-kv dt { color: var(--ink-3); }
+.rpt-kv dd { margin: 0; font-weight: 500; font-variant-numeric: tabular-nums; }
+.rpt-kv.cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  column-gap: var(--s6);
+}
+.rpt-kv.cols > div:last-child { border-bottom: 1px solid var(--rule); }
+.rpt-kv .pos,
+.terminal .ttable .pos { color: var(--up); }
+.rpt-kv .neg,
+.terminal .ttable .neg { color: var(--down); }
+
+.rpt-recon { margin: 0; font-size: 13px; color: var(--ink-3); }
+.rpt-recon.bad { color: var(--fail); }
+
+.terminal .ttag.long { color: var(--up); }
+.terminal .ttag.short { color: var(--down); }
+
+/* Monthly heatmap: three steps each way, one per 2% of return. */
+.ttable.heat td { min-width: 58px; }
+.heat-0 { color: var(--ink-3); }
+.heat-up1 { background: color-mix(in srgb, var(--up) 12%, transparent); }
+.heat-up2 { background: color-mix(in srgb, var(--up) 24%, transparent); }
+.heat-up3 { background: color-mix(in srgb, var(--up) 40%, transparent); }
+.heat-dn1 { background: color-mix(in srgb, var(--down) 12%, transparent); }
+.heat-dn2 { background: color-mix(in srgb, var(--down) 24%, transparent); }
+.heat-dn3 { background: color-mix(in srgb, var(--down) 40%, transparent); }
+
+.rpt-card .ttable td { white-space: nowrap; }
