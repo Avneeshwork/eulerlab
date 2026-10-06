@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { marketsFor, marketsPresent } from '@/lib/assetClasses';
+import { ASSET_CLASSES, assetClassLabel, homeMarket } from '@/lib/assetClasses';
 import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { Spark } from '@/components/terminal/Spark';
 import { AdoptedReport } from '@/components/terminal/AdoptedReport';
@@ -187,13 +187,16 @@ export function Library({
   // Markets, not declared classes. Built from `asset_class` alone this listed
   // exactly two — equity and crypto — because those are the only tags any
   // strategy carries, so US equity and FX had no way in from here at all.
-  const classes = useMemo(() => marketsPresent(fleet?.strategies ?? []), [fleet]);
+  const classes = useMemo(() => {
+    const present = new Set((fleet?.strategies ?? []).map(homeMarket));
+    return ASSET_CLASSES.filter((option) => present.has(option.value));
+  }, [fleet]);
 
   const rows = useMemo(() => {
     if (!fleet) return [];
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
-      if (assetClass && !marketsFor(s).includes(assetClass)) return false;
+      if (assetClass && homeMarket(s) !== assetClass) return false;
       if (style && styleOf(s) !== style) return false;
       if (source && sourceOf(s) !== source) return false;
       if (verdict && verdictOf(s) !== verdict) return false;
@@ -445,7 +448,7 @@ export function Library({
                     <td className="st-name">
                       <b>{strategy.title}</b>
                       <span>
-                        {(strategy.adopted?.market ?? strategy.result.asset_class ?? strategy.asset_class) || 'equity'} ·{' '}
+                        {assetClassLabel(homeMarket(strategy))} ·{' '}
                         {styleOf(strategy) === 'intraday' ? 'intraday' : 'daily'} · {SOURCE_LABEL[sourceOf(strategy)].toLowerCase()}
                       </span>
                     </td>

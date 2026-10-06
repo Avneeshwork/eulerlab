@@ -17,6 +17,7 @@ Verify: `make workbench` → Strategies.
 | ID | Task | Status |
 |---|---|---|
 | T-3988 | **Cards with jargon and one number** | DONE — a sortable table: name, equity sparkline, annual return, the Nifty over the same period, max drawdown, Sharpe, win rate, trades and a plain verdict (Beats the bar / Positive, not proven / Loses money / Not run). Filters by market, style, source and verdict. A side panel holds the rules, key stats, Backtest, Full report, How it works and Deploy, with the old detail beneath. The four summary boxes are one line |
+| T-3990 | **"Equities (NSE)" and "US equities" listed the same 38 strategies** | FIXED — the filter used every market a strategy *could* run on; it now uses the market of its displayed run (`homeMarket`). Renamed "Equities (NSE)" to "Indian equities". 28 India, 10 US, 10 crypto |
 | T-3989 | Win rate and trades are blank for runs recorded before reports carried trades | OPEN — re-running a strategy fills them |
 
 ---

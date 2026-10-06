@@ -22,7 +22,7 @@ export type AssetClassOption = {
 };
 
 export const ASSET_CLASSES: AssetClassOption[] = [
-  { value: 'equity', label: 'Equities (NSE)', note: 'Kite minute bars and the daily panel' },
+  { value: 'equity', label: 'Indian equities', note: 'NSE: Kite minute bars and the daily panel' },
   { value: 'us', label: 'US equities', note: 'Alpaca daily and 1-minute, IEX feed' },
   { value: 'crypto', label: 'Crypto', note: 'Binance minute archive, Delta fees' },
   { value: 'fx', label: 'FX', note: 'FXCM minute bars, spread measured per bar' },
@@ -65,6 +65,23 @@ export function marketsFor(strategy: { asset_class: string; timeframe: string })
   if (strategy.asset_class === 'crypto') return ['crypto'];
   if (strategy.timeframe === '1m') return ['equity', 'us', 'fx'];
   return ['equity', 'us'];
+}
+
+/** The one market a strategy belongs to, for filtering a list of them.
+ *
+ * `marketsFor` answers "where could this run", and for every equity strategy
+ * that is both India and the US — so a filter built on it listed the same 38
+ * strategies under "Indian equities" and "US equities". This answers "which
+ * market is this result about": the market of its displayed run (the adopted
+ * run for a swept signal, else the last stored run), falling back to what it
+ * is declared for. */
+export function homeMarket(strategy: {
+  asset_class: string;
+  adopted?: { market: string } | null;
+  result?: { asset_class?: string };
+}): string {
+  if (strategy.asset_class === 'crypto') return 'crypto';
+  return strategy.adopted?.market || strategy.result?.asset_class || strategy.asset_class || 'equity';
 }
 
 /** Markets at least one of these strategies can run on, in canonical order.
