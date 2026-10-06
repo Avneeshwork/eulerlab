@@ -1,0 +1,28 @@
+id: sah-2009-seasonality-india
+title: 'Stock Market Seasonality: A Study of the Indian Stock Market'
+authors: Sah, A. N.
+year: 2009
+kind: paper
+source_url: https://nsearchives.nseindia.com/content/research/res_paper_final228.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Nifty and Nifty Junior, 1997-2009
+summary: Tests month-of-year effects on Nifty and Nifty Junior, 1997-2009, finding a December
+  effect (with January, July and September once ARMA-corrected) and no April tax-year effect.
+trade_idea: Indian stocks rise in December.
+implementation: |-
+  - Monthly log returns on 11 month dummies, May as base; ARMA terms added.
+
+  Here: india_december holds NIFTYBEES in December only.
+red_flags:
+- About 12 observations per month; ARMA terms chosen by trial and error after OLS was insignificant.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: 'Nifty ARMA: December +5.83% vs May (t 2.52).'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_december
+  note: ''
+  timeframe: 0

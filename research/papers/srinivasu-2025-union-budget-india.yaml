@@ -1,0 +1,31 @@
+id: srinivasu-2025-union-budget-india
+title: 'Stock Market Reactions to Union Budget Announcements: An Econometric Assessment'
+authors: Srinivasu, K., Prathyusha, M.
+year: 2025
+kind: paper
+source_url: https://ijeba.com/journal/879/download/Stock+Market+Reactions+to+Union+Budget+Announcements%3A+An+Econometric+Assessment.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Nifty and Sensex, 2000-2024
+summary: An event study of Union Budget days, 2000-2024, reporting positive abnormal returns
+  around the budget that shrink over time, with higher volume and volatility.
+trade_idea: The budget resolves policy uncertainty, and the market tends to rise into and
+  just after it.
+implementation: |-
+  - Windows (-1,+1) and (-5,+5) around budget day.
+
+  Here: india_budget_days holds NIFTYBEES over days -1, 0 and +1 of each Union Budget, interim budgets included.
+red_flags:
+- The reported abnormal returns do not match the stated market-model method; treat as possibly
+  unreliable.
+- About 25 events.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: '(-1,+1) CAR: Nifty 0.68%, Sensex 0.72%; (-5,+5): Nifty 1.24%.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_budget_days
+  note: ''
+  timeframe: 0

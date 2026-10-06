@@ -1,0 +1,34 @@
+id: singh-2020-time-series-momentum-india
+title: Time-series and cross-sectional momentum in Indian stock market
+authors: Singh, S., Walia, N.
+year: 2020
+kind: paper
+source_url: https://apcz.umk.pl/CJFA/article/download/CJFA.2020.018/28350
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- BSE stocks, 2002-2019
+summary: Tests time-series (absolute) and cross-sectional momentum on 458 BSE stocks, 2002-2019.
+  Both are profitable and survive CAPM and Fama-French adjustment; time-series momentum beats
+  cross-sectional at every holding period, which the authors attribute to its time-varying
+  net long position.
+trade_idea: A stock that has risen over the past year keeps rising; own every stock with a
+  positive past return, short the rest.
+implementation: |-
+  - Signal: return from month t-12 to t-2; long if positive, short if negative; equal-weighted; held 1-12 months.
+
+  Here: india_tsmom holds every stock in the point-in-time top 250 with a positive t-12 to t-2 return, monthly.
+red_flags:
+- 'Only stocks with complete data for the whole period: survivorship bias.'
+- Returns winsorised; no costs; the edge is largely a time-varying net market exposure.
+- The same authors report about half this return for a near-identical strategy (2022).
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: 'TSMOM K=1: 2.326%/month (t 4.82), Fama-French alpha 2.149%, Sharpe 0.83;
+  cross-sectional K=1: 1.954%, Sharpe 0.69.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_tsmom
+  note: ''
+  timeframe: 0

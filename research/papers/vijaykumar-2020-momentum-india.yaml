@@ -1,0 +1,35 @@
+id: vijaykumar-2020-momentum-india
+title: Does Momentum Investing Work in Indian Equities?
+authors: Vijaykumar, A.
+year: 2020
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3614509
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Indian equities, ~2000-2020
+summary: Tests long-only relative-strength momentum portfolios over about twenty years of
+  Indian data against Nifty buy-and-hold and random portfolios. All momentum portfolios comfortably
+  beat the Nifty, with higher volatility and deeper drawdowns; ranking on volatility-adjusted
+  return softened the drawdowns.
+trade_idea: Hold the strongest recent performers; ranking on return per unit of risk keeps
+  the trend and drops the most erratic names.
+implementation: |-
+  - Long-only momentum on large and mid caps; a volatility-adjusted ranking variant.
+
+  Here: india_sharpe_momentum holds the 30 stocks with the best 12-month return over 12-month volatility, monthly.
+red_flags:
+- 'Abstract only: SSRN and the journal blocked the full text, so the formation length, portfolio
+  size and weighting run here are assumptions, stated in the implementation.'
+- Practitioner paper from a firm that sells momentum products; not peer reviewed; many variants
+  tested.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: 'Qualitative: all momentum portfolios comfortably outperformed Nifty buy-and-hold,
+  with higher volatility and drawdowns.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_sharpe_momentum
+  note: ''
+  timeframe: 0

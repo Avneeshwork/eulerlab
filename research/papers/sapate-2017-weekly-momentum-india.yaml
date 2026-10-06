@@ -1,0 +1,32 @@
+id: sapate-2017-weekly-momentum-india
+title: Weekly Momentum Study on Indian Stock Markets
+authors: Sapate, U. B.
+year: 2017
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3065621
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Indian stocks
+summary: A seven-page study reporting that weekly momentum strategies, buying last week's
+  winners and selling losers, earn significant positive returns on Indian stocks, attributed
+  to behavioural factors.
+trade_idea: 'Short-horizon return continuation: last week''s winners keep rising next week.'
+implementation: |-
+  - Not stated beyond weekly formation and holding.
+
+  Here: india_weekly_momentum holds the top decile by 5-day return for 5 days.
+red_flags:
+- 'Abstract only: SSRN and the journal blocked the full text, so the formation length, portfolio
+  size and weighting run here are assumptions, stated in the implementation.'
+- Weekly continuation contradicts the well-documented short-term reversal; weekly turnover
+  makes costs dominant.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: 'Qualitative: significant positive returns from weekly momentum.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_weekly_momentum
+  note: ''
+  timeframe: 0

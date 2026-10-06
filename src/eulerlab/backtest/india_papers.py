@@ -33,7 +33,7 @@ import math
 from bisect import bisect_right
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from functools import cache
 from itertools import pairwise
 
@@ -270,6 +270,87 @@ def median_turnover(rows: Sequence[PanelRow]) -> float | None:
     return values[len(values) // 2] if len(values) >= MONTH else None
 
 
+class AbsoluteMomentum(Strategy):
+    """Time-series momentum, long leg: hold every stock whose own past return
+    is positive, equal-weighted. With `market_filter`, go to cash in a
+    "bearish abnormal" month (Singh et al. 2022): the index's 1-month move is
+    larger than its 24-month move, and down."""
+
+    def __init__(self, name: str, score: Score, *, market_filter: bool, lookback: int) -> None:
+        self.name = name
+        self.score = score
+        self.market_filter = market_filter
+        self.rebalance_every = MONTH
+        self.lookback = lookback
+
+    def _bearish_abnormal(self, view: MarketView) -> bool:
+        market = view.history.get(INDEX_ETF)
+        if not market or len(market) < 24 * MONTH + 1:
+            return False
+        last = market[-1].close
+        one = last / market[-MONTH - 1].close - 1.0
+        two_years = last / market[-24 * MONTH - 1].close - 1.0
+        return abs(one) >= abs(two_years) and one < 0
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        if self.market_filter and self._bearish_abnormal(view):
+            return {}
+        chosen = []
+        for symbol in liquid_universe(view):
+            value = self.score(view.history[symbol])
+            if value is not None and value > 0:
+                chosen.append(symbol)
+        if len(chosen) < 5:
+            return {}
+        return dict.fromkeys(chosen, 1.0 / len(chosen))
+
+
+class BigFallReversal(Strategy):
+    """Parthasarathy & Sendilvelu (2022), long side: hold large stocks for six
+    months after a calendar month in which they fell 20% or more, counting an
+    event only if there was none in the six months before it."""
+
+    rebalance_every = MONTH
+
+    def __init__(self, *, threshold: float = -0.20, months: int = 6, top: int = 50) -> None:
+        self.name = "india_big_fall_reversal"
+        self.threshold = threshold
+        self.months = months
+        self.top = top
+        self.lookback = (2 * months + 2) * MONTH
+
+    def _held(self, rows: Sequence[PanelRow]) -> bool:
+        closes = _monthly_closes(rows)
+        # Monthly returns, oldest first; the last element is the month in progress.
+        rets = [b / a - 1.0 for a, b in pairwise(closes[:-1]) if a > 0]
+        events: list[bool] = []
+        for k, value in enumerate(rets):
+            fresh = not any(events[max(0, k - self.months) : k])
+            events.append(value <= self.threshold and fresh)
+        return any(events[-self.months :])
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        chosen = [s for s in liquid_universe(view, self.top) if self._held(view.history[s])]
+        if not chosen:
+            return {}
+        return dict.fromkeys(chosen, 1.0 / max(len(chosen), 5))
+
+
+def mean_over_sd(days: int) -> Score:
+    """Mean daily log return over its standard deviation (physical momentum's
+    inverse-volatility p3, Tripurana & Devulapally 2023)."""
+
+    def score(rows: Sequence[PanelRow]) -> float | None:
+        window = rows[-days - 1 :]
+        rets = [
+            math.log(b.close / a.close) for a, b in pairwise(window) if a.close > 0 and b.close > 0
+        ]
+        sd = _sd(rets)
+        return (sum(rets) / len(rets)) / sd if sd and len(rets) >= days // 2 else None
+
+    return score
+
+
 class LowBeta(Strategy):
     """The long leg of Betting Against Beta (Agarwalla et al. 2014).
 
@@ -473,6 +554,39 @@ def is_monthly_expiry(calendar: Sequence[date], i: int) -> bool:
     return position == i
 
 
+UNION_BUDGETS = (
+    date(2016, 2, 29),
+    date(2017, 2, 1),
+    date(2018, 2, 1),
+    date(2019, 2, 1),
+    date(2019, 7, 5),
+    date(2020, 2, 1),
+    date(2021, 2, 1),
+    date(2022, 2, 1),
+    date(2023, 2, 1),
+    date(2024, 2, 1),
+    date(2024, 7, 23),
+    date(2025, 2, 1),
+    date(2026, 2, 1),
+)
+"""Union Budget presentation days, interim budgets included. # ASSUMPTION: A-042."""
+
+
+def around_budget(calendar: Sequence[date], i: int) -> bool:
+    """Days -1, 0 and +1 around each Union Budget. A budget on a day the market
+    did not trade counts from the next trading day."""
+    for budget in UNION_BUDGETS:
+        event = bisect_right(calendar, budget - timedelta(days=1))
+        if event < len(calendar) and event - 1 <= i <= event + 1:
+            return True
+    return False
+
+
+def december(calendar: Sequence[date], i: int) -> bool:
+    """Sah (2009): the December effect."""
+    return calendar[i].month == 12
+
+
 def post_holiday(calendar: Sequence[date], i: int) -> bool:
     """Lu & Patel (2016): the first trading day after an exchange holiday —
     a weekday the market was shut, between the previous trading day and this."""
@@ -565,6 +679,27 @@ def _macd_buy() -> Strategy:
     )
     strategy = BuiltStrategy(spec)
     strategy.name = "india_macd_buy"
+    return strategy
+
+
+def _nifty_sma60() -> Strategy:
+    from eulerlab.builder.compile import BuiltStrategy
+    from eulerlab.builder.spec import BuilderSpec
+
+    close = {"kind": "indicator", "name": "close", "params": {}}
+    sma = {"kind": "indicator", "name": "sma", "params": {"period": 60}}
+    spec = BuilderSpec.model_validate(
+        {
+            "id": "b_india_nifty_sma60",
+            "name": "Nifty above its 60-day average",
+            "universe": {"asset_class": "equity", "universe": "all", "instruments": [INDEX_ETF]},
+            "entry": {"rules": [{"left": close, "op": "above", "right": sma}]},
+            "exit": {"rules": [{"left": close, "op": "below", "right": sma}]},
+            "sizing": {"max_positions": 1},
+        }
+    )
+    strategy = BuiltStrategy(spec)
+    strategy.name = "india_nifty_sma60"
     return strategy
 
 
@@ -935,6 +1070,140 @@ STRATEGIES: tuple[PaperStrategy, ...] = (
             rebalance_every=MONTH,
             lookback=YEAR + 5,
         ),
+    ),
+    PaperStrategy(
+        "india_tsmom",
+        "Time-series momentum, long leg (India)",
+        "singh-2020-time-series-momentum-india",
+        "Singh & Walia (2020), Copernican Journal of Finance & Accounting 9(3)",
+        "Hold every stock in the point-in-time top 250 whose own return from month t-12 to t-2 is positive.",
+        (
+            "Signal: return over months t-12 to t-2 (one-month gap). Positive means long.",
+            "Hold all positive stocks, equal-weighted, rebalanced monthly. The short leg "
+            "(negative stocks) is dropped.",
+        ),
+        13 * MONTH,
+        lambda: AbsoluteMomentum(
+            "india_tsmom", momentum(11 * MONTH, MONTH), market_filter=False, lookback=13 * MONTH
+        ),
+    ),
+    PaperStrategy(
+        "india_tsmom_risk_managed",
+        "Risk-managed time-series momentum (India)",
+        "singh-2022-risk-managed-momentum-india",
+        "Singh, Walia, Bekiros, Gupta, Kumar & Mishra (2022), JEFAS 27(54)",
+        "Time-series momentum's long leg, in cash after a month when the index fell more than over two years.",
+        (
+            "Signal: 12-month return with a one-month gap; hold positive stocks, equal-weighted.",
+            "Market state: if NIFTYBEES's 1-month move is larger than its 24-month move and "
+            "down, hold cash that month (the paper goes short-only; long only here).",
+        ),
+        25 * MONTH,
+        lambda: AbsoluteMomentum(
+            "india_tsmom_risk_managed",
+            momentum(12 * MONTH, MONTH),
+            market_filter=True,
+            lookback=25 * MONTH,
+        ),
+    ),
+    PaperStrategy(
+        "india_budget_days",
+        "Union Budget days, Nifty (India)",
+        "srinivasu-2025-union-budget-india",
+        "Srinivasu & Prathyusha (2025), International Journal of Economics and Business Administration 23(1)",
+        "Hold NIFTYBEES over the day before, the day of, and the day after each Union Budget.",
+        (
+            "Long NIFTYBEES over trading days -1, 0 and +1 around each Union Budget, interim included.",
+        ),
+        5,
+        _calendar("india_budget_days", around_budget),
+        "all",
+        INDEX_ONLY,
+    ),
+    PaperStrategy(
+        "india_nifty_sma60",
+        "Nifty above its 60-day average (India)",
+        "mitra-2011-moving-average-rules-india",
+        "Mitra (2011), International Journal of Business and Management 6(7)",
+        "Hold NIFTYBEES while it closes above its 60-day simple moving average.",
+        (
+            "Long NIFTYBEES while the close is above SMA(60); in cash when it closes below.",
+            "The paper is always in the market, short below the average; long only here. "
+            "SMA(60) is the rule the paper finds survives costs best.",
+        ),
+        70,
+        _nifty_sma60,
+        "all",
+        INDEX_ONLY,
+    ),
+    PaperStrategy(
+        "india_physical_momentum",
+        "Physical momentum, return over volatility (India)",
+        "tripurana-2023-physical-momentum-india",
+        "Tripurana & Devulapally (2023), arXiv:2302.13245",
+        "Hold the 10 stocks of the point-in-time top 250 with the best 6-month mean-over-volatility of daily returns, for 2 months.",
+        (
+            "Score: mean daily log return over 6 months divided by its standard deviation "
+            "(the paper's inverse-volatility p3).",
+            "Hold the top 10, equal-weighted, re-formed every 2 months (the paper's best "
+            "monthly cell is 6-2). The turnover-weighted variants need shares outstanding.",
+        ),
+        7 * MONTH,
+        lambda: RankTop(
+            "india_physical_momentum",
+            mean_over_sd(6 * MONTH),
+            fraction=10 / LIQUID_TOP,
+            highest=True,
+            rebalance_every=2 * MONTH,
+            lookback=7 * MONTH,
+        ),
+    ),
+    PaperStrategy(
+        "india_big_fall_reversal",
+        "Buy after a 20% monthly fall (India)",
+        "parthasarathy-2022-large-price-moves-india",
+        "Parthasarathy & Sendilvelu (2022), Economic Thought Journal 67(3)",
+        "Hold large stocks for six months after a calendar month in which they fell 20% or more.",
+        (
+            "Universe: the 50 most-traded stocks at each date (the paper uses Nifty 50 members).",
+            "Event: a calendar month return of -20% or worse, with no event in the 6 months "
+            "before. Hold for 6 months, equal-weighted, at least 5 slots.",
+        ),
+        14 * MONTH,
+        BigFallReversal,
+    ),
+    PaperStrategy(
+        "india_contrarian_36m",
+        "Three-year losers (India)",
+        "joshipura-2009-overreaction-india",
+        "Joshipura (2009), NSE research paper",
+        "Hold the decile of the point-in-time top 250 with the worst 3-year return, re-formed yearly.",
+        (
+            "Score: return over the past 36 months. Hold the bottom decile, equal-weighted.",
+            "Re-formed every year (the paper's cohorts start 12 months apart and run 36 "
+            "months; overlapping cohorts are not modelled). The winner short is dropped.",
+        ),
+        37 * MONTH,
+        lambda: RankTop(
+            "india_contrarian_36m",
+            momentum(36 * MONTH, 0),
+            fraction=0.1,
+            highest=False,
+            rebalance_every=YEAR,
+            lookback=37 * MONTH,
+        ),
+    ),
+    PaperStrategy(
+        "india_december",
+        "December only, Nifty (India)",
+        "sah-2009-seasonality-india",
+        "Sah (2009), NSE research paper",
+        "Hold NIFTYBEES in December only.",
+        ("Long NIFTYBEES over every trading day in December; in cash otherwise.",),
+        5,
+        _calendar("india_december", december),
+        "all",
+        INDEX_ONLY,
     ),
 )
 

@@ -1,0 +1,27 @@
+id: sharma-2025-sector-rotation-india
+title: 'Optimizing Sector Index Rotation and Rebalancing Frequency with Data Mining: A Case
+  Study on Indian National Stock Exchange'
+authors: Sharma, T., Srivastava, A., Pinsky, E.
+year: 2025
+kind: paper
+source_url: https://aircconline.com/ijdkp/V15N2/15225ijdkp05.pdf
+pdf: ''
+added: '2026-10-06'
+status: idea
+markets:
+- 15 NSE sectoral indices, 2012-2023
+summary: Ranks 15 NSE sectoral indices on past return into top, middle and bottom fives, 2012-2023.
+  The middle five with annual rebalancing does best; the top five reverses, so this is not
+  momentum.
+trade_idea: Once a year, hold the five sectoral indices ranked 6-10 on last year's return.
+implementation: |-
+  - 15 sectoral indices; ranked on the previous interval's return; middle five equal-weighted; annual, semi-annual, quarterly or monthly.
+
+  Not backtested here: the panel has no sectoral index history.
+red_flags:
+- 12 configurations, the best picked after the fact; about 11 annual rebalances.
+- Overlapping indices (Bank, Private Bank, Financial Services).
+reported_results: 'Middle group, annual: $100 to $546 vs $389 buy-and-hold; Sharpe 1.17; max
+  drawdown -6.4%.'
+hypothesis: ''
+strategies: []

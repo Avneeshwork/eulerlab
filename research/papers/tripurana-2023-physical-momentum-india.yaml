@@ -1,0 +1,31 @@
+id: tripurana-2023-physical-momentum-india
+title: Physical Momentum in the Indian Stock Market
+authors: Tripurana, T. N. D., Devulapally, N. K.
+year: 2023
+kind: paper
+source_url: https://arxiv.org/abs/2302.13245
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- NSE 500, 2014-2021
+summary: Applies Choi's physical momentum (mass-weighted past returns) to NSE 500 stocks,
+  2014-2021, across 1,177 lookback and holding combinations. Daily horizons reverse; weekly
+  and longer continue.
+trade_idea: Weight past returns by how hard they were to move (turnover or volatility); the
+  steadiest trends continue.
+implementation: |-
+  - p3 = mean / standard deviation of daily log returns; top 10 vs bottom 10; monthly best cell 6-2.
+
+  Here: india_physical_momentum holds the top 10 by 6-month p3, re-formed every 2 months.
+red_flags:
+- 1,177 portfolios tested, best per cell reported.
+- Likely survivorship in the NSE 500 universe; 10-stock legs; no costs.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: 'Best monthly: 4.32%/month winner-minus-loser (p2, 6-2); best weekly 2.43%/month.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_physical_momentum
+  note: ''
+  timeframe: 0

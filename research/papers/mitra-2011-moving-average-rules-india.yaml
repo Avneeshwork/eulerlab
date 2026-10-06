@@ -1,0 +1,31 @@
+id: mitra-2011-moving-average-rules-india
+title: Usefulness of Moving Average Based Trading Rules in India
+authors: Mitra, S. K.
+year: 2011
+kind: paper
+source_url: https://ccsenet.org/journal/index.php/ijbm/article/download/11198/7969
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Nifty and Nifty Junior, 2000-2010
+summary: Tests SMA, EMA and two-EMA rules on daily Nifty and Nifty Junior, 2000-2010, always
+  long or short. Most are profitable before costs and pass White's reality check, but most
+  fail at realistic retail costs; longer averages survive best.
+trade_idea: 'Prices trend: be long above the moving average and out (or short) below it.'
+implementation: |-
+  - Close vs SMA(3, 5, 10, 20, 40, 60) and EMA rules; always in the market.
+
+  Here: india_nifty_sma60 holds NIFTYBEES while it closes above its 60-day average, cash otherwise.
+red_flags:
+- Text and tables disagree in places; benchmark is zero, not buy-and-hold.
+- Index autocorrelation from stale prices inflates results.
+- Traded on NIFTYBEES, the Nifty 50 ETF, as the investable stand-in for the index studied.
+reported_results: 'Nifty SMA60: 25.7%/yr annualised (both legs), break-even cost 1.24% per
+  trade.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_nifty_sma60
+  note: ''
+  timeframe: 0

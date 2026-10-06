@@ -1,0 +1,33 @@
+id: singh-2022-risk-managed-momentum-india
+title: 'Risk-managed time-series momentum: an emerging economy experience'
+authors: Singh, S., Walia, N., Bekiros, S., Gupta, A., Kumar, J., Mishra, A. K.
+year: 2022
+kind: paper
+source_url: https://www.emerald.com/insight/content/doi/10.1108/JEFAS-08-2021-0159/full/html
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- BSE stocks, 1996-2020
+summary: Confirms time-series momentum on BSE stocks, 1996-2020, but finds severe crashes
+  (-56% over April-May 2009). A market-state switch, long-short in normal months, long-only
+  after an outsized market rise and short-only after an outsized fall, roughly 2.5x the return
+  with positive skew.
+trade_idea: Momentum crashes when the market turns sharply; switching off the losing side
+  after an abnormal month avoids the crash.
+implementation: |-
+  - 12-month TSMOM with a one-month gap; a month is abnormal when the index's 1-month move exceeds its 2-year move.
+
+  Here: india_tsmom_risk_managed holds positive-momentum stocks, and cash after a bearish abnormal month on NIFTYBEES.
+red_flags:
+- Read through a summariser of the HTML full text; numbers should be checked against the PDF.
+- The regime rule was designed in-sample; survivorship; no costs.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: Standard TSMOM K=1 1.27%/month (Sharpe 0.34, skew -0.80); risk-managed K=1
+  3.21%/month (Sharpe 1.17, skew +0.12).
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_tsmom_risk_managed
+  note: ''
+  timeframe: 0

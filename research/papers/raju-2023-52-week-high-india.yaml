@@ -1,0 +1,34 @@
+id: raju-2023-52-week-high-india
+title: 'The 52-Week High Effect and Momentum Investing: Evidence from India'
+authors: Raju, R.
+year: 2023
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4587697
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Indian equities, 2004-2023
+summary: Using data from October 2004 to August 2023, stocks near their 52-week high earn
+  higher returns and Sharpe ratios, even after controlling for size. The effect is distinct
+  from 12-1 momentum and gives a more stable alpha with weaker long-term reversals.
+trade_idea: Investors anchor on the 52-week high and underreact to good news near it, so the
+  stocks closest to their high keep outperforming.
+implementation: |-
+  - Nearness = price / 52-week high (George & Hwang 2004); several weighting schemes.
+
+  Here: india_52w_high holds the top decile by nearness, equal-weighted, monthly.
+red_flags:
+- 'Abstract only: SSRN and the journal blocked the full text, so the formation length, portfolio
+  size and weighting run here are assumptions, stated in the implementation.'
+- Splits and bonuses fake distance from the high unless prices are adjusted; the panel adjusts
+  them as of each decision date.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: 'Qualitative: higher returns and Sharpe ratios near the high; statistically
+  significant; more stable alpha than momentum.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_52w_high
+  note: ''
+  timeframe: 0

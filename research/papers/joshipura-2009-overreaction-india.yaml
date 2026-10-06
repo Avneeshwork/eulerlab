@@ -1,0 +1,29 @@
+id: joshipura-2009-overreaction-india
+title: Does the stock market overreact? Empirical evidence of contrarian returns from Indian
+  markets
+authors: Joshipura, M.
+year: 2009
+kind: paper
+source_url: https://nsearchives.nseindia.com/content/research/res_paperfinal223.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- NSE stocks, 1995-2008
+summary: 'A De Bondt-Thaler test on NSE stocks, 1995-2008: 3-year losers beat 3-year winners
+  over the next 3 years, while 6- and 12-month horizons show momentum.'
+trade_idea: Investors overreact over long horizons; the worst three-year performers recover.
+implementation: |-
+  - 36-month formation, 36-month holding; bottom decile vs top decile; cohorts 12 months apart.
+
+  Here: india_contrarian_36m holds the bottom decile by 36-month return, re-formed yearly.
+red_flags:
+- Only 9 overlapping cohorts; no costs; decile extremes are illiquid small caps.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: '3y/3y loser-minus-winner: 0.87%/month abnormal; 34.46% by month 35.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_contrarian_36m
+  note: ''
+  timeframe: 0

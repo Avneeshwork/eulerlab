@@ -1,0 +1,25 @@
+id: knuteson-2020-overnight-intraday
+title: Strikingly Suspicious Overnight and Intraday Returns
+authors: Knuteson, B.
+year: 2020
+kind: paper
+source_url: https://arxiv.org/abs/2010.01727
+pdf: ''
+added: '2026-10-06'
+status: idea
+markets:
+- 21 indices incl. Nifty 50 and Sensex
+summary: Splits 21 world indices, including the Nifty 50 and Sensex, into overnight (close
+  to open) and intraday (open to close) returns. Overnight returns are hugely positive and
+  intraday negative almost everywhere.
+trade_idea: Hold the index from the close to the next open and stay out during the day.
+implementation: |-
+  - Overnight = open(t)/close(t-1) - 1; intraday = close(t)/open(t) - 1.
+
+  Not backtested yet: the daily engine fills on closes only; this needs the intraday engine on NIFTYBEES's open and close.
+red_flags:
+- Yahoo index opens are unreliable; the Sensex figure is implausible.
+- Not peer reviewed; two round trips a day.
+reported_results: 'Nifty 50 2007-2020: overnight +1,868%, intraday -87%.'
+hypothesis: ''
+strategies: []

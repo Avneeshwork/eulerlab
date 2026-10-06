@@ -1,0 +1,33 @@
+id: aziz-2014-momentum-illiquidity-india
+title: Momentum and Illiquidity Premium in Indian Stock Market
+authors: Aziz, T., Ansari, V. A.
+year: 2014
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2416637
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Indian stocks, 2000-2012
+summary: 'Double-sorts Indian stocks on past return and Amihud illiquidity, 2000-2012. The
+  illiquidity premium is stronger among winners: illiquid winners beat liquid winners by 2.7%
+  a month, robust to size and value.'
+trade_idea: Momentum persists where arbitrage is hardest, in illiquid winners.
+implementation: |-
+  - Momentum crossed with Amihud illiquidity; formation, holding and quantiles not stated.
+
+  Here: india_illiquid_winners holds the more illiquid half of the top 30% by 6-month return, monthly.
+red_flags:
+- 'Abstract only: SSRN and the journal blocked the full text, so the formation length, portfolio
+  size and weighting run here are assumptions, stated in the implementation.'
+- The premium sits in the least liquid names, where real impact costs can eat 2.7% a month;
+  within the top 250 the illiquid half is still liquid.
+- Contradicts Chui et al. (2023), who find momentum stronger in liquid stocks.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: Illiquid winners outperform liquid winners by 2.7% a month on average.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_illiquid_winners
+  note: ''
+  timeframe: 0

@@ -1,0 +1,35 @@
+id: maheshwari-2015-momentum-seasonality-india
+title: 'Seasonality in Momentum Profits: Evidence from the Indian Stock Market'
+authors: Maheshwari, S., Dhankar, R. S.
+year: 2015
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2785526
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- NSE stocks, 1997-2013
+summary: Tests momentum on NSE stocks, 1997-2013, and how its profits vary by calendar month.
+  Momentum is profitable, with the best monthly profit (0.87%) from a 3-month formation and
+  6-month holding strategy; May shows strongly negative momentum returns, but differences
+  across months are not statistically significant, and there is no January effect.
+trade_idea: Recent winners keep winning over the following months; the paper checks whether
+  that depends on the calendar and finds it does not, reliably.
+implementation: |-
+  - Jegadeesh-Titman winners minus losers on NSE stocks; 3x6 reported best.
+
+  Here: india_momentum_3x6 holds the top decile of the point-in-time top 250 by 3-month return, re-formed every 6 months.
+red_flags:
+- 'Abstract only: SSRN and the journal blocked the full text, so the formation length, portfolio
+  size and weighting run here are assumptions, stated in the implementation.'
+- About 17 observations per calendar month; the May result is a data-mining risk.
+- The short leg is infeasible in Indian cash equities.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: Maximum monthly momentum profit 0.87% (3x6). No significant seasonality;
+  negative May returns.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_momentum_3x6
+  note: ''
+  timeframe: 0

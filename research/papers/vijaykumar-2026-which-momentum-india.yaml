@@ -1,0 +1,37 @@
+id: vijaykumar-2026-which-momentum-india
+title: Which Momentum? Examining ten Published definitions on Indian Equities and How Little
+  they Agree
+authors: Vijaykumar, A.
+year: 2026
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=7394980
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Top 500 NSE stocks, 2009-2026
+summary: 'Runs ten published momentum definitions through the same portfolio construction
+  on the top 500 NSE stocks, 2009-2026. All ten beat the Nifty 500 TRI, but they disagree:
+  two 12-month variants share 25 of 30 holdings, while residual momentum and the 52-week high
+  share about 4. Barra''s RSTR and 12-month-no-skip rank near the top; the 52-week high and
+  echo near the bottom.'
+trade_idea: Momentum works in India as a family, but the definition chosen changes the holdings
+  and the drawdown path a great deal.
+implementation: |-
+  - Top 500 by market cap, excluding the bottom 10% by traded value; top 30 equal-weighted; monthly; sold only when outside the top 50; 10 bp per side.
+
+  Here: india_momentum_12_noskip holds the top 30 by 12-month return without a skip month, monthly. The top-50 buffer is not applied.
+red_flags:
+- Read through the author's newsletter summary and the abstract; per-definition statistics
+  were not visible.
+- About 75% of the spread between definitions is, by the author's own estimate, explainable
+  by random selection.
+- Run long only on the 250 most-traded stocks as of each decision date, equal-weighted.
+reported_results: All ten beat the Nifty 500 TRI; best and worst 12+ percentage points apart;
+  echo once trailed the index for 68 consecutive months.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_momentum_12_noskip
+  note: ''
+  timeframe: 0

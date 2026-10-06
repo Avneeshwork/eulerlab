@@ -1,0 +1,31 @@
+id: parthasarathy-2022-large-price-moves-india
+title: 'On Stock Return Patterns Following Large Monthly Price Movements: Empirical Evidence
+  from India'
+authors: Parthasarathy, S., Sendilvelu, K.
+year: 2022
+kind: paper
+source_url: https://etj.iki.bas.bg/storage/app/uploads/public/62e/96c/51b/62e96c51b1a87525340825.pdf
+pdf: ''
+added: '2026-10-06'
+status: specified
+markets:
+- Nifty stocks, 2000-2019
+summary: Event study of Nifty stocks after a calendar month of -20% or +20%, 2000-2019. Large
+  falls reverse significantly for up to six months; rises reverse weakly.
+trade_idea: Investors overreact to a large monthly fall in a big company; it recovers over
+  the next six months.
+implementation: |-
+  - Event: calendar-month return of -20% or worse, none in the prior 6 months; hold months +1 to +6.
+
+  Here: india_big_fall_reversal holds such stocks among the 50 most-traded for 6 months.
+red_flags:
+- Events cluster in crashes (2008, 2020); not a calendar-time portfolio test.
+- The 40% annual claim is not backed by a backtest.
+- Uses Nifty membership; the top 50 by turnover is a proxy.
+reported_results: 'After falls: +3.07% in month +1, +11.61% over six months (t 5.54).'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_big_fall_reversal
+  note: ''
+  timeframe: 0
