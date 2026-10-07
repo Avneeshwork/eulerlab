@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighteen times this project was wrong
+## Nineteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -191,6 +191,22 @@ nine were re-run (research 064). Monday/Wednesday went from -85% to +20%,
 turn of the month from +15% to +49%, the 60-day average from +155% (Sharpe
 0.98) to +192% (Sharpe 1.12). Any other result that traded an ETF through the
 engines before 2026-10-07 is still too pessimistic until re-run.
+
+**19. The test suite wrote into the landing zone and quietly used the
+network.** (2026-10-07) `tests/conftest.py` said the suite runs offline, but
+it only switched the bucket off. Two `indices.land` tests appended their fake
+DOLLAR INDEX reading (98.9) to the real `data/landing/macro/<today>.jsonl` on
+every `make verify`, and the unstubbed one also asked TradingView for live
+quotes and appended those. That file is raw data, and `sync-cloud` mirrors it
+to B2. Nothing reads it yet (`macro.series` has no caller), so no result is
+wrong, but every day's macro history on the operator's machine and in B2 may
+carry duplicate 98.9 rows stamped at test time. Separately, the news-tagging
+tests downloaded NSE's company list when it was absent and the quotes test
+fell through to Yahoo, so they passed on the operator's machine and failed
+anywhere else. Fixed: those tests are stubbed, the suite now refuses any
+connection to another host, and it fails if any file under `data/` changed
+during the run. To clean history, drop rows with `"symbol": "TVC:DXY"`,
+`"last": 98.9` and `"change_pct": 0.15` from `data/landing/macro/` (T-4030).
 
 ---
 

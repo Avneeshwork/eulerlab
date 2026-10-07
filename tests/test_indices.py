@@ -8,6 +8,21 @@ from pathlib import Path
 import pytest
 
 from eulerlab import indices
+from eulerlab import macro as macro_feed
+
+
+@pytest.fixture(autouse=True)
+def _macro_offline(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`indices.land` also fetches and *appends* the macro sweep.
+
+    Unstubbed, every run of this file asked TradingView for live quotes and
+    appended whatever came back, including the fake DOLLAR INDEX reading below,
+    to the real `data/landing/macro/` history of the day. A test must not
+    write rows into the landing zone, so the history write goes nowhere and
+    the fetch fails as it does offline unless a test says otherwise.
+    """
+    monkeypatch.setattr(macro_feed, "fetch", lambda: macro_feed.Macro(error="offline"))
+    monkeypatch.setattr(macro_feed, "append", lambda *_a, **_k: 0)
 
 
 def _payload() -> dict[str, object]:
@@ -159,16 +174,15 @@ def test_one_source_failing_does_not_discard_another_that_worked(
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(previous), encoding="utf-8")
 
-    reading = __import__("eulerlab.macro", fromlist=["Reading"]).Reading(
+    reading = macro_feed.Reading(
         symbol="TVC:DXY", name="DOLLAR INDEX", unit="", last=98.9, change_pct=0.15, group="risk"
     )
-    macro_module = __import__("eulerlab.macro", fromlist=["Macro"])
     monkeypatch.setattr(indices, "levels", lambda: indices.Levels(errors={"world": "429"}))
     monkeypatch.setattr(indices, "world_movers", lambda: ([], "429"))
     monkeypatch.setattr(indices, "world_sectors", lambda: ([], "429"))
     monkeypatch.setattr(indices, "treasury_curve", lambda: (None, "429"))
     monkeypatch.setattr(indices, "commodities", lambda: ([], "429"))
-    monkeypatch.setattr(macro_module, "fetch", lambda: macro_module.Macro(readings=[reading]))
+    monkeypatch.setattr(macro_feed, "fetch", lambda: macro_feed.Macro(readings=[reading]))
 
     result = indices.land(root=tmp_path)
 

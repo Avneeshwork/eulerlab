@@ -90,6 +90,9 @@ def check_tests() -> Result:
         bits.append(f"{failed.group(1)} failed")
     if passed:
         bits.append(f"{passed.group(1)} passed")
+    touched = _search(r"tests changed (\d+) file\(s\) under data/", out)
+    if touched:
+        bits.append(f"{touched.group(1)} files under data/ changed by tests")
     return Result("tests", False, "FAIL", ", ".join(bits) or "pytest failed", out)
 
 

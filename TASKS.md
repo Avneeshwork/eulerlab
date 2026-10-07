@@ -9,6 +9,18 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Speed and cleanup (2026-10-07)
+
+Operator: "reduce latency of codebase and remove scrap files/codes and go through each file and make codebase better and faster". Nothing here may change what a strategy, backtest, cost model or paper decision computes.
+Verify: `make verify`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4030 | Remove the fake macro rows the tests wrote into `data/landing/macro/` | TODO — operator's machine and B2: drop rows with `"symbol": "TVC:DXY"`, `"last": 98.9`, `"change_pct": 0.15` (HISTORY #19) |
+| T-4031 | The test suite runs offline and leaves `data/` alone | DONE — any connection to another host fails the test that made it; any change under `data/` fails the run |
+
+---
+
 ## Two Indian options strategies (2026-10-07)
 
 Operator: "research on 2 Indian options strategy and implement based on data we have". Research 070.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from eulerlab import quotes
 
 
@@ -51,7 +53,7 @@ def test_asking_for_nothing_asks_no_source() -> None:
     assert result.quotes == {} and result.errors == {}
 
 
-def test_symbols_are_deduplicated_and_normalised() -> None:
+def test_symbols_are_deduplicated_and_normalised(monkeypatch: pytest.MonkeyPatch) -> None:
     """Gainers, losers and unusual volume overlap, and a duplicate symbol is a
     duplicate quote request on a page that has to stay fast."""
     seen: list[list[str]] = []
@@ -60,11 +62,10 @@ def test_symbols_are_deduplicated_and_normalised() -> None:
         seen.append(symbols)
         return {}, "stubbed"
 
-    original = quotes.from_zerodha
-    quotes.from_zerodha = fake
-    try:
-        quotes.live(["reliance", "RELIANCE", " TCS ", "TCS"])
-    finally:
-        quotes.from_zerodha = original
+    # Both sources stubbed. With only the broker stubbed, the Yahoo fallback
+    # went to the network for whatever the broker "missed".
+    monkeypatch.setattr(quotes, "from_zerodha", fake)
+    monkeypatch.setattr(quotes, "from_yahoo", fake)
+    quotes.live(["reliance", "RELIANCE", " TCS ", "TCS"])
 
-    assert seen and seen[0] == ["RELIANCE", "TCS"]
+    assert seen == [["RELIANCE", "TCS"], ["RELIANCE", "TCS"]]
