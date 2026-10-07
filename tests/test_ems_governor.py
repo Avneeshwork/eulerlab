@@ -7,10 +7,12 @@ loosely tested is how a limit becomes an average.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from eulerlab.config import load_execution
-from eulerlab.oms.ems import Governor, RateLimitExceeded
+from eulerlab.oms.ems import Governor, RateLimitExceeded, SimulatedClock
 
 
 class Clock:
@@ -111,3 +113,44 @@ def test_the_slot_is_spent_even_if_the_send_then_fails() -> None:
 def test_a_zero_limit_is_rejected_at_construction() -> None:
     with pytest.raises(ValueError, match="positive"):
         Governor(0)
+
+
+def _worst_second(stamps: list[float]) -> int:
+    """The most sends inside any half-open one-second window."""
+    worst, first = 0, 0
+    for last, stamp in enumerate(stamps):
+        while stamp - stamps[first] >= 1.0:
+            first += 1
+        worst = max(worst, last - first + 1)
+    return worst
+
+
+def test_a_simulated_governor_holds_the_limit_without_sleeping() -> None:
+    """Paper and deploy runs (ADR-061): the same window and the same waits,
+    without spending real seconds in front of a broker that counts nothing."""
+    governor = Governor.simulated(5)
+    stamps = []
+    started = time.monotonic()
+    for _ in range(50):
+        governor.acquire()
+        stamps.append(governor._sends[-1])  # the time the slot was claimed at
+    assert time.monotonic() - started < 1.0, "a simulated wait must not block"
+    assert governor.total_waited >= 8.9, "fifty sends at five a second wait about nine"
+    assert _worst_second(stamps) <= 5
+
+
+@pytest.mark.parametrize("stuck_at", [0.0, 0.1, 1000.0, 123456.789, 3.7e6])
+def test_the_simulated_clock_holds_the_limit_when_real_time_stands_still(
+    stuck_at: float,
+) -> None:
+    """Without the overshoot a real sleep always has, a clock landing exactly
+    on the window edge could round to just inside it; at 0.1 the limit then
+    stopped holding entirely."""
+    clock = SimulatedClock(clock=lambda: stuck_at)
+    governor = Governor(5, clock=clock, sleep=clock.sleep)
+    stamps = []
+    for _ in range(2000):
+        governor.acquire()
+        stamps.append(governor._sends[-1])
+    assert _worst_second(stamps) <= 5
+    assert governor.recent() <= 5

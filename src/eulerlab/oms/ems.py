@@ -14,6 +14,14 @@ handful of timestamps in memory.
 sleeping through real seconds, and a governor that is only ever tested against
 wall-clock time gets tested loosely or not at all.
 
+**A simulated broker gets simulated waiting.** In front of `PaperBroker`
+the governor runs on `SimulatedClock`: the same sliding window, the same
+waits computed and journalled, but a wait advances the clock instead of
+sleeping. Nothing on the other side of a paper order counts messages, so
+real sleeping bought nothing except about one second of wall time per five
+orders, in every `make paper` and every day `make paper-daily` catches up
+(ADR-061). A live adapter keeps the real clock.
+
 **Waiting is the default; refusing is available.** Blocking is right for a
 rebalance, where the orders all need to go and the only question is how fast.
 `max_wait` exists because a send queue that silently blocks for a minute is
@@ -50,6 +58,33 @@ class RateLimitExceeded(RuntimeError):
     """The governor refused rather than waited. Only raised when asked to."""
 
 
+class SimulatedClock:
+    """Real time plus every wait asked of it, without ever blocking.
+
+    Starts on the real monotonic clock, so time spent working still counts
+    toward freeing a slot exactly as it would live; `sleep` only moves the
+    clock forward. The governor cannot tell the difference, which is the point.
+
+    A wait moves it a microsecond past the wait, as a real sleep always
+    overshoots. The governor relies on that: a clock landing exactly on the
+    window edge can, after float rounding, leave the oldest send inside the
+    window — and measured on a clock that otherwise stood still, the limit
+    then stopped holding at all.
+    """
+
+    OVERSHOOT = 1e-6
+
+    def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        self._clock = clock
+        self._skipped = 0.0
+
+    def __call__(self) -> float:
+        return self._clock() + self._skipped
+
+    def sleep(self, seconds: float) -> None:
+        self._skipped += max(0.0, seconds) + self.OVERSHOOT
+
+
 class Governor:
     """At most `max_per_second` sends in any one-second window."""
 
@@ -72,6 +107,12 @@ class Governor:
         self.max_wait = max_wait
         self._sends: deque[float] = deque()
         self.total_waited = 0.0
+
+    @classmethod
+    def simulated(cls, max_per_second: int | None = None) -> Governor:
+        """A governor for a simulated broker: the same limit, no real sleep."""
+        clock = SimulatedClock()
+        return cls(max_per_second, clock=clock, sleep=clock.sleep)
 
     def _purge(self, now: float) -> None:
         while self._sends and now - self._sends[0] >= WINDOW_SECONDS:

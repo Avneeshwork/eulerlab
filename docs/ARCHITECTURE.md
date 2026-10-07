@@ -869,6 +869,11 @@ distinction is not academic: a bucket refilling 5 tokens per second permits 5
 sends at 0.99s and 5 more at 1.01s — **ten orders inside 200 milliseconds**,
 which is precisely the burst the rule exists to prevent.
 
+In front of the paper broker the governor runs on a **simulated clock**: the
+same window and the same computed waits, but a wait moves the clock forward
+instead of sleeping, because nothing on the other side counts messages
+(ADR-061). Live keeps real time.
+
 ## 6.4 Reconciliation: the broker is right
 
 Local position state is a **cache**. The broker is the source of truth.

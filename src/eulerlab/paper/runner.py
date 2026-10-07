@@ -199,7 +199,7 @@ def fresh_oms(
     return OMS(
         PaperBroker(root / "paper_broker.json", slippage_bps=slippage_bps, faults=faults),
         journal=Journal(root / "orders.jsonl"),
-        governor=ems.Governor(),
+        governor=ems.Governor.simulated(),
         kill_switch=KillSwitch(root / "KILL_SWITCH", root / "killswitch_log.jsonl"),
     )
 

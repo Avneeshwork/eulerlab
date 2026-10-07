@@ -107,7 +107,7 @@ def make_oms(deployment: Deployment) -> OMS:
     return OMS(
         PaperBroker(folder / "paper_broker.json", slippage_bps=deployment.slippage_bps),
         journal=Journal(folder / "orders.jsonl"),
-        governor=ems.Governor(),
+        governor=ems.Governor.simulated(),
         kill_switch=KillSwitch(folder / "KILL_SWITCH", folder / "killswitch_log.jsonl"),
     )
 
