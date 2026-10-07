@@ -445,12 +445,15 @@ class S3ObjectStore:
         last: Exception | None = None
         for attempt in range(UPLOAD_ATTEMPTS):
             try:
-                self._client.put_object(
-                    Bucket=self._bucket,
-                    Key=key,
-                    Body=payload,
-                    Metadata={SHA_METADATA_KEY: sha256},
-                )
+                if len(payload) > MULTIPART_ABOVE:
+                    self._put_in_parts(key, payload, sha256)
+                else:
+                    self._client.put_object(
+                        Bucket=self._bucket,
+                        Key=key,
+                        Body=payload,
+                        Metadata={SHA_METADATA_KEY: sha256},
+                    )
             except (BotoConnectionError, BotoCoreError) as exc:
                 last = exc
                 if attempt == UPLOAD_ATTEMPTS - 1:
@@ -463,6 +466,32 @@ class S3ObjectStore:
         assert last is not None
         raise last
 
+    def _put_in_parts(self, key: str, payload: bytes, sha256: str) -> None:
+        """A large object in 32 MB parts, one at a time.
+
+        A single PUT of the 710 MB price panel failed every attempt on this
+        link (2026-10-07): one dropped connection anywhere in it lost the whole
+        upload. In parts, botocore retries the part that dropped.
+        """
+        import io
+
+        from boto3.s3.transfer import TransferConfig
+
+        self._client.upload_fileobj(
+            io.BytesIO(payload),
+            self._bucket,
+            key,
+            ExtraArgs={"Metadata": {SHA_METADATA_KEY: sha256}},
+            Config=TransferConfig(
+                multipart_threshold=MULTIPART_ABOVE,
+                multipart_chunksize=32 * 1024 * 1024,
+                max_concurrency=1,
+            ),
+        )
+
+
+MULTIPART_ABOVE = 64 * 1024 * 1024
+"""Objects larger than this are uploaded in parts."""
 
 UPLOAD_ATTEMPTS = 4
 """Tries per object, on top of botocore's own three."""

@@ -55,11 +55,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"skipped  : {tree.skipped}  (already present, matching size)")
     for problem in tree.failed:
         print(f"  FAILED {problem}")
-    if tree.failed:
-        return 1
+    # A failed upload of one file does not stop a drop of another: each drop
+    # checks its own file against the bucket by size and SHA-256.
+    status = 1 if tree.failed else 0
 
     remote = store.list_sizes(prefix)
-    status = 0
     for path in args.drop:
         key = f"{prefix}{path.resolve().relative_to(args.root.resolve()).as_posix()}"
         if not path.is_file():

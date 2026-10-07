@@ -253,6 +253,10 @@ india-papers:
 
 # Sweep volatility-adjusted momentum's window, names held and rebalance; choose
 # on 2016-2023, test once on 2024 on. Resumable. Research 067.
+# The paper setting with a 5% stop inside each holding period. Research 068.
+stop-sharpe-momentum:
+	@uv run python -m eulerlab.research.stop_sharpe_momentum $(if $(STOP),--stop $(STOP),) $(if $(SETTING),--setting $(SETTING),) $(if $(CASH),--cash,)
+
 tune-sharpe-momentum:
 	@uv run python -m eulerlab.research.tune_sharpe_momentum $(if $(ANALYSE),--analyse-only,)
 

@@ -253,6 +253,135 @@ class DoubleSort(Strategy):
         return dict.fromkeys(chosen, 1.0 / len(chosen))
 
 
+class StopLossRankTop(RankTop):
+    """`RankTop`, plus a stop-loss checked every session between rebalances.
+
+    A holding that closes `stop` below its price at the start of the holding
+    period (the session after the last ranking, or its purchase) is sold. With
+    `reinvest` its money is spread over the remaining holdings in proportion to
+    what each is worth; without it the money stays in cash until the next
+    ranking. Nothing else trades between rebalances.
+
+    Run with the engine deciding every session (`rebalance_every` here is 1);
+    the ranking itself still happens every `rank_every` sessions. Between
+    rankings `hold_unchanged` is on, so a day with no stop repeats the previous
+    targets and trades nothing. On ranking days it is off, so the book is
+    traded back to equal weights exactly as `RankTop` does.
+
+    The stop is judged on the close and filled at the next session's price, the
+    same delay every decision in the engines has. A gap through the stop is
+    filled at the gap. Prices are compared within one view, so a split between
+    the entry and today cannot trigger it.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        score: Score,
+        *,
+        rank_every: int,
+        stop: float,
+        reinvest: bool = True,
+        **kwargs: object,
+    ) -> None:
+        super().__init__(name, score, rebalance_every=1, **kwargs)  # type: ignore[arg-type]
+        self.rank_every = rank_every
+        self.stop = stop
+        self.reinvest = reinvest
+        self.stops_hit = 0
+        self._calls = 0
+        self._targets: dict[str, float] = {}
+        self._growth: dict[str, float] = {}  # price relative to entry
+        self._value: dict[str, float] = {}  # weight at the last trade, grown since
+        self._pending: set[str] = set()  # bought at the next session's price
+        self._last_day: date | None = None
+        self._just_ranked = False
+        self._held_before: set[str] = set()
+
+    def _close_on(self, rows: Sequence[PanelRow], day: date) -> float | None:
+        for row in reversed(rows):
+            if row.day == day:
+                return row.close
+            if row.day < day:
+                return None
+        return None
+
+    def _grow(self, view: MarketView) -> None:
+        """Move every holding's growth from the last session seen to today."""
+        last = self._last_day
+        for symbol in list(self._growth):
+            rows = view.history.get(symbol) or []
+            if symbol in self._pending:
+                # Filled today: today's price is the entry.
+                self._pending.discard(symbol)
+                continue
+            before = self._close_on(rows, last) if last else None
+            now = rows[-1].close if rows and rows[-1].day == view.as_of else None
+            if before and now:
+                ratio = now / before
+                self._growth[symbol] *= ratio
+                self._value[symbol] *= ratio
+        self._last_day = view.as_of
+
+    def _set(self, targets: dict[str, float]) -> dict[str, float]:
+        total = sum(targets.values()) or 1.0
+        for symbol in list(self._growth):
+            if symbol not in targets:
+                del self._growth[symbol]
+                self._value.pop(symbol, None)
+        for symbol, weight in targets.items():
+            if symbol not in self._growth:
+                self._growth[symbol] = 1.0
+                self._pending.add(symbol)
+            self._value[symbol] = weight / total
+        self._targets = targets
+        return targets
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        if not self.reinvest and self._just_ranked:
+            # A chosen name with no price on its fill day was rejected, and
+            # `RankTop` would not retry it until the next ranking. Left in the
+            # targets, tomorrow's decision would buy it.
+            unfilled = [
+                s
+                for s in self._pending - self._held_before
+                if not ((rows := view.history.get(s)) and rows[-1].day == view.as_of)
+            ]
+            for s in unfilled:
+                self._pending.discard(s)
+                self._growth.pop(s, None)
+                self._value.pop(s, None)
+            self._targets = {s: w for s, w in self._targets.items() if s not in unfilled}
+        self._grow(view)
+        ranking = self._calls % self.rank_every == 0
+        self._just_ranked = ranking
+        self._calls += 1
+        if ranking:
+            self.hold_unchanged = False
+            # The stop runs from each holding period's start: every name held
+            # after a ranking is measured from the price it is re-sized at.
+            self._held_before = set(self._targets)
+            self._growth.clear()
+            return self._set(super().target_weights(view))
+        self.hold_unchanged = True
+        hit = [
+            s for s, g in self._growth.items() if g <= 1.0 - self.stop and s not in self._pending
+        ]
+        if not hit:
+            return self._targets
+        self.stops_hit += len(hit)
+        if not self.reinvest:
+            # Sold to cash. The others keep their exact target weights, which
+            # `normalise` does not scale up, so `hold_unchanged` leaves them be.
+            for s in hit:
+                self._growth.pop(s, None)
+                self._value.pop(s, None)
+            self._targets = {s: w for s, w in self._targets.items() if s not in hit}
+            return self._targets
+        survivors = {s: v for s, v in self._value.items() if s not in hit}
+        return self._set(survivors)
+
+
 def sharpe_momentum_over(days: int) -> Score:
     """Return over `days` divided by daily volatility over the same `days`,
     annualised. The paper's window is a year; the sweep in research 067 varies it."""

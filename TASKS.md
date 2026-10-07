@@ -21,6 +21,8 @@ Verify: `uv run pytest -q tests/test_tune_sharpe_momentum.py`; `make workbench` 
 | T-4010 | **The sweep was not on the web** | DONE — Strategies → the strategy's side panel, and Full report → Optimisation: verdict, before/after table with 2× costs, Sharpe heatmap per rebalance (in-sample or holdout), growth curves with the holdout shaded. Read-only, from `GET /api/tuning?strategy=` (`tuning_view.py`) |
 | T-4011 | **Derived tables were never in B2** | DONE — `make sync-derived` mirrors `data/derived/` to `nse/derived/`, one file at a time; `DROP=path` deletes a file only when B2 holds it at the same size and SHA-256. The old close-only panel (528 MB) is dropped. Raw landing pruned the usual way (56,405 files, 1.02 GB) |
 | T-4012 | Twelve parallel uploads of large files dropped the Mac offline | FIXED for derived (one worker). `sync_directory` takes `workers`; the landing trees keep 12. RUNBOOKS/upload-saturates-uplink.md |
+| T-4014 | **A 5% stop-loss inside each holding period** | DONE — `StopLossRankTop`, `make stop-sharpe-momentum SETTING=252,10,10 CASH=1`. Lowers return and Sharpe on the best case and the paper setting; not adopted. Research 068 |
+| T-4015 | The 710 MB price panel will not upload to B2 on this connection | OPEN — fails mid-part even at 32 MB parts (multipart added). 116 of 117 derived files are in B2; re-run `make sync-derived` on a steadier link |
 | T-4013 | `data/landing/macro/2026-10-07.jsonl` differs in size from its B2 copy | OPEN — kept on disk by prune-local; today's file was rewritten after it was uploaded |
 
 ---
