@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -271,6 +271,15 @@ kill-status:
 kill-stop:
 	@test -n "$(REASON)" || (echo 'usage: make kill-stop REASON="why"'; exit 2)
 	@uv run python -m eulerlab.oms.killswitch --trip "$(REASON)"
+
+# Every Nifty option and future from the daily F&O bhavcopy, one line per day.
+# Resumable. Research 070.
+nifty-options:
+	@uv run python -m eulerlab.options.nifty_history $(if $(FROM),--from $(FROM),)
+
+# Research 070's two strategies on the Nifty options history.
+options-strategies:
+	@uv run python -m eulerlab.options.run_strategies
 
 # Every active paper deployment, replayed to the latest close: catches up
 # missed days, sends nothing twice, halts on a broken book. ADR-060.

@@ -9,6 +9,20 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Two Indian options strategies (2026-10-07)
+
+Operator: "research on 2 Indian options strategy and implement based on data we have". Research 070.
+Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options`; `make options-strategies`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4026 | **A Nifty options history** | DONE — `nifty_options.jsonl`, every Nifty option and future 2015-2026, one line per day, read once from B2. 2,891 of 2,903 days; 12 archives failed and are retried by re-running |
+| T-4027 | **Monthly short strangle (Bangur 2020)** | DONE — three distances; only 6% OTM made money (+43% of margin over 11 years) and it lost 104% of margin in March 2020. Not deployable |
+| T-4028 | **Covered call (Aggarwal 2011)** | DONE — the paper's daily rule loses 79% to costs; held monthly it is about flat against the future's +33%. Not reproduced |
+| T-4029 | Options strategies are not on the Strategies page | OPEN — they run outside the daily engine (`options/strategies.py`), which trades weights of equities |
+
+---
+
 ## Paper trading forward, with the operator's capital (2026-10-07)
 
 Operator: "yes i should decide amount ... cut position in lowest ranked instruments ... build full paper trading infra mimicking live trading and deploy first, research other platform sandbox / paper trading and fallback system". ADR-060, research 069.
