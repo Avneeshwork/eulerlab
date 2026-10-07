@@ -33,3 +33,7 @@ strategies:
   id: india_sharpe_momentum
   note: ''
   timeframe: 0
+- kind: registered
+  id: india_sharpe_momentum_opt
+  note: 'Optimised: top 10, re-ranked every 2 weeks (research 067)'
+  timeframe: 0
