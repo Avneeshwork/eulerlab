@@ -9,6 +9,23 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Missing market data (2026-10-07)
+
+Operator: "now look for missing data to be added in our database", then "yes" to items 1-4 of research 065.
+Verify: `uv run pytest -q tests/test_market_history.py tests/test_india_papers.py`; `make market-history`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-3993 | **Every NSE index, daily, from 2015** | DONE — `ind_close_all` landed for every trading day (`make ingest-nse-daily`): open, high, low, close, volume, turnover, P/E, P/B, dividend yield, for 177 indices incl. the sectorals, Midcap, Smallcap and India VIX. 2,894 days; 9 days in 2015-16 are missing at NSE. `index_history.jsonl`, one line per day; 48 renamed indices joined by closing level |
+| T-3994 | **Delivery % from 2015** | DONE — `MTO` files landed for all 2,903 days; `delivery.jsonl` holds traded, deliverable and delivery % per EQ stock per day |
+| T-3995 | **Open, high and low for every stock** | DONE — `make rebuild-ohlc` re-read all 2,898 panel days from NSE's archive; `SWAP=1` replaced the panel after all 5,378,038 stored closes were reproduced exactly. The close-only panel is `price_panel.close_only.jsonl` |
+| T-3996 | **The real expiry and holiday calendar** | DONE — 144 expiries in `nifty_expiries.json`, each confirmed by its own day's F&O file (two scheduled dates had moved: June 2023, September 2025). They match the weekday rule on every past month, so `india_expiry_day`'s result stands. `nse_calendar.json`: 2,902 trading days, 166 closures. A-041 |
+| T-3997 | Nothing reads the new tables yet | OPEN — no strategy, chart or API uses index history or delivery; the papers they unlock (sector rotation, VIX gap, candlesticks, index lead-lag) are not backtested |
+| T-3998 | Scheduled holidays and unscheduled closures look the same | OPEN — both calendars are dates with a file. NSE's holiday circulars would separate them (A-041) |
+| T-3999 | Items 5-9 of research 065 | TODO — FPI flows, ETF corporate actions, point-in-time index membership, market cap, dated fundamentals |
+
+---
+
 ## The Strategies page, as a table (2026-10-06)
 
 Operator: "the ui of the strategy tab is very difficult to understand, ideate other platforms". Modelled on Composer's, QuantConnect's and Streak's strategy lists.

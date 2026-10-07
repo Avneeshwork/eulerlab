@@ -585,7 +585,14 @@ def is_monthly_expiry(calendar: Sequence[date], i: int) -> bool:
     expiry weekday, since a holiday moves expiry to the previous trading day."""
     import calendar as cal
 
+    from eulerlab.market_history import nifty_expiries
+
     day = calendar[i]
+    # The real expiry dates, read from the F&O bhavcopies, when they have been
+    # built (`make market-history`); the weekday rule below is the fallback.
+    known = nifty_expiries()
+    if known and known[0] <= day <= known[-1]:
+        return day in set(known)
     weekday = _expiry_weekday(day)
     last = date(day.year, day.month, cal.monthrange(day.year, day.month)[1])
     while last.weekday() != weekday:

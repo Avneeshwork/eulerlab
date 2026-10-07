@@ -104,6 +104,31 @@ any result is reproducible from first principles.
 Local disk is not the storage of record — a Backblaze B2 bucket is (23,230
 objects, 4.45 GB). Local copies are pruned once B2 confirms the upload.
 
+### Market history: index closes, delivery, the calendar and expiries
+
+Two more NSE daily files land beside the bhavcopies (`ingest/nse_daily_files`,
+research 065): `ind_close_all` — open, high, low, close, volume, turnover, P/E,
+P/B and dividend yield for **every NSE index**, India VIX and the sectoral
+indices included — and `MTO`, the delivery position per security. `make
+market-history` (`market_history.py`) turns the landing zone into four caches
+under `data/derived/`. The two daily tables are extended by the days not yet
+stored, because `make daily` prunes the local landing zone and re-reading
+eleven years from B2 would spend its 2,500 downloads a day several times over
+(`--full` rebuilds them):
+
+| file | rows | knowledge time |
+|---|---|---|
+| `index_history.jsonl` | one line per day holding every index (177). NSE renamed most in November 2015 and spells some differently from file to file; `canonical_index` maps each old name to today's ("CNX Midcap" → "Nifty Midcap 100"), matched by closing level across the rename, so each index is one series | 20:00 IST that day (A-044) |
+| `delivery.jsonl` | one line per day: per EQ-series stock, traded, deliverable, delivery % | 20:00 IST that day (A-044) |
+| `nse_calendar.json` | trading days = dates with a landed cash bhavcopy; a holiday is a weekday between them without one | — |
+| `nifty_expiries.json` | every Nifty futures expiry (144, 2015-2026), read from F&O bhavcopies fetched from NSE's archive every 15th trading day (each lists the next three monthly contracts). A file lists the *scheduled* date, which can move later, so each date is confirmed by its own day's file (`confirm_expiries`) | — |
+
+The price panel stored only the close before 2026-08-18. `make rebuild-ohlc`
+re-reads every panel day's cash bhavcopy from NSE's archive (not B2, whose
+2,500 downloads a day would take two days) through the same parser the panel
+uses, and `SWAP=1` replaces the panel only if every stored close is reproduced
+exactly; the close-only panel is kept beside it.
+
 ## 3.2 The bitemporal model: two clocks, not one
 
 This is the most important data concept in the system, and the one most
@@ -1038,7 +1063,9 @@ whole panel and keep the 250 most-traded stocks by median turnover over the
 previous 60 sessions **at each decision date** (`liquid_universe`), because the
 named universes are not point-in-time (HISTORY #16). Calendar ones
 (`IndexCalendar`) hold NIFTYBEES over the days a rule selects, deciding two
-trading days ahead from the panel's calendar (A-041). `make india-papers`
+trading days ahead from the panel's calendar (A-041); the expiry day is read
+from `nifty_expiries.json` when it is built, with the weekday rule as the
+fallback outside its range. `make india-papers`
 runs them all and writes `data/derived/india_papers.json`.
 
 ## 7.2 The sandbox: how "paste code" stays safe

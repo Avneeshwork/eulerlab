@@ -36,6 +36,11 @@ never edit them without an explicit instruction in that session.
 - **Data:** 23,230 objects / 4.45 GB mirrored to Backblaze B2. Local landing is
   pruned to ~6.6 MB after every ingest — B2 is the storage of record. Panel
   covers 2,869 trading days. Last ingest 2026-08-20, CLEAN.
+- **Market history (2026-10-07):** the price panel now has open, high and low
+  for every day from 2015. Every NSE index (177, incl. India VIX and the
+  sectorals) with P/E, P/B and yield, delivery % per stock, the trading
+  calendar and 144 real Nifty expiries are in `data/derived/` (research 065).
+  Nothing reads the index or delivery tables yet (T-3997).
 - **The engine agrees with itself** to 1.4 × 10⁻¹⁶ between Tier A and Tier B,
   and a frictionless paper run reproduces the backtest exactly (gap 0.00).
 - **The gate has killed everything it has seen** — H-0001 plus three

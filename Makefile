@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers ingest-nse-daily market-history rebuild-ohlc chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -230,6 +230,16 @@ acceptance:
 tweezer:
 	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
 
+ingest-nse-daily:
+	@test -n "$(FROM)" || (echo "usage: make ingest-nse-daily FROM=2015-01-01 [TO=...]"; exit 2)
+	uv run python -m eulerlab.ingest.nse_daily_files --from $(FROM) $(if $(TO),--to $(TO),)
+
+market-history:
+	uv run python -m eulerlab.market_history $(if $(SKIP_EXPIRIES),--skip-expiries,) $(if $(FULL),--full,)
+
+rebuild-ohlc:
+	uv run python -m eulerlab.features.rebuild_ohlc $(if $(SWAP),--swap,)
+
 india-papers:
 	@uv run --extra web python -m eulerlab.research.run_india $(if $(ONLY),--only $(ONLY),)
 
@@ -277,6 +287,9 @@ daily:
 	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
 	@echo "== participant OI =="
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
+	@echo "== NSE index closes (incl. India VIX) and delivery =="
+	-uv run python -m eulerlab.ingest.nse_daily_files --from $$(date -v-7d +%Y-%m-%d)
+	-uv run python -m eulerlab.market_history --skip-expiries
 	@echo "== fundamentals =="
 	-uv run python -m eulerlab.fundamentals.backfill
 	@echo "== mutual fund NAVs =="

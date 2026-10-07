@@ -43,6 +43,15 @@ def test_turn_of_month_is_the_last_day_and_the_first_two() -> None:
     assert held == [date(2024, 1, 31), date(2024, 2, 1), date(2024, 2, 2)]
 
 
+@pytest.fixture()
+def rule_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The weekday rule, without the expiry dates built from F&O files."""
+    from eulerlab import market_history
+
+    monkeypatch.setattr(market_history, "nifty_expiries", lambda: ())
+
+
+@pytest.mark.usefixtures("rule_only")
 def test_expiry_is_the_last_thursday_or_the_day_before_a_holiday() -> None:
     cal = weekdays(date(2024, 1, 1), 40)
     assert next(d for i, d in enumerate(cal) if ip.is_monthly_expiry(cal, i)) == date(2024, 1, 25)
@@ -50,9 +59,26 @@ def test_expiry_is_the_last_thursday_or_the_day_before_a_holiday() -> None:
     assert next(d for i, d in enumerate(shut) if ip.is_monthly_expiry(shut, i)) == date(2024, 1, 24)
 
 
+@pytest.mark.usefixtures("rule_only")
 def test_expiry_moves_to_tuesday_from_september_2025() -> None:
     cal = weekdays(date(2025, 9, 1), 22)
     assert [d for i, d in enumerate(cal) if ip.is_monthly_expiry(cal, i)] == [date(2025, 9, 30)]
+
+
+def test_known_expiries_win_over_the_rule(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eulerlab import market_history
+
+    # 42 weekdays end on 2024-02-27, the last known expiry. The rule alone would
+    # pick 2024-01-25 (last Thursday of January); the known dates replace it.
+    cal = weekdays(date(2024, 1, 1), 42)
+    assert cal[-1] == date(2024, 2, 27)
+    monkeypatch.setattr(
+        market_history, "nifty_expiries", lambda: (date(2024, 1, 2), date(2024, 2, 27))
+    )
+    assert [d for i, d in enumerate(cal) if ip.is_monthly_expiry(cal, i)] == [
+        date(2024, 1, 2),
+        date(2024, 2, 27),
+    ]
 
 
 def test_post_holiday_is_the_day_after_a_weekday_closure_not_a_weekend() -> None:
