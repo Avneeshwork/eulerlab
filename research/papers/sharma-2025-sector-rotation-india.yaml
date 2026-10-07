@@ -7,7 +7,7 @@ kind: paper
 source_url: https://aircconline.com/ijdkp/V15N2/15225ijdkp05.pdf
 pdf: ''
 added: '2026-10-06'
-status: idea
+status: backtested
 markets:
 - 15 NSE sectoral indices, 2012-2023
 summary: Ranks 15 NSE sectoral indices on past return into top, middle and bottom fives, 2012-2023.
@@ -17,11 +17,17 @@ trade_idea: Once a year, hold the five sectoral indices ranked 6-10 on last year
 implementation: |-
   - 15 sectoral indices; ranked on the previous interval's return; middle five equal-weighted; annual, semi-annual, quarterly or monthly.
 
-  Not backtested here: the panel has no sectoral index history.
+  Here: india_sector_rotation. Fifteen NSE sectoral and thematic indices with history since 2015 (Auto, Bank, Commodities, Energy, Financial Services, FMCG, India Consumption, Infrastructure, IT, Media, Metal, Pharma, PSU Bank, Realty, Services Sector), ranked each January on the previous calendar year's return; ranks 6-10 equal-weighted and held for the year. Run on the index levels through the daily engine (no sector ETFs exist over the window), at stock-delivery costs, 2016-2026.
 red_flags:
 - 12 configurations, the best picked after the fact; about 11 annual rebalances.
 - Overlapping indices (Bank, Private Bank, Financial Services).
+- 'Run here on index levels, which cannot be bought directly; a fund tracking each would lag it by its fees and tracking error.'
+- 'The paper does not name its 15 indices in what was read; these are the 15 with unbroken history here (A-045).'
 reported_results: 'Middle group, annual: $100 to $546 vs $389 buy-and-hold; Sharpe 1.17; max
   drawdown -6.4%.'
 hypothesis: ''
-strategies: []
+strategies:
+- kind: registered
+  id: india_sector_rotation
+  note: ''
+  timeframe: 0

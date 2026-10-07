@@ -74,6 +74,7 @@ from eulerlab.intraday import scan as tweezer_scan
 from eulerlab.intraday.paper_scan import ALL_SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
+from eulerlab.market_history import INDEX_UNIVERSE, index_panel_rows
 from eulerlab.research.budget import price_search, searches_run
 from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
 from eulerlab.strategies import fleet as strategy_fleet
@@ -812,6 +813,14 @@ def _universe_rows(
     list. The third value matters for a custom run: it is what the report shows
     when the universe name alone says nothing.
     """
+    if universe == INDEX_UNIVERSE:
+        # Index levels, not stocks: read from the index history, over the same
+        # window as the panel rows the request asked for.
+        kept = index_panel_rows(instruments, since=rows[0].day if rows else None)
+        if not kept:
+            msg = "no index history on disk. Run `make market-history` first."
+            raise RuntimeError(msg)
+        return kept, len(instruments), sorted({row.symbol for row in kept})
     if instruments:
         wanted = sorted({symbol.strip().upper() for symbol in instruments if symbol.strip()})
         kept = [row for row in rows if row.symbol in set(wanted)]

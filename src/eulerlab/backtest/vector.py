@@ -175,6 +175,8 @@ def _costs_for(
     side: Side,
     brokerage: Brokerage | None,
     asset_class: str,
+    *,
+    fund_unit: bool = False,
 ) -> float:
     """What one fill costs, from the one router that knows every venue.
 
@@ -197,7 +199,14 @@ def _costs_for(
         side=side,
         day=day,
         segment=Segment.EQUITY_DELIVERY,
+        fund_unit=fund_unit,
     )
+
+
+def fund_symbols(rows: Sequence[PanelRow]) -> frozenset[str]:
+    """The symbols that are fund units (ETFs): an `INF` ISIN. They pay a
+    different STT from shares, so both engines must know which they are."""
+    return frozenset(row.symbol for row in rows if row.isin.startswith("INF"))
 
 
 def run(
@@ -289,6 +298,7 @@ def run(
     }
 
     assert_adjustable(rows)
+    funds = fund_symbols(rows)
     lookback = strategy.lookback
     # Indexed once per run. `factor_as_of` scans the whole store per call, and
     # calling it per row per symbol per rebalance took the test suite from 5
@@ -424,7 +434,15 @@ def run(
                 cost = (
                     0.0
                     if cost_mode == "replication"
-                    else _costs_for(fill_day, price, quantity, side, brokerage, asset_class)
+                    else _costs_for(
+                        fill_day,
+                        price,
+                        quantity,
+                        side,
+                        brokerage,
+                        asset_class,
+                        fund_unit=symbol in funds,
+                    )
                     * cost_multiplier
                 )
                 cash -= delta * price

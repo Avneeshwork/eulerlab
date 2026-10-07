@@ -6,7 +6,7 @@ kind: paper
 source_url: https://www.ijfmr.com/papers/2025/4/53859.pdf
 pdf: ''
 added: '2026-10-07'
-status: idea
+status: backtested
 markets:
 - Nifty, 2010-2025
 summary: Tests whether a day's candle colour and the change in India VIX predict the next
@@ -17,7 +17,7 @@ trade_idea: Calm, rising days are followed by gap-up opens; fear signals are unr
 implementation: |-
   - Signal: green candle and VIX down -> gap up next open; red and VIX up -> gap down.
 
-  Not backtested: the trade is close-to-open (the daily engine trades at closes) and India VIX history is not in the data.
+  Here: calculated, not an engine run (`make session-studies`; research 064), 2016-2026, with India VIX from the index history (research 065). A green Nifty day with VIX down gapped up next morning 70.7% of the time on the index (paper: 69.6%) against 66.8% on any day; on the future 60.3% against 56.8%. Long the Nifty future from a signal close to the next open: +56% gross, +25% after costs, Sharpe 0.42, max drawdown -11%, 819 trades.
 red_flags:
 - Accuracy, not returns after costs.
 - Needs India VIX and an overnight trade.

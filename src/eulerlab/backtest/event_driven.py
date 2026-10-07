@@ -48,6 +48,7 @@ from eulerlab.backtest.events import (
 )
 from eulerlab.backtest.execution import Executor, SimulatedExecutor
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
+from eulerlab.backtest.vector import fund_symbols
 from eulerlab.costs.model import Brokerage
 from eulerlab.features.panel import (
     PanelRow,
@@ -256,6 +257,7 @@ def run(
         asset_class=asset_class,
         brokerage=brokerage,
         cost_multiplier=cost_multiplier,
+        fund_symbols=fund_symbols(rows),
     )
     portfolio = Portfolio(cash=starting_cash)
     result = TierBResult(

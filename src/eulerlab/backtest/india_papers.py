@@ -552,6 +552,177 @@ class PairRatio(Strategy):
         return {side: 1.0} if side else {}
 
 
+SECTOR_INDICES = (
+    "Nifty Auto",
+    "Nifty Bank",
+    "Nifty Commodities",
+    "Nifty Energy",
+    "Nifty Financial Services",
+    "Nifty FMCG",
+    "Nifty India Consumption",
+    "Nifty Infrastructure",
+    "Nifty IT",
+    "Nifty Media",
+    "Nifty Metal",
+    "Nifty Pharma",
+    "Nifty PSU Bank",
+    "Nifty Realty",
+    "Nifty Services Sector",
+)
+"""Fifteen NSE sectoral and thematic indices with a close on every day since
+2015 (`market_history.index_history`).
+
+# ASSUMPTION: Sharma (2025) ranks "15 sectoral indices" without naming them in
+# what was read; these are the fifteen with unbroken history here. Nifty
+# Private Bank starts in 2016 and Healthcare, Consumer Durables and Oil & Gas
+# have gaps, so they are left out. See A-045."""
+
+
+def _close_before(rows: Sequence[PanelRow], day: date) -> float | None:
+    """The last close strictly before `day`."""
+    position = bisect_right(rows, day - timedelta(days=1), key=lambda r: r.day) - 1
+    return rows[position].close if position >= 0 else None
+
+
+class SectorRotation(Strategy):
+    """Once a year, hold the indices ranked `first` to `last` on the previous
+    calendar year's return, equal-weighted (Sharma 2025's "middle group").
+
+    The instruments are the index levels themselves, run through the batch
+    universe `market_history.INDEX_UNIVERSE`: there are no sector ETFs over
+    this window, so the result is what an investor in a fund tracking each
+    index would have had, before tracking error, at stock-delivery costs.
+    """
+
+    rebalance_every = 1
+    lookback = 530
+    """Two years and a margin: the view holds only `lookback` rows, and the
+    rank needs the close before the start of last year. With one year the
+    first close in the view stood in for it and slid forward every day, so
+    the ranking changed daily and a yearly strategy traded 2,793 times."""
+
+    def __init__(self, name: str, *, first: int = 6, last: int = 10) -> None:
+        self.name = name
+        self.first = first
+        self.last = last
+        self.hold_unchanged = True
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        year = view.as_of.year
+        scored: list[tuple[float, str]] = []
+        for symbol in view.symbols():
+            rows = view.history[symbol]
+            if not rows or rows[-1].day != view.as_of:
+                continue
+            end = _close_before(rows, date(year, 1, 1))
+            # The first year of data (2015) has no close before it; its first
+            # close stands in, so 2016's rank uses 2015 from its first session.
+            begin = _close_before(rows, date(year - 1, 1, 1))
+            if begin is None and rows[0].day.year == year - 1:
+                begin = rows[0].close
+            if end is None or not begin:
+                continue
+            scored.append((end / begin - 1.0, symbol))
+        if len(scored) < self.last:
+            return {}
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        chosen = [symbol for _, symbol in scored[self.first - 1 : self.last]]
+        return dict.fromkeys(chosen, 1.0 / len(chosen))
+
+
+# --- candles ---------------------------------------------------------------------
+
+
+def _real_bar(row: PanelRow) -> bool:
+    return (
+        row.has_range()
+        and row.low <= min(row.open, row.close)
+        and row.high >= max(row.open, row.close)
+        and row.open > 0
+    )
+
+
+def _fell(rows: Sequence[PanelRow], i: int, days: int = 5) -> bool:
+    """The close before bar `i` is below the close `days` bars earlier."""
+    return i - 1 - days >= 0 and rows[i - 1].close < rows[i - 1 - days].close
+
+
+def hammer(rows: Sequence[PanelRow], i: int) -> bool:
+    """After a fall, a bar whose lower shadow is at least twice its body and
+    half its range, with almost no upper shadow (Nison 1991)."""
+    bar = rows[i]
+    if not _real_bar(bar) or not _fell(rows, i):
+        return False
+    span = bar.high - bar.low
+    body = abs(bar.close - bar.open)
+    lower = min(bar.open, bar.close) - bar.low
+    upper = bar.high - max(bar.open, bar.close)
+    return lower >= 2 * body and lower >= 0.5 * span and upper <= 0.1 * span
+
+
+def bullish_engulfing(rows: Sequence[PanelRow], i: int) -> bool:
+    """After a fall, a rising bar whose body covers the previous falling bar's."""
+    if i < 1:
+        return False
+    before, bar = rows[i - 1], rows[i]
+    if not (_real_bar(before) and _real_bar(bar)) or not _fell(rows, i - 1):
+        return False
+    return (
+        before.close < before.open
+        and bar.close > bar.open
+        and bar.open <= before.close
+        and bar.close >= before.open
+        and bar.close - bar.open > before.open - before.close
+    )
+
+
+def rising_window(rows: Sequence[PanelRow], i: int) -> bool:
+    """A gap up: the bar's low is above the previous bar's high."""
+    if i < 1:
+        return False
+    before, bar = rows[i - 1], rows[i]
+    return _real_bar(before) and _real_bar(bar) and bar.low > before.high
+
+
+BULLISH_CANDLES = (hammer, bullish_engulfing, rising_window)
+
+
+class CandleHold(Strategy):
+    """Hold a stock for `hold` days after a bullish candle (Manoharan 2019).
+
+    Among the `top` most-traded stocks at each date. A stock is held while
+    any of its last `hold` bars shows a pattern, so a candle on day d is held
+    from the close of d+1 (when the engine fills) for `hold` closes. Each
+    holding gets 1/`slots` of capital, or an equal share when more than
+    `slots` qualify, so one signal never puts everything in one stock.
+    """
+
+    rebalance_every = 1
+
+    def __init__(self, name: str, *, top: int = 50, hold: int = 5, slots: int = 10) -> None:
+        self.name = name
+        self.top = top
+        self.hold = hold
+        self.slots = slots
+        self.lookback = LIQUIDITY_WINDOW + 10
+        self.hold_unchanged = True
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        held: list[str] = []
+        for symbol in liquid_universe(view, self.top):
+            rows = view.history[symbol]
+            n = len(rows)
+            if n <= self.hold + 6:
+                continue
+            if any(
+                pattern(rows, i) for i in range(n - self.hold, n) for pattern in BULLISH_CANDLES
+            ):
+                held.append(symbol)
+        if not held:
+            return {}
+        return dict.fromkeys(held, 1.0 / max(len(held), self.slots))
+
+
 # --- calendar rules ----------------------------------------------------------
 
 
@@ -1302,6 +1473,37 @@ STRATEGIES: tuple[PaperStrategy, ...] = (
         ),
         40,
         _bb_rsi,
+    ),
+    PaperStrategy(
+        "india_sector_rotation",
+        "Sector rotation, middle five, yearly (India)",
+        "sharma-2025-sector-rotation-india",
+        "Sharma (2025), sector index rotation on the NSE",
+        "Each January, hold the five sectoral indices ranked 6th to 10th on last year's return.",
+        (
+            "Fifteen NSE sectoral and thematic indices with history since 2015, ranked on "
+            "the previous calendar year's return; ranks 6-10 equal-weighted, held a year.",
+            "Run on the index levels: no sector ETFs exist over the window. Costs are "
+            "stock-delivery rates, higher than a fund's.",
+        ),
+        530,
+        lambda: SectorRotation("india_sector_rotation"),
+        "nse_indices",
+        SECTOR_INDICES,
+    ),
+    PaperStrategy(
+        "india_bullish_candles",
+        "Bullish candles, held 5 days (India)",
+        "manoharan-2019-candlestick-india",
+        "Manoharan & Srinivasan (2019), candlestick patterns on Nifty 50 stocks",
+        "Buy a liquid stock after a hammer, a bullish engulfing bar or a rising window, and hold it five days.",
+        (
+            "Point-in-time 50 most-traded stocks; hammer and bullish engulfing after a "
+            "five-day fall, or any gap up; at most 10% in each holding.",
+            "The paper's pattern definitions are its software's and unstated; these are Nison's.",
+        ),
+        70,
+        lambda: CandleHold("india_bullish_candles"),
     ),
     PaperStrategy(
         "india_midcap_follows_largecap",

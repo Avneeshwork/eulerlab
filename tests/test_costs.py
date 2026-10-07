@@ -286,3 +286,27 @@ def test_a_put_takes_intrinsic_from_the_other_direction() -> None:
         is_call=False,
     )
     assert cost.turnover == Decimal("15000")
+
+
+def test_an_etf_unit_pays_stt_on_the_sale_only_at_a_hundredth_of_a_share() -> None:
+    """HISTORY #18: an equity-oriented fund unit is not a share (research 066)."""
+    from datetime import date
+    from decimal import Decimal
+
+    from eulerlab.costs.model import cost_of_trade
+    from eulerlab.costs.schedule import Segment, Side
+
+    def stt(side: Side, *, fund_unit: bool) -> Decimal:
+        return cost_of_trade(
+            trade_date=date(2024, 6, 3),
+            segment=Segment.EQUITY_DELIVERY,
+            side=side,
+            price=Decimal("250"),
+            quantity=4000,
+            fund_unit=fund_unit,
+        ).stt
+
+    assert stt(Side.BUY, fund_unit=False) == Decimal("1000.00")
+    assert stt(Side.SELL, fund_unit=False) == Decimal("1000.00")
+    assert stt(Side.BUY, fund_unit=True) == Decimal("0")
+    assert stt(Side.SELL, fund_unit=True) == Decimal("10.00")

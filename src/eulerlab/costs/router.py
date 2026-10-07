@@ -87,12 +87,14 @@ def fill_cost(
     side: Side,
     day: date,
     segment: Segment,
+    fund_unit: bool = False,
 ) -> float:
     """The charge for one fill. Zero for venues that are deliberately uncosted.
 
     `segment` applies to NSE only and distinguishes an intraday trade from a
     delivery one — the two pay different STT and the difference is large. It is
-    ignored elsewhere, because no other venue here has segments.
+    ignored elsewhere, because no other venue here has segments. So is
+    `fund_unit`, which marks an NSE ETF unit (a different STT from a share).
     """
     if quantity <= 0:
         return 0.0
@@ -140,6 +142,7 @@ def fill_cost(
             side=side,
             price=Decimal(str(round(price, 2))),
             quantity=quantity,
+            fund_unit=fund_unit,
         ).total
     )
 

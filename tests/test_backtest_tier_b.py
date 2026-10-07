@@ -238,3 +238,22 @@ def test_realistic_mode_charges_through_the_shared_cost_path() -> None:
         rows, BuyAndHold(top_n=10), warmup=60, cost_mode="realistic", asset_class="equity"
     )
     assert result.total_cost > 0
+
+
+def test_both_engines_charge_an_etf_less_than_a_share_and_still_agree() -> None:
+    """The fund-unit STT reaches both engines from the ISIN (HISTORY #18)."""
+    shares = _panel(n_symbols=12)
+    funds = [
+        PanelRow(r.day, r.symbol, r.close, r.volume, r.turnover, isin="INF" + r.isin)
+        for r in shares
+    ]
+    strategy = RankAndHold("turnover_liquidity", top_n=10, min_names=5)
+    costs = {}
+    for name, rows in (("shares", shares), ("funds", funds)):
+        a = vector.run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
+        b = event_driven.run(rows, strategy, warmup=70, rebalance_every=50, asset_class="equity")
+        assert event_driven.reconcile(a.equity, b.equity).agrees
+        tier_a, tier_b = a.total_cost, sum(f.cost for f in b.fills)
+        assert tier_a == pytest.approx(tier_b)
+        costs[name] = tier_a
+    assert 0 < costs["funds"] < costs["shares"] / 3

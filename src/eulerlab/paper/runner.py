@@ -63,10 +63,18 @@ class OMSExecutor:
 
     name = "oms"
 
-    def __init__(self, oms: OMS, *, asset_class: str, brokerage: Brokerage | None = None) -> None:
+    def __init__(
+        self,
+        oms: OMS,
+        *,
+        asset_class: str,
+        brokerage: Brokerage | None = None,
+        fund_symbols: frozenset[str] = frozenset(),
+    ) -> None:
         self.oms = oms
         self.asset_class = asset_class
         self.brokerage = brokerage
+        self.fund_symbols = fund_symbols
         self.submitted = 0
         self.rejected = 0
         self.resolved_after_timeout = 0
@@ -104,7 +112,13 @@ class OMSExecutor:
                 order.client_order_id, day, order.symbol, "filled but no execution recorded"
             )
         cost = vector._costs_for(
-            day, execution.price, execution.quantity, order.side, self.brokerage, self.asset_class
+            day,
+            execution.price,
+            execution.quantity,
+            order.side,
+            self.brokerage,
+            self.asset_class,
+            fund_unit=order.symbol in self.fund_symbols,
         )
         return Fill(
             client_order_id=order.client_order_id,
@@ -213,7 +227,9 @@ def run(
     bad week.
     """
     oms.recover()
-    executor = OMSExecutor(oms, brokerage=brokerage, asset_class=asset_class)
+    executor = OMSExecutor(
+        oms, brokerage=brokerage, asset_class=asset_class, fund_symbols=vector.fund_symbols(rows)
+    )
     result = event_driven.run(
         rows,
         strategy,

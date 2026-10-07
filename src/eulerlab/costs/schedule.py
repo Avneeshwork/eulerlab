@@ -77,6 +77,13 @@ class RateSet:
     exchange_txn_options: float
     sebi_turnover_fee: float
     gst: float
+    stt_fund_delivery_sell: float = 0.00001
+    """A unit of an equity-oriented fund (an ETF) with delivery: 0.001% on the
+    sale and nothing on the purchase, against 0.1% on both sides of a share.
+    Intraday, a unit pays the share rate. Unchanged over the whole schedule.
+
+    # ASSUMPTION A-047: from two AMC publications (research 066); the statute
+    # itself could not be fetched."""
     note: str = ""
 
 

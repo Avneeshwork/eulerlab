@@ -121,6 +121,7 @@ eleven years from B2 would spend its 2,500 downloads a day several times over
 | `index_history.jsonl` | one line per day holding every index (177). NSE renamed most in November 2015 and spells some differently from file to file; `canonical_index` maps each old name to today's ("CNX Midcap" → "Nifty Midcap 100"), matched by closing level across the rename, so each index is one series | 20:00 IST that day (A-044) |
 | `delivery.jsonl` | one line per day: per EQ-series stock, traded, deliverable, delivery % | 20:00 IST that day (A-044) |
 | `nse_calendar.json` | trading days = dates with a landed cash bhavcopy; a holiday is a weekday between them without one | — |
+| `nifty_futures.jsonl` | one line per day: every live Nifty futures contract's open, high, low, close, settlement, open interest and volume, from the same F&O files, fetched over four connections | 20:00 IST that day |
 | `nifty_expiries.json` | every Nifty futures expiry (144, 2015-2026), read from F&O bhavcopies fetched from NSE's archive every 15th trading day (each lists the next three monthly contracts). A file lists the *scheduled* date, which can move later, so each date is confirmed by its own day's file (`confirm_expiries`) | — |
 
 The price panel stored only the close before 2026-08-18. `make rebuild-ohlc`
@@ -334,7 +335,7 @@ For a trade of `Q` shares at price `P`, turnover `T = P × Q`:
 | charge | rate (equity delivery) | falls on |
 |---|---|---|
 | Brokerage | 0 (delivery); min(0.03%, ₹20) otherwise | both |
-| **STT** (Securities Transaction Tax) | 0.1% of turnover | both, on delivery |
+| **STT** (Securities Transaction Tax) | 0.1% of turnover; an ETF unit 0.001% (A-047) | both, on delivery; an ETF unit on the sale only |
 | Stamp duty | 0.015% | **buy only** |
 | Exchange transaction charge | ~0.00325% | both |
 | SEBI turnover fee | 0.0001% | both |
@@ -1067,6 +1068,29 @@ trading days ahead from the panel's calendar (A-041); the expiry day is read
 from `nifty_expiries.json` when it is built, with the weekday rule as the
 fallback outside its range. `make india-papers`
 runs them all and writes `data/derived/india_papers.json`.
+
+**Indices as instruments.** A run whose universe is `nse_indices`
+(`market_history.INDEX_UNIVERSE`) and whose instruments are index names gets
+the index levels as price rows (`index_panel_rows`), keyed `IDX:<name>` so no
+corporate action adjusts them. The engines then hold an index as they hold a
+stock, at stock-delivery costs; `SectorRotation` runs this way. Nothing can buy
+an index at its level, so such a result is an upper bound on a fund tracking it.
+
+**Trades the engines cannot express.** Both engines fill a decision at the next
+close, so a close-to-open trade has no target-weight form.
+`research/session_studies.py` calculates the overnight papers on Nifty futures
+(one contract per leg, never across a roll, the futures cost model on every
+round trip) and the index gross, and the expiry-day SIP by XIRR. They are
+calculations, not runs: no fills, no result store, no trial. NIFTYBEES is not
+used for them: an ETF's open in the panel is its first print, which can be 20%
+from its value (research 066).
+
+**An ETF is not a share to the cost model.** A delivery leg in a fund unit
+(an `INF` ISIN) pays STT of 0.001% on the sale and none on the purchase, not
+the share's 0.1% on both (A-047). Both engines and the paper executor learn
+which symbols are fund units from the rows (`vector.fund_symbols`) and pass it
+to the one cost path; until 2026-10-07 they charged ETFs the share rate
+(HISTORY #18).
 
 ## 7.2 The sandbox: how "paste code" stays safe
 

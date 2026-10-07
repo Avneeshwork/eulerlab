@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -167,3 +168,46 @@ def test_an_index_is_one_series_across_the_rename(
     assert mh.build_indices() == (2, 2)
     assert [d.isoformat() for d, _ in mh.index_series("Nifty 50")] == ["2015-01-05", "2015-01-06"]
     assert mh.index_series("India VIX")[0][1] == 14.6
+
+
+def test_futures_are_read_from_either_bhavcopy_format() -> None:
+    legacy = (
+        "INSTRUMENT,SYMBOL,EXPIRY_DT,OPEN,HIGH,LOW,CLOSE,SETTLE_PR,CONTRACTS,OPEN_INT\n"
+        "FUTIDX,NIFTY,31-Mar-2016,7051.25,7240.5,7046.15,7229.05,7229.05,236798,18579675\n"
+        "FUTSTK,NIFTY,31-Mar-2016,1,1,1,1,1,1,1\n"
+    )
+    udiff = (
+        "FinInstrmTp,TckrSymb,XpryDt,OpnPric,HghPric,LwPric,ClsPric,SttlmPric,OpnIntrst,TtlTradgVol\n"
+        "IDF,NIFTY,2024-09-26,25412.05,25420,25295.15,25340.45,25340.45,14944100,204112\n"
+        "IDO,NIFTY,2024-09-26,1,1,1,1,1,1,1\n"
+    )
+    old = mh.fo_futures(_fo_zip(legacy))
+    assert old == {
+        "2016-03-31": {
+            "o": 7051.25,
+            "h": 7240.5,
+            "l": 7046.15,
+            "c": 7229.05,
+            "settle": 7229.05,
+            "oi": 18579675.0,
+            "volume": 236798.0,
+        }
+    }
+    assert mh.fo_futures(_fo_zip(udiff))["2024-09-26"]["c"] == 25340.45
+
+
+def test_index_levels_become_panel_rows_no_action_can_adjust(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = tmp_path / "index.jsonl"
+    monkeypatch.setattr(mh, "INDEX_HISTORY", store)
+    monkeypatch.setattr(mh, "_entries", lambda segment: [{"trade_date": "2015-01-05"}])
+    monkeypatch.setattr(mh, "_read", lambda entry: INDEX_2015.encode())
+    mh.build_indices()
+    rows = mh.index_panel_rows(["Nifty Bank", "Nifty 50"])
+    assert [(r.symbol, r.close, r.isin) for r in rows] == [
+        ("Nifty 50", 8378.4, "IDX:Nifty 50"),
+        ("Nifty Bank", 1.5, "IDX:Nifty Bank"),
+    ]
+    assert rows[0].turnover == 2e7
+    assert mh.index_panel_rows(["Nifty 50"], since=date(2015, 1, 6)) == []

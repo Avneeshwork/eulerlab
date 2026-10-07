@@ -76,10 +76,12 @@ def test_skipping_the_cost_on_sells_is_caught(monkeypatch: pytest.MonkeyPatch) -
         side: object,
         brokerage: object,
         asset_class: object,
+        *,
+        fund_unit: bool = False,
     ) -> float:
         if side is Side.SELL:
             return 0.0
-        return original(day, price, quantity, side, brokerage, asset_class)  # type: ignore[arg-type]
+        return original(day, price, quantity, side, brokerage, asset_class, fund_unit=fund_unit)  # type: ignore[arg-type]
 
     monkeypatch.setattr(vector, "_costs_for", buy_only)
     # Cash conservation still holds (fills agree with cash), but the zero-alpha

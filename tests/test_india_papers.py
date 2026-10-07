@@ -188,3 +188,68 @@ def test_every_paper_strategy_is_registered_and_cites_a_library_paper() -> None:
         assert spec.id in REGISTRY
         assert spec.paper in papers, spec.paper
         assert any(link.id == spec.id for link in papers[spec.paper].strategies)
+
+
+# --- sector rotation and candles -------------------------------------------------
+
+
+def _index(symbol: str, start: float, step: float, days: list[date]) -> list[PanelRow]:
+    return [
+        PanelRow(
+            day=d, symbol=symbol, close=start * (1 + step) ** k, volume=0, turnover=0, isin="IDX:x"
+        )
+        for k, d in enumerate(days)
+    ]
+
+
+def test_sector_rotation_holds_ranks_six_to_ten_all_year() -> None:
+    days = [d for d in weekdays(date(2015, 1, 1), 600) if d.year < 2017]
+    names = [f"S{n:02d}" for n in range(15)]
+    # S00 rose most in 2015, S14 least; S05..S09 are ranks 6-10.
+    history = {s: _index(s, 100.0, 0.002 - 0.0002 * n, days) for n, s in enumerate(names)}
+    strategy = ip.SectorRotation("t")
+    held = set()
+    for as_of in (date(2016, 1, 4), date(2016, 6, 1), date(2016, 12, 30)):
+        view = MarketView(
+            as_of=as_of,
+            history={
+                s: [r for r in rows_ if r.day <= as_of][-strategy.lookback :]
+                for s, rows_ in history.items()
+            },
+        )
+        weights = strategy.target_weights(view)
+        held.add(tuple(sorted(weights)))
+        assert all(abs(w - 0.2) < 1e-12 for w in weights.values())
+    assert held == {("S05", "S06", "S07", "S08", "S09")}
+
+
+def _bar(day: date, o: float, h: float, low: float, c: float) -> PanelRow:
+    return PanelRow(
+        day=day, symbol="X", close=c, volume=1, turnover=1, isin="INE1", open=o, high=h, low=low
+    )
+
+
+def _falling(n: int) -> list[PanelRow]:
+    return [
+        _bar(d, 100 - k, 101 - k, 99 - k, 100 - k)
+        for k, d in enumerate(weekdays(date(2024, 1, 1), n))
+    ]
+
+
+def test_a_hammer_needs_a_long_lower_shadow_after_a_fall() -> None:
+    bars = _falling(7)
+    day = weekdays(date(2024, 1, 1), 8)[-1]
+    assert ip.hammer([*bars, _bar(day, 93.5, 94.0, 88.0, 94.0)], 7)
+    assert not ip.hammer([*bars, _bar(day, 93.5, 97.0, 88.0, 94.0)], 7)  # long upper shadow
+    rising = [_bar(b.day, 90 + k, 91 + k, 89 + k, 90 + k) for k, b in enumerate(bars)]
+    assert not ip.hammer([*rising, _bar(day, 96.5, 97.0, 91.0, 97.0)], 7)  # no fall before
+
+
+def test_engulfing_and_rising_window() -> None:
+    bars = _falling(7)
+    days = weekdays(date(2024, 1, 1), 9)
+    red = _bar(days[7], 94.0, 94.5, 92.5, 93.0)
+    assert ip.bullish_engulfing([*bars, red, _bar(days[8], 92.8, 95.5, 92.5, 95.0)], 8)
+    assert not ip.bullish_engulfing([*bars, red, _bar(days[8], 93.2, 95.5, 92.5, 95.0)], 8)
+    assert ip.rising_window([*bars, red, _bar(days[8], 95.0, 96.0, 94.6, 95.5)], 8)
+    assert not ip.rising_window([*bars, red, _bar(days[8], 95.0, 96.0, 94.4, 95.5)], 8)

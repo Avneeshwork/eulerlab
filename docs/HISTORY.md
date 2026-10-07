@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventeen times this project was wrong
+## Eighteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -175,6 +175,22 @@ calendar strategies, the MACD and moving-average rules, and any buy-and-hold or
 index benchmark run through the engine. The beta of every stock against
 NIFTYBEES was also distorted by the one-day -90% print. Fixed with a manual
 factor (A-043); the affected India-paper strategies were re-run.
+
+**18. The cost model charges an ETF unit the tax on a share.** (2026-10-07)
+`costs/model.py` applies STT of 0.1% to both legs of every equity-delivery
+trade. A unit of an equity-oriented fund pays 0.001% on the sale and nothing on
+the purchase (research 066, from two AMC publications; the statute itself was
+not readable). So every round trip in NIFTYBEES, or any ETF, was charged about
+0.2% too much. Every ETF strategy in research 064 is too pessimistic in
+proportion to how often it trades: Monday/Wednesday (2,054 fills, -85%) paid
+₹10.7 lakh of costs on ₹10 lakh, most of it this tax; turn of the month,
+expiry day, post-holiday, MACD, the 60-day average, Budget days, December and
+the mid-cap lead-lag are all affected. Fixed the same day: a fund unit (an
+`INF` ISIN) now pays its own rate in both engines and paper trading, and the
+nine were re-run (research 064). Monday/Wednesday went from -85% to +20%,
+turn of the month from +15% to +49%, the 60-day average from +155% (Sharpe
+0.98) to +192% (Sharpe 1.12). Any other result that traded an ETF through the
+engines before 2026-10-07 is still too pessimistic until re-run.
 
 ---
 

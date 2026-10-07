@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers ingest-nse-daily market-history rebuild-ohlc chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -236,6 +236,9 @@ ingest-nse-daily:
 
 market-history:
 	uv run python -m eulerlab.market_history $(if $(SKIP_EXPIRIES),--skip-expiries,) $(if $(FULL),--full,)
+
+session-studies:
+	uv run python -m eulerlab.research.session_studies
 
 rebuild-ohlc:
 	uv run python -m eulerlab.features.rebuild_ohlc $(if $(SWAP),--swap,)

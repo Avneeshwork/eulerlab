@@ -9,6 +9,24 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## The left-out paper strategies (2026-10-07)
+
+Operator: "now run all leftout strategies", then "yes" to four papers the new data unlocked. Research 064, 066.
+Verify: `uv run pytest -q tests/test_india_papers.py tests/test_session_studies.py`; `make india-papers`; `make session-studies`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4000 | **Sector rotation (Sharma 2025)** | DONE — fifteen sectoral indices as instruments through the engine (`market_history.INDEX_UNIVERSE`), ranks 6-10 held yearly. Sharpe 0.84, +256% after costs. A first run traded 2,793 times because the view held one year and the rank's base date slid daily; the lookback is now two years |
+| T-4001 | **Bullish candles (Manoharan 2019)** | DONE — hammer, bullish engulfing, rising window on the point-in-time top 50, held five days. Sharpe -0.34, -56%: costs of ₹7 lakh on ₹10 lakh |
+| T-4002 | **Overnight, VIX gap and expiry SIP, calculated** | DONE — `research/session_studies.py`, on Nifty futures and the index, not the engines (they fill at closes only). Results in research 064 |
+| T-4003 | **The cost model charged ETFs the share STT** | FIXED — 0.1% each side against 0.001% on the sale (research 066, HISTORY #18, A-047). `fund_unit` reaches the cost model from both engines and the paper executor; the nine ETF strategies in research 064 were re-run. Monday/Wednesday -85% → +20% |
+| T-4007 | ETF results stored before 2026-10-07 | OPEN — any other run that traded an ETF (builder strategies on NIFTYBEES, the US-style signals on Indian ETFs) still carries the old cost until re-run |
+| T-4004 | An ETF's open in the panel is its first print | OPEN — NIFTYBEES opens sit up to 20% off the previous close. Any rule reading `open` on a thin instrument reads noise; nothing flags it |
+| T-4005 | Nifty futures, daily, from 2015 | DONE — `nifty_futures.jsonl`: every live contract's OHLC, settlement, OI and volume, from NSE's F&O files over four connections |
+| T-4006 | Mid caps follow large caps on the real indices | TODO — Sahoo (2022) ran on ETFs listed from 2022; the index history now reaches 2016 |
+
+---
+
 ## Missing market data (2026-10-07)
 
 Operator: "now look for missing data to be added in our database", then "yes" to items 1-4 of research 065.
@@ -20,7 +38,7 @@ Verify: `uv run pytest -q tests/test_market_history.py tests/test_india_papers.p
 | T-3994 | **Delivery % from 2015** | DONE — `MTO` files landed for all 2,903 days; `delivery.jsonl` holds traded, deliverable and delivery % per EQ stock per day |
 | T-3995 | **Open, high and low for every stock** | DONE — `make rebuild-ohlc` re-read all 2,898 panel days from NSE's archive; `SWAP=1` replaced the panel after all 5,378,038 stored closes were reproduced exactly. The close-only panel is `price_panel.close_only.jsonl` |
 | T-3996 | **The real expiry and holiday calendar** | DONE — 144 expiries in `nifty_expiries.json`, each confirmed by its own day's F&O file (two scheduled dates had moved: June 2023, September 2025). They match the weekday rule on every past month, so `india_expiry_day`'s result stands. `nse_calendar.json`: 2,902 trading days, 166 closures. A-041 |
-| T-3997 | Nothing reads the new tables yet | OPEN — no strategy, chart or API uses index history or delivery; the papers they unlock (sector rotation, VIX gap, candlesticks, index lead-lag) are not backtested |
+| T-3997 | Nothing reads the delivery table yet | OPEN — index history, OHLC and the futures are used by the strategies in T-4000 to T-4002; delivery % is used by nothing, and no chart or API shows any of them |
 | T-3998 | Scheduled holidays and unscheduled closures look the same | OPEN — both calendars are dates with a file. NSE's holiday circulars would separate them (A-041) |
 | T-3999 | Items 5-9 of research 065 | TODO — FPI flows, ETF corporate actions, point-in-time index membership, market cap, dated fundamentals |
 

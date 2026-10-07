@@ -7,7 +7,7 @@ kind: paper
 source_url: https://www.ijitee.org/wp-content/uploads/papers/v9i2/B7666129219.pdf
 pdf: ''
 added: '2026-10-07'
-status: idea
+status: backtested
 markets:
 - 17 Nifty 50 stocks, 2000-2015
 summary: Scans 17 stocks that stayed in the Nifty 50 from 2000 to 2015 for 34 bullish reversal
@@ -19,12 +19,17 @@ trade_idea: Bullish reversal candles mark exhausted selling; buying after them a
 implementation: |-
   - Daily OHLC, split- and bonus-adjusted; patterns detected by Candlescanner (definitions not given); 5-day holding.
 
-  Not backtested: the panel records open, high and low only from August 2026, so candle shapes cannot be read over history.
+  Here: india_bullish_candles. The panel now has open, high and low for every day since 2015. Three of the paper's top patterns with Nison's definitions, since the paper's are its software's: a hammer (lower shadow at least twice the body and half the range, upper shadow under a tenth of the range) or a bullish engulfing bar, each after a five-day fall, or a rising window (the low above the previous high). Among the 50 most-traded stocks at each date, held for five closes from the engine's fill, at most 10% in each, 2016-2026, after costs.
 red_flags:
 - 'Only stocks that stayed in the Nifty 50 for 16 years: survivorship.'
 - Pattern definitions are the software's, not stated.
 - Efficiency is a return bucket, not a backtest with costs.
+- 'Run here on the 50 most-traded stocks at each date rather than 17 survivors, which removes the survivorship and changes the sample.'
 reported_results: 'Most frequent patterns: 38-45% of signals in the ''high'' (>3.5% in 5 days)
   bucket, 16-21% false; hammer, long engulfing bottom and rising window ranked top.'
 hypothesis: ''
-strategies: []
+strategies:
+- kind: registered
+  id: india_bullish_candles
+  note: ''
+  timeframe: 0

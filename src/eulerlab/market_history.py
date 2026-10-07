@@ -18,6 +18,9 @@ downloads a day several times over. `--full` rebuilds them from scratch.
 - `nifty_expiries.json` — every Nifty futures expiry, read from F&O
   bhavcopies fetched from NSE's archive (not B2: the bucket's 2,500
   downloads a day are kept for the panel).
+- `nifty_futures.jsonl` — one line per day: every live Nifty futures
+  contract's open, high, low, close, settlement price, open interest and
+  volume, from the same files. Extended by the days not yet stored.
 
 Every stored day carries `event_time` (the session close) and `knowledge_time`
 (the evening the file was published, `bitemporal.provenance.knowable_at`), as
@@ -36,15 +39,19 @@ from collections.abc import Callable, Iterator, Sequence
 from datetime import UTC, date, datetime, timedelta
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from eulerlab.bitemporal.provenance import knowable_at, session_close
+
+if TYPE_CHECKING:
+    from eulerlab.features.panel import PanelRow
 
 MANIFEST = Path("data/landing/nse/manifest.jsonl")
 INDEX_HISTORY = Path("data/derived/index_history.jsonl")
 DELIVERY = Path("data/derived/delivery.jsonl")
 CALENDAR = Path("data/derived/nse_calendar.json")
 EXPIRIES = Path("data/derived/nifty_expiries.json")
+NIFTY_FUTURES = Path("data/derived/nifty_futures.jsonl")
 
 
 def _entries(segment: str) -> list[dict[str, Any]]:
@@ -290,12 +297,16 @@ def build_calendar() -> dict[str, Any]:
     return out
 
 
-def _fo_expiries(payload: bytes) -> set[str]:
-    """Nifty index-futures expiry dates in one F&O bhavcopy, either format."""
+def _fo_rows(payload: bytes) -> list[dict[str, str]]:
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         text = archive.read(archive.namelist()[0]).decode("utf-8", errors="replace")
+    return list(csv.DictReader(io.StringIO(text)))
+
+
+def _fo_expiries(payload: bytes) -> set[str]:
+    """Nifty index-futures expiry dates in one F&O bhavcopy, either format."""
     found: set[str] = set()
-    for row in csv.DictReader(io.StringIO(text)):
+    for row in _fo_rows(payload):
         legacy = (row.get("INSTRUMENT") or "").strip() == "FUTIDX" and (
             row.get("SYMBOL") or ""
         ).strip() == "NIFTY"
@@ -315,6 +326,108 @@ def _fo_expiries(payload: bytes) -> set[str]:
             except ValueError:
                 continue
     return found
+
+
+def fo_futures(payload: bytes) -> dict[str, dict[str, float | None]]:
+    """Every Nifty index-futures contract in one F&O bhavcopy, by expiry."""
+    out: dict[str, dict[str, float | None]] = {}
+    for row in _fo_rows(payload):
+        if (row.get("INSTRUMENT") or "").strip() == "FUTIDX" and (
+            row.get("SYMBOL") or ""
+        ).strip() == "NIFTY":
+            try:
+                expiry = (
+                    datetime.strptime((row.get("EXPIRY_DT") or "").strip(), "%d-%b-%Y")
+                    .replace(tzinfo=UTC)
+                    .date()
+                    .isoformat()
+                )
+            except ValueError:
+                continue
+            fields = ("OPEN", "HIGH", "LOW", "CLOSE", "SETTLE_PR", "OPEN_INT", "CONTRACTS")
+        elif (row.get("FinInstrmTp") or "").strip() == "IDF" and (
+            row.get("TckrSymb") or ""
+        ).strip() == "NIFTY":
+            expiry = (row.get("XpryDt") or "").strip()
+            fields = (
+                "OpnPric",
+                "HghPric",
+                "LwPric",
+                "ClsPric",
+                "SttlmPric",
+                "OpnIntrst",
+                "TtlTradgVol",
+            )
+        else:
+            continue
+        values = [_number(row.get(name)) for name in fields]
+        out[expiry] = dict(zip(("o", "h", "l", "c", "settle", "oi", "volume"), values, strict=True))
+    return out
+
+
+def _fo_fetcher() -> Callable[[date], bytes | None]:
+    """F&O bhavcopies from NSE's archive, not B2 (see the module docstring)."""
+    from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
+    from eulerlab.ingest.nse_urls import Segment, candidates
+
+    transport = UrllibTransport()
+    transport.establish_session()
+    fetcher = Fetcher(transport, FetchPolicy(min_interval_s=0.5))
+
+    def get(day: date) -> bytes | None:
+        for _fmt, url in candidates(day, Segment.FO):
+            result = fetcher.get(url)
+            if result.outcome is Outcome.ABSENT or result.payload is None:
+                continue
+            if zipfile.is_zipfile(io.BytesIO(result.payload)):
+                return result.payload
+        return None
+
+    return get
+
+
+def build_nifty_futures(*, full: bool = False, workers: int = 4) -> tuple[int, int]:
+    """Append each trading day's Nifty futures not yet stored. Returns (added, total).
+
+    Each file is up to a megabyte and the archive answers one at a time in
+    about three seconds, so eleven years takes hours from one connection.
+    `workers` connections fetch in parallel, each rate-limited on its own;
+    days are written as they arrive, so the file is not in date order (every
+    reader sorts)."""
+    import threading
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    if full:
+        NIFTY_FUTURES.unlink(missing_ok=True)
+    have = _days_on_file(NIFTY_FUTURES)
+    wanted = [d for d in build_calendar()["trading_days"] if d not in have]
+    if not wanted:
+        return 0, len(have)
+    local = threading.local()
+
+    def contracts_on(trade_date: str) -> tuple[str, dict[str, dict[str, float | None]]]:
+        if not hasattr(local, "get"):
+            local.get = _fo_fetcher()
+        payload = local.get(date.fromisoformat(trade_date))
+        return trade_date, fo_futures(payload) if payload else {}
+
+    NIFTY_FUTURES.parent.mkdir(parents=True, exist_ok=True)
+    added = 0
+    with (
+        NIFTY_FUTURES.open("a", encoding="utf-8") as handle,
+        ThreadPoolExecutor(max_workers=workers) as pool,
+    ):
+        jobs = [pool.submit(contracts_on, d) for d in wanted]
+        for index, job in enumerate(as_completed(jobs), start=1):
+            trade_date, contracts = job.result()
+            if contracts:
+                line = {"d": trade_date, **_times(trade_date, "fo"), "contracts": contracts}
+                handle.write(json.dumps(line, sort_keys=True) + "\n")
+                handle.flush()
+                added += 1
+            if index % 200 == 0:
+                print(f"  futures: {index}/{len(wanted)} days", flush=True)
+    return added, len(have) + added
 
 
 def confirm_expiries(
@@ -353,25 +466,13 @@ def build_expiries(every: int = 15) -> list[str]:
     """Sample every `every`-th trading day's F&O file from NSE's archive; each
     lists the next three monthly Nifty futures, so the union is every scheduled
     expiry. `confirm_expiries` then checks each against its own day's file."""
-    from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
-    from eulerlab.ingest.nse_urls import Segment, candidates
-
     days = [date.fromisoformat(d) for d in build_calendar()["trading_days"]]
-    transport = UrllibTransport()
-    transport.establish_session()
-    fetcher = Fetcher(transport, FetchPolicy(min_interval_s=0.5))
+    get = _fo_fetcher()
 
     @cache
     def listed_on(day: date) -> set[str]:
-        for _fmt, url in candidates(day, Segment.FO):
-            result = fetcher.get(url)
-            if result.outcome is Outcome.ABSENT or result.payload is None:
-                continue
-            try:
-                return _fo_expiries(result.payload)
-            except zipfile.BadZipFile:
-                continue
-        return set()
+        payload = get(day)
+        return _fo_expiries(payload) if payload else set()
 
     scheduled: set[str] = set()
     for day in days[::every] + days[-1:]:
@@ -421,6 +522,46 @@ def index_series(name: str) -> list[tuple[date, float]]:
     return sorted(out)
 
 
+INDEX_UNIVERSE = "nse_indices"
+"""The batch universe whose instruments are index levels, not stocks. A run
+names the indices as its instruments (`india_papers.SECTOR_INDICES`)."""
+
+
+def index_panel_rows(names: Sequence[str], *, since: date | None = None) -> list[PanelRow]:
+    """Index levels as price-panel rows, so the daily engines can hold an index.
+
+    The key is `IDX:<name>`: no corporate action is ever filed against it, so
+    the engines leave the level unadjusted, which is right for a price index.
+    Volume and turnover are the index's own (turnover from crores to rupees).
+    """
+    from eulerlab.features.panel import PanelRow
+
+    wanted = set(names)
+    out: list[PanelRow] = []
+    for day in _stored_days(INDEX_HISTORY):
+        trade_date = date.fromisoformat(day["d"])
+        if since is not None and trade_date < since:
+            continue
+        for name, bar in day["indices"].items():
+            if name not in wanted or bar.get("c") is None:
+                continue
+            out.append(
+                PanelRow(
+                    day=trade_date,
+                    symbol=name,
+                    close=float(bar["c"]),
+                    volume=float(bar.get("v") or 0.0),
+                    turnover=float(bar.get("turnover_cr") or 0.0) * 1e7,
+                    isin=f"IDX:{name}",
+                    open=float(bar.get("o") or 0.0),
+                    high=float(bar.get("h") or 0.0),
+                    low=float(bar.get("l") or 0.0),
+                )
+            )
+    out.sort(key=lambda row: (row.day, row.symbol))
+    return out
+
+
 def delivery_series(symbol: str) -> list[tuple[date, float | None]]:
     """One stock's delivery percent by day, oldest first."""
     out = []
@@ -447,6 +588,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         f"calendar: {len(calendar['trading_days']):,} trading days, "
         f"{len(calendar['holidays'])} weekday closures -> {CALENDAR}"
     )
+    added, total = build_nifty_futures(full=args.full)
+    print(f"Nifty futures days: {added:,} added, {total:,} stored -> {NIFTY_FUTURES}")
     if not args.skip_expiries:
         expiries = build_expiries()
         print(f"Nifty expiries: {len(expiries)} -> {EXPIRIES}")

@@ -80,11 +80,11 @@ class PanelRow:
     """RAW exchange open/high/low, same convention as `close`.
 
     Optional, and zero means "not recorded". The panel stored only the close
-    until candlestick strategies needed the shape of the bar, and the file is
-    2,869 days of append-only JSONL rebuilt one B2 download per day — against
-    a 2,500/day free-tier cap. Making these required would have invalidated
-    the whole cached panel at once (see RUNBOOKS/b2-transaction-cap.md), so
-    they default to zero and `ohlc()` falls back to the close.
+    until candlestick strategies needed the shape of the bar; every day since
+    2015 was re-read from NSE's archive on 2026-10-07 (`make rebuild-ohlc`),
+    so the panel on disk now carries all four. They stay optional because a
+    panel built before then, or a row from another source, may not: they
+    default to zero and `ohlc()` falls back to the close.
 
     Use `ohlc()` rather than reading these directly; a strategy that reads
     `row.high` on an older row silently gets 0.0 and computes nonsense."""

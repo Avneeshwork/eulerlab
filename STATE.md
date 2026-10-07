@@ -39,8 +39,10 @@ never edit them without an explicit instruction in that session.
 - **Market history (2026-10-07):** the price panel now has open, high and low
   for every day from 2015. Every NSE index (177, incl. India VIX and the
   sectorals) with P/E, P/B and yield, delivery % per stock, the trading
-  calendar and 144 real Nifty expiries are in `data/derived/` (research 065).
-  Nothing reads the index or delivery tables yet (T-3997).
+  calendar, 144 real Nifty expiries and daily Nifty futures are in
+  `data/derived/` (research 065). Nothing reads delivery yet (T-3997).
+- **ETFs now pay their own STT** (0.001% on the sale) in both engines; until
+  2026-10-07 they paid a share's 0.1% each side (HISTORY #18).
 - **The engine agrees with itself** to 1.4 × 10⁻¹⁶ between Tier A and Tier B,
   and a frictionless paper run reproduces the backtest exactly (gap 0.00).
 - **The gate has killed everything it has seen** — H-0001 plus three

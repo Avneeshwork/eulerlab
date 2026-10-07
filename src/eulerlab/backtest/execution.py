@@ -66,8 +66,10 @@ class SimulatedExecutor:
         asset_class: str,
         brokerage: Brokerage | None = None,
         cost_multiplier: float = 1.0,
+        fund_symbols: frozenset[str] = frozenset(),
     ) -> None:
         self.cost_mode = cost_mode
+        self.fund_symbols = fund_symbols
         # Required, not defaulted. The venue decides the bill, and a default
         # here is how US trades came to be charged Indian delivery costs while
         # the routing code above them said otherwise.
@@ -89,7 +91,13 @@ class SimulatedExecutor:
             0.0
             if self.cost_mode == "replication"
             else vector._costs_for(
-                day, price, order.quantity, order.side, self.brokerage, self.asset_class
+                day,
+                price,
+                order.quantity,
+                order.side,
+                self.brokerage,
+                self.asset_class,
+                fund_unit=order.symbol in self.fund_symbols,
             )
             * self.cost_multiplier
         )

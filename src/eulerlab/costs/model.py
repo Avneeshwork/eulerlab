@@ -101,8 +101,17 @@ class CostBreakdown:
         ]
 
 
-def _stt(rates: RateSet, segment: Segment, side: Side, turnover: Decimal) -> Decimal:
+def _stt(
+    rates: RateSet, segment: Segment, side: Side, turnover: Decimal, *, fund_unit: bool = False
+) -> Decimal:
     """STT, charged only on the sides that actually bear it."""
+    if segment is Segment.EQUITY_DELIVERY and fund_unit:
+        # An ETF unit is not a share: sale only, at a hundredth of the rate.
+        # Charging it the share rate overcharged every ETF round trip by about
+        # 0.2% (HISTORY #18).
+        if side is not Side.SELL:
+            return Decimal("0")
+        return turnover * Decimal(str(rates.stt_fund_delivery_sell))
     if segment is Segment.EQUITY_DELIVERY:
         return turnover * Decimal(str(rates.stt_delivery))
     if side is not Side.SELL:
@@ -148,12 +157,16 @@ def cost_of_trade(
     price: Decimal,
     quantity: int,
     brokerage: Brokerage | None = None,
+    fund_unit: bool = False,
 ) -> CostBreakdown:
     """Cost one leg of one trade, at the rates in force on `trade_date`.
 
     For options, `price` is the **premium**, not the strike or the underlying
     — every statutory charge on an option trade is levied on premium turnover.
     Exercise is a different event with a different base; see `cost_of_exercise`.
+
+    `fund_unit` marks a unit of an equity-oriented fund (an ETF), which pays a
+    different STT from a share.
     """
     fees = brokerage or Brokerage()
     rates = rates_on(trade_date)
@@ -169,7 +182,7 @@ def cost_of_trade(
 
     return CostBreakdown(
         brokerage=_round(broker),
-        stt=_round(_stt(rates, segment, side, turnover)),
+        stt=_round(_stt(rates, segment, side, turnover, fund_unit=fund_unit)),
         stamp_duty=_round(_stamp(rates, segment, side, turnover)),
         exchange_txn=_round(exchange),
         sebi_fee=_round(turnover * Decimal(str(rates.sebi_turnover_fee))),

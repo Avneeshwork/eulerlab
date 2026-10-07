@@ -6,7 +6,7 @@ kind: paper
 source_url: https://arxiv.org/abs/2010.01727
 pdf: ''
 added: '2026-10-06'
-status: idea
+status: backtested
 markets:
 - 21 indices incl. Nifty 50 and Sensex
 summary: Splits 21 world indices, including the Nifty 50 and Sensex, into overnight (close
@@ -16,7 +16,7 @@ trade_idea: Hold the index from the close to the next open and stay out during t
 implementation: |-
   - Overnight = open(t)/close(t-1) - 1; intraday = close(t)/open(t) - 1.
 
-  Not backtested yet: the daily engine fills on closes only; this needs the intraday engine on NIFTYBEES's open and close.
+  Here: calculated, not an engine run (`make session-studies`; research 064, 066), 2016-2026. NIFTYBEES's opens are first prints up to 20% off its value, so the trade uses the Nifty future, one contract per leg. On the Nifty 50 index, gross: overnight +1,568%, intraday -83%, as the paper found. On the future, gross: overnight +64%, intraday +6%; after a round trip a day: overnight -19%, intraday -47%. The index's open is built from first prints and its close from a 30-minute average, which leans its overnight gaps upward.
 red_flags:
 - Yahoo index opens are unreliable; the Sensex figure is implausible.
 - Not peer reviewed; two round trips a day.
