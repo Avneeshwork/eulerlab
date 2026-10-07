@@ -2552,3 +2552,56 @@ textarea:focus-visible {
   color: var(--ink);
   font-weight: 600;
 }
+
+/* --- Optimisation (recorded parameter sweep, research 067) ------------ */
+
+.tune {
+  margin: 0.75rem 0 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.tune-read { margin: 0 0 0.8rem; padding-left: 1.1rem; font-size: 0.8rem; line-height: 1.55; max-width: 76ch; }
+.tune-read li { margin: 0.15rem 0; }
+.tune-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0 0.45rem; }
+.tune-sub h5 { margin: 0; font-size: 0.75rem; font-weight: 600; }
+.tune-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.tune-toggle button {
+  font: inherit; font-size: 0.7rem; padding: 0.2rem 0.6rem; border: 0;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.tune-toggle button[aria-selected='true'] { background: var(--surface-2); color: var(--fg); font-weight: 600; }
+.tune-scroll { overflow-x: auto; }
+.tune-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.tune-table th { font-weight: 500; color: var(--muted); font-size: 0.66rem; padding: 0.25rem 0.4rem; text-align: right; border-bottom: 1px solid var(--line); }
+.tune-table th:first-child { text-align: left; }
+.tune-table td { padding: 0.35rem 0.4rem; border-bottom: 1px solid var(--line); }
+.tune-table td span { display: block; color: var(--muted); font-size: 0.66rem; }
+.tune-table .num { text-align: right; }
+.tune-table .pos { color: var(--up); }
+.tune-table .neg { color: var(--down); }
+.tune-heat { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; }
+.tune-heat-one h6 { margin: 0 0 0.25rem; font-size: 0.66rem; font-weight: 500; color: var(--muted); }
+.tune-heat-one table { border-collapse: separate; border-spacing: 2px; width: 100%; font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.tune-heat-one th { font-weight: 500; color: var(--muted); font-size: 0.62rem; }
+.tune-heat-one td { text-align: center; padding: 0.3rem 0; border-radius: 2px; color: var(--fg); }
+.tune .mark.chosen { outline: 2px solid var(--fg); outline-offset: -2px; }
+.tune .mark.paper { box-shadow: inset 0 0 0 2px var(--caveat); }
+.tune .mark.chosen.paper { outline: 2px solid var(--fg); box-shadow: inset 0 0 0 4px var(--caveat); }
+.tune-legend { grid-column: 1 / -1; margin: 0; font-size: 0.66rem; color: var(--muted); }
+.tune-legend .mark { display: inline-block; padding: 0 0.35rem; margin-right: 0.3rem; border-radius: 2px; color: var(--fg); }
+.tune-curves svg { width: 100%; height: auto; display: block; }
+.tune-curves .line { fill: none; stroke-width: 1.6; }
+.tune-curves .c-chosen { stroke: var(--up); color: var(--up); }
+.tune-curves .c-paper { stroke: var(--caveat); color: var(--caveat); }
+.tune-curves .c-nifty { stroke: var(--ink-4); color: var(--ink-4); }
+.tune-curves .grid { stroke: var(--line); stroke-width: 1; }
+.tune-curves .axis { fill: var(--muted); font-size: 10px; }
+.tune-curves .holdout { fill: var(--surface-2); }
+.tune-curves .holdout-label { fill: var(--muted); font-size: 10px; }
+.tune-keys { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; margin-top: 0.35rem; font-size: 0.7rem; color: var(--muted); }
+.tune-keys span { display: inline-flex; align-items: center; gap: 0.3rem; }
+.tune-keys i { display: inline-block; width: 14px; height: 2px; background: currentColor; }
+.tune-keys b { color: var(--fg); font-variant-numeric: tabular-nums; }
+.tune-table td:first-child { min-width: 9.5rem; }
+.tune-table td:first-child b { white-space: nowrap; }

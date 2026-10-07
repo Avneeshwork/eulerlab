@@ -321,6 +321,7 @@ def analyse() -> dict[str, Any]:
         "table": [
             {
                 "setting": key_of(p),
+                "params": list(p),
                 "in_sample_sharpe": round(train_sharpe[p], 3),
                 "plateau_sharpe": round(plateau[p], 3),
                 "holdout_sharpe": round(hold_sharpe[p], 3),

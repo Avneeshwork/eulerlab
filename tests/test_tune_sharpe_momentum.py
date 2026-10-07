@@ -34,3 +34,24 @@ def test_describe_compounds_and_finds_the_drawdown() -> None:
     out = tune.describe([0.10, -0.50, 0.20])
     assert out["total_return"] == round(1.1 * 0.5 * 1.2 - 1, 4)
     assert out["max_drawdown"] == -0.5
+
+
+def test_tuning_view_reads_a_recorded_sweep(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import json
+
+    from eulerlab.tuning_view import tuning
+
+    assert tuning("nothing_here", root=tmp_path) is None
+    folder = tmp_path / "s"
+    folder.mkdir()
+    side = {"setting": "w252-n10-r10", "params": [252, 10, 10]}
+    (folder / "summary.json").write_text(json.dumps({"chosen": side, "paper": None}))
+    days = [f"2016-01-{d:02d}" for d in range(1, 13)]
+    run = {"key": "w252-n10-r10", "days": days, "equity": [100.0 + i for i in range(12)]}
+    (folder / "runs.jsonl").write_text(json.dumps(run) + "\n")
+    out = tuning("s", root=tmp_path)
+    assert out is not None
+    curve = out["curves"]["chosen"]
+    assert curve[0] == ("2016-01-01", 1.0)
+    assert curve[-1] == ("2016-01-12", 1.11)  # the last session is always kept
+    assert len(curve) == 4  # every fifth session, plus the last

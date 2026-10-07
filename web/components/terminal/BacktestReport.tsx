@@ -19,6 +19,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Download } from 'lucide-react';
 import { EquityChart } from '@/components/terminal/EquityChart';
+import { TuningView } from '@/components/terminal/TuningPanel';
 import { api } from '@/lib/api';
 import { assetClassLabel } from '@/lib/assetClasses';
 import {
@@ -30,9 +31,9 @@ import {
   type Trade,
 } from '@/lib/backtestStats';
 import { moneyIn } from '@/lib/money';
-import type { FleetStrategy, FullReport, RunChoice } from '@/lib/api';
+import type { FleetStrategy, FullReport, RunChoice, Tuning } from '@/lib/api';
 
-type Tab = 'overview' | 'equity' | 'drawdown' | 'returns' | 'trades' | 'instruments' | 'orders';
+type Tab = 'overview' | 'equity' | 'drawdown' | 'returns' | 'trades' | 'instruments' | 'orders' | 'tuning';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -67,6 +68,18 @@ export function BacktestReport({
   const [error, setError] = useState('');
   const [tab, setTab] = useState<Tab>('overview');
   const [query, setQuery] = useState('');
+  const [tuning, setTuning] = useState<Tuning | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    api
+      .tuning(strategy.id)
+      .then((found) => live && setTuning(found.ran ? found : null))
+      .catch(() => live && setTuning(null));
+    return () => {
+      live = false;
+    };
+  }, [strategy.id]);
 
   useEffect(() => {
     setError('');
@@ -176,6 +189,7 @@ export function BacktestReport({
     { id: 'trades', label: `Trades (${stats.closed})` },
     { id: 'instruments', label: `Instruments (${report.constituents.length})` },
     { id: 'orders', label: `Orders (${report.orders.length})` },
+    ...(tuning ? [{ id: 'tuning' as const, label: 'Optimisation' }] : []),
   ];
 
   return (
@@ -480,6 +494,7 @@ export function BacktestReport({
       {tab === 'orders' && (
         <OrderList report={report} query={query} onQuery={setQuery} money={money} />
       )}
+      {tab === 'tuning' && tuning && <TuningView data={tuning} />}
     </>
   );
 }

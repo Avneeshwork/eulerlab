@@ -531,6 +531,7 @@ def sync_directory(
     pattern: str = "**/*",
     dry_run: bool = False,
     remote_sizes: dict[str, int] | None = None,
+    workers: int = UPLOAD_WORKERS,
 ) -> TreeSyncResult:
     """Mirror an arbitrary directory tree, comparing by size.
 
@@ -591,7 +592,7 @@ def sync_directory(
     #
     # The counter and the failure list are guarded because they are the only
     # shared state; each upload is otherwise independent.
-    with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(send, pending))
 
     return TreeSyncResult(

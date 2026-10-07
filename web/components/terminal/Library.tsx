@@ -22,6 +22,7 @@ import { EvidenceBadge, SharpeCell, Tag } from '@/components/primitives';
 import { Spark } from '@/components/terminal/Spark';
 import { AdoptedReport } from '@/components/terminal/AdoptedReport';
 import { SweepPanel } from '@/components/terminal/SweepPanel';
+import { TuningPanel } from '@/components/terminal/TuningPanel';
 import { WalkPanel } from '@/components/terminal/WalkPanel';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
@@ -541,6 +542,7 @@ export function Library({
               </ol>
             </section>
           )}
+          <TuningPanel key={openStrategy.id} strategyId={openStrategy.id} />
           <Row
             strategy={openStrategy}
             sweep={sweeps.get(openStrategy.id)}

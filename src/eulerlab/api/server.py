@@ -2369,6 +2369,16 @@ BATCH_STARTING_CASH = 1_000_000.0
 BATCH_REBALANCE_DAYS = 21
 
 
+@app.get("/api/tuning")
+def tuning_result(strategy: str) -> dict[str, Any]:
+    """A recorded parameter sweep for one strategy, chosen on in-sample years
+    and tested once on a holdout. Read-only; research 067."""
+    from eulerlab.tuning_view import tuning
+
+    found = tuning(strategy)
+    return {"ran": False, "strategy": strategy} if found is None else {"ran": True, **found}
+
+
 @app.get("/api/optimize")
 def optimize_results() -> dict[str, Any]:
     """The last parameter sweep, as it was recorded.

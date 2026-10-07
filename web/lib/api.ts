@@ -125,6 +125,59 @@ export type Optimize = {
   rows: OptimizeRow[];
 };
 
+export type TuningStats = {
+  sharpe: number;
+  cagr: number;
+  total_return: number;
+  max_drawdown: number;
+  days: number;
+};
+
+export type TuningSide = {
+  setting: string;
+  /** [window, names held, rebalance], in sessions and names. */
+  params: number[];
+  in_sample: TuningStats;
+  holdout: TuningStats;
+  whole: TuningStats;
+  fills: number;
+  costs: number;
+  plateau_sharpe: number;
+  holdout_rank: number;
+  at_2x_costs?: { in_sample: TuningStats; holdout: TuningStats };
+};
+
+/** A recorded parameter sweep, chosen on in-sample years and tested once on a
+ *  holdout (research 067). */
+export type Tuning = {
+  ran: true;
+  strategy: string;
+  grid: { window: number[]; top: number[]; rebalance: number[] };
+  settings_run: number;
+  in_sample: [string, string];
+  holdout_from: string;
+  chosen: TuningSide;
+  paper: TuningSide | null;
+  best_single_point: TuningSide;
+  walk_forward: {
+    folds: { year: number; chosen: string; next_year: number }[];
+    stitched: TuningStats;
+    paper_same_years: TuningStats | null;
+  };
+  pbo: { value: number; splits: number; verdict: string };
+  deflated_sharpe: { probability: number; trials: number; noise_bar_sharpe: number };
+  rank_correlation_in_sample_vs_holdout: number;
+  table: {
+    setting: string;
+    params: number[];
+    in_sample_sharpe: number;
+    plateau_sharpe: number;
+    holdout_sharpe: number;
+    fills: number;
+  }[];
+  curves: Partial<Record<'chosen' | 'paper' | 'nifty', [string, number][]>>;
+};
+
 export type Health = {
   ok: boolean;
   panel_loaded: boolean;
@@ -1222,6 +1275,8 @@ export const api = {
     }>('/api/risk'),
   explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
   optimize: () => get<Optimize>('/api/optimize'),
+  tuning: (strategy: string) =>
+    get<Tuning | { ran: false; strategy: string }>(`/api/tuning?strategy=${encodeURIComponent(strategy)}`),
   batchJob: (id: string) => get<Omit<Job, 'result'> & { result: BatchResult }>(`/api/jobs/${id}`),
   providers: () => get<{ ok: boolean; providers: Provider[]; error?: string }>('/api/providers'),
   validate: (input: StrategyInput) =>

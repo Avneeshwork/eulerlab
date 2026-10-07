@@ -100,3 +100,12 @@ grid does; high that no setting clears the noise bar.
 - No trial was recorded in the ledger (operator's instruction for this sweep);
   64 settings are a selection the ledger has not been charged for.
 - The paper's own rules were never read (SSRN abstract only).
+
+## Where to see it
+
+Workbench → Strategies → Volatility-adjusted momentum → Optimisation (side
+panel), and Full report → Optimisation. Served read-only by
+`GET /api/tuning?strategy=india_sharpe_momentum` from the sweep's files in
+`data/derived/sweeps/` (mirrored to B2 by `make sync-derived`). The badge reads
+"Kept the original setting" unless re-tuning beat the paper's setting
+walk-forward **and** PBO is at most 0.25.

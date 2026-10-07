@@ -12,12 +12,16 @@ plan — they are listed here as scope only, not as tasks.
 ## Tuning volatility-adjusted momentum (2026-10-07)
 
 Operator: "optimize this strategy and ensure no overfitting", then "optimize the set of parameters in the strategy, no other parameter addition". Research 067.
-Verify: `uv run pytest -q tests/test_tune_sharpe_momentum.py`; `make tune-sharpe-momentum ANALYSE=1` (needs the sweep's runs on disk; without them `make tune-sharpe-momentum` re-runs all 64, about 50 minutes, resumable).
+Verify: `uv run pytest -q tests/test_tune_sharpe_momentum.py`; `make workbench` → Strategies → Volatility-adjusted momentum → Optimisation; `make tune-sharpe-momentum ANALYSE=1` (needs the sweep's runs on disk; without them `make tune-sharpe-momentum` re-runs all 64, about 50 minutes, resumable).
 
 | ID | Task | Status |
 |---|---|---|
 | T-4008 | **Sweep window, names held and rebalance; choose on 2016-2023, test on 2024-2026** | DONE — 64 settings. Only the window matters (9-12 months beat 3-6 in-sample and holdout). PBO 0.71; walk-forward re-tuning earned Sharpe 1.28 against 1.38 for the paper's setting. Paper setting kept |
 | T-4009 | 252/10/10 made holdout Sharpe 1.16 against the paper's 0.80 | OPEN — likely luck (its neighbours made 0.60-0.82, grid edge, 3× costs). Paper-trade it beside the paper setting if it is to be believed |
+| T-4010 | **The sweep was not on the web** | DONE — Strategies → the strategy's side panel, and Full report → Optimisation: verdict, before/after table with 2× costs, Sharpe heatmap per rebalance (in-sample or holdout), growth curves with the holdout shaded. Read-only, from `GET /api/tuning?strategy=` (`tuning_view.py`) |
+| T-4011 | **Derived tables were never in B2** | DONE — `make sync-derived` mirrors `data/derived/` to `nse/derived/`, one file at a time; `DROP=path` deletes a file only when B2 holds it at the same size and SHA-256. The old close-only panel (528 MB) is dropped. Raw landing pruned the usual way (56,405 files, 1.02 GB) |
+| T-4012 | Twelve parallel uploads of large files dropped the Mac offline | FIXED for derived (one worker). `sync_directory` takes `workers`; the landing trees keep 12. RUNBOOKS/upload-saturates-uplink.md |
+| T-4013 | `data/landing/macro/2026-10-07.jsonl` differs in size from its B2 copy | OPEN — kept on disk by prune-local; today's file was rewritten after it was uploaded |
 
 ---
 

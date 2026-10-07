@@ -134,6 +134,11 @@ sync-cloud:
 restore-local:
 	uv run python -m eulerlab.ingest.restore_local $(ARGS)
 
+# Mirror data/derived to B2; DROP=path deletes one derived file once B2 holds
+# it at the same size and SHA-256.
+sync-derived:
+	uv run python -m eulerlab.ingest.sync_derived $(if $(DRY),--dry-run,) $(foreach f,$(DROP),--drop $(f))
+
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)
 
