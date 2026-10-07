@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-08-20. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-07. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -16,7 +16,7 @@ or in `TASKS.md`, it did not happen.*
 make verify
 ```
 
-Expect **7 of 7 green, ~998 tests**. The `engine` row is the backtester
+Expect **7 of 7 green, ~1,800 tests**, in under a minute. The `engine` row is the backtester
 self-test gate and the `chaos` row is the order-path gate; if either is red,
 stop and fix it before running anything, because every number downstream
 depends on them.
@@ -49,6 +49,11 @@ never edit them without an explicit instruction in that session.
   deliberately overfit acceptance strategies. It has never promoted anything.
 - **19 trials are logged.** The noise bar is **Sharpe 1.88**. The best result
   this project has produced is **1.27**.
+- **Faster, same numbers (2026-10-07):** paper runs about 12x and deployments
+  about 18x faster, both engines 2x, the panel load 2x, the workbench's panel
+  requests from ~330ms to under 2ms; every backtest, paper and API output
+  reproduced exactly (ADR-061, ADR-062, T-4032). The test suite runs offline
+  and fails if it touches `data/`.
 - **No capital has ever been traded.** Paper deployments trade forward with an
   operator-set capital (`make paper-daily`, Live & Risk → Paper trading, ADR-060);
   live is refused in code until the Kite adapter is proven (S-015, T-4022).
@@ -58,7 +63,7 @@ never edit them without an explicit instruction in that session.
 ## The commands that matter
 
 ```bash
-make verify        # is the repo sound?      7 checks, ~998 tests
+make verify        # is the repo sound?      7 checks, ~1,800 tests
 make acceptance    # does each capability still work on real data?  11 checks
 make workbench     # the UI on :3000, API on :8000
 make montecarlo    # drawdown path risk and the Sharpe confidence interval
@@ -95,7 +100,10 @@ Three things are cheap, unblock other work, and are all currently waiting:
 - **The options chain recorder was never built.** Every day it does not run is
   history that cannot be purchased later.
 - **Excess kurtosis ≈ 155** on one configuration, unexplained (T-1310).
+- **Daily FX backtests pay no spread** while labelled costed (HISTORY #20,
+  T-4033), and Tier A's fill order depends on the process (HISTORY #21, T-4034).
+  Both fixes change results, so both wait for the operator.
 
 `docs/STUBS.md` lists everything currently fake. `docs/ASSUMPTIONS.md` lists
-everything unverified with a recheck date. `docs/HISTORY.md` lists the eleven
+everything unverified with a recheck date. `docs/HISTORY.md` lists the twenty-one
 times this project has been wrong so far.

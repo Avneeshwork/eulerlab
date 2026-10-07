@@ -8,13 +8,18 @@ that key is a silent correctness bug.
 
 from __future__ import annotations
 
-from datetime import date
+import json
+import os
+import random
+from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
+from eulerlab.api import panels
 from eulerlab.api.panels import _Panel
 from eulerlab.api.server import _universe_rows
-from eulerlab.features.panel import PanelRow
+from eulerlab.features.panel import PanelRow, read_panel
 
 
 def _row(symbol: str, day: date, close: float) -> PanelRow:
@@ -43,6 +48,68 @@ def test_the_same_window_and_universe_is_still_cached() -> None:
     panel = _Panel()
     rows = [_row("AAA", date(2026, 1, 2), 100.0)]
     assert panel.index(800, rows, "all") is panel.index(800, rows, "all")
+
+
+def _panel_file(path: Path, symbols: tuple[str, ...], seed: int = 5) -> None:
+    """A small panel written in shuffled order, as `read_panel` must cope with."""
+    rng = random.Random(seed)
+    lines = []
+    for i in range(60):
+        day = date(2026, 1, 1) + timedelta(days=i)
+        for symbol in symbols:
+            if rng.random() < 0.2:
+                continue  # a day this symbol did not print
+            row = {"d": day.isoformat(), "s": symbol, "c": 100.0 + i, "v": 1.0, "t": 1.0}
+            lines.append(json.dumps(row))
+    rng.shuffle(lines)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _point_at(monkeypatch: pytest.MonkeyPatch, path: Path) -> None:
+    monkeypatch.setattr(panels, "PANEL_PATH", path)
+    monkeypatch.setattr(panels, "read_panel", lambda: read_panel(path))
+
+
+def test_windows_and_histories_are_the_rows_a_filter_would_give(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows are found by bisection and histories from a per-symbol index;
+    both must equal the plain scan over every row they replaced."""
+    path = tmp_path / "price_panel.jsonl"
+    _panel_file(path, ("AAA", "BBB", "CCC"))
+    _point_at(monkeypatch, path)
+    panel = _Panel()
+    everything = panel.rows()
+    all_days = sorted({row.day for row in everything})
+    for days in (0, 1, 7, 59, len(all_days), len(all_days) + 1, 500):
+        cutoff = all_days[-days] if days and days < len(all_days) else None
+        expected = [row for row in everything if cutoff is None or row.day >= cutoff]
+        assert panel.rows(days) == expected
+        for symbol in ("AAA", "BBB", "ZZZ"):
+            assert panel.history(symbol, days) == [r for r in expected if r.symbol == symbol]
+
+
+def test_figures_derived_from_the_panel_follow_a_rebuilt_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Computed once per load, so they must be dropped with the rows when
+    `make daily` rewrites the file, or a server keeps yesterday's universe."""
+    path = tmp_path / "price_panel.jsonl"
+    _panel_file(path, ("AAA",))
+    _point_at(monkeypatch, path)
+    panel = _Panel()
+
+    def count(rows: list[PanelRow]) -> int:
+        return len({row.symbol for row in rows})
+
+    assert panel.derived("symbols", count) == 1
+    assert panel.history("BBB") == []
+
+    before = path.stat().st_mtime_ns
+    _panel_file(path, ("AAA", "BBB"))
+    os.utime(path, ns=(before + 1_000_000_000, before + 1_000_000_000))
+    assert panel.derived("symbols", count) == 2
+    assert panel.history("BBB"), "the new symbol's history must be served"
 
 
 def test_all_means_every_symbol_in_the_panel() -> None:

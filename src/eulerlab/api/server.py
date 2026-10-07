@@ -847,6 +847,10 @@ def _universe_rows(
     return kept, len(symbols), []
 
 
+def _symbol_count(rows: list[PanelRow]) -> int:
+    return len({row.symbol for row in rows})
+
+
 @app.get("/api/universes")
 def universes() -> dict[str, Any]:
     """Every universe a backtest can be pointed at, with its size.
@@ -859,7 +863,7 @@ def universes() -> dict[str, Any]:
     out: list[dict[str, Any]] = [
         {
             "name": ALL_INSTRUMENTS,
-            "symbols": len({row.symbol for row in PANEL.rows()}),
+            "symbols": PANEL.derived("symbols", _symbol_count),
             "recommended": False,
             "note": (
                 "Every symbol in the panel. What every result so far ran on, and the "
@@ -2109,7 +2113,6 @@ def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[s
 
     try:
         if asset_class == "equity":
-            rows = [r for r in PANEL.rows(days=days) if r.symbol == wanted]
             bars = [
                 {
                     "time": row.day.isoformat(),
@@ -2119,7 +2122,7 @@ def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[s
                     "close": row.close,
                     "volume": row.volume,
                 }
-                for row in sorted(rows, key=lambda r: r.day)
+                for row in PANEL.history(wanted, days)
             ]
         elif asset_class in ("crypto", "fx"):
             from datetime import timedelta
@@ -2223,7 +2226,7 @@ def data_status() -> dict[str, Any]:
         # the state this request walked in on, which is False on the very
         # request that loads the panel and reads as a contradiction next to
         # five million rows.
-        panel |= alt_coverage(PANEL.rows())
+        panel |= PANEL.derived("coverage", alt_coverage)
         panel["loaded"] = PANEL.loaded()
     except (FileNotFoundError, OSError) as exc:
         panel |= {"error": str(exc), "rows": 0, "loaded": False}
@@ -2903,9 +2906,6 @@ def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> li
 
 CALENDAR_WINDOW_DAYS = 7
 
-WORLD_DEADLINE = 25.0
-"""Seconds the snapshot waits for index levels before rendering without them."""
-
 LIVE_MAP_DEADLINE = 20.0
 """Seconds to wait for live quotes before drawing the map from the settled
 close instead. Measured at 3.3s for 2,458 symbols, so this is generous."""
@@ -2955,17 +2955,6 @@ def _instrument_count(asset_class: str) -> int:
         if census is not None:
             return int(getattr(census, field))
     return len(catalog.search(asset_class=asset_class, limit=500))
-
-
-_WORLD_TTL = 600.0
-"""Seconds an index/mover sweep is reused.
-
-Ten minutes. The free FMP budget is 250 calls a day and one sweep costs ten —
-seven indices plus three mover feeds — so an uncached band would spend the
-whole day's allowance in under half an hour of page reloads.
-"""
-
-_WORLD: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 _US_TTL = 300.0

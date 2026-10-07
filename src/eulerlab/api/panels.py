@@ -13,11 +13,18 @@ transport that happens to ask for it.
 from __future__ import annotations
 
 import threading
+from bisect import bisect_left
+from collections.abc import Callable
 from datetime import date
+from operator import attrgetter
+from typing import TypeVar, cast
 
 from eulerlab.backtest.vector import build_adjusted_index
-from eulerlab.features.panel import PANEL_PATH, PanelRow, read_panel
+from eulerlab.features.panel import PANEL_PATH, PanelRow, by_symbol, read_panel, trading_days
 from eulerlab.strategies import AssetClass
+
+T = TypeVar("T")
+_DAY = attrgetter("day")
 
 
 class _Panel:
@@ -26,32 +33,84 @@ class _Panel:
     Guarded by a lock because two requests arriving together would otherwise
     both start a 540 MB read. The index is keyed by the day-window so the
     common case — the same last-N-days repeatedly — is computed once.
+
+    So is everything else a request reads off the whole panel: its trading
+    days, its symbol count, its coverage, its per-symbol histories. Each was a
+    fresh pass over 5.4M rows on every request; now each is one pass per load
+    (`derived`), dropped with the rows when the file changes.
     """
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._rows: list[PanelRow] | None = None
+        self._rows: list[PanelRow] = []
+        self._days: list[date] = []
         self._stamp: int | None = None
+        self._loaded = False
         self._indices: dict[tuple[int, str], dict[str, dict[date, float]]] = {}
+        self._derived: dict[str, object] = {}
+
+    def _current(self) -> list[PanelRow]:
+        """The rows as of the file on disk now. Called with the lock held."""
+        # Re-read when `make daily` has rebuilt the file. Held forever, a
+        # server started before the rebuild kept trading days that were
+        # already stale: a deployment made on 2026-10-07 started on the
+        # 1 Oct close and showed nothing to trade (T-4025).
+        stamp = PANEL_PATH.stat().st_mtime_ns if PANEL_PATH.exists() else None
+        if not self._loaded or stamp != self._stamp:
+            self._rows = read_panel()
+            self._days = trading_days(self._rows)
+            self._stamp = stamp
+            self._loaded = True
+            self._indices.clear()
+            self._derived.clear()
+        return self._rows
+
+    def _derive(self, name: str, build: Callable[[list[PanelRow]], T]) -> T:
+        """`build(rows)`, once per load. Called with the lock held."""
+        rows = self._current()  # first: a reload drops every derived value
+        if name not in self._derived:
+            self._derived[name] = build(rows)
+        return cast(T, self._derived[name])
+
+    def _window_start(self, days: int) -> date | None:
+        """The first day of the last `days` trading days; None for all of them."""
+        if not days or days >= len(self._days):
+            return None
+        return self._days[-days]
 
     def rows(self, days: int = 0) -> list[PanelRow]:
         with self._lock:
-            # Re-read when `make daily` has rebuilt the file. Held forever, a
-            # server started before the rebuild kept trading days that were
-            # already stale: a deployment made on 2026-10-07 started on the
-            # 1 Oct close and showed nothing to trade (T-4025).
-            stamp = PANEL_PATH.stat().st_mtime_ns if PANEL_PATH.exists() else None
-            if self._rows is None or stamp != self._stamp:
-                self._rows = read_panel()
-                self._stamp = stamp
-                self._indices.clear()
-        if not days:
-            return self._rows
-        all_days = sorted({r.day for r in self._rows})
-        if days >= len(all_days):
-            return self._rows
-        cutoff = all_days[-days]
-        return [r for r in self._rows if r.day >= cutoff]
+            rows = self._current()
+            cutoff = self._window_start(days)
+        if cutoff is None:
+            return rows
+        # A suffix, because `read_panel` returns the rows sorted by day: found
+        # by bisection rather than by testing all 5.4M rows, which with
+        # re-sorting every day in the panel was most of a windowed request.
+        return rows[bisect_left(rows, cutoff, key=_DAY) :]
+
+    def history(self, symbol: str, days: int = 0) -> list[PanelRow]:
+        """One symbol's rows in the last `days` trading days, oldest first.
+
+        The same rows as filtering `rows(days)` by symbol, from a per-symbol
+        index built on the first call after each load: a chart asked for one
+        name and paid for a scan of every row in the window.
+        """
+        with self._lock:
+            series = self._derive("by_symbol", by_symbol).get(symbol, [])
+            cutoff = self._window_start(days)
+        if cutoff is None:
+            return list(series)
+        return series[bisect_left(series, cutoff, key=_DAY) :]
+
+    def derived(self, name: str, build: Callable[[list[PanelRow]], T]) -> T:
+        """`build(rows)` over the whole panel, computed once per load.
+
+        For figures read off the entire panel, such as how many symbols it
+        holds. The value is shared between requests: treat it as read-only.
+        """
+        with self._lock:
+            return self._derive(name, build)
 
     def index(
         self, days: int, rows: list[PanelRow], universe: str = "all"
@@ -71,7 +130,7 @@ class _Panel:
             return self._indices[key]
 
     def loaded(self) -> bool:
-        return self._rows is not None
+        return self._loaded
 
 
 PANEL = _Panel()
@@ -90,18 +149,22 @@ class _AltPanel:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._rows: dict[str, list[PanelRow]] = {}
+        self._days: dict[str, list[date]] = {}
 
     def rows(self, asset_class: str, days: int = 0) -> list[PanelRow]:
         with self._lock:
             if asset_class not in self._rows:
-                self._rows[asset_class] = _load_alt(asset_class)
-        rows = self._rows[asset_class]
+                loaded = _load_alt(asset_class)
+                self._days[asset_class] = trading_days(loaded)
+                self._rows[asset_class] = loaded
+            rows = self._rows[asset_class]
+            all_days = self._days[asset_class]
         if not days:
             return rows
         # Trailing N *trading* days, matching `_Panel.rows`. Crypto trades every
         # day and funds only on business days, so neither is forced onto the NSE
-        # calendar; "trading days" is whatever days the data actually has.
-        all_days = sorted({r.day for r in rows})
+        # calendar; "trading days" is whatever days the data actually has. Held
+        # from the load rather than re-derived from every row per request.
         if days >= len(all_days):
             return rows
         cutoff = all_days[-days]
