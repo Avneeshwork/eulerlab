@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Nineteen times this project was wrong
+## Twenty-one times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -207,6 +207,25 @@ anywhere else. Fixed: those tests are stubbed, the suite now refuses any
 connection to another host, and it fails if any file under `data/` changed
 during the run. To clean history, drop rows with `"symbol": "TVC:DXY"`,
 `"last": 98.9` and `"change_pct": 0.15` from `data/landing/macro/` (T-4030).
+
+**20. Daily FX backtests paid nothing for the spread.** (found 2026-10-07)
+`costs/router.py` returns 0.0 for FX on the stated grounds that the daily
+engine charges the spread each `PanelRow` carries. Neither engine reads
+`row.spread`, and `vector.spread_cost`, written to charge it, has never been
+called. So every daily FX run, Tier A and Tier B and the workbench's, was gross
+of costs while `api/panels.COSTED_CLASSES` labelled it costed. Every daily FX
+result here is overstated by the spread it should have paid. Not fixed in the
+speed work that found it, which was bound not to change any result (T-4033).
+
+**21. Tier A's output depends on the process it runs in.** (found 2026-10-07)
+The vectorised engine trades each rebalance's symbols in set order, and Python
+randomises string hashing per process. The same backtest run twice gave the
+same fills in a different order and a final equity differing in the last digit
+(1,176,146.657538167 against 1,176,146.6575381667, synthetic panel). Tier B was
+unaffected. No result moves by anything that matters, but the `CLAUDE.md` rule
+that the same input gives byte-identical output has never held for Tier A.
+Sorting the symbols fixes it and changes Tier A's recorded fill order, so it
+waits for the operator (T-4034).
 
 ---
 

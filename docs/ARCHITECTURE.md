@@ -253,6 +253,15 @@ severe bug:
 dragged an eleven-year buy-and-hold result to −3.3%. The holder had lost
 nothing.
 
+Both series are built in one place, `backtest/history.py`, shared by the two
+engines: `back_adjusted` for marking, `HistoryWindows` for signals. Consecutive
+signal windows overlap almost entirely (a 253-day window moved 21 days keeps
+232 rows), so a window reuses the previous one's adjusted rows whenever the
+same actions are knowable and adjusts only the new ones. Each row's divisor is
+still the product of the later knowable factors taken newest first, the order
+the per-window walk used, so the prices are bit-for-bit the same;
+`tests/test_backtest_history.py` keeps that walk as the oracle (ADR-062).
+
 ## 3.5 Data quality: why the median, not the mean
 
 To detect a corrupt price, you need a measure of "normal spread". The obvious

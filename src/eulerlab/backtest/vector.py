@@ -42,9 +42,9 @@ from __future__ import annotations
 from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
+from datetime import date
 
+from eulerlab.backtest.history import HistoryWindows, back_adjusted
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Segment, Side
@@ -52,12 +52,9 @@ from eulerlab.features.panel import (
     PanelRow,
     assert_adjustable,
     by_symbol,
-    load_price_factor_store,
+    price_factor_events,
     trading_days,
 )
-
-IST = ZoneInfo("Asia/Kolkata")
-FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)
 
 APPROXIMATIONS: tuple[str, ...] = (
     "no intrabar prices: stops, limits and intrabar reversals cannot be modelled",
@@ -124,31 +121,10 @@ def build_adjusted_index(rows: Sequence[PanelRow]) -> dict[str, dict[date, float
     Hoisted out of `run()` because it depends only on the panel, and a
     validation sweep calls `run()` 150 times. Rebuilding it each call turned
     `make validate` into a forty-minute command for work that is identical
-    every time.
+    every time. The same series `run()` builds when it is not given one.
     """
-    histories = by_symbol(rows)
-    events: dict[str, list[tuple[date, float]]] = {}
-    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
-        events.setdefault(record.key, []).append((record.event_time.date(), record.value))
-    for series in events.values():
-        series.sort()
-
-    index: dict[str, dict[date, float]] = {}
-    for symbol, rows_ in histories.items():
-        actions = events.get(rows_[-1].isin, []) if rows_ else []
-        if not actions:
-            index[symbol] = {row.day: row.close for row in rows_}
-            continue
-        out: dict[date, float] = {}
-        cumulative = 1.0
-        cursor = len(actions) - 1
-        for row in reversed(rows_):
-            while cursor >= 0 and actions[cursor][0] > row.day:
-                cumulative *= actions[cursor][1]
-                cursor -= 1
-            out[row.day] = row.close / cumulative
-        index[symbol] = out
-    return index
+    events = price_factor_events()
+    return {symbol: back_adjusted(rows_, events) for symbol, rows_ in by_symbol(rows).items()}
 
 
 def spread_cost(price: float, quantity: int, spread: float) -> float:
@@ -248,50 +224,13 @@ def run(
     # Indexed once. The naive version rescanned each symbol's whole history
     # per lookup, which is quadratic and made a three-year run slower than the
     # data fetch that produced it.
-    # Marking and execution use a **fully back-adjusted** series, adjusted once
-    # as of the end of the run, and the reason is a bug this replaced.
-    #
-    # Position marking needs a *consistent* series. Prices are raw in the panel
-    # and a corporate action moves them violently: VIVIDHA prints 1,290.55 then
-    # 140.75 the next day on an 11:1 action. The share count a holder owns rises
-    # by the same factor, but the engine holds a fixed integer, so marking from
-    # the raw series booked an 89% loss where a holder lost nothing. Measured on
-    # the real panel, this dragged an eleven-year buy-and-hold to -3.3%.
-    #
-    # Point-in-time adjustment cannot fix marking, only signals: if the divisor
-    # changes as time passes, a position's value jumps on the day the
-    # adjustment updates rather than on the ex-date. So the series used for
-    # money is adjusted uniformly.
-    #
-    # The trade-off, stated rather than hidden: this means knowing that a split
-    # is coming. A split is a change of units, not information about returns —
-    # it cannot tell a strategy which way a price will move — which is why this
-    # is standard practice. Signals still see point-in-time adjusted prices via
-    # `_view_history`, so nothing about *ranking* uses future knowledge.
-    _events: dict[str, list[tuple[date, float]]] = {}
-    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
-        _events.setdefault(record.key, []).append((record.event_time.date(), record.value))
-    for _ev in _events.values():
-        _ev.sort()
-
-    def _adjusted(rows_: list[PanelRow]) -> dict[date, float]:
-        events = _events.get(rows_[-1].isin, []) if rows_ else []
-        if not events:
-            return {row.day: row.close for row in rows_}
-        out: dict[date, float] = {}
-        cumulative = 1.0
-        cursor = len(events) - 1
-        for row in reversed(rows_):
-            while cursor >= 0 and events[cursor][0] > row.day:
-                cumulative *= events[cursor][1]
-                cursor -= 1
-            out[row.day] = row.close / cumulative
-        return out
-
+    # Money is marked and filled on the fully back-adjusted series; signals see
+    # only the actions knowable on the day. Why the two differ: history.py.
+    events = price_factor_events()
     price_index: dict[str, dict[date, float]] = (
         adjusted_index
         if adjusted_index is not None
-        else {symbol: _adjusted(rows_) for symbol, rows_ in histories.items()}
+        else {symbol: back_adjusted(rows_, events) for symbol, rows_ in histories.items()}
     )
     ordered_days: dict[str, list[date]] = {
         symbol: [row.day for row in rows_] for symbol, rows_ in histories.items()
@@ -299,60 +238,7 @@ def run(
 
     assert_adjustable(rows)
     funds = fund_symbols(rows)
-    lookback = strategy.lookback
-    # Indexed once per run. `factor_as_of` scans the whole store per call, and
-    # calling it per row per symbol per rebalance took the test suite from 5
-    # seconds to nearly nine minutes. The factors for one instrument are a
-    # short sorted list, so one pass builds what every lookup needs.
-    _factor_events: dict[str, list[tuple[date, float]]] = {}
-    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
-        _factor_events.setdefault(record.key, []).append((record.event_time.date(), record.value))
-    for events in _factor_events.values():
-        events.sort()
-
-    def _view_history(today: date) -> dict[str, list[PanelRow]]:
-        """Rows up to `today`, capped at the lookback and **adjusted as of today**.
-
-        Sliced by bisect on the pre-sorted day list rather than filtered, and
-        capped rather than complete: handing a 253-day feature 2,869 days of
-        history was costing ~90% of the run time for data it never reads.
-
-        The adjustment happens here, not in the panel, because the correct
-        adjustment depends on the date you are standing on. A strategy deciding
-        on 2018-01-15 must see prices adjusted for corporate actions up to that
-        date and **not** for a bonus that goes ex in May. Baking it into a
-        static panel cannot express that, which is why the first attempt
-        silently applied no adjustment at all.
-        """
-        out: dict[str, list[PanelRow]] = {}
-        for symbol, rows_ in histories.items():
-            end = bisect_right(ordered_days[symbol], today)
-            if end == 0:
-                continue
-            start = max(0, end - lookback) if lookback else 0
-            window = rows_[start:end]
-
-            # Only actions already knowable on `today`. One still in the future
-            # is exactly what a strategy standing here must not see.
-            events = [e for e in _events.get(window[-1].isin, []) if e[0] <= today]
-            if not events:
-                out[symbol] = window
-                continue
-
-            # Walk backwards accumulating the divisor: a price is divided by
-            # every action strictly after it. One pass instead of a full store
-            # query per row.
-            adjusted: list[PanelRow] = []
-            cumulative = 1.0
-            cursor = len(events) - 1
-            for row in reversed(window):
-                while cursor >= 0 and events[cursor][0] > row.day:
-                    cumulative *= events[cursor][1]
-                    cursor -= 1
-                adjusted.append(row.adjusted(cumulative))
-            adjusted.reverse()
-            out[symbol] = adjusted
-        return out
+    windows = HistoryWindows(histories, ordered_days, strategy.lookback, events)
 
     def traded_price(symbol: str, day: date) -> float | None:
         """The price if the symbol actually traded that day, else None.
@@ -402,7 +288,7 @@ def run(
         fill_day = days[index + 1]
 
         if (index - warmup) % rebalance_every == 0:
-            view = MarketView(as_of=today, history=_view_history(today))
+            view = MarketView(as_of=today, history=windows.at(today))
             targets = normalise(strategy.target_weights(view), gross_cap=gross_cap)
             equity = portfolio_value(today)
 
@@ -455,10 +341,11 @@ def run(
 
         result.days.append(fill_day)
         result.equity.append(portfolio_value(fill_day))
-        result.final_marks = {
-            symbol: price
-            for symbol in holdings
-            if (price := mark_price(symbol, fill_day)) is not None
-        }
 
+    # Once, after the loop: it was rebuilt every day for the last day's value.
+    result.final_marks = {
+        symbol: price
+        for symbol in holdings
+        if (price := mark_price(symbol, result.days[-1])) is not None
+    }
     return result

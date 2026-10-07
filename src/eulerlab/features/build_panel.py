@@ -14,7 +14,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--to", dest="end", default="2026-12-31")
     args = parser.parse_args(argv)
 
-    before = len(cached_days())
+    # One full read of the panel, not three: the days already held are passed
+    # to `build`, and afterwards only the bytes it appended are read.
+    size = PANEL_PATH.stat().st_size if PANEL_PATH.exists() else 0
+    held = cached_days()
+    before = len(held)
     print(f"panel: {before:,} days already cached; fetching {args.start} to {args.end}")
     print("  (one B2 download per trading day; cached and resumable)")
 
@@ -22,9 +26,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         if done % 100 == 0 or done == total:
             print(f"  {done:,}/{total:,}")
 
-    written, note = build(start=args.start, end=args.end, progress=progress)
+    written, note = build(start=args.start, end=args.end, progress=progress, already=held)
     print(f"\nwrote {written:,} new days -> {PANEL_PATH}")
-    print(f"panel now covers {len(cached_days()):,} trading days")
+    print(f"panel now covers {len(held | cached_days(offset=size)):,} trading days")
     if note:
         print(f"\nincomplete: {note}")
         return 2
