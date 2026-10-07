@@ -14,7 +14,9 @@ streamed and its rows slotted; the factor file is parsed once per version of
 the file (`price_factor_events`); both engines share `backtest/history.py`,
 which reuses the overlap between consecutive point-in-time windows; the API
 derives trading days, symbol counts, coverage and per-symbol histories once
-per panel load; boto3 is imported only when a download needs it.
+per panel load; boto3 is imported only when a download needs it; the
+strategy builder resolves each rule's series once and reads views in place;
+the slowest paper scorers do the same arithmetic with less interpreter work.
 
 **Why.** Every one of these can be wrong by one ulp and still pass a test with
 a tolerance. The comparison has no tolerance. The window reuse also has a

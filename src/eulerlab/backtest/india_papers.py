@@ -68,7 +68,7 @@ def liquid_universe(view: MarketView, top: int = LIQUID_TOP) -> list[str]:
         rows = view.history[symbol]
         if not rows or _is_fund(rows[-1]) or rows[-1].day != view.as_of:
             continue
-        values = sorted(r.turnover for r in rows[-LIQUIDITY_WINDOW:])
+        values = sorted([r.turnover for r in rows[-LIQUIDITY_WINDOW:]])
         if len(values) < LIQUIDITY_WINDOW // 2:
             continue
         ranked.append((values[len(values) // 2], symbol))
@@ -77,16 +77,19 @@ def liquid_universe(view: MarketView, top: int = LIQUID_TOP) -> list[str]:
 
 
 def _monthly_closes(rows: Sequence[PanelRow]) -> list[float]:
-    """The last close of each calendar month, oldest first."""
+    """The last close of each calendar month, oldest first.
+
+    Walked newest first, where a month's last close is the first of its rows
+    met, so no close is stored only to be overwritten by the next.
+    """
     out: list[float] = []
-    current: tuple[int, int] | None = None
-    for row in rows:
-        key = (row.day.year, row.day.month)
-        if key != current:
+    year = month = 0
+    for row in reversed(rows):
+        day = row.day
+        if day.month != month or day.year != year:
             out.append(row.close)
-            current = key
-        else:
-            out[-1] = row.close
+            year, month = day.year, day.month
+    out.reverse()
     return out
 
 
@@ -94,7 +97,7 @@ def _sd(values: Sequence[float]) -> float | None:
     if len(values) < 2:
         return None
     mean = sum(values) / len(values)
-    return math.sqrt(sum((v - mean) ** 2 for v in values) / (len(values) - 1))
+    return math.sqrt(sum([(v - mean) ** 2 for v in values]) / (len(values) - 1))
 
 
 # --- scores -----------------------------------------------------------------
@@ -446,9 +449,9 @@ class LowBeta(Strategy):
             xs = [own_3d[d] for d in common]
             ys = [market_3d[d] for d in common]
             mx, my = sum(xs) / len(xs), sum(ys) / len(ys)
-            cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys, strict=True))
-            vx = sum((x - mx) ** 2 for x in xs)
-            vy = sum((y - my) ** 2 for y in ys)
+            cov = sum([(x - mx) * (y - my) for x, y in zip(xs, ys, strict=True)])
+            vx = sum([(x - mx) ** 2 for x in xs])
+            vy = sum([(y - my) ** 2 for y in ys])
             if vx <= 0 or vy <= 0:
                 continue
             rho = cov / math.sqrt(vx * vy)

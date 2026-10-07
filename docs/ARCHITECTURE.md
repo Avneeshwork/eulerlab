@@ -1032,7 +1032,9 @@ first of exit rule, stop, target, trailing stop or holding limit — so stops ne
 no memory between calls. The replay is cached per instrument and extended by
 new bars; the cache is discarded when the view's history is no longer a prefix
 of the one it was built on, which is what a newly knowable corporate action
-does. A cached replay and a fresh one give identical weights (tested).
+does. A cached replay and a fresh one give identical weights (tested). The
+replay reads the view's rows without copying them, and looks each rule's series
+up by a key worked out once, when the spec is compiled.
 
 Decisions are made on each close (`rebalance_every = 1`). Entry price is the
 signal close; stops are judged on closes. Long only.

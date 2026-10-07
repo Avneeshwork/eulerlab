@@ -237,6 +237,31 @@ def test_slots_go_to_the_highest_ranked() -> None:
     assert weights == {"BBB": 1.0}
 
 
+def test_a_multiplier_scales_the_indicator_it_is_on() -> None:
+    # SMA(3) of 10, 9, 12 is 10.33. The last close, 12, clears 1.1x that
+    # (11.37) and not 1.2x (12.4).
+    def close_above(multiplier: float) -> BuiltStrategy:
+        sma = {**i("sma", period=3), "multiplier": multiplier}
+        return BuiltStrategy(spec(entry={"rules": [rule(i("close"), "above", sma)]}))
+
+    assert holding_after(close_above(1.1), UP)
+    assert not holding_after(close_above(1.2), UP)
+
+
+def test_any_needs_one_rule_and_all_needs_every_rule() -> None:
+    fires = rule(i("close"), "above", v(11))  # only the last close, 12
+    also_fires = rule(i("close"), "above", v(5))
+    never = rule(i("close"), "above", v(50))
+    for match, rules, expected in (
+        ("any", [never, fires], True),
+        ("any", [never], False),
+        ("all", [never, fires], False),
+        ("all", [also_fires, fires], True),
+    ):
+        s = spec(entry={"match": match, "rules": rules})
+        assert holding_after(BuiltStrategy(s), UP) is expected, (match, rules)
+
+
 def test_a_cached_replay_gives_the_same_answer_as_a_fresh_one() -> None:
     """The cache is what makes daily decisions linear; it must change nothing."""
     import math

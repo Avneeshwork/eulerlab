@@ -194,7 +194,9 @@ class Bollinger(Indicator):
         if len(self.window) < self.period:
             return None
         mean = sum(self.window) / self.period
-        sd = math.sqrt(sum((x - mean) ** 2 for x in self.window) / self.period)
+        # A list, not a generator: the same additions in the same order, so the
+        # same float, without resuming a generator once per element.
+        sd = math.sqrt(sum([(x - mean) ** 2 for x in self.window]) / self.period)
         if self.part == "middle":
             return mean
         return mean + self.width * sd if self.part == "upper" else mean - self.width * sd
@@ -267,7 +269,7 @@ class Volatility(Indicator):
         if len(self.returns) < self.period:
             return None
         mean = sum(self.returns) / self.period
-        variance = sum((r - mean) ** 2 for r in self.returns) / (self.period - 1)
+        variance = sum([(r - mean) ** 2 for r in self.returns]) / (self.period - 1)
         return 100.0 * math.sqrt(variance * TRADING_DAYS)
 
 

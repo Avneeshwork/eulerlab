@@ -49,11 +49,11 @@ class Feature:
 
 
 def _returns(history: Sequence[PanelRow]) -> list[float]:
-    out: list[float] = []
-    for previous, current in pairwise(history):
-        if previous.close > 0:
-            out.append(current.close / previous.close - 1.0)
-    return out
+    return [
+        current.close / previous.close - 1.0
+        for previous, current in pairwise(history)
+        if previous.close > 0
+    ]
 
 
 def _total_return(history: Sequence[PanelRow], *, start: int, end: int) -> float | None:
@@ -124,9 +124,15 @@ def max_drawdown(history: Sequence[PanelRow]) -> float | None:
     peak = window[0].close
     worst = 0.0
     for row in window:
-        peak = max(peak, row.close)
+        # Comparisons rather than max() and min(): the same values, NaN and
+        # signed zeros included, without two calls per row.
+        close = row.close
+        if close > peak:
+            peak = close
         if peak > 0:
-            worst = min(worst, row.close / peak - 1.0)
+            fall = close / peak - 1.0
+            if fall < worst:
+                worst = fall
     return -abs(worst)
 
 

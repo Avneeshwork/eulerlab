@@ -50,10 +50,10 @@ never edit them without an explicit instruction in that session.
 - **19 trials are logged.** The noise bar is **Sharpe 1.88**. The best result
   this project has produced is **1.27**.
 - **Faster, same numbers (2026-10-07):** paper runs about 12x and deployments
-  about 18x faster, both engines 2x, the panel load 2x, the workbench's panel
-  requests from ~330ms to under 2ms; every backtest, paper and API output
-  reproduced exactly (ADR-061, ADR-062, T-4032). The test suite runs offline
-  and fails if it touches `data/`.
+  about 18x faster, both engines 2x, builder strategies a further 1.5x, the
+  panel load 2x, the workbench's panel requests from ~330ms to under 2ms; every
+  backtest, paper and API output reproduced exactly (ADR-061, ADR-062, T-4032,
+  T-4038). The test suite runs offline and fails if it touches `data/`.
 - **No capital has ever been traded.** Paper deployments trade forward with an
   operator-set capital (`make paper-daily`, Live & Risk → Paper trading, ADR-060);
   live is refused in code until the Kite adapter is proven (S-015, T-4022).

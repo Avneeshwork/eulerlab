@@ -40,6 +40,7 @@ later only while its own trade is still alive.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -50,13 +51,62 @@ from eulerlab.builder.spec import (
     VOLATILITY_PERIOD,
     BuilderSpec,
     Operand,
-    Rule,
     RuleGroup,
 )
 from eulerlab.features.panel import PanelRow
 
 VOLATILITY = Operand(name="volatility", params={"period": VOLATILITY_PERIOD})
 TURNOVER = Operand(name="turnover_sma", params={"period": TURNOVER_PERIOD})
+VOLATILITY_KEY = VOLATILITY.key()
+TURNOVER_KEY = TURNOVER.key()
+
+
+@dataclass(frozen=True, slots=True)
+class _Term:
+    """One side of a rule, resolved once: the series it reads, or a number.
+
+    `Operand.key()` formats a string from the parameters on every call, and
+    the rules are read on every bar of every instrument, so the key is worked
+    out once here instead of on each read.
+    """
+
+    key: str | None
+    """None for a fixed number."""
+
+    multiplier: float = 1.0
+    value: float = 0.0
+
+    @classmethod
+    def of(cls, operand: Operand) -> _Term:
+        if operand.kind == "value":
+            return cls(None, value=operand.value)
+        return cls(operand.key(), multiplier=operand.multiplier)
+
+    def read(self, values: dict[str, float | None]) -> float | None:
+        if self.key is None:
+            return self.value
+        raw = values.get(self.key)
+        return None if raw is None else raw * self.multiplier
+
+
+@dataclass(frozen=True, slots=True)
+class _Rule:
+    left: _Term
+    op: str
+    right: _Term
+
+
+@dataclass(frozen=True, slots=True)
+class _Group:
+    """A spec's `RuleGroup`, with every operand resolved to a `_Term`."""
+
+    match_all: bool
+    rules: tuple[_Rule, ...]
+
+    @classmethod
+    def of(cls, group: RuleGroup) -> _Group:
+        rules = tuple(_Rule(_Term.of(r.left), r.op, _Term.of(r.right)) for r in group.rules)
+        return cls(group.match == "all", rules)
 
 
 @dataclass
@@ -79,7 +129,7 @@ class Replay:
     peak: float = 0.0
     last_exit: str = ""
 
-    def matches(self, rows: list[PanelRow]) -> bool:
+    def matches(self, rows: Sequence[PanelRow]) -> bool:
         """Whether `rows` extends the history this replay was built on."""
         if self.bars == 0 or len(rows) < self.bars:
             return False
@@ -117,6 +167,11 @@ class BuiltStrategy(Strategy):
         operands = [*spec.operands(), VOLATILITY, TURNOVER]
         self._operands: dict[str, Operand] = {o.key(): o for o in operands if o.kind == "indicator"}
         self._replays: dict[str, Replay] = {}
+        self._entry = _Group.of(spec.entry)
+        self._exit = _Group.of(spec.exit)
+        ranking = spec.sizing.ranking
+        self._rank_by = _Term.of(ranking.by) if ranking is not None else None
+        self._rank_highest = ranking is not None and ranking.order == "highest"
 
     def describe(self) -> str:
         return f"{self.spec.name} ({self.spec.id})"
@@ -128,35 +183,33 @@ class BuiltStrategy(Strategy):
             series={key: BY_NAME[o.name].make(o.params) for key, o in self._operands.items()}
         )
 
-    def _value(self, replay: Replay, operand: Operand, *, previous: bool) -> float | None:
-        if operand.kind == "value":
-            return operand.value
-        source = replay.previous if previous else replay.values
-        raw = source.get(operand.key())
-        return None if raw is None else raw * operand.multiplier
-
-    def _holds(self, replay: Replay, rule: Rule) -> bool:
-        left = self._value(replay, rule.left, previous=False)
-        right = self._value(replay, rule.right, previous=False)
+    @staticmethod
+    def _holds(replay: Replay, rule: _Rule) -> bool:
+        left = rule.left.read(replay.values)
+        right = rule.right.read(replay.values)
         if left is None or right is None:
             return False
         if rule.op == "above":
             return left > right
         if rule.op == "below":
             return left < right
-        before_left = self._value(replay, rule.left, previous=True)
-        before_right = self._value(replay, rule.right, previous=True)
+        before_left = rule.left.read(replay.previous)
+        before_right = rule.right.read(replay.previous)
         if before_left is None or before_right is None:
             return False
         if rule.op == "crosses_above":
             return before_left <= before_right and left > right
         return before_left >= before_right and left < right
 
-    def _group(self, replay: Replay, group: RuleGroup) -> bool:
+    def _group(self, replay: Replay, group: _Group) -> bool:
         if not group.rules:
             return False
-        results = (self._holds(replay, rule) for rule in group.rules)
-        return all(results) if group.match == "all" else any(results)
+        for rule in group.rules:
+            holds = self._holds(replay, rule)
+            if holds != group.match_all:
+                # One rule failing settles "all"; one rule holding settles "any".
+                return holds
+        return group.match_all
 
     def _eligible(self, replay: Replay, close: float) -> bool:
         u = self.spec.universe
@@ -165,7 +218,7 @@ class BuiltStrategy(Strategy):
         if u.max_price and close > u.max_price:
             return False
         if u.min_turnover:
-            turnover = replay.values.get(TURNOVER.key())
+            turnover = replay.values.get(TURNOVER_KEY)
             if turnover is None or turnover < u.min_turnover:
                 return False
         return True
@@ -180,7 +233,7 @@ class BuiltStrategy(Strategy):
             return "trailing_stop"
         if risk.max_hold_days and replay.bars - 1 - replay.entry_bar >= risk.max_hold_days:
             return "max_hold"
-        if self._group(replay, self.spec.exit):
+        if self._group(replay, self._exit):
             return "exit_rule"
         return ""
 
@@ -201,15 +254,15 @@ class BuiltStrategy(Strategy):
                 replay.holding = False
                 replay.last_exit = reason
             return
-        if self._eligible(replay, close) and self._group(replay, self.spec.entry):
+        if self._eligible(replay, close) and self._group(replay, self._entry):
             replay.holding = True
             replay.entry_day = row.day
             replay.entry_price = close
             replay.entry_bar = replay.bars - 1
             replay.peak = close
-            replay.entry_vol = replay.values.get(VOLATILITY.key())
+            replay.entry_vol = replay.values.get(VOLATILITY_KEY)
 
-    def replay(self, symbol: str, rows: list[PanelRow]) -> Replay:
+    def replay(self, symbol: str, rows: Sequence[PanelRow]) -> Replay:
         """The instrument's state after the last row, reusing what is still valid."""
         cached = self._replays.get(symbol)
         if cached is None or not cached.matches(rows):
@@ -227,7 +280,10 @@ class BuiltStrategy(Strategy):
     def target_weights(self, view: MarketView) -> dict[str, float]:
         holding: list[tuple[str, Replay]] = []
         for symbol in view.symbols():
-            rows = list(view.history[symbol])
+            # Read in place. The replay keeps no reference to the rows, so a
+            # copy of every instrument's full history, made on every day of a
+            # daily backtest, bought nothing.
+            rows = view.history[symbol]
             if not rows:
                 continue
             replay = self.replay(symbol, rows)
@@ -236,12 +292,12 @@ class BuiltStrategy(Strategy):
 
         sizing = self.spec.sizing
         if len(holding) > sizing.max_positions:
-            if sizing.ranking is not None:
-                by = sizing.ranking.by
-                highest = sizing.ranking.order == "highest"
+            by = self._rank_by
+            if by is not None:
+                highest = self._rank_highest
 
                 def rank(item: tuple[str, Replay]) -> tuple[int, float, str]:
-                    value = self._value(item[1], by, previous=False)
+                    value = by.read(item[1].values)
                     if value is None:
                         return (1, 0.0, item[0])
                     return (0, -value if highest else value, item[0])
