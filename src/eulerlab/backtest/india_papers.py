@@ -253,16 +253,25 @@ class DoubleSort(Strategy):
         return dict.fromkeys(chosen, 1.0 / len(chosen))
 
 
-def sharpe_momentum(rows: Sequence[PanelRow]) -> float | None:
-    """12-month return divided by 12-month daily volatility (annualised)."""
-    if len(rows) < YEAR + 1:
-        return None
-    window = rows[-YEAR - 1 :]
-    first, last = window[0].close, window[-1].close
-    sd = _sd(_returns(window))
-    if first <= 0 or not sd:
-        return None
-    return (last / first - 1.0) / (sd * math.sqrt(YEAR))
+def sharpe_momentum_over(days: int) -> Score:
+    """Return over `days` divided by daily volatility over the same `days`,
+    annualised. The paper's window is a year; the sweep in research 067 varies it."""
+
+    def score(rows: Sequence[PanelRow]) -> float | None:
+        if len(rows) < days + 1:
+            return None
+        window = rows[-days - 1 :]
+        first, last = window[0].close, window[-1].close
+        sd = _sd(_returns(window))
+        if first <= 0 or not sd:
+            return None
+        return (last / first - 1.0) / (sd * math.sqrt(days))
+
+    return score
+
+
+sharpe_momentum = sharpe_momentum_over(YEAR)
+"""12-month return divided by 12-month daily volatility (annualised)."""
 
 
 def median_turnover(rows: Sequence[PanelRow]) -> float | None:

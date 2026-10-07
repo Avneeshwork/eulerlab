@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -245,6 +245,11 @@ rebuild-ohlc:
 
 india-papers:
 	@uv run --extra web python -m eulerlab.research.run_india $(if $(ONLY),--only $(ONLY),)
+
+# Sweep volatility-adjusted momentum's window, names held and rebalance; choose
+# on 2016-2023, test once on 2024 on. Resumable. Research 067.
+tune-sharpe-momentum:
+	@uv run python -m eulerlab.research.tune_sharpe_momentum $(if $(ANALYSE),--analyse-only,)
 
 tweezer-report:
 	@uv run python -m eulerlab.intraday.tweezer_report $(if $(HOLD),--hold $(HOLD),--hold 1,5,20) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),)

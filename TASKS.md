@@ -9,6 +9,18 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Tuning volatility-adjusted momentum (2026-10-07)
+
+Operator: "optimize this strategy and ensure no overfitting", then "optimize the set of parameters in the strategy, no other parameter addition". Research 067.
+Verify: `uv run pytest -q tests/test_tune_sharpe_momentum.py`; `make tune-sharpe-momentum ANALYSE=1` (needs the sweep's runs on disk; without them `make tune-sharpe-momentum` re-runs all 64, about 50 minutes, resumable).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4008 | **Sweep window, names held and rebalance; choose on 2016-2023, test on 2024-2026** | DONE — 64 settings. Only the window matters (9-12 months beat 3-6 in-sample and holdout). PBO 0.71; walk-forward re-tuning earned Sharpe 1.28 against 1.38 for the paper's setting. Paper setting kept |
+| T-4009 | 252/10/10 made holdout Sharpe 1.16 against the paper's 0.80 | OPEN — likely luck (its neighbours made 0.60-0.82, grid edge, 3× costs). Paper-trade it beside the paper setting if it is to be believed |
+
+---
+
 ## The left-out paper strategies (2026-10-07)
 
 Operator: "now run all leftout strategies", then "yes" to four papers the new data unlocked. Research 064, 066.
