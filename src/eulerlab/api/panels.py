@@ -16,7 +16,7 @@ import threading
 from datetime import date
 
 from eulerlab.backtest.vector import build_adjusted_index
-from eulerlab.features.panel import PanelRow, read_panel
+from eulerlab.features.panel import PANEL_PATH, PanelRow, read_panel
 from eulerlab.strategies import AssetClass
 
 
@@ -31,12 +31,20 @@ class _Panel:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._rows: list[PanelRow] | None = None
+        self._stamp: int | None = None
         self._indices: dict[tuple[int, str], dict[str, dict[date, float]]] = {}
 
     def rows(self, days: int = 0) -> list[PanelRow]:
         with self._lock:
-            if self._rows is None:
+            # Re-read when `make daily` has rebuilt the file. Held forever, a
+            # server started before the rebuild kept trading days that were
+            # already stale: a deployment made on 2026-10-07 started on the
+            # 1 Oct close and showed nothing to trade (T-4025).
+            stamp = PANEL_PATH.stat().st_mtime_ns if PANEL_PATH.exists() else None
+            if self._rows is None or stamp != self._stamp:
                 self._rows = read_panel()
+                self._stamp = stamp
+                self._indices.clear()
         if not days:
             return self._rows
         all_days = sorted({r.day for r in self._rows})

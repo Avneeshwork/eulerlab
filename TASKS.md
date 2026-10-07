@@ -23,6 +23,7 @@ Verify: `uv run pytest -q tests/test_deploy_runner.py tests/test_deploy_sizing.p
 | T-4022 | Live deployments | BLOCKED — on the operator: the broker (Kite assumed) and the live capital cap and confirmation rule. Then one supervised test order (T-3336) |
 | T-4017 | Corporate actions on a paper book | OPEN — S-038 |
 | T-4023 | The panel ended 2026-10-01 | DONE — 2-7 Oct landed, mirrored and built (the mirror must run before `build-panel`, which reads B2). Panel ends 2026-10-07 |
+| T-4025 | **A deployment made from a long-running workbench used the panel it loaded at startup** | FIXED — the API kept the price panel from when it started, so a ₹1 lakh deployment made on 7 Oct started on the 1 Oct close and showed "waiting". `api/panels.py` now re-reads the panel when the file changes. That deployment was caught up by `make paper-daily` |
 | T-4024 | A new deployment said "ok" before it could trade | FIXED — the engine runs only once two sessions follow the start; until then the state is "waiting" with that reason |
 
 ---
