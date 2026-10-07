@@ -199,10 +199,15 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
 
     kept, warmup = _rows_for(rows, deployment.start)
     days = trading_days(kept)
-    if not days or warmup >= len(days) - 1:
+    # The engine needs two sessions after the start before it runs at all
+    # (`event_driven.run` returns nothing for `len(days) <= warmup + 2`).
+    if not days or len(days) <= warmup + 2:
         state.update(
             status="waiting",
-            reason=f"no trading day after {deployment.start} in the panel yet",
+            reason=(
+                f"the first decision is {deployment.start}'s close; it trades once the "
+                f"panel holds two sessions after it"
+            ),
         )
         if stale := freshness(days[-1] if days else deployment.start):
             warnings.append(stale)

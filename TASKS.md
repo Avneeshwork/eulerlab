@@ -22,7 +22,8 @@ Verify: `uv run pytest -q tests/test_deploy_runner.py tests/test_deploy_sizing.p
 | T-4021 | **Deploy and watch from the workbench** | DONE — Deploy → Paper takes a capital amount and starts a deployment (evidence checks shown as advisory for paper, still blocking for live). Live & Risk → Paper trading: equity, return, cash, costs, positions, fills, next rebalance, warnings, Run now, Stop |
 | T-4022 | Live deployments | BLOCKED — on the operator: the broker (Kite assumed) and the live capital cap and confirmation rule. Then one supervised test order (T-3336) |
 | T-4017 | Corporate actions on a paper book | OPEN — S-038 |
-| T-4023 | The panel ends 2026-10-01 | OPEN — `make daily` has not built the panel since; paper deployments have no new close to trade until it does |
+| T-4023 | The panel ended 2026-10-01 | DONE — 2-7 Oct landed, mirrored and built (the mirror must run before `build-panel`, which reads B2). Panel ends 2026-10-07 |
+| T-4024 | A new deployment said "ok" before it could trade | FIXED — the engine runs only once two sessions follow the start; until then the state is "waiting" with that reason |
 
 ---
 
