@@ -126,6 +126,9 @@ class PanelRow:
         return (self.day, self.symbol)
 
 
+MANUAL_PRICE_FACTORS = Path("config/manual_price_factors.jsonl")
+
+
 def load_price_factor_store(path: Path = PRICE_FACTORS) -> BitemporalStore:
     """Rebuild the bitemporal factor store from the persisted JSONL.
 
@@ -134,9 +137,15 @@ def load_price_factor_store(path: Path = PRICE_FACTORS) -> BitemporalStore:
     applied to a date before it was knowable.
     """
     store = BitemporalStore()
-    if not path.exists():
-        return store
-    for line in path.read_text(encoding="utf-8").splitlines():
+    lines: list[str] = []
+    if path.exists():
+        lines += path.read_text(encoding="utf-8").splitlines()
+    # Actions NSE's equity corporate-actions feed never carries — an ETF's
+    # unit split — added by hand with their evidence (A-043). Read only beside
+    # the real factor file, so a test pointing `path` elsewhere stays isolated.
+    if path == PRICE_FACTORS and MANUAL_PRICE_FACTORS.exists():
+        lines += MANUAL_PRICE_FACTORS.read_text(encoding="utf-8").splitlines()
+    for line in lines:
         if not line.strip():
             continue
         row = json.loads(line)

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Sixteen times this project was wrong
+## Seventeen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -165,6 +165,16 @@ re-ranked at each decision date; 12-1 momentum +1,098% against +474%. Every
 cross-sectional result run on a named universe is inflated by this, by an
 unknown amount until re-run (T-3984). ADR-008 avoided index membership for
 this reason and the liquidity list reintroduced it.
+
+**17. NIFTYBEES's 2019 unit split was never adjusted.** (2026-10-06) The ETF
+split 1:10 on 2019-12-19 and changed ISIN; NSE's equity corporate-actions feed
+does not carry ETF actions, so no factor existed and the engine marked a held
+position down 90% overnight. Found when "hold the Nifty in December" lost 88%.
+Every result that held NIFTYBEES across that day was wrong — the Indian-paper
+calendar strategies, the MACD and moving-average rules, and any buy-and-hold or
+index benchmark run through the engine. The beta of every stock against
+NIFTYBEES was also distorted by the one-day -90% print. Fixed with a manual
+factor (A-043); the affected India-paper strategies were re-run.
 
 ---
 
