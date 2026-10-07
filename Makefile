@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -272,6 +272,11 @@ kill-stop:
 	@test -n "$(REASON)" || (echo 'usage: make kill-stop REASON="why"'; exit 2)
 	@uv run python -m eulerlab.oms.killswitch --trip "$(REASON)"
 
+# Every active paper deployment, replayed to the latest close: catches up
+# missed days, sends nothing twice, halts on a broken book. ADR-060.
+paper-daily:
+	@uv run python -m eulerlab.deploy.runner $(if $(ONLY),--only $(ONLY),)
+
 paper:
 	@uv run python -m eulerlab.paper.runner $(if $(FEATURE),--feature $(FEATURE),) $(if $(DAYS),--days $(DAYS),) $(if $(SLIPPAGE),--slippage-bps $(SLIPPAGE),) $(if $(TOP_N),--top-n $(TOP_N),) $(if $(RESET),--reset,)
 
@@ -329,6 +334,8 @@ daily:
 	$(MAKE) sync-cloud
 	@echo "== price panel =="
 	-$(MAKE) --no-print-directory build-panel
+	@echo "== paper deployments (bring each up to the latest close) =="
+	-$(MAKE) --no-print-directory paper-daily
 	$(MAKE) prune-local
 	@echo "== landing census =="
 	-$(MAKE) --no-print-directory manifest

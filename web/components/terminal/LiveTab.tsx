@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { PaperDeployments } from '@/components/terminal/PaperDeployments';
 import { api } from '@/lib/api';
 import type { FleetStrategy, Preflight } from '@/lib/api';
 
@@ -53,6 +54,7 @@ export function LiveTab({
 
   return (
     <>
+      <PaperDeployments fleet={fleet} />
       <section className="thero">
         <div>
           <div className="theyebrow">Trading now</div>

@@ -966,6 +966,33 @@ The reality gap decomposes into five terms:
 > plan's "residual under 10%" target concerns a *live* shortfall and cannot
 > exist until there is a real counterparty.
 
+## 6.8 Deployments: trading forward with the operator's capital
+
+A deployment (`deploy/`) is one strategy, one capital amount, one start date,
+and its own folder: OMS journal, paper broker, kill switch and last state.
+`make paper-daily` (the end of `make daily`) brings each active one up to the
+latest close by **replaying it from its start** through the Tier B engine with
+`OMSExecutor` (ADR-060). Client order ids are deterministic and `OMS.submit`
+returns a journalled order without re-sending it, so replayed days re-read
+their fills and only new days send. Missed days are caught up in one run.
+
+Timing is the backtest's: decide on day *t*'s close, fill at day *t+1*'s
+price, here 5 bps worse (A-048), with Indian costs and 1% of equity kept in
+cash for them. Money is marked at raw closes, so a replay cannot re-size a day
+already traded; a split on a held name reads as a loss until S-038 is fixed.
+
+**Capital fit.** Before sizing, `fit_to_capital` ranks the strategy's names
+(weight, then the strategy's own order) and keeps the largest top-ranked set in
+which every name can buy at least one share at today's close, re-weighted to
+the same exposure. Off in backtests (`fit_capital=False`).
+
+**Halts.** Each of these trips the deployment's own switch and stops it:
+orders still UNKNOWN after asking the broker; a replayed, already-traded day
+producing an order the journal never saw (the data changed after the fact);
+engine holdings ≠ broker positions. A stale panel is reported, not halted.
+Live mode is refused in code until the Kite adapter has placed a supervised
+order (T-3336) and live limits exist.
+
 ---
 
 # Part V — The workbench

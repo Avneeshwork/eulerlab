@@ -51,7 +51,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab import cloud_results, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
-from eulerlab.api import builder_routes, research_routes
+from eulerlab.api import builder_routes, deploy_routes, research_routes
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
@@ -90,6 +90,7 @@ scanners: the paper signals, and Tweezer Bottom through its own scanner."""
 app = FastAPI(title="EulerLab", version="0.1.0")
 app.include_router(builder_routes.router)
 app.include_router(research_routes.router)
+app.include_router(deploy_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,
@@ -1831,6 +1832,10 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         (r for r in strategy_fleet(tenant.ledger) if r.declaration.id == request.strategy), None
     )
     stage = row.stage.value if row else "unknown"
+    # Paper moves no money and is how a strategy earns forward evidence, so
+    # for paper the evidence checks are shown but do not block (operator,
+    # 2026-10-07). For live they still block.
+    evidence_blocks = request.mode == "live"
     check(
         "Cleared the gate and is forward-testing",
         stage in {"forward_testing", "live"},
@@ -1839,6 +1844,7 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         f"the gate, and a screened-only strategy has no evidence behind it"
         if stage not in {"forward_testing", "live"}
         else f"stage is {stage!r}",
+        blocking=evidence_blocks,
     )
 
     bar = price_search(0, available_years=11.4).bar_after
@@ -1856,6 +1862,7 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         )
         if top
         else "never backtested in this workspace",
+        blocking=evidence_blocks,
     )
 
     stop = workspace_mod.halted(tenant)

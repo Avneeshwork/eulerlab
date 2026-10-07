@@ -49,7 +49,9 @@ never edit them without an explicit instruction in that session.
   deliberately overfit acceptance strategies. It has never promoted anything.
 - **19 trials are logged.** The noise bar is **Sharpe 1.88**. The best result
   this project has produced is **1.27**.
-- **No capital has ever been traded.** There is no live broker adapter (S-015).
+- **No capital has ever been traded.** Paper deployments trade forward with an
+  operator-set capital (`make paper-daily`, Live & Risk → Paper trading, ADR-060);
+  live is refused in code until the Kite adapter is proven (S-015, T-4022).
 
 ---
 

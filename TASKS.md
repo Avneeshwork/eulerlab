@@ -9,6 +9,23 @@ plan — they are listed here as scope only, not as tasks.
 
 ---
 
+## Paper trading forward, with the operator's capital (2026-10-07)
+
+Operator: "yes i should decide amount ... cut position in lowest ranked instruments ... build full paper trading infra mimicking live trading and deploy first, research other platform sandbox / paper trading and fallback system". ADR-060, research 069.
+Verify: `uv run pytest -q tests/test_deploy_runner.py tests/test_deploy_sizing.py`; `make workbench` → Strategies → a strategy → Deploy → Paper; Live & Risk → Paper trading; `make paper-daily`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4018 | **Fit to capital** | DONE — `deploy/sizing.py`: the largest top-ranked set whose every name the money can buy at least one share of, re-weighted; the rest are left out. The Deploy dialog shows "₹X buys the top k of N" before starting |
+| T-4019 | **Forward paper deployments** | DONE — `deploy/runner.py`, `make paper-daily` (also the end of `make daily`): each deployment replays from its start through the engine and the OMS to the latest close. Catch-up after missed days, nothing sent twice, 5 bps slippage, Indian costs, 1% cash buffer |
+| T-4020 | **Fallbacks** | DONE — kill switch tripped, unresolved orders, a revised past (an order for a traded day never placed), book ≠ broker: each halts that deployment and trips its own switch. Stale panel is reported, not halted |
+| T-4021 | **Deploy and watch from the workbench** | DONE — Deploy → Paper takes a capital amount and starts a deployment (evidence checks shown as advisory for paper, still blocking for live). Live & Risk → Paper trading: equity, return, cash, costs, positions, fills, next rebalance, warnings, Run now, Stop |
+| T-4022 | Live deployments | BLOCKED — on the operator: the broker (Kite assumed) and the live capital cap and confirmation rule. Then one supervised test order (T-3336) |
+| T-4017 | Corporate actions on a paper book | OPEN — S-038 |
+| T-4023 | The panel ends 2026-10-01 | OPEN — `make daily` has not built the panel since; paper deployments have no new close to trade until it does |
+
+---
+
 ## Tuning volatility-adjusted momentum (2026-10-07)
 
 Operator: "optimize this strategy and ensure no overfitting", then "optimize the set of parameters in the strategy, no other parameter addition". Research 067.

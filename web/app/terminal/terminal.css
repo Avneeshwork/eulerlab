@@ -2605,3 +2605,28 @@ textarea:focus-visible {
 .tune-keys b { color: var(--fg); font-variant-numeric: tabular-nums; }
 .tune-table td:first-child { min-width: 9.5rem; }
 .tune-table td:first-child b { white-space: nowrap; }
+
+/* --- Paper deployments (deploy/runner.py, ADR-060) -------------------- */
+
+.paper-card { border: 1px solid var(--line); border-radius: 4px; padding: 0.8rem 0.9rem; margin: 0.6rem 0; }
+.paper-card header { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.6rem; flex-wrap: wrap; }
+.paper-card header > div { display: flex; flex-direction: column; gap: 0.1rem; }
+.paper-badge { font-size: 0.68rem; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.paper-badge.s-ok { color: var(--clear); border-color: var(--clear); }
+.paper-badge.s-halted, .paper-badge.s-error { color: var(--fail); border-color: var(--fail); }
+.paper-badge.s-running { color: var(--caveat); border-color: var(--caveat); }
+.paper-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0.6rem 1rem; margin: 0.7rem 0 0.4rem; align-items: end; }
+.paper-stats div { display: flex; flex-direction: column; gap: 0.1rem; }
+.paper-stats span { font-size: 0.63rem; color: var(--muted); }
+.paper-stats b { font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.paper-stats b.small { font-size: 0.72rem; font-weight: 500; }
+.paper-stats .pos { color: var(--up); }
+.paper-stats .neg { color: var(--down); }
+.paper-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.paper-detail { margin-top: 0.7rem; overflow-x: auto; }
+.paper-detail h4 { margin: 0.8rem 0 0.3rem; font-size: 0.72rem; font-weight: 600; }
+.dlg-capital { margin: 0 0 0.8rem; }
+.dlg-capital label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.72rem; color: var(--muted); }
+.dlg-capital input { font: inherit; font-size: 0.95rem; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--fg); max-width: 14rem; }
+.checks li[data-advisory='true'][data-passed='false'] { background: var(--caveat-wash); }
+.checks li[data-advisory='true'][data-passed='false'] .ck { background: var(--caveat); }

@@ -502,6 +502,11 @@ export default function TerminalPage() {
           strategy={deploying}
           workspace={workspace}
           onClose={() => setDeploying(null)}
+          onDeployed={() => {
+            setDeploying(null);
+            setLiveView('deploy');
+            setPage('live');
+          }}
         />
       )}
       {explaining !== null && (

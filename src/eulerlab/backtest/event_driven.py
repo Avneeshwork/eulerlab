@@ -50,6 +50,7 @@ from eulerlab.backtest.execution import Executor, SimulatedExecutor
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
 from eulerlab.backtest.vector import fund_symbols
 from eulerlab.costs.model import Brokerage
+from eulerlab.deploy.sizing import fit_to_capital
 from eulerlab.features.panel import (
     PanelRow,
     assert_adjustable,
@@ -120,6 +121,7 @@ def run(
     adjusted_index: dict[str, dict[date, float]] | None = None,
     cost_multiplier: float = 1.0,
     executor: Executor | None = None,
+    fit_capital: bool = False,
 ) -> TierBResult:
     """Run `strategy` event by event.
 
@@ -281,6 +283,10 @@ def run(
                 if (price := mark_price(symbol, today)) is not None
             }
             equity = portfolio.equity(marks)
+            if fit_capital:
+                # A deployment's capital may be too small for every name: keep
+                # the top-ranked ones it can buy at today's close (deploy/sizing).
+                targets = fit_to_capital(targets, equity * gross_cap, marks.get)
 
             desired = target_quantities(equity, targets, partial(traded_price, day=fill_day))
             if strategy.hold_unchanged:

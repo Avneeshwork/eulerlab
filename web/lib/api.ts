@@ -387,6 +387,64 @@ export type Preflight = {
   blockers: number;
 };
 
+export type DeploymentPosition = {
+  symbol: string;
+  quantity: number;
+  average_price: number | null;
+  last_price: number;
+  value: number;
+  weight: number;
+  last_traded: string | null;
+};
+
+export type DeploymentState = {
+  status?: 'ok' | 'halted' | 'waiting' | 'error';
+  reason?: string;
+  ran_at?: string;
+  traded_through?: string | null;
+  as_of?: string;
+  capital?: number;
+  equity?: number;
+  cash?: number;
+  total_return?: number;
+  costs?: number;
+  curve?: [string, number][];
+  book?: DeploymentPosition[];
+  fills?: { day: string; symbol: string; side: string; quantity: number; price: number; cost: number }[];
+  fills_total?: number;
+  rejections?: { day: string; symbol: string; reason: string }[];
+  sent_this_run?: number;
+  rebalance_every?: number;
+  next_rebalance?: string;
+  intended?: { wanted?: number; affordable?: number; names?: string[]; cut?: string[]; error?: string };
+  warnings?: string[];
+};
+
+/** One strategy trading forward with its own money (paper only for now). */
+export type Deployment = {
+  id: string;
+  strategy_id: string;
+  mode: 'paper' | 'live';
+  capital: number;
+  start: string;
+  created_at: string;
+  status: 'active' | 'stopped' | 'halted';
+  status_reason: string;
+  slippage_bps: number;
+  running: string;
+  state: DeploymentState;
+};
+
+export type DeployPreview = {
+  ok: boolean;
+  as_of?: string;
+  wanted?: number;
+  affordable?: number;
+  names?: string[];
+  cut?: string[];
+  error?: string;
+};
+
 export type PanelStatus = {
   loaded: boolean;
   rows: number;
@@ -1291,6 +1349,19 @@ export const api = {
   mirror: (workspace = '') => post<MirrorResult>('/api/cloud/mirror', { workspace }),
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
+  deployments: () => get<{ deployments: Deployment[] }>('/api/deployments'),
+  deployPreview: (strategy: string, capital: number) =>
+    post<DeployPreview>('/api/deployments/preview', { strategy, capital }),
+  deploy: (strategy: string, mode: 'paper' | 'live', capital: number) =>
+    post<{ ok: boolean; error?: string; deployment?: Deployment }>('/api/deployments', {
+      strategy,
+      mode,
+      capital,
+    }),
+  runDeployment: (id: string) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/run`, {}),
+  stopDeployment: (id: string) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/stop`, {}),
   data: () => get<DataStatus>('/api/data'),
   history: (symbol: string, assetClass = 'equity', days = 400) =>
     get<History>(
