@@ -31,7 +31,7 @@ Verify: `uv run pytest -q tests/test_india_papers.py`; `make india-papers`; Tool
 |---|---|---|
 | T-3985 | **Thirteen Indian-equity papers in the library, twelve backtested** | DONE — 11 read in full, 1 abstract only, 1 unreadable. Strategies in `backtest/india_papers.py`, registered and run 2016–2026, Tier B, after costs. None clears the bar; results in research 064 |
 | T-3986 | The seven momentum papers | DONE — abstracts only (SSRN blocks full text); rules assumed where unstated and said so per paper. Backtested; research 064 |
-| T-3992 | Twenty more Indian papers | DOING — batch A (10) added: 8 backtested, sector rotation and overnight need data or the intraday engine. Batch B (10) being read |
+| T-3992 | Twenty more Indian papers | DONE — 19 added (batch A 10, batch B 9 read directly after the batch-B reader stalled for 9 hours on blocked sites). 11 backtested; the rest need sector indices, India VIX, open-to-close fills, OHLC history, or publish no reproducible rule. Research 064 |
 | T-3984 | **Named universes are not point-in-time** | OPEN — HISTORY #16. The India-paper strategies re-rank a top 250 at each date; every other daily strategy on `nifty50/100/250` is still biased |
 | T-3991 | **CI red: the calendar strategies read the 550 MB panel when built** | FIXED — the registry builds every strategy to check it can be invoked, and CI has no panel. `IndexCalendar` now loads the exchange calendar on first use |
 | T-3987 | The intraday-momentum paper could not be read | OPEN — in the library as an idea with no strategy |

@@ -1,0 +1,27 @@
+id: ranse-2026-survivorship-smallcap-india
+title: 'Survivorship Bias in Emerging Market Small-Cap Indices: Evidence from India''s NIFTY
+  Smallcap 250'
+authors: Ranse, H. S.
+year: 2026
+kind: paper
+source_url: https://arxiv.org/abs/2603.19380
+pdf: ''
+added: '2026-10-07'
+status: idea
+markets:
+- NIFTY Smallcap 250, 2016-2025
+summary: Reconstructs the Nifty Smallcap 250's historical membership from price and volume
+  ranking across 1,437 stocks, 2016-2025, and finds survivor-only backtests overstate annual
+  returns by 4.94 percentage points and Sharpe by 0.097.
+trade_idea: 'Not a strategy: evidence of how much a today''s-list universe inflates a backtest,
+  the bias this platform found in its own named universes.'
+implementation: |-
+  - Point-in-time membership by price-volume ranking, including delisted, graduated and demoted stocks.
+
+  No strategy. See HISTORY #16 and T-3984.
+red_flags:
+- Abstract only.
+reported_results: Survivor-only backtesting overstates annual returns by 4.94 points (23.3%)
+  and Sharpe by 0.097.
+hypothesis: ''
+strategies: []

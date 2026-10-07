@@ -351,6 +351,46 @@ def mean_over_sd(days: int) -> Score:
     return score
 
 
+class LeadLag(Strategy):
+    """Hold the follower ETF for a week after the leader rose over the week
+    before (Sahoo & Kumar 2022: large caps lead mid and small caps)."""
+
+    rebalance_every = 5
+    lookback = 10
+
+    def __init__(self, name: str, leader: str, follower: str) -> None:
+        self.name = name
+        self.leader = leader
+        self.follower = follower
+        self.hold_unchanged = True
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        lead = view.history.get(self.leader)
+        follow = view.history.get(self.follower)
+        if not lead or not follow or len(lead) < 6 or follow[-1].day != view.as_of:
+            return {}
+        return {self.follower: 1.0} if lead[-1].close > lead[-6].close else {}
+
+
+class LiquidBuilt(Strategy):
+    """A Strategy Builder spec run over the point-in-time top 250 only, so a
+    stock-level rule from a paper is not run on every listed name."""
+
+    def __init__(self, inner: Strategy) -> None:
+        self.inner = inner
+        self.name = inner.name
+        self.rebalance_every = getattr(inner, "rebalance_every", 1)
+        self.hold_unchanged = getattr(inner, "hold_unchanged", False)
+        self.lookback = inner.lookback
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        keep = set(liquid_universe(view))
+        narrowed = MarketView(
+            as_of=view.as_of, history={s: r for s, r in view.history.items() if s in keep}
+        )
+        return self.inner.target_weights(narrowed)
+
+
 class LowBeta(Strategy):
     """The long leg of Betting Against Beta (Agarwalla et al. 2014).
 
@@ -701,6 +741,43 @@ def _nifty_sma60() -> Strategy:
     strategy = BuiltStrategy(spec)
     strategy.name = "india_nifty_sma60"
     return strategy
+
+
+def _bb_rsi() -> Strategy:
+    from eulerlab.builder.compile import BuiltStrategy
+    from eulerlab.builder.spec import BuilderSpec
+
+    def i(name: str, **params: float) -> dict[str, object]:
+        return {"kind": "indicator", "name": name, "params": params}
+
+    def v(value: float) -> dict[str, object]:
+        return {"kind": "value", "value": value}
+
+    spec = BuilderSpec.model_validate(
+        {
+            "id": "b_india_bb_rsi",
+            "name": "Bollinger and RSI reversion",
+            "universe": {"asset_class": "equity", "universe": "all"},
+            "entry": {
+                "match": "all",
+                "rules": [
+                    {"left": i("close"), "op": "below", "right": i("bb_lower", period=20, width=2)},
+                    {"left": i("rsi", period=14), "op": "below", "right": v(30)},
+                ],
+            },
+            "exit": {
+                "match": "all",
+                "rules": [
+                    {"left": i("close"), "op": "above", "right": i("bb_upper", period=20, width=2)},
+                    {"left": i("rsi", period=14), "op": "above", "right": v(70)},
+                ],
+            },
+            "sizing": {"max_positions": 10},
+        }
+    )
+    built = BuiltStrategy(spec)
+    built.name = "india_bb_rsi"
+    return LiquidBuilt(built)
 
 
 def _calendar(name: str, rule: Callable[[Sequence[date], int], bool]) -> Callable[[], Strategy]:
@@ -1204,6 +1281,36 @@ STRATEGIES: tuple[PaperStrategy, ...] = (
         _calendar("india_december", december),
         "all",
         INDEX_ONLY,
+    ),
+    PaperStrategy(
+        "india_bb_rsi",
+        "Bollinger and RSI reversion (India)",
+        "shalinigayathri-2024-bollinger-rsi-india",
+        "Shalinigayathri & Shunmuga Kumari (2024), IJCRT 12(4)",
+        "Buy a stock that closes below its lower Bollinger band with RSI under 30; sell above the upper band with RSI over 70.",
+        (
+            "Bollinger(20, 2) and RSI(14) on the point-in-time top 250; at most 10 positions.",
+            "Entry: close below the lower band and RSI below 30. Exit: close above the upper "
+            "band and RSI above 70. The paper tested ITC and Tata Coffee, 2019-2023.",
+        ),
+        40,
+        _bb_rsi,
+    ),
+    PaperStrategy(
+        "india_midcap_follows_largecap",
+        "Mid caps follow large caps, weekly (India)",
+        "sahoo-2022-lead-lag-india",
+        "Sahoo & Kumar (2022), Southeast Asian Journal of Economics 10(2)",
+        "Hold the Midcap 150 ETF for a week after the Nifty 100 ETF rose over the week before.",
+        (
+            "Leader NIF100BEES, follower MID150BEES; both ETFs list from 2022.",
+            "Weekly, because the engine fills a decision on the next close: a one-day lead "
+            "would be lost to that lag.",
+        ),
+        10,
+        lambda: LeadLag("india_midcap_follows_largecap", "NIF100BEES", "MID150BEES"),
+        "all",
+        ("NIF100BEES", "MID150BEES"),
     ),
 )
 

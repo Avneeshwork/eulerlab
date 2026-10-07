@@ -1,0 +1,27 @@
+id: gavhale-2025-expiry-vs-first-day-sip
+title: 'F&O Expiry vs. First-Day SIPs: A 22-Year Analysis of Timing Advantages in India''s
+  Nifty 50'
+authors: Gavhale, S.
+year: 2025
+kind: paper
+source_url: https://arxiv.org/abs/2507.04859
+pdf: ''
+added: '2026-10-07'
+status: idea
+markets:
+- Nifty 50, 2003-2024
+summary: Compares monthly Nifty 50 SIPs made on the first trading day against SIPs on the
+  F&O expiry day, 2003-2024. Expiry-day SIPs beat first-day SIPs by 0.5-2.5% a year over 1-5
+  years, an edge that fades to nothing over 10-20 years; the 20-year SIP CAGR is about 6.7%.
+trade_idea: Expiry-day selling pressure gives a slightly cheaper monthly entry price.
+implementation: |-
+  - Monthly investment on the first trading day vs the monthly expiry day.
+
+  Not an engine backtest: a savings plan, not a strategy. Tools -> SIP Backtester can compare days of the month.
+red_flags:
+- Abstract only.
+- The advantage vanishes at long horizons.
+reported_results: Expiry-day SIPs ahead by 0.5-2.5% a year over 1-5 years; negligible over
+  10-20 years.
+hypothesis: ''
+strategies: []

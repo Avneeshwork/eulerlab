@@ -1,0 +1,26 @@
+id: ramraj-2025-permutation-trees-india
+title: Predicting Stock Prices using Permutation Decision Trees and Strategic Trailing
+authors: Ramraj, V., Nagaraj, N., Harikrishnan, N. B.
+year: 2025
+kind: paper
+source_url: https://arxiv.org/abs/2504.12828
+pdf: ''
+added: '2026-10-07'
+status: idea
+markets:
+- Nifty 50 stocks, 5-minute bars, 3 months
+summary: Trains permutation decision trees, LSTM and RNN models on three months of 5-minute
+  candles for the Nifty 50 stocks, long only with trailing stops. The tree bot made 1.18%
+  against -2.29% for buy-and-hold.
+trade_idea: A model of short-term price paths, with a trailing stop, buys dips and sells rallies
+  intraday.
+implementation: |-
+  - Machine-learning signal with trailing stop and support thresholds; parameters not given in the abstract.
+
+  Not backtested: the model and its parameters are not specified enough to rebuild.
+red_flags:
+- Three months of data.
+- Abstract only; not reproducible from what is published.
+reported_results: PDT bot +1.18%, LSTM +0.56%, RNN +0.59%, buy-and-hold -2.29%.
+hypothesis: ''
+strategies: []

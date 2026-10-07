@@ -1,0 +1,31 @@
+id: sahoo-2022-lead-lag-india
+title: Does Lead-Lag Relationship Exist Among Large Cap, Mid Cap and Small Cap Segments of
+  Indian Capital Market?
+authors: Sahoo, S., Kumar, S.
+year: 2022
+kind: paper
+source_url: https://researcher.manipal.edu/en/publications/does-lead-lag-relationship-exist-among-large-cap-mid-cap-and-smal/
+pdf: ''
+added: '2026-10-07'
+status: specified
+markets:
+- Nifty 100, Midcap 150, Smallcap 250
+summary: 'Granger causality, impulse responses and variance decomposition on daily total-return
+  indices show the Nifty 100 and Midcap 150 lead the Smallcap 250: large caps move first.'
+trade_idea: If large caps lead, a rise in large caps predicts a rise in mid and small caps
+  shortly after.
+implementation: |-
+  - Daily index returns; Granger causality. No trading rule given (abstract only).
+
+  Here: india_midcap_follows_largecap holds MID150BEES for a week after NIF100BEES rose over the prior week.
+red_flags:
+- Abstract only.
+- Granger causality at daily lags; the engine's next-close fill forces a weekly test.
+- The ETFs exist only from 2022.
+reported_results: Nifty Smallcap 250 is Granger-caused by the Nifty 100 and Nifty Midcap 150.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_midcap_follows_largecap
+  note: ''
+  timeframe: 0

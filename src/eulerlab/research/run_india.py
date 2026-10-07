@@ -31,6 +31,10 @@ def run_one(strategy_id: str, *, start: str, end: str, tier: str) -> dict[str, A
     from eulerlab.backtest.india_papers import BY_ID
 
     spec = BY_ID[strategy_id]
+    # The API abandons a job after 15 minutes so the workbench never hangs on
+    # one. This is an offline research run: a rule replayed daily over the
+    # whole panel for ten years (india_bb_rsi) needs longer, and is allowed it.
+    server.JOB_TIMEOUT_SECONDS = 4 * 3600
     began = time.monotonic()
     job = server.run_batch(
         BatchRunRequest(

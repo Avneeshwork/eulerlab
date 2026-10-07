@@ -1,0 +1,30 @@
+id: manoharan-2019-candlestick-india
+title: 'Candlestick Technical Analysis on Select Indian Stocks: Pattern detection and Efficiency
+  Statistics'
+authors: Manoharan, M., Mamilla, R.
+year: 2019
+kind: paper
+source_url: https://www.ijitee.org/wp-content/uploads/papers/v9i2/B7666129219.pdf
+pdf: ''
+added: '2026-10-07'
+status: idea
+markets:
+- 17 Nifty 50 stocks, 2000-2015
+summary: Scans 17 stocks that stayed in the Nifty 50 from 2000 to 2015 for 34 bullish reversal
+  and continuation candlestick patterns with commercial software, and ranks them on 5-day
+  returns with TOPSIS. Hammer, long engulfing bottom and rising window rank top; 38-45% of
+  the most frequent patterns' signals return more than 3.5% within five days.
+trade_idea: Bullish reversal candles mark exhausted selling; buying after them and holding
+  five days captures the bounce.
+implementation: |-
+  - Daily OHLC, split- and bonus-adjusted; patterns detected by Candlescanner (definitions not given); 5-day holding.
+
+  Not backtested: the panel records open, high and low only from August 2026, so candle shapes cannot be read over history.
+red_flags:
+- 'Only stocks that stayed in the Nifty 50 for 16 years: survivorship.'
+- Pattern definitions are the software's, not stated.
+- Efficiency is a return bucket, not a backtest with costs.
+reported_results: 'Most frequent patterns: 38-45% of signals in the ''high'' (>3.5% in 5 days)
+  bucket, 16-21% false; hammer, long engulfing bottom and rising window ranked top.'
+hypothesis: ''
+strategies: []

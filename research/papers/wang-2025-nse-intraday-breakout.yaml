@@ -1,0 +1,29 @@
+id: wang-2025-nse-intraday-breakout
+title: 'Optimizing Intraday Breakout Strategies on the NSE: A Block-Based Performance Evaluation'
+authors: Wang, C., Gangwar, S.
+year: 2025
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5198458
+pdf: ''
+added: '2026-10-07'
+status: specified
+markets:
+- NSE intraday
+summary: Evaluates opening-range breakout setups on NSE intraday prices with 5, 15 and 30-minute
+  ranges, volume-surge thresholds of 1.2x and 1.5x, and holding periods of 2, 3 and 5 bars,
+  in blocks. Only a search-engine summary was readable.
+trade_idea: A break of the opening range on a volume surge marks the day's direction.
+implementation: |-
+  - Opening range 5/15/30 minutes; volume surge 1.2x or 1.5x; hold N = 2, 3 or 5 bars.
+
+  Linked: orb_breakout_in, this platform's NSE opening-range breakout, is the nearest coded strategy; its rules are Mesfin's, not this paper's.
+red_flags:
+- 'SSRN blocked: only a search snippet was read.'
+- The linked strategy is a different rule set.
+reported_results: Not available.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: orb_breakout_in
+  note: nearest coded ORB on NSE; not this paper's exact rules
+  timeframe: 0

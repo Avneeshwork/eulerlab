@@ -1,0 +1,30 @@
+id: shalinigayathri-2024-bollinger-rsi-india
+title: Optimizing Trading Strategies By Bollinger Bands And RSI Approaches For Stock Forecasting
+authors: Shalinigayathri, D., Shunmuga Kumari
+year: 2024
+kind: paper
+source_url: https://ijcrt.org/papers/IJCRT24A4955.pdf
+pdf: ''
+added: '2026-10-07'
+status: specified
+markets:
+- ITC and Tata Coffee, 2019-2023
+summary: Combines Bollinger Bands (20, 2) with RSI (14, 30/70) to generate buy and sell signals
+  on ITC and Tata Coffee, 2019-2023, and argues the combination improves timing over either
+  alone.
+trade_idea: A stock below its lower band and oversold is stretched; it reverts toward the
+  mean.
+implementation: |-
+  - Buy: close below the lower band and RSI below 30. Sell: close above the upper band and RSI above 70.
+
+  Here: india_bb_rsi applies the rule to the point-in-time top 250, up to 10 positions.
+red_flags:
+- Two stocks and four years; results shown as charts, not a backtest with costs.
+- The exit needs both conditions, so positions can be held a long time.
+reported_results: No return figures; buy and sell signals illustrated on charts.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_bb_rsi
+  note: ''
+  timeframe: 0

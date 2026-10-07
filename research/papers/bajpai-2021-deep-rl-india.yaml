@@ -1,0 +1,22 @@
+id: bajpai-2021-deep-rl-india
+title: Application of deep reinforcement learning for Indian stock trading automation
+authors: Bajpai, S.
+year: 2021
+kind: paper
+source_url: https://arxiv.org/abs/2106.16088
+pdf: ''
+added: '2026-10-07'
+status: idea
+markets:
+- Ten Indian stocks
+summary: Compares DQN, double DQN and dueling double DQN trading agents on ten Indian stocks.
+trade_idea: A learned agent can time entries and exits better than fixed rules.
+implementation: |-
+  - Not specified in the abstract: no state, action or reward definition to rebuild.
+
+  Not backtested.
+red_flags:
+- Abstract only; no reproducible rule; no headline numbers in the abstract.
+reported_results: Not given in the abstract.
+hypothesis: ''
+strategies: []

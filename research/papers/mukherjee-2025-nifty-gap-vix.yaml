@@ -1,0 +1,27 @@
+id: mukherjee-2025-nifty-gap-vix
+title: 'Price Action Meets Volatility: A Dual-Factor Strategy for Nifty Gap Forecasting'
+authors: Mukherjee, T., Mandal, S.
+year: 2025
+kind: paper
+source_url: https://www.ijfmr.com/papers/2025/4/53859.pdf
+pdf: ''
+added: '2026-10-07'
+status: idea
+markets:
+- Nifty, 2010-2025
+summary: Tests whether a day's candle colour and the change in India VIX predict the next
+  day's opening gap in the Nifty, 2010-2025. Together they reach 54.4% accuracy; a green candle
+  with falling VIX is followed by a gap up 69.6% of the time, while a red candle with rising
+  VIX predicts a gap down only 39.8%.
+trade_idea: Calm, rising days are followed by gap-up opens; fear signals are unreliable.
+implementation: |-
+  - Signal: green candle and VIX down -> gap up next open; red and VIX up -> gap down.
+
+  Not backtested: the trade is close-to-open (the daily engine trades at closes) and India VIX history is not in the data.
+red_flags:
+- Accuracy, not returns after costs.
+- Needs India VIX and an overnight trade.
+reported_results: 'Green & VIX down: 810 of 1,163 gap up (69.6%); red & VIX up: 481 of 1,208
+  gap down (39.8%).'
+hypothesis: ''
+strategies: []
