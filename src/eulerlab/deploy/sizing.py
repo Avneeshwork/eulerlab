@@ -58,9 +58,3 @@ def fit_to_capital(
                 return dict(targets)
             return {s: targets[s] * scale for s in kept}
     return {}
-
-
-def affordable_count(
-    targets: Mapping[str, float], equity: float, price_of: Callable[[str], float | None]
-) -> int:
-    return len(fit_to_capital(targets, equity, price_of))

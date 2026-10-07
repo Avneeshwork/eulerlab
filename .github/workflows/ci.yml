@@ -5,9 +5,20 @@ on:
     branches: ["**"]
   pull_request:
 
+# A newer commit on the same pull request makes an older run's answer moot, so
+# that run is cancelled. Only for pull requests: each of those checks the whole
+# range from the base, whereas a push run checks only its own push, and
+# cancelling one would let those commits skip the docs check.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # The suite runs offline in about a minute. GitHub's default limit is six
+    # hours, which is what a hung test would otherwise cost.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
@@ -48,3 +59,17 @@ jobs:
 
       - name: State
         run: uv run python tools/state.py
+
+  web:
+    # The workbench's TypeScript had no check at all: a type error reached the
+    # operator's browser before anything reported it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Typecheck the workbench
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run typecheck

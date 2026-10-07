@@ -1,6 +1,0 @@
-# Symbols that were falsely reported delisted: they trade in the BE
-# (trade-for-trade) series, which Kite names TICKER-BE.
-RELINFRA
-STLTECH
-DIACABS
-MTARTECH

@@ -26,8 +26,6 @@ from eulerlab.ingest.landing import Landing
 SEGMENT = "participant_oi"
 URL = "https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_{stamp}.csv"
 
-EXPECTED_CLIENT_TYPES = frozenset({"Client", "DII", "FII", "Pro", "TOTAL"})
-
 
 def url_for(trade_date: date) -> str:
     return URL.format(stamp=f"{trade_date.day:02d}{trade_date.month:02d}{trade_date.year:04d}")

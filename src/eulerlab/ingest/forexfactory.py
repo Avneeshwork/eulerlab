@@ -47,9 +47,6 @@ LANDING = Path("data/landing/calendar")
 FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 
-IMPACTS = ("High", "Medium", "Low", "Holiday")
-"""ForexFactory's own ratings, in descending order of consequence."""
-
 
 @dataclass(frozen=True)
 class Event:

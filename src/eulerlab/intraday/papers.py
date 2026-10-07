@@ -46,14 +46,9 @@ import math
 import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import time
 
 from eulerlab.features.indicators import atr, sma
 from eulerlab.intraday.tweezer import Candle, Plan, Rejected
-
-IST_OPEN = time(9, 15)
-"""NSE opens at 09:15 IST. The papers are written against 09:30 ET; what
-transfers is "the first N minutes of the session", not the clock time."""
 
 
 @dataclass(frozen=True)
@@ -308,7 +303,9 @@ def opening_range_breakout(
     Mesfin §4.1 tested 09:30-09:55 ET with immediate, pullback and delayed
     entries; the best long variant reached t = 1.50 and failed on year
     stability (-1.42 in 2022, +7.04 in 2024). Zarattini et al. use a
-    **five-minute** range and report the breakout alone is weak.
+    **five-minute** range and report the breakout alone is weak. What
+    transfers to NSE, which opens at 09:15 IST, is "the first N minutes of
+    the session", not the clock time.
     """
     session = _session_bars(window)
     span = rules.opening_range_minutes

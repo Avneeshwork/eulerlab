@@ -12,12 +12,18 @@ plan — they are listed here as scope only, not as tasks.
 ## Speed and cleanup (2026-10-07)
 
 Operator: "reduce latency of codebase and remove scrap files/codes and go through each file and make codebase better and faster". Nothing here may change what a strategy, backtest, cost model or paper decision computes.
-Verify: `make verify`.
+Verify: `make verify`; `uv run pytest -q tests/test_backtest_history.py tests/test_ems_governor.py tests/test_api_panel.py`.
 
 | ID | Task | Status |
 |---|---|---|
 | T-4030 | Remove the fake macro rows the tests wrote into `data/landing/macro/` | TODO — operator's machine and B2: drop rows with `"symbol": "TVC:DXY"`, `"last": 98.9`, `"change_pct": 0.15` (HISTORY #19) |
 | T-4031 | The test suite runs offline and leaves `data/` alone | DONE — any connection to another host fails the test that made it; any change under `data/` fails the run |
+| T-4032 | Faster, with every output reproduced exactly | DONE — ADR-061, ADR-062. On synthetic panels: paper 632s → 50s and deploy 150s → 8s (orders wait on a simulated clock); both engines 249s → 124s for 43 strategies (shared point-in-time windows that reuse their overlap, slotted panel rows, factor file parsed once per version); on 932k rows the API's panel load 13.6s → 6.2s, a 400-day window 328ms → 1.4ms, a chart 336ms → 0.3ms, the universe list 115ms → 0.8ms; importing the panel no longer loads boto3 (0.26s → 0.11s). CI cancels superseded PR runs, stops a hung run at 20 minutes, and typechecks the workbench. Every engine, paper, deploy, intraday and API output compared float by float before and after |
+| T-4033 | Charge FX its spread in daily backtests | TODO — **operator decision**: changes every daily FX result (HISTORY #20). Proposed fix: `vector._costs_for` charges `spread_cost` from the fill day's row for FX, as `costs/router.py` already assumes |
+| T-4034 | Make Tier A independent of the process's hash seed | TODO — **operator decision**: trade symbols in sorted order. Changes Tier A's fill order and the last digit of its equity (HISTORY #21) |
+| T-4035 | The snapshot's news band can download on a cold start | TODO — `news.recent` says it never touches the network, but `load_names` fetches NSE's company list when none is landed, inside the request (up to three 30s attempts). Land it in `make news` and read only what is on disk |
+| T-4036 | Remove dead code and scrap files | DONE — 23 unused functions, classes and constants and two unused universe files (`universe_be_series_fix.txt`, `universe_renamed_fix.txt`). `panel.iter_rows` was also wrong: it dropped the ISIN, so its rows could never be adjusted. Kept on purpose: `spread_cost` (T-4033), `alpaca_feed.read_actions` (S-030), the Morningstar ISIN crawl and `holidays.HOLIDAY_URL` (they record where landed data came from) |
+| T-4037 | Upgrade Next.js in the workbench | TODO — `npm ci` reports next@14.2.5 deprecated for a security vulnerability (nextjs.org/blog/security-update-2025-12-11). Not checked further; the workbench is served on localhost |
 
 ---
 

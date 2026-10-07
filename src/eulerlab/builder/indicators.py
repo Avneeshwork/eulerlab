@@ -324,9 +324,6 @@ def _p(name: str, label: str, default: float, lo: float, hi: float, integer: boo
     return Param(name, label, default, lo, hi, integer)
 
 
-PERIOD = _p("period", "Period", 14, 1, 400)
-
-
 def _i(params: dict[str, float], key: str) -> int:
     return int(params[key])
 

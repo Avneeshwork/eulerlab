@@ -1191,7 +1191,7 @@ with the number rather than being a paragraph someone can style away.
 Two commands, and they answer different questions.
 
 ```bash
-make verify        # is the repository healthy?  7 checks, ~922 tests
+make verify        # is the repository healthy?  7 checks, ~1,800 tests
 make acceptance    # does each sprint still work on real data?  11 checks
 ```
 

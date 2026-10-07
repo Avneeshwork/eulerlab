@@ -265,7 +265,3 @@ def read(relative: str, *, allow_cloud: bool = True) -> bytes:
     # later read mistakes for the real thing.
     tmp.replace(local)
     return bytes(payload)
-
-
-def is_local(relative: str) -> bool:
-    return (LANDING_ROOT / relative).exists()

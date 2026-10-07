@@ -27,7 +27,6 @@ number, which is worth a person's attention.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 from eulerlab.quality.findings import Finding, Severity
 from eulerlab.quality.row_checks import Bar
@@ -44,18 +43,6 @@ are single prints and more exposed to a session-boundary difference."""
 VOLUME_RATIO_LIMIT = 10.0
 """An order of magnitude. Volume conventions differ enough between vendors
 that anything tighter is noise; a factor of ten is a units error."""
-
-
-@dataclass(frozen=True)
-class Mismatch:
-    symbol: str
-    field: str
-    official: float
-    other: float
-
-    @property
-    def relative(self) -> float:
-        return abs(self.official - self.other) / self.official if self.official else float("inf")
 
 
 def _relative(a: float, b: float) -> float:

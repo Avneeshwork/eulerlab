@@ -86,10 +86,6 @@ def headers() -> dict[str, str]:
     }
 
 
-def keys_present() -> bool:
-    return bool(_env(KEY_VAR) and _env(SECRET_VAR))
-
-
 def _get(url: str, *, timeout: int = 45, retries: int = 3) -> dict[str, object]:
     """One request, with backoff. 429 is retried; 4xx otherwise is not."""
     request = urllib.request.Request(url, headers=headers())
@@ -109,21 +105,6 @@ def _get(url: str, *, timeout: int = 45, retries: int = 3) -> dict[str, object]:
                 raise
             time.sleep(3 * (attempt + 1))
     return {}
-
-
-def _paged(url: str, key: str) -> list[dict[str, object]]:
-    """Follow `next_page_token` until the server stops offering one."""
-    out: list[dict[str, object]] = []
-    token = ""
-    while True:
-        page = _get(url + (f"&page_token={urllib.parse.quote(token)}" if token else ""))
-        rows = page.get(key)
-        if isinstance(rows, list):
-            out.extend(r for r in rows if isinstance(r, dict))
-        nxt = page.get("next_page_token")
-        if not isinstance(nxt, str) or not nxt:
-            return out
-        token = nxt
 
 
 @dataclass(frozen=True)

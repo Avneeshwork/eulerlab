@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from enum import StrEnum
 from itertools import pairwise
 
@@ -113,28 +113,3 @@ class TradingCalendar:
 
     def __len__(self) -> int:
         return len(self._observed)
-
-
-def expiry_weekday_counts(expiries: Iterable[date]) -> dict[str, int]:
-    """Weekday distribution of expiries, for showing that a rule would fail.
-
-    Measured on Kite's instrument master: 17 of 18 Nifty expiries fell on a
-    Tuesday and one on a Monday. A weekday rule would mis-key that one contract
-    in eighteen, silently.
-    """
-    names = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
-    counts: dict[str, int] = {}
-    for expiry in expiries:
-        name = names[expiry.weekday()]
-        counts[name] = counts.get(name, 0) + 1
-    return counts
-
-
-def business_days_between(start: date, end: date) -> Iterator[date]:
-    """Weekdays in a range. Only for *planning* a download, never for deciding
-    whether the market was open — that is what the calendar is for."""
-    current = start
-    while current <= end:
-        if current.weekday() < SATURDAY:
-            yield current
-        current += timedelta(days=1)

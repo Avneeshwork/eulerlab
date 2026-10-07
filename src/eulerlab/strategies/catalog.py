@@ -487,10 +487,7 @@ def _minute_symbols() -> set[str]:
     return {p.name for p in root.iterdir() if p.is_dir()}
 
 
-CRYPTO_LANDING = Path("data/landing/crypto")
 FX_LANDING = Path("data/landing/fx")
-MF_ENRICHED = Path("data/landing/mf/enriched")
-MF_HISTORY = Path("data/landing/mf/history")
 
 
 def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:

@@ -34,15 +34,6 @@ class OrderType(StrEnum):
     lifecycle is that adding them does not change the interface."""
 
 
-class OrderStatus(StrEnum):
-    NEW = "new"
-    FILLED = "filled"
-    REJECTED = "rejected"
-    """Rejections are modelled, not assumed away. An instrument that did not
-    trade cannot be traded, and pretending otherwise is how a backtest fills
-    orders that live would have bounced."""
-
-
 @dataclass(frozen=True)
 class Order:
     """An intention to trade, before anything has happened."""
