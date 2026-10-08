@@ -317,6 +317,13 @@ daily:
 	@echo "== NSE index closes (incl. India VIX) and delivery =="
 	-uv run python -m eulerlab.ingest.nse_daily_files --from $$(date -v-7d +%Y-%m-%d)
 	-uv run python -m eulerlab.market_history --skip-expiries
+	@# The panel and the paper books come straight after the bhavcopy, from the
+	@# local landed file, so a slow or failed network step below cannot leave
+	@# them a day behind (2026-10-08, RUNBOOKS/paper-books-behind.md).
+	@echo "== price panel =="
+	-$(MAKE) --no-print-directory build-panel
+	@echo "== paper deployments (bring each up to the latest close) =="
+	-$(MAKE) --no-print-directory paper-daily
 	@echo "== fundamentals =="
 	-uv run python -m eulerlab.fundamentals.backfill
 	@echo "== mutual fund NAVs =="
@@ -340,11 +347,7 @@ daily:
 	@echo "== US panel =="
 	-$(MAKE) --no-print-directory build-us-panel
 	@echo "== sync and prune =="
-	$(MAKE) sync-cloud
-	@echo "== price panel =="
-	-$(MAKE) --no-print-directory build-panel
-	@echo "== paper deployments (bring each up to the latest close) =="
-	-$(MAKE) --no-print-directory paper-daily
+	-$(MAKE) sync-cloud
 	$(MAKE) prune-local
 	@echo "== landing census =="
 	-$(MAKE) --no-print-directory manifest

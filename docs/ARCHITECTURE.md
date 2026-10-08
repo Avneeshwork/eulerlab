@@ -970,9 +970,13 @@ The reality gap decomposes into five terms:
 
 A deployment (`deploy/`) is one strategy, one capital amount, one start date,
 and its own folder: OMS journal, paper broker, kill switch and last state.
-`make paper-daily` (the end of `make daily`) brings each active one up to the
-latest close by **replaying it from its start** through the Tier B engine with
-`OMSExecutor` (ADR-060). Client order ids are deterministic and `OMS.submit`
+`make paper-daily` brings each active one up to the latest close by
+**replaying it from its start** through the Tier B engine with
+`OMSExecutor` (ADR-060). In `make daily` it runs straight after the NSE
+files and `build-panel`, before every slow or network-heavy step, and a failed
+cloud sync no longer stops the run. `build-panel` reads a day still in local
+landing from disk and goes to B2 only for days already pruned, so today's close
+never waits on the mirror. Client order ids are deterministic and `OMS.submit`
 returns a journalled order without re-sending it, so replayed days re-read
 their fills and only new days send. Missed days are caught up in one run.
 

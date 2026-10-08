@@ -36,8 +36,10 @@ Verify: `uv run pytest -q tests/test_deploy_runner.py tests/test_deploy_sizing.p
 | T-4021 | **Deploy and watch from the workbench** | DONE — Deploy → Paper takes a capital amount and starts a deployment (evidence checks shown as advisory for paper, still blocking for live). Live & Risk → Paper trading: equity, return, cash, costs, positions, fills, next rebalance, warnings, Run now, Stop |
 | T-4022 | Live deployments | BLOCKED — on the operator: the broker (Kite assumed) and the live capital cap and confirmation rule. Then one supervised test order (T-3336) |
 | T-4017 | Corporate actions on a paper book | OPEN — S-038 |
-| T-4023 | The panel ended 2026-10-01 | DONE — 2-7 Oct landed, mirrored and built (the mirror must run before `build-panel`, which reads B2). Panel ends 2026-10-07 |
+| T-4023 | The panel ended 2026-10-01 | DONE — 2-7 Oct landed, mirrored and built. Panel ends 2026-10-07. (`build-panel` no longer needs the mirror first: T-4030) |
 | T-4025 | **A deployment made from a long-running workbench used the panel it loaded at startup** | FIXED — the API kept the price panel from when it started, so a ₹1 lakh deployment made on 7 Oct started on the 1 Oct close and showed "waiting". `api/panels.py` now re-reads the panel when the file changes. That deployment was caught up by `make paper-daily` |
+| T-4030 | **The paper books stayed on 7 Oct after 8 Oct had landed** | FIXED — `make daily` built the panel and ran `paper-daily` as its last steps; the 03:50 run died at a failed B2 sync (network down, the only step without `-`) and the 19:30 run was still on fundamentals an hour later. The panel and paper books now run straight after the NSE files, the sync is non-fatal, and `build-panel` reads local landing before B2. Runbook `paper-books-behind.md`. Verify: `uv run pytest -q tests/test_panel_local_landing.py` |
+| T-4031 | `build-panel` printed "wrote 0 new days" while 8 Oct was added | OPEN — on 2026-10-08 a manual build reported 0 written, yet the panel went 2,904 → 2,905 days, with no duplicate rows. No other writer of the panel was found. Watch for it on the next run |
 | T-4024 | A new deployment said "ok" before it could trade | FIXED — the engine runs only once two sessions follow the start; until then the state is "waiting" with that reason |
 
 ---

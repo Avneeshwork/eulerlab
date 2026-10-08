@@ -52,6 +52,8 @@ never edit them without an explicit instruction in that session.
 - **No capital has ever been traded.** Paper deployments trade forward with an
   operator-set capital (`make paper-daily`, Live & Risk → Paper trading, ADR-060);
   live is refused in code until the Kite adapter is proven (S-015, T-4022).
+  Both books are traded through 2026-10-08. `make daily` now updates them
+  right after the bhavcopy, so a failed sync or a slow step cannot hold them back (T-4030).
 
 ---
 

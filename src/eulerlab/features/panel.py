@@ -38,6 +38,7 @@ from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from eulerlab.bitemporal.store import BitemporalStore, Record
@@ -259,19 +260,29 @@ def build(
     if not wanted:
         return 0, ""
 
-    import boto3
+    # A day still in the local landing zone (today's, before `prune-local`) is
+    # read from disk, so the panel does not wait on the cloud sync. Only pruned
+    # days go to B2 — on 2026-10-08 a failed sync left the paper books a day
+    # behind (RUNBOOKS/paper-books-behind.md).
+    root = manifest.parent
+    client: Any = None
+    if any(not (root / key).exists() for _, key in wanted):
+        import boto3
 
-    from eulerlab.env import require
+        from eulerlab.env import require
 
-    client = boto3.client(
-        "s3",
-        endpoint_url="https://s3.us-west-004.backblazeb2.com",
-        aws_access_key_id=require("B2_KEY_ID"),
-        aws_secret_access_key=require("B2_APP_KEY"),
-    )
+        client = boto3.client(
+            "s3",
+            endpoint_url="https://s3.us-west-004.backblazeb2.com",
+            aws_access_key_id=require("B2_KEY_ID"),
+            aws_secret_access_key=require("B2_APP_KEY"),
+        )
 
     def fetch(item: tuple[str, str]) -> tuple[str, bytes]:
         trade_date, key = item
+        local = root / key
+        if local.exists():
+            return trade_date, local.read_bytes()
         return trade_date, client.get_object(Bucket="eulerdata", Key=f"nse/{key}")["Body"].read()
 
     path.parent.mkdir(parents=True, exist_ok=True)
