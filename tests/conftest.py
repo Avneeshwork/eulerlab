@@ -21,3 +21,18 @@ from eulerlab.ingest import landing_reader
 @pytest.fixture(autouse=True, scope="session")
 def _offline() -> None:
     os.environ.setdefault(landing_reader.OFFLINE_ENV, "1")
+
+
+@pytest.fixture(autouse=True)
+def _private_locks(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every test gets its own lock folder.
+
+    The repo's `data/derived/.locks` belongs to real runs. On 2026-10-09 three
+    feed tests failed because `make feed` was running and held the real `feed`
+    lock; a test must not depend on what else the machine is doing.
+    """
+    from eulerlab.ingest import filelock
+
+    monkeypatch.setattr(filelock, "LOCK_DIR", tmp_path_factory.mktemp("locks"))

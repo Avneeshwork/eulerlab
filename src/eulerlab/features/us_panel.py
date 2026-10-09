@@ -64,21 +64,46 @@ def _months_wanted(years: float) -> set[str]:
     return out
 
 
-def build(*, years: float = 2.0, path: Path = PANEL_PATH) -> tuple[int, int]:
+def _recent_months(today: date | None = None) -> set[str]:
+    """The current and previous month: the only files a daily ingest changes."""
+    today = today or datetime.now(UTC).date()
+    previous = today.replace(day=1) - timedelta(days=1)
+    return {today.strftime("%Y-%m"), previous.strftime("%Y-%m")}
+
+
+def build(*, years: float = 2.0, path: Path = PANEL_PATH, full: bool = False) -> tuple[int, int]:
     """Read the landed bars into one file. Returns (rows, symbols).
 
-    Slow by design and run once: every monthly file in the window is fetched
-    from B2 if it is not local, and `landing_reader` caches it on the way
-    through, so a rebuild is fast even though the first build is not.
+    By default only the current and previous months are re-read; every older
+    row is kept from the existing file. A full rebuild re-read 24 months of
+    ~500 symbols, about 12,000 files, most of them pruned to B2 — on every
+    `make daily`, against a 2,500-download daily cap (T-4032). `full=True`, or
+    no existing file, reads the whole window as before.
+
+    Rewritten through a temporary file and an atomic rename, under the
+    `us_panel` lock, so a reader never sees half a file and two builders never
+    interleave.
     """
+    from eulerlab.ingest.filelock import exclusive
+
+    with exclusive("us_panel", directory=path.parent / ".locks"):
+        return _build(years=years, path=path, full=full)
+
+
+def _build(*, years: float, path: Path, full: bool) -> tuple[int, int]:
     from eulerlab.ingest import landing_reader
 
     wanted = _months_wanted(years)
+    reread = wanted if full or not path.exists() else wanted & _recent_months()
     listed = landing_reader.available("us", "bars/*/*.jsonl.gz")
-    relevant = [r for r in listed if r.rsplit("/", 1)[-1][:7] in wanted]
+    relevant = [r for r in listed if r.rsplit("/", 1)[-1][:7] in reread]
 
-    rows: list[UsRow] = []
-    symbols: set[str] = set()
+    rows: list[UsRow] = [
+        r
+        for r in (read(path) if reread != wanted else [])
+        if r.day.strftime("%Y-%m") in wanted - reread
+    ]
+    symbols: set[str] = {r.symbol for r in rows}
     missed: list[str] = []
     for relative in sorted(relevant):
         try:
@@ -208,8 +233,13 @@ def sectors(*, root: Path = Path("data/landing/us")) -> dict[str, str]:
     return out
 
 
-def _main() -> None:
-    rows, symbols = build()
+def _main(argv: list[str] | None = None) -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(prog="build-us-panel")
+    parser.add_argument("--full", action="store_true", help="re-read the whole window")
+    args = parser.parse_args(argv)
+    rows, symbols = build(full=args.full)
     print(f"us panel: {rows:,} rows across {symbols} symbols -> {PANEL_PATH}")
 
 

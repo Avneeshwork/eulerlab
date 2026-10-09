@@ -2630,3 +2630,26 @@ textarea:focus-visible {
 .dlg-capital input { font: inherit; font-size: 0.95rem; padding: 0.35rem 0.5rem; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--fg); max-width: 14rem; }
 .checks li[data-advisory='true'][data-passed='false'] { background: var(--caveat-wash); }
 .checks li[data-advisory='true'][data-passed='false'] .ck { background: var(--caveat); }
+
+/* Data coverage on Instruments (T-4032): one row per dataset, last day held
+   against the day it should reach. Status is a word, not only a colour. */
+.coverage { margin-bottom: 1rem; }
+.coverage-head { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; padding: 0.6rem 0.8rem; }
+.coverage-head .tbtn { margin-left: auto; }
+.coverage-group td {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  padding-top: 0.8rem;
+}
+.cov-status { font-family: var(--mono); font-size: 0.72rem; white-space: nowrap; }
+.cov-status[data-status='ok'] { color: var(--up); }
+.cov-status[data-status='behind'] { color: var(--warn); }
+.cov-status[data-status='stale'],
+.cov-status[data-status='missing'] { color: var(--down); }
+.cov-status[data-status='info'] { color: var(--ink-3); }
+
+/* Delete local copies, armed after its dry run. Red because it deletes, even
+   though every file it removes is confirmed in B2 first. */
+.tsyncbox .tbtn.danger { background: var(--down); border-color: var(--down); color: #fff; }

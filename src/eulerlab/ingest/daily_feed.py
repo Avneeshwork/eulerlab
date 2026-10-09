@@ -26,18 +26,35 @@ verified, which is correct for a disk-constrained machine running unattended
 and surprising as the side effect of a button someone clicked to refresh data.
 Pruning stays a deliberate command.
 
-**It does not rebuild the panels.** Those are derived products, they take
-minutes, and rebuilding them is a separate decision from fetching what they are
-derived from.
+### It does rebuild what the data feeds (T-4032)
+
+It used to stop at fetching, so data fetched from the button never reached the
+price panel or the paper books — on 2026-10-08 the bhavcopy had landed and the
+books still showed 7 Oct. Every derived table now updates in the same run, and
+each one only appends the days it lacks: the panel reads today's file from
+local landing in seconds, the US panel re-reads only the last two months.
+
+### Nothing is fetched twice, and two runs never overlap
+
+Every source skips what is already landed, and each step says how many files it
+downloaded against how many it already held. The mirror uploads only what the
+bucket lacks (one LIST, size compare). The whole run holds the `feed` lock that
+`make daily` also takes, so the button and the overnight job cannot both
+append the same day.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import io
+import re
+import sys
+import threading
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -90,8 +107,8 @@ def _days_ago(days: int) -> str:
 def _nse_eod() -> str:
     from eulerlab.ingest import nse_eod
 
-    nse_eod.main(["--from", _days_ago(7)])
-    return "last 7 days"
+    text = _captured(lambda: nse_eod.main(["--from", _days_ago(7)]))
+    return fetch_counts(text) or "last 7 days"
 
 
 def _mutual_funds() -> str:
@@ -214,8 +231,137 @@ def _us(on_detail: Callable[[str], None] | None = None) -> str:
     return f"{bars} symbols of bars, plus actions and news"
 
 
+class _ThreadStdout(io.TextIOBase):
+    """`sys.stdout` that a thread can divert into its own buffer.
+
+    `contextlib.redirect_stdout` swaps the global and restores whatever it saw
+    on entry. A step abandoned at its deadline keeps running in its own thread,
+    so the next step's redirect would save *that* step's buffer as "the
+    original" and restore it on exit — leaving the process printing into a dead
+    buffer. Diverting per thread has no such ordering to get wrong.
+    """
+
+    def __init__(self, base: Any) -> None:
+        self.base = base
+        self.local = threading.local()
+
+    def write(self, text: str) -> int:
+        buf = getattr(self.local, "buf", None)
+        (buf if buf is not None else self.base).write(text)
+        return len(text)
+
+    def flush(self) -> None:
+        self.base.flush()
+
+
+def _captured(call: Callable[[], int | None]) -> str:
+    """Run a CLI entry point in this thread, keeping what it prints.
+
+    A non-zero exit becomes an exception carrying its last lines, so a source
+    that reports failure through its exit code fails the step.
+    """
+    if not isinstance(sys.stdout, _ThreadStdout):
+        sys.stdout = _ThreadStdout(sys.stdout)
+    proxy = sys.stdout
+    assert isinstance(proxy, _ThreadStdout)
+    buf = io.StringIO()
+    proxy.local.buf = buf
+    try:
+        code = call()
+    finally:
+        proxy.local.buf = None
+    text = buf.getvalue()
+    if code not in (None, 0):
+        tail = " | ".join(line.strip() for line in text.splitlines()[-3:] if line.strip())
+        msg = f"exit {code}: {tail}"[:200]
+        raise RuntimeError(msg)
+    return text
+
+
+_COUNT = re.compile(r"\b(downloaded|skipped)\b[\s':=]{1,20}(\d+)")
+
+
+def fetch_counts(text: str) -> str:
+    """ "downloaded 2, already held 10" from a source's own report.
+
+    Both report shapes the NSE sources print — `downloaded   1` and
+    `{'downloaded': 5, ...}` — summed across the segments a step covers.
+    """
+    totals = {"downloaded": 0, "skipped": 0}
+    seen = False
+    for word, number in _COUNT.findall(text):
+        totals[word] += int(number)
+        seen = True
+    if not seen:
+        return ""
+    return f"downloaded {totals['downloaded']}, already held {totals['skipped']}"
+
+
+def _participant_oi() -> str:
+    from eulerlab.ingest import backfill_oi
+
+    text = _captured(lambda: backfill_oi.main(["--from", _days_ago(7)]))
+    return fetch_counts(text) or "last 7 days"
+
+
+def _nse_daily_files() -> str:
+    from eulerlab.ingest import nse_daily_files
+
+    text = _captured(lambda: nse_daily_files.main(["--from", _days_ago(7)]))
+    return fetch_counts(text) or "last 7 days"
+
+
+def _market_history() -> str:
+    from eulerlab import market_history
+
+    text = _captured(lambda: market_history.main(["--skip-expiries"]))
+    added = re.findall(r"^(.+?) days: ([\d,]+) added", text, flags=re.MULTILINE)
+    return ", ".join(f"{name} +{n}" for name, n in added) or "index, delivery, futures"
+
+
+def _price_panel() -> str:
+    from eulerlab.features.panel import PANEL_PATH, build
+    from eulerlab.ingest.coverage import last_day_jsonl
+
+    written, note = build(start="2015-01-01", end=_days_ago(0))
+    if note:
+        raise RuntimeError(note)
+    return f"{written} day(s) added, ends {last_day_jsonl(PANEL_PATH)}"
+
+
+def _nifty_options() -> str:
+    from eulerlab.options import nifty_history
+
+    text = _captured(lambda: nifty_history.main(["--from", _days_ago(30)]))
+    done = re.search(r"done: (\d+) days added", text)
+    return f"{done.group(1)} day(s) added" if done else "nothing new"
+
+
+def _paper_books() -> str:
+    from eulerlab.deploy import runner
+
+    text = _captured(lambda: runner.run_all())
+    through = re.findall(r"through (\d{4}-\d{2}-\d{2})", text)
+    if "no active paper deployments" in text:
+        return "no active deployments"
+    return f"{len(through)} deployment(s), through {max(through)}" if through else "ran"
+
+
+def _us_panel() -> str:
+    from eulerlab.features import us_panel
+
+    rows, symbols = us_panel.build()
+    return f"{rows:,} rows, {symbols} symbols (last two months re-read)"
+
+
 STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("NSE end-of-day", _nse_eod),
+    ("participant OI", _participant_oi),
+    ("NSE index closes and delivery", _nse_daily_files),
+    ("market history", _market_history),
+    ("price panel", _price_panel),
+    ("Nifty options", _nifty_options),
+    ("paper books", _paper_books),
     ("mutual fund NAVs", _mutual_funds),
     ("economic calendar", _calendar),
     ("crypto gap", _crypto_gap),
@@ -224,13 +370,50 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("index levels", _indices),
     ("option chain", _option_chain),
     ("US bars and actions", _us),
+    ("US panel", _us_panel),
 )
 """The sources a daily refresh touches, in the order `make daily` runs them.
+
+Fetch first, then everything derived from what was fetched, India before the
+rest so the paper books are current within minutes of the click.
 
 **Minute bars are absent, deliberately.** They need a Kite token minted the same
 day, which a browser button cannot obtain — offering the step and failing every
 afternoon would teach the operator to ignore a red row. `make daily-minute`
 after a login is the honest route, and the runbook says so."""
+
+STEP_MODULES: dict[str, str] = {
+    "NSE end-of-day": "eulerlab.ingest.nse_eod",
+    "participant OI": "eulerlab.ingest.backfill_oi",
+    "NSE index closes and delivery": "eulerlab.ingest.nse_daily_files",
+    "market history": "eulerlab.market_history",
+    "price panel": "build-panel",
+    "Nifty options": "nifty-options",
+    "paper books": "paper-daily",
+    "mutual fund NAVs": "eulerlab.ingest.mf_backfill",
+    "economic calendar": "eulerlab.ingest.forexfactory",
+    "crypto gap": "eulerlab.ingest.crypto_fill",
+    "FX": "eulerlab.ingest.fx_bulk_backfill",
+    "news": "eulerlab.ingest.news",
+    "index levels": "eulerlab.indices",
+    "option chain": "eulerlab.ingest.nse_chain",
+    "US bars and actions": "eulerlab.ingest.alpaca",
+    "US panel": "build-us-panel",
+}
+"""What each step runs, as `make daily` names it (a module or a make target).
+`tests/test_feed_parity.py` fails when `make daily` runs something that is
+neither here nor in `TERMINAL_ONLY` — the button and the overnight job drifted
+apart once already, silently, for four sources."""
+
+TERMINAL_ONLY: dict[str, str] = {
+    "eulerlab.fundamentals.backfill": "walks every symbol for hours; overnight only",
+    "daily-minute": "needs a Kite token minted today, which a button cannot obtain",
+    "eulerlab.ingest.crypto_backfill": "a one-year backfill; the button fills the recent gap",
+    "sync-cloud": "the button mirrors at the end of every run",
+    "prune-local": "deleting files is not a side effect of a refresh button",
+    "manifest": "the button recounts after its mirror",
+}
+"""What `make daily` runs that the button deliberately does not, and why."""
 
 
 def _wants_detail(work: Callable[..., str]) -> bool:
@@ -293,6 +476,20 @@ def refresh(
     Failures are recorded and the run continues — one dead source should not
     cost the others. The sync happens last so it carries whatever did land.
     """
+    from eulerlab.ingest.filelock import exclusive
+
+    # The whole run under the `feed` lock that `make daily` also takes; the
+    # second to start raises `filelock.Busy` instead of appending the same day.
+    with exclusive("feed", wait=False, what="Instruments → Update all data"):
+        return _refresh(only=only, on_step=on_step, sync=sync)
+
+
+def _refresh(
+    *,
+    only: Sequence[str],
+    on_step: Callable[[int, int, str], None] | None,
+    sync: bool,
+) -> FeedRun:
     import time
 
     run = FeedRun()
@@ -373,3 +570,29 @@ def _mirror(*, on_phase: Callable[[str], None] | None = None) -> tuple[int, str]
     except Exception as exc:
         return 0, f"{type(exc).__name__}: {exc}"[:200]
     return uploaded, ""
+
+
+def main() -> int:
+    """`make feed`: the button's run, printed step by step."""
+    from eulerlab.ingest.filelock import Busy
+
+    def show(index: int, total: int, name: str) -> None:
+        print(f"[{index}/{total}] {name}", flush=True)
+
+    try:
+        run = refresh(on_step=show)
+    except Busy as exc:
+        print(f"not started: {exc}")
+        return 75
+    print()
+    for step in run.steps:
+        mark = "ok  " if step.ok else "FAIL"
+        print(f"  {mark} {step.name:32s} {step.seconds:6.1f}s  {step.detail}")
+    print(f"\n{run.summary} · {run.synced} object(s) uploaded to B2")
+    if run.sync_error:
+        print(f"mirror failed: {run.sync_error}")
+    return 1 if run.failed or run.sync_error else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

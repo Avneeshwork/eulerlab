@@ -90,9 +90,19 @@ class _AltPanel:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._rows: dict[str, list[PanelRow]] = {}
+        self._stamp: int | None = None
 
     def rows(self, asset_class: str, days: int = 0) -> list[PanelRow]:
         with self._lock:
+            # Dropped when the landing census changes. Every mirror rewrites
+            # it — the Instruments button and `make daily` alike — so a feed
+            # run reaches these panels without restarting the server. Held
+            # forever, they showed whatever had landed when the API started
+            # (T-4032), the same fault T-4025 fixed for the equity panel.
+            stamp = _census_stamp()
+            if stamp != self._stamp:
+                self._rows.clear()
+                self._stamp = stamp
             if asset_class not in self._rows:
                 self._rows[asset_class] = _load_alt(asset_class)
         rows = self._rows[asset_class]
@@ -109,6 +119,12 @@ class _AltPanel:
 
     def loaded(self, asset_class: str) -> bool:
         return asset_class in self._rows
+
+
+def _census_stamp() -> int | None:
+    from eulerlab.ingest import manifest
+
+    return manifest.PATH.stat().st_mtime_ns if manifest.PATH.exists() else None
 
 
 def _load_alt(asset_class: str) -> list[PanelRow]:

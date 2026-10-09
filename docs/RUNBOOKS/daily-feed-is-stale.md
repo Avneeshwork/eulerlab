@@ -18,17 +18,29 @@ window and reported as if it covered today.
 
 ## Fix
 
-**Update daily feed** on the Instruments tab. It runs eight sources in order —
-NSE end-of-day, mutual fund NAVs, economic calendar, crypto gap, FX, news,
-index levels, US bars and actions — then mirrors to B2 and rebuilds the
-manifest. Roughly 3–4 minutes fetching and 8–10 mirroring; the button reports
-each source separately and names any that failed.
+Look at **Data coverage** on Tools → Instruments first (`make coverage` in a
+terminal): every dataset, its last day, the day it should reach and the fix.
 
-**Mirror only** skips the fetches and just uploads what is already landed. Use
-it when a previous refresh fetched but died before the sync.
+**Update all data** on the Instruments tab (`make feed` in a terminal) runs every
+step in `daily_feed.STEPS`: the NSE files, the derived tables, the price panel,
+the paper books, then the other markets and the US panel. It downloads only what
+is missing and uploads only what B2 lacks. Each step reports "downloaded N,
+already held M" and names any that failed. If `make daily` is running, the
+button is disabled and says so; wait for it.
 
-Nothing local is deleted by either. Pruning is a separate, deliberate step
-(ADR-010).
+**Mirror to cloud** skips the fetches and just uploads what is already landed
+and not yet in B2. Use it when a previous refresh fetched but died before the
+sync.
+
+**Delete local copies** frees disk. The first click is a dry run: it lists the
+bucket and says how many files and GB B2 already holds at the same size. The
+button then reads "Delete N files (X GB)"; only that second click deletes.
+Files not yet uploaded, or held at a different size, are kept. The manifests
+are untouched, so deleted files are read back from B2 when needed. Same rule
+as `make prune-local` (ADR-010).
+
+All three buttons share the `feed` lock with `make daily`; while one runs, the
+others are disabled and say who is running.
 
 ## If that does not work
 

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -283,6 +283,15 @@ options-strategies:
 
 # Every active paper deployment, replayed to the latest close: catches up
 # missed days, sends nothing twice, halts on a broken book. ADR-060.
+# What the Instruments "Update all data" button runs, from a terminal: fetch
+# only what is missing, rebuild every table and the paper books, mirror what
+# the cloud lacks. Refused while `make daily` holds the feed lock.
+feed:
+	@uv run python -m eulerlab.ingest.daily_feed
+
+coverage:
+	@uv run python -m eulerlab.ingest.coverage
+
 paper-daily:
 	@uv run python -m eulerlab.deploy.runner $(if $(ONLY),--only $(ONLY),)
 
@@ -309,7 +318,13 @@ kite-fresh:
 daily-minute:
 	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
 
+# `daily` holds the `feed` lock for the whole run, the lock the Instruments
+# button takes too, so the overnight job and a click cannot both append the
+# same day (T-4032). If the other holds it, this exits 75 and says who.
 daily:
+	@uv run python -m eulerlab.ingest.filelock feed -- $(MAKE) --no-print-directory daily-run
+
+daily-run:
 	@echo "== EOD bhavcopy =="
 	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
 	@echo "== participant OI =="
@@ -322,10 +337,10 @@ daily:
 	@# them a day behind (2026-10-08, RUNBOOKS/paper-books-behind.md).
 	@echo "== price panel =="
 	-$(MAKE) --no-print-directory build-panel
+	@echo "== Nifty options (last 30 days, only days not stored) =="
+	-$(MAKE) --no-print-directory nifty-options FROM=$$(date -v-30d +%Y-%m-%d)
 	@echo "== paper deployments (bring each up to the latest close) =="
 	-$(MAKE) --no-print-directory paper-daily
-	@echo "== fundamentals =="
-	-uv run python -m eulerlab.fundamentals.backfill
 	@echo "== mutual fund NAVs =="
 	-uv run python -m eulerlab.ingest.mf_backfill --snapshot-only
 	@echo "== economic calendar =="
@@ -346,6 +361,10 @@ daily:
 	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars(s, start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
 	@echo "== US panel =="
 	-$(MAKE) --no-print-directory build-us-panel
+	@# Last of the fetches: it walks every symbol and took over ten hours on
+	@# 2026-10-08, holding every step behind it (T-4032).
+	@echo "== fundamentals =="
+	-uv run python -m eulerlab.fundamentals.backfill
 	@echo "== sync and prune =="
 	-$(MAKE) sync-cloud
 	$(MAKE) prune-local

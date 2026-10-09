@@ -32,6 +32,8 @@ reporting zero, which would be fast and false.
 from __future__ import annotations
 
 import json
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -42,6 +44,8 @@ TREES: tuple[tuple[str, str, str], ...] = (
     ("fx", "fx", "*/*/*.jsonl.gz"),
     ("mf", "mf", "history/*.jsonl.gz"),
     ("mf/enriched", "mf", "enriched/*.jsonl.gz"),
+    # The daily AMFI snapshot; pruned locally, so coverage needs its census.
+    ("mf/navall", "mf", "navall/*.jsonl.gz"),
     ("crypto", "crypto", "*/*.jsonl.gz"),
     ("news", "news", "*/*.jsonl.gz"),
     ("calendar", "calendar", "*.jsonl.gz"),
@@ -81,6 +85,12 @@ class TreeCensus:
 
     newest: str = ""
 
+    latest: str = ""
+    """The latest date named by any key — `2026-10-07`, or `2026-10` for trees
+    filed by month. Not `newest`, which is the largest *file name*: for crypto
+    that is `ZROUSDT-1m-…`, the last symbol alphabetically, whatever its date.
+    The Instruments coverage table reads this (T-4032)."""
+
     ids: tuple[str, ...] = ()
     """The leaf names in this tree, for the few trees that need them.
 
@@ -100,6 +110,7 @@ class TreeCensus:
             "files": self.files,
             "groups": self.groups,
             "newest": self.newest,
+            "latest": self.latest,
         }
         if self.ids:
             row["ids"] = list(self.ids)
@@ -130,6 +141,23 @@ exist" for free; fund history is flat, so pruning leaves nothing and the bucket
 is the only source."""
 
 
+_DAY = re.compile(r"(?<!\d)(\d{4}-\d{2}-\d{2})(?!\d)")
+_MONTH = re.compile(r"(?<!\d)(\d{4}-\d{2})(?![\d-])")
+
+
+def latest_date(keys: Iterable[str]) -> str:
+    """The latest day any key names, else the latest month, else ""."""
+    days: list[str] = []
+    months: list[str] = []
+    for key in keys:
+        name = key.rsplit("/", 1)[-1]
+        days.extend(_DAY.findall(name))
+        months.extend(_MONTH.findall(name))
+    if days:
+        return max(days)
+    return max(months) if months else ""
+
+
 def build(*, allow_cloud: bool = True) -> Manifest:
     """Count every tree. Slow by design — it runs once, in the ingest."""
     from eulerlab.ingest import landing_reader
@@ -142,6 +170,7 @@ def build(*, allow_cloud: bool = True) -> Manifest:
             files=len(found),
             groups=len(groups),
             newest=max(found).split("/")[-1] if found else "",
+            latest=latest_date(found),
             ids=(
                 tuple(sorted(r.split("/")[-1].split(".")[0] for r in found))
                 if key in ID_TREES
@@ -184,6 +213,7 @@ def load(path: Path = PATH) -> Manifest | None:
                 ids=tuple(str(x) for x in (row.get("ids") or [])),
                 groups=int(row.get("groups", 0)),
                 newest=str(row.get("newest", "")),
+                latest=str(row.get("latest", "")),
             )
     return out
 

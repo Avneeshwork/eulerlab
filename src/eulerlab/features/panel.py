@@ -254,7 +254,32 @@ def build(
     Resumable and append-only: a run stopped by the daily cap keeps everything
     it wrote, and the next run skips those days. `note` explains an early stop
     rather than raising, because being capped is expected rather than broken.
+
+    Held under the `panel` lock, and the cache is read inside it: two builders
+    that each read "8 Oct missing" before either wrote would both append it.
     """
+    from eulerlab.ingest.filelock import exclusive
+
+    with exclusive("panel", directory=path.parent / ".locks"):
+        return _build(
+            start=start,
+            end=end,
+            manifest=manifest,
+            path=path,
+            max_workers=max_workers,
+            progress=progress,
+        )
+
+
+def _build(
+    *,
+    start: str,
+    end: str,
+    manifest: Path,
+    path: Path,
+    max_workers: int,
+    progress: Callable[[int, int], None] | None,
+) -> tuple[int, str]:
     already = cached_days(path)
     wanted = [(d, p) for d, p in _cash_files(manifest, start=start, end=end) if d not in already]
     if not wanted:

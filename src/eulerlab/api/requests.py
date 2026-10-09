@@ -107,3 +107,15 @@ def window_of(request: BatchRunRequest) -> tuple[date | None, date | None]:
 def universe_label(request: BatchRunRequest) -> str:
     """What to record as the universe. `custom` when instruments were picked."""
     return CUSTOM_UNIVERSE if request.instruments else request.universe
+
+
+class PruneRequest(BaseModel):
+    """Delete local landing files that B2 confirms it holds.
+
+    `dry_run` defaults to True: the button asks first, shows how many files and
+    how much disk, and only a second, confirmed call deletes.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    dry_run: bool = True

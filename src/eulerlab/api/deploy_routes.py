@@ -62,9 +62,12 @@ def _summary(deployment: store.Deployment) -> dict[str, Any]:
 
 def _run_in_background(deployment_id: str) -> None:
     from eulerlab.deploy import runner
+    from eulerlab.ingest.filelock import exclusive
 
     def work() -> None:
-        with RUN_LOCK:
+        # The file lock as well as RUN_LOCK: `make paper-daily` runs in another
+        # process and replays the same journals.
+        with RUN_LOCK, exclusive("paper_daily"):
             RUNNING[deployment_id] = "running"
             try:
                 runner.run(store.load(deployment_id), _rows())

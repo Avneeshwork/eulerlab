@@ -1372,10 +1372,19 @@ export const api = {
    *  `syncData`, which uploads whatever is already on disk — that can mirror a
    *  stale landing zone to the cloud and report success. */
   feedPlan: () =>
-    get<{ ok: boolean; sources: string[]; excluded: string[]; keeps_local: boolean }>(
-      '/api/data/feed/plan',
-    ),
+    get<{
+      ok: boolean;
+      sources: string[];
+      excluded: string[];
+      keeps_local: boolean;
+      busy: { what?: string; since?: string } | null;
+    }>('/api/data/feed/plan'),
+  /** Every dataset: last day held, the day it should reach, and the fix. */
+  coverage: () => get<DataCoverage>('/api/data/coverage'),
   refreshFeed: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/feed', {}),
+  /** Count (dry run) or delete local landing files B2 holds at the same size. */
+  pruneData: (dryRun: boolean) =>
+    post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
   snapshot: (workspace = '') =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
   tweezer: (input: {
@@ -1444,4 +1453,23 @@ export type TweezerResult = {
   net_pnl: number;
   period: [string, string];
   caveats: string[];
+};
+
+export type CoverageRow = {
+  group: string;
+  name: string;
+  last: string;
+  expected: string;
+  behind: number;
+  status: 'ok' | 'behind' | 'stale' | 'missing' | 'info';
+  detail: string;
+  fix: string;
+};
+
+export type DataCoverage = {
+  ok: boolean;
+  rows: CoverageRow[];
+  summary: Record<string, number>;
+  busy: { what?: string; since?: string } | null;
+  checked_at: string;
 };

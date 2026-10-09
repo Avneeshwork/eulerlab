@@ -366,6 +366,15 @@ def _halt(deployment: Deployment, oms: OMS, state: dict[str, Any], reason: str) 
 
 
 def run_all(only: str = "") -> int:
+    from eulerlab.ingest.filelock import exclusive
+
+    # Two runners replaying the same deployment would race on its journal and
+    # state file; the second waits, then finds nothing new to send.
+    with exclusive("paper_daily"):
+        return _run_all(only)
+
+
+def _run_all(only: str) -> int:
     from eulerlab.features.panel import read_panel
 
     active = [

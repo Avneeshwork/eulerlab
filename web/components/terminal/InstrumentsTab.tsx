@@ -9,10 +9,10 @@
  * defect as one offered without data, pointing the other way.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { ASSET_CLASSES, assetClassLabel } from '@/lib/assetClasses';
-import type { InstrumentList } from '@/lib/api';
+import type { DataCoverage, InstrumentList } from '@/lib/api';
 
 // Labels come from `lib/assetClasses`, the single source three components used
 // to each keep a private copy of.
@@ -51,6 +51,17 @@ export function InstrumentsTab() {
   }, []);
 
   const [steps, setSteps] = useState<FeedStep[]>([]);
+
+  // What is held and what is missing, per dataset. Re-read after every run so
+  // "did the click work?" is answered by the table, not by trusting the log.
+  const [coverage, setCoverage] = useState<DataCoverage | null>(null);
+  useEffect(() => {
+    api
+      .coverage()
+      .then(setCoverage)
+      .catch(() => setCoverage(null));
+  }, [reloadAt]);
+  const busy = coverage?.busy ?? null;
 
   /**
    * Fetch every source, then mirror.
@@ -91,6 +102,40 @@ export function InstrumentsTab() {
         if (job.status === 'done') setReloadAt(Date.now());
       }
     }, 3000);
+  }
+
+  /**
+   * Delete local copies B2 already holds, in two clicks. The first is a dry run
+   * that says how many files and how much disk; only the confirm deletes.
+   */
+  const [prunePlan, setPrunePlan] = useState<{ files: number; gb: number } | null>(null);
+
+  async function startPrune(dryRun: boolean) {
+    setSteps([]);
+    setSync({ state: 'running', note: dryRun ? 'checking what B2 holds…' : 'deleting…' });
+    const started = await api.pruneData(dryRun).catch((e) => ({ ok: false, error: String(e) }));
+    if (!started.ok || !('job' in started) || !started.job) {
+      setSync({ state: 'failed', note: started.error ?? 'could not start' });
+      return;
+    }
+    const id = started.job;
+    polling.current = window.setInterval(async () => {
+      const job = await api.job(id).catch(() => null);
+      if (!job) return;
+      if (job.status === 'done' || job.status === 'failed') {
+        if (polling.current) window.clearInterval(polling.current);
+        const result = job.result as { files?: number; gb?: number } | undefined;
+        setSync({ state: job.status, note: job.message || job.error || job.status });
+        if (job.status === 'done' && dryRun && (result?.files ?? 0) > 0) {
+          setPrunePlan({ files: result?.files ?? 0, gb: result?.gb ?? 0 });
+        } else {
+          setPrunePlan(null);
+        }
+        if (job.status === 'done' && !dryRun) setReloadAt(Date.now());
+      } else {
+        setSync({ state: 'running', note: job.message || 'working…' });
+      }
+    }, 2000);
   }
 
   async function startSync() {
@@ -163,26 +208,59 @@ export function InstrumentsTab() {
             className="tbtn"
             type="button"
             onClick={startFeed}
-            disabled={sync.state === 'running'}
+            disabled={sync.state === 'running' || !!busy}
           >
-            {sync.state === 'running' ? 'Working…' : 'Update daily feed'}
+            {sync.state === 'running' ? 'Working…' : 'Update all data'}
           </button>
           <button
             className="tbtn ghost-line"
             type="button"
             onClick={startSync}
-            disabled={sync.state === 'running'}
+            disabled={sync.state === 'running' || !!busy}
+            title="Upload to B2 every landed file the cloud does not hold yet. Fetches nothing."
           >
-            Mirror only
+            Mirror to cloud
           </button>
+          {prunePlan ? (
+            <button
+              className="tbtn danger"
+              type="button"
+              onClick={() => startPrune(false)}
+              disabled={sync.state === 'running' || !!busy}
+            >
+              {`Delete ${prunePlan.files.toLocaleString()} files (${prunePlan.gb.toFixed(2)} GB)`}
+            </button>
+          ) : (
+            <button
+              className="tbtn ghost-line"
+              type="button"
+              onClick={() => startPrune(true)}
+              disabled={sync.state === 'running' || !!busy}
+              title="Delete local copies that B2 holds at the same size. Asks before deleting."
+            >
+              Delete local copies
+            </button>
+          )}
+          {prunePlan && (
+            <button
+              className="tbtn ghost-line"
+              type="button"
+              onClick={() => {
+                setPrunePlan(null);
+                setSync({ state: 'idle', note: '' });
+              }}
+            >
+              Cancel
+            </button>
+          )}
           <div className="tfine" data-state={sync.state}>
-            {sync.state === 'idle'
-              ? plan
-                ? `Fetches ${plan.sources.join(', ')} — then mirrors to B2. ${plan.excluded.join(
-                    '; ',
-                  )}. Nothing local is deleted.`
-                : 'Fetches every source, then mirrors to B2. Nothing local is deleted.'
-              : sync.note}
+            {busy && sync.state !== 'running'
+              ? `Another data run is going (${busy.what ?? 'make daily'}, since ${busy.since ?? '?'}). Wait for it to finish.`
+              : sync.state === 'idle'
+                ? plan
+                  ? `Update downloads only what is missing from ${plan.sources.length} sources, rebuilds every table and the paper books, then uploads what the cloud lacks. Mirror only uploads. Delete removes local files B2 already holds, after asking.`
+                  : 'Downloads only what is missing, rebuilds every table, then uploads what the cloud lacks.'
+                : sync.note}
           </div>
           {steps.length > 0 && (
             <ul className="feedsteps">
@@ -196,6 +274,67 @@ export function InstrumentsTab() {
           )}
         </div>
       </section>
+
+      {coverage?.ok && (
+        <div className="tpanel coverage">
+          <div className="coverage-head">
+            <b>Data coverage</b>
+            <span className="tfine">
+              {(['ok', 'behind', 'stale', 'missing'] as const)
+                .filter((k) => coverage.summary[k])
+                .map((k) => `${coverage.summary[k]} ${k === 'ok' ? 'up to date' : k}`)
+                .join(' · ')}
+              {' · checked '}
+              {coverage.checked_at.slice(11, 16)} UTC
+            </span>
+            <button className="tbtn ghost-line" type="button" onClick={() => setReloadAt(Date.now())}>
+              Re-check
+            </button>
+          </div>
+          <div className="tscroll">
+            <table className="ttable">
+              <thead>
+                <tr>
+                  <th>Dataset</th>
+                  <th>Last day</th>
+                  <th>Should reach</th>
+                  <th>Status</th>
+                  <th>Fix</th>
+                </tr>
+              </thead>
+              <tbody>
+                {coverage.rows.map((row, i) => (
+                  <Fragment key={`${row.group}-${row.name}`}>
+                    {(i === 0 || coverage.rows[i - 1].group !== row.group) && (
+                      <tr className="coverage-group">
+                        <td colSpan={5}>{row.group}</td>
+                      </tr>
+                    )}
+                    <tr>
+                      <td>
+                        <b>{row.name}</b>
+                        {row.detail && <div className="tfine">{row.detail}</div>}
+                      </td>
+                      <td>{row.last || <span className="tdim">—</span>}</td>
+                      <td>{row.expected || <span className="tdim">—</span>}</td>
+                      <td>
+                        <span className="cov-status" data-status={row.status}>
+                          {row.status === 'ok'
+                            ? 'up to date'
+                            : row.status === 'behind' || row.status === 'stale'
+                              ? `${row.behind || ''} behind`.trim()
+                              : row.status}
+                        </span>
+                      </td>
+                      <td className="tfine">{row.status === 'ok' || row.status === 'info' ? '' : row.fix}</td>
+                    </tr>
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="ttools">
         <input

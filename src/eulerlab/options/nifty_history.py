@@ -106,6 +106,14 @@ def load(path: Path = OUT) -> list[dict[str, Any]]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    from eulerlab.ingest.filelock import exclusive
+
+    # Read-then-append: two runs would both read a missing day (T-4032).
+    with exclusive("nifty_options"):
+        return _main(argv)
+
+
+def _main(argv: Sequence[str] | None) -> int:
     import boto3
 
     from eulerlab.env import require

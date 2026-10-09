@@ -954,7 +954,7 @@ def _build_registered(strategy_id: str) -> Strategy:
     return builder()
 
 
-from eulerlab.api.requests import BatchRunRequest  # noqa: E402
+from eulerlab.api.requests import BatchRunRequest, PruneRequest  # noqa: E402
 
 ILLUSTRATION = ("ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON")
 ILLUSTRATION_SCORES = (0.42, 0.28, 0.11, -0.06, -0.19)
@@ -1920,12 +1920,18 @@ def _run_sync(job: Job) -> None:
 
     try:
         from eulerlab.ingest import manifest
+        from eulerlab.ingest.filelock import exclusive
         from eulerlab.ingest.sync_cloud import main as sync_main
 
         job.status = "running"
         job.message = "mirroring the landing zone to B2"
         captured = io.StringIO()
-        with redirect_stdout(captured):
+        # Under the feed lock: a mirror during an update would upload half a
+        # run and report counts that describe neither state.
+        with (
+            exclusive("feed", wait=False, what="Instruments → Mirror to cloud"),
+            redirect_stdout(captured),
+        ):
             code = sync_main([])
 
         uploaded = sum(
@@ -1974,6 +1980,7 @@ def _run_feed(job: Job) -> None:
             job.message = f"{index}/{total} — {name}"
 
         run = daily_feed.refresh(on_step=progress)
+        _forget_derived()
         job.result = {
             "kind": "feed",
             "summary": run.summary,
@@ -1997,6 +2004,19 @@ def _run_feed(job: Job) -> None:
     except Exception as exc:
         job.status = "failed"
         job.message = f"{type(exc).__name__}: {exc}"[:200]
+        job.error = job.message
+    finally:
+        job.finished = time.time()
+
+
+def _forget_derived() -> None:
+    """Drop the API's copies of data a feed run just rewrote.
+
+    The equity and alt panels re-read on their own when their files change;
+    the US band is a five-minute cache and would show the old session until it
+    expired.
+    """
+    _US_CACHE.clear()
 
 
 @app.get("/api/data/feed/plan")
@@ -2008,15 +2028,37 @@ def data_feed_plan() -> dict[str, Any]:
     already claimed FX while the step list did not include it, which is the
     same failure as the three copies of the asset-class list.
     """
-    from eulerlab.ingest.daily_feed import STEPS
+    from eulerlab.ingest.daily_feed import STEPS, TERMINAL_ONLY
+    from eulerlab.ingest.filelock import holder
 
     return {
         "ok": True,
         "sources": [name for name, _work in STEPS],
-        "excluded": [
-            "minute bars — need a Kite token minted today, which a browser button cannot obtain"
-        ],
+        "excluded": [f"{name} — {why}" for name, why in TERMINAL_ONLY.items()],
         "keeps_local": True,
+        "busy": holder("feed"),
+    }
+
+
+@app.get("/api/data/coverage")
+def data_coverage() -> dict[str, Any]:
+    """Every dataset: last day held, the day it should reach, and the fix.
+
+    Read from local files only (manifests, derived tables' last lines, the
+    landing census, paper states), so it answers in well under a second.
+    """
+    from dataclasses import asdict
+
+    from eulerlab.ingest import coverage
+    from eulerlab.ingest.filelock import holder
+
+    rows = coverage.table()
+    return {
+        "ok": True,
+        "rows": [asdict(r) for r in rows],
+        "summary": coverage.summary(rows),
+        "busy": holder("feed"),
+        "checked_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -2045,6 +2087,15 @@ def data_feed() -> dict[str, Any]:
                 "error": "a data job is already running",
                 "job": running[0].id,
             }
+
+    from eulerlab.ingest.filelock import holder
+
+    busy = holder("feed")
+    if busy:
+        return {
+            "ok": False,
+            "error": f"another data run is going ({busy.get('what')}, since {busy.get('since')})",
+        }
 
     job = Job(id=uuid.uuid4().hex[:12])
     job.result = {"kind": "feed"}
@@ -2076,11 +2127,95 @@ def data_sync() -> dict[str, Any]:
         if running:
             return {"ok": False, "error": "a sync is already running", "job": running[0].id}
 
+        from eulerlab.ingest.filelock import holder
+
+        busy = holder("feed")
+        if busy:
+            return {
+                "ok": False,
+                "error": f"another data run is going ({busy.get('what')}, since {busy.get('since')})",
+            }
+
         job = Job(id=uuid.uuid4().hex[:12])
         job.result = {"kind": "sync"}
         JOBS[job.id] = job
 
     threading.Thread(target=_run_sync, args=(job,), daemon=True).start()
+    return {"ok": True, "job": job.id}
+
+
+def _run_prune(job: Job, dry_run: bool) -> None:
+    """Delete (or count) local landing files that B2 holds at the same size.
+
+    The same rule as `make prune-local`: a file goes only when the bucket
+    listing shows its key at its exact size. Files not yet uploaded, or held at
+    a different size, are kept and counted.
+    """
+    try:
+        from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
+        from eulerlab.ingest.filelock import exclusive
+        from eulerlab.ingest.prune_local import DEFAULT_ROOT, plan_and_prune
+
+        job.status = "running"
+        job.message = "listing the bucket" if dry_run else "deleting confirmed local copies"
+        with exclusive("feed", wait=False, what="Instruments → Delete local copies"):
+            config = load_storage_config(Path("config/storage.yaml"))
+            result = plan_and_prune(
+                DEFAULT_ROOT, S3ObjectStore(config), prefix=config.prefix, dry_run=dry_run
+            )
+        job.result = {
+            "kind": "prune",
+            "dry_run": dry_run,
+            "files": len(result.deleted),
+            "gb": round(result.bytes_freed / 1e9, 3),
+            "kept_not_uploaded": result.kept_not_uploaded,
+            "kept_size_mismatch": len(result.kept_size_mismatch),
+        }
+        verb = "would delete" if dry_run else "deleted"
+        job.message = (
+            f"{verb} {len(result.deleted):,} files ({result.bytes_freed / 1e9:.2f} GB); "
+            f"kept {result.kept_not_uploaded:,} not yet in B2"
+        )
+        if result.kept_size_mismatch:
+            job.message += f", {len(result.kept_size_mismatch)} with a size mismatch"
+        job.status = "done"
+    except Exception as exc:
+        job.status = "failed"
+        job.error = f"{type(exc).__name__}: {exc}"[:200]
+        job.message = job.error
+    finally:
+        job.finished = time.time()
+
+
+@app.post("/api/data/prune")
+def data_prune(request: PruneRequest) -> dict[str, Any]:
+    """Count, or delete, local copies B2 already holds. Returns a job id.
+
+    Two calls from the button: a dry run that says how many files and how much
+    disk, then the confirmed delete. The manifests are never touched, so every
+    deleted file is still listed as landed and is read back from B2 on demand.
+    """
+    from eulerlab.ingest.filelock import holder
+
+    busy = holder("feed")
+    if busy:
+        return {
+            "ok": False,
+            "error": f"another data run is going ({busy.get('what')}, since {busy.get('since')})",
+        }
+    with JOBS_LOCK:
+        running = [
+            j
+            for j in JOBS.values()
+            if j.status in ("queued", "running")
+            and j.result.get("kind") in {"feed", "sync", "prune"}
+        ]
+        if running:
+            return {"ok": False, "error": "a data job is already running", "job": running[0].id}
+        job = Job(id=uuid.uuid4().hex[:12])
+        job.result = {"kind": "prune"}
+        JOBS[job.id] = job
+    threading.Thread(target=_run_prune, args=(job, request.dry_run), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 

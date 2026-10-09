@@ -1378,3 +1378,41 @@ everything that failed.
 **TERP** — Theoretical Ex-Rights Price, the correct divisor for a rights issue.
 
 **Trial** — one strategy configuration evaluated. Counted forever.
+
+
+## The daily data pipeline (ADR-061)
+
+`ingest/daily_feed.STEPS` is the one list of daily steps. The Instruments button
+runs it (`POST /api/data/feed`), as does `make feed`; `make daily` runs the same
+steps plus those in `TERMINAL_ONLY` (fundamentals, Kite minute bars, the
+one-year crypto backfill, pruning). `tests/test_data_pipeline.py` fails if
+`make daily` gains a step that is in neither.
+
+Order: NSE end-of-day → participant OI → index closes and delivery → market
+history → price panel → Nifty options → **paper books** → mutual funds,
+calendar, crypto, FX, news, index levels, option chain, US bars → US panel →
+mirror (uploads only keys B2 lacks or holds at a different size) → census.
+
+**Nothing twice.** Every source skips files already in the manifest. Every
+derived table appends only the days it lacks, and reads what it holds *inside*
+its own file lock (`ingest/filelock.py`: `panel`, `us_panel`, `nifty_options`,
+`market_history`, `paper_daily`), so two writers cannot both add a day. The
+whole run holds the `feed` lock; `make daily` takes it through
+`python -m eulerlab.ingest.filelock feed -- make daily-run`, and whichever
+starts second is refused with who holds it.
+
+**Coverage.** `ingest/coverage.table()` gives, per dataset, the last day held
+(NSE manifest, last line of each derived table, census `latest`, paper
+`traded_through`) against the day it should reach (A-051) and counts the
+sessions between. Served at `GET /api/data/coverage`, shown on Instruments,
+printed by `make coverage`. The census `latest` is the largest date named in
+any key, not the largest file name.
+
+**Three buttons.** Update all data (`POST /api/data/feed`), Mirror to cloud
+(`POST /api/data/sync`, upload only) and Delete local copies
+(`POST /api/data/prune`, `dry_run` first; deletes a file only when the bucket
+lists its key at the same size). All three hold the `feed` lock.
+
+**Reaching the API.** The equity panel reloads when its file changes; the alt
+panels (crypto, MF, FX, US) when the census changes; the US band cache is
+cleared after a run.

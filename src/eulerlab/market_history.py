@@ -573,6 +573,14 @@ def delivery_series(symbol: str) -> list[tuple[date, float | None]]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    from eulerlab.ingest.filelock import exclusive
+
+    # Read-then-append: two runs would both read a missing day (T-4032).
+    with exclusive("market_history"):
+        return _main(argv)
+
+
+def _main(argv: Sequence[str] | None) -> int:
     parser = argparse.ArgumentParser(prog="market-history")
     parser.add_argument("--skip-expiries", action="store_true")
     parser.add_argument("--full", action="store_true", help="rebuild the daily tables")
