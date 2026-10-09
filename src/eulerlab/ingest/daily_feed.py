@@ -320,13 +320,11 @@ def _market_history() -> str:
 
 
 def _price_panel() -> str:
-    from eulerlab.features.panel import PANEL_PATH, build
-    from eulerlab.ingest.coverage import last_day_jsonl
+    from eulerlab.deploy.autoupdate import update_panel
 
-    written, note = build(start="2015-01-01", end=_days_ago(0))
-    if note:
-        raise RuntimeError(note)
-    return f"{written} day(s) added, ends {last_day_jsonl(PANEL_PATH)}"
+    # Returns at once when the panel already holds the latest landed cash day.
+    written, through = update_panel()
+    return f"{written} day(s) added, ends {through}" if written else f"already through {through}"
 
 
 def _nifty_options() -> str:
@@ -338,13 +336,12 @@ def _nifty_options() -> str:
 
 
 def _paper_books() -> str:
-    from eulerlab.deploy import runner
+    from eulerlab.deploy.autoupdate import panel_day, update_paper
 
-    text = _captured(lambda: runner.run_all())
-    through = re.findall(r"through (\d{4}-\d{2}-\d{2})", text)
-    if "no active paper deployments" in text:
-        return "no active deployments"
-    return f"{len(through)} deployment(s), through {max(through)}" if through else "ran"
+    # Only the books behind the panel are replayed; none is a no-op.
+    through = panel_day()
+    ran = update_paper(through)
+    return f"{len(ran)} book(s) brought to {through}" if ran else f"already through {through}"
 
 
 def _us_panel() -> str:
@@ -404,6 +401,32 @@ STEP_MODULES: dict[str, str] = {
 `tests/test_feed_parity.py` fails when `make daily` runs something that is
 neither here nor in `TERMINAL_ONLY` — the button and the overnight job drifted
 apart once already, silently, for four sources."""
+
+DEPENDENTS: dict[str, tuple[str, ...]] = {
+    "NSE end-of-day": ("price panel", "Nifty options"),
+    "price panel": ("paper books",),
+    "NSE index closes and delivery": ("market history",),
+    "US bars and actions": ("US panel",),
+}
+"""What must be rebuilt when a step may have landed new data.
+
+The operator's rule: the price panel and paper trading update on data change,
+whichever button changed it. So the Cash bhavcopy row's button (NSE end-of-day
+alone) also runs the panel and the paper books. Each dependent returns at once
+when there is nothing newer, so pulling it in costs a second, not a rebuild."""
+
+
+def with_dependents(only: Sequence[str]) -> set[str]:
+    """`only` plus everything downstream of it; empty means every step."""
+    wanted = set(only)
+    frontier = list(wanted)
+    while frontier:
+        for child in DEPENDENTS.get(frontier.pop(), ()):
+            if child not in wanted:
+                wanted.add(child)
+                frontier.append(child)
+    return wanted
+
 
 TERMINAL_ONLY: dict[str, str] = {
     "eulerlab.fundamentals.backfill": "walks every symbol for hours; overnight only",
@@ -493,7 +516,8 @@ def _refresh(
     import time
 
     run = FeedRun()
-    steps = [s for s in STEPS if not only or s[0] in only]
+    wanted = with_dependents(only)
+    steps = [s for s in STEPS if not wanted or s[0] in wanted]
 
     for index, (name, work) in enumerate(steps, start=1):
         if on_step:

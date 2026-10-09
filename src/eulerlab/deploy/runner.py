@@ -40,7 +40,7 @@ from __future__ import annotations
 import argparse
 import time
 import traceback
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -204,6 +204,9 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     if not days or len(days) <= warmup + 2:
         state.update(
             status="waiting",
+            # The panel day this run saw, so the auto-updater replays a waiting
+            # book only once the panel has moved (deploy/autoupdate.py).
+            panel_through=days[-1].isoformat() if days else "",
             reason=(
                 f"the first decision is {deployment.start}'s close; it trades once the "
                 f"panel holds two sessions after it"
@@ -365,7 +368,7 @@ def _halt(deployment: Deployment, oms: OMS, state: dict[str, Any], reason: str) 
     return state
 
 
-def run_all(only: str = "") -> int:
+def run_all(only: str | Collection[str] = "") -> int:
     from eulerlab.ingest.filelock import exclusive
 
     # Two runners replaying the same deployment would race on its journal and
@@ -374,13 +377,16 @@ def run_all(only: str = "") -> int:
         return _run_all(only)
 
 
-def _run_all(only: str) -> int:
+def _run_all(only: str | Collection[str]) -> int:
     from eulerlab.features.panel import read_panel
 
+    # One id, several (the auto-updater passes the books that are behind, so
+    # the panel is read once for all of them), or every active book.
+    wanted = {only} if isinstance(only, str) and only else set(only) if only else set()
     active = [
         d
         for d in store.all_deployments()
-        if d.status == "active" and d.mode == "paper" and (not only or d.id == only)
+        if d.status == "active" and d.mode == "paper" and (not wanted or d.id in wanted)
     ]
     if not active:
         print("no active paper deployments")

@@ -34,9 +34,10 @@ import threading
 import time
 import traceback
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
@@ -87,7 +88,28 @@ INTRADAY_RUNNABLE = frozenset({*PAPER_SIGNALS, "tweezer_bottom"})
 """Strategies that are not target weights but run through the minute-bar
 scanners: the paper signals, and Tweezer Bottom through its own scanner."""
 
-app = FastAPI(title="EulerLab", version="0.1.0")
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """Start the auto-updater with the server and stop it on shutdown.
+
+    The price panel and the paper books follow the data by themselves
+    (deploy/autoupdate.py). `EULERLAB_AUTOUPDATE=0` switches it off.
+    """
+    from eulerlab.deploy import autoupdate
+
+    stop = threading.Event()
+    if autoupdate.enabled():
+        threading.Thread(
+            target=autoupdate.watch, args=(stop,), daemon=True, name="autoupdate"
+        ).start()
+    try:
+        yield
+    finally:
+        stop.set()
+
+
+app = FastAPI(title="EulerLab", version="0.1.0", lifespan=_lifespan)
 app.include_router(builder_routes.router)
 app.include_router(research_routes.router)
 app.include_router(deploy_routes.router)

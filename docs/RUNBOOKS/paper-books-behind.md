@@ -22,3 +22,9 @@ Both are idempotent. The workbench picks up the new panel by itself (T-4025).
 `paper-daily` straight after the NSE files. `sync-cloud` failing no longer
 stops the run (`prune-local` still deletes only what B2 confirms). The panel
 reads a day still in local landing from disk and uses B2 only for pruned days.
+
+**Since 2026-10-09 (T-4035)** the API checks every 5 minutes and catches the
+panel and the books up by itself, and any button that fetches NSE files runs
+them too. If they are still behind: is the API running? Is
+`EULERLAB_AUTOUPDATE=0` set? Is a data run holding the feed lock (the
+Instruments page says so)? The API's console prints `[autoupdate]` lines.

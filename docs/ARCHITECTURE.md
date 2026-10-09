@@ -1415,6 +1415,16 @@ Update button sends those as `only` with `mirror=false`; each group header
 sends the union of its rows. `refresh` runs them in `STEPS` order whatever
 order they arrive in. Unknown step names are refused.
 
+**The panel and the paper books follow the data (ADR-062).**
+`daily_feed.DEPENDENTS` adds downstream steps to any run: NSE end-of-day →
+price panel and Nifty options; price panel → paper books; index closes →
+market history; US bars → US panel. The panel step returns at once when its
+last line already holds the manifest's latest cash day; the paper step replays
+only books whose `traded_through` (or, while waiting, `panel_through`) is before
+the panel's last day, all in one `run_all` so the panel is read once. Outside
+any run, the API's lifespan starts `autoupdate.watch`, which calls the same
+`catch_up()` every 300 s and skips while the `feed` lock is held.
+
 **Three buttons.** Update all data (`POST /api/data/feed`), Mirror to cloud
 (`POST /api/data/sync`, upload only) and Delete local copies
 (`POST /api/data/prune`, `dry_run` first; deletes a file only when the bucket

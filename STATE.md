@@ -56,6 +56,7 @@ never edit them without an explicit instruction in that session.
   right after the bhavcopy, so a failed sync or a slow step cannot hold them back (T-4030).
 - **Data:** Tools → Instruments → **Update all data** brings every dataset up to
   date and its Data coverage table (`make coverage`) shows what is missing (ADR-061).
+  The price panel and paper books update by themselves when new NSE data lands (ADR-062).
 
 ---
 
