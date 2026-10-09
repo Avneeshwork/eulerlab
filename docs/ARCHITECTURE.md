@@ -1408,6 +1408,13 @@ sessions between. Served at `GET /api/data/coverage`, shown on Instruments,
 printed by `make coverage`. The census `latest` is the largest date named in
 any key, not the largest file name.
 
+**One dataset at a time.** Each coverage row carries `steps`
+(`coverage.STEPS_FOR`): the fetch it derives from, then its build — the price
+panel is NSE end-of-day → price panel; a paper book adds paper books. Its
+Update button sends those as `only` with `mirror=false`; each group header
+sends the union of its rows. `refresh` runs them in `STEPS` order whatever
+order they arrive in. Unknown step names are refused.
+
 **Three buttons.** Update all data (`POST /api/data/feed`), Mirror to cloud
 (`POST /api/data/sync`, upload only) and Delete local copies
 (`POST /api/data/prune`, `dry_run` first; deletes a file only when the bucket

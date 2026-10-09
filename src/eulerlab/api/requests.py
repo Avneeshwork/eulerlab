@@ -119,3 +119,17 @@ class PruneRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     dry_run: bool = True
+
+
+class FeedRequest(BaseModel):
+    """Which feed steps to run. Empty `only` runs every step.
+
+    One dataset's Update button sends its own steps and `mirror=False`: the
+    mirror relists the whole bucket and takes minutes, which is right for
+    Update all data and wrong for refreshing one table.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    only: list[str] = Field(default_factory=list)
+    mirror: bool = True

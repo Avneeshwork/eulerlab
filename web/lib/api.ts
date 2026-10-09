@@ -1381,7 +1381,10 @@ export const api = {
     }>('/api/data/feed/plan'),
   /** Every dataset: last day held, the day it should reach, and the fix. */
   coverage: () => get<DataCoverage>('/api/data/coverage'),
-  refreshFeed: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/feed', {}),
+  /** Run feed steps: every step by default, or only `only` (one dataset's
+   *  button), with or without the B2 mirror at the end. */
+  refreshFeed: (only: string[] = [], mirror = true) =>
+    post<{ ok: boolean; job?: string; error?: string }>('/api/data/feed', { only, mirror }),
   /** Count (dry run) or delete local landing files B2 holds at the same size. */
   pruneData: (dryRun: boolean) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
@@ -1464,6 +1467,8 @@ export type CoverageRow = {
   status: 'ok' | 'behind' | 'stale' | 'missing' | 'info';
   detail: string;
   fix: string;
+  /** The feed steps its own Update button runs; empty when no button can. */
+  steps: string[];
 };
 
 export type DataCoverage = {

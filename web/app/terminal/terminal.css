@@ -2635,7 +2635,12 @@ textarea:focus-visible {
    against the day it should reach. Status is a word, not only a colour. */
 .coverage { margin-bottom: 1rem; }
 .coverage-head { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; padding: 0.6rem 0.8rem; }
-.coverage-head .tbtn { margin-left: auto; }
+.coverage-head { justify-content: space-between; }
+.cov-badges { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-left: auto; }
+.tbtn.small { padding: 0.15rem 0.6rem; font-size: 0.72rem; min-height: 0; }
+.cov-table tr[data-working] td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.cov-status[data-status='working'] { color: var(--accent); }
+.coverage-group td { border-top: 1px solid var(--line, rgba(127, 127, 127, 0.2)); }
 .coverage-group td {
   font-size: 0.7rem;
   text-transform: uppercase;

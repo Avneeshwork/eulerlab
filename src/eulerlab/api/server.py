@@ -954,7 +954,7 @@ def _build_registered(strategy_id: str) -> Strategy:
     return builder()
 
 
-from eulerlab.api.requests import BatchRunRequest, PruneRequest  # noqa: E402
+from eulerlab.api.requests import BatchRunRequest, FeedRequest, PruneRequest  # noqa: E402
 
 ILLUSTRATION = ("ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON")
 ILLUSTRATION_SCORES = (0.42, 0.28, 0.11, -0.06, -0.19)
@@ -1964,7 +1964,7 @@ def _run_sync(job: Job) -> None:
         job.finished = time.time()
 
 
-def _run_feed(job: Job) -> None:
+def _run_feed(job: Job, only: list[str] | None = None, mirror: bool = True) -> None:
     """Fetch every source, then mirror. Individual failures do not stop the run.
 
     Reported per source rather than as one verdict: "the feed updated" and "the
@@ -1979,10 +1979,12 @@ def _run_feed(job: Job) -> None:
         def progress(index: int, total: int, name: str) -> None:
             job.message = f"{index}/{total} — {name}"
 
-        run = daily_feed.refresh(on_step=progress)
+        run = daily_feed.refresh(only=only or (), on_step=progress, sync=mirror)
         _forget_derived()
         job.result = {
             "kind": "feed",
+            "only": only or [],
+            "mirrored": mirror,
             "summary": run.summary,
             "uploaded": run.synced,
             "sync_error": run.sync_error,
@@ -2063,7 +2065,7 @@ def data_coverage() -> dict[str, Any]:
 
 
 @app.post("/api/data/feed")
-def data_feed() -> dict[str, Any]:
+def data_feed(request: FeedRequest | None = None) -> dict[str, Any]:
     """Fetch today's data from every source, then mirror it to B2.
 
     Different from `/api/data/sync`, which uploads whatever is already on disk.
@@ -2097,11 +2099,21 @@ def data_feed() -> dict[str, Any]:
             "error": f"another data run is going ({busy.get('what')}, since {busy.get('since')})",
         }
 
+    request = request or FeedRequest()
+    from eulerlab.ingest.daily_feed import STEPS
+
+    known = {name for name, _work in STEPS}
+    unknown = [name for name in request.only if name not in known]
+    if unknown:
+        return {"ok": False, "error": f"no such step: {', '.join(unknown)}"}
+
     job = Job(id=uuid.uuid4().hex[:12])
-    job.result = {"kind": "feed"}
+    job.result = {"kind": "feed", "only": request.only}
     with JOBS_LOCK:
         JOBS[job.id] = job
-    threading.Thread(target=_run_feed, args=(job,), daemon=True).start()
+    threading.Thread(
+        target=_run_feed, args=(job, request.only, request.mirror), daemon=True
+    ).start()
     return {"ok": True, "job": job.id}
 
 

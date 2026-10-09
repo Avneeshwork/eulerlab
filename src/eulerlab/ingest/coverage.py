@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -58,6 +58,10 @@ class Row:
     """ok · behind (one session) · stale (two or more) · missing · info"""
     detail: str
     fix: str
+    steps: tuple[str, ...] = ()
+    """The feed steps that bring this dataset up to date, in run order —
+    what its own Update button runs. Empty where no button can (Kite minute
+    bars need a login; fundamentals take hours)."""
 
 
 # --- reading the last day cheaply ---------------------------------------------
@@ -194,7 +198,12 @@ def sessions_behind(last: date, expected: date, cadence: str, closed: frozenset[
     return count
 
 
-def judge(
+def judge(*, steps: tuple[str, ...] = (), **kw: Any) -> Row:
+    """One row: compare `last` against what `cadence` should have reached."""
+    return replace(_grade(**kw), steps=steps)
+
+
+def _grade(
     *,
     group: str,
     name: str,
@@ -205,7 +214,6 @@ def judge(
     detail: str = "",
     fix: str = UPDATE,
 ) -> Row:
-    """One row: compare `last` against what `cadence` should have reached."""
     if not last:
         return Row(group, name, "", "", 0, "missing", detail or "nothing held", fix)
     if cadence == "info":
@@ -242,6 +250,30 @@ def nse_closures(path: Path = DERIVED / "nse_calendar.json") -> frozenset[date]:
 
 # --- the table -----------------------------------------------------------------
 
+_EOD = "NSE end-of-day"
+_FILES = "NSE index closes and delivery"
+PAPER_STEPS: tuple[str, ...] = (_EOD, "price panel", "paper books")
+
+STEPS_FOR: dict[str, tuple[str, ...]] = {
+    "Cash bhavcopy": (_EOD,),
+    "F&O bhavcopy": (_EOD,),
+    "Participant OI": ("participant OI",),
+    "Index closes (incl. VIX)": (_FILES,),
+    "Delivery positions": (_FILES,),
+    "Price panel": (_EOD, "price panel"),
+    "Index history": (_FILES, "market history"),
+    "Delivery table": (_FILES, "market history"),
+    "Nifty futures": (_EOD, "market history"),
+    "Nifty options": (_EOD, "Nifty options"),
+    "US daily panel": ("US bars and actions", "US panel"),
+    "Crypto 1-minute": ("crypto gap",),
+    "FX 1-minute": ("FX",),
+    "Mutual fund NAVs": ("mutual fund NAVs",),
+    "Option chain snapshots": ("option chain",),
+}
+"""Each dataset's own Update button: the fetch it derives from, then the build.
+Every name must be a `daily_feed.STEPS` name (tests/test_data_pipeline.py)."""
+
 
 def _paper_rows(now: datetime, closed: frozenset[date]) -> Iterable[Row]:
     if not DEPLOYMENTS.exists():
@@ -262,6 +294,7 @@ def _paper_rows(now: datetime, closed: frozenset[date]) -> Iterable[Row]:
             now=now,
             closed=closed,
             detail=f"{state.get('status', 'not run')} — {spec.get('id')}",
+            steps=PAPER_STEPS,
         )
         # A deployment younger than two sessions has nothing to trade yet; that
         # is waiting, not stale.
@@ -278,7 +311,16 @@ def table(now: datetime | None = None) -> list[Row]:
 
     def add(group: str, name: str, last: str, cadence: str, **kw: Any) -> None:
         rows.append(
-            judge(group=group, name=name, last=last, cadence=cadence, now=now, closed=closed, **kw)
+            judge(
+                group=group,
+                name=name,
+                last=last,
+                cadence=cadence,
+                now=now,
+                closed=closed,
+                steps=STEPS_FOR.get(name, ()),
+                **kw,
+            )
         )
 
     landed = "NSE files (landed)"

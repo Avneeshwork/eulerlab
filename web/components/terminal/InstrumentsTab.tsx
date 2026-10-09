@@ -29,20 +29,29 @@ export function InstrumentsTab() {
   // under a highlighted FX pill.
   const [reloadAt, setReloadAt] = useState(0);
 
-  const [sync, setSync] = useState<{ state: string; note: string }>({ state: 'idle', note: '' });
+  const [sync, setSync] = useState<{ state: string; note: string }>({
+    state: 'idle',
+    note: '',
+  });
   const polling = useRef<number | null>(null);
 
   // Stop polling when the tab unmounts, or a closed page keeps asking the API
   // about a job nobody is watching.
-  useEffect(() => () => {
-    if (polling.current) window.clearInterval(polling.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (polling.current) window.clearInterval(polling.current);
+    },
+    [],
+  );
 
   type FeedStep = { name: string; ok: boolean; detail: string };
   // The source list comes from the code that fetches them. Written by hand it
   // promised FX while the step list did not include it — the same drift as the
   // three copies of the asset-class list.
-  const [plan, setPlan] = useState<{ sources: string[]; excluded: string[] } | null>(null);
+  const [plan, setPlan] = useState<{
+    sources: string[];
+    excluded: string[];
+  } | null>(null);
   useEffect(() => {
     api
       .feedPlan()
@@ -71,10 +80,26 @@ export function InstrumentsTab() {
    * failed is not a success and is not a failure, and collapsing it to either
    * word loses the only part the operator can act on.
    */
-  async function startFeed() {
+  // Which dataset or group a running update was started for, so its row shows
+  // the progress rather than the whole page reading "Working…".
+  const [target, setTarget] = useState<{
+    label: string;
+    steps: string[];
+  } | null>(null);
+
+  async function startFeed(only: string[] = [], label = '') {
     setSteps([]);
-    setSync({ state: 'running', note: 'starting…' });
-    const started = await api.refreshFeed().catch((e) => ({ ok: false, error: String(e) }));
+    setPrunePlan(null);
+    setTarget(only.length ? { label, steps: only } : null);
+    setSync({
+      state: 'running',
+      note: only.length ? `updating ${label}…` : 'starting…',
+    });
+    // One dataset skips the mirror: it relists the bucket and takes minutes.
+    // Mirror to cloud uploads it afterwards; Update all data mirrors itself.
+    const started = await api
+      .refreshFeed(only, only.length === 0)
+      .catch((e) => ({ ok: false, error: String(e) }));
     if (!started.ok || !('job' in started) || !started.job) {
       setSync({ state: 'failed', note: started.error ?? 'could not start' });
       return;
@@ -87,16 +112,26 @@ export function InstrumentsTab() {
       if (job.status === 'done' || job.status === 'failed') {
         if (polling.current) window.clearInterval(polling.current);
         const result = job.result as
-          | { summary?: string; uploaded?: number; steps?: FeedStep[]; sync_error?: string }
+          | {
+              summary?: string;
+              uploaded?: number;
+              steps?: FeedStep[];
+              sync_error?: string;
+              mirrored?: boolean;
+            }
           | undefined;
         setSteps(result?.steps ?? []);
+        setTarget(null);
+        const uploaded = result?.mirrored
+          ? ` · ${result?.uploaded ?? 0} object${result?.uploaded === 1 ? '' : 's'} uploaded`
+          : ' · not mirrored yet — Mirror to cloud uploads it';
         setSync({
           state: job.status,
           note:
             job.status === 'done'
-              ? `${result?.summary ?? 'finished'} · ${result?.uploaded ?? 0} object${
-                  result?.uploaded === 1 ? '' : 's'
-                } uploaded${result?.sync_error ? ` · mirror failed: ${result.sync_error}` : ''}`
+              ? `${only.length ? `${label}: ` : ''}${result?.summary ?? 'finished'}${uploaded}${
+                  result?.sync_error ? ` · mirror failed: ${result.sync_error}` : ''
+                }`
               : job.error || 'failed',
         });
         if (job.status === 'done') setReloadAt(Date.now());
@@ -108,11 +143,17 @@ export function InstrumentsTab() {
    * Delete local copies B2 already holds, in two clicks. The first is a dry run
    * that says how many files and how much disk; only the confirm deletes.
    */
-  const [prunePlan, setPrunePlan] = useState<{ files: number; gb: number } | null>(null);
+  const [prunePlan, setPrunePlan] = useState<{
+    files: number;
+    gb: number;
+  } | null>(null);
 
   async function startPrune(dryRun: boolean) {
     setSteps([]);
-    setSync({ state: 'running', note: dryRun ? 'checking what B2 holds…' : 'deleting…' });
+    setSync({
+      state: 'running',
+      note: dryRun ? 'checking what B2 holds…' : 'deleting…',
+    });
     const started = await api.pruneData(dryRun).catch((e) => ({ ok: false, error: String(e) }));
     if (!started.ok || !('job' in started) || !started.job) {
       setSync({ state: 'failed', note: started.error ?? 'could not start' });
@@ -125,7 +166,10 @@ export function InstrumentsTab() {
       if (job.status === 'done' || job.status === 'failed') {
         if (polling.current) window.clearInterval(polling.current);
         const result = job.result as { files?: number; gb?: number } | undefined;
-        setSync({ state: job.status, note: job.message || job.error || job.status });
+        setSync({
+          state: job.status,
+          note: job.message || job.error || job.status,
+        });
         if (job.status === 'done' && dryRun && (result?.files ?? 0) > 0) {
           setPrunePlan({ files: result?.files ?? 0, gb: result?.gb ?? 0 });
         } else {
@@ -194,8 +238,8 @@ export function InstrumentsTab() {
               enumerates a list is a fourth copy of that list. */}
           <p className="thsub">
             Search across {ASSET_CLASSES.map((c) => c.label).join(', ')}. NSE batches are
-            liquidity-ranked from our own turnover history rather than index membership,
-            because a published constituent list only exists as it stands today.
+            liquidity-ranked from our own turnover history rather than index membership, because a
+            published constituent list only exists as it stands today.
           </p>
         </div>
         <div className="tsyncbox">
@@ -207,7 +251,7 @@ export function InstrumentsTab() {
           <button
             className="tbtn"
             type="button"
-            onClick={startFeed}
+            onClick={() => startFeed()}
             disabled={sync.state === 'running' || !!busy}
           >
             {sync.state === 'running' ? 'Working…' : 'Update all data'}
@@ -276,64 +320,119 @@ export function InstrumentsTab() {
       </section>
 
       {coverage?.ok && (
-        <div className="tpanel coverage">
+        <section className="tpanel coverage">
           <div className="coverage-head">
-            <b>Data coverage</b>
-            <span className="tfine">
+            <div>
+              <b>Data coverage</b>
+              <div className="tfine">
+                Each dataset's last day against the day it should reach. Update one row, one group,
+                or everything above.
+              </div>
+            </div>
+            <div className="cov-badges">
               {(['ok', 'behind', 'stale', 'missing'] as const)
                 .filter((k) => coverage.summary[k])
-                .map((k) => `${coverage.summary[k]} ${k === 'ok' ? 'up to date' : k}`)
-                .join(' · ')}
-              {' · checked '}
-              {coverage.checked_at.slice(11, 16)} UTC
-            </span>
-            <button className="tbtn ghost-line" type="button" onClick={() => setReloadAt(Date.now())}>
+                .map((k) => (
+                  <span key={k} className="cov-status" data-status={k}>
+                    {coverage.summary[k]} {k === 'ok' ? 'up to date' : k}
+                  </span>
+                ))}
+            </div>
+            <button
+              className="tbtn ghost-line"
+              type="button"
+              onClick={() => setReloadAt(Date.now())}
+              title={`checked ${coverage.checked_at.slice(11, 16)} UTC`}
+            >
               Re-check
             </button>
           </div>
           <div className="tscroll">
-            <table className="ttable">
+            <table className="ttable cov-table">
               <thead>
                 <tr>
                   <th>Dataset</th>
                   <th>Last day</th>
                   <th>Should reach</th>
                   <th>Status</th>
-                  <th>Fix</th>
+                  <th className="r" aria-label="Actions" />
                 </tr>
               </thead>
               <tbody>
-                {coverage.rows.map((row, i) => (
-                  <Fragment key={`${row.group}-${row.name}`}>
-                    {(i === 0 || coverage.rows[i - 1].group !== row.group) && (
-                      <tr className="coverage-group">
-                        <td colSpan={5}>{row.group}</td>
+                {coverage.rows.map((row, i) => {
+                  const first = i === 0 || coverage.rows[i - 1].group !== row.group;
+                  const groupRows = coverage.rows.filter((r) => r.group === row.group);
+                  const groupSteps = Array.from(new Set(groupRows.flatMap((r) => r.steps)));
+                  const working =
+                    sync.state === 'running' &&
+                    !!target &&
+                    row.steps.length > 0 &&
+                    row.steps.every((step) => target.steps.includes(step));
+                  const idle = sync.state !== 'running' && !busy;
+                  return (
+                    <Fragment key={`${row.group}-${row.name}`}>
+                      {first && (
+                        <tr className="coverage-group">
+                          <td colSpan={4}>{row.group}</td>
+                          <td className="r">
+                            {groupSteps.length > 0 && (
+                              <button
+                                className="tbtn ghost-line small"
+                                type="button"
+                                disabled={!idle}
+                                onClick={() => startFeed(groupSteps, row.group)}
+                              >
+                                Update group
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                      <tr data-working={working || undefined}>
+                        <td>
+                          <b>{row.name}</b>
+                          {row.detail && <div className="tfine">{row.detail}</div>}
+                        </td>
+                        <td>{row.last || <span className="tdim">—</span>}</td>
+                        <td>{row.expected || <span className="tdim">—</span>}</td>
+                        <td>
+                          <span
+                            className="cov-status"
+                            data-status={working ? 'working' : row.status}
+                          >
+                            {working
+                              ? 'updating…'
+                              : row.status === 'ok'
+                                ? 'up to date'
+                                : row.status === 'behind' || row.status === 'stale'
+                                  ? `${row.behind || ''} behind`.trim()
+                                  : row.status}
+                          </span>
+                        </td>
+                        <td className="r">
+                          {row.steps.length > 0 ? (
+                            <button
+                              className="tbtn ghost-line small"
+                              type="button"
+                              disabled={!idle}
+                              title={`Runs: ${row.steps.join(' → ')}`}
+                              onClick={() => startFeed(row.steps, row.name)}
+                            >
+                              Update
+                            </button>
+                          ) : (
+                            row.status !== 'ok' &&
+                            row.status !== 'info' && <span className="tfine">{row.fix}</span>
+                          )}
+                        </td>
                       </tr>
-                    )}
-                    <tr>
-                      <td>
-                        <b>{row.name}</b>
-                        {row.detail && <div className="tfine">{row.detail}</div>}
-                      </td>
-                      <td>{row.last || <span className="tdim">—</span>}</td>
-                      <td>{row.expected || <span className="tdim">—</span>}</td>
-                      <td>
-                        <span className="cov-status" data-status={row.status}>
-                          {row.status === 'ok'
-                            ? 'up to date'
-                            : row.status === 'behind' || row.status === 'stale'
-                              ? `${row.behind || ''} behind`.trim()
-                              : row.status}
-                        </span>
-                      </td>
-                      <td className="tfine">{row.status === 'ok' || row.status === 'info' ? '' : row.fix}</td>
-                    </tr>
-                  </Fragment>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
       )}
 
       <div className="ttools">
@@ -373,7 +472,12 @@ export function InstrumentsTab() {
 
       {assetClass === 'equity' && (
         <div className="ttools">
-          <button className="tchip" type="button" aria-pressed={batch === ''} onClick={() => setBatch('')}>
+          <button
+            className="tchip"
+            type="button"
+            aria-pressed={batch === ''}
+            onClick={() => setBatch('')}
+          >
             All liquid
           </button>
           {(list?.batches ?? []).map((name) => (
@@ -421,8 +525,12 @@ export function InstrumentsTab() {
                     <span className="ttag">{instrument.asset_class}</span>
                   </td>
                   <td className="r">{instrument.rank || <span className="tdim">—</span>}</td>
-                  <td className="r">{instrument.has_daily ? '✓' : <span className="tdim">—</span>}</td>
-                  <td className="r">{instrument.has_minute ? '✓' : <span className="tdim">—</span>}</td>
+                  <td className="r">
+                    {instrument.has_daily ? '✓' : <span className="tdim">—</span>}
+                  </td>
+                  <td className="r">
+                    {instrument.has_minute ? '✓' : <span className="tdim">—</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -432,7 +540,6 @@ export function InstrumentsTab() {
           <div className="tempty">Nothing matches that search.</div>
         )}
       </div>
-
     </>
   );
 }

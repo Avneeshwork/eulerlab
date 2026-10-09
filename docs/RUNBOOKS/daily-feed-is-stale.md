@@ -28,6 +28,12 @@ is missing and uploads only what B2 lacks. Each step reports "downloaded N,
 already held M" and names any that failed. If `make daily` is running, the
 button is disabled and says so; wait for it.
 
+**One dataset or one group.** Every row in Data coverage has its own
+**Update** button, and every group header an **Update group** button. They run
+only the steps that dataset needs (hover the button to see them) and finish in
+seconds to a few minutes. They do not upload; the result line says "not
+mirrored yet", and Mirror to cloud uploads it.
+
 **Mirror to cloud** skips the fetches and just uploads what is already landed
 and not yet in B2. Use it when a previous refresh fetched but died before the
 sync.

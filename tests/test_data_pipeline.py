@@ -12,6 +12,7 @@ import json
 import re
 import threading
 import zipfile
+from collections.abc import Callable
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -280,3 +281,44 @@ def test_delete_defaults_to_a_dry_run() -> None:
     from eulerlab.api.requests import PruneRequest
 
     assert PruneRequest().dry_run is True
+
+
+# --- one dataset's button --------------------------------------------------------
+
+
+def test_every_dataset_button_runs_real_feed_steps_in_order() -> None:
+    order = [name for name, _ in daily_feed.STEPS]
+    for dataset, steps in {**coverage.STEPS_FOR, "paper": coverage.PAPER_STEPS}.items():
+        assert set(steps) <= set(order), f"{dataset} names a step that does not exist"
+        positions = [order.index(s) for s in steps]
+        assert positions == sorted(positions), f"{dataset}: the fetch must come before the build"
+
+
+def test_one_dataset_runs_only_its_steps_and_skips_the_mirror(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ran: list[str] = []
+
+    def step(name: str) -> Callable[[], str]:
+        def work() -> str:
+            ran.append(name)
+            return name
+
+        return work
+
+    monkeypatch.setattr(daily_feed, "STEPS", tuple((n, step(n)) for n in ("a", "b", "c")))
+    monkeypatch.setattr(daily_feed, "_mirror", lambda **k: pytest.fail("mirrored"))
+    run = daily_feed.refresh(only=["c", "a"], sync=False)
+    assert ran == ["a", "c"], "STEPS order, not request order"
+    assert run.summary == "all 2 sources updated"
+
+
+def test_the_api_refuses_a_step_that_does_not_exist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.api import server
+    from eulerlab.api.requests import FeedRequest
+
+    monkeypatch.chdir(tmp_path)
+    answer = server.data_feed(FeedRequest(only=["price panel", "rm -rf"], mirror=False))
+    assert answer["ok"] is False and "rm -rf" in answer["error"]
