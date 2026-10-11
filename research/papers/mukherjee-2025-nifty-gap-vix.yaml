@@ -15,12 +15,19 @@ summary: Tests whether a day's candle colour and the change in India VIX predict
   VIX predicts a gap down only 39.8%.
 trade_idea: Calm, rising days are followed by gap-up opens; fear signals are unreliable.
 implementation: |-
-  - Signal: green candle and VIX down -> gap up next open; red and VIX up -> gap down.
+  - Candle: GREEN if close > open, RED if close < open.
+  - Change in VIX: VIX close minus VIX open, the same day.
+  - Model 1 (VIX only): VIX up -> gap down; VIX down -> gap up.
+  - Model 2 (candle only): GREEN -> gap up; RED -> gap down.
+  - Model 3 (both): GREEN and VIX down -> gap up; RED and VIX up -> gap down; other days are left out.
 
-  Here: calculated, not an engine run (`make session-studies`; research 064), 2016-2026, with India VIX from the index history (research 065). A green Nifty day with VIX down gapped up next morning 70.7% of the time on the index (paper: 69.6%) against 66.8% on any day; on the future 60.3% against 56.8%. Long the Nifty future from a signal close to the next open: +56% gross, +25% after costs, Sharpe 0.42, max drawdown -11%, 819 trades.
+  Here (`research/gap_forecast.py`, `make gap-forecast`, research 072), read in full and coded as written: Nifty 50 and India VIX 2015 to 2026-10. The paper's tables reproduce (accuracy 53.2%, 52.2%, 54.3% against its 53.1%, 52.8%, 54.4%). But the Nifty gaps up on 68.7% of all days, so always predicting "up" beats every model; the paper compares with 50%. Each signal does lift its own direction 2 to 5 points over the base rate (z 2.3 to 3.7). Traded on the Nifty future from the signal close to the next open, after costs: joint long-only +47% (Sharpe 0.64, max drawdown -11%, 892 nights) against -12% for being long every night; joint short-only -9%. From 2024 the long side is flat (Sharpe 0.01). An earlier calculation (`make session-studies`, research 064) used VIX close against the previous close; the two definitions agree on all but 6 days.
 red_flags:
 - Accuracy, not returns after costs.
-- Needs India VIX and an overnight trade.
+- Every rate is compared with 50%; the Nifty gaps up on about two days in three whatever happened before.
+- Measured on the index, whose gaps lean upward by construction; the future gaps up 57% of days, not 67%.
+- Needs India VIX and an overnight trade placed before the close is final.
+- The long side has earned nothing since 2024.
 reported_results: 'Green & VIX down: 810 of 1,163 gap up (69.6%); red & VIX up: 481 of 1,208
   gap down (39.8%).'
 hypothesis: ''

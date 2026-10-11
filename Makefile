@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -244,6 +244,10 @@ market-history:
 
 session-studies:
 	uv run python -m eulerlab.research.session_studies
+
+# Research 072: Mukherjee & Mandal (2025) as written, then traded on the future.
+gap-forecast:
+	@uv run python -m eulerlab.research.gap_forecast_run
 
 rebuild-ohlc:
 	uv run python -m eulerlab.features.rebuild_ohlc $(if $(SWAP),--swap,)

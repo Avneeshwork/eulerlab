@@ -60,6 +60,7 @@ never edit them without an explicit instruction in that session.
 - **Intraday (2026-10-11):** two papers run on NIFTYBEES minute bars (research 071).
   Both lose after NSE intraday charges of 4 bps a round trip. The noise-area rule has
   a stable gross edge of 3 bps a trade; nothing on the cash ETF can carry it.
+  The Nifty gap paper is coded as written (research 072): best case Sharpe 0.64 on the future.
 
 ---
 
