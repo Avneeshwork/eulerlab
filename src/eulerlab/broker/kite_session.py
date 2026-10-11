@@ -171,3 +171,59 @@ def load(path: Path = SESSION_FILE) -> Session | None:
         user_id=str(raw.get("user_id", "unknown")),
         minted_at=str(raw.get("minted_at", "")),
     )
+
+
+EXPIRY_HOUR_IST = 6
+"""Kite tokens expire at 06:00 IST the day after they are minted."""
+
+
+def last_expiry(now: datetime | None = None) -> datetime:
+    """The most recent 06:00 IST at or before `now`, in UTC."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    ist = (now or datetime.now(UTC)).astimezone(ZoneInfo("Asia/Kolkata"))
+    cut = ist.replace(hour=EXPIRY_HOUR_IST, minute=0, second=0, microsecond=0)
+    if cut > ist:
+        cut -= timedelta(days=1)
+    return cut.astimezone(UTC)
+
+
+def is_fresh(session: Session | None, now: datetime | None = None) -> bool:
+    """Minted after the most recent 06:00 IST, so Kite still accepts it.
+
+    The Makefile compared the UTC calendar dates of minting and now. That is
+    not the rule: a token minted at 07:00 IST on the 9th is good until 06:00 on
+    the 10th, which is 00:30 UTC on the 10th, and the date comparison called it
+    stale from 05:30 IST (UTC midnight) while one minted at 05:00 IST read as
+    good for its last hour after Kite had already expired it.
+    """
+    if session is None or not session.minted_at:
+        return False
+    try:
+        minted = datetime.fromisoformat(session.minted_at)
+    except ValueError:
+        return False
+    if minted.tzinfo is None:
+        minted = minted.replace(tzinfo=UTC)
+    return minted >= last_expiry(now)
+
+
+def expires_at(session: Session) -> datetime:
+    """When this session's token stops working (06:00 IST after minting)."""
+    from datetime import timedelta
+
+    minted = datetime.fromisoformat(session.minted_at)
+    if minted.tzinfo is None:
+        minted = minted.replace(tzinfo=UTC)
+    return last_expiry(minted) + timedelta(days=1)
+
+
+def check_fresh() -> int:
+    """`make kite-fresh`: 0 when today's token is usable, 1 with a reason."""
+    if is_fresh(load()):
+        return 0
+    print(
+        "kite token is stale or absent - log in: Tools -> Instruments -> Log in to Kite, or make kite-login"
+    )
+    return 1

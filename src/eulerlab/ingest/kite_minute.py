@@ -34,7 +34,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -77,6 +77,46 @@ def chunks_for(symbol: str, token: int, start: date, end: date) -> Iterator[Chun
         stop = min(cursor + timedelta(days=MAX_DAYS_PER_REQUEST - 1), end)
         yield Chunk(symbol=symbol, token=token, start=cursor, end=stop)
         cursor = stop + timedelta(days=1)
+
+
+def uncovered_chunks(
+    symbol: str,
+    token: int,
+    start: date,
+    end: date,
+    held: Sequence[tuple[date, date]],
+) -> Iterator[Chunk]:
+    """Chunks for only the weekdays in [start, end] no landed range covers.
+
+    `chunks_for(start, end)` cut its windows from `end - 1 year`, a start that
+    moves every day, so no window ever matched a key already landed: every run
+    re-fetched the whole year — `2898 total, 2898 to fetch`, 37.6M bars, on
+    2026-10-08 (T-4036). Planning from what is held fetches only the gap,
+    normally the one new session per symbol. Weekends are never fetched, and a
+    weekend between two missing days does not split the chunk.
+    """
+    have: set[date] = set()
+    for first, last in held:
+        day = max(first, start)
+        while day <= min(last, end):
+            have.add(day)
+            day += timedelta(days=1)
+
+    run_start: date | None = None
+    run_end: date | None = None
+    day = start
+    while day <= end:
+        if day.weekday() < 5:
+            if day in have:
+                if run_start is not None and run_end is not None:
+                    yield from chunks_for(symbol, token, run_start, run_end)
+                run_start = run_end = None
+            else:
+                run_start = run_start or day
+                run_end = day
+        day += timedelta(days=1)
+    if run_start is not None and run_end is not None:
+        yield from chunks_for(symbol, token, run_start, run_end)
 
 
 SERIES_SUFFIXES = ("-BE", "-BZ", "-SM", "-ST", "-IT")
@@ -246,6 +286,22 @@ class MinuteStore:
 
     def has(self, chunk: Chunk) -> bool:
         return chunk.key in self.done()
+
+    def covered(self) -> dict[str, list[tuple[date, date]]]:
+        """Each symbol's landed date ranges, from the manifest."""
+        out: dict[str, list[tuple[date, date]]] = {}
+        if not self.manifest_path.exists():
+            return out
+        for line in self.manifest_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            try:
+                span = (date.fromisoformat(row["start"]), date.fromisoformat(row["end"]))
+            except (KeyError, TypeError, ValueError):
+                continue
+            out.setdefault(str(row.get("symbol", "")), []).append(span)
+        return out
 
     def write(self, chunk: Chunk, table: pa.Table) -> None:
         target = self.root / chunk.relative_path()

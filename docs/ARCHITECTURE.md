@@ -1425,6 +1425,12 @@ the panel's last day, all in one `run_all` so the panel is read once. Outside
 any run, the API's lifespan starts `autoupdate.watch`, which calls the same
 `catch_up()` every 300 s and skips while the `feed` lock is held.
 
+**Minute bars (Kite).** `ingest/backfill_minute` plans its requests from the
+manifest: for each symbol, the weekdays in the window that no landed range
+covers, cut into 60-day chunks (`kite_minute.uncovered_chunks`). The window
+ends at the last closed session (15:45 IST). A token is usable when it was
+minted after the most recent 06:00 IST (`broker/kite_session.is_fresh`).
+
 **Three buttons.** Update all data (`POST /api/data/feed`), Mirror to cloud
 (`POST /api/data/sync`, upload only) and Delete local copies
 (`POST /api/data/prune`, `dry_run` first; deletes a file only when the bucket

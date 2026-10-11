@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighteen times this project was wrong
+## Nineteen times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -191,6 +191,19 @@ nine were re-run (research 064). Monday/Wednesday went from -85% to +20%,
 turn of the month from +15% to +49%, the 60-day average from +155% (Sharpe
 0.98) to +192% (Sharpe 1.12). Any other result that traded an ETF through the
 engines before 2026-10-07 is still too pessimistic until re-run.
+
+**19. The minute-bar ingest re-fetched the whole year on every run.** (2026-10-09)
+`backfill_minute` was described as resumable: "a chunk already in the manifest
+is skipped". It cut its 60-day windows from `today - 1 year`, a start that moves
+every day, so no window matched a key landed the day before. The 2026-10-08 run
+logged `chunks: 2898 total, 2898 to fetch` and pulled 37.6 million bars it
+already had; 14,927 of 25,099 neighbouring chunks in the manifest overlap. No
+result is wrong: `intraday/store.fetch` keeps one bar per timestamp. The cost
+was about fifteen minutes of Kite requests a day and duplicate bytes in B2.
+Fixed: chunks are planned from the days each symbol does not hold
+(`uncovered_chunks`), and today is fetched only after 15:45 IST. The same day's
+plan fell from 3,108 chunks to 210. The overlapping files already landed stay,
+because landing is immutable.
 
 ---
 

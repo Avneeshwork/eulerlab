@@ -7,8 +7,9 @@ import json
 import os
 import time
 from collections.abc import Sequence
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from eulerlab.env import load_env, require
 from eulerlab.ingest.kite_minute import (
@@ -17,8 +18,8 @@ from eulerlab.ingest.kite_minute import (
     KiteHistorical,
     MinuteStore,
     candles_to_table,
-    chunks_for,
     read_universe,
+    uncovered_chunks,
 )
 
 DEFAULT_ROOT = Path("data/landing/kite_minute")
@@ -27,6 +28,18 @@ SESSION_FILE = Path(".kite_session.json")
 
 MIN_INTERVAL_S = 0.34
 """Kite allows 3 requests/second for historical data. Sit just under it."""
+
+
+def last_complete_session(now: datetime | None = None) -> date:
+    """Today from 15:45 IST, otherwise yesterday.
+
+    A chunk ending on a day still trading holds half a session, and its key is
+    then landed: the rest of that day would never be fetched. So the range
+    stops at the last session that has closed.
+    """
+    ist = (now or datetime.now(UTC)).astimezone(ZoneInfo("Asia/Kolkata"))
+    closed = (ist.hour, ist.minute) >= (15, 45)
+    return ist.date() if closed else ist.date() - timedelta(days=1)
 
 
 def _access_token() -> str:
@@ -54,7 +67,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--limit", type=int, default=0, help="stop after N symbols (for testing)")
     args = parser.parse_args(argv)
 
-    end = args.end or date.today()  # noqa: DTZ011 - a bar range, not a trading-day decision
+    end = args.end or last_complete_session()
     start = end - timedelta(days=365 * args.years)
 
     symbols = read_universe(args.universe)
@@ -79,13 +92,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         store.mark_unresolvable(symbol, "not in Kite's current instrument list")
     print(f"resolved   : {len(resolved)}/{len(symbols)}  (missing {len(missing)} — logged)")
 
+    # Planned from what each symbol already holds, not from a window whose
+    # start moves every day: that re-fetched the whole year on every run
+    # (T-4036). `has` still guards a key landed by an older, shifted window.
+    held = store.covered()
     planned: list[Chunk] = [
         chunk
         for symbol, token in resolved.items()
-        for chunk in chunks_for(symbol, token, start, end)
+        for chunk in uncovered_chunks(symbol, token, start, end, held.get(symbol, ()))
     ]
     todo = [c for c in planned if not store.has(c)]
-    print(f"chunks     : {len(planned)} total, {len(todo)} to fetch")
+    current = sum(1 for symbol in resolved if not any(c.symbol == symbol for c in planned))
+    print(
+        f"chunks     : {len(todo)} to fetch ({current} of {len(resolved)} symbols already current)"
+    )
     print(f"estimate   : {len(todo) * MIN_INTERVAL_S / 60:.0f} min at 3 req/s\n")
 
     fetched = rows = failed = 0

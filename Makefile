@@ -311,7 +311,7 @@ reconcile-book:
 # silently did nothing" into a line in the log that names the cause — which is
 # the difference between noticing on the day and noticing in a month.
 kite-fresh:
-	@uv run python -c "import datetime as d, sys; from eulerlab.broker.kite_session import load; s = load(); 	  sys.exit(0) if s and d.datetime.fromisoformat(s.minted_at).date() == d.datetime.now(d.UTC).date() 	  else (print('kite token is stale or absent - run: make kite-login'), sys.exit(1))"
+	@uv run python -c "from eulerlab.broker.kite_session import check_fresh; raise SystemExit(check_fresh())"
 
 # Minute bars for the last few sessions. NOT a backfill: --years 5 is a one-off
 # of ~13,500 chunks, this keeps the tail current.
