@@ -1,0 +1,56 @@
+id: H-0006
+title: Leaving the noise area marks an intraday trend on the Nifty ETF
+status: draft
+
+claim: >
+  When NIFTYBEES moves further from its open than it usually has by that time
+  of day, the move continues for the rest of the session, and following it with
+  a band-or-VWAP stop is profitable after Indian intraday costs.
+
+rationale: >
+  Zarattini, Aziz and Barbon report Sharpe 1.24 at 1x on SPY from 2007 to early
+  2024 after their costs, and argue the cause is an intraday imbalance of
+  supply and demand, which is not specific to the United States.
+
+source: >
+  Zarattini, C., Aziz, A., & Barbon, A. Beat the Market: An Effective Intraday
+  Momentum Strategy for S&P500 ETF (SPY). Swiss Finance Institute paper 24-97,
+  version of 3 February 2025, read in full on 2026-10-11 from the University
+  of St. Gallen repository (SSRN 4824172 returned 403). See docs/RESEARCH/071.
+
+configurations:
+  - {rule: noise_area, stop: opposite_band, lookback_days: 14, exit: close}
+  - {rule: noise_area, stop: band_or_vwap, lookback_days: 14, exit: close}
+  - {rule: noise_area, stop: opposite_band, lookback_days: 14, exit: "15:24"}
+  - {rule: noise_area, stop: band_or_vwap, lookback_days: 14, exit: "15:24"}
+
+result: >
+  Screened 2026-10-11 on 1,264 sessions, 2021-08 to 2026-10 (research 071).
+  Band-or-VWAP stop: gross Sharpe 1.58 (1.63 before 2024, 1.54 after), 3.0 bps
+  a trade over 1,227 trades. After charges and slippage: Sharpe -1.44, -31%.
+  The signal has a gross edge; the cash ETF cannot carry it. Rejected for
+  NIFTYBEES cash; not submitted to the gate, and no trial spent.
+
+red_flags:
+  - >
+    The gross edge per trade (3 bps) is smaller than the charges on one round
+    trip (4 bps). No setting of this rule on the cash ETF can change that
+    without trading less, and trading less is a different strategy.
+  - >
+    The day's open is taken as the first minute's close, because NIFTYBEES's
+    09:15 print is on average 71 bps away from where it trades a minute later.
+    That choice was made after the first run on the raw print gave a
+    one-sided result. It follows research 066, but it was not specified in
+    advance.
+  - >
+    The paper's lookback (14 days) and half-hourly decisions are used as
+    published. Its own FAQ reports a 90-day lookback does better; that is a
+    search result on the same data and is deliberately not used.
+  - >
+    Fills are at the next minute's open with no queue and one basis point of
+    slippage a side (A-052). The authors' FAQ says their edge shrinks under a
+    fuller slippage model.
+  - >
+    A stable gross edge invites moving the rule to a cheaper instrument and
+    trying again. That is a new hypothesis with its own trial, not a
+    continuation of this one.

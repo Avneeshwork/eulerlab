@@ -1,0 +1,38 @@
+id: zarattini-2024-beat-the-market
+title: 'Beat the Market: An Effective Intraday Momentum Strategy for S&P500 ETF (SPY)'
+authors: Zarattini, C., Aziz, A., Barbon, A.
+year: 2024
+kind: paper
+source_url: https://alexandria.unisg.ch/server/api/core/bitstreams/a99aba00-f967-49b3-aceb-f544dc386e0b/content
+pdf: ''
+added: '2026-10-11'
+status: rejected
+markets:
+- SPY (paper)
+- NIFTYBEES (here)
+summary: A band around the day's open as wide as the average move by that minute over the
+  last 14 days is called the Noise Area. Above it the strategy is long SPY, below it short,
+  deciding only every half-hour and flat by the close. With a trailing stop at the band or
+  VWAP it reports Sharpe 1.24 at 1x from 2007 to early 2024.
+trade_idea: A move from the open that is larger than usual for that time of day is an
+  imbalance of buyers and sellers that tends to last the session. Follow it, and leave when
+  price falls back to the band or the day's average price.
+implementation: |-
+  - sigma(HH:MM) = average over the last 14 days of |close at HH:MM / open - 1|.
+  - Upper = max(open, previous close) x (1 + sigma); lower = min(open, previous close) x (1 - sigma).
+  - Decide at HH:00 and HH:30 only: long above the upper bound, short below the lower.
+  - Base model: hold until the opposite bound. Final model: close a long below max(upper, VWAP), a short above min(lower, VWAP).
+  - Flat at the close. 100% of equity. (The headline 19.6% a year scales exposure up to 4x by volatility; not run here.)
+
+  Here (`intraday/session_papers.py`, `make intraday-papers`, research 071): NIFTYBEES one-minute bars, 2021-08 to 2026-10. Decisions every 30 minutes from 09:15; fills at the next minute's open; the day's "open" is the first minute's close, because NIFTYBEES's first print is on average 71 bps off. Result, band + VWAP stop: gross Sharpe 1.58 (1.63 before 2024, 1.54 after), 3 bps a trade, 1,227 trades. After NSE charges (4 bps a round trip) and 1 bp slippage a side: Sharpe -1.44, -31%.
+red_flags:
+- The authors' own FAQ says the edge shrinks or vanishes under a fuller slippage model, and that SPY is more liquid than most large-cap stocks.
+- Costs in the paper are $0.0045 a share on SPY; in India STT alone is 2.5 bps of every sale.
+- The headline return needs up to 4x leverage.
+- The anchor for the open was chosen here after the first print proved unusable.
+- One instrument and five years; fills assume the next minute's open with no queue.
+reported_results: 'May 2007 to early 2024, 1x: opposite-band stop Sharpe 0.61, 6.2% a year;
+  band + VWAP stop Sharpe 1.24, 9.7% a year, hit ratio 43%. Volatility-scaled up to 4x:
+  Sharpe 1.33, 19.6% a year, total 1,985%.'
+hypothesis: H-0006
+strategies: []

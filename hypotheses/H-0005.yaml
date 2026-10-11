@@ -1,0 +1,54 @@
+id: H-0005
+title: The first half-hour predicts the last half-hour on the Nifty ETF
+status: draft
+
+claim: >
+  On NIFTYBEES, the return from the previous close to 09:45 predicts the return
+  from 15:00 to the close, and trading the last half-hour in that direction is
+  profitable after Indian intraday costs.
+
+rationale: >
+  Gao, Han, Li and Zhou find it on the S&P 500 ETF (R-squared 1.6%, Sharpe 1.08
+  before costs) and on ten other ETFs and two index futures. If it is a
+  property of how index investors rebalance, it should appear on the Nifty.
+
+source: >
+  Gao, L., Han, Y., Li, S. Z., & Zhou, G. Intraday Momentum: The First
+  Half-Hour Return Predicts the Last Half-Hour Return. Working paper, December
+  2015 version, read in full on 2026-10-11 from a third-party copy
+  (SSRN 2440866). Published as Market Intraday Momentum, Journal of Financial
+  Economics, 2018; that version not read. See docs/RESEARCH/071.
+
+configurations:
+  - {rule: gao_timing, signal: r1, exit: close}
+  - {rule: gao_timing, signal: r12, exit: close}
+  - {rule: gao_timing, signal: both, exit: close}
+  - {rule: gao_timing, signal: r1, exit: "15:24"}
+  - {rule: gao_timing, signal: r12, exit: "15:24"}
+  - {rule: gao_timing, signal: both, exit: "15:24"}
+
+result: >
+  Screened 2026-10-11 on 1,264 sessions, 2021-08 to 2026-10 (research 071).
+  No predictability: slope -0.005, t -0.54, R-squared 0.02%. Gross 0.2 to 0.5
+  bps a trade against 4 bps of charges. Net -30% to -53%. Rejected; not
+  submitted to the gate, and no trial spent.
+
+red_flags:
+  - >
+    It trades every day. The published edge is about 2.6 bps a trade before
+    costs on SPY; an Indian intraday round trip in the ETF costs about 4 bps,
+    2.5 of it STT. The claim had to be far stronger here than in the paper to
+    survive.
+  - >
+    The paper's first half-hour return includes the overnight gap. On an ETF
+    whose first print is unreliable, any version measured from the open would
+    be measuring noise; this uses the previous official close, as the paper
+    does.
+  - >
+    The short leg cannot be held to the close: the broker squares intraday
+    equity positions off at 15:25. The 15:24 configurations are the tradable
+    ones.
+  - >
+    Five years on one instrument against twenty-one in the paper. A null here
+    is weaker evidence than the paper's positive, but the cost arithmetic does
+    not depend on the sample.

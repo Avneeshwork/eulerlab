@@ -1,0 +1,35 @@
+id: gao-2018-market-intraday-momentum
+title: 'Intraday Momentum: The First Half-Hour Return Predicts the Last Half-Hour Return'
+authors: Gao, L., Han, Y., Li, S. Z., Zhou, G.
+year: 2018
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2440866
+pdf: ''
+added: '2026-10-11'
+status: rejected
+markets:
+- S&P 500 ETF and ten other ETFs (paper)
+- NIFTYBEES (here)
+summary: On the S&P 500 ETF from 1993 to 2013, the return from the previous close to
+  10:00 predicts the return of the last half-hour (R-squared 1.6%). Stronger on volatile,
+  high-volume and news days. Published in the Journal of Financial Economics as 'Market
+  Intraday Momentum'.
+trade_idea: Whoever moved the market in the first half-hour, including overnight news, is
+  not finished by the afternoon. Trade the last half-hour in the direction of the first.
+implementation: |-
+  - r1 = previous close to 30 minutes after the open (includes the overnight gap).
+  - r12 = the second-to-last half-hour.
+  - At the start of the last half-hour: long if the signal is positive, short otherwise. Close at the close.
+  - Three signals as in the paper: r1, r12, or both (trade only when they agree).
+
+  Here (`intraday/session_papers.py`, `make intraday-papers`, research 071): NIFTYBEES one-minute bars, 2021-08 to 2026-10, 1,264 sessions. 09:45 / 14:30 / 15:00 marks; fills at the next minute's open; exit at the close as published and at 15:24 (the broker squares off at 15:25). Previous close is the exchange's official close. Result: the first half-hour does not predict the last (slope -0.005, t -0.54). Gross Sharpe 0.26, 0.3 bps a trade; after NSE charges (4 bps a round trip) and 1 bp slippage a side, -53%.
+red_flags:
+- The December 2015 working paper was read, from a third-party copy; the published JFE version was not.
+- Trades every single day, so the whole result is the cost of a round trip against a few basis points.
+- A short cannot be held to the close in India; the broker squares off at 15:25.
+- The official close in India is a 30-minute volume-weighted price, not a last trade.
+- One instrument and five years here, against 21 years in the paper.
+reported_results: 'r1 signal: 6.67% a year, standard deviation 6.19%, Sharpe 1.08, success
+  rate 54.37%; 4.46% a year after the bid-ask spread (2001-2013).'
+hypothesis: H-0005
+strategies: []

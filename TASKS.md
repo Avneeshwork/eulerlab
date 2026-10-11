@@ -23,6 +23,20 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 
 ---
 
+## Two pure intraday papers on NIFTYBEES (2026-10-11)
+
+Operator: "lets fetch 2 pure intraday strategy paper, code it and backtest on indian market". Research 071, H-0005, H-0006.
+Verify: `uv run pytest -q tests/test_session_papers.py`; `make intraday-papers`; Tools → Research Library.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4038 | **Gao et al. (last half-hour) and Zarattini et al. (noise area), read in full, coded and run** | DONE — `intraday/session_papers.py`, NIFTYBEES one-minute bars, 1,264 sessions 2021-2026. Gao: no predictability (t -0.54), gross 0.3 bps a trade, net -53%. Noise area with band + VWAP stop: gross Sharpe 1.58, stable before and after 2024, 3 bps a trade; NSE charges are 4 bps a round trip, net -31%. Both rejected for the cash ETF. No trial spent |
+| T-4039 | Does the noise-area edge survive on a cheaper instrument? | OPEN — a new hypothesis, not a re-run. Needs minute bars for the Nifty future, which are not landed, and its own trial |
+| T-4040 | Do the existing intraday signals read NIFTYBEES's 09:15 print as a price? | OPEN — the first print is on average 71 bps off (research 071). `orb_breakout`, `orb_in_play_in` and Wang's breakout build the opening range from the first bars' high and low. Check on ETFs; shares are probably unaffected but not measured |
+| T-4041 | NIFTYBEES's last bar is not the close | NOTED — 4.7 bps above the official close on average. `session_papers` uses the bhavcopy close; the bracket engine closes at a bar price and is not affected by the label, but any study of "the last minutes" on an ETF is |
+
+---
+
 ## Paper trading forward, with the operator's capital (2026-10-07)
 
 Operator: "yes i should decide amount ... cut position in lowest ranked instruments ... build full paper trading infra mimicking live trading and deploy first, research other platform sandbox / paper trading and fallback system". ADR-060, research 069.
