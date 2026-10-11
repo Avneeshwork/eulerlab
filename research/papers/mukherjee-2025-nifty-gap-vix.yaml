@@ -31,4 +31,8 @@ red_flags:
 reported_results: 'Green & VIX down: 810 of 1,163 gap up (69.6%); red & VIX up: 481 of 1,208
   gap down (39.8%).'
 hypothesis: ''
-strategies: []
+strategies:
+- kind: registered
+  id: nifty_calm_rise_overnight
+  note: The bullish signal only, long the Nifty future overnight
+  timeframe: 0

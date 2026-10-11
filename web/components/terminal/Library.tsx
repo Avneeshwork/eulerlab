@@ -652,6 +652,9 @@ function provenanceDetail(strategy: FleetStrategy, sweep: OptimizeRow | undefine
   if (strategy.engine === 'intraday') {
     parts.push('Runs on minute bars; cannot be expressed as target weights (ADR-037).');
   }
+  if (strategy.engine === 'overnight') {
+    parts.push('Holds a future from the close to the next open; run as a calculation, not by an engine.');
+  }
   return parts.join(' ');
 }
 
@@ -984,7 +987,7 @@ function Row({
                   <Fact label="Window" value={result.window_days ? `${result.window_days}d` : '—'} />
                 </>
               )}
-              <Fact label="Engine" value={strategy.engine === 'intraday' ? 'intraday' : 'daily'} />
+              <Fact label="Engine" value={strategy.engine} />
               <Fact label="Lookback" value={`${strategy.lookback}d`} />
               <Fact label="Risk manager" value={strategy.risk_manager || '—'} />
               <Fact label="Trade manager" value={strategy.trade_manager || '—'} />

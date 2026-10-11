@@ -130,7 +130,9 @@ def summarise(days: Sequence[date], returns: Sequence[float], trades: int) -> di
     for value in equity:
         peak = max(peak, value)
         worst = min(worst, value / peak - 1.0)
-    years = max((days[-1] - days[0]).days / 365.25, 1e-9) if days else 1.0
+    # At least one day: a window of a single session has a span of zero, and
+    # annualising over 1e-9 years overflowed (a two-session request, T-4043).
+    years = max((days[-1] - days[0]).days, 1) / 365.25 if days else 1.0
     return {
         "total_return": round(equity[-1] - 1.0, 6),
         "annual_return": round(equity[-1] ** (1 / years) - 1.0, 6),

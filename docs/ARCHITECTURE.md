@@ -1439,3 +1439,44 @@ lists its key at the same size). All three hold the `feed` lock.
 **Reaching the API.** The equity panel reloads when its file changes; the alt
 panels (crypto, MF, FX, US) when the census changes; the US band cache is
 cleared after a run.
+
+
+## Telegram (ADR-063)
+
+One bot, the operator's chat (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), three uses.
+
+**Out, when something happens.** `deploy/runner.run` ends by calling
+`deploy/signals.announce`, so every route to a run reports: the mode, the
+strategy's library title, each order placed on days the previous run had not
+reached (side, quantity, symbol, price), then equity, cash and the next
+rebalance. A halt or an error is sent once, when the status changes. A run
+that placed nothing sends nothing. Delivery never raises.
+
+**Out, before the close.** `make gap-signal` (`research/gap_signal.py`) reads
+the Nifty 50 and India VIX live from Kite and sends the registered gap
+strategy's decision: buy the future at the close and sell at the open, or no
+trade. It says when it was read too early (before 15:15 IST) or too late.
+
+**In, on request.** `telegram_bot.listen` long-polls `getUpdates` in a thread
+the API starts (`make telegram-bot` runs it alone; the `telegram_bot` file lock
+keeps it to one listener). `COMMANDS` is the whole vocabulary:
+
+| Word | Answers |
+|---|---|
+| `status` | every deployment: mode, strategy, equity, return, last traded day |
+| `positions [n]` | what deployment *n* holds |
+| `orders [n]` | its last ten orders |
+| `next [n]` | what it will hold after the next rebalance, and when |
+| `signal` | tonight's gap-strategy decision |
+| `data` | which datasets are behind |
+| `strategies` | how many strategies are in the library, by asset class |
+| `help` | this list |
+
+A slash is optional. Messages from any other chat are dropped without a reply.
+No word places, changes or stops an order.
+
+**The gap strategy in the library.** `nifty_calm_rise_overnight` is a
+`Declaration` that is not a `Strategy`: it holds a future from a close to the
+next open, which neither engine can fill. The API runs it through
+`research.gap_forecast.calm_rise_run` (`STUDY_RUNNABLE`) and records the result
+under its own asset class and universe, with engine `overnight`.

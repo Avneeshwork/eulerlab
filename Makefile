@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -248,6 +248,17 @@ session-studies:
 # Research 072: Mukherjee & Mandal (2025) as written, then traded on the future.
 gap-forecast:
 	@uv run python -m eulerlab.research.gap_forecast_run
+
+# Tonight's decision for the registered gap strategy, sent to Telegram. Run
+# between 15:15 and 15:25 IST; needs a Kite token minted today. DRY=1 prints only.
+gap-signal:
+	@uv run python -m eulerlab.research.gap_signal $(if $(DRY),--dry-run,)
+
+# Answer the operator's Telegram messages (status, positions, orders, next,
+# signal, data, strategies, help). Read-only. The API runs this itself; use
+# this target when the workbench is not running.
+telegram-bot:
+	@uv run python -m eulerlab.telegram_bot
 
 rebuild-ohlc:
 	uv run python -m eulerlab.features.rebuild_ohlc $(if $(SWAP),--swap,)

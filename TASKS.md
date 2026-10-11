@@ -23,6 +23,24 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 
 ---
 
+## A registered gap strategy, and Telegram (2026-10-11)
+
+Operator: "registry this strategy in strategy library Green day and VIX fell → long and setup telegram signals for paper /live trading strategies like name of strategy and strategy actions", then "also define terms i can use to interact with telegram". ADR-063.
+Verify: `uv run pytest -q tests/test_telegram_signals.py`; Strategies → "Green day and VIX fell"; `make gap-signal DRY=1`; send `status` to the bot.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4043 | **"Green day and VIX fell: long the Nifty future overnight" in the strategy library** | DONE — `nifty_calm_rise_overnight`, runnable from Strategies (engine `overnight`), linked from its paper. It is a calculation, not a `Strategy`: neither engine can fill at the next open. A one-session window overflowed the annualised return; fixed |
+| T-4044 | **Telegram message when a deployment acts** | DONE — `deploy/signals.py`: mode, strategy name, each new order, equity, cash, next rebalance; a halt or error once. Nothing when nothing was placed. Paper today; the same code serves live when it is allowed (T-4022) |
+| T-4045 | **The gap strategy's decision on Telegram before the close** | DONE — `make gap-signal`: live Nifty and India VIX from Kite, "BUY at the close, SELL at the open" or "none tonight". It places no order |
+| T-4046 | **Words the operator can send the bot** | DONE — status, positions, orders, next, signal, data, strategies, help. Read-only, answered only from the operator's chat. The API runs the listener; `make telegram-bot` runs it alone |
+| T-4047 | `make gap-signal` is not scheduled | OPEN — it must run between 15:15 and 15:25 IST on trading days with a Kite token minted that day. `tools/schedule_daily.py` writes the daily plist; a second one for 15:20 is the operator's to install |
+| T-4048 | The gap strategy cannot be paper-deployed | OPEN — deployments replay a `Strategy` through the equity engine. A paper book for an overnight future needs its own runner |
+| T-4050 | A batch writes each result to the store two or three times | OPEN — `store_one` is called inside the run, after it and again at the end of the batch; `tweezer_bottom.jsonl` holds three identical lines per run. The library de-duplicates by configuration when reading, so nothing shown is wrong; the files grow needlessly |
+| T-4049 | Words that act (run, stop) from Telegram | NOT BUILT — by decision, ADR-063. Reopen only with a confirmation step and a recorded decision |
+
+---
+
 ## Two pure intraday papers on NIFTYBEES (2026-10-11)
 
 Operator: "lets fetch 2 pure intraday strategy paper, code it and backtest on indian market". Research 071, H-0005, H-0006.

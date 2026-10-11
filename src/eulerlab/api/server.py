@@ -85,6 +85,11 @@ from eulerlab.validation.ledger import sharpe_dispersion
 from eulerlab.validation.statistics import sharpe_stats
 
 INTRADAY_RUNNABLE = frozenset({*PAPER_SIGNALS, "tweezer_bottom"})
+
+STUDY_RUNNABLE = frozenset({"nifty_calm_rise_overnight"})
+"""Strategies that run as a calculation outside both engines (research 072):
+an overnight hold in a future, which neither the daily engines nor the
+minute-bar scanner can express. Runnable all the same."""
 """Strategies that are not target weights but run through the minute-bar
 scanners: the paper signals, and Tweezer Bottom through its own scanner."""
 
@@ -102,6 +107,14 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     if autoupdate.enabled():
         threading.Thread(
             target=autoupdate.watch, args=(stop,), daemon=True, name="autoupdate"
+        ).start()
+    from eulerlab import telegram_bot
+
+    # The words the operator can send the bot (`telegram_bot.COMMANDS`), all
+    # read-only. `EULERLAB_TELEGRAM_BOT=0` switches the listener off.
+    if telegram_bot.enabled():
+        threading.Thread(
+            target=telegram_bot.listen, args=(stop,), daemon=True, name="telegram-bot"
         ).start()
     try:
         yield
@@ -606,9 +619,17 @@ def _fleet_payload(
                 # perfectly well through the minute-bar scanner. Conflating the
                 # two left eleven coded strategies greyed out.
                 "runnable": (
-                    row.declaration.is_strategy_subclass or row.declaration.id in INTRADAY_RUNNABLE
+                    row.declaration.is_strategy_subclass
+                    or row.declaration.id in INTRADAY_RUNNABLE
+                    or row.declaration.id in STUDY_RUNNABLE
                 ),
-                "engine": ("intraday" if row.declaration.id in INTRADAY_RUNNABLE else "daily"),
+                "engine": (
+                    "intraday"
+                    if row.declaration.id in INTRADAY_RUNNABLE
+                    else "overnight"
+                    if row.declaration.id in STUDY_RUNNABLE
+                    else "daily"
+                ),
                 "source": row.declaration.source,
                 "published": row.declaration.published,
                 "logic": list(row.declaration.logic),
@@ -1245,6 +1266,15 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                     intraday["tier"] = "intraday"
                     store_one(item, intraday)
                     return intraday
+                if item.strategy_id in STUDY_RUNNABLE:
+                    from eulerlab.research.gap_forecast import calm_rise_run
+
+                    # The window is the request's trailing days; the universe
+                    # and asset class are the strategy's own (one future), not
+                    # the request's, and the payload says so.
+                    overnight = calm_rise_run(last_days=request.days)
+                    overnight["curve"] = result_store.downsample(overnight["curve"])
+                    return overnight
                 msg = (
                     f"{item.strategy_id} is not a Strategy and has no intraday "
                     f"implementation — intraday bracket shapes cannot be expressed as "
@@ -1431,9 +1461,12 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 days=int(_as_float(payload, "days")),
                 tier=str(payload.get("tier") or request.tier),
                 window_days=request.days,
-                universe=_universe_label(request),
-                asset_class=request.asset_class,
-                cost_mode=cost_mode_for(request.asset_class),
+                universe=str(payload.get("universe") or _universe_label(request)),
+                # A calculated strategy trades its own instrument whatever the
+                # request named; recording the request's would file a futures
+                # result as equity.
+                asset_class=str(payload.get("asset_class") or request.asset_class),
+                cost_mode=str(payload.get("cost_mode") or cost_mode_for(request.asset_class)),
                 symbols=int(_as_float(payload, "symbols")),
                 data_version=batch_data_version(),
                 params=dict(item.params),
@@ -2778,8 +2811,51 @@ def explain(strategy: str = "") -> dict[str, Any]:
     # code did not perform. This module's own docstring calls that worse than no
     # explanation, and it was doing it for all twenty swept signals.
     intraday = bool(strategy) and strategy in INTRADAY_RUNNABLE
+    overnight = bool(strategy) and strategy in STUDY_RUNNABLE
 
-    if intraday:
+    procedure: list[dict[str, str]]
+    if overnight:
+        procedure = [
+            {
+                "title": "What a backtest here is",
+                "body": (
+                    "This strategy holds one instrument, the near-month Nifty future, "
+                    "from a signal day's close to the next morning's open. Neither "
+                    "engine can do that: both fill a decision at the next close. So it "
+                    "is a calculation over the daily history, not an engine run "
+                    "(research 072). There is no rebalance and there are no weights."
+                ),
+            },
+            {
+                "title": "Where the prices come from",
+                "body": (
+                    "The signal reads the Nifty 50 index and India VIX. The trade is "
+                    "priced on the future's own close and next open, from the F&O "
+                    "bhavcopy, using the nearest contract still alive the next morning "
+                    "so that no night spans a roll. The index is not used for the trade: "
+                    "its open is built from first prints and its close from a 30-minute "
+                    "average, which makes its gaps look larger than anything tradable."
+                ),
+            },
+            {
+                "title": "What the costs are",
+                "body": (
+                    "One futures round trip for every night held, from the dated cost "
+                    "schedule: brokerage, STT on the sale (0.0125%, 0.02% from October "
+                    "2024, 0.05% from April 2026), exchange and SEBI charges, stamp duty "
+                    "and GST. The position is fully paid for, so a 1% move is a 1% return."
+                ),
+            },
+            {
+                "title": "What it assumes",
+                "body": (
+                    "That the day's Nifty and VIX closes are known when the order is "
+                    "placed at the close. In practice the order goes in a few minutes "
+                    "before, on values that are almost final (A-046)."
+                ),
+            },
+        ]
+    elif intraday:
         from eulerlab.intraday.paper_scan import WARMUP_BARS
 
         procedure = [

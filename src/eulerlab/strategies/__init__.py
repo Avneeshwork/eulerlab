@@ -782,10 +782,49 @@ def _india_papers() -> dict[str, Declaration]:
     }
 
 
+def _studies() -> dict[str, Declaration]:
+    """Strategies that run as calculations, outside both engines.
+
+    The gap strategy holds a future from one close to the next open. Tier A and
+    Tier B fill a decision at the *next close*, so it cannot be a `Strategy`;
+    it is listed here so it can be found, run and compared like any other, and
+    the API runs it through `research.gap_forecast` (research 072).
+    """
+    from eulerlab.research.gap_forecast import CALM_RISE_ID, CALM_RISE_LOGIC, CALM_RISE_TITLE
+
+    return {
+        CALM_RISE_ID: Declaration(
+            id=CALM_RISE_ID,
+            title=CALM_RISE_TITLE,
+            summary=(
+                "After a rising Nifty day on which India VIX fell, hold the near-month "
+                "Nifty future from the close to the next open."
+            ),
+            kind="quant",
+            shape="event",
+            asset_class=AssetClass.FUTURES,
+            timeframe=Timeframe.DAILY,
+            emits=Emits.TARGET_QUANTITY,
+            lookback=1,
+            is_strategy_subclass=False,
+            source="[paper] Mukherjee & Mandal (2025), IJFMR 7(4)",
+            published=(
+                "A GREEN candle with falling India VIX was followed by a gap up 69.6% of "
+                "the time (810 of 1,163), 2010 to June 2025. Accuracy only; no trade, no costs."
+            ),
+            paper_url="https://www.ijfmr.com/papers/2025/4/53859.pdf",
+            tested_on="Nifty 50 index, daily, 2010 to June 2025",
+            recommended_class=AssetClass.FUTURES.value,
+            logic=list(CALM_RISE_LOGIC),
+        )
+    }
+
+
 REGISTRY.update(_paper_signals())
 REGISTRY.update(_crypto_signals())
 REGISTRY.update(_india_signals())
 REGISTRY.update(_india_papers())
+REGISTRY.update(_studies())
 
 
 @dataclass(frozen=True)

@@ -171,7 +171,22 @@ def _strategy(strategy_id: str) -> Any:
 
 
 def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
-    """Bring one deployment up to the latest close. Returns the state written."""
+    """Bring one deployment up to the latest close. Returns the state written.
+
+    Then tell the operator what it did (`deploy/signals.py`): the strategy's
+    name and its orders when it traded, or the reason when it halted. Every
+    route to a run comes through here — `make paper-daily`, the auto-updater
+    and the Run now button — so none of them can act silently.
+    """
+    from eulerlab.deploy import signals
+
+    previous = store.read_state(deployment) or {}
+    state = _run(deployment, rows)
+    signals.announce(deployment, previous, state)
+    return state
+
+
+def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     began = time.monotonic()
     previous = store.read_state(deployment) or {}
     traded_through = (

@@ -36,3 +36,15 @@ def _private_locks(
     from eulerlab.ingest import filelock
 
     monkeypatch.setattr(filelock, "LOCK_DIR", tmp_path_factory.mktemp("locks"))
+
+
+@pytest.fixture(autouse=True)
+def _no_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test sends a Telegram message.
+
+    `notify` reads the token from `.env`, which exists on the operator's
+    machine, so a test that runs a deployment would message their phone.
+    Tests of the signals themselves turn this back on with a fake sender.
+    """
+    monkeypatch.setenv("EULERLAB_TELEGRAM_SIGNALS", "0")
+    monkeypatch.setenv("EULERLAB_TELEGRAM_BOT", "0")

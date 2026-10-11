@@ -333,7 +333,8 @@ export type FleetStrategy = {
   // intraday signal cannot be expressed as target weights (ADR-037) and still
   // runs fine through the minute-bar scanner.
   runnable: boolean;
-  engine: 'daily' | 'intraday';
+  /** `overnight`: a close-to-next-open hold, run as a calculation (research 072). */
+  engine: 'daily' | 'intraday' | 'overnight';
   source: string;
   published: string;
   stage: Stage;

@@ -343,3 +343,73 @@ def trade(
         "gross": summarise(out_days, gross, 0),
         "net": summarise(out_days, net, trips),
     }
+
+
+# --- the one rule worth registering ----------------------------------------------
+
+CALM_RISE_ID = "nifty_calm_rise_overnight"
+CALM_RISE_TITLE = "Green day and VIX fell: long the Nifty future overnight"
+
+CALM_RISE_LOGIC = [
+    "At the close, read the Nifty 50's candle (close above open is GREEN) and "
+    "India VIX's change that day (close minus open), as the paper defines them.",
+    "If the day is GREEN and VIX fell, buy the near-month Nifty future at the close. "
+    "On any other day do nothing: the paper's bearish signal (RED and VIX up) lost "
+    "money here and is not traded.",
+    "Sell at the next morning's open. One round trip per signal night, costed with "
+    "the platform's futures schedule.",
+    "The order goes in before the close is final (A-046), and the future's close and "
+    "open are real trades in one contract, unlike the index the paper measured.",
+]
+
+
+def calm_rise_payload(
+    days: Sequence[Day], legs: Sequence[Overnight], *, last_days: int = 0
+) -> dict[str, Any]:
+    """The registered strategy's result, shaped like every other backtest's.
+
+    `last_days` keeps only the most recent N sessions, the way the Strategies
+    page's "window" does for the engines. The curve is the equity after costs,
+    one point per session, flat on nights with no signal.
+    """
+    start = days[-last_days].day if 0 < last_days < len(days) else None
+    run = trade(Model.JOINT, days, legs, side="long", start=start)
+    by_day = {d.day: d for d in days}
+    order = [d.day for d in days]
+    previous = dict(zip(order[1:], order[:-1], strict=True))
+    equity = [1.0]
+    for leg in legs:
+        signal_day = previous.get(leg.day)
+        if signal_day is None or (start and signal_day < start):
+            continue
+        value = equity[-1]
+        if predict(Model.JOINT, by_day[signal_day]) == UP:
+            move = leg.open / leg.previous_close - 1.0
+            value *= (1 + move) * (1 - round_trip_cost(leg.day, leg.open))
+        equity.append(value)
+    net, gross = run["net"], run["gross"]
+    return {
+        "sharpe": net["sharpe"],
+        "total_return": net["total_return"],
+        "max_drawdown": net["max_drawdown"],
+        "fills": 2 * run["nights"],
+        "days": net["days"],
+        "symbols": 1,
+        "universe": "Nifty near-month future",
+        "universe_size": 1,
+        "asset_class": "futures",
+        "cost_mode": "realistic",
+        "tier": "overnight",
+        "curve": equity,
+        "nights": run["nights"],
+        "gross_total_return": gross["total_return"],
+        "future_gapped_up": run["future_gapped_as_predicted"],
+    }
+
+
+def calm_rise_run(last_days: int = 0) -> dict[str, Any]:
+    """Load the data and run the registered strategy. What the API calls."""
+    from eulerlab.research.gap_forecast_run import load_days
+    from eulerlab.research.session_studies import futures_legs
+
+    return calm_rise_payload(load_days(), futures_legs(), last_days=last_days)
