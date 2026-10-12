@@ -39,6 +39,23 @@ def _private_locks(
 
 
 @pytest.fixture(autouse=True)
+def _private_last_seen(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or replaces the operator's last-seen prices.
+
+    The snapshot saves live quotes to `data/derived/` and reads them back on
+    its first paint, so a test of it would otherwise depend on, and overwrite,
+    whatever the real dashboard last showed.
+    """
+    from eulerlab import last_seen
+
+    folder = tmp_path_factory.mktemp("last_seen")
+    monkeypatch.setattr(last_seen, "PATH", folder / "quotes.json")
+    monkeypatch.setattr(last_seen, "MINUTE_ROOT", folder / "minute")
+
+
+@pytest.fixture(autouse=True)
 def _no_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
     """No test sends a Telegram message.
 

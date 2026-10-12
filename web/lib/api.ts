@@ -852,6 +852,8 @@ export type Snapshot = {
     quoted: number;
     of: number;
     taken_at: string;
+    /** Not live, but newer than the panel: the last prices this machine saw. */
+    last_seen?: boolean;
     panel_date: string;
     reason?: string;
   };

@@ -67,7 +67,7 @@ never edit them without an explicit instruction in that session.
   pre-close signal is scheduled for 15:20 on weekdays.
 - **Kite login on Instruments (2026-10-12):** link to Zerodha, paste the address back; minute bars
   then update from their own button. Not yet tried with a real login.
-- **Speed (2026-10-12):** dashboard first paint 0.4 s (was 6-9 s); panel read 19 s (was 51 s),
+- **Speed (2026-10-12):** dashboard first paint 0.45 s (was 6-9 s), on the newest prices seen, not the last close (ADR-067); panel read 19 s (was 51 s),
   preloaded at startup. Use `make ui-fast` for the built UI. Table in ARCHITECTURE.
 - **Company pages (ADR-065):** `/terminal/company/<SYMBOL>` for 2,361 companies, from the
   screener.in files, the price panel and tagged news. No analyst data, estimates or DCF: not held.

@@ -224,11 +224,18 @@ function Stamp({ snap, market }: { snap: Snapshot; market: Market }) {
   const taken = market === 'IN' ? f?.taken_at : snap.world?.taken_at;
   const live = market === 'IN' ? Boolean(f?.live) : Boolean(taken);
 
+  // The first paint can be newer than the panel without being live: the last
+  // prices seen here. It says so, with their time, and the day when not today.
+  const seen = market === 'IN' && !f?.live && Boolean(f?.last_seen);
+
   let when = market === 'IN' ? snap.as_of : '—';
   if (taken) {
     const d = new Date(taken);
     if (!Number.isNaN(d.getTime())) {
       when = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      if (seen && d.toDateString() !== new Date().toDateString()) {
+        when = `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} ${when}`;
+      }
     }
   }
 
@@ -236,7 +243,9 @@ function Stamp({ snap, market }: { snap: Snapshot; market: Market }) {
     market === 'IN'
       ? f?.live
         ? `${f.quoted.toLocaleString('en-IN')} of ${f.of.toLocaleString('en-IN')} quoted live via Zerodha. Panel close ${f.panel_date}.`
-        : `End-of-day panel, ${snap.as_of}.${f?.reason ? ` No live quote: ${f.reason}.` : ''}`
+        : seen && f
+          ? `${f.quoted.toLocaleString('en-IN')} of ${f.of.toLocaleString('en-IN')} from the last prices seen (${f.reason}). The rest are the ${f.panel_date} close.`
+          : `End-of-day panel, ${snap.as_of}.${f?.reason ? ` No live quote: ${f.reason}.` : ''}`
       : taken
         ? `Swept at ${taken.slice(0, 19).replace('T', ' ')} UTC by \`make world\`.`
         : 'No sweep landed — run `make world`.';
@@ -244,7 +253,7 @@ function Stamp({ snap, market }: { snap: Snapshot; market: Market }) {
   return (
     <span className={live ? 'stamp live' : 'stamp'} title={detail}>
       {live && <span className="tdot" />}
-      {live ? 'live' : 'EOD'} {when}
+      {live ? 'live' : seen ? 'last seen' : 'EOD'} {when}
     </span>
   );
 }
@@ -452,7 +461,13 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           </div>
           <div className="rstat">
             <span>As of</span>
-            <b>{snap.freshness?.live ? 'live' : snap.as_of}</b>
+            <b>
+              {snap.freshness?.live
+                ? 'live'
+                : snap.freshness?.last_seen
+                  ? 'last seen'
+                  : snap.as_of}
+            </b>
             {/* Per stat, not per band. Breadth is counted from live quotes
                 while the 20-day proxy and the volatility figure are computed
                 from the panel's history — they are genuinely end-of-day and
@@ -461,7 +476,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             <i>
               {snap.freshness?.live
                 ? `breadth live · 20d from ${snap.as_of} close`
-                : 'end of day, not live'}
+                : snap.freshness?.last_seen
+                  ? `breadth as last seen · live loading`
+                  : 'end of day, not live'}
             </i>
           </div>
         </div>

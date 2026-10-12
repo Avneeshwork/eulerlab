@@ -1496,6 +1496,19 @@ Measured on the real panel (5.4 million rows, 746 MB), before and after:
 | Loading 1,088 price factors | 0.6 s | under 10 ms | `BitemporalStore.append` places a record in order instead of re-sorting the list each time |
 | UI JavaScript | 9.7 MB (`make ui`) | 0.67 MB (`make ui-fast`) | A built bundle, not the development server's |
 
+**What the first paint shows (ADR-067).** Not always the settled close. Each
+live answer that priced the universe without an error is saved to
+`data/derived/last_seen_quotes.json`, one file, replaced whole.
+`last_seen.newest` lays over the panel whatever is dated after the panel's
+last day (India time): those saved quotes, and held minute bars if the minute
+feed ran since. The newer source wins where both price a stock. Anything from
+the panel's last day or before is ignored. The screen then reads "last seen
+14:52" in place of "EOD", and "live" once the broker answers. A minute bar's
+return is measured from the panel's close when its session is the next one,
+and from the previous session's last bar otherwise. Reading the file takes
+2 ms and checking the minute folders 40 ms; a minute file is opened only when
+its name ends after the panel's last day.
+
 A second pass on 2026-10-12 timed every read route and profiled the slow ones:
 
 | What | Before | After | How |

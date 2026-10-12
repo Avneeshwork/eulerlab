@@ -50,7 +50,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import cloud_results, reports, strategy_results, walk_run
+from eulerlab import cloud_results, last_seen, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.api import (
@@ -3667,9 +3667,10 @@ class _SettledOnly(Exception):
 def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     """The trader's first screen, computed from the panel.
 
-    `live=false` skips the two broker calls and answers from held data alone.
-    The screen asks for that first and paints, then asks again with `live`
-    and swaps the prices in. The broker calls were 4 to 7 of the 6 to 9
+    `live=false` skips the two broker calls and answers from held data alone:
+    the settled panel, with the newest prices already seen laid over it when
+    they postdate it (`last_seen`). The screen asks for that first and paints,
+    then asks again with `live` and swaps the prices in. The broker calls were 4 to 7 of the 6 to 9
     seconds this route took (measured 2026-10-12), and the first paint was
     waiting on all of it.
 
@@ -3711,10 +3712,21 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     live_at = ""
     live_returns: dict[str, float] = {}
     live_error = ""
+    seen_returns: dict[str, float] = {}
+    seen_at = ""
+    seen_sources: tuple[str, ...] = ()
     try:
         from eulerlab import quotes as quote_feed
 
         if not live:
+            # No broker, but not necessarily the settled close either: the
+            # last quotes this machine saw may be from after it (`last_seen`).
+            seen = last_seen.newest(today, {s: r.close for s, r in current_day.items()})
+            # Only stocks the panel also has. A name with no settled row has
+            # no turnover to size it by and would count in breadth unseen.
+            seen_returns = {s: r for s, r in seen.returns.items() if s in returns}
+            seen_at = seen.taken_at if seen_returns else ""
+            seen_sources = seen.sources if seen_returns else ()
             raise _SettledOnly
         with ThreadPoolExecutor(1) as pool:
             fetched, live_error = pool.submit(quote_feed.nse_universe, sorted(returns)).result(
@@ -3725,8 +3737,16 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
                 live_returns[symbol] = quote.last / quote.previous_close - 1.0
         if live_returns:
             live_at = next(iter(fetched.values())).at
+        if fetched and not live_error:
+            # A whole answer only: a universe cut short by an error would
+            # replace two thousand saved prices with five hundred.
+            last_seen.save(fetched)
     except _SettledOnly:
-        live_error = "settled closes; live prices are loading"
+        live_error = (
+            f"{' and '.join(seen_sources)}; live prices are loading"
+            if seen_returns
+            else "settled closes; live prices are loading"
+        )
     except FuturesTimeout:
         live_error = f"no quote in {LIVE_MAP_DEADLINE:.0f}s"
     except Exception as exc:
@@ -3735,8 +3755,8 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     # Only symbols the broker actually priced are replaced. A partial answer
     # updates what it covers and leaves the rest on the settled close, which is
     # better than discarding two thousand live prices because six were missing.
-    if live_returns:
-        returns = {**returns, **live_returns}
+    if live_returns or seen_returns:
+        returns = {**returns, **seen_returns, **live_returns}
 
     # --- band 1: regime -----------------------------------------------------
     up = sum(1 for r in returns.values() if r > BREADTH_UNCHANGED_PCT / 100)
@@ -3848,9 +3868,11 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
         # the kind of quiet disagreement a reader has no way to notice.
         "freshness": {
             "live": bool(live_returns),
-            "quoted": len(live_returns),
+            "quoted": len(live_returns) or len(seen_returns),
             "of": len(returns),
-            "taken_at": live_at,
+            "taken_at": live_at or seen_at,
+            # Not live, but newer than the panel: the last prices seen here.
+            "last_seen": bool(seen_returns),
             "panel_date": today.isoformat(),
             "reason": live_error,
         },
