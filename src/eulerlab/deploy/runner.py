@@ -178,10 +178,16 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     route to a run comes through here — `make paper-daily`, the auto-updater
     and the Run now button — so none of them can act silently.
     """
-    from eulerlab.deploy import signals
+    from eulerlab.deploy import overnight, signals
 
     previous = store.read_state(deployment) or {}
-    state = _run(deployment, rows)
+    # The overnight future has its own book (ADR-066): the equity engine fills
+    # once a day at the close and cannot hold from one close to the next open.
+    # Same OMS, journal, kill switch and state file either way.
+    if deployment.strategy_id in overnight.STRATEGIES:
+        state = overnight.run(deployment)
+    else:
+        state = _run(deployment, rows)
     signals.announce(deployment, previous, state)
     return state
 

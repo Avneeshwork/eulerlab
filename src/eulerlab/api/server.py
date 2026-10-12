@@ -1919,11 +1919,16 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
     if declaration is None:
         return {"ok": False, "mode": request.mode, "checks": checks, "blockers": 1}
 
+    from eulerlab.deploy import overnight
+
+    has_runner = request.strategy in overnight.STRATEGIES
     check(
         "Satisfies the Strategy interface",
-        declaration.is_strategy_subclass,
+        declaration.is_strategy_subclass or has_runner,
         "emits target weights"
         if declaration.is_strategy_subclass
+        else "not a target-weight strategy; it trades through its own overnight book (ADR-066)"
+        if has_runner
         else "intraday bracket shapes cannot be expressed as target weights (ADR-037)",
     )
 
@@ -1933,11 +1938,21 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         if c.asset_class == declaration.asset_class and c.timeframe == declaration.timeframe
     ]
     has_data = bool(supported) and supported[0].supported
-    check(
-        "Data exists for this asset class and timeframe",
-        has_data,
-        supported[0].detail if supported else "no capability entry for this pair",
-    )
+    data_detail = supported[0].detail if supported else "no capability entry for this pair"
+    if has_runner:
+        # The capability table describes what the engines can read. This book
+        # reads the Nifty future and index histories itself, so that is what
+        # is checked: whether they hold a day a signal could trade.
+        from eulerlab.api.deploy_routes import _overnight_latest
+
+        latest = _overnight_latest()
+        has_data = latest is not None
+        data_detail = (
+            f"Nifty future history through {latest[0]}, nearest contract {latest[1]}"
+            if latest
+            else "no Nifty future history. Run `make daily` first"
+        )
+    check("Data exists for this asset class and timeframe", has_data, data_detail)
 
     row = next(
         (r for r in strategy_fleet(tenant.ledger) if r.declaration.id == request.strategy), None

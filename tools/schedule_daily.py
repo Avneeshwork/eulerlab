@@ -1,4 +1,4 @@
-"""`make schedule` — install (or remove) the daily ingest as a launchd job.
+"""`make schedule` — install (or remove) the daily ingest, or the gap signal, as a launchd job.
 
 `make daily` has existed for a while and nothing has ever run it. "Data updated
 regularly and mirrored to cloud" was a command somebody had to remember to
@@ -32,6 +32,13 @@ on a thing that differs between an interactive terminal and an agent.
 denies a launchd agent access to all three, and the failure is obscure: the
 shell cannot even `getcwd`, so `make` runs somewhere else and reports "No rule
 to make target". That was the original six-day outage.
+
+**Two jobs.** `daily` runs `make daily` every evening. `gap-signal` runs
+`make gap-signal SCHEDULED=1` at 15:20 on weekdays: the Nifty gap strategy's
+decision, sent to Telegram ten minutes before the close (T-4047). The catch-up
+that suits the daily pull does not suit a message tied to a clock, so that
+command itself says nothing when it runs far from 15:20, on a weekend or on an
+NSE holiday.
 """
 
 from __future__ import annotations
@@ -40,14 +47,88 @@ import argparse
 import subprocess
 import sys
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from xml.sax.saxutils import escape
 
-LABEL = "com.eulerlab.daily"
-PLIST_PATH = Path.home() / "Library" / "LaunchAgents" / f"{LABEL}.plist"
 LOG_DIR = Path("data/logs")
+WEEKDAYS = (1, 2, 3, 4, 5)
+"""launchd's numbering: 1 is Monday."""
 
 
-def plist(repo: Path, *, hour: int, minute: int) -> str:
+@dataclass(frozen=True)
+class Job:
+    name: str
+    label: str
+    command: str
+    """Run by `zsh -lc` in the repo. `{repo}` is filled in."""
+    hour: int
+    minute: int
+    weekdays: tuple[int, ...]
+    """Empty means every day."""
+    log: str
+    what: str
+    why_then: str
+
+    @property
+    def plist_path(self) -> Path:
+        return Path.home() / "Library" / "LaunchAgents" / f"{self.label}.plist"
+
+
+JOBS = {
+    "daily": Job(
+        name="daily",
+        label="com.eulerlab.daily",
+        command="{repo}/tools/daily_guard.sh",
+        hour=19,
+        minute=30,
+        weekdays=(),
+        log="daily",
+        what="make daily, every day",
+        why_then=(
+            "19:30 IST is the default because NSE bhavcopy and the AMFI NAV file are\n"
+            "both published in the evening. Running earlier fetches yesterday."
+        ),
+    ),
+    "gap-signal": Job(
+        name="gap-signal",
+        label="com.eulerlab.gapsignal",
+        command="cd {repo} && make gap-signal SCHEDULED=1",
+        hour=15,
+        minute=20,
+        weekdays=WEEKDAYS,
+        log="gap_signal",
+        what="make gap-signal SCHEDULED=1, Monday to Friday",
+        why_then=(
+            "15:20 IST is ten minutes before the close: late enough that the day's candle\n"
+            "and VIX are nearly final, early enough to act. It needs a Kite token made that\n"
+            "day; without one the message says so."
+        ),
+    ),
+}
+
+LABEL = JOBS["daily"].label
+PLIST_PATH = JOBS["daily"].plist_path
+
+
+def _when(job: Job, hour: int, minute: int) -> str:
+    """`StartCalendarInterval`: one entry, or one per weekday."""
+
+    def entry(weekday: int | None, pad: str) -> str:
+        day = f"{pad}  <key>Weekday</key><integer>{weekday}</integer>\n" if weekday else ""
+        return (
+            f"{pad}<dict>\n{day}"
+            f"{pad}  <key>Hour</key><integer>{hour}</integer>\n"
+            f"{pad}  <key>Minute</key><integer>{minute}</integer>\n"
+            f"{pad}</dict>\n"
+        )
+
+    if not job.weekdays:
+        return entry(None, "  ")
+    return "  <array>\n" + "".join(entry(day, "    ") for day in job.weekdays) + "  </array>\n"
+
+
+def plist(repo: Path, *, hour: int, minute: int, job: Job = JOBS["daily"]) -> str:
     """The job definition.
 
     `RunAtLoad` is false on purpose: loading the agent should not immediately
@@ -61,12 +142,12 @@ def plist(repo: Path, *, hour: int, minute: int) -> str:
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>{LABEL}</string>
+  <key>Label</key><string>{job.label}</string>
   <key>ProgramArguments</key>
   <array>
     <string>/bin/zsh</string>
     <string>-lc</string>
-    <string>{repo}/tools/daily_guard.sh</string>
+    <string>{escape(job.command.format(repo=repo))}</string>
   </array>
   <key>WorkingDirectory</key><string>{repo}</string>
   <key>EnvironmentVariables</key>
@@ -75,66 +156,62 @@ def plist(repo: Path, *, hour: int, minute: int) -> str:
     <string>{home}/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key><integer>{hour}</integer>
-    <key>Minute</key><integer>{minute}</integer>
-  </dict>
-  <key>RunAtLoad</key><false/>
+{_when(job, hour, minute)}  <key>RunAtLoad</key><false/>
   <key>Nice</key><integer>5</integer>
-  <key>StandardOutPath</key><string>{log}/daily.log</string>
-  <key>StandardErrorPath</key><string>{log}/daily.err</string>
+  <key>StandardOutPath</key><string>{log}/{job.log}.log</string>
+  <key>StandardErrorPath</key><string>{log}/{job.log}.err</string>
 </dict>
 </plist>
 """
 
 
-def install(repo: Path, *, hour: int, minute: int) -> int:
+def install(repo: Path, *, hour: int, minute: int, job: Job = JOBS["daily"]) -> int:
     (repo / LOG_DIR).mkdir(parents=True, exist_ok=True)
-    PLIST_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PLIST_PATH.write_text(plist(repo, hour=hour, minute=minute), encoding="utf-8")
+    path = job.plist_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(plist(repo, hour=hour, minute=minute, job=job), encoding="utf-8")
 
-    print(f"wrote {PLIST_PATH}")
-    print(f"  runs: make daily, every day at {hour:02d}:{minute:02d} local time")
-    print(f"  logs: {repo / LOG_DIR}/daily.log")
+    print(f"wrote {path}")
+    print(f"  runs: {job.what}, at {hour:02d}:{minute:02d} local time")
+    print(f"  logs: {repo / LOG_DIR}/{job.log}.log")
     print()
     print("It is NOT loaded yet. To start it:")
-    print(f"  launchctl load -w {PLIST_PATH}")
+    print(f"  launchctl load -w {path}")
     print()
     print("To check it is registered, and to stop it:")
-    print(f"  launchctl list | grep {LABEL}")
-    print(f"  launchctl unload -w {PLIST_PATH}")
+    print(f"  launchctl list | grep {job.label}")
+    print(f"  launchctl unload -w {path}")
     print()
-    print(
-        "19:30 IST is the default because NSE bhavcopy and the AMFI NAV file are\n"
-        "both published in the evening. Running earlier fetches yesterday."
-    )
+    print(job.why_then)
     return 0
 
 
-def uninstall() -> int:
-    if not PLIST_PATH.exists():
-        print(f"{PLIST_PATH} does not exist; nothing to remove")
+def uninstall(job: Job = JOBS["daily"]) -> int:
+    path = job.plist_path
+    if not path.exists():
+        print(f"{path} does not exist; nothing to remove")
         return 0
     subprocess.run(
-        ["/bin/launchctl", "unload", "-w", str(PLIST_PATH)],
+        ["/bin/launchctl", "unload", "-w", str(path)],
         check=False,
         capture_output=True,
     )
-    PLIST_PATH.unlink()
-    print(f"removed {PLIST_PATH} and unloaded {LABEL}")
+    path.unlink()
+    print(f"removed {path} and unloaded {job.label}")
     return 0
 
 
-def status() -> int:
-    print(f"plist: {'present' if PLIST_PATH.exists() else 'not installed'} at {PLIST_PATH}")
+def status(job: Job = JOBS["daily"]) -> int:
+    path = job.plist_path
+    print(f"plist: {'present' if path.exists() else 'not installed'} at {path}")
     result = subprocess.run(["/bin/launchctl", "list"], check=False, capture_output=True, text=True)
-    rows = [line for line in result.stdout.splitlines() if LABEL in line]
+    rows = [line for line in result.stdout.splitlines() if job.label in line]
     if rows:
         print(f"loaded: yes — {rows[0].strip()}")
         print("  columns are PID, last exit status, label. Exit status 0 is a clean run.")
     else:
         print("loaded: no")
-    log = Path(LOG_DIR) / "daily.log"
+    log = Path(LOG_DIR) / f"{job.log}.log"
     if log.exists():
         size = log.stat().st_size
         print(f"log:    {log} ({size:,} bytes)")
@@ -144,24 +221,28 @@ def status() -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Schedule the daily ingest.")
+    parser = argparse.ArgumentParser(description="Schedule the daily ingest or the gap signal.")
     parser.add_argument(
         "action", choices=["install", "uninstall", "status"], nargs="?", default="status"
     )
-    parser.add_argument("--hour", type=int, default=19)
-    parser.add_argument("--minute", type=int, default=30)
+    parser.add_argument("--job", choices=sorted(JOBS), default="daily")
+    parser.add_argument("--hour", type=int, default=None)
+    parser.add_argument("--minute", type=int, default=None)
     args = parser.parse_args(argv)
+    job = JOBS[args.job]
+    hour = job.hour if args.hour is None else args.hour
+    minute = job.minute if args.minute is None else args.minute
 
     if sys.platform != "darwin" and args.action == "install":
-        print("launchd is macOS only. On Linux use a systemd timer running `make daily`.")
+        print("launchd is macOS only. On Linux use a systemd timer running the same command.")
         return 2
 
     repo = Path(__file__).resolve().parents[1]
     if args.action == "install":
-        return install(repo, hour=args.hour, minute=args.minute)
+        return install(repo, hour=hour, minute=minute, job=job)
     if args.action == "uninstall":
-        return uninstall()
-    return status()
+        return uninstall(job)
+    return status(job)
 
 
 if __name__ == "__main__":

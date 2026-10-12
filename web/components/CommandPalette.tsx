@@ -5,17 +5,19 @@
  *
  * It used to list strategies and a "RUN" action that did nothing when chosen —
  * a search box whose results could not be opened. Every entry here goes
- * somewhere: a page or tool navigates, a strategy opens its explanation.
+ * somewhere: a page or tool navigates, a strategy opens its explanation, a
+ * company opens its page.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FleetStrategy } from '@/lib/api';
+import { companySearch, type CompanyHit, type FleetStrategy } from '@/lib/api';
 
 export type PaletteTarget = { id: string; label: string; meta: string };
 
 type Entry =
   | { kind: 'PAGE'; label: string; meta: string; id: string }
-  | { kind: 'STRAT'; label: string; meta: string; id: string };
+  | { kind: 'STRAT'; label: string; meta: string; id: string }
+  | { kind: 'CO'; label: string; meta: string; id: string };
 
 const STAGE_META: Record<string, string> = {
   registered: 'screened',
@@ -42,6 +44,27 @@ export function CommandPalette({
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Companies come from the server: 2,352 of them, searched by symbol or name
+  // once two letters are typed. Pages and strategies are already in memory.
+  const [companies, setCompanies] = useState<CompanyHit[]>([]);
+  useEffect(() => {
+    const wanted = query.trim();
+    if (wanted.length < 2) {
+      setCompanies([]);
+      return;
+    }
+    let live = true;
+    const timer = window.setTimeout(() => {
+      companySearch(wanted, 6)
+        .then((found) => live && setCompanies(found.rows))
+        .catch(() => live && setCompanies([]));
+    }, 150);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -67,8 +90,17 @@ export function CommandPalette({
         });
       }
     }
-    return out.slice(0, 14);
-  }, [pages, strategies, query]);
+    const shown = out.slice(0, 14 - companies.length);
+    for (const company of companies) {
+      shown.push({
+        kind: 'CO',
+        id: company.symbol,
+        label: company.name || company.symbol,
+        meta: `${company.symbol} · ${company.industry || 'company'}`,
+      });
+    }
+    return shown;
+  }, [pages, strategies, query, companies]);
 
   useEffect(() => {
     setCursor(0);
@@ -76,6 +108,11 @@ export function CommandPalette({
 
   const choose = (entry: Entry | undefined) => {
     if (!entry) return;
+    if (entry.kind === 'CO') {
+      // A company has its own page; leave the terminal shell for it.
+      window.location.assign(`/terminal/company/${encodeURIComponent(entry.id)}`);
+      return;
+    }
     if (entry.kind === 'PAGE') onPage(entry.id);
     else onStrategy(entry.id);
     onClose();
@@ -109,7 +146,7 @@ export function CommandPalette({
         <input
           ref={inputRef}
           className="pal-input"
-          placeholder="A page, a tool or a strategy…"
+          placeholder="A page, a tool, a strategy or a company…"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
@@ -127,7 +164,7 @@ export function CommandPalette({
               onMouseEnter={() => setCursor(index)}
               onClick={() => choose(entry)}
             >
-              <span className="pal-kind">{entry.kind === 'PAGE' ? 'GO' : 'STRAT'}</span>
+              <span className="pal-kind">{entry.kind === 'PAGE' ? 'GO' : entry.kind}</span>
               <span>{entry.label}</span>
               <span className="pal-meta">{entry.meta}</span>
             </div>

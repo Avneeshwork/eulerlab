@@ -1519,6 +1519,46 @@ Still slow, and why: the live snapshot takes about 5 s because it asks Kite
 for the whole universe in 16 calls of 200 symbols; it no longer blocks the
 first paint. The first call to `/api/fleet` after a restart takes 2.7 s.
 
+## The overnight book (ADR-066)
+
+`deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.
+`deploy.runner.run` sends that strategy's deployments there and every other
+to the equity replay.
+
+**Each day, in order.** Morning: a position bought last night is sold at the
+contract's open. Close: if the day is GREEN with VIX down
+(`gap_forecast.predict(Model.JOINT, day) == UP`), buy the nearest contract
+expiring after today at its close. Only days held in both the index history
+and the futures history are walked, so a day is never judged before its data
+is complete.
+
+**Money.** Quantity = floor(equity / (lot x close)) x lot, lot read from the
+day's F&O bhavcopy. P&L on a round trip = quantity x (sell fill - buy fill),
+less `cost_of_trade(Segment.FUTURES)` on each leg. A fill is the published
+price moved against the book by the deployment's slippage. Cash equals equity:
+a future is not paid for, and no margin is modelled.
+
+**Shared with the equity books.** `make_oms` (journal, paper broker, kill
+switch), `client_order_id(strategy, signal day, symbol, seq)` with seq 0 for
+the buy and 1 for the sell, the halt when book and broker disagree, the state
+file's fields, and the Telegram message on new fills.
+
+**It halts when** a held position has no opening price, or a past day that was
+traded through without a signal now shows one.
+
+## Scheduled jobs
+
+`tools/schedule_daily.py` writes launchd jobs; `make schedule JOB=...`.
+
+| Job | When | Runs |
+|---|---|---|
+| `com.eulerlab.daily` | 19:30 every day | `tools/daily_guard.sh` (`make daily`, and a message if it fails) |
+| `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
+
+launchd runs a missed job when the Mac wakes. That suits a data pull and not a
+message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
+run say nothing on a weekend, an NSE holiday, or outside 15:05 to 15:45 IST.
+
 ## Kite login from the Instruments page
 
 India's minute bars need a Kite token minted the same day. `api/kite_routes.py`

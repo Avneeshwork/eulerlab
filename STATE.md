@@ -63,6 +63,8 @@ never edit them without an explicit instruction in that session.
   The Nifty gap paper is coded as written (research 072): best case Sharpe 0.64 on the future.
 - **Telegram (ADR-063):** deployments report their orders; the bot answers `status`,
   `positions`, `orders`, `next`, `signal`, `data`. It cannot trade or stop anything.
+- **Gap strategy (2026-10-12):** paper-deployable through its own overnight book (ADR-066); the
+  pre-close signal is scheduled for 15:20 on weekdays.
 - **Kite login on Instruments (2026-10-12):** link to Zerodha, paste the address back; minute bars
   then update from their own button. Not yet tried with a real login.
 - **Speed (2026-10-12):** dashboard first paint 0.4 s (was 6-9 s); panel read 19 s (was 51 s),

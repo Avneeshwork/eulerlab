@@ -95,6 +95,32 @@ def timing(now: datetime) -> str:
     return "on time" if clock < WINDOW[1] else "late"
 
 
+SCHEDULED_WINDOW = ((15, 5), (15, 45))
+"""When an unattended run may send. Wider than the decision window, so a run
+a few minutes off still reports "early" or "late"; far narrower than the day."""
+
+
+def out_of_session(now: datetime) -> str:
+    """Why an unattended run should send nothing now, or "" when it should send.
+
+    The scheduled job is for 15:20 on weekdays, but launchd also runs a job it
+    missed while the Mac slept, at whatever hour it wakes. A "too late to act"
+    message at 21:00, or any message on a holiday, is the noise that teaches a
+    reader to ignore the channel (`notify.py`).
+    """
+    from eulerlab.ingest.coverage import nse_closures
+
+    ist = now.astimezone(IST)
+    if ist.weekday() >= 5:
+        return "weekend"
+    if ist.date() in nse_closures():
+        return "NSE holiday"
+    clock = (ist.hour, ist.minute)
+    if not SCHEDULED_WINDOW[0] <= clock < SCHEDULED_WINDOW[1]:
+        return f"{ist:%H:%M} IST is outside {SCHEDULED_WINDOW[0][0]}:{SCHEDULED_WINDOW[0][1]:02d} to {SCHEDULED_WINDOW[1][0]}:{SCHEDULED_WINDOW[1][1]:02d}"
+    return ""
+
+
 def compose(live: Live, now: datetime) -> str:
     """The Telegram text: the strategy's name, what it saw, what to do."""
     day = live.as_day(now.astimezone(IST).date())
@@ -124,9 +150,17 @@ def compose(live: Live, now: datetime) -> str:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="gap-signal")
     parser.add_argument("--dry-run", action="store_true", help="print the message, send nothing")
+    parser.add_argument(
+        "--scheduled",
+        action="store_true",
+        help="an unattended run: say nothing on a weekend, a holiday or far from 15:20 IST",
+    )
     args = parser.parse_args(argv)
 
     now = datetime.now(UTC)
+    if args.scheduled and (reason := out_of_session(now)):
+        print(f"gap-signal: nothing sent ({reason})")
+        return 0
     live, error = read_live()
     if live is None:
         text = f"SIGNAL · {gf.CALM_RISE_TITLE}\n\nNo decision tonight: {error}"

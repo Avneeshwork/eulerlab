@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Nineteen times this project was wrong
+## Twenty times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -204,6 +204,19 @@ Fixed: chunks are planned from the days each symbol does not hold
 (`uncovered_chunks`), and today is fetched only after 15:45 IST. The same day's
 plan fell from 3,108 chunks to 210. The overlapping files already landed stay,
 because landing is immutable.
+
+**20. Three "opening range" results on NIFTYBEES measured its first print.**
+(2026-10-12, research 075) `orb_breakout_in`, `orb_in_play_in` and
+`gap_continuation_in` were run on NIFTYBEES and stored as tests of
+opening-range rules on the index: Sharpe -3.83, -1.73 and -3.68. The opening
+range included the first one-minute bar, and on NIFTYBEES that bar sets the
+range's high or low on 99.6% of days and makes it three times as wide (72.7 bps
+against 25.2). Research 071 had already shown that print is on average 71 bps
+from a fair price. The three numbers are valid measurements of a rule nobody
+meant to test. They stay failed and are not re-run; they are not evidence
+about opening-range breakouts on the Nifty either way. Shares are affected
+far less (the first bar widens the range by about 40%, as an opening auction
+would).
 
 ---
 

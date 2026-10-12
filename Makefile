@@ -273,7 +273,7 @@ gap-forecast:
 # Tonight's decision for the registered gap strategy, sent to Telegram. Run
 # between 15:15 and 15:25 IST; needs a Kite token minted today. DRY=1 prints only.
 gap-signal:
-	@uv run python -m eulerlab.research.gap_signal $(if $(DRY),--dry-run,)
+	@uv run python -m eulerlab.research.gap_signal $(if $(DRY),--dry-run,) $(if $(SCHEDULED),--scheduled,)
 
 # Answer the operator's Telegram messages (status, positions, orders, next,
 # signal, data, strategies, help). Read-only. The API runs this itself; use
@@ -555,7 +555,7 @@ check-crypto:
 
 # Install / inspect the launchd job that actually runs `make daily`.
 schedule:
-	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)
+	@uv run python tools/schedule_daily.py $(if $(ACTION),$(ACTION),status) $(if $(JOB),--job $(JOB),) $(if $(HOUR),--hour $(HOUR),) $(if $(MINUTE),--minute $(MINUTE),)
 
 # The project's own auditor: defect shapes this codebase actually produces,
 # a smoke run of every registered strategy, and the strategy-to-file map.

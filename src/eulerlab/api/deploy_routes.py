@@ -90,12 +90,61 @@ def list_deployments() -> dict[str, Any]:
     return {"deployments": [_summary(d) for d in store.all_deployments()]}
 
 
+def _overnight_latest() -> tuple[Any, str, float] | None:
+    """The newest stored futures day, with the contract a signal would buy and its close."""
+    from datetime import date as date_type
+
+    from eulerlab.deploy import overnight
+    from eulerlab.market_history import NIFTY_FUTURES, _stored_days
+
+    days = sorted(_stored_days(NIFTY_FUTURES), key=lambda d: str(d["d"]))
+    if not days:
+        return None
+    last = days[-1]
+    chosen = overnight.contract_for(last["contracts"], str(last["d"]))
+    if chosen is None:
+        return None
+    return date_type.fromisoformat(str(last["d"])), chosen[0], chosen[1]
+
+
+def _overnight_preview(capital: float) -> dict[str, Any]:
+    """Whether this much money buys one lot of the future, at the last close."""
+    from eulerlab.deploy import overnight
+
+    latest = _overnight_latest()
+    if latest is None:
+        return {"ok": False, "error": "no Nifty future history. Run `make daily` first."}
+    day, expiry, close = latest
+    lot = overnight.lot_size(day, expiry)
+    if not lot:
+        return {"ok": False, "error": f"the lot size is not in the F&O file for {day}"}
+    lots = int(capital // (lot * close))
+    symbol = overnight.symbol_of(expiry)
+    return {
+        "ok": True,
+        "as_of": day.isoformat(),
+        "gross": 1.0,
+        "wanted": 1,
+        "affordable": 1 if lots else 0,
+        "names": [f"{lots} lot(s) of {symbol}"] if lots else [],
+        "cut": [] if lots else [symbol],
+        "note": (
+            f"One lot is {lot} units, ₹{lot * close:,.0f} at the last close. The book holds "
+            f"whole lots up to its own equity, with no borrowing, and only on nights after a "
+            f"GREEN day with VIX down."
+        ),
+    }
+
+
 @router.post("/preview")
 def preview(request: PreviewRequest) -> dict[str, Any]:
     """How many of the strategy's names this much money can buy today."""
+    from eulerlab.deploy import overnight
     from eulerlab.deploy.runner import GROSS, _intended, _strategy
     from eulerlab.features.panel import trading_days
 
+    if request.strategy in overnight.STRATEGIES:
+        return _overnight_preview(request.capital)
     rows = _rows()
     if not rows:
         return {"ok": False, "error": "no panel on disk"}
@@ -125,6 +174,17 @@ def deploy(request: DeployRequest) -> dict[str, Any]:
         }
     if request.capital < MIN_CAPITAL:
         return {"ok": False, "error": f"capital must be at least ₹{MIN_CAPITAL:,.0f}"}
+    from eulerlab.deploy import overnight
+
+    if request.strategy in overnight.STRATEGIES:
+        latest = _overnight_latest()
+        if latest is None:
+            return {"ok": False, "error": "no Nifty future history. Run `make daily` first."}
+        deployment = store.create(
+            request.strategy, mode=request.mode, capital=request.capital, start=latest[0]
+        )
+        _run_in_background(deployment.id)
+        return {"ok": True, "deployment": _summary(deployment)}
     try:
         strategy = _strategy(request.strategy)
     except KeyError as exc:
