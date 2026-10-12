@@ -80,6 +80,10 @@ class LLMConfig(BaseModel):
 
     default: str
     providers: list[Provider]
+    assistant: str | None = None
+    """The provider the in-app assistant uses (`assistant/chat.py`, ADR-064).
+    Named apart from `default` because the assistant sends the operator's own
+    numbers, so its host must be one whose data terms were read."""
 
     def get(self, name: str | None = None) -> Provider:
         wanted = name or self.default

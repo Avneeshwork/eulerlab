@@ -41,6 +41,21 @@ Verify: `uv run pytest -q tests/test_telegram_signals.py`; Strategies → "Green
 
 ---
 
+## The assistant (2026-10-12)
+
+Operator: "setup a free ai assistance ... ensure no data leak to ai, should have floating icon over screen". ADR-064, research 073.
+Verify: `uv run pytest -q tests/test_assistant.py`; open any screen and click the round button, bottom right.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4051 | **Assistant: floating button, chat route, eleven read-only tools, three locks** | DONE in code — `assistant/`, `api/assistant_routes.py`, `web/components/Assistant.tsx`. Every tool was run on real data locally. **Not yet run against Groq**: no key on this machine |
+| T-4052 | Operator: create the Groq key, turn on Zero Data Retention, set the two `.env` lines | OPEN — operator's action. `docs/RUNBOOKS/assistant-is-offline.md` |
+| T-4053 | First real questions: does `llama-3.3-70b-versatile` call the tools correctly, and does the free quota last a session? | OPEN — needs T-4052. Free-plan limits were not found (A-054) |
+| T-4054 | Free 5 GB of disk, then a local model becomes possible | NOTED — 1.4 GB free of 228 GB on 2026-10-11. Also a risk to the nightly job |
+| T-4055 | Tools for fundamentals, options chain and news | NOT BUILT — add when a question needs one. Each new tool is a new thing that can leave the machine |
+
+---
+
 ## Two pure intraday papers on NIFTYBEES (2026-10-11)
 
 Operator: "lets fetch 2 pure intraday strategy paper, code it and backtest on indian market". Research 071, H-0005, H-0006.

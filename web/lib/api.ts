@@ -1479,3 +1479,31 @@ export type DataCoverage = {
   busy: { what?: string; since?: string } | null;
   checked_at: string;
 };
+
+/* ---------------- assistant ---------------- */
+
+export type AssistantTool = { name: string; description: string };
+
+/** Whether the assistant can answer, and which host a question would go to. */
+export type AssistantStatus = {
+  ready: boolean;
+  reason: string;
+  provider?: string;
+  model?: string;
+  host?: string;
+  local?: boolean;
+  tools: AssistantTool[];
+};
+
+export type AssistantTurn = { role: 'user' | 'assistant'; content: string };
+
+/** One tool the model called: this, and the question, is all that was sent. */
+export type AssistantUse = { tool: string; arguments: string; characters: number };
+
+export type AssistantReply =
+  | { ok: true; text: string; provider: string; model: string; host: string; used: AssistantUse[] }
+  | { ok: false; error: string };
+
+export const assistantStatus = () => get<AssistantStatus>('/api/assistant/status');
+export const assistantChat = (messages: AssistantTurn[]) =>
+  post<AssistantReply>('/api/assistant/chat', { messages });

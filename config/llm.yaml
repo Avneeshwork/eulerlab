@@ -15,6 +15,11 @@
 
 default: ollama
 
+# The in-app assistant (ADR-064). It sends your own numbers, so the code only
+# accepts hosts whose data terms were read: api.groq.com, or a local model.
+# Groq needs Zero Data Retention turned on in its console first.
+assistant: groq
+
 providers:
   - name: ollama
     base_url: http://localhost:11434/v1
@@ -42,7 +47,7 @@ providers:
     model: llama-3.3-70b-versatile
     api_key_var: GROQ_API_KEY
     free: true
-    note: "Hosted, free tier with per-minute limits. Sends your prompt to a third party."
+    note: "Hosted, free tier with per-minute limits. Sends your prompt to a third party. Keeps nothing by default; turn on Zero Data Retention in its console (research 073)."
 
   - name: openai
     base_url: https://api.openai.com/v1

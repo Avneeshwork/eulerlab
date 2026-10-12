@@ -52,7 +52,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab import cloud_results, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
-from eulerlab.api import builder_routes, deploy_routes, research_routes
+from eulerlab.api import assistant_routes, builder_routes, deploy_routes, research_routes
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
@@ -126,6 +126,7 @@ app = FastAPI(title="EulerLab", version="0.1.0", lifespan=_lifespan)
 app.include_router(builder_routes.router)
 app.include_router(research_routes.router)
 app.include_router(deploy_routes.router)
+app.include_router(assistant_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,
