@@ -194,7 +194,11 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
                   <tbody>
                     {(s.book ?? []).map((p) => (
                       <tr key={p.symbol}>
-                        <td>{p.symbol}</td>
+                        <td>
+                          <a className="tsym" href={`/terminal/company/${encodeURIComponent(p.symbol)}`}>
+                            {p.symbol}
+                          </a>
+                        </td>
                         <td className="r">{p.quantity}</td>
                         <td className="r">{p.average_price?.toFixed(2) ?? '—'}</td>
                         <td className="r">{p.last_price.toFixed(2)}</td>
@@ -230,7 +234,11 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
                       .map((f, i) => (
                         <tr key={`${f.day}-${f.symbol}-${i}`}>
                           <td>{f.day}</td>
-                          <td>{f.symbol}</td>
+                          <td>
+                            <a className="tsym" href={`/terminal/company/${encodeURIComponent(f.symbol)}`}>
+                              {f.symbol}
+                            </a>
+                          </td>
                           <td className={f.side === 'buy' ? 'pos' : 'neg'}>{f.side}</td>
                           <td className="r">{f.quantity}</td>
                           <td className="r">{f.price.toFixed(2)}</td>

@@ -58,6 +58,7 @@ from eulerlab.api import (
     builder_routes,
     company_routes,
     deploy_routes,
+    kite_routes,
     research_routes,
 )
 from eulerlab.authoring import translate
@@ -158,6 +159,7 @@ app.include_router(research_routes.router)
 app.include_router(deploy_routes.router)
 app.include_router(assistant_routes.router)
 app.include_router(company_routes.router)
+app.include_router(kite_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,

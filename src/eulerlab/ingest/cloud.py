@@ -312,6 +312,30 @@ class S3ObjectStore:
         """One paginated LIST instead of one HEAD per object."""
         return self._list_page_by_page(prefix)
 
+    def list_md5(self, prefix: str) -> dict[str, str]:
+        """Each key under `prefix` with the MD5 of its bytes, from one listing.
+
+        The listing's ETag is the object's MD5 when it was uploaded in one
+        piece, which `put` always does. Checked 2026-10-12 against all 70
+        result files in the bucket: every ETag equalled the local file's MD5.
+        A multipart ETag (it contains a "-") is not an MD5 and is left out, so
+        a caller treats that object as unknown, never as matching.
+        """
+        found: dict[str, str] = {}
+        token: str | None = None
+        while True:
+            kwargs: dict[str, object] = {"Bucket": self._bucket, "Prefix": prefix, "MaxKeys": 1000}
+            if token is not None:
+                kwargs["ContinuationToken"] = token
+            response = self._client.list_objects_v2(**kwargs)
+            for item in response.get("Contents", []):
+                key, etag = item.get("Key"), str(item.get("ETag") or "").strip('"')
+                if isinstance(key, str) and etag and "-" not in etag:
+                    found[key] = etag.lower()
+            if not response.get("IsTruncated"):
+                return found
+            token = response.get("NextContinuationToken")
+
     def list_groups(self, prefix: str) -> list[str]:
         """The immediate child prefixes of `prefix`, one delimited request."""
         groups: list[str] = []

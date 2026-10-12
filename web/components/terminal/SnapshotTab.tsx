@@ -896,7 +896,9 @@ function Movers({
           {rows.map((row) => (
             <tr key={row.symbol}>
               <td>
-                <b>{row.symbol}</b>
+                <a className="tsym" href={`/terminal/company/${encodeURIComponent(row.symbol)}`}>
+                  <b>{row.symbol}</b>
+                </a>
                 <div className="tfine">{crore(row.turnover)} traded</div>
                 {stories &&
                   (stories[row.symbol] ? (

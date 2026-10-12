@@ -2658,3 +2658,31 @@ textarea:focus-visible {
 /* Delete local copies, armed after its dry run. Red because it deletes, even
    though every file it removes is confirmed in B2 first. */
 .tsyncbox .tbtn.danger { background: var(--down); border-color: var(--down); color: #fff; }
+
+/* A symbol that opens its company page. Looks like the text it replaces until
+   it is pointed at, so a table of them does not turn into a column of links. */
+.tsym {
+  color: inherit;
+  text-decoration: none;
+}
+.tsym:hover,
+.tsym:focus-visible {
+  text-decoration: underline;
+}
+
+/* Kite login on the Instruments page. globals.css gives every input full
+   width and its own colours; the box's input is restyled by name. */
+.kite-box { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s4); }
+.kite-head { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.kite-state { font-size: var(--t-small); color: var(--caveat); }
+.kite-state.is-on { color: var(--neon-deep); }
+.kite-steps { margin: 0; padding-left: var(--s5); font-size: var(--t-small); color: var(--ink-2); line-height: 1.6; }
+.kite-steps a { color: var(--ink); }
+.kite-form { display: flex; gap: var(--s2); }
+.terminal .kite-form input {
+  flex: 1; min-width: 0; width: auto; height: var(--control-h);
+  border: 1px solid var(--rule-2); border-radius: var(--r-sm); padding: 0 var(--s3);
+  background: var(--surface); color: var(--ink); font-family: var(--mono); font-size: var(--t-small);
+}
+.terminal .kite-form input:focus { outline: 2px solid var(--neon-deep); outline-offset: 1px; border-color: var(--rule-2); }
+.kite-error { margin: 0; padding: var(--s2) var(--s3); background: var(--fail-wash); border-radius: var(--r-sm); font-size: var(--t-small); overflow-wrap: anywhere; }

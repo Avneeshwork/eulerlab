@@ -249,6 +249,97 @@ def _read_document(args: Mapping[str, Any]) -> str:
     )
 
 
+# --- one company ------------------------------------------------------------------------------
+
+COMPANY_ROWS = {
+    "quarters": ("Sales", "Operating Profit", "Net Profit", "EPS in Rs"),
+    "profit-loss": ("Sales", "Net Profit", "EPS in Rs"),
+    "balance-sheet": ("Borrowings", "Reserves"),
+    "cash-flow": ("Cash from Operating Activity", "Free Cash Flow"),
+    "shareholding": ("Promoters", "FIIs", "DIIs", "Public"),
+}
+"""The statement rows a question about a company usually turns on. The page
+shows every row; this keeps one answer inside `MAX_CHARS`."""
+COMPANY_PERIODS = 5
+
+
+def _company(args: Mapping[str, Any]) -> str:
+    """What the company page shows, as text (`features/company_page.py`)."""
+    import re
+
+    from eulerlab.features import company as digest
+    from eulerlab.features import company_page
+
+    wanted = str(args.get("symbol") or "").strip().upper()
+    names_path = DERIVED / "nse_names.json"
+    names: dict[str, str] = (
+        json.loads(names_path.read_text(encoding="utf-8")) if names_path.exists() else {}
+    )
+    held = digest.load_digest()
+    if wanted not in held:
+        # Not a symbol held: treat it as part of a name and offer the matches.
+        matches = [
+            c
+            for c in held.values()
+            if wanted and wanted in f"{c.symbol} {names.get(c.symbol, '')}".upper()
+        ]
+        matches.sort(key=lambda c: -(c.market_cap or 0))
+        if not matches:
+            return f"No company matches '{wanted}'. Fundamentals are held for {len(held)} NSE companies."
+        return "Give one of these symbols:\n" + "\n".join(
+            f"{c.symbol}: {names.get(c.symbol, '')} ({c.industry})" for c in matches[:15]
+        )
+    if not re.fullmatch(r"[A-Z0-9&\-]{1,20}", wanted):
+        return f"'{wanted}' is not a symbol."
+    relative = company_page.latest_file(wanted)
+    if relative is None:
+        return f"No fundamentals file is held for {wanted}."
+    page = company_page.build(
+        wanted,
+        company_page.read_columns(relative),
+        companies=held,
+        names=names,
+        as_of=Path(relative).stem,
+    )
+    profile, peers = page["profile"], page["peers"]
+    lines = [
+        f"{page['name'] or wanted} (NSE: {wanted}). Fundamentals from screener.in, file of "
+        f"{page['as_of']}. Statement figures are in Rs crore; per-share figures in Rs.",
+        f"Sector: {' > '.join(profile['sector_levels'])}",
+        "Header: "
+        + json.dumps(
+            _slim(
+                {
+                    k: profile[k]
+                    for k in (
+                        "market_cap",
+                        "price",
+                        "pe",
+                        "roce",
+                        "roe",
+                        "book_value",
+                        "dividend_yield",
+                    )
+                }
+            )
+        )
+        + " (market_cap in Rs; roce, roe, dividend_yield in percent)",
+        "Computed: " + json.dumps(_slim(page["metrics"])) + " (ratios and growth as fractions)",
+        f"Industry {peers['industry']}: {peers['count']} companies, median P/E {peers['median_pe']}",
+    ]
+    for table, labels in COMPANY_ROWS.items():
+        held_table = page["tables"][table]
+        periods = held_table["periods"][-COMPANY_PERIODS:]
+        if not periods:
+            continue
+        lines.append(f"{table}, periods {', '.join(periods)}:")
+        for row in held_table["rows"]:
+            if row["label"] in labels:
+                lines.append(f"  {row['label']}: {row['values'][-len(periods) :]}")
+    lines.append("Not held for any company: " + "; ".join(page["not_held"]) + ".")
+    return "\n".join(lines)
+
+
 # --- prices ---------------------------------------------------------------------------------
 
 
@@ -389,6 +480,13 @@ TOOLS: dict[str, Tool] = {
             "required": ["path"],
         },
         _read_document,
+    ),
+    "company": Tool(
+        "One NSE company's fundamentals: sector, market cap, P/E, ROCE, ROE, margins, growth, "
+        "recent quarterly and yearly sales and profit, cash flow, shareholding, industry median "
+        "P/E. Give part of a name to get matching symbols.",
+        _text("symbol", "NSE symbol, for example RELIANCE, or part of a company name.", True),
+        _company,
     ),
     "prices": Tool(
         "Recent daily prices of one NSE symbol from the price panel.",

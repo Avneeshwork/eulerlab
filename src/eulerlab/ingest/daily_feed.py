@@ -351,6 +351,24 @@ def _us_panel() -> str:
     return f"{rows:,} rows, {symbols} symbols (last two months re-read)"
 
 
+def _india_minute() -> str:
+    """Kite minute bars for the sessions not yet held (`make daily-minute`).
+
+    Needs a Kite token minted today. Without one the step says so and passes:
+    a red row every afternoon would teach the operator to ignore red rows.
+    The Instruments page now has the login (`api/kite_routes.py`), which is
+    what makes this a step at all.
+    """
+    from eulerlab.broker import kite_session
+    from eulerlab.ingest import backfill_minute
+
+    if not kite_session.is_fresh(kite_session.load()):
+        return "skipped: no Kite token minted today. Log in to Kite on this page first"
+    text = _captured(lambda: backfill_minute.main(["--years", "1"]))
+    last = next((ln.strip() for ln in reversed(text.splitlines()) if ln.strip()), "")
+    return last[:160] or "minute bars up to date"
+
+
 STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("NSE end-of-day", _nse_eod),
     ("participant OI", _participant_oi),
@@ -368,16 +386,17 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("option chain", _option_chain),
     ("US bars and actions", _us),
     ("US panel", _us_panel),
+    ("India minute bars", _india_minute),
 )
 """The sources a daily refresh touches, in the order `make daily` runs them.
 
 Fetch first, then everything derived from what was fetched, India before the
 rest so the paper books are current within minutes of the click.
 
-**Minute bars are absent, deliberately.** They need a Kite token minted the same
-day, which a browser button cannot obtain — offering the step and failing every
-afternoon would teach the operator to ignore a red row. `make daily-minute`
-after a login is the honest route, and the runbook says so."""
+**Minute bars are last, and skip themselves without a token.** They need a Kite
+token minted the same day. Until 2026-10-12 a browser could not obtain one, so
+the step was left out. The Instruments page now logs in to Kite, so the step
+is here; with no fresh token it reports "skipped" and passes."""
 
 STEP_MODULES: dict[str, str] = {
     "NSE end-of-day": "eulerlab.ingest.nse_eod",
@@ -396,6 +415,7 @@ STEP_MODULES: dict[str, str] = {
     "option chain": "eulerlab.ingest.nse_chain",
     "US bars and actions": "eulerlab.ingest.alpaca",
     "US panel": "build-us-panel",
+    "India minute bars": "daily-minute",
 }
 """What each step runs, as `make daily` names it (a module or a make target).
 `tests/test_feed_parity.py` fails when `make daily` runs something that is
@@ -430,7 +450,6 @@ def with_dependents(only: Sequence[str]) -> set[str]:
 
 TERMINAL_ONLY: dict[str, str] = {
     "eulerlab.fundamentals.backfill": "walks every symbol for hours; overnight only",
-    "daily-minute": "needs a Kite token minted today, which a button cannot obtain",
     "eulerlab.ingest.crypto_backfill": "a one-year backfill; the button fills the recent gap",
     "sync-cloud": "the button mirrors at the end of every run",
     "prune-local": "deleting files is not a side effect of a refresh button",

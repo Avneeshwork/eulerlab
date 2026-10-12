@@ -1619,3 +1619,24 @@ export const companySearch = (q: string, limit = 8) =>
   get<{ total: number; rows: CompanyHit[] }>(
     `/api/companies?q=${encodeURIComponent(q)}&limit=${limit}`,
   );
+
+/* ---------------- Kite login ---------------- */
+
+/** Whether today's Kite token is held. Never carries the token itself. */
+export type KiteStatus = {
+  configured: boolean;
+  fresh: boolean;
+  user?: string;
+  expires_at?: string;
+  /** Zerodha's own login page for this app. */
+  login_url?: string;
+  reason: string;
+};
+
+export const kiteStatus = () => get<KiteStatus>('/api/kite/status');
+/** `pasted` is the address Zerodha redirected to, or the request_token alone. */
+export const kiteLogin = (pasted: string) =>
+  post<{ ok: true; user: string; expires_at: string } | { ok: false; error: string }>(
+    '/api/kite/login',
+    { pasted },
+  );

@@ -1519,6 +1519,32 @@ Still slow, and why: the live snapshot takes about 5 s because it asks Kite
 for the whole universe in 16 calls of 200 symbols; it no longer blocks the
 first paint. The first call to `/api/fleet` after a restart takes 2.7 s.
 
+## Kite login from the Instruments page
+
+India's minute bars need a Kite token minted the same day. `api/kite_routes.py`
+gives the page the two ends of a login Zerodha insists on hosting itself:
+`GET /api/kite/status` (the link to Zerodha's login page, and whether today's
+token is held) and `POST /api/kite/login` (the address Zerodha redirected to,
+pasted back, exchanged by `broker.kite_session` exactly as `make kite-login`
+does). `GET /api/kite/callback` does the exchange without the paste when the
+Kite app's redirect URL is `http://localhost:3000/api/kite/callback`. No route
+returns the token, the key or the secret.
+
+"India minute bars" is the last feed step (`daily_feed._india_minute`) and the
+row's own Update button. Without a token minted today it reports "skipped" and
+passes.
+
+## Backtest results and the bucket
+
+`cloud_results.mirror` pulls then pushes `data/workspaces/<id>/results/*.jsonl`.
+A file is "the same" when its MD5 equals the bucket listing's ETag
+(`S3ObjectStore.list_md5`); only files that differ are downloaded or uploaded,
+and the bucket is listed once. A store that cannot give hashes is never trusted
+to say two files match. `make results-pull` downloads and merges everything.
+`make results-dedupe` removes rows identical but for the time written: it
+pulls everything, drops the repeats, then pushes without pulling again, since
+a mirror would merge the bucket's repeats straight back.
+
 ## Company pages (ADR-065)
 
 `/terminal/company/<SYMBOL>` shows what is held about one company. Tiles on
@@ -1545,6 +1571,10 @@ before. Industry median P/E = median over companies in the same industry with
 positive earnings, blank below three. 52-week high and low are of adjusted
 closes, not intraday prices.
 
+**News.** Only headlines that pass `ingest.news.strong_match` for this company
+are shown. The archive's own tag is loose: every result of a search for a
+symbol carries that symbol.
+
 **Not held, and said so on the page.** Analyst ratings, price targets, forward
 estimates, a discounted cash flow, the company description, chief executive,
 employees and listing date.
@@ -1563,7 +1593,7 @@ has no tools, so it must answer.
 
 **What the model can read.** Only `tools.TOOLS`, each capped at 3,500
 characters: deployments, positions, orders, next rebalance, data coverage,
-strategies, stored results, study outputs, documents (`docs/`, `hypotheses/`,
+strategies, stored results, study outputs, one company's fundamentals, documents (`docs/`, `hypotheses/`,
 `research/`, `STATE.md`, `TASKS.md`, `README.md`), and daily prices. Long
 series are replaced by a count. No tool writes, trades, runs a backtest or
 opens `data/` as a file path.

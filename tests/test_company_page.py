@@ -146,7 +146,37 @@ def test_news_is_matched_on_the_tag_not_on_text_and_newest_first() -> None:
             ]
         ).encode()
     )
-    assert [n["title"] for n in cp.news("TCS", [blob])] == ["t-b", "t-a"]
+    # The ticker is named in none of these titles, so the strict test drops them.
+    assert cp.news("TCS", [blob], "Tata Consultancy Services Limited") == []
+
+
+def test_news_keeps_only_headlines_that_name_the_company() -> None:
+    def line(guid: str, title: str) -> str:
+        return json.dumps(
+            {
+                "guid": guid,
+                "title": title,
+                "link": guid,
+                "symbols": ["RELIANCE"],
+                "event_time": f"2026-10-0{guid}T00:00:00+00:00",
+            }
+        )
+
+    blob = gzip.compress(
+        "\n".join(
+            [
+                line("1", "Reliance Industries posts record quarterly profit"),
+                line("2", "Tatva Chintan Pharma Chem (TATVA) Share Price, NSE"),
+                line("3", "Reliance Communications (RCOM) lenders meet again"),
+                line("4", "Why Reliance Industries stock fell today"),
+            ]
+        ).encode()
+    )
+    titles = [n["title"] for n in cp.news("RELIANCE", [blob], "Reliance Industries Limited")]
+    assert titles == [
+        "Why Reliance Industries stock fell today",
+        "Reliance Industries posts record quarterly profit",
+    ]
 
 
 def test_price_block_takes_the_year_range_from_adjusted_closes() -> None:

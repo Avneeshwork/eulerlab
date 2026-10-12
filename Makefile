@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -230,6 +230,11 @@ ui:
 # The mirror after a batch skips files whose size matches; this does not.
 results-pull:
 	uv run python -m eulerlab.cloud_results
+
+# Drop result rows that repeat another row in everything but the time written,
+# here and in the bucket. Shows what it would do; APPLY=1 does it.
+results-dedupe:
+	@uv run python -m eulerlab.cloud_results --dedupe $(if $(APPLY),--apply,)
 
 # The web code's own gates: types and the Next lint rules.
 web-check:

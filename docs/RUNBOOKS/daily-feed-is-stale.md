@@ -7,6 +7,13 @@ bars. Nothing errors — stale data reads exactly like fresh data.
 **Impact.** No money at risk directly. The risk is a result computed on a short
 window and reported as if it covered today.
 
+## India minute bars are behind
+
+They need a Kite token made today. Tools → Instruments → the Kite strip: open
+Zerodha's login page, sign in, paste the address it sends you to, then press
+Update on the India minute bars row. `make kite-login` then `make daily-minute`
+does the same from a terminal.
+
 ## Diagnose
 
 1. Terminal → **Instruments** → the button block states what a refresh covers.

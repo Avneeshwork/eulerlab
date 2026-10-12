@@ -192,15 +192,27 @@ def peers(
     }
 
 
-def news(symbol: str, files: Iterable[bytes]) -> list[dict[str, str]]:
-    """The newest headlines tagged with `symbol`, from gzipped JSON-lines archives."""
+def news(symbol: str, files: Iterable[bytes], name: str = "") -> list[dict[str, str]]:
+    """The newest headlines that name this company, from gzipped JSON-lines archives.
+
+    The tag alone is not enough. The archive tags every result of a search for
+    a symbol with that symbol, so headlines about Tatva Chintan and InfoBeans
+    carried the RELIANCE tag (seen 2026-10-12). `ingest.news.strong_match` is
+    the project's test for "this headline names this company": the ticker, or
+    the first two distinctive words of the registered name. A headline that
+    fails it is left out; an empty list says nothing, a wrong headline says
+    something untrue.
+    """
+    from eulerlab.ingest.news import strong_match
+
     found: dict[str, dict[str, str]] = {}
     for blob in files:
         for line in gzip.decompress(blob).decode("utf-8", errors="replace").splitlines():
             if f'"{symbol}"' not in line:
                 continue
             row = json.loads(line)
-            if symbol in (row.get("symbols") or []):
+            title = str(row.get("title") or "")
+            if symbol in (row.get("symbols") or []) and strong_match(title, symbol, name):
                 found[str(row.get("guid") or row.get("link"))] = {
                     "title": str(row.get("title") or ""),
                     "link": str(row.get("link") or ""),

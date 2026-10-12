@@ -111,7 +111,7 @@ def company(symbol: str) -> dict[str, Any]:
     )
     page["price"] = _prices(wanted)
     try:
-        page["news"] = company_page.news(wanted, company_page.news_files())
+        page["news"] = company_page.news(wanted, company_page.news_files(), page["name"])
     except Exception:
         page["news"] = []
     return {"ok": True, **page}

@@ -12,7 +12,7 @@ passes through Groq. (d) Gemini's free tier: trains on prompts, ruled out.
 
 **Choice.** (c), chosen by the operator on 2026-10-12. `assistant/chat.py`
 sends to the provider named `assistant` in `config/llm.yaml`. The model gets
-no files, only the eleven read-only tools in `assistant/tools.py`. Three locks:
+no files, only the read-only tools in `assistant/tools.py` (eleven at first, twelve since `company` was added). Three locks:
 only approved hosts (`ALLOWED_HOSTS`); off until `EULERLAB_ASSISTANT_ZDR=1`
 says retention was turned off; every request scrubbed of every `.env` value.
 The panel shows the host, and under each answer what was sent.

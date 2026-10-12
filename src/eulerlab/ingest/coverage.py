@@ -270,6 +270,7 @@ STEPS_FOR: dict[str, tuple[str, ...]] = {
     "FX 1-minute": ("FX",),
     "Mutual fund NAVs": ("mutual fund NAVs",),
     "Option chain snapshots": ("option chain",),
+    "India minute bars (Kite)": ("India minute bars",),
 }
 """Each dataset's own Update button: the fetch it derives from, then the build.
 Every name must be a `daily_feed.STEPS` name (tests/test_data_pipeline.py)."""
@@ -369,12 +370,12 @@ def table(now: datetime | None = None) -> list[Row]:
     slow = "Not in the button"
     kite = _max_by(LANDING / "kite_minute" / "manifest.jsonl", "", "end").get("", "")
     add(
-        slow,
+        "Needs a Kite login",
         "India minute bars (Kite)",
         kite,
         "nse",
-        detail="needs a Kite token minted today",
-        fix="make kite-login, then make daily-minute",
+        detail="needs a Kite token minted today: log in to Kite above",
+        fix="Log in to Kite on this page, then Update",
     )
     funda = _max_by(LANDING / "fundamentals" / "manifest.jsonl", "", "fetch_date").get("", "")
     add(

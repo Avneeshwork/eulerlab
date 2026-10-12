@@ -249,6 +249,51 @@ def _read_rows(workspace: Workspace, strategy_id: str) -> list[dict[str, Any]]:
     return out
 
 
+def drop_duplicates(workspace: Workspace, *, dry_run: bool = True) -> dict[str, tuple[int, int]]:
+    """Remove rows that repeat another row in everything but the time written.
+
+    Until 2026-10-12 a batch recorded each result two or three times (T-4050),
+    milliseconds apart, and re-running an unchanged backtest adds a row that
+    says the same thing again. Of rows identical apart from `at`, the latest
+    is kept. Returns `{file name: (rows kept, rows dropped)}` for files that
+    had any.
+
+    Nothing the library reports can change. `distinct` already reads one row
+    per configuration, the latest, and rows that differ only in `at` share a
+    configuration, a result and a `superseded` count. This is not
+    `make prune-runs`, which drops whole configurations and their reports.
+    """
+    outcome: dict[str, tuple[int, int]] = {}
+    if not workspace.results.exists():
+        return outcome
+    for path in sorted(workspace.results.glob("*.jsonl")):
+        kept: dict[str, tuple[str, str]] = {}
+        total = 0
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # a torn line is not a result (see `_read_rows`)
+            if not isinstance(row, dict):
+                continue
+            total += 1
+            at = str(row.get("at", ""))
+            content = json.dumps({k: v for k, v in row.items() if k != "at"}, sort_keys=True)
+            if content not in kept or at >= kept[content][0]:
+                kept[content] = (at, line.strip())
+        if len(kept) == total:
+            continue
+        outcome[path.name] = (len(kept), total - len(kept))
+        if not dry_run:
+            ordered = sorted(kept.values(), key=lambda item: item[0])
+            tmp = path.with_suffix(".partial")
+            tmp.write_text("".join(f"{line}\n" for _, line in ordered), encoding="utf-8")
+            tmp.replace(path)
+    return outcome
+
+
 def _to_run(row: dict[str, Any]) -> Run:
     return Run(
         strategy_id=str(row["strategy_id"]),

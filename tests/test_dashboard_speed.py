@@ -383,6 +383,16 @@ class _Bucket:
         self.lists += 1
         return {k: len(v) for k, v in self.objects.items() if k.startswith(prefix)}
 
+    def list_md5(self, prefix: str) -> dict[str, str]:
+        import hashlib
+
+        self.lists += 1
+        return {
+            k: hashlib.md5(v, usedforsecurity=False).hexdigest()
+            for k, v in self.objects.items()
+            if k.startswith(prefix)
+        }
+
     def get(self, key: str) -> bytes:
         self.gets.append(key)
         return self.objects[key]
@@ -428,3 +438,77 @@ def test_the_mirror_downloads_only_files_that_differ(
     bucket.gets.clear()
     cloud_results.mirror(workspace, bucket, full=True)
     assert len(bucket.gets) == 3
+
+
+def test_two_files_of_equal_size_and_different_content_are_not_called_the_same(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The hole a size test has: each machine appended a different row of one length."""
+    from eulerlab import cloud_results
+    from eulerlab import workspace as workspace_mod
+
+    monkeypatch.setattr(workspace_mod, "ROOT", tmp_path)
+    workspace = workspace_mod.Workspace(id="t", name="T")
+    workspace.results.mkdir(parents=True)
+    prefix = f"{cloud_results.RESULTS_PREFIX}{workspace.id}/"
+    here = '{"configuration": "x", "at": "2026-01-01", "sharpe": 1.0}\n'
+    there = '{"configuration": "y", "at": "2026-01-02", "sharpe": 2.0}\n'
+    assert len(here) == len(there)
+    (workspace.results / "s.jsonl").write_text(here, encoding="utf-8")
+    bucket = _Bucket({f"{prefix}s.jsonl": there.encode()})
+
+    outcome = cloud_results.mirror(workspace, bucket)
+    merged = (workspace.results / "s.jsonl").read_text(encoding="utf-8")
+    # Both rows are now on both sides.
+    assert bucket.gets == [f"{prefix}s.jsonl"] and outcome.pulled == 1 and outcome.pushed == 1
+    assert '"x"' in merged and '"y"' in merged
+    assert bucket.objects[f"{prefix}s.jsonl"].decode() == merged
+
+    # A store that cannot give hashes is never trusted to say "the same".
+    class _NoHashes(_Bucket):
+        list_md5 = None  # type: ignore[assignment]
+
+    plain = _NoHashes({f"{prefix}s.jsonl": merged.encode()})
+    cloud_results.pull(workspace, plain)
+    assert plain.gets == [f"{prefix}s.jsonl"]
+
+
+def test_repeated_rows_are_dropped_and_the_library_says_the_same(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab import results
+    from eulerlab import workspace as workspace_mod
+
+    monkeypatch.setattr(workspace_mod, "ROOT", tmp_path)
+    workspace = workspace_mod.Workspace(id="t", name="T").ensure()
+
+    def row(at: str, sharpe: float, days: int = 100) -> str:
+        return json.dumps(
+            {"strategy_id": "s", "sharpe": sharpe, "fills": 5, "window_days": days, "at": at}
+        )
+
+    lines = [
+        row("2026-01-01T00:00:00", 1.0),
+        row("2026-01-01T00:00:01", 1.0),  # the same run, written again a second later
+        row("2026-01-01T00:00:02", 1.0),
+        row("2026-02-01T00:00:00", 2.0, days=200),  # a different configuration
+        row("2026-03-01T00:00:00", 1.5),  # the first configuration, a different result
+        "{torn",
+    ]
+    path = workspace.results / "s.jsonl"
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    before = (results.summary(workspace, "s"), results.best(workspace, "s"))
+
+    assert results.drop_duplicates(workspace) == {"s.jsonl": (3, 2)}
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 6  # a dry run by default
+
+    assert results.drop_duplicates(workspace, dry_run=False) == {"s.jsonl": (3, 2)}
+    kept = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    # Of the three repeats the latest is kept; rows stay in time order.
+    assert [r["at"] for r in kept] == [
+        "2026-01-01T00:00:02",
+        "2026-02-01T00:00:00",
+        "2026-03-01T00:00:00",
+    ]
+    assert (results.summary(workspace, "s"), results.best(workspace, "s")) == before
+    assert results.drop_duplicates(workspace, dry_run=False) == {}

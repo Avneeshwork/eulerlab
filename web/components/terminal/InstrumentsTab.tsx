@@ -13,6 +13,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { ASSET_CLASSES, assetClassLabel } from '@/lib/assetClasses';
 import type { DataCoverage, InstrumentList } from '@/lib/api';
+import { KiteLogin } from './KiteLogin';
 
 // Labels come from `lib/assetClasses`, the single source three components used
 // to each keep a private copy of.
@@ -319,6 +320,8 @@ export function InstrumentsTab() {
         </div>
       </section>
 
+      <KiteLogin onLogin={() => setReloadAt(Date.now())} />
+
       {coverage?.ok && (
         <section className="tpanel coverage">
           <div className="coverage-head">
@@ -512,7 +515,16 @@ export function InstrumentsTab() {
               {list?.instruments.map((instrument) => (
                 <tr key={`${instrument.asset_class}-${instrument.symbol}`}>
                   <td>
-                    <b>{instrument.name || instrument.symbol}</b>
+                    {instrument.asset_class === 'equity' ? (
+                      <a
+                        className="tsym"
+                        href={`/terminal/company/${encodeURIComponent(instrument.symbol)}`}
+                      >
+                        <b>{instrument.name || instrument.symbol}</b>
+                      </a>
+                    ) : (
+                      <b>{instrument.name || instrument.symbol}</b>
+                    )}
                     {(instrument.name || instrument.detail) && (
                       <div className="tfine">
                         {instrument.name ? instrument.symbol : ''}
