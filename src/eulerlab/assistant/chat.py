@@ -48,6 +48,7 @@ MAX_ROUNDS = 6
 MAX_HISTORY = 8
 MAX_QUESTION = 2000
 TIMEOUT_SECONDS = 60
+USER_AGENT = "EulerLab/0.1"
 
 SYSTEM = """You are the assistant inside EulerLab, one person's quant research and trading platform for Indian markets.
 Answer questions about their data, strategies, research and paper trades.
@@ -138,7 +139,9 @@ def status() -> dict[str, Any]:
 def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
     """Send one request, scrubbed. The only place the assistant opens a connection."""
     key = client._api_key(chosen)
-    headers = {"Content-Type": "application/json"}
+    # Groq sits behind Cloudflare, which answers Python's default user agent
+    # with HTTP 403 "error code: 1010" (seen 2026-10-12). Any named agent passes.
+    headers = {"Content-Type": "application/json", "User-Agent": USER_AGENT}
     if key:
         headers["Authorization"] = f"Bearer {key}"
     request = urllib.request.Request(
