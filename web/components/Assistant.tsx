@@ -47,6 +47,7 @@ export default function Assistant() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [showTools, setShowTools] = useState(false);
+  const [wide, setWide] = useState(false);
   /** The model picked from the list. Empty means the default in config/llm.yaml. */
   const [pick, setPick] = useState('');
   const end = useRef<HTMLDivElement>(null);
@@ -103,6 +104,7 @@ export default function Assistant() {
     const next: Entry[] = [...thread, { role: 'user', content: question }];
     setThread(next);
     setDraft('');
+    if (input.current) input.current.style.height = 'auto';
     setBusy(true);
     try {
       const reply = await assistantChat(
@@ -153,7 +155,11 @@ export default function Assistant() {
       </button>
 
       {open && (
-        <section className="asst-panel" role="dialog" aria-label="Assistant">
+        <section
+          className={`asst-panel${wide ? ' is-wide' : ''}`}
+          role="dialog"
+          aria-label="Assistant"
+        >
           <header className="asst-head">
             <div>
               <strong>Assistant</strong>
@@ -165,6 +171,9 @@ export default function Assistant() {
               )}
             </div>
             <div className="asst-head-actions">
+              <button type="button" onClick={() => setWide((v) => !v)}>
+                {wide ? 'Smaller' : 'Larger'}
+              </button>
               <button type="button" onClick={() => setShowTools((v) => !v)}>
                 {showTools ? 'Chat' : 'What it can read'}
               </button>
@@ -261,11 +270,17 @@ export default function Assistant() {
             <textarea
               ref={input}
               value={draft}
-              rows={2}
+              rows={1}
               maxLength={2000}
               placeholder={status?.ready === false ? 'The assistant is off' : 'Ask a question'}
               disabled={busy || status?.ready === false}
               onChange={(event) => setDraft(event.target.value)}
+              onInput={(event) => {
+                // One line until more is typed, then grow with the text.
+                const box = event.currentTarget;
+                box.style.height = 'auto';
+                box.style.height = `${Math.min(box.scrollHeight, 132)}px`;
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();

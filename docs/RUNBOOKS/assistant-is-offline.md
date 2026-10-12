@@ -16,6 +16,7 @@ prints the same. Nothing is sent to anyone while it is off.
 | HTTP 403, error code 1010 | Cloudflare refusing Python's default user agent. Fixed 2026-10-12: `chat.USER_AGENT`. If it returns, that header was dropped |
 | No zero-retention endpoint serves the model | The free model lost its zero-retention endpoint, so OpenRouter refused and nothing was sent on. Choose another under `openrouter-private` in `config/llm.yaml`. Research 073 says how the current one was found |
 | No `OPENROUTER_API_KEY` in `.env` | Create a key at openrouter.ai and add it |
+| Could not reach the host | No internet, or the name could not be looked up. Seen 2026-10-12 as `[Errno 8] nodename nor servname provided`; it cleared by itself. Check the connection and ask again |
 | The API is not running | Start it: `make api` |
 | HTTP 400 naming a tool | The model wrote a bad tool call. Ask again, or more simply. If it repeats, change `model` under `groq` in `config/llm.yaml` to `openai/gpt-oss-120b` |
 
@@ -28,6 +29,12 @@ position: its styles use tokens (`--ink`, `--s5`) that exist only inside the
 `.terminal` element, and it had been mounted in the root layout, outside it.
 It now sits in `web/app/terminal/layout.tsx`. A new page outside `/terminal`
 would need its own mount inside an element that defines those tokens.
+
+## The question box fills the panel
+
+Seen 2026-10-12. `web/app/globals.css` gives every `textarea` a 300px minimum
+height and full width. `assistant.css` undoes each by name under
+`.asst-panel`. A new form control in the panel needs the same care.
 
 ## Adding a model to the list
 

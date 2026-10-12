@@ -243,8 +243,16 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
             ) from exc
         detail = redact.scrub(exc.read().decode(errors="replace"))[:300]
         raise Refused(f"{chosen.name} returned HTTP {exc.code}: {detail}") from exc
-    except (urllib.error.URLError, TimeoutError) as exc:
-        raise Refused(f"Could not reach {chosen.name}: {exc}") from exc
+    except TimeoutError as exc:
+        raise Refused(
+            f"{chosen.name} did not answer in {TIMEOUT_SECONDS} seconds. Ask again."
+        ) from exc
+    except urllib.error.URLError as exc:
+        # Seen 2026-10-12 as "[Errno 8] nodename nor servname provided": the
+        # name could not be looked up, which on this Mac meant no internet.
+        raise Refused(
+            f"Could not reach {host_of(chosen)}. Check the internet connection and ask again."
+        ) from exc
 
 
 def _history(messages: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
