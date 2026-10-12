@@ -244,3 +244,29 @@
   font-size: var(--t-micro);
   color: var(--ink-3);
 }
+
+.asst-model {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s2) var(--s4);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}
+.asst-model select {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h-sm);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--t-small);
+  padding: 0 var(--s2);
+}
+.asst-model select:focus-visible {
+  outline: 2px solid var(--neon-deep);
+  outline-offset: 1px;
+}

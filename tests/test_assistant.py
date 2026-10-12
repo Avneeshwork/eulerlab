@@ -277,10 +277,54 @@ def test_long_series_are_left_out_of_what_is_sent() -> None:
 
 
 def test_status_gives_the_reason_when_it_is_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    def refuse(config: object = None) -> Provider:
+    def refuse(config: object = None, name: str = "") -> Provider:
         raise chat.Refused("no key")
 
     monkeypatch.setattr(chat, "provider", refuse)
     state = chat.status()
     assert state["ready"] is False and state["reason"] == "no key"
     assert {t["name"] for t in state["tools"]} == set(tools.TOOLS)
+
+
+def test_the_list_shows_every_provider_and_why_one_cannot_be_used(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_value_for_unit_tests")
+    monkeypatch.setenv(chat.ZDR_ENV, "1")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-value-for-unit-tests")
+    monkeypatch.setenv("NOKEY_API_KEY", "")
+    config = LLMConfig(
+        default="groq",
+        assistant="groq",
+        providers=[
+            GROQ,
+            Provider(name="ollama", base_url="http://localhost:11434/v1", model="m"),
+            Provider(
+                name="openai",
+                base_url="https://api.openai.com/v1",
+                model="m",
+                api_key_var="OPENAI_API_KEY",
+            ),
+            GROQ.model_copy(update={"name": "groq-2", "api_key_var": "NOKEY_API_KEY"}),
+        ],
+    )
+    monkeypatch.setattr("eulerlab.env.load_env", lambda path=None: {})
+    listed = {c["name"]: c for c in chat.choices(config)}
+    assert listed["groq"]["ready"] and listed["groq"]["is_default"]
+    assert listed["ollama"]["ready"] and listed["ollama"]["policy"] == "on this machine"
+    # A key is not enough: the host's data terms must have been read.
+    assert listed["openai"]["blocked"] == "host not approved" and not listed["openai"]["ready"]
+    assert listed["groq-2"]["blocked"] == "no key"
+
+
+@pytest.mark.usefixtures("_ready")
+def test_a_pick_from_the_list_passes_the_same_locks() -> None:
+    other = Provider(
+        name="openai", base_url="https://api.openai.com/v1", model="m", api_key_var="GROQ_API_KEY"
+    )
+    config = LLMConfig(default="groq", assistant="groq", providers=[GROQ, other])
+    assert chat.provider(config, "").name == "groq"
+    with pytest.raises(chat.Refused, match="not an approved host"):
+        chat.provider(config, "openai")
+    with pytest.raises(chat.Refused, match="no provider named"):
+        chat.provider(config, "made-up")

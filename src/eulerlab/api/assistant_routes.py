@@ -29,17 +29,20 @@ class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     messages: list[Turn] = Field(min_length=1, max_length=40)
+    provider: str = Field(default="", max_length=80)
+    """A name from the status route's `choices`. Empty uses the default."""
 
 
 @router.get("/status")
-def assistant_status() -> dict[str, Any]:
-    return chat.status()
+def assistant_status(provider: str = "") -> dict[str, Any]:
+    return chat.status(provider)
 
 
 @router.post("/chat")
 def assistant_chat(request: ChatRequest) -> dict[str, Any]:
     try:
-        answer = chat.ask([turn.model_dump() for turn in request.messages])
+        chosen = chat.provider(name=request.provider)
+        answer = chat.ask([turn.model_dump() for turn in request.messages], chosen=chosen)
     except (chat.Refused, LLMUnavailable) as exc:
         return {"ok": False, "error": str(exc)}
     return {

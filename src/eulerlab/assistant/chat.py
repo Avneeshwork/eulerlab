@@ -95,13 +95,19 @@ def host_of(provider: client.Provider) -> str:
     return urllib.parse.urlsplit(provider.base_url).hostname or ""
 
 
-def provider(config: client.LLMConfig | None = None) -> client.Provider:
-    """The provider the assistant uses, checked against every lock."""
+def provider(config: client.LLMConfig | None = None, name: str = "") -> client.Provider:
+    """The provider the assistant uses, checked against every lock.
+
+    `name` is the operator's pick from the panel's list; empty means the
+    `assistant` line in the config. A pick passes the same locks as the
+    default, so the list cannot be used to reach an unapproved host.
+    """
     loaded = config or client.load_config()
-    if not loaded.assistant:
+    wanted = name.strip() or loaded.assistant
+    if not wanted:
         raise Refused("config/llm.yaml names no `assistant` provider.")
     try:
-        chosen = loaded.get(loaded.assistant)
+        chosen = loaded.get(wanted)
     except client.LLMUnavailable as exc:
         raise Refused(str(exc)) from exc
     host = host_of(chosen)
@@ -129,13 +135,71 @@ def provider(config: client.LLMConfig | None = None) -> client.Provider:
     return chosen
 
 
-def status() -> dict[str, Any]:
+def _policy(host: str) -> str:
+    if host in ROUTING:
+        return "zero retention, enforced on every request"
+    if host in LOCAL_HOSTS:
+        return "on this machine"
+    return "zero retention, as set in the account"
+
+
+def _short(reason: str) -> str:
+    """A refusal in two or three words, for a line in the list."""
+    if not reason:
+        return ""
+    if "not an approved host" in reason:
+        return "host not approved"
+    if " in .env. Create" in reason:
+        return "no key"
+    if "Zero Data Retention" in reason:
+        return "retention not confirmed"
+    return "not usable"
+
+
+def choices(config: client.LLMConfig | None = None) -> list[dict[str, Any]]:
+    """Every configured provider, and whether the assistant may use it.
+
+    The panel's list. A provider that fails a lock is still listed, with the
+    reason, so adding a key later shows at once whether it is enough. No
+    request is sent to find out: a provider can pass every lock and still
+    be unreachable.
+    """
+    try:
+        loaded = config or client.load_config()
+    except client.LLMUnavailable:
+        return []
+    out: list[dict[str, Any]] = []
+    for entry in loaded.providers:
+        host = host_of(entry)
+        try:
+            provider(loaded, entry.name)
+            ready, reason = True, ""
+        except (Refused, client.LLMUnavailable) as exc:
+            ready, reason = False, str(exc)
+        out.append(
+            {
+                "name": entry.name,
+                "model": entry.model,
+                "host": host,
+                "free": entry.free,
+                "ready": ready,
+                "reason": reason,
+                "blocked": _short(reason),
+                "policy": _policy(host) if host in ALLOWED_HOSTS else "",
+                "is_default": entry.name == loaded.assistant,
+            }
+        )
+    return out
+
+
+def status(name: str = "") -> dict[str, Any]:
     """Whether the assistant can answer, and where a question would go."""
     listed = [{"name": n, "description": t.description} for n, t in tools.TOOLS.items()]
+    base = {"tools": listed, "choices": choices()}
     try:
-        chosen = provider()
+        chosen = provider(name=name)
     except (Refused, client.LLMUnavailable) as exc:
-        return {"ready": False, "reason": str(exc), "tools": listed}
+        return {"ready": False, "reason": str(exc), **base}
     host = host_of(chosen)
     return {
         "ready": True,
@@ -144,12 +208,8 @@ def status() -> dict[str, Any]:
         "model": chosen.model,
         "host": host,
         "local": host in LOCAL_HOSTS,
-        "policy": "zero retention, enforced on every request"
-        if host in ROUTING
-        else (
-            "on this machine" if host in LOCAL_HOSTS else "zero retention, as set in the account"
-        ),
-        "tools": listed,
+        "policy": _policy(host),
+        **base,
     }
 
 

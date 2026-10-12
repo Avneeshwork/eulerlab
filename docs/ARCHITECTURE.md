@@ -1505,6 +1505,11 @@ A hosted provider needs https and a key. Zero retention is added to every OpenRo
 request body passes through `redact.scrub`, which removes every `.env` value
 of six characters or more.
 
+**Choosing a model.** The panel's Model list is every provider in
+`config/llm.yaml` (`chat.choices`). A pick travels with the question and passes
+the same three locks as the default; one that fails a lock is listed greyed
+out with the reason. The pick is kept in the browser.
+
 **What the operator sees.** The host and model in the header, and under each
 answer the tools that were sent with their sizes. `GET /api/assistant/status`
 gives the reason when it is off and never calls the provider.

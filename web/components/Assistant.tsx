@@ -29,6 +29,7 @@ const STARTERS = [
 ];
 
 const STORE = 'eulerlab.assistant.thread';
+const PICK = 'eulerlab.assistant.model';
 
 function loadThread(): Entry[] {
   try {
@@ -46,10 +47,28 @@ export default function Assistant() {
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [showTools, setShowTools] = useState(false);
+  /** The model picked from the list. Empty means the default in config/llm.yaml. */
+  const [pick, setPick] = useState('');
   const end = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => setThread(loadThread()), []);
+  useEffect(() => {
+    setThread(loadThread());
+    try {
+      setPick(window.localStorage.getItem(PICK) ?? '');
+    } catch {
+      /* no storage: the default model is used */
+    }
+  }, []);
+
+  function choose(name: string) {
+    setPick(name);
+    try {
+      window.localStorage.setItem(PICK, name);
+    } catch {
+      /* the pick lasts for this visit only */
+    }
+  }
 
   useEffect(() => {
     try {
@@ -62,11 +81,13 @@ export default function Assistant() {
 
   useEffect(() => {
     if (!open) return;
-    assistantStatus()
+    assistantStatus(pick)
       .then(setStatus)
-      .catch(() => setStatus({ ready: false, reason: 'The API is not running.', tools: [] }));
+      .catch(() =>
+        setStatus({ ready: false, reason: 'The API is not running.', tools: [], choices: [] }),
+      );
     input.current?.focus();
-  }, [open]);
+  }, [open, pick]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -86,6 +107,7 @@ export default function Assistant() {
     try {
       const reply = await assistantChat(
         next.filter((e) => !e.failed).map(({ role, content }) => ({ role, content })),
+        pick,
       );
       setThread([
         ...next,
@@ -153,6 +175,31 @@ export default function Assistant() {
               )}
             </div>
           </header>
+
+          {status && status.choices.length > 0 && (
+            <label className="asst-model">
+              <span>Model</span>
+              <select value={pick} onChange={(event) => choose(event.target.value)}>
+                <option value="">
+                  Default
+                  {status.choices.find((c) => c.is_default)
+                    ? ` · ${status.choices.find((c) => c.is_default)?.model}`
+                    : ''}
+                </option>
+                {status.choices.map((choice) => (
+                  <option
+                    key={choice.name}
+                    value={choice.name}
+                    disabled={!choice.ready}
+                    title={choice.reason}
+                  >
+                    {choice.name} · {choice.model}
+                    {choice.ready ? (choice.free ? '' : ' · paid') : ` — ${choice.blocked}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {showTools ? (
             <div className="asst-body">

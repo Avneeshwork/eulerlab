@@ -1495,6 +1495,21 @@ export type AssistantStatus = {
   /** How retention is handled on that host, in words. */
   policy?: string;
   tools: AssistantTool[];
+  choices: AssistantChoice[];
+};
+
+/** One configured model. `ready` false means a lock refuses it; `reason` says why. */
+export type AssistantChoice = {
+  name: string;
+  model: string;
+  host: string;
+  free: boolean;
+  ready: boolean;
+  reason: string;
+  /** The reason in two or three words, for the list. Empty when ready. */
+  blocked: string;
+  policy: string;
+  is_default: boolean;
 };
 
 export type AssistantTurn = { role: 'user' | 'assistant'; content: string };
@@ -1506,6 +1521,7 @@ export type AssistantReply =
   | { ok: true; text: string; provider: string; model: string; host: string; used: AssistantUse[] }
   | { ok: false; error: string };
 
-export const assistantStatus = () => get<AssistantStatus>('/api/assistant/status');
-export const assistantChat = (messages: AssistantTurn[]) =>
-  post<AssistantReply>('/api/assistant/chat', { messages });
+export const assistantStatus = (provider = '') =>
+  get<AssistantStatus>(`/api/assistant/status?provider=${encodeURIComponent(provider)}`);
+export const assistantChat = (messages: AssistantTurn[], provider = '') =>
+  post<AssistantReply>('/api/assistant/chat', { messages, provider });

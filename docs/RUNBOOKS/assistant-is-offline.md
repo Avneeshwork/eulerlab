@@ -21,6 +21,23 @@ prints the same. Nothing is sent to anyone while it is off.
 
 After editing `.env`, restart the API so it reads the new values.
 
+## Adding a model to the list
+
+The panel's Model list is `config/llm.yaml`. Nothing else needs editing.
+
+1. Add a block under `providers` with a `name`, `base_url`, `model` and
+   `api_key_var`. Copy `openrouter-private` and change the `model` line to
+   try another OpenRouter model with the same key.
+2. Put the key in `.env` under the name in `api_key_var`. Restart the API.
+3. Open the panel. The model is in the list. If it is greyed out, the words
+   after it say why: `no key`, `host not approved`, `retention not confirmed`.
+
+`host not approved` is deliberate. A key is not enough: the assistant sends
+your numbers, so a new host (OpenAI, xAI, any other) is added to
+`chat.ALLOWED_HOSTS` only after its data terms are read and recorded, as
+research 073 did for Groq and OpenRouter. The list shows only that a model
+passes the locks, not that it answers; no request is sent until you ask.
+
 **Prevention.** `tests/test_assistant.py` pins the locks. The status route
 never sends a probe, so opening the panel costs no quota.
 
