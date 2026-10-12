@@ -21,6 +21,14 @@ prints the same. Nothing is sent to anyone while it is off.
 
 After editing `.env`, restart the API so it reads the new values.
 
+## The button is not on the screen
+
+Seen 2026-10-12. The button was in the page but had no colour, size or
+position: its styles use tokens (`--ink`, `--s5`) that exist only inside the
+`.terminal` element, and it had been mounted in the root layout, outside it.
+It now sits in `web/app/terminal/layout.tsx`. A new page outside `/terminal`
+would need its own mount inside an element that defines those tokens.
+
 ## Adding a model to the list
 
 The panel's Model list is `config/llm.yaml`. Nothing else needs editing.

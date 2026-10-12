@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import '../tokens.css';
 import './terminal.css';
 import './shell.css';
+import Assistant from '@/components/Assistant';
 
 export const metadata: Metadata = {
   title: 'EulerLab',
@@ -17,5 +18,13 @@ export const metadata: Metadata = {
  * several, which is how an interface ends up with two of everything.
  */
 export default function TerminalLayout({ children }: { children: React.ReactNode }) {
-  return <div className="terminal">{children}</div>;
+  return (
+    <div className="terminal">
+      {children}
+      {/* Inside `.terminal`, not in the root layout: the colour and spacing
+          tokens are defined on this element, so outside it the button has no
+          size, position or colour and cannot be seen (2026-10-12). */}
+      <Assistant />
+    </div>
+  );
 }
