@@ -292,6 +292,7 @@ function Cell({ tile, rank }: { tile: Tile; rank: number }) {
   return (
     <a
       className="tile"
+      href={`/terminal/company/${encodeURIComponent(tile.symbol)}`}
       data-band={band(tile.return)}
       data-size={rank < 2 ? 'xl' : rank < 6 ? 'lg' : 'sm'}
       title={`${tile.symbol}  ${pct(tile.return)}  ${

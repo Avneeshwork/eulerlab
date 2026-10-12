@@ -41,6 +41,21 @@ Verify: `uv run pytest -q tests/test_telegram_signals.py`; Strategies → "Green
 
 ---
 
+## Company pages (2026-10-12)
+
+Operator: "build pages for each stocks about their details from data we have from fundamental data". ADR-065.
+Verify: `uv run pytest -q tests/test_company_page.py`; open `localhost:3000/terminal/company/RELIANCE`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4058 | **A page per company: price, vitals, key metrics, bars, six statements, peers, news** | DONE — `features/company_page.py`, `api/company_routes.py`, `web/app/terminal/company/[symbol]/`. Checked on RELIANCE in a headless browser |
+| T-4059 | Ways in to a company page | PARTLY — market-map tiles link to it and the page has a search. Not yet linked from movers, Instruments, positions or the command palette |
+| T-4060 | News tagging is loose | OPEN — headlines about other companies carry the RELIANCE tag (seen 2026-10-12). The page shows what the tag says; the fault is in `ingest/news.py` matching |
+| T-4061 | Analyst ratings, targets, estimates, DCF, company description | NOT BUILT — no source held. Each needs a source decision first (ADR-065) |
+| T-4062 | Give the assistant a `company` tool | OPEN — it cannot yet answer questions about one company's fundamentals |
+
+---
+
 ## The assistant (2026-10-12)
 
 Operator: "setup a free ai assistance ... ensure no data leak to ai, should have floating icon over screen". ADR-064, research 073.

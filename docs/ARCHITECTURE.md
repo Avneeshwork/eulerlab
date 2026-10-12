@@ -1481,6 +1481,36 @@ next open, which neither engine can fill. The API runs it through
 `research.gap_forecast.calm_rise_run` (`STUDY_RUNNABLE`) and records the result
 under its own asset class and universe, with engine `overnight`.
 
+## Company pages (ADR-065)
+
+`/terminal/company/<SYMBOL>` shows what is held about one company. Tiles on
+the market map link to it, and the page has its own search.
+
+**Sources.** `GET /api/company/{symbol}` reads the newest file under
+`data/landing/fundamentals/<SYMBOL>/` through `landing_reader`, so a pruned
+file is fetched from the bucket. `features/company_page.build` turns it into
+the header ratios, sector levels, index membership and six tables (quarterly
+results, profit and loss, balance sheet, cash flow, ratios, shareholding).
+The route adds five years of adjusted closes from the price panel and the
+newest headlines tagged with the symbol in `data/landing/news/equity/`.
+`GET /api/companies?q=` searches the digest by symbol or name.
+
+**Units.** Statement figures are ₹ crore as the source prints them; prices and
+per-share figures are ₹; market cap is ₹.
+
+**Computed, not read.** Debt to equity = borrowings / (equity capital +
+reserves). Net and operating margin = net profit or operating profit / sales,
+latest year. Trailing EPS = sum of the last four quarters, only when all four
+exist. Growth = this period / the earlier one − 1, and blank when the earlier
+one is zero or a loss. Quarter growth compares with the same quarter a year
+before. Industry median P/E = median over companies in the same industry with
+positive earnings, blank below three. 52-week high and low are of adjusted
+closes, not intraday prices.
+
+**Not held, and said so on the page.** Analyst ratings, price targets, forward
+estimates, a discounted cash flow, the company description, chief executive,
+employees and listing date.
+
 ## The assistant (ADR-064)
 
 A floating button on every screen (`web/components/Assistant.tsx`, mounted in

@@ -63,6 +63,8 @@ never edit them without an explicit instruction in that session.
   The Nifty gap paper is coded as written (research 072): best case Sharpe 0.64 on the future.
 - **Telegram (ADR-063):** deployments report their orders; the bot answers `status`,
   `positions`, `orders`, `next`, `signal`, `data`. It cannot trade or stop anything.
+- **Company pages (ADR-065):** `/terminal/company/<SYMBOL>` for 2,361 companies, from the
+  screener.in files, the price panel and tagged news. No analyst data, estimates or DCF: not held.
 - **Assistant (ADR-064):** floating button on every screen; OpenRouter free model with zero
   retention forced on every request; eleven read-only tools. Working: answered real questions
   correctly on 2026-10-12. Free limit is 50 requests a day.

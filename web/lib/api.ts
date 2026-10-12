@@ -1525,3 +1525,96 @@ export const assistantStatus = (provider = '') =>
   get<AssistantStatus>(`/api/assistant/status?provider=${encodeURIComponent(provider)}`);
 export const assistantChat = (messages: AssistantTurn[], provider = '') =>
   post<AssistantReply>('/api/assistant/chat', { messages, provider });
+
+/* ---------------- company pages ---------------- */
+
+/** One statement: periods oldest first, rows in the source's order. */
+export type CompanyTable = {
+  periods: string[];
+  rows: { label: string; values: (number | null)[] }[];
+};
+
+export type CompanyPeer = {
+  symbol: string;
+  name: string;
+  market_cap: number | null;
+  pe: number | null;
+  roce: number | null;
+  roe: number | null;
+};
+
+/** Everything held about one company. Statement figures are in ₹ crore;
+ *  prices and per-share figures in ₹; `market_cap` in ₹. */
+export type CompanyPage = {
+  ok: true;
+  symbol: string;
+  name: string;
+  /** Date of the fundamentals file the page was built from. */
+  as_of: string;
+  consolidated: boolean | null;
+  profile: {
+    sector: string;
+    industry: string;
+    sector_levels: string[];
+    market_cap: number | null;
+    price: number | null;
+    pe: number | null;
+    roce: number | null;
+    roe: number | null;
+    book_value: number | null;
+    dividend_yield: number | null;
+    indices: string[];
+  };
+  /** Computed from the statements; null when an input is missing. */
+  metrics: {
+    annual_period: string | null;
+    quarter_period: string | null;
+    debt_to_equity: number | null;
+    net_margin: number | null;
+    operating_margin: number | null;
+    eps: number | null;
+    eps_ttm: number | null;
+    sales_growth: number | null;
+    profit_growth: number | null;
+    quarter_sales_growth: number | null;
+    quarter_profit_growth: number | null;
+    free_cash_flow: number | null;
+    promoter_holding: number | null;
+  };
+  tables: Record<string, CompanyTable>;
+  peers: {
+    industry: string;
+    count: number;
+    median_pe: number | null;
+    pe_count?: number;
+    rows: CompanyPeer[];
+  };
+  price: {
+    /** Adjusted closes, oldest first. */
+    series: [string, number][];
+    day?: string;
+    close?: number;
+    previous_close?: number | null;
+    open?: number | null;
+    volume?: number | null;
+    high_52w?: number;
+    low_52w?: number;
+  };
+  news: { title: string; link: string; publisher: string; time: string }[];
+  /** What a stock page usually shows and no landed file holds. */
+  not_held: string[];
+};
+
+export type CompanyHit = {
+  symbol: string;
+  name: string;
+  industry: string;
+  market_cap: number | null;
+};
+
+export const companyPage = (symbol: string) =>
+  get<CompanyPage | { ok: false; error: string }>(`/api/company/${encodeURIComponent(symbol)}`);
+export const companySearch = (q: string, limit = 8) =>
+  get<{ total: number; rows: CompanyHit[] }>(
+    `/api/companies?q=${encodeURIComponent(q)}&limit=${limit}`,
+  );
