@@ -316,14 +316,26 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
 
   useEffect(() => {
     let live = true;
+    // Two requests. The first is answered from held data in well under a
+    // second, so the screen paints at once on the last settled closes. The
+    // second waits on the broker (seconds) and swaps live prices in. If the
+    // second fails, the settled screen stays: it is still correct.
     api
-      .snapshot(workspace)
+      .snapshot(workspace, false)
       .then((next) => {
         if (!live) return;
-        if (next.ok) setSnap(next);
+        if (next.ok) setSnap((current) => current ?? next);
         else setError(next.error ?? 'snapshot unavailable');
       })
-      .catch((problem) => live && setError(String(problem)));
+      .catch((problem) => live && setError(String(problem)))
+      .then(() => api.snapshot(workspace, true))
+      .then((next) => {
+        if (live && next.ok) {
+          setSnap(next);
+          setError('');
+        }
+      })
+      .catch(() => undefined);
     return () => {
       live = false;
     };

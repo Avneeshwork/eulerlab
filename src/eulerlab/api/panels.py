@@ -32,6 +32,13 @@ class _Panel:
         self._lock = threading.Lock()
         self._rows: list[PanelRow] | None = None
         self._stamp: int | None = None
+        self._per_symbol: dict[str, int] = {}
+        self._days: list[date] = []
+        self._starts: list[int] = []
+        """The trading days, and where each one's rows begin. The rows are in
+        day order, so "the last N days" is a slice. It used to be a pass over
+        all 5.4 million rows to list the days and another to filter them:
+        1.2 to 1.9 seconds on every request that asked (measured 2026-10-12)."""
         self._indices: dict[tuple[int, str], dict[str, dict[date, float]]] = {}
 
     def rows(self, days: int = 0) -> list[PanelRow]:
@@ -45,13 +52,41 @@ class _Panel:
                 self._rows = read_panel()
                 self._stamp = stamp
                 self._indices.clear()
-        if not days:
-            return self._rows
-        all_days = sorted({r.day for r in self._rows})
-        if days >= len(all_days):
-            return self._rows
-        cutoff = all_days[-days]
-        return [r for r in self._rows if r.day >= cutoff]
+                self._days, self._starts, self._per_symbol = [], [], {}
+                counts = self._per_symbol
+                for position, row in enumerate(self._rows):
+                    if not self._days or row.day != self._days[-1]:
+                        self._days.append(row.day)
+                        self._starts.append(position)
+                    counts[row.symbol] = counts.get(row.symbol, 0) + 1
+            rows, starts = self._rows, self._starts
+        if not days or days >= len(starts):
+            return rows
+        return rows[starts[-days] :]
+
+    def days(self) -> list[date]:
+        """Every trading day in the panel, oldest first."""
+        self.rows()
+        return self._days
+
+    def coverage(self) -> dict[str, object]:
+        """What the panel contains: the figures `alt_panel.coverage` gives.
+
+        Counted in the pass that loads the panel. Two routes used to walk all
+        5.4 million rows on each request to count symbols (0.5 s and 1.7 s).
+        """
+        rows = self.rows()
+        if not rows:
+            return {"rows": 0, "symbols": 0, "days": 0, "first": None, "last": None}
+        return {
+            "rows": len(rows),
+            "symbols": len(self._per_symbol),
+            "days": len(self._days),
+            "first": self._days[0].isoformat(),
+            "last": self._days[-1].isoformat(),
+            "thinnest": min(self._per_symbol.values()),
+            "fattest": max(self._per_symbol.values()),
+        }
 
     def index(
         self, days: int, rows: list[PanelRow], universe: str = "all"

@@ -64,7 +64,12 @@ def latest_file(symbol: str) -> str | None:
     """The newest landed fundamentals file for `symbol`, landing-relative."""
     from eulerlab.ingest import landing_reader
 
-    paths = landing_reader.available(digest.TREE, f"{symbol}/*.parquet")
+    # The disk first. Listing the bucket is a network call of half a second,
+    # and it is only needed for a company whose files were pruned from here.
+    pattern = f"{symbol}/*.parquet"
+    paths = landing_reader.available(digest.TREE, pattern, allow_cloud=False)
+    if not paths:
+        paths = landing_reader.available(digest.TREE, pattern)
     return sorted(paths)[-1] if paths else None
 
 

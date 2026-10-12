@@ -1389,8 +1389,9 @@ export const api = {
   /** Count (dry run) or delete local landing files B2 holds at the same size. */
   pruneData: (dryRun: boolean) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
-  snapshot: (workspace = '') =>
-    get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}`),
+  /** `live` false answers from held data alone, without waiting on a broker. */
+  snapshot: (workspace = '', live = true) =>
+    get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}&live=${live}`),
   tweezer: (input: {
     symbols: string[];
     start: string;

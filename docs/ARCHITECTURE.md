@@ -1481,6 +1481,29 @@ next open, which neither engine can fill. The API runs it through
 `research.gap_forecast.calm_rise_run` (`STUDY_RUNNABLE`) and records the result
 under its own asset class and universe, with engine `overnight`.
 
+## How the dashboard loads fast (2026-10-12)
+
+Measured on the real panel (5.4 million rows, 746 MB), before and after:
+
+| What | Before | After | How |
+|---|---|---|---|
+| Dashboard first paint (`/api/snapshot`) | 6 to 9 s | 0.4 s | The screen asks twice. `live=false` answers from held data and paints; `live=true` waits on the broker and swaps live prices in |
+| "The last N days" of the panel | 1.2 to 1.9 s per request | 5 ms | The rows are in day order, so it is a slice. `_Panel` records where each day starts when it loads |
+| Reading the panel (cold start) | 51 s | 19 s | Read a line at a time; `orjson`; parse each date once; sort only if the file is out of order |
+| First request after a restart | 29 s and up | 3 s | The panel is read in a background thread at startup (`EULERLAB_PRELOAD=0` to switch off) |
+| Symbol counts (`/api/universes`, `/api/data`) | 0.6 s, 1.7 s | 3 ms, 0.4 s | Counted in the pass that loads the panel |
+| A company page | 0.9 to 3.4 s | 0.3 s | Adjust one company's prices, not every symbol's; look on disk before listing the bucket |
+| Loading 1,088 price factors | 0.6 s | under 10 ms | `BitemporalStore.append` places a record in order instead of re-sorting the list each time |
+| UI JavaScript | 9.7 MB (`make ui`) | 0.67 MB (`make ui-fast`) | A built bundle, not the development server's |
+
+None of these stores a result to reuse later. Each removes work that was being
+repeated or was never needed. `tests/test_dashboard_speed.py` checks every
+fast path against the slow one it replaced.
+
+Still slow, and why: the live snapshot takes about 5 s because it asks Kite
+for the whole universe in 16 calls of 200 symbols; it no longer blocks the
+first paint. The first call to `/api/fleet` after a restart takes 2.7 s.
+
 ## Company pages (ADR-065)
 
 `/terminal/company/<SYMBOL>` shows what is held about one company. Tiles on

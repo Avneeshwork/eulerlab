@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -12,6 +12,7 @@ help:
 	@echo "  -- the workbench --"
 	@echo "  make api          start the strategy API on :8000"
 	@echo "  make ui           start the web interface on :3000 (needs make api)"
+	@echo "  make ui-fast      the same, built once: loads far faster, no live edits"
 	@echo "  make workbench    both at once"
 	@echo "  make test         pytest only"
 	@echo "  make lint         ruff check + format check"
@@ -224,6 +225,12 @@ api:
 
 ui:
 	cd web && npm install --silent && npm run dev
+
+# The UI built once and served as built: what to run when using the app, not
+# changing it. `make ui` compiles each screen on first visit and ships a
+# development bundle several times the size.
+ui-fast:
+	cd web && npm install --silent && npm run build && npm run start
 
 workbench:
 	@echo "starting the API on :8000 and the UI on :3000"

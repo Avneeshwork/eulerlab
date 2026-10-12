@@ -629,6 +629,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "kiteconnect" },
+    { name = "orjson" },
     { name = "pyarrow" },
     { name = "pydantic" },
     { name = "python-dotenv" },
@@ -661,6 +662,7 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.115" },
     { name = "kiteconnect", specifier = ">=5.2.1" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
+    { name = "orjson", specifier = ">=3.10" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.8" },
     { name = "pyarrow", specifier = ">=25.0.1" },
     { name = "pyarrow-stubs", marker = "extra == 'dev'", specifier = ">=20.0.0.20260625" },

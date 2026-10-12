@@ -22,6 +22,7 @@ results in the direction you already want to believe.
 
 from __future__ import annotations
 
+import bisect
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -79,8 +80,12 @@ class BitemporalStore:
         self._records: list[Record] = sorted(records)
 
     def append(self, record: Record) -> None:
-        self._records.append(record)
-        self._records.sort()
+        # Placed in order, not appended and re-sorted. Re-sorting the whole
+        # list on every append made loading 1,088 price factors cost 600,000
+        # comparisons and 0.6 s (measured 2026-10-12). The order is the same:
+        # an equal record lands after the ones already there, as a stable
+        # sort of an append would leave it.
+        bisect.insort(self._records, record)
 
     def __len__(self) -> int:
         return len(self._records)

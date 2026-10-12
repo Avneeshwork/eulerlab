@@ -44,7 +44,11 @@ def _prices(symbol: str) -> dict[str, Any]:
     mine = sorted((r for r in rows if r.symbol == symbol), key=lambda r: r.day)
     if not mine:
         return {"series": []}
-    adjusted = PANEL.index(PRICE_DAYS, rows).get(symbol) or {}
+    # Adjust this company's rows alone. Asking the shared index for it adjusts
+    # every symbol in the window first: 3.4 s on the first page opened.
+    from eulerlab.backtest.vector import build_adjusted_index
+
+    adjusted = build_adjusted_index(mine).get(symbol) or {}
     series = [(r.day.isoformat(), adjusted.get(r.day, r.close)) for r in mine]
     last = mine[-1]
     bar = {

@@ -72,7 +72,6 @@ from eulerlab.builder import store as builder_store
 from eulerlab.builder.compile import compile_spec
 from eulerlab.builder.spec import is_builder_id, summarise
 from eulerlab.features import company as company_digest
-from eulerlab.features.alt_panel import coverage as alt_coverage
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, trading_days
 from eulerlab.ingest.cloud import load_storage_config
@@ -122,10 +121,23 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
         threading.Thread(
             target=telegram_bot.listen, args=(stop,), daemon=True, name="telegram-bot"
         ).start()
+    # Read the price panel now, in the background, not on the first request.
+    # The read takes about 19 seconds; left to the first request, the first
+    # screen opened after a restart waited for all of it (29 s measured
+    # 2026-10-12). `EULERLAB_PRELOAD=0` switches this off.
+    if os.environ.get("EULERLAB_PRELOAD", "1") != "0":
+        threading.Thread(target=_preload, daemon=True, name="panel-preload").start()
     try:
         yield
     finally:
         stop.set()
+
+
+def _preload() -> None:
+    try:
+        PANEL.rows()
+    except Exception:  # a missing or broken panel is reported by the routes that need it
+        return
 
 
 app = FastAPI(title="EulerLab", version="0.1.0", lifespan=_lifespan)
@@ -910,7 +922,7 @@ def universes() -> dict[str, Any]:
     out: list[dict[str, Any]] = [
         {
             "name": ALL_INSTRUMENTS,
-            "symbols": len({row.symbol for row in PANEL.rows()}),
+            "symbols": PANEL.coverage()["symbols"],
             "recommended": False,
             "note": (
                 "Every symbol in the panel. What every result so far ran on, and the "
@@ -2433,7 +2445,7 @@ def data_status() -> dict[str, Any]:
         # the state this request walked in on, which is False on the very
         # request that loads the panel and reads as a contradiction next to
         # five million rows.
-        panel |= alt_coverage(PANEL.rows())
+        panel |= PANEL.coverage()
         panel["loaded"] = PANEL.loaded()
     except (FileNotFoundError, OSError) as exc:
         panel |= {"error": str(exc), "rows": 0, "loaded": False}
@@ -3583,9 +3595,25 @@ def _calendar_band() -> dict[str, Any]:
     }
 
 
+SNAPSHOT_DAYS = 90
+"""Sessions the snapshot reads. Its longest look back is 70 days of moves
+(71 closes) for the volatility comparison; it used to read 400, a million
+rows, and index all of them by day on every request."""
+
+
+class _SettledOnly(Exception):
+    """The caller asked for held data only; no broker is asked."""
+
+
 @app.get("/api/snapshot")
-def snapshot(workspace: str = "") -> dict[str, Any]:
+def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     """The trader's first screen, computed from the panel.
+
+    `live=false` skips the two broker calls and answers from held data alone.
+    The screen asks for that first and paints, then asks again with `live`
+    and swaps the prices in. The broker calls were 4 to 7 of the 6 to 9
+    seconds this route took (measured 2026-10-12), and the first paint was
+    waiting on all of it.
 
     Five bands (docs/RESEARCH/021): regime, the map, movers, cross-asset, and
     evidence. Each reports what it can measure and says plainly what it cannot
@@ -3594,7 +3622,7 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
     """
     tenant = workspace_mod.resolve(workspace or None)
     try:
-        rows = PANEL.rows(400)
+        rows = PANEL.rows(SNAPSHOT_DAYS)
     except (FileNotFoundError, OSError) as exc:
         return {"ok": False, "error": str(exc)}
     if not rows:
@@ -3628,6 +3656,8 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
     try:
         from eulerlab import quotes as quote_feed
 
+        if not live:
+            raise _SettledOnly
         with ThreadPoolExecutor(1) as pool:
             fetched, live_error = pool.submit(quote_feed.nse_universe, sorted(returns)).result(
                 timeout=LIVE_MAP_DEADLINE
@@ -3637,6 +3667,8 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
                 live_returns[symbol] = quote.last / quote.previous_close - 1.0
         if live_returns:
             live_at = next(iter(fetched.values())).at
+    except _SettledOnly:
+        live_error = "settled closes; live prices are loading"
     except FuturesTimeout:
         live_error = f"no quote in {LIVE_MAP_DEADLINE:.0f}s"
     except Exception as exc:
@@ -3803,7 +3835,9 @@ def snapshot(workspace: str = "") -> dict[str, Any]:
         "us": _us_band(),
         "quotes": _quotes_band(
             [str(t["symbol"]) for t in [*by_move[:SNAPSHOT_MOVERS], *by_move[-SNAPSHOT_MOVERS:]]]
-        ),
+        )
+        if live
+        else {"available": False, "reason": "live prices are loading", "quotes": {}},
         "news": _news_band(
             [
                 str(t["symbol"])

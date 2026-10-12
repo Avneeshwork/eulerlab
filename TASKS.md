@@ -41,6 +41,20 @@ Verify: `uv run pytest -q tests/test_telegram_signals.py`; Strategies → "Green
 
 ---
 
+## Dashboard speed (2026-10-12)
+
+Operator: "make dashboard load fast optimize codebase, don't do lot of caching".
+Verify: `uv run pytest -q tests/test_dashboard_speed.py`; `curl -s -o /dev/null -w '%{time_total}\n' 'localhost:8000/api/snapshot?live=false'`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4063 | **First paint from held data, live prices after; panel slices; faster panel read; preload; built UI** | DONE — measured table in ARCHITECTURE. First paint 6-9 s → 0.4 s |
+| T-4064 | The live snapshot still takes about 5 s | OPEN — 16 Kite calls of 200 symbols in sequence. Kite's own limit on batch size and request rate was not checked; do that before raising `ZERODHA_BATCH` or sending calls side by side |
+| T-4065 | The panel is 5.4 million Python objects in memory | NOTED — the 19 s read and most of the server's memory. A columnar panel would be much faster and is a larger change to every reader |
+| T-4066 | `/api/fleet` takes 2.7 s on its first call after a restart | OPEN — not profiled |
+
+---
+
 ## Company pages (2026-10-12)
 
 Operator: "build pages for each stocks about their details from data we have from fundamental data". ADR-065.
