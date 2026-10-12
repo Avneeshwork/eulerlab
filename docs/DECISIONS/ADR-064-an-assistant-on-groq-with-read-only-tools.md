@@ -22,6 +22,13 @@ data". No tool trades, runs a backtest (that would spend a trial) or opens
 `data/`, so the holdout and credentials are out of reach by construction.
 The provider is one config line, so (a) or (b) is a later switch, not a rewrite.
 
+**Amended 2026-10-12.** The key supplied was not a Groq key, and the operator
+asked to start with free models. The assistant now uses OpenRouter's free
+`apodex/apodex-1.1-mini:free`, and `chat.ROUTING` adds "zero retention, no
+data collection" to every request. That is stronger than Groq's account
+setting, because code enforces it: a model without such an endpoint fails
+with 404. `EULERLAB_ASSISTANT_ZDR` now applies to Groq only.
+
 **Cost if wrong.** If Groq's terms change or are not honoured, what leaked is
 the questions asked and the tool answers to them: book values, strategy
 results, research text. Not keys, not broker access. A-054 holds the recheck.

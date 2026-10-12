@@ -1492,6 +1492,8 @@ export type AssistantStatus = {
   model?: string;
   host?: string;
   local?: boolean;
+  /** How retention is handled on that host, in words. */
+  policy?: string;
   tools: AssistantTool[];
 };
 

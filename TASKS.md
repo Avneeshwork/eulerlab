@@ -48,9 +48,9 @@ Verify: `uv run pytest -q tests/test_assistant.py`; open any screen and click th
 
 | ID | Task | Status |
 |---|---|---|
-| T-4051 | **Assistant: floating button, chat route, eleven read-only tools, three locks** | DONE in code — `assistant/`, `api/assistant_routes.py`, `web/components/Assistant.tsx`. Every tool was run on real data locally. **Not yet run against Groq**: no key on this machine |
-| T-4052 | Operator: create the Groq key, turn on Zero Data Retention, set the two `.env` lines | OPEN — operator's action. `docs/RUNBOOKS/assistant-is-offline.md` |
-| T-4053 | First real questions: does `llama-3.3-70b-versatile` call the tools correctly, and does the free quota last a session? | OPEN — needs T-4052. Free-plan limits were not found (A-054) |
+| T-4051 | **Assistant: floating button, chat route, eleven read-only tools, three locks** | DONE in code — `assistant/`, `api/assistant_routes.py`, `web/components/Assistant.tsx`. Every tool was run on real data locally. Runs on OpenRouter's free `apodex/apodex-1.1-mini:free` with zero retention forced per request |
+| T-4052 | Operator: a real Groq key (the one supplied was an xAI key) | OPTIONAL — only if Groq's larger models are wanted. Rotate the xAI key: it was sent to Groq twice as a login header |
+| T-4053 | First real questions: does `llama-3.3-70b-versatile` call the tools correctly, and does the free quota last a session? | PARTLY — 2026-10-12 on the OpenRouter model: two of three questions answered correctly with the right tools, one hit the 20-a-minute limit. 50 requests a day is about 10 to 25 questions; not yet lived with |
 | T-4054 | Free 5 GB of disk, then a local model becomes possible | NOTED — 1.4 GB free of 228 GB on 2026-10-11. Also a risk to the nightly job |
 | T-4055 | Tools for fundamentals, options chain and news | NOT BUILT — add when a question needs one. Each new tool is a new thing that can leave the machine |
 

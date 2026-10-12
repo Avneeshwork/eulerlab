@@ -16,9 +16,11 @@
 default: ollama
 
 # The in-app assistant (ADR-064). It sends your own numbers, so the code only
-# accepts hosts whose data terms were read: api.groq.com, or a local model.
-# Groq needs Zero Data Retention turned on in its console first.
-assistant: groq
+# accepts hosts whose data terms were read: openrouter.ai, api.groq.com, or a
+# local model. On OpenRouter the code adds "zero retention, no data collection"
+# to every request, so only a model with such an endpoint works. Tried
+# 2026-10-12: of ten free models with tool calls, only the one below did.
+assistant: openrouter-private
 
 providers:
   - name: ollama
@@ -41,6 +43,14 @@ providers:
     api_key_var: OPENROUTER_API_KEY
     free: true
     note: "Hosted. Models with a `:free` suffix are rate-limited, not unlimited. Sends your prompt to a third party."
+
+  - name: openrouter-private
+    base_url: https://openrouter.ai/api/v1
+    model: apodex/apodex-1.1-mini:free
+    api_key_var: OPENROUTER_API_KEY
+    free: true
+    note: "Hosted, free, used by the assistant. Every request is restricted to zero-retention endpoints (ADR-064). 50 requests a day without credits."
+    temperature: 0.1
 
   - name: groq
     base_url: https://api.groq.com/openai/v1

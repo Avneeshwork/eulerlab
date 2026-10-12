@@ -49,6 +49,34 @@ disk, so it does not fit. The operator then asked for a cloud plan.
 Groq, with Zero Data Retention on. The operator chose it on 2026-10-12 over
 their own Oracle server, after seeing both. ADR-064.
 
+## Addendum, 2026-10-12: OpenRouter's free models
+
+The operator's Groq key turned out to be an xAI key, and they asked to "start
+with free models"; an OpenRouter key was already in `.env`.
+
+| Source | URL | What it says |
+|---|---|---|
+| OpenRouter, Zero Data Retention | https://openrouter.ai/docs/features/zdr | `"provider": {"zdr": true}` in a request: "the request will only be routed to endpoints that have a Zero Data Retention policy." The per-request flag can add enforcement but not remove the account's |
+| OpenRouter, Provider Routing | https://openrouter.ai/docs/features/provider-routing | `data_collection`: `"allow"` (default) permits providers that "store user data non-transiently and may train on it"; `"deny"` restricts to providers that do not |
+| OpenRouter, Limits | https://openrouter.ai/docs/api-reference/limits | `:free` models: 20 requests a minute; 50 a day under 10 credits ever bought, 1,000 a day above |
+| OpenRouter, model list | https://openrouter.ai/api/v1/models | 14 `:free` models list `tools` support |
+
+**Measured, 2026-10-12.** Ten of those models were sent a harmless question
+with one tool and `{"zdr": true, "data_collection": "deny"}`. Eight answered
+HTTP 404 "No endpoints found matching your data policy (Zero data
+retention)". One is not open to this kind of client. One worked:
+`apodex/apodex-1.1-mini:free`, served by Novita, with a correct tool call in
+1.3 seconds. Three real questions followed; two were answered correctly from
+the tools and one hit the per-minute limit.
+
+**Not found.** What OpenRouter itself keeps of a prompt: its pages speak of
+the providers' policies, not its own. Who makes the Apodex model and how good
+it is beyond these three questions. Whether the free endpoint will stay
+zero-retention; if it does not, requests fail with 404 instead of leaking.
+
+**Decision.** The assistant uses OpenRouter with that policy added to every
+request in code. Groq stays an approved host for a real Groq key.
+
 ## Confidence
 
 High on the quoted terms (primary pages, read the day of the decision). Terms

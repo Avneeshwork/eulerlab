@@ -66,7 +66,7 @@ def test_the_committed_config_points_the_assistant_at_an_approved_host() -> None
     "url",
     [
         "https://generativelanguage.googleapis.com/v1beta/openai",
-        "https://openrouter.ai/api/v1",
+        "https://api.x.ai/v1",
         "https://api.groq.com.evil.example/v1",
     ],
 )
@@ -187,6 +187,43 @@ def test_the_real_request_body_is_scrubbed(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(urllib.request, "urlopen", fake_open)
     chat._post(GROQ, {"messages": [{"role": "user", "content": "key b2-app-key-55aa"}]})
     assert b"b2-app-key-55aa" not in seen[0] and b"[redacted]" in seen[0]
+
+
+def test_every_openrouter_request_demands_zero_retention(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Not a setting: the policy is added where the request is built."""
+    import urllib.request
+
+    seen: list[dict[str, Any]] = []
+
+    class _Response:
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *_: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return json.dumps(_say("ok")).encode()
+
+    def fake_open(request: urllib.request.Request, timeout: int = 0) -> _Response:
+        assert isinstance(request.data, bytes)
+        seen.append(json.loads(request.data))
+        return _Response()
+
+    router = Provider(
+        name="openrouter-private",
+        base_url="https://openrouter.ai/api/v1",
+        model="m:free",
+        api_key_var="OPENROUTER_API_KEY",
+    )
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-test-value-for-unit-tests")
+    monkeypatch.delenv(chat.ZDR_ENV, raising=False)
+    monkeypatch.setattr(redact, "secrets", lambda path=None: [])
+    monkeypatch.setattr(urllib.request, "urlopen", fake_open)
+    assert chat.provider(_config(router)).name == "openrouter-private"
+    # A caller cannot switch it off by passing its own `provider` block.
+    chat._post(router, {"messages": [], "provider": {"zdr": False, "data_collection": "allow"}})
+    assert seen[0]["provider"] == {"zdr": True, "data_collection": "deny"}
 
 
 # --- what it may read ------------------------------------------------------------------

@@ -238,3 +238,9 @@
     transition: none;
   }
 }
+
+.asst-policy {
+  display: block;
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}

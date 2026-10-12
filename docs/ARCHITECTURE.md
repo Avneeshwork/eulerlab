@@ -1488,7 +1488,7 @@ A floating button on every screen (`web/components/Assistant.tsx`, mounted in
 
 **Path of one question.** Browser → `POST /api/assistant/chat` →
 `assistant/chat.ask` → the provider named `assistant` in `config/llm.yaml`
-(Groq). The model is sent the conversation and a list of tools. It replies
+(OpenRouter's free `apodex/apodex-1.1-mini:free`). The model is sent the conversation and a list of tools. It replies
 either with an answer or with tool calls; `assistant/tools.call` runs each and
 the text goes back. At most `MAX_ROUNDS` (6) requests per question; the last
 has no tools, so it must answer.
@@ -1501,7 +1501,7 @@ series are replaced by a count. No tool writes, trades, runs a backtest or
 opens `data/` as a file path.
 
 **Three locks before anything is sent.** The host must be in `ALLOWED_HOSTS`.
-A hosted provider needs https, a key, and `EULERLAB_ASSISTANT_ZDR=1`. The
+A hosted provider needs https and a key. Zero retention is added to every OpenRouter request by `chat.ROUTING` (a model with no such endpoint fails with 404); Groq needs `EULERLAB_ASSISTANT_ZDR=1` instead, because there it is an account setting. The
 request body passes through `redact.scrub`, which removes every `.env` value
 of six characters or more.
 

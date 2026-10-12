@@ -138,6 +138,9 @@ export default function Assistant() {
               <span className={`asst-where${status && !status.ready ? ' is-off' : ''}`}>
                 {where}
               </span>
+              {status?.ready && status.policy && (
+                <span className="asst-policy">{status.policy}</span>
+              )}
             </div>
             <div className="asst-head-actions">
               <button type="button" onClick={() => setShowTools((v) => !v)}>
