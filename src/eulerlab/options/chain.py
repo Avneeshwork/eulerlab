@@ -158,16 +158,48 @@ class Chain:
         return out
 
 
-def quotes_from_fo_bhavcopy(payload: bytes) -> Iterator[Quote]:
-    """Every derivative quote in one F&O bhavcopy, either era."""
+SYMBOL_FIELDS = ("TckrSymb", "SYMBOL")
+"""The underlying's column: UDiFF, then the pre-2024 layout."""
+
+
+def quotes_from_fo_bhavcopy(payload: bytes, underlying: str = "") -> Iterator[Quote]:
+    """Every derivative quote in one F&O bhavcopy, either era.
+
+    `underlying` keeps one name's rows and drops the rest before they are
+    parsed. A day's file is about 35,000 contracts across 200 names, and a
+    screen showing NIFTY was parsing all of them: 2.5 s a day, 75 s for the
+    30-day history (measured 2026-10-12). The filter reads one cell of each
+    row; the rows it keeps are parsed exactly as before.
+    """
+    wanted = underlying.strip().upper()
     with zipfile.ZipFile(io.BytesIO(payload)) as archive:
         names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
         if not names:
             return
         with archive.open(names[0]) as handle:
-            text = io.TextIOWrapper(handle, encoding="utf-8", errors="replace")
-            for raw in csv.DictReader(text):
-                row = {(k or "").strip(): (v or "").strip() for k, v in raw.items()}
+            # Bytes first: a line that does not contain the name at all is
+            # dropped before it is decoded or split into cells. The exact test
+            # on the symbol cell still follows, so NIFTY does not let
+            # BANKNIFTY or NIFTYNXT50 through.
+            needle = wanted.encode()
+            lines = (
+                line.decode("utf-8", errors="replace")
+                for number, line in enumerate(handle)
+                if number == 0 or not wanted or needle in line.upper()
+            )
+            reader = csv.reader(lines)
+            header = [(name or "").strip() for name in next(reader, [])]
+            symbol_at = next((header.index(f) for f in SYMBOL_FIELDS if f in header), -1)
+            for cells in reader:
+                if wanted and (
+                    symbol_at < 0
+                    or symbol_at >= len(cells)
+                    or cells[symbol_at].strip().upper() != wanted
+                ):
+                    continue
+                row = {
+                    name: (value or "").strip() for name, value in zip(header, cells, strict=False)
+                }
                 contract = parse_udiff_row(row) or parse_legacy_row(row)
                 if contract is None:
                     continue

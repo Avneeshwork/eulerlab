@@ -138,3 +138,120 @@ def test_a_settled_snapshot_asks_no_broker(monkeypatch: pytest.MonkeyPatch) -> N
         "reason": "live prices are loading",
         "quotes": {},
     }
+
+
+# --- options: one underlying, parsed alone --------------------------------------------
+
+
+def _fo_zip(lines: list[str]) -> bytes:
+    import io
+    import zipfile
+
+    header = (
+        "TradDt,TckrSymb,XpryDt,StrkPric,OptnTp,FinInstrmTp,SttlmPric,ClsPric,"
+        "TtlTradgVol,OpnIntrst,UndrlygPric"
+    )
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("fo.csv", "\n".join([header, *lines]) + "\n")
+    return buffer.getvalue()
+
+
+def test_one_underlying_parsed_alone_equals_filtering_the_whole_file() -> None:
+    from eulerlab.options.chain import quotes_from_fo_bhavcopy
+
+    payload = _fo_zip(
+        [
+            "2026-10-09,NIFTY,2026-10-13,25000,CE,IDO,120.5,121,900,5000,25010",
+            "2026-10-09,NIFTY,2026-10-13,25000,PE,IDO,110.0,111,800,4000,25010",
+            "2026-10-09,BANKNIFTY,2026-10-28,55000,CE,IDO,300,301,100,900,55010",
+            "2026-10-09,NIFTYNXT50,2026-10-28,70000,CE,IDO,200,201,50,400,70010",
+            "2026-10-09, nifty ,2026-10-13,25100,CE,IDO,80,81,700,3000,25010",
+            "2026-10-09,RELIANCE,2026-10-28,1200,PE,STO,15,16,10,90,1170",
+        ]
+    )
+    everything = list(quotes_from_fo_bhavcopy(payload))
+    assert len(everything) == 6
+    for name in ("NIFTY", "nifty", "BANKNIFTY", "RELIANCE", "NOPE"):
+        expected = [q for q in everything if q.underlying.upper() == name.upper()]
+        assert list(quotes_from_fo_bhavcopy(payload, name)) == expected
+    # The name is matched on its own cell: NIFTY is not BANKNIFTY or NIFTYNXT50.
+    assert {q.underlying.strip().upper() for q in quotes_from_fo_bhavcopy(payload, "NIFTY")} == {
+        "NIFTY"
+    }
+
+
+# --- bucket listing: old now, current soon ---------------------------------------------
+
+
+def test_a_screen_gets_the_old_listing_at_once_and_a_backtest_waits_for_the_new(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import threading
+    import time
+
+    from eulerlab.ingest import landing_reader as lr
+
+    release = threading.Event()
+    calls: list[str] = []
+
+    def fetch(tree: str, pattern: str) -> tuple[str, ...]:
+        calls.append(tree)
+        release.wait(5)
+        found = ("fo/new.zip",)
+        lr._LISTED[(tree, pattern)] = (time.monotonic(), found)
+        return found
+
+    monkeypatch.setattr(lr, "_fetch_listing", fetch)
+    monkeypatch.setattr(
+        lr, "_LISTED", {("fo", "*.zip"): (time.monotonic() - 9999, ("fo/old.zip",))}
+    )
+    monkeypatch.setattr(lr, "_REFRESHING", set())
+
+    # Two screens in a row: both answered from the old listing, one refresh started.
+    assert lr._remote_listing("fo", "*.zip", stale_ok=True) == ("fo/old.zip",)
+    assert lr._remote_listing("fo", "*.zip", stale_ok=True) == ("fo/old.zip",)
+    release.set()
+    for _ in range(100):
+        if not lr._REFRESHING:
+            break
+        time.sleep(0.02)
+    assert calls == ["fo"]
+    assert lr._remote_listing("fo", "*.zip", stale_ok=True) == ("fo/new.zip",)
+
+    # A caller that did not say stale is fine never gets an expired listing.
+    lr._LISTED[("fo", "*.zip")] = (time.monotonic() - 9999, ("fo/old.zip",))
+    assert lr._remote_listing("fo", "*.zip") == ("fo/new.zip",)
+    # And with nothing cached at all, even a screen has to wait for the first one.
+    lr._LISTED.clear()
+    assert lr._remote_listing("fo", "*.zip", stale_ok=True) == ("fo/new.zip",)
+
+
+# --- results: one read per question --------------------------------------------------
+
+
+def test_summary_reads_a_strategys_runs_once_and_says_the_same(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab import results
+
+    runs = [
+        results._to_run({"strategy_id": "s", "sharpe": 1.0, "fills": 5, "at": "2026-01-01"}),
+        results._to_run(
+            {"strategy_id": "s", "sharpe": 2.0, "fills": 5, "at": "2026-01-02", "window_days": 9}
+        ),
+        results._to_run({"strategy_id": "s", "sharpe": 9.0, "fills": 0, "at": "2026-01-03"}),
+    ]
+    reads: list[str] = []
+
+    def distinct(workspace: object, strategy_id: str) -> list[results.Run]:
+        reads.append(strategy_id)
+        return runs
+
+    monkeypatch.setattr(results, "distinct", distinct)
+    summary = results.summary(None, "s")  # type: ignore[arg-type]
+    assert reads == ["s"]
+    assert summary["sharpe"] == 2.0 and summary["runs"] == 2
+    # Passing the runs in changes nothing about the answer.
+    assert results.latest(None, "s", runs) == results.latest(None, "s")  # type: ignore[arg-type]
+    assert results.best(None, "s", runs) == results.best(None, "s")  # type: ignore[arg-type]

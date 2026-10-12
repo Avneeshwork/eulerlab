@@ -252,6 +252,37 @@ def _read_document(args: Mapping[str, Any]) -> str:
 # --- prices ---------------------------------------------------------------------------------
 
 
+def _panel_rows(symbol: str, days: int) -> list[dict[str, Any]] | None:
+    """One symbol's recent bars, oldest first. None when there is no panel.
+
+    From the panel the server already holds, when it holds one: a slice of the
+    last sessions, not a 2.7 s scan of the 746 MB file for one name. The scan
+    remains for a process that has not loaded the panel.
+    """
+    from eulerlab.api.panels import PANEL
+
+    if PANEL.loaded():
+        # Twice the sessions asked for, so a symbol that missed some still fills.
+        return [
+            {
+                "d": r.day.isoformat(),
+                "o": r.open,
+                "h": r.high,
+                "l": r.low,
+                "c": r.close,
+                "v": r.volume,
+            }
+            for r in PANEL.rows(days * 2)
+            if r.symbol == symbol
+        ]
+    path = DERIVED / "price_panel.jsonl"
+    if not path.exists():
+        return None
+    needle = f'"s": "{symbol}"'
+    with path.open(encoding="utf-8") as handle:
+        return [json.loads(line) for line in handle if needle in line]
+
+
 def _prices(args: Mapping[str, Any]) -> str:
     symbol = str(args.get("symbol") or "").upper().strip()
     if not symbol or '"' in symbol:
@@ -260,15 +291,9 @@ def _prices(args: Mapping[str, Any]) -> str:
         days = min(max(int(args.get("days") or 20), 1), MAX_PRICE_DAYS)
     except (TypeError, ValueError):
         days = 20
-    path = DERIVED / "price_panel.jsonl"
-    if not path.exists():
+    rows = _panel_rows(symbol, days)
+    if rows is None:
         return "The price panel has not been built."
-    needle = f'"s": "{symbol}"'
-    rows: list[dict[str, Any]] = []
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            if needle in line:
-                rows.append(json.loads(line))
     if not rows:
         return f"No daily prices for {symbol} in the NSE panel."
     last = rows[-days:]

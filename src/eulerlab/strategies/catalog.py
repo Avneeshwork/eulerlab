@@ -391,7 +391,8 @@ def _tree_files(tree: str, pattern: str) -> list[str]:
     """
     from eulerlab.ingest import landing_reader
 
-    return landing_reader.available(tree, pattern)
+    # A screen's counts: an old listing now beats a current one in a minute.
+    return landing_reader.available(tree, pattern, stale_ok=True)
 
 
 def _has_files(tree: str, pattern: str) -> bool:

@@ -1496,6 +1496,17 @@ Measured on the real panel (5.4 million rows, 746 MB), before and after:
 | Loading 1,088 price factors | 0.6 s | under 10 ms | `BitemporalStore.append` places a record in order instead of re-sorting the list each time |
 | UI JavaScript | 9.7 MB (`make ui`) | 0.67 MB (`make ui-fast`) | A built bundle, not the development server's |
 
+A second pass on 2026-10-12 timed every read route and profiled the slow ones:
+
+| What | Before | After | How |
+|---|---|---|---|
+| Options history, 30 days | 77 s | 8 s | `quotes_from_fo_bhavcopy(payload, underlying)` keeps one name's rows before parsing. A day's file is 35,000 contracts over 200 names and the screen shows one |
+| Options chain, one day | 3.0 s | 0.3 s | The same filter |
+| Routes that list the bucket (Instruments, option days) | 5 to 57 s whenever the five-minute listing had expired | the old listing at once | `available(..., stale_ok=True)`: a screen gets the listing it has and a background thread fetches the new one. Backtests and ingests never pass it |
+| Strategies table, first open after a restart | 5.4 s | under 1 s | The benchmark series is read with the panel at startup |
+| Strategies table, each open | 0.5 s | about 0.3 s | The results file is read once per request, not once per strategy; a strategy's runs once per question |
+| Assistant's price lookup | 2.7 s | a few ms | From the panel in memory, not a scan of the 746 MB file |
+
 None of these stores a result to reuse later. Each removes work that was being
 repeated or was never needed. `tests/test_dashboard_speed.py` checks every
 fast path against the slow one it replaced.

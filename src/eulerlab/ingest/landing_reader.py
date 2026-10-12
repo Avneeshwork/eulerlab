@@ -34,6 +34,7 @@ from __future__ import annotations
 import contextlib
 import fnmatch
 import os
+import threading
 from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
@@ -115,10 +116,22 @@ up without restarting the API.
 """
 
 _LISTED: dict[tuple[str, str], tuple[float, tuple[str, ...]]] = {}
+_REFRESHING: set[tuple[str, str]] = set()
+_REFRESH_LOCK = threading.Lock()
 
 
-def _remote_listing(tree: str, pattern: str) -> tuple[str, ...]:
-    """Remote paths under a tree matching a pattern, memoised briefly."""
+def _remote_listing(tree: str, pattern: str, *, stale_ok: bool = False) -> tuple[str, ...]:
+    """Remote paths under a tree matching a pattern, memoised briefly.
+
+    `stale_ok` is for a screen. When the listing is older than the limit it is
+    returned as it is, at once, and brought up to date in the background, so
+    the next request has the new one. Without it the request that happened to
+    arrive after the five minutes waited for the whole enumeration: 5 s for
+    the F&O tree and 57 s for crypto (measured 2026-10-12).
+
+    Never for a backtest or an ingest. Those need the listing to be current,
+    because a file pruned from disk a minute ago is only in the new one.
+    """
     import time
 
     key = (tree, pattern)
@@ -126,7 +139,32 @@ def _remote_listing(tree: str, pattern: str) -> tuple[str, ...]:
     now = time.monotonic()
     if cached is not None and now - cached[0] < _LISTING_TTL:
         return cached[1]
+    if cached is not None and stale_ok:
+        with _REFRESH_LOCK:
+            start = key not in _REFRESHING
+            _REFRESHING.add(key)
+        if start:
+            threading.Thread(
+                target=_refresh_listing, args=(tree, pattern), daemon=True, name="listing"
+            ).start()
+        return cached[1]
+    return _fetch_listing(tree, pattern)
 
+
+def _refresh_listing(tree: str, pattern: str) -> None:
+    try:
+        _fetch_listing(tree, pattern)
+    except Exception:  # the stale listing stays; the next request tries again
+        pass
+    finally:
+        with _REFRESH_LOCK:
+            _REFRESHING.discard((tree, pattern))
+
+
+def _fetch_listing(tree: str, pattern: str) -> tuple[str, ...]:
+    import time
+
+    key = (tree, pattern)
     found: list[str] = []
     store, prefix = _store_and_prefix()
     # Narrowed by the pattern's literal prefix before asking the bucket.
@@ -147,7 +185,7 @@ def _remote_listing(tree: str, pattern: str) -> tuple[str, ...]:
         if _matches(relative, tree, pattern):
             found.append(relative)
     out = tuple(found)
-    _LISTED[key] = (now, out)
+    _LISTED[key] = (time.monotonic(), out)
     return out
 
 
@@ -182,11 +220,15 @@ def prime_listing(keys: Iterable[str], prefix: str, wanted: Iterable[tuple[str, 
     return filled
 
 
-def available(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> list[str]:
+def available(
+    tree: str, pattern: str = "**/*", *, allow_cloud: bool = True, stale_ok: bool = False
+) -> list[str]:
     """Landing-relative paths under one tree, from disk and the bucket together.
 
     The union, deduplicated. Local-only files are ones not yet uploaded;
     remote-only files are the pruned ones. Either alone loses a set silently.
+
+    `stale_ok`: see `_remote_listing`. For screens only.
     """
     root = LANDING_ROOT / tree
     found: set[str] = set()
@@ -197,7 +239,7 @@ def available(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> 
         # Local-only is a usable answer; an unreachable bucket is not a reason
         # to report an empty tree that exists on disk.
         with contextlib.suppress(CloudUnavailable):
-            found |= set(_remote_listing(tree, pattern))
+            found |= set(_remote_listing(tree, pattern, stale_ok=stale_ok))
     return sorted(found)
 
 

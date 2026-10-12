@@ -49,6 +49,9 @@ Verify: `uv run pytest -q tests/test_dashboard_speed.py`; `curl -s -o /dev/null 
 | ID | Task | Status |
 |---|---|---|
 | T-4063 | **First paint from held data, live prices after; panel slices; faster panel read; preload; built UI** | DONE — measured table in ARCHITECTURE. First paint 6-9 s → 0.4 s |
+| T-4067 | **Second pass: every read route timed, the slow ones profiled and fixed** | DONE — options history 77 s → 8 s, chain 3.0 → 0.3 s, bucket listings no longer block a screen. Table in ARCHITECTURE |
+| T-4068 | Options history still takes 8 s for 30 days | OPEN — each day builds the full chain (implied vol for every strike) to read one at-the-money row. A lighter path through `options_chain` is the fix |
+| T-4069 | Lint is clean under the project's rules; 82 style-only findings under stricter sets | NOTED — `ruff --select PERF,C4,FURB,PTH`. Mostly `Decimal("0")` spellings. Not changed: churn across 30 files for no behaviour |
 | T-4064 | The live snapshot still takes about 5 s | OPEN — 16 Kite calls of 200 symbols in sequence. Kite's own limit on batch size and request rate was not checked; do that before raising `ZERODHA_BATCH` or sending calls side by side |
 | T-4065 | The panel is 5.4 million Python objects in memory | NOTED — the 19 s read and most of the server's memory. A columnar panel would be much faster and is a larger change to every reader |
 | T-4066 | `/api/fleet` takes 2.7 s on its first call after a restart | OPEN — not profiled |

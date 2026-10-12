@@ -27,6 +27,7 @@ re-reading it per request would make every backtest feel broken.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import statistics
@@ -136,8 +137,19 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
 def _preload() -> None:
     try:
         PANEL.rows()
+        # The market's line on the Strategies table scans the panel file for
+        # one symbol, 3.3 s, and the first Strategies screen waited for it.
+        from eulerlab import benchmark
+
+        benchmark._nifty_closes()
     except Exception:  # a missing or broken panel is reported by the routes that need it
-        return
+        pass
+    # The bucket listings the Options and Instruments screens need. The first
+    # listing of a tree cannot be skipped (8 s each, measured), so it is done
+    # here and not by whoever opens those screens first.
+    for warm in (options_days, instruments):
+        with contextlib.suppress(Exception):
+            warm()
 
 
 app = FastAPI(title="EulerLab", version="0.1.0", lifespan=_lifespan)
@@ -610,6 +622,9 @@ def _fleet_payload(
     us_all_results: dict[str, dict[str, Any]],
     walks: dict[str, Any],
 ) -> dict[str, Any]:
+    measured: dict[str, list[strategy_results.Row]] = {}
+    for result in strategy_results.load():
+        measured.setdefault(result.strategy_id, []).append(result)
     return {
         "bar": round(bar, 3),
         # The denominator the bar was actually computed from. The console used
@@ -677,7 +692,9 @@ def _fleet_payload(
                 # comparison is two numbers and a `max`, and freezing it would
                 # create a third thing to keep in sync with the two it came
                 # from.
-                "best_asset": _best_asset(row.declaration.id, adopted_results, us_all_results),
+                "best_asset": _best_asset(
+                    row.declaration.id, adopted_results, us_all_results, measured
+                ),
                 "trials": row.trials,
                 "clears_bar": _clears(tenant, row, bar, adopted_results),
             }
@@ -2685,8 +2702,12 @@ def _best_asset(
     strategy_id: str,
     adopted_results: dict[str, dict[str, Any]],
     us_all_results: dict[str, dict[str, Any]],
+    measured: dict[str, list[strategy_results.Row]] | None = None,
 ) -> dict[str, Any] | None:
     """The market this signal performs best on, of the ones it has been run on.
+
+    `measured` is every result grouped by strategy, read once by the caller.
+    Without it the results file was read again for each of 69 strategies.
 
     Compares the home-market run against the US cross-test and returns the
     better, with a flag for whether that is the market its paper used.
@@ -2703,9 +2724,12 @@ def _best_asset(
     # Every measurement of this strategy, whatever question it answered. Asking
     # the store rather than naming two dicts means a third kind — the same
     # signal on a third market — needs no change here.
-    candidates = [
-        row.data for row in strategy_results.for_strategy(strategy_id) if row.sharpe is not None
-    ]
+    rows = (
+        strategy_results.for_strategy(strategy_id)
+        if measured is None
+        else measured.get(strategy_id, [])
+    )
+    candidates = [row.data for row in rows if row.sharpe is not None]
     if not candidates:
         return None
 
@@ -3985,7 +4009,7 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
     from eulerlab.options.chain import build_chains, quotes_from_fo_bhavcopy
     from eulerlab.options.iv import implied_vol, years_to_expiry
 
-    found = landing_reader.available("fo", "**/*_udiff.zip", allow_cloud=True)
+    found = landing_reader.available("fo", "**/*_udiff.zip", stale_ok=True)
     if not found:
         return {"ok": False, "error": "no F&O bhavcopy has been landed"}
 
@@ -4000,13 +4024,18 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
     try:
         payload = landing_reader.read(match)
         trade_day = dt.date.fromisoformat(wanted)
-        chains = build_chains(quotes_from_fo_bhavcopy(payload), trade_day)
+        chains = build_chains(quotes_from_fo_bhavcopy(payload, underlying), trade_day)
     except Exception as exc:
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:200]}
 
     mine = [c for c in chains if c.underlying.upper() == underlying.upper()]
     if not mine:
-        names = sorted({c.underlying for c in chains})[:40]
+        # Only now is the whole file read, to say which names it does hold.
+        # The common case, a name that exists, never pays for this.
+        try:
+            names = sorted({q.underlying for q in quotes_from_fo_bhavcopy(payload)})[:40]
+        except Exception:
+            names = []
         return {"ok": False, "error": f"no chain for {underlying}", "available": names}
 
     mine.sort(key=lambda c: c.expiry)
@@ -4193,6 +4222,6 @@ def options_days(limit: int = 400) -> dict[str, Any]:
     """
     from eulerlab.ingest import landing_reader
 
-    found = landing_reader.available("fo", "**/*_udiff.zip", allow_cloud=True)
+    found = landing_reader.available("fo", "**/*_udiff.zip", stale_ok=True)
     days = sorted({p.rsplit("/", 1)[-1].split("_")[0] for p in found}, reverse=True)
     return {"ok": True, "days": days[:limit], "total": len(days)}

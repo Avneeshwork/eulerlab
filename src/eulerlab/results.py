@@ -295,13 +295,17 @@ def distinct(workspace: Workspace, strategy_id: str) -> list[Run]:
     return [_to_run(row) for row in latest.values()]
 
 
-def best(workspace: Workspace, strategy_id: str) -> Best | None:
+def best(workspace: Workspace, strategy_id: str, runs: list[Run] | None = None) -> Best | None:
     """The highest Sharpe, and how many configurations it beat.
 
     Returns None when nothing has been run — which the caller must render as
     "not measured" and never as zero.
+
+    `runs` is `distinct(...)` when the caller already has it, so one question
+    about a strategy reads its file once and not once per helper.
     """
-    runs = distinct(workspace, strategy_id)
+    if runs is None:
+        runs = distinct(workspace, strategy_id)
     if not runs:
         return None
     # A run that never traded is not a result of zero. It is a run that did not
@@ -327,7 +331,7 @@ def best(workspace: Workspace, strategy_id: str) -> Best | None:
     )
 
 
-def latest(workspace: Workspace, strategy_id: str) -> Run | None:
+def latest(workspace: Workspace, strategy_id: str, runs: list[Run] | None = None) -> Run | None:
     """The most recent run, whatever it scored.
 
     This is what the library reports, not `best`. "The last thing I ran" is a
@@ -340,10 +344,12 @@ def latest(workspace: Workspace, strategy_id: str) -> Run | None:
     never traded is not a result, and being the most recent does not make it
     one.
     """
-    runs = [run for run in distinct(workspace, strategy_id) if run.fills > 0]
-    if not runs:
+    if runs is None:
+        runs = distinct(workspace, strategy_id)
+    traded = [run for run in runs if run.fills > 0]
+    if not traded:
         return None
-    return max(runs, key=lambda r: r.at)
+    return max(traded, key=lambda r: r.at)
 
 
 def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
@@ -359,11 +365,12 @@ def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
     context the number needs either way — and when the best beats the latest,
     the caveat says so rather than letting the better figure disappear.
     """
-    recent = latest(workspace, strategy_id)
+    stored = distinct(workspace, strategy_id)
+    recent = latest(workspace, strategy_id, stored)
     if recent is None:
         return {"sharpe": None, "runs": 0, "caveat": ""}
 
-    top = best(workspace, strategy_id)
+    top = best(workspace, strategy_id, stored)
     runs = top.runs if top else 1
     unrecorded = top.unrecorded if top else 0
 
