@@ -294,3 +294,137 @@ def test_the_historys_light_chain_gives_the_same_point_as_the_full_chain(
     assert len(light["strikes"]) == 1 and len(full["strikes"]) == 5
     assert "smile" in full and "smile" not in light
     assert server.options_history("NIFTY", days=5)["points"] == [point]
+
+
+def test_a_row_read_from_the_file_is_the_row_the_constructor_makes(tmp_path: Path) -> None:
+    """`read_panel` builds rows without `__init__`; this holds it to `__init__`."""
+    import dataclasses
+
+    path = tmp_path / "p.jsonl"
+    path.write_text(
+        json.dumps(
+            {
+                "d": "2026-01-05",
+                "s": "AAA",
+                "c": 10.5,
+                "v": 7.0,
+                "t": 73.5,
+                "i": "INE1",
+                "o": 10.0,
+                "h": 11.0,
+                "l": 9.5,
+            }
+        )
+        + "\n"
+        + json.dumps({"d": "2026-01-06", "s": "AAA", "c": 11.0, "v": 1.0, "t": 11.0})
+        + "\n",
+        encoding="utf-8",
+    )
+    first, second = panel_mod.read_panel(path)
+    made = panel_mod.PanelRow(
+        day=date(2026, 1, 5),
+        symbol="AAA",
+        close=10.5,
+        volume=7.0,
+        turnover=73.5,
+        isin="INE1",
+        open=10.0,
+        high=11.0,
+        low=9.5,
+    )
+    assert first == made and hash(first) == hash(made) and repr(first) == repr(made)
+    # A line without the optional columns gets the dataclass's own defaults.
+    assert second == panel_mod.PanelRow(
+        day=date(2026, 1, 6), symbol="AAA", close=11.0, volume=1.0, turnover=11.0
+    )
+    # Every field the dataclass declares is set, and nothing else is.
+    assert list(vars(first)) == [f.name for f in dataclasses.fields(panel_mod.PanelRow)]
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        first.close = 1.0  # type: ignore[misc]
+
+
+def test_only_the_days_whose_symbols_are_out_of_order_are_sorted(tmp_path: Path) -> None:
+    """Days in order, symbols shuffled inside two of them: the same rows as a full sort."""
+    mixed = [
+        (DAYS[0], "AAA", 1.0), (DAYS[0], "BBB", 1.0), (DAYS[0], "CCC", 1.0),
+        (DAYS[1], "CCC", 2.0), (DAYS[1], "AAA", 2.0), (DAYS[1], "BBB", 2.0),
+        (DAYS[2], "AAA", 3.0),
+        (DAYS[3], "BBB", 4.0), (DAYS[3], "AAA", 4.0),
+    ]  # fmt: skip
+    path = tmp_path / "mixed.jsonl"
+    _write(path, mixed)
+    rows = panel_mod.read_panel(path)
+    assert [(r.day.isoformat(), r.symbol) for r in rows] == sorted((d, s) for d, s, _ in mixed)
+
+
+def test_the_row_helpers_agree_with_their_plain_definitions(tmp_path: Path) -> None:
+    path = tmp_path / "p.jsonl"
+    _write(path, ROWS)
+    rows = panel_mod.read_panel(path)
+    backwards = rows[::-1]
+    for given in (rows, backwards, []):
+        assert panel_mod.trading_days(given) == sorted({r.day for r in given})
+        histories = panel_mod.by_symbol(given)
+        assert set(histories) == {r.symbol for r in given}
+        for symbol, history in histories.items():
+            assert history == sorted((r for r in given if r.symbol == symbol), key=lambda r: r.day)
+
+
+# --- results mirror: nothing to fetch means nothing fetched ---------------------------
+
+
+class _Bucket:
+    def __init__(self, objects: dict[str, bytes]) -> None:
+        self.objects = dict(objects)
+        self.gets: list[str] = []
+        self.lists = 0
+
+    def list_sizes(self, prefix: str) -> dict[str, int]:
+        self.lists += 1
+        return {k: len(v) for k, v in self.objects.items() if k.startswith(prefix)}
+
+    def get(self, key: str) -> bytes:
+        self.gets.append(key)
+        return self.objects[key]
+
+    def put(self, key: str, payload: bytes, sha256: str) -> None:
+        self.objects[key] = payload
+
+    def head_sha256(self, key: str) -> str | None:
+        return None
+
+
+def test_the_mirror_downloads_only_files_that_differ(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab import cloud_results
+    from eulerlab import workspace as workspace_mod
+
+    monkeypatch.setattr(workspace_mod, "ROOT", tmp_path)
+    workspace = workspace_mod.Workspace(id="t", name="T")
+    results = workspace.results
+    results.mkdir(parents=True)
+    prefix = f"{cloud_results.RESULTS_PREFIX}{workspace.id}/"
+    same = '{"strategy_id": "a", "at": "2026-01-01", "sharpe": 1.0}\n'
+    ours = '{"strategy_id": "b", "at": "2026-01-01", "sharpe": 1.0}\n'
+    theirs = ours + '{"strategy_id": "b", "at": "2026-01-02", "sharpe": 2.0}\n'
+    (results / "a.jsonl").write_text(same, encoding="utf-8")
+    (results / "b.jsonl").write_text(ours, encoding="utf-8")
+    bucket = _Bucket(
+        {
+            f"{prefix}a.jsonl": same.encode(),
+            f"{prefix}b.jsonl": theirs.encode(),
+            f"{prefix}c.jsonl": same.encode(),
+        }
+    )
+    outcome = cloud_results.mirror(workspace, bucket)
+    # a is identical and is left alone; b grew there; c is not here at all.
+    assert sorted(bucket.gets) == [f"{prefix}b.jsonl", f"{prefix}c.jsonl"]
+    assert bucket.lists == 1 and outcome.pulled == 2 and not outcome.failed
+    assert len((results / "b.jsonl").read_text(encoding="utf-8").splitlines()) == 2
+    assert (results / "c.jsonl").exists()
+
+    # Asked for everything, it downloads everything.
+    bucket.gets.clear()
+    cloud_results.mirror(workspace, bucket, full=True)
+    assert len(bucket.gets) == 3

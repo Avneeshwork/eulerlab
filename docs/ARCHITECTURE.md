@@ -1489,7 +1489,7 @@ Measured on the real panel (5.4 million rows, 746 MB), before and after:
 |---|---|---|---|
 | Dashboard first paint (`/api/snapshot`) | 6 to 9 s | 0.4 s | The screen asks twice. `live=false` answers from held data and paints; `live=true` waits on the broker and swaps live prices in |
 | "The last N days" of the panel | 1.2 to 1.9 s per request | 5 ms | The rows are in day order, so it is a slice. `_Panel` records where each day starts when it loads |
-| Reading the panel (cold start) | 51 s | 19 s | Read a line at a time; `orjson`; parse each date once; sort only if the file is out of order |
+| Reading the panel (cold start) | 51 s | 13.5 s | Read a line at a time; `orjson`; parse each date once; build each row in one step, not ten; sort only the days whose symbols are out of order |
 | First request after a restart | 29 s and up | 3 s | The panel is read in a background thread at startup (`EULERLAB_PRELOAD=0` to switch off) |
 | Symbol counts (`/api/universes`, `/api/data`) | 0.6 s, 1.7 s | 3 ms, 0.4 s | Counted in the pass that loads the panel |
 | A company page | 0.9 to 3.4 s | 0.3 s | Adjust one company's prices, not every symbol's; look on disk before listing the bucket |
@@ -1507,6 +1507,9 @@ A second pass on 2026-10-12 timed every read route and profiled the slow ones:
 | Strategies table, first open after a restart | 5.4 s | under 1 s | The benchmark series is read with the panel at startup |
 | Strategies table, each open | 0.5 s | about 0.3 s | The results file is read once per request, not once per strategy; a strategy's runs once per question |
 | Assistant's price lookup | 2.7 s | a few ms | From the panel in memory, not a scan of the 746 MB file |
+| The wait after every batch run | 43 s | 2 s | The results mirror downloaded all 70 result files to compare them. It now skips a file whose size matches, the test `push` already used; `make results-pull` still fetches everything |
+| A study run from Strategies | computed twice | once | The report-rebuild pass recomputed items that had just been computed and have no report to rebuild |
+| Paper-book update, two deployments | about 29 s | 21 s | The faster panel read; `trading_days` and `by_symbol` no longer hash or sort what is already in order. Same equity to the paisa |
 
 None of these stores a result to reuse later. Each removes work that was being
 repeated or was never needed. `tests/test_dashboard_speed.py` checks every

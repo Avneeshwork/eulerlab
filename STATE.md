@@ -16,7 +16,7 @@ or in `TASKS.md`, it did not happen.*
 make verify
 ```
 
-Expect **7 of 7 green, ~998 tests**. The `engine` row is the backtester
+Expect **8 of 8 green, about 1,890 tests**. The `engine` row is the backtester
 self-test gate and the `chaos` row is the order-path gate; if either is red,
 stop and fix it before running anything, because every number downstream
 depends on them.

@@ -187,22 +187,29 @@ def read_panel(path: Path = PANEL_PATH) -> list[PanelRow]:
 
     This is the server's cold start: 5.4 million lines, 746 MB. It took 51
     seconds (measured 2026-10-12) and now takes about a quarter of that, from
-    four changes, none of them a cache:
+    five changes, none of them a cache:
 
     - the file is read a line at a time, not into one 746 MB string and then a
       5.4-million-item list of lines;
     - `orjson` parses each line (the standard parser was a third slower);
     - a day is parsed once, not once per row: 2,900 dates, not 5.4 million;
-    - the rows are sorted only if the file is not already in order, which it
-      is whenever `build` wrote it.
+    - only the days whose symbols are out of order are sorted, and the whole
+      file only if its days are.
     """
     if not path.exists():
         return []
     import orjson
 
     out: list[PanelRow] = []
+    append, new_row, set_fields = out.append, object.__new__, object.__setattr__
     days: dict[str, date] = {}
-    ordered, previous = True, ("", "")
+    # Whether the days come in order, and which days' symbols do not. The
+    # appender writes days in order but not always their symbols, and sorting
+    # 5.4 million rows by a Python key for that is 5.4 million key calls;
+    # sorting the few days that need it is a few thousand.
+    days_ordered, last_stamp, last_symbol = True, "", ""
+    starts: list[int] = []
+    unsorted_days: list[int] = []
     with path.open("rb") as handle:
         for line in handle:
             if not line.strip():
@@ -213,25 +220,49 @@ def read_panel(path: Path = PANEL_PATH) -> list[PanelRow]:
             if day is None:
                 day = days[stamp] = date.fromisoformat(stamp)
             symbol = row["s"]
-            # ISO dates sort as text exactly as they sort as dates.
-            if ordered and (stamp, symbol) < previous:
-                ordered = False
-            previous = (stamp, symbol)
-            out.append(
-                PanelRow(
-                    day=day,
-                    symbol=symbol,
-                    close=row["c"],
-                    volume=row["v"],
-                    turnover=row["t"],
-                    isin=row.get("i", row.get("isin", "")),
-                    open=row.get("o", 0.0),
-                    high=row.get("h", 0.0),
-                    low=row.get("l", 0.0),
-                )
+            if stamp != last_stamp:
+                # ISO dates sort as text exactly as they sort as dates.
+                if stamp < last_stamp:
+                    days_ordered = False
+                starts.append(len(out))
+                last_stamp = stamp
+            elif symbol < last_symbol and (
+                not unsorted_days or unsorted_days[-1] != len(starts) - 1
+            ):
+                unsorted_days.append(len(starts) - 1)
+            last_symbol = symbol
+            # Built without `PanelRow.__init__`. A frozen dataclass sets each
+            # of its ten fields through `object.__setattr__`, and for 5.4
+            # million rows that was a third of the whole read. Handing the row
+            # its fields in one step gives the same object: equal, same hash,
+            # same repr. `tests/test_dashboard_speed.py` holds this to
+            # `PanelRow(...)` and to the dataclass's field list, so a field
+            # added to `PanelRow` and not here fails a test, not a backtest.
+            built = new_row(PanelRow)
+            set_fields(
+                built,
+                "__dict__",
+                {
+                    "day": day,
+                    "symbol": symbol,
+                    "close": row["c"],
+                    "volume": row["v"],
+                    "turnover": row["t"],
+                    "isin": row.get("i", row.get("isin", "")),
+                    "spread": 0.0,
+                    "open": row.get("o", 0.0),
+                    "high": row.get("h", 0.0),
+                    "low": row.get("l", 0.0),
+                },
             )
-    if not ordered:
+            append(built)
+    if not days_ordered:
         out.sort(key=lambda r: (r.day, r.symbol))
+        return out
+    starts.append(len(out))
+    for index in unsorted_days:
+        begin, end = starts[index], starts[index + 1]
+        out[begin:end] = sorted(out[begin:end], key=lambda r: r.symbol)
     return out
 
 
@@ -386,15 +417,34 @@ def cross_section(rows: Sequence[PanelRow], day: date) -> dict[str, PanelRow]:
 def by_symbol(rows: Sequence[PanelRow]) -> dict[str, list[PanelRow]]:
     """Each symbol's history, oldest first."""
     out: dict[str, list[PanelRow]] = {}
+    # A panel is read oldest first, so each history arrives already in order.
+    # Only one that did not is sorted: sorting all of them cost four million
+    # key calls on the full panel to change nothing.
+    unordered: set[str] = set()
     for row in rows:
-        out.setdefault(row.symbol, []).append(row)
-    for history in out.values():
-        history.sort(key=lambda r: r.day)
+        history = out.get(row.symbol)
+        if history is None:
+            out[row.symbol] = [row]
+            continue
+        if row.day < history[-1].day:
+            unordered.add(row.symbol)
+        history.append(row)
+    for symbol in unordered:
+        out[symbol].sort(key=lambda r: r.day)
     return out
 
 
 def trading_days(rows: Sequence[PanelRow]) -> list[date]:
-    return sorted({r.day for r in rows})
+    # A panel's rows come in runs of one day. A row whose day is the previous
+    # row's is skipped without hashing it, which is nearly every row.
+    found: set[date] = set()
+    previous: date | None = None
+    for row in rows:
+        day = row.day
+        if day is not previous and day != previous:
+            found.add(day)
+            previous = day
+    return sorted(found)
 
 
 def iter_rows(path: Path = PANEL_PATH) -> Iterator[PanelRow]:

@@ -159,10 +159,34 @@ def check_chaos() -> Result:
     return Result(name, False, "FAIL", summary or "chaos scenarios failed", output)
 
 
+def check_web() -> Result:
+    """The web code's types and lint (`make web-check`).
+
+    Skipped, in green, where the web's packages are not installed: a headless
+    machine running the nightly feed has no Node and must still be able to
+    verify. Skipped is printed, so it is never mistaken for checked.
+    """
+    import shutil
+
+    name, web = "web", REPO_ROOT / "web"
+    if shutil.which("npm") is None or not (web / "node_modules").is_dir():
+        return Result(name, True, "SKIP", "web packages not installed (run `make ui` once)", "")
+    for script in ("typecheck", "lint"):
+        # check=False: a failing gate is a result to report, not an exception.
+        proc = subprocess.run(
+            ["npm", "run", "--silent", script], cwd=web, capture_output=True, text=True, check=False
+        )
+        if proc.returncode != 0:
+            output = (proc.stdout + proc.stderr).strip()
+            return Result(name, False, "FAIL", f"npm run {script} failed", output)
+    return Result(name, True, "PASS", "types and lint clean", "")
+
+
 CHECKS = (
     check_lint,
     check_types,
     check_tests,
+    check_web,
     check_docs,
     check_engine,
     check_chaos,

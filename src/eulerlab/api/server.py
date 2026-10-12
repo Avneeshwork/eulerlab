@@ -1279,6 +1279,11 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             for name in request.strategies
         ]
 
+        # Items whose result this batch has already written to the store.
+        # `compute` stores, and so did the pass at the end meant for cache
+        # hits: every computed result was written two or three times (T-4050).
+        stored: set[int] = set()
+
         def compute(item: _BatchItem) -> dict[str, Any]:
             # A builder strategy is a saved spec in this workspace, not a
             # registry entry; it runs through everything below unchanged.
@@ -1513,7 +1518,12 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 # the noise bar has never seen.
                 trial_recorded=False,
             )
-            result_store.record(workspace, run)
+            # Once per item per batch. A report rebuild below calls `compute`
+            # again for an item already recorded; it needs the report, not a
+            # second line in the log.
+            if id(item) not in stored:
+                result_store.record(workspace, run)
+                stored.add(id(item))
 
             # The intraday report, filed under the hash this `Run` just
             # produced. Saved here rather than in `_run_intraday` because the
@@ -1548,6 +1558,12 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
         for item_outcome in result.outcomes:
             if item_outcome.error or not item_outcome.result:
                 continue
+            # Only a cache hit can be missing a report it should have. An item
+            # computed in this batch has just had its chance to write one, and
+            # a study has none to write; recomputing either was the whole run
+            # done twice (49 s for the gap study, measured 2026-10-12).
+            if not item_outcome.cached or item_outcome.item.strategy_id in STUDY_RUNNABLE:
+                continue
             expected = result_store.Run(
                 strategy_id=item_outcome.item.strategy_id,
                 sharpe=0.0,
@@ -1568,12 +1584,13 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
 
         # A second pass, for cache hits only.
         #
-        # `compute` stores its own result now, but a cache hit never calls it —
-        # and a cached result is still a result, the same numbers just not
-        # recomputed. Recording it again is free: the configuration key makes it
-        # supersede rather than duplicate.
+        # `compute` stores its own result, but a cache hit never calls it — and
+        # a cached result is still a result, the same numbers just not
+        # recomputed. An item `compute` already stored is skipped.
         for item_outcome in result.outcomes:
             if item_outcome.error or not item_outcome.result:
+                continue
+            if id(item_outcome.item) in stored:
                 continue
             store_one(item_outcome.item, item_outcome.result)
 

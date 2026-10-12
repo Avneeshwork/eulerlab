@@ -36,7 +36,7 @@ Verify: `uv run pytest -q tests/test_telegram_signals.py`; Strategies → "Green
 | T-4046 | **Words the operator can send the bot** | DONE — status, positions, orders, next, signal, data, strategies, help. Read-only, answered only from the operator's chat. The API runs the listener; `make telegram-bot` runs it alone |
 | T-4047 | `make gap-signal` is not scheduled | OPEN — it must run between 15:15 and 15:25 IST on trading days with a Kite token minted that day. `tools/schedule_daily.py` writes the daily plist; a second one for 15:20 is the operator's to install |
 | T-4048 | The gap strategy cannot be paper-deployed | OPEN — deployments replay a `Strategy` through the equity engine. A paper book for an overnight future needs its own runner |
-| T-4050 | A batch writes each result to the store two or three times | OPEN — `store_one` is called inside the run, after it and again at the end of the batch; `tweezer_bottom.jsonl` holds three identical lines per run. The library de-duplicates by configuration when reading, so nothing shown is wrong; the files grow needlessly |
+| T-4050 | A batch writes each result to the store two or three times | DONE 2026-10-12 — each item is recorded once per batch (`stored` in `_run_batch`). Checked on a real run of the gap study: one new line, same Sharpe. Lines already duplicated in the files are left; the library de-duplicates on read |
 | T-4049 | Words that act (run, stop) from Telegram | NOT BUILT — by decision, ADR-063. Reopen only with a confirmation step and a recorded decision |
 
 ---
@@ -53,8 +53,10 @@ Verify: `uv run pytest -q tests/test_dashboard_speed.py`; `curl -s -o /dev/null 
 | T-4068 | Options history: a light path | DONE — 8 s → 4.7 s. The history solves only the at-the-money row and each file is decompressed in one call. What is left is decompressing and parsing 30 files |
 | T-4069 | Stricter lint for Python, and a linter for the web | DONE — `pyproject.toml` now also selects C4, PIE, FURB, PERF, PLE, PLW, RET; 150 findings fixed across 26 files; four rules exempted with reasons. The web had no linter: `web/.eslintrc.json` (Next core-web-vitals), four findings fixed, `make web-check` |
 | T-4064 | Live prices on the dashboard | DONE — 3.8 s → 0.8 s. Kite's OHLC endpoint at 500 a call, research 074. Still five requests back to back against a documented one a second (A-055) |
-| T-4070 | `make web-check` is not one of `make verify`'s gates | OPEN — operator's call: it would make `make verify` need Node installed |
-| T-4065 | The panel is 5.4 million Python objects in memory | NOTED — the 19 s read and most of the server's memory. A columnar panel would be much faster and is a larger change to every reader |
+| T-4070 | The web's types and lint are a `make verify` gate | DONE — `tools/verify.py` `check_web`. Eight gates now. Where the web's packages are not installed it prints SKIP and stays green, so a headless machine can still verify |
+| T-4072 | Every batch waited 43 s on the results mirror | DONE — it downloaded all 70 result files each time. Now 2 s: a file whose size matches the bucket's is skipped. `make results-pull` downloads everything. Caveat in `cloud_results.pull`: two machines appending different rows of equal length would not be noticed until the next change |
+| T-4071 | The price panel reads in 13.5 s, was 19 | DONE — rows built in one step; only out-of-order days sorted. `trading_days` and `by_symbol` skip work that changes nothing. Paper-book update 20.8 s for two deployments, same equity to the paisa |
+| T-4065 | The panel is 5.4 million Python objects in memory | NOTED — now a 13.5 s read (T-4071), of which 6 s is parsing JSON. Going lower needs a columnar panel, which changes every reader: 11 modules call `read_panel` and all take `list[PanelRow]`. Not done; needs a decision record first |
 | T-4066 | `/api/fleet` takes 2.7 s on its first call after a restart | OPEN — not profiled |
 
 ---

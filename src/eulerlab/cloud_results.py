@@ -115,22 +115,43 @@ def merge_lines(local: list[str], remote: list[str]) -> list[str]:
     return [line for _, line in sorted(seen.items(), key=lambda item: item[0][1])]
 
 
-def pull(workspace: Workspace, store: ReadableStore) -> Mirror:
-    """Bring down anything in the bucket this machine does not have, and merge."""
+def pull(
+    workspace: Workspace,
+    store: ReadableStore,
+    *,
+    remote: dict[str, int] | None = None,
+    full: bool = False,
+) -> Mirror:
+    """Bring down anything in the bucket this machine does not have, and merge.
+
+    A file whose size in the bucket equals its size here is not downloaded.
+    That is the test `push` has always used for "the same file", and without
+    it every mirror downloaded every result file to find nothing new: 70
+    downloads and 40 s after each batch (measured 2026-10-12).
+
+    The test can be wrong one way: two machines each append a different row
+    of exactly the same length. `full=True` downloads and merges everything
+    regardless; `make results-pull` uses it.
+
+    `remote` is the bucket listing when the caller already has it.
+    """
     outcome = Mirror()
     workspace.results.mkdir(parents=True, exist_ok=True)
     prefix = f"{RESULTS_PREFIX}{workspace.id}/"
-    try:
-        remote_keys = store.list_sizes(prefix)
-    except Exception as exc:
-        outcome.failed.append(f"list: {exc}")
-        return outcome
+    if remote is None:
+        try:
+            remote = store.list_sizes(prefix)
+        except Exception as exc:
+            outcome.failed.append(f"list: {exc}")
+            return outcome
 
-    for key in sorted(remote_keys):
+    for key in sorted(remote):
         name = key[len(prefix) :]
         if not name.endswith(".jsonl"):
             continue
         path = workspace.results / name
+        if not full and path.exists() and path.stat().st_size == remote[key]:
+            continue
         try:
             remote_text = store.get(key).decode("utf-8")
         except Exception as exc:
@@ -146,17 +167,20 @@ def pull(workspace: Workspace, store: ReadableStore) -> Mirror:
     return outcome
 
 
-def push(workspace: Workspace, store: ReadableStore) -> Mirror:
+def push(
+    workspace: Workspace, store: ReadableStore, *, remote: dict[str, int] | None = None
+) -> Mirror:
     """Upload every result file whose bytes differ from the bucket's copy."""
     outcome = Mirror()
     if not workspace.results.exists():
         return outcome
     prefix = f"{RESULTS_PREFIX}{workspace.id}/"
-    try:
-        remote = store.list_sizes(prefix)
-    except Exception as exc:
-        outcome.failed.append(f"list: {exc}")
-        return outcome
+    if remote is None:
+        try:
+            remote = store.list_sizes(prefix)
+        except Exception as exc:
+            outcome.failed.append(f"list: {exc}")
+            return outcome
 
     for path in sorted(workspace.results.glob("*.jsonl")):
         key = _key(workspace, path.name)
@@ -173,17 +197,27 @@ def push(workspace: Workspace, store: ReadableStore) -> Mirror:
     return outcome
 
 
-def mirror(workspace: Workspace, store: ReadableStore | None = None) -> Mirror:
+def mirror(
+    workspace: Workspace, store: ReadableStore | None = None, *, full: bool = False
+) -> Mirror:
     """Pull then push, so both copies end up holding the union.
 
     Pull first on purpose: pushing first would overwrite the bucket with a file
     that is missing whatever another machine appended, and the next pull would
     have nothing left to restore.
+
+    The bucket is listed once and both halves use the listing. The push is
+    judged against sizes from before the pull, which is right: a file the
+    pull just merged is larger here than there, so it is pushed.
     """
     if store is None:
         store = open_store()
-    down = pull(workspace, store)
-    up = push(workspace, store)
+    try:
+        remote: dict[str, int] | None = store.list_sizes(f"{RESULTS_PREFIX}{workspace.id}/")
+    except Exception as exc:
+        return Mirror(failed=[f"list: {exc}"])
+    down = pull(workspace, store, remote=remote, full=full)
+    up = push(workspace, store, remote=remote)
     return Mirror(
         pushed=up.pushed,
         pulled=down.pulled,
@@ -209,3 +243,25 @@ def mirror_quietly(workspace: Workspace) -> Mirror:
         return Mirror(failed=[str(exc)])
     except Exception as exc:
         return Mirror(failed=[f"{type(exc).__name__}: {exc}"])
+
+
+def main() -> int:
+    """`make results-pull`: download and merge every result file, whatever its size."""
+    from eulerlab import workspace as workspace_mod
+
+    ok, reason = configured()
+    if not ok:
+        print(reason)
+        return 1
+    outcome = mirror(workspace_mod.resolve(None), full=True)
+    print(
+        f"pulled {outcome.pulled} file(s), {outcome.merged_rows} new row(s); "
+        f"pushed {outcome.pushed}; failed {len(outcome.failed)}"
+    )
+    for failure in outcome.failed:
+        print(f"  {failure}")
+    return 1 if outcome.failed else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
