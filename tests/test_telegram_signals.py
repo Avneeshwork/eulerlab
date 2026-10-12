@@ -254,14 +254,28 @@ def test_no_word_can_place_change_or_stop_an_order() -> None:
 
     assert set(bot.COMMANDS) == {
         "status",
+        "pnl",
         "positions",
         "orders",
         "next",
+        "market",
+        "movers",
+        "price",
+        "company",
+        "news",
         "signal",
-        "data",
         "strategies",
+        "results",
+        "trials",
+        "brief",
+        "data",
+        "jobs",
+        "kite",
+        "kill",
+        "ask",
+        "forget",
         "help",
-    }, "a new word needs a decision recorded first: every word here is read-only"
+    }, "a new word needs a decision recorded first: every word here is read-only (ADR-068)"
 
 
 def test_only_the_operators_chat_is_answered(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -281,5 +295,5 @@ def test_a_handler_that_breaks_answers_with_its_error(monkeypatch: pytest.Monkey
     def broken(_: str) -> str:
         raise RuntimeError("panel missing")
 
-    monkeypatch.setitem(bot.COMMANDS, "status", ("x", broken))
+    monkeypatch.setitem(bot.COMMANDS, "status", bot.Command("x", broken, "Deployments"))
     assert bot.answer("status") == "status failed: RuntimeError: panel missing"

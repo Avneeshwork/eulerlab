@@ -1441,7 +1441,7 @@ panels (crypto, MF, FX, US) when the census changes; the US band cache is
 cleared after a run.
 
 
-## Telegram (ADR-063)
+## Telegram (ADR-063, ADR-068)
 
 One bot, the operator's chat (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`), three uses.
 
@@ -1459,21 +1459,50 @@ trade. It says when it was read too early (before 15:15 IST) or too late.
 
 **In, on request.** `telegram_bot.listen` long-polls `getUpdates` in a thread
 the API starts (`make telegram-bot` runs it alone; the `telegram_bot` file lock
-keeps it to one listener). `COMMANDS` is the whole vocabulary:
+keeps it to one listener). `COMMANDS` is the whole vocabulary; the handlers
+about deployments are in `telegram_bot.py` and the rest in `telegram_words.py`:
 
-| Word | Answers |
-|---|---|
-| `status` | every deployment: mode, strategy, equity, return, last traded day |
-| `positions [n]` | what deployment *n* holds |
-| `orders [n]` | its last ten orders |
-| `next [n]` | what it will hold after the next rebalance, and when |
-| `signal` | tonight's gap-strategy decision |
-| `data` | which datasets are behind |
-| `strategies` | how many strategies are in the library, by asset class |
-| `help` | this list |
+| Group | Word | Answers |
+|---|---|---|
+| Deployments | `status` | every deployment: mode, strategy, equity, return, last traded day |
+| | `pnl` | each deployment's gain and last day's move, and the total by mode |
+| | `positions [n]` | what deployment *n* holds |
+| | `orders [n]` | its last ten orders |
+| | `next [n]` | what it will hold after the next rebalance, and when |
+| Market | `market` | stocks up, down and flat, the 20-session average move, volatility |
+| | `movers` | five biggest rises and falls; unusual turnover on the last settled day |
+| | `price SYMBOL` | a live quote if one answers, the last settled close, the year's range |
+| | `company SYMBOL` | size, P/E, ROCE, ROE, growth, debt, promoters, industry median P/E |
+| | `news SYMBOL` | the five newest held headlines that name the company |
+| Research | `signal` | tonight's gap-strategy decision |
+| | `strategies [word]` | the library's count by asset class, or a search of it |
+| | `results ID` | a strategy's latest run and, if it was searched, the best of N |
+| | `trials` | configurations tried, and whether the trial log's chain is intact |
+| Machine | `brief` | `pnl`, `market`, `data`, `kite`, `kill` and `jobs` in one message |
+| | `data` | which datasets are behind |
+| | `jobs` | each `com.eulerlab.*` launchd job: running, clean, or failed with its exit code |
+| | `kite` | whether today's Kite token is valid. Never the login link: it carries the API key |
+| | `kill` | whether the kill switch is tripped, and its limits. It cannot trip or clear it |
+| Assistant | `ask QUESTION` | the assistant's answer (ADR-064), with the model and tools it used |
+| | `forget` | drops the last four questions and answers the bot keeps in memory |
+| | `help [word]` | the list by group, or how to send one word |
 
-A slash is optional. Messages from any other chat are dropped without a reply.
-No word places, changes or stops an order.
+**How a message is read** (`telegram_bot.answer`). A slash is optional. A word
+may be its short form (`pos`, `p`) or any start that only one word has
+(`mov`). *n* is a number from `status` or part of a deployment's name. A word
+within one or two letters of a real one gets "did you mean" and nothing else.
+A message of three words or more that starts with no word, or one ending in a
+question mark, is treated as a question and goes to `ask`
+(`EULERLAB_TELEGRAM_ASK=0` turns that off); a shorter stray message gets the
+list. A stock is found by symbol or by a part of its registered name; several
+matches are listed for the operator to choose from.
+
+**How an answer is sent** (`telegram_bot.reply`). In pieces of up to 3,500
+characters, split between lines, so nothing is cut. Each carries a keyboard of
+nine words for a phone. "Typing" shows while a slow answer is worked out.
+
+Messages from any other chat are dropped without a reply. No word places,
+changes or stops an order, and a test pins the list of words.
 
 **The gap strategy in the library.** `nifty_calm_rise_overnight` is a
 `Declaration` that is not a `Strategy`: it holds a future from a close to the
