@@ -83,7 +83,8 @@ def _prune_minute() -> str:
 
 def _run(command: list[str]) -> tuple[bool, str]:
     try:
-        done = subprocess.run(command, capture_output=True, text=True, timeout=3600)
+        # check=False: a failed step is reported to the caller, not raised.
+        done = subprocess.run(command, capture_output=True, text=True, timeout=3600, check=False)
     except subprocess.TimeoutExpired:
         return False, "timed out"
     return done.returncode == 0, (done.stderr or done.stdout)[-200:]

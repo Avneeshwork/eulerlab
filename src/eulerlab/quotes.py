@@ -62,6 +62,11 @@ USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
 )
 
+UNIVERSE_BATCH = 500
+"""Instruments per `ohlc()` call. Kite documents 1,000, but 1,000 NSE symbols in
+one request came back HTTP 400 on 2026-10-12: the instruments travel in the
+URL, and the URL was too long. 500 worked (research 074)."""
+
 ZERODHA_BATCH = 200
 """Instruments per `quote()` call. Kite accepts more; batching keeps one bad
 symbol from failing the whole universe in a single request."""
@@ -254,9 +259,13 @@ def live(symbols: list[str]) -> QuoteResult:
 def nse_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
     """Live quotes for a whole NSE universe. Returns (quotes, error).
 
-    Kite answers **500 instruments in 0.2 seconds**, so the entire liquid
-    universe is six calls and under two seconds — which is what makes a live
-    map possible at all rather than a nightly one.
+    Asked through Kite's OHLC endpoint, 500 instruments a call, because the
+    map needs two numbers per stock: the last price and the previous close.
+    It used the full-quote endpoint in batches of 200, which is market depth
+    and all for each stock: 12 to 16 calls and about 4 seconds (measured
+    2026-10-12), sent back to back against a documented limit of one quote
+    request a second (research 074). Now five calls and under a second, for
+    the same 2,154 of 2,352 symbols priced.
 
     Symbols the broker does not recognise are simply absent from the result:
     six of a five-hundred batch, typically renamed or delisted names still in
@@ -284,10 +293,10 @@ def nse_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
 
     stamp = datetime.now(UTC).isoformat()
     out: dict[str, Quote] = {}
-    for start in range(0, len(symbols), ZERODHA_BATCH):
-        batch = symbols[start : start + ZERODHA_BATCH]
+    for start in range(0, len(symbols), UNIVERSE_BATCH):
+        batch = symbols[start : start + UNIVERSE_BATCH]
         try:
-            payload = kite.quote([f"NSE:{s}" for s in batch])
+            payload = kite.ohlc([f"NSE:{s}" for s in batch])
         except Exception as exc:
             return out, f"{type(exc).__name__}: {str(exc)[:120]}"
 

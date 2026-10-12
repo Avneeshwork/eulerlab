@@ -255,3 +255,42 @@ def test_summary_reads_a_strategys_runs_once_and_says_the_same(
     # Passing the runs in changes nothing about the answer.
     assert results.latest(None, "s", runs) == results.latest(None, "s")  # type: ignore[arg-type]
     assert results.best(None, "s", runs) == results.best(None, "s")  # type: ignore[arg-type]
+
+
+# --- options history: the light path says what the full one says ----------------------
+
+
+def test_the_historys_light_chain_gives_the_same_point_as_the_full_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from eulerlab.api import server
+    from eulerlab.ingest import landing_reader
+    from eulerlab.options.history import history_point
+
+    lines = []
+    for strike, call, put in [
+        (24800, 260.0, 45.0),
+        (24900, 185.0, 70.0),
+        (25000, 122.0, 108.0),
+        (25100, 74.0, 160.0),
+        (25200, 41.0, 228.0),
+    ]:
+        lines.append(f"2026-10-09,NIFTY,2026-10-20,{strike},CE,IDO,{call},{call},900,5000,25010")
+        lines.append(f"2026-10-09,NIFTY,2026-10-20,{strike},PE,IDO,{put},{put},800,6000,25010")
+    lines.append("2026-10-09,BANKNIFTY,2026-10-28,55000,CE,IDO,300,301,100,900,55010")
+    payload = _fo_zip(lines)
+    monkeypatch.setattr(
+        landing_reader, "available", lambda *a, **k: ["fo/2026/10/2026-10-09_udiff.zip"]
+    )
+    monkeypatch.setattr(landing_reader, "read", lambda *a, **k: payload)
+
+    full = server._chain_payload("NIFTY", "", "", summary=False)
+    light = server._chain_payload("NIFTY", "", "", summary=True)
+    assert full["ok"] and light["ok"]
+    point = history_point(full)
+    assert point is not None and point == history_point(light)
+    assert point["atm_strike"] == 25000 and point["straddle"] == 230.0
+    # The light payload holds the one row; the full one holds them all.
+    assert len(light["strikes"]) == 1 and len(full["strikes"]) == 5
+    assert "smile" in full and "smile" not in light
+    assert server.options_history("NIFTY", days=5)["points"] == [point]

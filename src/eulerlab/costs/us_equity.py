@@ -163,7 +163,7 @@ SEC_SCHEDULE: tuple[tuple[date, Decimal], ...] = (
     # states the rate rose from $0.00 to $20.60 per million on 2026-04-04.
     # The SEC's own advisory page returns 403 to automated fetches, so the
     # regulator's notice republishing the order is the primary source used.
-    (date(2025, 10, 1), Decimal("0")),  # fiscal 2026 opened at zero
+    (date(2025, 10, 1), Decimal(0)),  # fiscal 2026 opened at zero
     (date(2026, 4, 4), Decimal("0.0000206")),  # $20.60 per million
 )
 """Published Section 31 rates and the dates they took effect.
@@ -184,7 +184,7 @@ TAF_CAP = Decimal("8.30")
 BROKERAGE_RATE = Decimal("0.0025")
 """INDmoney: 0.25% of trade value, each leg, before the cap below."""
 
-BROKERAGE_CAP = Decimal("25")
+BROKERAGE_CAP = Decimal(25)
 """$25 per transaction, quoted excluding GST.
 
 The binding constraint at every size this engine trades, and the single number
@@ -259,8 +259,8 @@ class Fee:
     notional: Decimal
     sec_fee: Decimal
     taf: Decimal
-    brokerage: Decimal = Decimal("0")
-    gst: Decimal = Decimal("0")
+    brokerage: Decimal = Decimal(0)
+    gst: Decimal = Decimal(0)
 
     @property
     def capped(self) -> bool:
@@ -302,7 +302,7 @@ def equity_fee(
         # Zero commission online. What remains are the two sell-side
         # pass-throughs every US broker collects, so a buy is genuinely free.
         if side is not Side.SELL:
-            return Fee(notional=notional, sec_fee=Decimal("0"), taf=Decimal("0"))
+            return Fee(notional=notional, sec_fee=Decimal(0), taf=Decimal(0))
         return Fee(
             notional=notional,
             sec_fee=notional * sec_rate(day),
@@ -312,8 +312,8 @@ def equity_fee(
     brokerage = min(notional * BROKERAGE_RATE, BROKERAGE_CAP)
     return Fee(
         notional=notional,
-        sec_fee=Decimal("0"),
-        taf=Decimal("0"),
+        sec_fee=Decimal(0),
+        taf=Decimal(0),
         brokerage=brokerage,
         gst=brokerage * GST_RATE,
     )
@@ -339,7 +339,7 @@ def round_trip_rate(
     """
     notional = price * abs(quantity)
     if notional <= 0:
-        return Decimal("0")
+        return Decimal(0)
     buy = equity_fee(price=price, quantity=quantity, side=Side.BUY, day=day, broker=broker)
     sell = equity_fee(price=price, quantity=quantity, side=Side.SELL, day=day, broker=broker)
     return (buy.total + sell.total) / notional

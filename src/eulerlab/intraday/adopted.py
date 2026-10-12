@@ -341,7 +341,7 @@ def _priced_at_other_broker(
     # across the sessions that traded. Approximate, and near enough at this
     # scale — the two bills differ by a few thousand on a six-figure gross.
     sharpe: float | None = None
-    if len(curve) >= 2 and curve[-1] not in (0.0,):
+    if len(curve) >= 2 and curve[-1] != 0.0:
         series = [curve[0]] + [b - a for a, b in pairwise(curve)]
         shift = (net - curve[-1]) / max(len(series), 1)
         moved = [v + shift if v else v for v in series]

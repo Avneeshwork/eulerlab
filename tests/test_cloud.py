@@ -177,7 +177,7 @@ def test_missing_credentials_is_a_clear_error(monkeypatch: pytest.MonkeyPatch) -
     """
     monkeypatch.delenv("B2_KEY_ID", raising=False)
     monkeypatch.delenv("B2_APP_KEY", raising=False)
-    monkeypatch.setattr("eulerlab.ingest.cloud.load_env", lambda: {})
+    monkeypatch.setattr("eulerlab.ingest.cloud.load_env", dict)
     with pytest.raises(MissingCredentials, match="B2_KEY_ID"):
         S3ObjectStore(CONFIG)
 

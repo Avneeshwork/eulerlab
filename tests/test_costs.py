@@ -20,7 +20,7 @@ from eulerlab.costs.model import (
 )
 from eulerlab.costs.schedule import ExerciseBasis, Segment, Side, rates_on
 
-LAKH = Decimal("100000")
+LAKH = Decimal(100000)
 
 
 # --- the published anchor ---
@@ -32,12 +32,12 @@ def test_the_exercise_example_matches_the_published_figure() -> None:
     """
     cost = cost_of_exercise(
         trade_date=date(2026, 8, 1),
-        settlement_price=Decimal("17350"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17350),
+        strike=Decimal(17300),
         quantity=50,
     )
     assert cost.stt == Decimal("3.75")
-    assert cost.turnover == Decimal("2500")
+    assert cost.turnover == Decimal(2500)
 
 
 def test_the_pre_2019_rule_charges_the_full_notional() -> None:
@@ -45,22 +45,22 @@ def test_the_pre_2019_rule_charges_the_full_notional() -> None:
     settlement value, not the intrinsic - Rs 1,084 on a Rs 2,500 profit."""
     cost = cost_of_exercise(
         trade_date=date(2018, 6, 1),
-        settlement_price=Decimal("17350"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17350),
+        strike=Decimal(17300),
         quantity=50,
     )
-    assert cost.turnover == Decimal("867500")
-    assert cost.stt > Decimal("1000")
+    assert cost.turnover == Decimal(867500)
+    assert cost.stt > Decimal(1000)
 
 
 def test_the_trap_could_exceed_the_profit_it_taxed() -> None:
     """Why traders abandoned in-the-money options before 2019: one point in
     the money on a large notional cost more than the point was worth."""
-    profit = Decimal("1") * 50
+    profit = Decimal(1) * 50
     cost = cost_of_exercise(
         trade_date=date(2018, 6, 1),
-        settlement_price=Decimal("17301"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17301),
+        strike=Decimal(17300),
         quantity=50,
     )
     assert cost.stt > profit
@@ -83,12 +83,12 @@ def test_futures_stt_quadrupled_across_the_backtest_window() -> None:
 
 
 def test_the_same_trade_costs_more_at_later_rates() -> None:
-    args = dict(
-        segment=Segment.FUTURES,
-        side=Side.SELL,
-        price=Decimal("20000"),
-        quantity=50,
-    )
+    args = {
+        "segment": Segment.FUTURES,
+        "side": Side.SELL,
+        "price": Decimal(20000),
+        "quantity": 50,
+    }
     old = cost_of_trade(trade_date=date(2016, 1, 1), **args)  # type: ignore[arg-type]
     new = cost_of_trade(trade_date=date(2026, 8, 1), **args)  # type: ignore[arg-type]
     assert new.stt > old.stt * 3
@@ -116,7 +116,7 @@ def test_delivery_stt_falls_on_both_legs() -> None:
             trade_date=date(2026, 8, 1),
             segment=Segment.EQUITY_DELIVERY,
             side=side,
-            price=Decimal("1000"),
+            price=Decimal(1000),
             quantity=100,
         )
         assert cost.stt == Decimal("100.00")
@@ -124,33 +124,36 @@ def test_delivery_stt_falls_on_both_legs() -> None:
 
 def test_intraday_stt_falls_only_on_the_sell() -> None:
     """Charging both legs would roughly double STT on every round trip."""
-    common = dict(
-        trade_date=date(2026, 8, 1),
-        segment=Segment.EQUITY_INTRADAY,
-        price=Decimal("1000"),
-        quantity=100,
-    )
-    assert cost_of_trade(side=Side.BUY, **common).stt == Decimal("0")  # type: ignore[arg-type]
-    assert cost_of_trade(side=Side.SELL, **common).stt > Decimal("0")  # type: ignore[arg-type]
+    common = {
+        "trade_date": date(2026, 8, 1),
+        "segment": Segment.EQUITY_INTRADAY,
+        "price": Decimal(1000),
+        "quantity": 100,
+    }
+    assert cost_of_trade(side=Side.BUY, **common).stt == Decimal(0)  # type: ignore[arg-type]
+    assert cost_of_trade(side=Side.SELL, **common).stt > Decimal(0)  # type: ignore[arg-type]
 
 
 def test_futures_stt_falls_only_on_the_sell() -> None:
-    common = dict(
-        trade_date=date(2026, 8, 1), segment=Segment.FUTURES, price=Decimal("20000"), quantity=50
-    )
-    assert cost_of_trade(side=Side.BUY, **common).stt == Decimal("0")  # type: ignore[arg-type]
-    assert cost_of_trade(side=Side.SELL, **common).stt > Decimal("0")  # type: ignore[arg-type]
+    common = {
+        "trade_date": date(2026, 8, 1),
+        "segment": Segment.FUTURES,
+        "price": Decimal(20000),
+        "quantity": 50,
+    }
+    assert cost_of_trade(side=Side.BUY, **common).stt == Decimal(0)  # type: ignore[arg-type]
+    assert cost_of_trade(side=Side.SELL, **common).stt > Decimal(0)  # type: ignore[arg-type]
 
 
 def test_stamp_duty_falls_only_on_the_buy() -> None:
-    common = dict(
-        trade_date=date(2026, 8, 1),
-        segment=Segment.EQUITY_DELIVERY,
-        price=Decimal("1000"),
-        quantity=100,
-    )
-    assert cost_of_trade(side=Side.BUY, **common).stamp_duty > Decimal("0")  # type: ignore[arg-type]
-    assert cost_of_trade(side=Side.SELL, **common).stamp_duty == Decimal("0")  # type: ignore[arg-type]
+    common = {
+        "trade_date": date(2026, 8, 1),
+        "segment": Segment.EQUITY_DELIVERY,
+        "price": Decimal(1000),
+        "quantity": 100,
+    }
+    assert cost_of_trade(side=Side.BUY, **common).stamp_duty > Decimal(0)  # type: ignore[arg-type]
+    assert cost_of_trade(side=Side.SELL, **common).stamp_duty == Decimal(0)  # type: ignore[arg-type]
 
 
 # --- GST, the easiest thing to get catastrophically wrong ---
@@ -163,7 +166,7 @@ def test_gst_is_charged_on_fees_not_on_turnover() -> None:
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_INTRADAY,
         side=Side.SELL,
-        price=Decimal("1000"),
+        price=Decimal(1000),
         quantity=100,
     )
     expected = (cost.brokerage + cost.exchange_txn) * Decimal("0.18")
@@ -179,10 +182,10 @@ def test_delivery_brokerage_is_free_by_default() -> None:
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_DELIVERY,
         side=Side.BUY,
-        price=Decimal("1000"),
+        price=Decimal(1000),
         quantity=100,
     )
-    assert cost.brokerage == Decimal("0")
+    assert cost.brokerage == Decimal(0)
 
 
 def test_intraday_brokerage_is_capped() -> None:
@@ -191,7 +194,7 @@ def test_intraday_brokerage_is_capped() -> None:
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_INTRADAY,
         side=Side.BUY,
-        price=Decimal("10000"),
+        price=Decimal(10000),
         quantity=1000,
     )
     assert cost.brokerage == Decimal("20.00")
@@ -200,16 +203,16 @@ def test_intraday_brokerage_is_capped() -> None:
 def test_brokerage_is_configurable_not_hardcoded() -> None:
     """It is the one line here that is a commercial choice rather than a
     statutory rate."""
-    free = Brokerage(intraday_pct=Decimal("0"), intraday_cap=Decimal("0"))
+    free = Brokerage(intraday_pct=Decimal(0), intraday_cap=Decimal(0))
     cost = cost_of_trade(
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_INTRADAY,
         side=Side.BUY,
-        price=Decimal("1000"),
+        price=Decimal(1000),
         quantity=100,
         brokerage=free,
     )
-    assert cost.brokerage == Decimal("0")
+    assert cost.brokerage == Decimal(0)
 
 
 # --- round trip ---
@@ -220,15 +223,15 @@ def test_a_round_trip_pays_stamp_once_and_stt_once() -> None:
     trip = round_trip(
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_INTRADAY,
-        entry_price=Decimal("1000"),
-        exit_price=Decimal("1000"),
+        entry_price=Decimal(1000),
+        exit_price=Decimal(1000),
         quantity=100,
     )
     one_leg_stamp = cost_of_trade(
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_INTRADAY,
         side=Side.BUY,
-        price=Decimal("1000"),
+        price=Decimal(1000),
         quantity=100,
     ).stamp_duty
     assert trip.stamp_duty == one_leg_stamp
@@ -238,8 +241,8 @@ def test_the_breakdown_totals_its_own_lines() -> None:
     trip = round_trip(
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_DELIVERY,
-        entry_price=Decimal("1500"),
-        exit_price=Decimal("1600"),
+        entry_price=Decimal(1500),
+        exit_price=Decimal(1600),
         quantity=50,
     )
     assert trip.total == sum(v for _, v in trip.lines())
@@ -249,43 +252,43 @@ def test_cost_in_basis_points_is_reported() -> None:
     trip = round_trip(
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_DELIVERY,
-        entry_price=Decimal("1000"),
-        exit_price=Decimal("1000"),
+        entry_price=Decimal(1000),
+        exit_price=Decimal(1000),
         quantity=100,
     )
-    assert Decimal("5") < trip.bps < Decimal("50")
+    assert Decimal(5) < trip.bps < Decimal(50)
 
 
 def test_a_zero_turnover_breakdown_does_not_divide_by_zero() -> None:
     cost = cost_of_exercise(
         trade_date=date(2026, 8, 1),
-        settlement_price=Decimal("100"),
-        strike=Decimal("200"),
+        settlement_price=Decimal(100),
+        strike=Decimal(200),
         quantity=50,
     )
-    assert cost.turnover == Decimal("0")
-    assert cost.bps == Decimal("0")
+    assert cost.turnover == Decimal(0)
+    assert cost.bps == Decimal(0)
 
 
 def test_an_out_of_the_money_option_has_no_intrinsic_value_to_tax() -> None:
     cost = cost_of_exercise(
         trade_date=date(2026, 8, 1),
-        settlement_price=Decimal("17000"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17000),
+        strike=Decimal(17300),
         quantity=50,
     )
-    assert cost.stt == Decimal("0")
+    assert cost.stt == Decimal(0)
 
 
 def test_a_put_takes_intrinsic_from_the_other_direction() -> None:
     cost = cost_of_exercise(
         trade_date=date(2026, 8, 1),
-        settlement_price=Decimal("17000"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17000),
+        strike=Decimal(17300),
         quantity=50,
         is_call=False,
     )
-    assert cost.turnover == Decimal("15000")
+    assert cost.turnover == Decimal(15000)
 
 
 def test_an_etf_unit_pays_stt_on_the_sale_only_at_a_hundredth_of_a_share() -> None:
@@ -301,12 +304,12 @@ def test_an_etf_unit_pays_stt_on_the_sale_only_at_a_hundredth_of_a_share() -> No
             trade_date=date(2024, 6, 3),
             segment=Segment.EQUITY_DELIVERY,
             side=side,
-            price=Decimal("250"),
+            price=Decimal(250),
             quantity=4000,
             fund_unit=fund_unit,
         ).stt
 
     assert stt(Side.BUY, fund_unit=False) == Decimal("1000.00")
     assert stt(Side.SELL, fund_unit=False) == Decimal("1000.00")
-    assert stt(Side.BUY, fund_unit=True) == Decimal("0")
+    assert stt(Side.BUY, fund_unit=True) == Decimal(0)
     assert stt(Side.SELL, fund_unit=True) == Decimal("10.00")

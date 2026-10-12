@@ -55,7 +55,7 @@ MAKER_RATE = Decimal("0.0002")
 TAKER_RATE = Decimal("0.0005")
 """0.05% of notional. Published 2026-08-22."""
 
-SPOT_BUY_RATE = Decimal("0")
+SPOT_BUY_RATE = Decimal(0)
 SPOT_SELL_RATE = Decimal("0.001")
 
 GST_RATE = Decimal("0.18")

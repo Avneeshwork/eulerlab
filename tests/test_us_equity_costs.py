@@ -31,7 +31,7 @@ def test_the_cap_binds_at_every_size_this_engine_trades() -> None:
     to run.
     """
     fee = us_equity.equity_fee(
-        price=Decimal("500"), quantity=Decimal("1000"), side=Side.BUY, day=PRICED_DAY
+        price=Decimal(500), quantity=Decimal(1000), side=Side.BUY, day=PRICED_DAY
     )
     assert fee.capped
     assert fee.brokerage == us_equity.BROKERAGE_CAP
@@ -40,19 +40,19 @@ def test_the_cap_binds_at_every_size_this_engine_trades() -> None:
 def test_small_trades_pay_the_percentage() -> None:
     """Below the cap the rate applies, so cost scales with size and then stops."""
     fee = us_equity.equity_fee(
-        price=Decimal("100"), quantity=Decimal("10"), side=Side.BUY, day=PRICED_DAY
+        price=Decimal(100), quantity=Decimal(10), side=Side.BUY, day=PRICED_DAY
     )
     assert not fee.capped
-    assert fee.brokerage == Decimal("1000") * us_equity.BROKERAGE_RATE
+    assert fee.brokerage == Decimal(1000) * us_equity.BROKERAGE_RATE
 
 
 def test_gst_is_charged_on_top_of_the_cap() -> None:
     """The cap is quoted excluding GST, so 18% lands on the capped figure."""
     fee = us_equity.equity_fee(
-        price=Decimal("500"), quantity=Decimal("1000"), side=Side.BUY, day=PRICED_DAY
+        price=Decimal(500), quantity=Decimal(1000), side=Side.BUY, day=PRICED_DAY
     )
     assert fee.gst == us_equity.BROKERAGE_CAP * us_equity.GST_RATE
-    assert fee.total == us_equity.BROKERAGE_CAP * (Decimal("1") + us_equity.GST_RATE)
+    assert fee.total == us_equity.BROKERAGE_CAP * (Decimal(1) + us_equity.GST_RATE)
 
 
 def test_buys_pay_brokerage_but_no_regulatory_fees() -> None:
@@ -63,10 +63,10 @@ def test_buys_pay_brokerage_but_no_regulatory_fees() -> None:
     the account trades through.
     """
     fee = us_equity.equity_fee(
-        price=Decimal("500"), quantity=Decimal("200"), side=Side.BUY, day=PRICED_DAY
+        price=Decimal(500), quantity=Decimal(200), side=Side.BUY, day=PRICED_DAY
     )
-    assert fee.sec_fee == Decimal("0")
-    assert fee.taf == Decimal("0")
+    assert fee.sec_fee == Decimal(0)
+    assert fee.taf == Decimal(0)
     assert fee.brokerage == us_equity.BROKERAGE_CAP
     assert fee.total == fee.brokerage + fee.gst
 
@@ -79,10 +79,10 @@ def test_both_legs_pay_the_same_brokerage_and_nothing_else() -> None:
     that decides results by a factor of three.
     """
     fee = us_equity.equity_fee(
-        price=Decimal("500"), quantity=Decimal("200"), side=Side.SELL, day=PRICED_DAY
+        price=Decimal(500), quantity=Decimal(200), side=Side.SELL, day=PRICED_DAY
     )
-    assert fee.sec_fee == Decimal("0")
-    assert fee.taf == Decimal("0")
+    assert fee.sec_fee == Decimal(0)
+    assert fee.taf == Decimal(0)
     assert fee.brokerage == us_equity.BROKERAGE_CAP
     assert fee.total == fee.brokerage + fee.gst
 
@@ -90,7 +90,7 @@ def test_both_legs_pay_the_same_brokerage_and_nothing_else() -> None:
 def test_the_cap_is_absolute_however_large_the_trade() -> None:
     """$10,000,000 of notional pays the same $25 as $10,000 does."""
     fee = us_equity.equity_fee(
-        price=Decimal("10"), quantity=Decimal("1000000"), side=Side.SELL, day=PRICED_DAY
+        price=Decimal(10), quantity=Decimal(1000000), side=Side.SELL, day=PRICED_DAY
     )
     assert fee.brokerage == us_equity.BROKERAGE_CAP
 
@@ -107,9 +107,7 @@ def test_us_is_cheaper_than_delta_at_the_size_this_engine_trades() -> None:
     """
     from eulerlab.costs.delta_exchange import round_trip_rate as delta_rate
 
-    us_rate = us_equity.round_trip_rate(
-        price=Decimal("500"), quantity=Decimal("1000"), day=PRICED_DAY
-    )
+    us_rate = us_equity.round_trip_rate(price=Decimal(500), quantity=Decimal(1000), day=PRICED_DAY)
     # Reversed once the cap was applied. At the size this engine trades, a US
     # round trip is a *tenth* of Delta's, not four times it.
     assert us_rate < delta_rate()
@@ -153,7 +151,7 @@ def test_currency_conversion_is_not_charged_per_trade() -> None:
     an active strategy's costs by its own turnover.
     """
     fee = us_equity.equity_fee(
-        price=Decimal("500"), quantity=Decimal("1000"), side=Side.BUY, day=PRICED_DAY
+        price=Decimal(500), quantity=Decimal(1000), side=Side.BUY, day=PRICED_DAY
     )
     lowest_markup = us_equity.FX_MARKUP_RANGE[0] * fee.notional
     assert fee.total < lowest_markup
@@ -167,7 +165,7 @@ def test_the_rate_steps_on_its_effective_date() -> None:
     for a fee that did not exist. Verified against FINRA Information Notice
     03/17/26.
     """
-    assert us_equity.sec_rate(dt.date(2026, 4, 3)) == Decimal("0")
+    assert us_equity.sec_rate(dt.date(2026, 4, 3)) == Decimal(0)
     assert us_equity.sec_rate(dt.date(2026, 4, 4)) == Decimal("0.0000206")
     assert us_equity.sec_rate(dt.date(2026, 8, 20)) == Decimal("0.0000206")
 
@@ -178,7 +176,7 @@ def test_the_rate_schedule_still_works_though_nothing_charges_it() -> None:
     If the pass-throughs are ever switched back on, this is the part that has
     to still be right.
     """
-    assert us_equity.sec_rate(dt.date(2026, 4, 3)) == Decimal("0")
+    assert us_equity.sec_rate(dt.date(2026, 4, 3)) == Decimal(0)
     assert us_equity.sec_rate(dt.date(2026, 4, 4)) == Decimal("0.0000206")
 
 

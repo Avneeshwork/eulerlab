@@ -31,7 +31,7 @@ def test_only_a_query_can_leave_unknown() -> None:
     assumption — which would look like a small convenience and would be the
     single most expensive line in the system.
     """
-    for (state, event), _ in TRANSITIONS.items():
+    for state, event in TRANSITIONS:
         if state is OrderState.UNKNOWN:
             assert event in QUERY_EVENTS, f"{event} escapes UNKNOWN without asking the broker"
 

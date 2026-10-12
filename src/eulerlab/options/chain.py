@@ -176,7 +176,10 @@ def quotes_from_fo_bhavcopy(payload: bytes, underlying: str = "") -> Iterator[Qu
         names = [n for n in archive.namelist() if n.lower().endswith(".csv")]
         if not names:
             return
-        with archive.open(names[0]) as handle:
+        # The member is decompressed in one call and then read from memory.
+        # Reading it through `archive.open` a line at a time made a million
+        # Python-level `readline` calls for the 30-day history: 3 of its 7 s.
+        with io.BytesIO(archive.read(names[0])) as handle:
             # Bytes first: a line that does not contain the name at all is
             # dropped before it is decoded or split into cells. The exact test
             # on the symbol cell still follows, so NIFTY does not let

@@ -70,7 +70,7 @@ def latest_file(symbol: str) -> str | None:
     paths = landing_reader.available(digest.TREE, pattern, allow_cloud=False)
     if not paths:
         paths = landing_reader.available(digest.TREE, pattern)
-    return sorted(paths)[-1] if paths else None
+    return max(paths) if paths else None
 
 
 def read_columns(relative: str) -> dict[str, list[Any]]:

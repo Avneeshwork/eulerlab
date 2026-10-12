@@ -30,7 +30,7 @@ def test_gst_applies_to_the_fee_not_the_notional() -> None:
     single trade would obviously reveal — the position simply looks unviable
     and the cause looks like the strategy.
     """
-    fee = dx.futures_fee(price=Decimal("60000"), quantity=Decimal("1"))
+    fee = dx.futures_fee(price=Decimal(60000), quantity=Decimal(1))
     assert fee.trading_fee == Decimal("30.0000")
     assert fee.gst == Decimal("5.400000")
     assert fee.total == Decimal("35.400000")
@@ -51,19 +51,19 @@ def test_making_both_legs_is_cheaper_but_has_to_be_argued_for() -> None:
 def test_taker_is_the_default_because_maker_is_a_claim() -> None:
     """Assuming the maker rate assumes a limit order was never crossed, which
     is a claim about queue position this repository's engines cannot support."""
-    assert dx.futures_fee(price=Decimal("100"), quantity=Decimal("1")).trading_fee == (
-        Decimal("100") * dx.TAKER_RATE
+    assert dx.futures_fee(price=Decimal(100), quantity=Decimal(1)).trading_fee == (
+        Decimal(100) * dx.TAKER_RATE
     )
 
 
 def test_spot_buying_is_free_and_selling_is_not() -> None:
-    buy = dx.spot_fee(price=Decimal("1000"), quantity=Decimal("1"), side=Side.BUY)
-    sell = dx.spot_fee(price=Decimal("1000"), quantity=Decimal("1"), side=Side.SELL)
+    buy = dx.spot_fee(price=Decimal(1000), quantity=Decimal(1), side=Side.BUY)
+    sell = dx.spot_fee(price=Decimal(1000), quantity=Decimal(1), side=Side.SELL)
     assert buy.total == 0
     assert sell.trading_fee == Decimal("1.000")
     assert sell.gst == Decimal("0.18000")
 
 
 def test_a_zero_notional_does_not_divide_by_zero() -> None:
-    fee = dx.futures_fee(price=Decimal("0"), quantity=Decimal("1"))
+    fee = dx.futures_fee(price=Decimal(0), quantity=Decimal(1))
     assert fee.effective_rate == 0

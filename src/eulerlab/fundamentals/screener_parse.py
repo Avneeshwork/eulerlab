@@ -141,10 +141,10 @@ def _periods(table_html: str) -> list[str]:
     if keyed:
         return keyed
     # Shareholding tables carry no date keys; fall back to the visible labels.
-    head = re.search(r"<thead[^>]*>(.*?)</thead>", table_html, re.S)
+    head = re.search(r"<thead[^>]*>(.*?)</thead>", table_html, re.DOTALL)
     if head is None:
         return []
-    labels = [_text(th) for th in re.findall(r"<th[^>]*>(.*?)</th>", head.group(1), re.S)]
+    labels = [_text(th) for th in re.findall(r"<th[^>]*>(.*?)</th>", head.group(1), re.DOTALL)]
     return [p for p in (_label_to_period(lbl) for lbl in labels) if p]
 
 
@@ -154,7 +154,7 @@ def parse_section(page: str, section_id: str) -> list[Cell]:
     if section is None:
         return []
 
-    table_match = re.search(r"<table[^>]*>(.*?)</table>", section, re.S)
+    table_match = re.search(r"<table[^>]*>(.*?)</table>", section, re.DOTALL)
     if table_match is None:
         return []
     table = table_match.group(1)
@@ -165,9 +165,9 @@ def parse_section(page: str, section_id: str) -> list[Cell]:
 
     cells: list[Cell] = []
     body = table.split("</thead>", 1)[-1]
-    for row_match in re.finditer(r"<tr[^>]*>(.*?)</tr>", body, re.S):
+    for row_match in re.finditer(r"<tr[^>]*>(.*?)</tr>", body, re.DOTALL):
         row = row_match.group(1)
-        tds = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+        tds = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
         if len(tds) < 2:
             continue
         label = _text(tds[0]).rstrip("+").strip()
@@ -196,7 +196,7 @@ def parse_page(page: str) -> list[Cell]:
 
 
 def company_name(page: str) -> str | None:
-    match = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.S)
+    match = re.search(r"<h1[^>]*>(.*?)</h1>", page, re.DOTALL)
     return _text(match.group(1)) if match else None
 
 
@@ -224,8 +224,8 @@ def parse_top_ratios(page: str) -> tuple[tuple[str, str], ...]:
         return ()
     block = page[start : start + 6000]
     pairs: list[tuple[str, str]] = []
-    for item in re.finditer(r"<li[^>]*>(.*?)</li>", block, re.S):
-        name_match = re.search(r'class="name"[^>]*>(.*?)<', item.group(1), re.S)
+    for item in re.finditer(r"<li[^>]*>(.*?)</li>", block, re.DOTALL):
+        name_match = re.search(r'class="name"[^>]*>(.*?)<', item.group(1), re.DOTALL)
         if name_match is None:
             continue
         label = _text(name_match.group(1)).rstrip(":").strip()
@@ -247,11 +247,11 @@ def parse_profile(page: str) -> Profile:
         # Sector hierarchy is a breadcrumb of /market/ links carrying a title
         # attribute ("Broad Sector" -> "Sector" -> "Industry"), ordered broad
         # to narrow. Keeping the order preserves the hierarchy.
-        for match in re.finditer(r'<a[^>]+href="/market/[^"]*"[^>]*>(.*?)</a>', block, re.S):
+        for match in re.finditer(r'<a[^>]+href="/market/[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL):
             sector = _text(match.group(1))
             if sector and sector not in sectors:
                 sectors.append(sector)
-        for match in re.finditer(r'class="tag[^"]*"[^>]*>(.*?)</a>', block, re.S):
+        for match in re.finditer(r'class="tag[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL):
             tag = _text(match.group(1))
             if tag and tag not in tags:
                 tags.append(tag)

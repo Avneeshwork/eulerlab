@@ -91,7 +91,7 @@ def _excursion(
     if exit_price is not None:
         path.append(exit_price)
     moves = [(price - entry_price) * quantity * direction for price in path]
-    return round(min(min(moves), 0.0), 2), round(max(max(moves), 0.0), 2)
+    return round(min(*moves, 0.0), 2), round(max(*moves, 0.0), 2)
 
 
 def round_trips(

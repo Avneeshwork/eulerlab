@@ -50,9 +50,10 @@ Verify: `uv run pytest -q tests/test_dashboard_speed.py`; `curl -s -o /dev/null 
 |---|---|---|
 | T-4063 | **First paint from held data, live prices after; panel slices; faster panel read; preload; built UI** | DONE — measured table in ARCHITECTURE. First paint 6-9 s → 0.4 s |
 | T-4067 | **Second pass: every read route timed, the slow ones profiled and fixed** | DONE — options history 77 s → 8 s, chain 3.0 → 0.3 s, bucket listings no longer block a screen. Table in ARCHITECTURE |
-| T-4068 | Options history still takes 8 s for 30 days | OPEN — each day builds the full chain (implied vol for every strike) to read one at-the-money row. A lighter path through `options_chain` is the fix |
-| T-4069 | Lint is clean under the project's rules; 82 style-only findings under stricter sets | NOTED — `ruff --select PERF,C4,FURB,PTH`. Mostly `Decimal("0")` spellings. Not changed: churn across 30 files for no behaviour |
-| T-4064 | The live snapshot still takes about 5 s | OPEN — 16 Kite calls of 200 symbols in sequence. Kite's own limit on batch size and request rate was not checked; do that before raising `ZERODHA_BATCH` or sending calls side by side |
+| T-4068 | Options history: a light path | DONE — 8 s → 4.7 s. The history solves only the at-the-money row and each file is decompressed in one call. What is left is decompressing and parsing 30 files |
+| T-4069 | Stricter lint for Python, and a linter for the web | DONE — `pyproject.toml` now also selects C4, PIE, FURB, PERF, PLE, PLW, RET; 150 findings fixed across 26 files; four rules exempted with reasons. The web had no linter: `web/.eslintrc.json` (Next core-web-vitals), four findings fixed, `make web-check` |
+| T-4064 | Live prices on the dashboard | DONE — 3.8 s → 0.8 s. Kite's OHLC endpoint at 500 a call, research 074. Still five requests back to back against a documented one a second (A-055) |
+| T-4070 | `make web-check` is not one of `make verify`'s gates | OPEN — operator's call: it would make `make verify` need Node installed |
 | T-4065 | The panel is 5.4 million Python objects in memory | NOTED — the 19 s read and most of the server's memory. A columnar panel would be much faster and is a larger change to every reader |
 | T-4066 | `/api/fleet` takes 2.7 s on its first call after a restart | OPEN — not profiled |
 

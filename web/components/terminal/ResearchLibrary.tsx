@@ -387,7 +387,7 @@ export function ResearchLibrary({
           <section className="tpanel">
             <h3>Strategies that test it</h3>
             {current.links.length === 0 && (
-              <p className="tfine">None yet. "Build its rules" opens the Strategy Builder; what you save there is linked here.</p>
+              <p className="tfine">None yet. &quot;Build its rules&quot; opens the Strategy Builder; what you save there is linked here.</p>
             )}
             <div className="rl-links">
               {current.links.map((link) => (

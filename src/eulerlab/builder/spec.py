@@ -70,7 +70,7 @@ class Operand(BaseModel):
             filled[param.name] = float(int(raw)) if param.integer else float(raw)
         extra = set(self.params) - {p.name for p in definition.params}
         if extra:
-            msg = f"{definition.label} has no parameter {sorted(extra)[0]!r}"
+            msg = f"{definition.label} has no parameter {min(extra)!r}"
             raise ValueError(msg)
         self.params = filled
         return self

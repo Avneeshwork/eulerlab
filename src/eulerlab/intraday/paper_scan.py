@@ -161,7 +161,7 @@ class SignalScan:
 
     def session_days(self) -> list[date]:
         """Every session date in the scan, trading or not."""
-        return sorted({candle_day for candle_day in self._session_dates})
+        return sorted(set(self._session_dates))
 
     def session_pnl(self) -> list[float]:
         """Net P&L per session, including sessions that traded nothing.

@@ -1500,7 +1500,8 @@ A second pass on 2026-10-12 timed every read route and profiled the slow ones:
 
 | What | Before | After | How |
 |---|---|---|---|
-| Options history, 30 days | 77 s | 8 s | `quotes_from_fo_bhavcopy(payload, underlying)` keeps one name's rows before parsing. A day's file is 35,000 contracts over 200 names and the screen shows one |
+| Options history, 30 days | 77 s | 4.7 s | `quotes_from_fo_bhavcopy(payload, underlying)` keeps one name's rows before parsing (a day's file is 35,000 contracts over 200 names); each file is decompressed in one call, not read a line at a time; and the history solves implied vol for the at-the-money row only (`_chain_payload(summary=True)`) |
+| Live prices on the dashboard | 3.8 s | 0.8 s | Kite's OHLC endpoint, 500 symbols a call: 5 calls, not 12 to 16 (research 074) |
 | Options chain, one day | 3.0 s | 0.3 s | The same filter |
 | Routes that list the bucket (Instruments, option days) | 5 to 57 s whenever the five-minute listing had expired | the old listing at once | `available(..., stale_ok=True)`: a screen gets the listing it has and a background thread fetches the new one. Backtests and ingests never pass it |
 | Strategies table, first open after a restart | 5.4 s | under 1 s | The benchmark series is read with the panel at startup |

@@ -59,8 +59,8 @@ def check_published_example() -> Result:
     """The one figure with a published answer: Zerodha's exercise example."""
     cost = cost_of_exercise(
         trade_date=date(2026, 8, 1),
-        settlement_price=Decimal("17350"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17350),
+        strike=Decimal(17300),
         quantity=50,
     )
     if cost.stt != Decimal("3.75"):
@@ -73,14 +73,14 @@ def check_stt_trap_is_modelled() -> Result:
     to the first four and a half years of our own price history."""
     old = cost_of_exercise(
         trade_date=date(2018, 6, 1),
-        settlement_price=Decimal("17350"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17350),
+        strike=Decimal(17300),
         quantity=50,
     )
     new = cost_of_exercise(
         trade_date=date(2026, 8, 1),
-        settlement_price=Decimal("17350"),
-        strike=Decimal("17300"),
+        settlement_price=Decimal(17350),
+        strike=Decimal(17300),
         quantity=50,
     )
     if old.stt <= new.stt * 50:
@@ -90,7 +90,7 @@ def check_stt_trap_is_modelled() -> Result:
 
 def check_sides() -> Result:
     """Each charge on the leg that actually bears it."""
-    common = dict(trade_date=date(2026, 8, 1), price=Decimal("1000"), quantity=100)
+    common = {"trade_date": date(2026, 8, 1), "price": Decimal(1000), "quantity": 100}
     intraday_buy = cost_of_trade(segment=Segment.EQUITY_INTRADAY, side=Side.BUY, **common)  # type: ignore[arg-type]
     intraday_sell = cost_of_trade(segment=Segment.EQUITY_INTRADAY, side=Side.SELL, **common)  # type: ignore[arg-type]
     delivery_sell = cost_of_trade(segment=Segment.EQUITY_DELIVERY, side=Side.SELL, **common)  # type: ignore[arg-type]
@@ -113,7 +113,7 @@ def check_gst_base() -> Result:
         trade_date=date(2026, 8, 1),
         segment=Segment.EQUITY_INTRADAY,
         side=Side.SELL,
-        price=Decimal("1000"),
+        price=Decimal(1000),
         quantity=100,
     )
     expected = (cost.brokerage + cost.exchange_txn) * Decimal("0.18")

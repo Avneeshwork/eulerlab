@@ -151,7 +151,7 @@ def fetch(symbol: str, *, start: date | None = None, end: date | None = None) ->
                 continue
             try:
                 row = json.loads(line)
-                stamp = datetime.fromisoformat(str(row["event_time"]).replace("Z", "+00:00"))
+                stamp = datetime.fromisoformat(str(row["event_time"]))
             except (ValueError, KeyError):
                 continue
             if stamp.tzinfo is None:

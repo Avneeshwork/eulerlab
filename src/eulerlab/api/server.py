@@ -3986,6 +3986,11 @@ def mode() -> dict[str, Any]:
 
 @app.get("/api/options/chain")
 def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") -> dict[str, Any]:
+    """One option chain in full. The work, and its notes, are in `_chain_payload`."""
+    return _chain_payload(underlying, day, expiry, summary=False)
+
+
+def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> dict[str, Any]:
     """One option chain, with implied vol and the no-arbitrage findings.
 
     The options package has parsed chains, solved Black-76 implied vol and run
@@ -4060,8 +4065,15 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
     days_out = max((chain.expiry - trade_day).days, 0)
     tenor = years_to_expiry(days_out)
 
+    at_the_money = analytics.atm_strike(chain.strikes, forward or 0.0)
+
     rows: list[dict[str, Any]] = []
     for strike in chain.strikes:
+        # `summary` is the history's question: one at-the-money row per day.
+        # Solving implied vol for every strike of every day to read one row
+        # was most of the history's 8 s for 30 days (measured 2026-10-12).
+        if summary and (at_the_money is None or float(strike) != float(at_the_money)):
+            continue
         call, put = chain.calls.get(strike), chain.puts.get(strike)
 
         def vol(quote: Any, right: Right, *, at: Decimal = strike) -> float | None:
@@ -4101,6 +4113,24 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
             }
         )
 
+    pain = analytics.max_pain(chain)
+    ratio = analytics.put_call_ratio(chain)
+    if summary:
+        # Exactly the fields `options.history.history_point` reads, computed
+        # the same way as below; the checks, Greeks, gamma and smile are not.
+        return {
+            "ok": True,
+            "underlying": chain.underlying,
+            "day": wanted,
+            "expiry": chain.expiry.isoformat(),
+            "days_to_expiry": days_out,
+            "forward": forward,
+            "strikes": rows,
+            "atm_strike": at_the_money,
+            "max_pain": {"strike": pain.strike} if pain else None,
+            "put_call_ratio": {"by_open_interest": ratio.by_open_interest},
+        }
+
     findings = [
         {
             "check": f.check,
@@ -4114,11 +4144,8 @@ def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") ->
     # tool on the screen is reading the same vol and the same Greeks — six
     # separate solves would be six chances to use a different forward.
     enriched = analytics.enrich(chain, forward=forward or 0.0, discount=discount, years=tenor)
-    pain = analytics.max_pain(chain)
-    ratio = analytics.put_call_ratio(chain)
     gamma = analytics.gamma_exposure(enriched, forward=forward or 0.0)
     curve = analytics.smile(enriched, forward=forward or 0.0)
-    at_the_money = analytics.atm_strike(chain.strikes, forward or 0.0)
 
     for row, enriched_row in zip(rows, enriched, strict=False):
         call_g, put_g = enriched_row.call_greeks, enriched_row.put_greeks
@@ -4198,7 +4225,7 @@ def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]
     points: list[dict[str, Any]] = []
     skipped: list[str] = []
     for day in reversed(listed["days"]):
-        point = history_point(options_chain(underlying=underlying, day=day))
+        point = history_point(_chain_payload(underlying, day, "", summary=True))
         if point is None:
             skipped.append(day)
         else:

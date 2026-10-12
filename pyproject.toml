@@ -70,9 +70,27 @@ select = [
     "RUF",  # ruff-specific
     "PD",   # pandas-vet (guards .shift/.rolling misuse later)
     "DTZ",  # naive-datetime detection: every timestamp must be tz-aware
+    # Added 2026-10-12 after a pass over every file (T-4069).
+    "C4",   # comprehensions: no list() around a generator, no dict() calls
+    "PIE",  # needless code
+    "FURB", # the modern spelling: min() not sorted()[0], re.DOTALL not re.S
+    "PERF", # work done in a loop that need not be
+    "PLE",  # pylint errors
+    "PLW",  # pylint warnings
+    "RET",  # returns that say what they return
 ]
 ignore = [
     "E501",  # line length is handled by the formatter
+    # Loop-or-comprehension is a style call, and the 16 loops these flag are in
+    # order handling, the backtest and report rendering, where a plain loop
+    # with a comment per branch reads better than the comprehension would.
+    "PERF401",
+    "PERF403",
+    # Rebinding the loop variable to its merged form is deliberate in the two
+    # ingests that do it (first-sighting knowledge_time wins).
+    "PLW2901",
+    # One module-level call counter, guarding a daily API quota.
+    "PLW0603",
 ]
 
 [tool.ruff.lint.isort]

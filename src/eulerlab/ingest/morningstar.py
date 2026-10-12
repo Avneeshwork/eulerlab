@@ -467,7 +467,7 @@ _TAIL = re.compile(
     r"r(?:ei)?nvmt\s+of\s+inc|reinvestment\s+of\s+inc|re\s*investment\s+of\s+inc|"
     r"prdic\s+r|of\s+inc(?:ome)?\s+dist|inc(?:ome)?\s+dist|dist\s+cum\s+cap|idcw|dividend"
     r").*$",
-    re.I,
+    re.IGNORECASE,
 )
 """Everything from a distribution phrase to the end of the name is noise.
 

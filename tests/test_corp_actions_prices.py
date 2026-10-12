@@ -201,7 +201,8 @@ def test_results_before_the_cap_are_still_yielded() -> None:
     produced = []
     with pytest.raises(TransactionCapExceeded):
         for item in _stop_cleanly_on_cap(_results_then_cap(2), 10):
-            produced.append(item)
+            # A loop on purpose: list() would lose the items seen before the raise.
+            produced.append(item)  # noqa: PERF402
     assert len(produced) == 2
 
 

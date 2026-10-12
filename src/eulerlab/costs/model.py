@@ -43,12 +43,12 @@ class Brokerage:
     schedule: free on delivery, and the lesser of 0.03% or ₹20 elsewhere.
     """
 
-    delivery_pct: Decimal = Decimal("0")
+    delivery_pct: Decimal = Decimal(0)
     intraday_pct: Decimal = Decimal("0.0003")
-    intraday_cap: Decimal = Decimal("20")
+    intraday_cap: Decimal = Decimal(20)
     futures_pct: Decimal = Decimal("0.0003")
-    futures_cap: Decimal = Decimal("20")
-    options_flat: Decimal = Decimal("20")
+    futures_cap: Decimal = Decimal(20)
+    options_flat: Decimal = Decimal(20)
 
     def charge(self, segment: Segment, turnover: Decimal) -> Decimal:
         if segment is Segment.EQUITY_DELIVERY:
@@ -87,8 +87,8 @@ class CostBreakdown:
     def bps(self) -> Decimal:
         """Total as basis points of turnover — the number a strategy feels."""
         if self.turnover <= 0:
-            return Decimal("0")
-        return (self.total / self.turnover) * Decimal("10000")
+            return Decimal(0)
+        return (self.total / self.turnover) * Decimal(10000)
 
     def lines(self) -> list[tuple[str, Decimal]]:
         return [
@@ -110,7 +110,7 @@ def _stt(
         # Charging it the share rate overcharged every ETF round trip by about
         # 0.2% (HISTORY #18).
         if side is not Side.SELL:
-            return Decimal("0")
+            return Decimal(0)
         return turnover * Decimal(str(rates.stt_fund_delivery_sell))
     if segment is Segment.EQUITY_DELIVERY:
         return turnover * Decimal(str(rates.stt_delivery))
@@ -118,7 +118,7 @@ def _stt(
         # Intraday, futures and options premium are all sell-side only. A
         # model that charged both legs would roughly double the STT on every
         # round trip.
-        return Decimal("0")
+        return Decimal(0)
     if segment is Segment.EQUITY_INTRADAY:
         return turnover * Decimal(str(rates.stt_intraday_sell))
     if segment is Segment.FUTURES:
@@ -129,7 +129,7 @@ def _stt(
 def _stamp(rates: RateSet, segment: Segment, side: Side, turnover: Decimal) -> Decimal:
     """Stamp duty is buy-side only, in every segment."""
     if side is not Side.BUY:
-        return Decimal("0")
+        return Decimal(0)
     rate = {
         Segment.EQUITY_DELIVERY: rates.stamp_delivery_buy,
         Segment.EQUITY_INTRADAY: rates.stamp_intraday_buy,
@@ -214,9 +214,9 @@ def cost_of_exercise(
     """
     rates = rates_on(trade_date)
     intrinsic_per_unit = (
-        max(settlement_price - strike, Decimal("0"))
+        max(settlement_price - strike, Decimal(0))
         if is_call
-        else max(strike - settlement_price, Decimal("0"))
+        else max(strike - settlement_price, Decimal(0))
     )
     base = (
         settlement_price * Decimal(quantity)
@@ -226,12 +226,12 @@ def cost_of_exercise(
     stt = base * Decimal(str(rates.stt_options_exercise))
 
     return CostBreakdown(
-        brokerage=Decimal("0"),
+        brokerage=Decimal(0),
         stt=_round(stt),
-        stamp_duty=Decimal("0"),
-        exchange_txn=Decimal("0"),
-        sebi_fee=Decimal("0"),
-        gst=Decimal("0"),
+        stamp_duty=Decimal(0),
+        exchange_txn=Decimal(0),
+        sebi_fee=Decimal(0),
+        gst=Decimal(0),
         turnover=base,
     )
 

@@ -519,7 +519,7 @@ def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:
     for rank, (months, symbol) in enumerate(landed, start=1):
         if needle and needle not in symbol:
             continue
-        base = symbol[:-4] if symbol.endswith("USDT") else symbol
+        base = symbol.removesuffix("USDT")
         out.append(
             Instrument(
                 symbol=symbol,

@@ -212,6 +212,7 @@ export function VolSurface({ chain }: { chain: OptionChain }) {
     };
     // Keyed on the underlying and day only: switching the expiry picker on the
     // page should not re-read a surface that already holds every expiry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chain.underlying, chain.day]);
 
   const cell = (c: OptionChain, m: number): { iv: number | null; strike: number | null } => {

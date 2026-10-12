@@ -42,7 +42,8 @@ class Result:
 
 
 def _run(cmd: Sequence[str]) -> tuple[int, str]:
-    proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    # check=False: a failing gate is a result to report, not an exception.
+    proc = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, check=False)
     return proc.returncode, (proc.stdout + proc.stderr).strip()
 
 

@@ -325,7 +325,7 @@ export function InstrumentsTab() {
             <div>
               <b>Data coverage</b>
               <div className="tfine">
-                Each dataset's last day against the day it should reach. Update one row, one group,
+                Each dataset&apos;s last day against the day it should reach. Update one row, one group,
                 or everything above.
               </div>
             </div>

@@ -32,7 +32,7 @@ def _errors(exc: ValidationError) -> list[str]:
     """Pydantic's errors, as sentences a person can act on."""
     out = []
     for error in exc.errors():
-        where = " → ".join(str(part) for part in error["loc"] if part not in ("value",))
+        where = " → ".join(str(part) for part in error["loc"] if part != "value")
         message = str(error["msg"]).removeprefix("Value error, ")
         out.append(f"{where}: {message}" if where else message)
     return out

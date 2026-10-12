@@ -109,12 +109,12 @@ def test_an_option_needs_a_strike_and_a_right() -> None:
 
 def test_a_future_may_not_carry_a_strike() -> None:
     with pytest.raises(ValueError, match="no strike"):
-        ContractId("NIFTY", date(2026, 8, 25), ContractType.FUTURE, Decimal("100"), Right.CALL)
+        ContractId("NIFTY", date(2026, 8, 25), ContractType.FUTURE, Decimal(100), Right.CALL)
 
 
 def test_options_differing_only_by_right_are_different_contracts() -> None:
-    call = ContractId("NIFTY", date(2026, 8, 25), ContractType.OPTION, Decimal("25000"), Right.CALL)
-    put = ContractId("NIFTY", date(2026, 8, 25), ContractType.OPTION, Decimal("25000"), Right.PUT)
+    call = ContractId("NIFTY", date(2026, 8, 25), ContractType.OPTION, Decimal(25000), Right.CALL)
+    put = ContractId("NIFTY", date(2026, 8, 25), ContractType.OPTION, Decimal(25000), Right.PUT)
     assert call != put
 
 

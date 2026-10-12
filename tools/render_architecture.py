@@ -34,8 +34,7 @@ def inline(text: str) -> str:
     out = INLINE_CODE.sub(r"<code>\1</code>", out)
     out = BOLD.sub(r"<strong>\1</strong>", out)
     out = ITALIC.sub(r"<em>\1</em>", out)
-    out = LINK.sub(r'<a href="\2">\1</a>', out)
-    return out
+    return LINK.sub(r'<a href="\2">\1</a>', out)
 
 
 def slug(text: str) -> str:
