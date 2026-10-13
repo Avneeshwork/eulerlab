@@ -335,6 +335,8 @@ export type FleetStrategy = {
   runnable: boolean;
   /** `overnight`: a close-to-next-open hold, run as a calculation (research 072). */
   engine: 'daily' | 'intraday' | 'overnight' | 'study';
+  /** Put away by the operator: hidden from the default list, nothing else (ADR-069). */
+  archived?: boolean;
   source: string;
   published: string;
   stage: Stage;
@@ -1205,6 +1207,8 @@ export const api = {
   health: () => get<Health>('/api/health'),
   library: () => get<Library>('/api/library'),
   fleet: () => get<Fleet>('/api/fleet'),
+  archiveStrategies: (ids: string[], archived: boolean) =>
+    post<{ ok: true; archived: string[] } | { ok: false; error: string }>('/api/strategies/archive', { ids, archived }),
   capabilities: () => get<{ matrix: Capability[] }>('/api/capabilities'),
   instruments: (q: string, batch: string, assetClass = '', limit = 60) =>
     get<InstrumentList>(

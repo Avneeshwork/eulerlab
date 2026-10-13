@@ -85,6 +85,7 @@ from eulerlab.llm import client
 from eulerlab.market_history import INDEX_UNIVERSE, index_panel_rows
 from eulerlab.research.budget import price_search, searches_run
 from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
+from eulerlab.strategies import archive as strategy_archive
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.strategies import studies as strategy_studies
 from eulerlab.validation import montecarlo
@@ -611,10 +612,30 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     # separate screen.
     walks = walk_run.read()
     payload = _fleet_payload(tenant, bar, dispersion, adopted_results, us_all_results, walks)
+    put_away = strategy_archive.read(tenant)
     for item in payload["strategies"]:
         item["table"] = _table_figures(tenant, item, bar)
+        # Hidden from the library's default view and nothing else (ADR-069).
+        item["archived"] = item["id"] in put_away
     payload["market"] = _market_line()
     return payload
+
+
+class ArchiveRequest(BaseModel):
+    ids: list[str]
+    archived: bool = True
+    workspace: str = ""
+
+
+@app.post("/api/strategies/archive")
+def archive_strategies(request: ArchiveRequest) -> dict[str, Any]:
+    """Put strategies away, or bring them back. Results and trials are untouched."""
+    tenant = workspace_mod.resolve(request.workspace or None)
+    try:
+        held = strategy_archive.change(tenant, request.ids, archived=request.archived)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, "archived": sorted(held)}
 
 
 def _fleet_payload(

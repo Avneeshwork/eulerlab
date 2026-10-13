@@ -23,6 +23,19 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 
 ---
 
+## Archiving strategies (2026-10-13)
+
+Operator: "add option in strategy library to archieve some strategies and undo if wanted". ADR-069.
+Verify: `uv run pytest -q tests/test_strategy_archive.py`; `make workbench` → Strategies → open a strategy → Archive, then Undo; the "Archived N" filter → Restore.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4094 | **Archive and restore strategies** | DONE — `strategies/archive.py`, `POST /api/strategies/archive`, `archived` on `/api/fleet`. Strategies page: Archive / Restore in the side panel and for a selection, an "Archived N" filter, and Undo after each change. Hides only: results, trials and deployments are untouched. Checked on the live API (archive, list, restore) and the chip seen in a headless browser; the buttons were not clicked by hand |
+| T-4095 | A strategy that cannot be run can now be ticked | NOTED — it had to be selectable to be archived. The Backtest button counts only the runnable part of a selection |
+| T-4096 | Archived strategies still appear elsewhere | OPEN — the header count, the command palette, the Research Library's links and the Telegram `strategies` word list all 80. By decision for the count (ADR-069); the others were not changed |
+
+---
+
 ## More intraday rules for Indian stocks (2026-10-13)
 
 Operator: "research on more intraday stock strategies for indian stocks", then "add all paper to resarch library and start coding and backtesting". Research 077 (reading), 078 (the two rules run).

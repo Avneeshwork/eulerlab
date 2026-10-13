@@ -78,3 +78,7 @@
 .st-headline { margin: 0 0 var(--s4); font-size: 15px; color: var(--ink-2); }
 .st-headline b { color: var(--ink); }
 .st-detail .tdesc { display: none; }
+
+/* The line that confirms an archive or a restore, with its Undo. */
+.st-undo { display: flex; align-items: center; gap: var(--s3); }
+.st-undo span { flex: 1; }

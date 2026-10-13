@@ -66,6 +66,7 @@ never edit them without an explicit instruction in that session.
   Their papers are in the Research Library (58 papers), each linked to its stored result.
 - **Two US stock rules (2026-10-13, research 078):** end-of-day reversal and the opening half-hour
   repeating, on the 100 largest stocks. Neither exists here before costs; both rejected.
+- **Archive (ADR-069):** a strategy can be put away from the Strategies page and restored; it hides only.
 - **Telegram (ADR-063, ADR-068):** deployments report their orders; the bot answers 22 words
   (money, market, one stock, results, the machine) and plain questions. It cannot trade or stop anything.
 - **Gap strategy (2026-10-12):** paper-deployable through its own overnight book (ADR-066); the

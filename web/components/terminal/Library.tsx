@@ -144,6 +144,10 @@ export function Library({
   }, [startedAt]);
   const [note, setNote] = useState('');
   const [failure, setFailure] = useState('');
+  // Archived strategies are put away, not deleted: hidden unless asked for,
+  // with their results and trials untouched (ADR-069).
+  const [showArchived, setShowArchived] = useState(false);
+  const [lastArchive, setLastArchive] = useState<{ ids: string[]; archived: boolean } | null>(null);
 
   // Fetched once for the table rather than per row: one sweep document covers
   // every strategy, and twenty components each asking for it would be twenty
@@ -197,6 +201,7 @@ export function Library({
     if (!fleet) return [];
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
+      if (Boolean(s.archived) !== showArchived) return false;
       if (assetClass && homeMarket(s) !== assetClass) return false;
       if (style && styleOf(s) !== style) return false;
       if (source && sourceOf(s) !== source) return false;
@@ -244,7 +249,7 @@ export function Library({
       });
     }
     return ordered;
-  }, [fleet, query, assetClass, style, source, verdict, sort, descending]);
+  }, [fleet, query, assetClass, style, source, verdict, sort, descending, showArchived]);
 
   const sortBy = useCallback(
     (next: Sort) => {
@@ -261,6 +266,39 @@ export function Library({
     [open, fleet]
   );
 
+  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter((s) => s.archived).length, [fleet]);
+  // Leaving the archive view when the last one is restored, so the page does
+  // not sit on an empty list.
+  useEffect(() => {
+    if (showArchived && fleet && archivedCount === 0) setShowArchived(false);
+  }, [showArchived, fleet, archivedCount]);
+
+  const setArchived = useCallback(
+    async (ids: string[], archived: boolean, undo = false) => {
+      if (ids.length === 0) return;
+      setFailure('');
+      try {
+        const done = await api.archiveStrategies(ids, archived);
+        if (!done.ok) {
+          setFailure(done.error);
+          return;
+        }
+        setLastArchive(undo ? null : { ids, archived });
+        setNote('');
+        setSelected((prev) => {
+          const next = new Set(prev);
+          for (const id of ids) next.delete(id);
+          return next;
+        });
+        setOpen((current) => (current && ids.includes(current) ? null : current));
+        onRefresh();
+      } catch (error) {
+        setFailure(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [onRefresh]
+  );
+
   const toggle = useCallback((id: string) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -269,6 +307,13 @@ export function Library({
       return next;
     });
   }, []);
+
+  // A strategy that cannot be run can still be selected, to archive it; only
+  // the runnable part of a selection is offered to the Backtest dialog.
+  const runnableSelected = useMemo(
+    () => (fleet?.strategies ?? []).filter((s) => selected.has(s.id) && s.runnable),
+    [fleet, selected]
+  );
 
   const backtest = useCallback(
     async (ids: string[]) => {
@@ -382,7 +427,40 @@ export function Library({
           onChange={(v) => setVerdict(v as StrategyVerdict | '')}
           options={VERDICTS.map((v) => ({ value: v.value, label: v.label, title: v.hint }))}
         />
+        {(archivedCount > 0 || showArchived) && (
+          <div className="st-chips" role="group" aria-label="Archive">
+            <button
+              className="tchip sm"
+              type="button"
+              aria-pressed={showArchived}
+              title="Strategies you have put away. Their results and trials are kept."
+              onClick={() => {
+                setShowArchived((v) => !v);
+                setSelected(new Set());
+                setOpen(null);
+              }}
+            >
+              Archived {archivedCount}
+            </button>
+          </div>
+        )}
       </div>
+
+      {lastArchive && (
+        <div className="trunning st-undo" role="status">
+          <span>
+            {lastArchive.archived ? 'Archived' : 'Restored'} {lastArchive.ids.length}{' '}
+            {lastArchive.ids.length === 1 ? 'strategy' : 'strategies'}.
+            {lastArchive.archived && ' Results, trials and any deployment are unchanged.'}
+          </span>
+          <button className="tbtn sm" type="button" onClick={() => void setArchived(lastArchive.ids, !lastArchive.archived, true)}>
+            Undo
+          </button>
+          <button className="ticon sm" type="button" aria-label="Dismiss" onClick={() => setLastArchive(null)}>
+            ×
+          </button>
+        </div>
+      )}
 
       {note && !failure && <div className="trunning">{note}</div>}
       {failure && (
@@ -442,7 +520,6 @@ export function Library({
                         type="checkbox"
                         checked={selected.has(strategy.id)}
                         onChange={() => toggle(strategy.id)}
-                        disabled={!strategy.runnable}
                         aria-label={`Select ${strategy.title}`}
                       />
                     </td>
@@ -492,7 +569,9 @@ export function Library({
               })}
           </tbody>
         </table>
-        {fleet && rows.length === 0 && <div className="tempty">Nothing matches those filters.</div>}
+        {fleet && rows.length === 0 && (
+          <div className="tempty">{showArchived ? 'No archived strategy matches those filters.' : 'Nothing matches those filters.'}</div>
+        )}
         {!fleet && !problem && <div className="tempty">Reading the registry…</div>}
       </div>
 
@@ -530,6 +609,18 @@ export function Library({
             </button>
             <button className="tbtn ghost-line" type="button" onClick={() => onDeploy(openStrategy)}>
               Deploy
+            </button>
+            <button
+              className="tbtn"
+              type="button"
+              title={
+                openStrategy.archived
+                  ? 'Bring it back to the main list.'
+                  : 'Hide it from the main list. Results, trials and any deployment are kept; you can restore it.'
+              }
+              onClick={() => void setArchived([openStrategy.id], !openStrategy.archived)}
+            >
+              {openStrategy.archived ? 'Restore' : 'Archive'}
             </button>
           </div>
           {openStrategy.logic && openStrategy.logic.length > 0 && (
@@ -573,16 +664,19 @@ export function Library({
           <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
             Clear
           </button>
-          <button
-            className="tbtn"
-            type="button"
-            disabled={busy.size > 0}
-            onClick={() =>
-              onConfigure((fleet?.strategies ?? []).filter((s) => selected.has(s.id)))
-            }
-          >
-            {busy.size > 0 ? 'Running…' : `Backtest ${selected.size}`}
+          <button className="tbtn" type="button" onClick={() => void setArchived([...selected], !showArchived)}>
+            {showArchived ? `Restore ${selected.size}` : `Archive ${selected.size}`}
           </button>
+          {runnableSelected.length > 0 && (
+            <button
+              className="tbtn"
+              type="button"
+              disabled={busy.size > 0}
+              onClick={() => onConfigure(runnableSelected)}
+            >
+              {busy.size > 0 ? 'Running…' : `Backtest ${runnableSelected.length}`}
+            </button>
+          )}
         </div>
       )}
     </>
