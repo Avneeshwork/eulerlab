@@ -1,0 +1,31 @@
+id: della-corte-2015-market-closure-reversal
+title: Market Closure and Short-Term Reversal
+authors: Della Corte, P., Kosowski, R., Wang, T.
+year: 2015
+kind: paper
+source_url: ''
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- International equities and futures (paper)
+summary: Reported to show that securities with low overnight returns outperform those with
+  high overnight returns over the following trading session, in major equity markets and in
+  futures, more strongly than the usual close-to-close reversal. Known from secondary summaries
+  only; the paper was not found or read.
+trade_idea: A large overnight move is partly price pressure at the open, and the session undoes
+  it.
+implementation: |-
+  - At the open, buy the securities with the lowest overnight (close-to-open) return and sell short the highest.
+  - Close at the close. Repeat daily.
+
+  Here: not coded. Research 077. It needs a trustworthy opening price for every stock; the panel's opens are first prints (T-4004).
+red_flags:
+- 'Not read: secondary summaries only; no link to the paper is held.'
+- One summary quotes a Sharpe of 24 before costs, which is not believable as a tradable figure.
+- The whole book is turned over every day, at the open, where spreads are widest.
+- Research 076's open fade is a three-stock version of this idea and only broke even.
+reported_results: 'From a third-party summary, unverified: US stocks 1993-2014, close-to-open
+  reversal far stronger than close-to-close, before costs.'
+hypothesis: ''
+strategies: []

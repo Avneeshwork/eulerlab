@@ -1,0 +1,30 @@
+id: zarattini-2023-vwap-day-trading
+title: 'Volume Weighted Average Price (VWAP): The Holy Grail for Day Trading Systems'
+authors: Zarattini, C., Aziz, A.
+year: 2023
+kind: paper
+source_url: https://concretumgroup.com/volume-weighted-average-price-vwap-the-holy-grail-for-day-trading-systems/
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- QQQ and TQQQ, 2018-2023 (paper)
+summary: 'SSRN 4631351. A trend rule on the Nasdaq-100 ETF: long while price is above the
+  session''s VWAP, short while below, flat at the close. The authors report 671% and a Sharpe
+  of 2.1 on QQQ from January 2018 to September 2023. Third-party replications report lower
+  figures. Known from the authors'' summary and search results; not read.'
+trade_idea: Price above the day's average traded price means buyers are in control for the
+  session; follow them.
+implementation: |-
+  - Long when price is above the session VWAP, short when below. Flat at the close.
+
+  Here: not coded. Research 077. Close kin to the noise-area rule of research 071, which uses a VWAP stop on NIFTYBEES and loses after Indian costs.
+red_flags:
+- 'Not read: the authors'' summary and replications only.'
+- An index-ETF rule, not a stock rule.
+- Replications on QuantConnect report lower Sharpe than the paper.
+- Flips with every cross of VWAP; in India each flip costs about 6 bps in the ETF.
+reported_results: 'QQQ, 2 January 2018 to 28 September 2023: +671%, worst fall 9.4%, Sharpe
+  2.1. From the authors'' summary.'
+hypothesis: ''
+strategies: []

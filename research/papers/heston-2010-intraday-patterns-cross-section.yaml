@@ -1,0 +1,41 @@
+id: heston-2010-intraday-patterns-cross-section
+title: Intraday Patterns in the Cross-section of Stock Returns
+authors: Heston, S. L., Korajczyk, R. A., Sadka, R.
+year: 2010
+kind: paper
+source_url: https://arxiv.org/abs/1005.3535
+pdf: ''
+added: '2026-10-13'
+status: rejected
+markets:
+- NYSE stocks, 2001-2005 (paper)
+- 100 largest NSE stocks (here)
+summary: Journal of Finance 65(4). With the day cut into thirteen half-hours, a stock's return
+  in one half-hour predicts its return in the same half-hour on the following days, for at
+  least 40 days. The effect is largest in the opening and closing half-hours. The most recent
+  half-hours predict the opposite sign. Buying at the offer and selling at the bid, the strategy
+  loses at every size and time of day. Read through a summary of the full text.
+trade_idea: Institutions work large orders at the same time each day, so a stock bought at
+  10:00 today tends to be bought at 10:00 tomorrow.
+implementation: |-
+  - Thirteen half-hours a day. Sort stocks into deciles on the return in one half-hour.
+  - Hold the same half-hour on the next day (lag 13), or 2 to 5 days later: long the top decile, short the bottom. Equal weights.
+
+  Here (`intraday/stock_papers.py`, `make stock-intraday`, research 078, H-0008): the 100 largest stocks by today's market value, one-minute bars, 2021-08 to 2026-10. Sorted on yesterday's 09:16 to 09:45 return, held over today's; the 09:15 print is never used. Result, before costs: winners minus losers -0.66 bps a day (t -0.5). No continuation. After charges and 2 bps slippage a side: -79%.
+red_flags:
+- Loses after the bid-ask spread in its own paper, at every size and time of day.
+- The authors present it as a way to time planned trades, not as a strategy.
+- US data from 2001 to 2005; a 2025 follow-up says it persists but was seen only as a search
+  summary.
+- Its largest effect is in the opening minutes, where Indian spreads are widest and the first
+  print is unreliable.
+- Read through a summary, not line by line.
+reported_results: 'Top-minus-bottom decile, equal-weighted: 3.01 bps a half-hour at a one-day
+  lag; more than 11 bps in the opening half-hour and more than 8 near the close; above 1 bp
+  for lags up to five days (t above 8.7). After spreads: negative everywhere.'
+hypothesis: H-0008
+strategies:
+- kind: registered
+  id: opening_half_hour_repeats
+  note: Opening half-hour only, tenths, after costs
+  timeframe: 0

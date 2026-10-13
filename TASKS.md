@@ -23,6 +23,23 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 
 ---
 
+## More intraday rules for Indian stocks (2026-10-13)
+
+Operator: "research on more intraday stock strategies for indian stocks", then "add all paper to resarch library and start coding and backtesting". Research 077 (reading), 078 (the two rules run).
+Verify: read `docs/RESEARCH/077-more-intraday-stock-rules-for-india.md`; `uv run pytest -q tests/test_research_library.py`; Tools → Research Library → "End-of-Day Reversal".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4087 | **What the literature has on intraday rules for Indian stocks** | DONE — eighteen searches. No reviewed paper tests an intraday rule on NSE stocks with costs beyond research 076. Five candidates from US evidence, each set against this project's measured costs |
+| T-4088 | **Two rules specified as hypotheses** | DONE — H-0007 end-of-day reversal (Baltussen, Da & Soebhag 2025), H-0008 opening half-hour continuation (Heston, Korajczyk & Sadka 2010). Both in the research library. The prior for both was that they lose after costs |
+| T-4089 | **Code and screen H-0007 and H-0008** | DONE — research 078, `intraday/stock_papers.py`, `make stock-intraday`. Neither effect exists in the 100 largest stocks before costs: reversal spread 0.3 bps a day (t 0.6), opening continuation -0.7 (t -0.5). Net -65% to -79%. Both rejected, no trial spent. Verify: `uv run pytest -q tests/test_stock_intraday_papers.py`; `make stock-intraday` |
+| T-4091 | **The losers-only result looked like the paper's and was not** | NOTED — the day's losers gain 4 bps from 14:40 to 15:10 (t 6.2), but so does every large stock (3.8 bps, t 6.1) and so do the winners. A market-wide drift, not a reversal; below the ETF's costs and absent in 2026. Not a tested hypothesis |
+| T-4092 | **Every paper of research 077 in the research library** | DONE — seven more added as ideas, each saying what was and was not read. 58 papers |
+| T-4093 | The end-of-day reversal in smaller stocks | OPEN — the paper finds it strongest there. A new hypothesis; costs would be worse |
+| T-4090 | Sources not read | OPEN — Agarwalla & Pandey on NSE block trades (fetch timed out), SEBI's own intraday study (press coverage only), Della Corte et al. and Zarattini & Aziz on VWAP (summaries only) |
+
+---
+
 ## Five Indian intraday rules, and the papers in the research library (2026-10-12, 2026-10-13)
 
 Operator: "work on 5 intraday strategy from recent paper/article ... on indian market purely", "get all papers in research and update in strategy library", then "backtest all recent strategies ... add in research library if not added and right pane of research library should be fixed to read and left strategy paper should scroll". Research 076.
@@ -36,6 +53,7 @@ Verify: `uv run pytest -q tests/test_india_intraday_papers.py tests/test_library
 | T-4081 | **Research 076 had code and results but no note** | FIXED — written 2026-10-13 from the coding session's records; the sources were not fetched again and the note says so |
 | T-4082 | **Five papers missing from the research library** | DONE — Rao, Doraigari, Tripathi & Aggarwal, Bangur, Aggarwal added; Gao, Zarattini, Wang & Gangwar and the hedging-demand paper linked to their studies. 49 papers. A study link shows its result and no Backtest button. A test fails if a study has no paper |
 | T-4083 | **The research library's paper scrolled away with the list** | FIXED — both columns are pinned under the bar; the list scrolls inside itself and the paper inside its own column (`research.css`). Seen in a headless browser at 1400 px; scrolling itself was not exercised by hand |
+| T-4086 | **Research library: only the list of papers scrolls** | DONE 2026-10-13 — the library is as tall as the window, so the page does not scroll. Left: search, status filter with counts, and the scrolling list. Right: title, status, markets and four tabs (Overview, Rules, Red flags, Strategies) stay in place; a section longer than the window scrolls inside its box. Seen in a headless browser at 1400x900. The built UI (`make ui-fast`) must be rebuilt to show any web change: T-4083 was invisible until it was |
 | T-4084 | The open fade and the late opening range on futures | OPEN — new hypotheses, like T-4039. Each needs minute bars for the instrument and its own trial |
 | T-4085 | Aggarwal (2011) has no link and an unconfirmed title | OPEN — the rule is from a search snippet (research 070) |
 

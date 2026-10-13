@@ -1,0 +1,29 @@
+id: sebi-2024-intraday-trading-individuals
+title: Analysis of intraday trading by individuals in the equity cash segment
+authors: SEBI
+year: 2024
+kind: report
+source_url: https://www.business-standard.com/amp/markets/news/7-in-10-intraday-traders-in-equity-cash-suffered-losses-in-fy23-sebi-study-124072400975_1.html
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- NSE and BSE equity cash, individuals, FY 2022-23
+summary: 'A SEBI study released on 24 July 2024, covering clients of the ten largest brokers.
+  Reported: more than 70% of individual intraday traders in the cash segment lost money in
+  FY 2022-23; the average loss was Rs 5,371; loss-makers spent a further 57% of their losses
+  on trading costs. Known from press coverage; SEBI''s document was not fetched, and the link
+  is to that coverage.'
+trade_idea: 'None. It is the base rate: most intraday trading in Indian stocks loses, and
+  costs are a large part of why.'
+implementation: |-
+  Not a strategy. Kept as the prior for every intraday rule in this library.
+
+  Here: not coded. Research 077.
+red_flags:
+- Press coverage only; SEBI's own document was not read.
+- Describes individuals' results, not any rule's.
+reported_results: Over 70% of individual intraday traders lost money in FY 2022-23; average
+  loss Rs 5,371; loss-makers paid a further 57% of their losses in costs.
+hypothesis: ''
+strategies: []

@@ -13,7 +13,7 @@
  * here is a diff to review and commit like any other research.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { api, tweezerJob } from '@/lib/api';
 import type { Paper, PaperView, ResearchLinkView, TweezerResult } from '@/lib/api';
@@ -29,6 +29,12 @@ const STATUS_LABEL: Record<Paper['status'], string> = {
 };
 
 export const BUILDER_PAPER_KEY = 'eulerlab.builder.forPaper';
+
+type Section = 'overview' | 'rules' | 'flags' | 'strategies';
+type StatusFilter = '' | Paper['status'];
+
+/** Below this width the two columns stack and the page scrolls as usual. */
+const TWO_COLUMNS = '(min-width: 901px)';
 
 function blankPaper(): Partial<Paper> {
   return {
@@ -234,6 +240,10 @@ export function ResearchLibrary({
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<Partial<Paper> | null>(null);
   const [query, setQuery] = useState('');
+  const [status, setStatus] = useState<StatusFilter>('');
+  const [section, setSection] = useState<Section>('overview');
+  const frame = useRef<HTMLDivElement>(null);
+  const reading = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => {
     api
@@ -246,10 +256,48 @@ export function ResearchLibrary({
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (papers ?? []).filter(
-      (v) => !q || [v.paper.title, v.paper.authors, v.paper.summary].some((t) => t.toLowerCase().includes(q))
+      (v) =>
+        (!status || v.paper.status === status) &&
+        (!q || [v.paper.title, v.paper.authors, v.paper.summary].some((t) => t.toLowerCase().includes(q)))
     );
-  }, [papers, query]);
+  }, [papers, query, status]);
   const current = (papers ?? []).find((v) => v.paper.id === selected) ?? shown[0] ?? null;
+  const currentId = current?.paper.id ?? '';
+
+  const counts = useMemo(() => {
+    const out: Partial<Record<Paper['status'], number>> = {};
+    for (const v of papers ?? []) out[v.paper.status] = (out[v.paper.status] ?? 0) + 1;
+    return out;
+  }, [papers]);
+
+  // The library is exactly as tall as the window below its own top edge, so
+  // the page never scrolls: only the list of papers does, and the paper being
+  // read stays where it is.
+  const ready = papers !== null && editing === null;
+  useLayoutEffect(() => {
+    const el = frame.current;
+    if (!el || !ready) return;
+    const wide = window.matchMedia(TWO_COLUMNS);
+    const fit = () => {
+      if (!wide.matches) {
+        el.style.height = '';
+        return;
+      }
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      el.style.height = `${Math.max(420, window.innerHeight - top - 16)}px`;
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [ready]);
+
+  // A newly chosen paper starts at its top, and its row is brought into view
+  // when it was chosen from somewhere other than the list.
+  useEffect(() => {
+    if (!currentId) return;
+    reading.current?.scrollTo({ top: 0 });
+    frame.current?.querySelector('.rl-item[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [currentId]);
 
   if (error) {
     return (
@@ -279,14 +327,29 @@ export function ResearchLibrary({
   const runnable = (current?.links ?? []).filter((l) => l.kind !== 'tweezer' && l.runnable).map((l) => l.id);
 
   return (
-    <div className="rl">
+    <div className="rl" ref={frame}>
       <aside className="rl-list">
         <div className="rl-list-head">
-          <input className="tsearch" placeholder="Search papers…" value={query} onChange={(e) => setQuery(e.target.value)} />
-          <button type="button" className="tbtn go sm" onClick={() => setEditing(blankPaper())}>
-            + Add paper
-          </button>
+          <div className="rl-list-top">
+            <input className="tsearch" placeholder="Search papers…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search papers" />
+            <button type="button" className="tbtn go sm" onClick={() => setEditing(blankPaper())}>
+              + Add
+            </button>
+          </div>
+          <div className="rl-filter" role="group" aria-label="Status">
+            <button type="button" className="tchip sm" aria-pressed={status === ''} onClick={() => setStatus('')}>
+              All {papers.length}
+            </button>
+            {(Object.keys(STATUS_LABEL) as Paper['status'][])
+              .filter((key) => counts[key])
+              .map((key) => (
+                <button key={key} type="button" className="tchip sm" aria-pressed={status === key} onClick={() => setStatus(status === key ? '' : key)}>
+                  {STATUS_LABEL[key]} {counts[key]}
+                </button>
+              ))}
+          </div>
         </div>
+        <div className="rl-items">
         {shown.map((v) => (
           <button
             key={v.paper.id}
@@ -297,20 +360,21 @@ export function ResearchLibrary({
           >
             <b>{v.paper.title}</b>
             <span>
-              {v.paper.authors}
-              {v.paper.year ? ` · ${v.paper.year}` : ''}
+              {[v.paper.authors, v.paper.year].filter(Boolean).join(' · ')}
             </span>
             <span className={`rl-status s-${v.paper.status}`}>
-              {STATUS_LABEL[v.paper.status]} · {v.links.length} {v.links.length === 1 ? 'strategy' : 'strategies'}
+              {STATUS_LABEL[v.paper.status]}
+              {v.links.length > 0 && ` · ${v.links.length} ${v.links.length === 1 ? 'strategy' : 'strategies'}`}
             </span>
           </button>
         ))}
         {shown.length === 0 && <div className="tfine">No paper matches.</div>}
+        </div>
       </aside>
 
       {current && p && (
         <article className="rl-paper">
-          <div className="tpanel">
+          <header className="rl-head">
             <div className="rl-title">
               <div>
                 <h2>{p.title}</h2>
@@ -354,28 +418,58 @@ export function ResearchLibrary({
                 )}
               </div>
             </div>
-            <span className={`rl-status s-${p.status}`}>{STATUS_LABEL[p.status]}</span>
-          </div>
+            <div className="rl-meta">
+              <span className={`rl-status s-${p.status}`}>{STATUS_LABEL[p.status]}</span>
+              {p.markets.map((m) => (
+                <span key={m} className="rl-market">
+                  {m}
+                </span>
+              ))}
+            </div>
+            <div className="rl-tabs" role="tablist" aria-label="Paper sections">
+              {(
+                [
+                  ['overview', 'Overview'],
+                  ['rules', 'Rules'],
+                  ['flags', `Red flags ${p.red_flags.length || ''}`],
+                  ['strategies', `Strategies ${current.links.length || ''}`],
+                ] as const
+              ).map(([key, label]) => (
+                <button key={key} type="button" role="tab" className="rl-tab" aria-selected={section === key} onClick={() => setSection(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </header>
 
-          {(
-            [
-              ['Summary', p.summary],
-              ['Trade idea', p.trade_idea],
-              ['Implementation logic', p.implementation],
-              ['What the source reports', p.reported_results],
-            ] as const
-          ).map(([title, text]) =>
-            text ? (
-              <section key={title} className="tpanel">
-                <h3>{title}</h3>
-                <div className="rl-prose">{text}</div>
-              </section>
-            ) : null
+          <div className="rl-body" ref={reading} role="tabpanel">
+          {section === 'overview' &&
+            (
+              [
+                ['Summary', p.summary],
+                ['Trade idea', p.trade_idea],
+                ['What the source reports', p.reported_results],
+              ] as const
+            ).map(([title, text]) =>
+              text ? (
+                <section key={title} className="rl-section">
+                  <h3>{title}</h3>
+                  <div className="rl-prose">{text}</div>
+                </section>
+              ) : null
+            )}
+
+          {section === 'rules' && (
+            <section className="rl-section">
+              <h3>Implementation logic</h3>
+              <div className="rl-prose">{p.implementation}</div>
+            </section>
           )}
 
-          {p.red_flags.length > 0 && (
-            <section className="tpanel">
+          {section === 'flags' && (
+            <section className="rl-section">
               <h3>Red flags</h3>
+              {p.red_flags.length === 0 && <p className="tfine">None recorded.</p>}
               <ul className="rl-flags">
                 {p.red_flags.map((f) => (
                   <li key={f}>{f}</li>
@@ -384,7 +478,8 @@ export function ResearchLibrary({
             </section>
           )}
 
-          <section className="tpanel">
+          {section === 'strategies' && (
+          <section className="rl-section">
             <h3>Strategies that test it</h3>
             {current.links.length === 0 && (
               <p className="tfine">None yet. &quot;Build its rules&quot; opens the Strategy Builder; what you save there is linked here.</p>
@@ -438,6 +533,8 @@ export function ResearchLibrary({
               ))}
             </div>
           </section>
+          )}
+          </div>
         </article>
       )}
       {!current && <div className="tempty">No papers yet. Add one.</div>}

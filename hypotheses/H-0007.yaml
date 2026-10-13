@@ -1,0 +1,58 @@
+id: H-0007
+title: The day's losers among large Indian stocks rise in the last half-hour
+status: draft
+
+claim: >
+  Among the 100 largest NSE stocks, those that have fallen most from the
+  previous close to an hour before the end of continuous trading outperform
+  those that have risen most over the last half-hour, and buying the losers
+  for that half-hour is profitable after Indian intraday costs.
+
+rationale: >
+  Baltussen, Da and Soebhag find it in US stocks from 1993 in almost every
+  three-year window, including the largest fifth of firms, and attribute it to
+  retail buying of the day's fallers and short-sellers covering before the
+  close. Both exist in India: intraday shorts must be covered the same day.
+
+source: >
+  Baltussen, G., Da, Z., & Soebhag, A. End-of-Day Reversal. Working paper,
+  April 2025, fetched 2026-10-13 from the University of Notre Dame. Abstract,
+  introduction, data and main result read; the channel tests and appendix
+  were not. See docs/RESEARCH/077.
+
+configurations:
+  - {rule: end_of_day_reversal, sort: prev_close_to_1410, hold: "14:40-15:10", legs: long_short, groups: quintiles}
+  - {rule: end_of_day_reversal, sort: prev_close_to_1410, hold: "14:40-15:10", legs: long_only, groups: quintiles}
+  - {rule: end_of_day_reversal, sort: prev_close_to_1410, hold: "14:40-15:10", legs: long_short, groups: deciles}
+  - {rule: end_of_day_reversal, sort: prev_close_to_1410, hold: "14:40-15:10", legs: long_only, groups: deciles}
+
+result: >
+  Screened 2026-10-13 on the 100 largest stocks, 1,265 sessions, 2021-08 to
+  2026-10 (research 078). No reversal: losers minus winners 0.31 bps a day in
+  fifths (t 0.6), -0.18 in tenths (t -0.2). The losers alone gain 4 bps a day
+  (t 6.2), but every stock rises 3.8 bps in that half-hour and the winners
+  rise 4.3. Net -65% to -79%. Rejected; not submitted to the gate, and no
+  trial spent.
+
+red_flags:
+  - >
+    The published edge is 3.8 to 6.9 bps a day for the long-short portfolio,
+    before costs. An intraday round trip in a large Indian stock costs about
+    9 bps a leg here (research 076, A-056). The authors themselves say it may
+    not be exploitable after costs. The prior is that it loses.
+  - >
+    The clock is moved. The paper holds the last half-hour to the close. A
+    stock with derivatives now leaves continuous trading at 15:15 and is
+    squared off at 15:12 (A-057), so this holds 14:40 to 15:10. That is a
+    different half-hour from the paper's, chosen here.
+  - >
+    The universe would be the 100 largest stocks by today's market value:
+    survivorship bias, which flatters the long-only versions.
+  - >
+    Four configurations. Quintiles are the paper's; deciles and the long-only
+    leg are its robustness cases, not searches made here, and all four must
+    be reported together.
+  - >
+    The paper was read in part. Winsorising, the price filter and the
+    weighting are taken from the sections read; anything in the appendix
+    that qualifies the result is unknown.

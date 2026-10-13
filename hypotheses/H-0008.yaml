@@ -1,0 +1,52 @@
+id: H-0008
+title: A large Indian stock's opening half-hour repeats the next day
+status: draft
+
+claim: >
+  Among the 100 largest NSE stocks, those with the highest return in the
+  opening half-hour outperform those with the lowest in the opening half-hour
+  of the next session, and trading that spread is profitable after Indian
+  intraday costs.
+
+rationale: >
+  Heston, Korajczyk and Sadka find that a stock's half-hour return predicts
+  its return in the same half-hour on later days, most strongly at the open
+  (more than 11 bps for the decile spread), and attribute it to institutions
+  trading the same names at the same time each day. A 2025 follow-up reports
+  that it persists.
+
+source: >
+  Heston, S. L., Korajczyk, R. A., & Sadka, R. Intraday Patterns in the
+  Cross-section of Stock Returns. Journal of Finance 65(4), 2010;
+  arXiv 1005.3535, read on 2026-10-13 through a summary of the full text, not
+  line by line. Haendler, Heston, Korajczyk & Sadka (SSRN 5749704, 2025):
+  search summary only. See docs/RESEARCH/077.
+
+configurations:
+  - {rule: same_time_continuation, sort: opening_half_hour, lag_days: 1, hold: opening_half_hour, groups: deciles}
+
+result: >
+  Screened 2026-10-13 on the 100 largest stocks, 1,265 sessions, 2021-08 to
+  2026-10 (research 078). No continuation: top minus bottom tenth -0.66 bps a
+  day (t -0.5), against more than 11 in the paper. Net -79%. Rejected; not
+  submitted to the gate, and no trial spent.
+
+red_flags:
+  - >
+    The paper's own test at the bid and offer loses at every size and time of
+    day. The authors present it as a way to time planned trades, not as a
+    strategy.
+  - >
+    Only the opening half-hour is specified here, because it is the paper's
+    largest effect. That is a choice made from the paper's table; running the
+    other twelve half-hours as well would be a search and must be counted.
+  - >
+    The opening minutes are where spreads are widest and where the first
+    print is unreliable (research 075). The window must start at 09:16, and
+    the assumed slippage of 2 bps a side (A-056) is least trustworthy here.
+  - >
+    Long-short across deciles: ten names a side from 100, both legs paying
+    about 9 bps a round trip.
+  - >
+    The paper was read through a summary. The exact return definition and
+    filters must be checked against the text before coding.

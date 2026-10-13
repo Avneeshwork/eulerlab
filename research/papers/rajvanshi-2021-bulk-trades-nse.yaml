@@ -1,0 +1,29 @@
+id: rajvanshi-2021-bulk-trades-nse
+title: Impact of Bulk Trades on Price Discovery in Equity Market
+authors: Rajvanshi, V.
+year: 2021
+kind: paper
+source_url: https://studentlive.iimcal.ac.in/sites/all/files/pdfs/wp_863.pdf
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- NSE bulk deals, 2010-2019
+summary: 'IIM Calcutta working paper 863, April 2021. On NSE bulk deals from 2010 to 2019
+  it finds front-running: abnormal returns of about 5 to 7% within a week around the deal
+  day, larger before buy deals than sell deals, with volume and delivery percentage rising
+  before the deal. Abstract and introduction read. A daily study, not intraday.'
+trade_idea: Someone knows about a bulk deal before it prints. Rising volume and delivery ahead
+  of it are the footprint.
+implementation: |-
+  An event study, not a rule: cumulative abnormal returns around the deal day, split into buy and sell deals and by one or several investors.
+
+  Here: not coded. Research 077. The run-up is before the deal is public, so it cannot be traded from the disclosure; delivery % per stock is held (T-3997) and could be tested as a predictor.
+red_flags:
+- The return is earned before the deal is disclosed; a rule would need to predict the deal.
+- Daily data, not intraday.
+- Only the abstract and introduction were read.
+reported_results: Front-runners can earn about 5 to 7% within a week around the event day;
+  excess returns before buy deals exceed those before sell deals.
+hypothesis: ''
+strategies: []

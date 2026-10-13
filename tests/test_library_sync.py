@@ -21,7 +21,7 @@ from eulerlab.strategies import REGISTRY, studies
 
 
 def test_every_study_is_in_the_library_and_says_where_it_came_from() -> None:
-    assert len(studies.ENTRIES) == len(studies.IDS) == 9
+    assert len(studies.ENTRIES) == len(studies.IDS) == 11
     for entry in studies.ENTRIES:
         declared = REGISTRY[entry["id"]]
         assert declared.is_strategy_subclass is False, "none can run in an engine"

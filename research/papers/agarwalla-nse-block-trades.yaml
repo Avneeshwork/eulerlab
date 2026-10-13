@@ -1,0 +1,30 @@
+id: agarwalla-nse-block-trades
+title: 'Block trades on the NSE: price impact and front running (exact title not confirmed)'
+authors: Agarwalla, S. K., Pandey, A.
+year: null
+kind: paper
+source_url: https://nsearchives.nseindia.com/content/research/NSE_Proposal_216_Final_Paper.pdf
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- NSE block trades
+summary: 'An NSE-hosted research paper on block trades. Reported to find that prices start
+  rising about 8 minutes before block purchases but not before block sales, and that the temporary
+  price impact of a block purchase exceeds the permanent one, so part of the move reverses.
+  Known from a search summary only: the fetch timed out, and the link is the likely file,
+  not a confirmed one.'
+trade_idea: A block purchase pushes the price beyond what the information justifies; the excess
+  comes back within minutes.
+implementation: |-
+  No rule is published as far as is known. A test would fade the move after a block purchase.
+
+  Here: not coded. Research 077. Identifying a block needs trade-level data; the minute bars held carry only volume.
+red_flags:
+- 'Not read: search summary only; title, year and link unconfirmed.'
+- Needs trade-level data that is not held.
+- A description of price impact, not a tested trading rule.
+reported_results: Run-up from 8 minutes before block purchases; temporary impact greater than
+  permanent. From a search summary.
+hypothesis: ''
+strategies: []

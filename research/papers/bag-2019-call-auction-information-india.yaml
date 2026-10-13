@@ -1,0 +1,28 @@
+id: bag-2019-call-auction-information-india
+title: Information content of stocks in call auction of shorter duration in emerging market
+authors: Bag, D.
+year: 2019
+kind: paper
+source_url: https://apcz.umk.pl/CJFA/article/view/30366
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- NSE pre-open call auction
+summary: Copernican Journal of Finance & Accounting. Builds a measure of information from
+  order imbalance in the NSE's 15-minute pre-open call auction. Reported to find that pre-open
+  information affects 15-minute realised volatility after the open; it reports nothing on
+  the direction of returns. Known from a search summary only.
+trade_idea: Order imbalance in the pre-open auction says how the first minutes will trade.
+implementation: |-
+  No trading rule. The finding is about volatility, not direction.
+
+  Here: not coded. Research 077. Pre-open order data is not held.
+red_flags:
+- 'Not read: search summary only.'
+- Predicts volatility, not returns.
+- Needs pre-open order data that is not held.
+reported_results: Pre-market information influenced 15-minute realised volatility. No return
+  result.
+hypothesis: ''
+strategies: []

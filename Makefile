@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday library-sync gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday library-sync gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -327,8 +327,13 @@ intraday-papers:
 india-intraday:
 	@uv run python -m eulerlab.intraday.india_papers_run $(if $(INDEX_ONLY),--index-only,) $(if $(STOCKS),--stocks $(STOCKS),)
 
+# Research 078: two stock rules from US papers (end-of-day reversal, the
+# opening half-hour repeating) on the 100 largest stocks. About 4 minutes.
+stock-intraday:
+	@uv run python -m eulerlab.intraday.stock_papers_run $(if $(STOCKS),--stocks $(STOCKS),)
+
 # Copy each research study's stored results into the strategy library. Safe
-# to run again; run it after any of the three study targets.
+# to run again; run it after any of the four study targets.
 library-sync:
 	@uv run python -m eulerlab.research.library_sync
 

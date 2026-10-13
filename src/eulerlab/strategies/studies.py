@@ -3,7 +3,7 @@
 Operator, 2026-10-12: "get all papers in research and update in strategy
 library". Nine rules had been coded from papers and run (research 070, 071,
 076) and could be found only by reading `docs/RESEARCH/`: the library listed
-none of them.
+none of them. Research 078 added two more on 2026-10-13.
 
 Each is a calculation with its own make target, not a `Strategy` and not one
 of the minute-bar scanner's signals, so the library cannot run it from a
@@ -26,11 +26,13 @@ from typing import Any
 SESSION = "intraday_papers"
 INDIA = "india_intraday_papers"
 OPTIONS = "options_strategies"
+STOCKS = "stock_intraday_papers"
 
 COMMANDS = {
     SESSION: "make intraday-papers",
     INDIA: "make india-intraday",
     OPTIONS: "make options-strategies",
+    STOCKS: "make stock-intraday",
 }
 
 FIRST_PRINT = (
@@ -335,6 +337,77 @@ ENTRIES: tuple[dict[str, Any], ...] = (
             )
             for event, minutes in (("midday", 30), ("midday", 150), ("open", 150), ("open", 30))
         },
+    },
+    # --- research 078 -------------------------------------------------------------
+    {
+        "id": "end_of_day_reversal",
+        "title": "The day's losers rise into the close (large stocks)",
+        "summary": "From 14:40 to 15:10 hold the stocks that have fallen most since "
+        "yesterday's close, against those that have risen most.",
+        "kind": "quant",
+        "shape": "cross-section",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[paper] Baltussen, Da & Soebhag (2025), End-of-Day Reversal, working paper",
+        "published": "US stocks from 1993, last half-hour, before costs: losers beat winners "
+        "by 3.78 bps a day value-weighted (t 10.7) and 6.38 equal-weighted (t 17.3); 3.41 "
+        "among the largest fifth of firms. The authors say it may not survive costs.",
+        "paper_url": "https://academicweb.nd.edu/~zda/EOD.pdf",
+        "tested_on": "NYSE, AMEX and NASDAQ stocks, intraday, from 1993",
+        "research": "docs/RESEARCH/078-two-us-stock-rules-on-indian-stocks.md",
+        "study": STOCKS,
+        "instrument": "100 largest stocks",
+        "logic": [
+            "At 14:10 rank the stocks by their return since the previous session's last "
+            "trade. A move of more than 20% is a split or a bad print and is not ranked.",
+            "Skip half an hour, as the paper does. At 14:40 buy the lowest fifth (or "
+            "tenth) and sell short the highest, at the next minute's open.",
+            "Close at 15:10: a stock with derivatives is squared off at 15:12 (A-057). "
+            "The paper holds the last half-hour to the close.",
+            "Equal slots, half the equity on each side; charges from the cost router "
+            "plus 2 bps of slippage a side (A-056).",
+        ],
+        "configurations": {
+            "tenths, losers only": "end-of-day reversal, deciles, losers only, 14:40-15:10",
+            "tenths, losers against winners": (
+                "end-of-day reversal, deciles, losers against winners, 14:40-15:10"
+            ),
+            "fifths, losers only": "end-of-day reversal, quintiles, losers only, 14:40-15:10",
+            "fifths, losers against winners": (
+                "end-of-day reversal, quintiles, losers against winners, 14:40-15:10"
+            ),
+        },
+    },
+    {
+        "id": "opening_half_hour_repeats",
+        "title": "Yesterday's opening half-hour repeats today (large stocks)",
+        "summary": "From 09:16 to 09:45 hold the stocks that rose most in yesterday's "
+        "opening half-hour, against those that fell most.",
+        "kind": "quant",
+        "shape": "cross-section",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[paper] Heston, Korajczyk & Sadka (2010), Journal of Finance 65(4)",
+        "published": "NYSE stocks, 2001-2005, before costs: the top tenth beats the bottom "
+        "tenth by about 3 bps in the same half-hour of the next day, and by more than 11 "
+        "in the opening half-hour. Bought at the offer and sold at the bid it loses at "
+        "every size and time of day.",
+        "paper_url": "https://arxiv.org/abs/1005.3535",
+        "tested_on": "NYSE stocks, half-hour returns, January 2001 to December 2005",
+        "research": "docs/RESEARCH/078-two-us-stock-rules-on-indian-stocks.md",
+        "study": STOCKS,
+        "instrument": "100 largest stocks",
+        "logic": [
+            "Rank the stocks by yesterday's return from the 09:16 open to the 09:44 "
+            "close. " + FIRST_PRINT,
+            "At 09:16 buy the highest tenth and sell short the lowest, at that minute's "
+            "open. Close at 09:45.",
+            "Only the opening half-hour is run: the paper's largest effect. The other "
+            "twelve half-hours are not, and running them would be a search.",
+            "Equal slots, half the equity on each side; charges from the cost router "
+            "plus 2 bps of slippage a side (A-056).",
+        ],
+        "configurations": {"as published": "opening half-hour repeats, deciles, 09:16-09:45"},
     },
 )
 

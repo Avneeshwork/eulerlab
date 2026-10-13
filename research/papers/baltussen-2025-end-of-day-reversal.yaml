@@ -1,0 +1,44 @@
+id: baltussen-2025-end-of-day-reversal
+title: End-of-Day Reversal
+authors: Baltussen, G., Da, Z., Soebhag, A.
+year: 2025
+kind: paper
+source_url: https://academicweb.nd.edu/~zda/EOD.pdf
+pdf: ''
+added: '2026-10-13'
+status: rejected
+markets:
+- US stocks, 1993 onward (paper)
+- 100 largest NSE stocks (here)
+summary: In US stocks from 1993, a stock's return from the previous close to an hour before
+  the close negatively predicts its return in the last half-hour. The day's losers rise into
+  the close; the winners do not fall. The low-minus-high quintile earns 3.78 bps a day value-weighted
+  and 6.38 to 6.86 equal-weighted, with t-statistics above 10, in almost every three-year
+  window and among the largest stocks too. Working paper, April 2025; the abstract, introduction,
+  data and main result were read.
+trade_idea: Retail investors buy the day's fallers late in the day, and short-sellers cover
+  before the close. Both push the day's losers up in the last half-hour.
+implementation: |-
+  - Sort stocks on the return from the previous close to 60 minutes before the close.
+  - Skip the next half-hour, so the result is not bid-ask bounce.
+  - Hold the last half-hour: long the lowest quintile, short the highest.
+  - Returns winsorised at 1% and 99%. Stocks under $5 or below the NYSE 10th size percentile are left out.
+
+  Here (`intraday/stock_papers.py`, `make stock-intraday`, research 078, H-0007): the 100 largest stocks by today's market value, one-minute bars, 2021-08 to 2026-10. Sorted at 14:10 on the return since the previous session's last trade, held 14:40 to 15:10 because stocks with derivatives are squared off at 15:12 (A-057). Result, before costs: losers minus winners 0.31 bps a day in fifths (t 0.6) and -0.18 in tenths (t -0.2). No reversal. The losers alone gain about 4 bps a day (t 6.2), but so does every stock: the average large stock rises 3.8 bps in that half-hour (t 6.1) and the winners rise 4.3. After charges and 2 bps slippage a side every setting loses 65% to 79%.
+red_flags:
+- The authors say it may not be exploitable after transaction costs.
+- 3.8 to 6.9 bps a day long-short, against about 9 bps a round trip a leg in a large Indian
+  stock (research 076).
+- US evidence only; no Indian replication was found.
+- 'The Indian holding window would not be the paper''s: continuous trading in F&O stocks ends
+  at 15:15.'
+- 'Read in part: the channel tests and the appendix were not read.'
+reported_results: 'Low-minus-high quintile in the last half-hour: 3.78 bps a day value-weighted
+  (t 10.69), 6.38 bps equal-weighted (t 17.30); 3.41 bps among the largest fifth of firms
+  (t 10.61), 14.71 among the smallest. Before costs.'
+hypothesis: H-0007
+strategies:
+- kind: registered
+  id: end_of_day_reversal
+  note: Fifths and tenths, both sides and losers only, after costs
+  timeframe: 0

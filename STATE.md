@@ -63,7 +63,9 @@ never edit them without an explicit instruction in that session.
   The Nifty gap paper is coded as written (research 072): best case Sharpe 0.64 on the future.
 - **Five Indian intraday rules (2026-10-13, research 076):** 26 settings on NIFTYBEES and the
   100 largest stocks; 25 lose after costs. All ten recent strategies were re-run; no verdict moved.
-  Their papers are in the Research Library (49 papers), each linked to its stored result.
+  Their papers are in the Research Library (58 papers), each linked to its stored result.
+- **Two US stock rules (2026-10-13, research 078):** end-of-day reversal and the opening half-hour
+  repeating, on the 100 largest stocks. Neither exists here before costs; both rejected.
 - **Telegram (ADR-063, ADR-068):** deployments report their orders; the bot answers 22 words
   (money, market, one stock, results, the machine) and plain questions. It cannot trade or stop anything.
 - **Gap strategy (2026-10-12):** paper-deployable through its own overnight book (ADR-066); the

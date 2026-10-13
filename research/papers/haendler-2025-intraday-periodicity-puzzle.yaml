@@ -1,0 +1,28 @@
+id: haendler-2025-intraday-periodicity-puzzle
+title: The Intra-Day Stock Return Periodicity Puzzle
+authors: Haendler, C., Heston, S. L., Korajczyk, R. A., Sadka, R.
+year: 2025
+kind: paper
+source_url: https://papers.ssrn.com/ab_id=5749704
+pdf: ''
+added: '2026-10-13'
+status: idea
+markets:
+- US stocks (paper)
+summary: A November 2025 follow-up to Heston, Korajczyk and Sadka (2010). Reported to find
+  that the same-time-of-day continuation in stock returns persists out of sample, and to attribute
+  the pattern at the open to VWAP-style trading and at the close to market-on-close orders.
+  Known from a search summary only; first names not confirmed.
+trade_idea: Institutions execute at the same time each day, so a stock's return at a given
+  time of day repeats on later days.
+implementation: |-
+  Not known beyond the 2010 paper's rule: sort stocks on one half-hour's return and hold the same half-hour on later days.
+
+  Here: not coded. Research 077. The 2010 rule is specified as H-0008.
+red_flags:
+- 'Not read: search summary only.'
+- The 2010 paper's version loses after the bid-ask spread.
+- US data; no Indian evidence found.
+reported_results: Reported to persist out of sample. No figures seen.
+hypothesis: ''
+strategies: []
