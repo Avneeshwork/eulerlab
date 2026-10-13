@@ -6,22 +6,29 @@ kind: paper
 source_url: https://www.researchgate.net/publication/383567351
 pdf: ''
 added: '2026-10-06'
-status: idea
+status: rejected
 markets:
-- Nifty, intraday
+- Nifty 50 futures, intraday (paper)
+- NIFTYBEES (here)
 summary: 'Reported to test whether the first half-hour return of the Nifty predicts its last
   half-hour return, and whether option dealers'' gamma hedging explains it. The paper could
   not be read: ResearchGate refused access and no other copy was found.'
 trade_idea: Dealers hedging options exposure trade in the direction of the day's move into
   the close, so a strong open predicts the last half hour.
 implementation: |-
-  Unknown: the paper was not readable. The template it reportedly adapts (Gao, Han, Li and Zhou 2018) goes long or short the index at the last half hour by the sign of the return from the previous close to 30 minutes after the open.
+  Unknown in detail: the paper was not readable. Its listing says it applies the design of Baltussen, Da, Lammers and Martens (JFE 2021) to Nifty futures: the return from the previous close to the start of the last half-hour predicts the last half-hour. Its second signal, net gamma exposure, needs option open interest by strike.
 
-  Not backtested here until the paper itself is read.
+  Here (`intraday/india_papers.py` `rest_of_day`, `make india-intraday`, research 076): NIFTYBEES one-minute bars, 2021-08-20 to 2026-10-12. At 15:00, long if the return from the previous official close to the 14:59 close is positive, short if negative; out at 15:24. Result: 1,263 trades, gross Sharpe 0.67, 0.7 bps a trade; after costs Sharpe -4.82, -49.7%. The gamma variant is not coded.
 red_flags:
-- 'Not read: nothing about its rules or results is verified.'
-- The gamma variant needs option open interest by strike; the last half hour in India includes
-  the closing-price window.
+- 'Not read: the rule coded is the design the listing says it follows, not the paper''s own.'
+- Authors not confirmed.
+- The gamma variant needs option open interest by strike and is not coded.
+- Trades every day for a gross edge under 1 bp, against about 6 bps of costs.
+- The paper uses the future; here it is the ETF.
 reported_results: Unavailable. A search snippet mentions a 13% Sharpe improvement, unverified.
 hypothesis: ''
-strategies: []
+strategies:
+- kind: registered
+  id: rest_of_day_momentum
+  note: The Baltussen design it follows, on NIFTYBEES after costs
+  timeframe: 0

@@ -1,0 +1,38 @@
+id: doraigari-2026-nifty-orb-two-r
+title: Best Intraday Breakout Strategy for Nifty 50
+authors: Doraigari
+year: 2026
+kind: report
+source_url: https://intradaylab.com/blog/nifty-orb-breakout-strategy-backtest
+pdf: ''
+added: '2026-10-13'
+status: rejected
+markets:
+- Nifty 50 index, spot (article)
+- NIFTYBEES (here)
+summary: An IntradayLab article, 30 March 2026. It backtests a 30-minute opening-range breakout
+  on the Nifty 50 index with 15-minute candles from July 2017 to March 2026, with a target
+  of twice the risk and an exit at 14:30. No costs.
+trade_idea: The first half-hour sets the day's range. A break of it, with the stop at the
+  other side and a target twice as far, wins less than half the time and still pays.
+implementation: |-
+  - Range: the high and low of 09:15 to 09:45.
+  - Enter on the break of either edge. One trade a day.
+  - Stop at the other edge. Target at twice the range from the entry.
+  - Whatever is still open is closed at 14:30.
+
+  Here (`intraday/india_papers.py` `orb_two_r`, `make india-intraday`, research 076): NIFTYBEES one-minute bars, 2021-08-20 to 2026-10-12, 1,266 sessions. The 09:15 print is never used: ranges, signals and fills start at 09:16 (research 075). NSE intraday charges plus 1 bp slippage a side. A stop order rests at each edge; a minute that touches both edges is no trade, and a minute that spans stop and target counts as the stop. Result: 1,248 trades, gross Sharpe 0.85, 2.0 bps a trade; after costs Sharpe -1.67, -40.3%, worst fall -41.7%.
+red_flags:
+- A blog article, not a reviewed paper.
+- 'Its own numbers disagree: 887 wins in 2,122 trades is 41.8%, not the 48.7% it states.'
+- No costs. The gross edge here is 2 bps a trade against about 6 bps of costs.
+- Spot index, which cannot be traded; here it is the ETF.
+- 15-minute candles cannot say whether the stop or the target came first inside a candle.
+reported_results: 'Nifty 50 index, 15-minute candles, July 2017 to March 2026, no costs: 2,122
+  trades, +91.6%, win rate 48.7%, profit factor 1.23, worst fall 11.2%, Sharpe 1.16.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: orb_thirty_two_r
+  note: As published, on NIFTYBEES, after costs
+  timeframe: 0

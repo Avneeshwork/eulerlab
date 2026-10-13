@@ -1,0 +1,37 @@
+id: bangur-2020-strangle-india
+title: 'Strangle to resuscitate: evidence from India'
+authors: Bangur, P.
+year: 2020
+kind: paper
+source_url: https://www.risk.net/journal-of-investment-strategies/7721271/strangle-to-resuscitate-evidence-from-india
+pdf: ''
+added: '2026-10-13'
+status: rejected
+markets:
+- Nifty index options, monthly, 2007-2019 (paper)
+- Nifty options 2015-2026 (here)
+summary: Journal of Investment Strategies. On monthly Nifty options from 2007 to 2019 the
+  short strangle beats the long strangle at every strike distance, and the widest of three
+  'legs' has the lowest risk and the highest return. Only the abstract was read; the paper
+  is paywalled.
+trade_idea: Option buyers overpay for protection against large moves. Selling a call and a
+  put far from the market each month collects that premium.
+implementation: |-
+  - Each month sell an out-of-the-money call and put, and hold to expiry.
+  - Three strike distances ('legs'). The abstract does not define them.
+
+  Here (`options/strategies.py`, `make options-strategies`, research 070): Nifty options from the F&O bhavcopy, 2015-01 to 2026-10. On the first session after each monthly expiry, sell the call and the put 2%, 4% or 6% out of the money (A-049), hold to expiry, settle at intrinsic value. Return on a margin of 15% of notional (A-050). After costs, summed monthly returns: 2% out -77% (Sharpe -0.11), 4% out -40% (-0.07), 6% out +43% (0.10). Every one lost more than its whole margin in March 2020 (-104% to -120%), so compounded each ends below zero. The paper's ordering holds (the widest is best); its profit does not.
+red_flags:
+- 'Abstract only: the legs, strikes and rules are assumed (A-049).'
+- The margin rate is assumed, and every return scales inversely with it (A-050).
+- A single month can lose more than the margin; March 2020 did.
+- The paper's sample ends in 2019, before that month.
+- Continuous units, not whole lots (S-039).
+reported_results: 'Nifty, 2007-2019, monthly: the short strangle beat the long one at every
+  leg; the third leg had the lowest risk and the highest return. From the abstract.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nifty_short_strangle
+  note: Strikes 2%, 4% and 6% out, after costs
+  timeframe: 0

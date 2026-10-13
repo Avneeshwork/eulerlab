@@ -23,6 +23,24 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 
 ---
 
+## Five Indian intraday rules, and the papers in the research library (2026-10-12, 2026-10-13)
+
+Operator: "work on 5 intraday strategy from recent paper/article ... on indian market purely", "get all papers in research and update in strategy library", then "backtest all recent strategies ... add in research library if not added and right pane of research library should be fixed to read and left strategy paper should scroll". Research 076.
+Verify: `uv run pytest -q tests/test_india_intraday_papers.py tests/test_library_sync.py tests/test_research_library.py`; `make india-intraday INDEX_ONLY=1`; Tools → Research Library.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4078 | **Five intraday rules from Indian sources, coded and run** | DONE — `intraday/india_papers.py`, `make india-intraday`. NIFTYBEES and the 100 largest stocks, 2021-2026, 26 settings. 25 lose after costs; the open fade held 150 minutes made +4% and has lost since 2024. No trial spent |
+| T-4079 | **Nine studies in the strategy library with their stored results** | DONE — `strategies/studies.py`, `make library-sync` (safe to re-run: second run stored 0). They show engine "study" and cannot be run from the page |
+| T-4080 | **The ten recent strategies re-run on 2026-10-13** | DONE — `make options-strategies`, `intraday-papers`, `gap-forecast`, `india-intraday`. Research 076's 26 settings matched the stored run exactly. The others gained two to three sessions and no verdict moved |
+| T-4081 | **Research 076 had code and results but no note** | FIXED — written 2026-10-13 from the coding session's records; the sources were not fetched again and the note says so |
+| T-4082 | **Five papers missing from the research library** | DONE — Rao, Doraigari, Tripathi & Aggarwal, Bangur, Aggarwal added; Gao, Zarattini, Wang & Gangwar and the hedging-demand paper linked to their studies. 49 papers. A study link shows its result and no Backtest button. A test fails if a study has no paper |
+| T-4083 | **The research library's paper scrolled away with the list** | FIXED — both columns are pinned under the bar; the list scrolls inside itself and the paper inside its own column (`research.css`). Seen in a headless browser at 1400 px; scrolling itself was not exercised by hand |
+| T-4084 | The open fade and the late opening range on futures | OPEN — new hypotheses, like T-4039. Each needs minute bars for the instrument and its own trial |
+| T-4085 | Aggarwal (2011) has no link and an unconfirmed title | OPEN — the rule is from a search snippet (research 070) |
+
+---
+
 ## A registered gap strategy, and Telegram (2026-10-11)
 
 Operator: "registry this strategy in strategy library Green day and VIX fell → long and setup telegram signals for paper /live trading strategies like name of strategy and strategy actions", then "also define terms i can use to interact with telegram". ADR-063.

@@ -652,6 +652,11 @@ function provenanceDetail(strategy: FleetStrategy, sweep: OptimizeRow | undefine
   if (strategy.engine === 'intraday') {
     parts.push('Runs on minute bars; cannot be expressed as target weights (ADR-037).');
   }
+  if (strategy.engine === 'study') {
+    parts.push(
+      'A paper coded as a study and run by its own make target (see the last step); every published setting is stored here, after costs. It cannot be run from this page.',
+    );
+  }
   if (strategy.engine === 'overnight') {
     parts.push('Holds a future from the close to the next open; run as a calculation, not by an engine.');
   }

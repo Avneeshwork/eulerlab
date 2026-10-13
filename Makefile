@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday library-sync gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -320,6 +320,17 @@ options-strategies:
 # Research 071's two intraday papers on NIFTYBEES minute bars.
 intraday-papers:
 	@uv run python -m eulerlab.intraday.session_papers_run $(if $(SYMBOL),--symbol $(SYMBOL),)
+
+# Research 076: five intraday rules from Indian sources. NIFTYBEES for the
+# three index rules, the 100 largest stocks for the other two. About 15 minutes;
+# INDEX_ONLY=1 runs the index rules alone in seconds.
+india-intraday:
+	@uv run python -m eulerlab.intraday.india_papers_run $(if $(INDEX_ONLY),--index-only,) $(if $(STOCKS),--stocks $(STOCKS),)
+
+# Copy each research study's stored results into the strategy library. Safe
+# to run again; run it after any of the three study targets.
+library-sync:
+	@uv run python -m eulerlab.research.library_sync
 
 # Every active paper deployment, replayed to the latest close: catches up
 # missed days, sends nothing twice, halts on a broken book. ADR-060.

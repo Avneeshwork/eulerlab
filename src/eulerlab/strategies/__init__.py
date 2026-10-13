@@ -827,6 +827,44 @@ REGISTRY.update(_india_papers())
 REGISTRY.update(_studies())
 
 
+def _research_studies() -> dict[str, Declaration]:
+    """Papers coded as studies and run by their own make target.
+
+    `studies.ENTRIES` is the list. None can be run from the library; their
+    results reach it through `research/library_sync.py`.
+    """
+    from eulerlab.strategies import studies
+
+    out: dict[str, Declaration] = {}
+    for entry in studies.ENTRIES:
+        asset_class = AssetClass(entry["asset_class"])
+        out[entry["id"]] = Declaration(
+            id=entry["id"],
+            title=entry["title"],
+            summary=entry["summary"],
+            kind=entry["kind"],
+            shape=entry["shape"],
+            asset_class=asset_class,
+            timeframe=Timeframe(entry["timeframe"]),
+            emits=Emits.STRUCTURE if entry["shape"] == "structure" else Emits.CONDITIONAL_ENTRY,
+            lookback=1,
+            is_strategy_subclass=False,
+            source=entry["source"],
+            published=entry["published"],
+            paper_url=entry["paper_url"],
+            tested_on=entry["tested_on"],
+            recommended_class=asset_class.value,
+            logic=[
+                *entry["logic"],
+                f"Run with `{studies.COMMANDS[entry['study']]}`; written up in {entry['research']}.",
+            ],
+        )
+    return out
+
+
+REGISTRY.update(_research_studies())
+
+
 @dataclass(frozen=True)
 class FleetRow:
     """A declaration joined to whatever evidence the ledger holds about it."""

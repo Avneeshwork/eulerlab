@@ -334,7 +334,7 @@ export type FleetStrategy = {
   // runs fine through the minute-bar scanner.
   runnable: boolean;
   /** `overnight`: a close-to-next-open hold, run as a calculation (research 072). */
-  engine: 'daily' | 'intraday' | 'overnight';
+  engine: 'daily' | 'intraday' | 'overnight' | 'study';
   source: string;
   published: string;
   stage: Stage;

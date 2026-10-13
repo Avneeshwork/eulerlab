@@ -86,6 +86,7 @@ from eulerlab.market_history import INDEX_UNIVERSE, index_panel_rows
 from eulerlab.research.budget import price_search, searches_run
 from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
 from eulerlab.strategies import fleet as strategy_fleet
+from eulerlab.strategies import studies as strategy_studies
 from eulerlab.validation import montecarlo
 from eulerlab.validation.ledger import count as trial_count
 from eulerlab.validation.ledger import sharpe_dispersion
@@ -665,6 +666,10 @@ def _fleet_payload(
                     if row.declaration.id in INTRADAY_RUNNABLE
                     else "overnight"
                     if row.declaration.id in STUDY_RUNNABLE
+                    # A paper run by its own make target; the library shows
+                    # its stored results and cannot run it (`studies.py`).
+                    else "study"
+                    if row.declaration.id in strategy_studies.IDS
                     else "daily"
                 ),
                 "source": row.declaration.source,

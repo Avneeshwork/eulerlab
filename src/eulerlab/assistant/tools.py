@@ -38,6 +38,7 @@ STUDIES = (
     "session_studies",
     "options_strategies",
     "india_papers",
+    "india_intraday_papers",
 )
 RESULT_FILES = ("strategy_results", "adopted_results", "walk_results")
 LONG_LIST = 12

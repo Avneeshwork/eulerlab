@@ -20,7 +20,7 @@ from eulerlab import workspace as workspace_mod
 from eulerlab.builder import store as builder_store
 from eulerlab.intraday import tweezer_report
 from eulerlab.research import library
-from eulerlab.strategies import REGISTRY
+from eulerlab.strategies import REGISTRY, studies
 
 router = APIRouter(prefix="/api/research")
 
@@ -79,7 +79,9 @@ def _link_view(tenant: workspace_mod.Workspace, link: library.StrategyLink) -> d
         declaration = REGISTRY.get(link.id)
         view["title"] = declaration.title if declaration else link.id
         view["exists"] = declaration is not None
-        view["runnable"] = declaration is not None
+        # A study is run by its own make target; the page shows its stored
+        # result and offers no Backtest button (`strategies/studies.py`).
+        view["runnable"] = declaration is not None and link.id not in studies.IDS
         view["result"] = result_store.summary(tenant, link.id)
     else:
         view["title"] = f"Tweezer Bottom, {link.timeframe or 15}-minute candles"

@@ -1,0 +1,41 @@
+id: tripathi-2015-prior-return-intraday-india
+title: 'Prior Return Effect in Indian Stock Market: An Intra-day Analysis'
+authors: Tripathi, V., Aggarwal, S.
+year: 2015
+kind: paper
+source_url: https://www.publishingindia.com/storage/PDFBrochures/2481.pdf
+pdf: docs/RESEARCH/papers/tripathi-aggarwal-2015-prior-return-intraday.pdf
+added: '2026-10-13'
+status: rejected
+markets:
+- S&P CNX 500 stocks, 2010 (paper)
+- 100 largest NSE stocks (here)
+summary: International Journal of Financial Management 5(1). On CNX 500 stocks in 2010, with
+  30-minute returns, the stocks with the most extreme moves reverse. Falls correct within
+  30 minutes; rises take a few hours. The effect is larger at the open than at midday. No
+  costs, and the authors warn costs may remove it. Read in full.
+trade_idea: An extreme half-hour move in one stock is an overreaction. Buy the biggest fallers
+  and sell the biggest risers, and the gap closes within the session.
+implementation: |-
+  - Every 30 minutes, rank stocks by return less the Nifty's. Stocks at Rs 10 or less are left out.
+  - Buy the three with the lowest return and sell short the three with the highest.
+  - Measure what follows over 30 minutes and over a few hours.
+
+  Here (`intraday/india_papers.py` `extreme_reversal_signals`, `make india-intraday`, research 076): the 100 largest stocks by today's market value, one-minute bars, 2021-08 to 2026-10. Two events: the open (yesterday's 15:14 close to today's first-minute close) and midday (11:45 to 12:15). Entry at the next minute's open, six equal slots, exit after 30 or 150 minutes. Charges plus 2 bps slippage a side (A-056). Result at the open: gross Sharpe 2.50 (30 minutes) and 2.10 (150 minutes), 8 to 9 bps a trade over about 7,590 trades; after costs Sharpe -0.32 (-15.3%) and 0.12 (+4.0%). The 150-minute hold made Sharpe 0.96 before 2024 and -0.59 since. At midday both holds lose heavily after costs (-74.6%, -83.1%).
+red_flags:
+- One year of data, 2010, and no costs in the paper.
+- 'The universe here is chosen by today''s market value: survivorship bias.'
+- The open fade is the only rule in research 076 with a gross edge above its costs, and it
+  has lost since 2024.
+- Fills in the first minutes of the session, when spreads are widest; slippage is assumed,
+  not measured.
+- Short-selling each stock intraday is assumed available on every day.
+reported_results: 'CNX 500 stocks, January to December 2010, 30-minute returns, no costs:
+  extreme moves reverse. Falls correct within 30 minutes; rises take a few hours. The fade
+  pays more at the open than at midday.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: extreme_move_fade
+  note: Open and midday, 30 and 150 minutes, after costs
+  timeframe: 0

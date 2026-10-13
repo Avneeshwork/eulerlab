@@ -1,0 +1,36 @@
+id: aggarwal-2011-covered-call-nifty
+title: Covered call on the S&P CNX Nifty (exact title not confirmed)
+authors: Aggarwal, N.
+year: 2011
+kind: paper
+source_url: ''
+pdf: ''
+added: '2026-10-13'
+status: rejected
+markets:
+- S&P CNX Nifty and its calls, 2005-2010 (paper)
+- Nifty future and options 2015-2026 (here)
+summary: Asia-Pacific Business Review. Reported to test covered calls on the Nifty from October
+  2005 to September 2010 with at-the-money, 2% and 5% in-the-money and out-of-the-money calls
+  of one to three months, and to find the 5% in-the-money call best. Known only from a search
+  summary; the paper was not opened.
+trade_idea: Holding the index and selling a call against it gives up some upside for the premium.
+  A call sold in the money gives the most cushion against a fall.
+implementation: |-
+  - Buy the index at the close and sell the call; square off both at the next close.
+  - Strikes: at the money, 2% and 5% in and out of the money.
+
+  Here (`options/strategies.py`, `make options-strategies`, research 070): the near-month Nifty future and the same-month call nearest 5% in the money, 2015-01 to 2026-10, return on full notional, after costs. Held a day, as the paper does: 2,862 days, Sharpe -1.63, about -55% compounded; four orders a day cost about ₹10 lakh on ₹10 lakh. Held a month: 138 months, Sharpe -0.07, -7%, against +18% for the future alone (Sharpe 0.17), with a shallower worst month (-17% against -22%).
+red_flags:
+- The rule comes from a search snippet, not from the paper. No link to the paper is held.
+- A daily rule with four orders a day; costs decide the result.
+- The paper's five years (2005-2010) do not overlap the eleven tested here.
+- A call 5% in the money is thinly traded; a day on which it did not trade is skipped.
+reported_results: 'October 2005 to September 2010: the covered call on the 5% in-the-money
+  strike beat the index on every measure. From a search summary.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nifty_covered_call
+  note: 5% in the money, held a day and held a month
+  timeframe: 0

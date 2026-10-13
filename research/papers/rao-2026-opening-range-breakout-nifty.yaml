@@ -1,0 +1,41 @@
+id: rao-2026-opening-range-breakout-nifty
+title: All About Opening Range Breakout (ORB), Part 1
+authors: Rao
+year: 2026
+kind: report
+source_url: https://inthemoneybyzerodha.substack.com/p/all-about-opening-range-breakout
+pdf: ''
+added: '2026-10-13'
+status: rejected
+markets:
+- Nifty 50 index (article)
+- NIFTYBEES (here)
+summary: 'An article in Zerodha''s In The Money, 2 March 2026. It tests opening-range breakouts
+  on the Nifty index with 3-minute candles from January 2019 to February 2026, for ranges
+  of different lengths. The longest ranges do best: 09:15-11:15 first, 09:15-10:15 second.
+  No costs. Results are shown as charts, with no table.'
+trade_idea: A range built over the first hour or two holds more of the day's information than
+  a 15-minute one, so a close outside it is less often a false break.
+implementation: |-
+  - Range: the high and low from the open to 10:15, or to 11:15.
+  - After the range, the first 3-minute candle to close above it is bought; the first to close below it is sold short.
+  - Stop at the other side of the range. One trade a day.
+  - The article gives no target and no exit time.
+
+  Here (`intraday/india_papers.py` `late_orb`, `make india-intraday`, research 076): NIFTYBEES one-minute bars, 2021-08-20 to 2026-10-12, 1,266 sessions. The 09:15 print is never used: ranges, signals and fills start at 09:16 (research 075). NSE intraday charges plus 1 bp slippage a side. Entry at the next minute's open; an open position is closed at 15:24. Result, range to 10:15: 1,180 trades, gross Sharpe 1.20, 3.2 bps a trade; after costs Sharpe -0.94, -27.8%. Range to 11:15: 1,076 trades, gross Sharpe 1.44, 3.6 bps a trade; after costs Sharpe -0.81, -21.6%. From 2024 both are worse after costs (-1.44 and -1.59).
+red_flags:
+- A broker's article, not a reviewed paper; no table of results, only charts.
+- No costs in the article. Here a round trip costs about 6 bps against a gross edge of 3 to
+  4.
+- The article trades the index, which cannot be bought; here it is the ETF.
+- The article does not say how it treats the first bar, or when an open trade is closed.
+- The best range was picked by the article from several it tried.
+reported_results: 'Nifty index, 3-minute candles, January 2019 to February 2026, no costs:
+  the 09:15-11:15 range does best and 09:15-10:15 second; longs win about 60% of the time,
+  shorts about 50%. Charts only.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: late_opening_range
+  note: Both range lengths, on NIFTYBEES, after costs
+  timeframe: 0

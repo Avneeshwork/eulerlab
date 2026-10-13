@@ -6,24 +6,38 @@ kind: paper
 source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5198458
 pdf: ''
 added: '2026-10-07'
-status: specified
+status: rejected
 markets:
-- NSE intraday
-summary: Evaluates opening-range breakout setups on NSE intraday prices with 5, 15 and 30-minute
-  ranges, volume-surge thresholds of 1.2x and 1.5x, and holding periods of 2, 3 and 5 bars,
-  in blocks. Only a search-engine summary was readable.
+- Tata Motors, NSE intraday, about one year (paper)
+- 100 largest NSE stocks (here)
+summary: Evaluates opening-range breakout setups on Tata Motors' intraday prices over about
+  a year, with 5, 15 and 30-minute ranges, volume-surge thresholds of 1.2x and 1.5x, and holding
+  periods of 2, 3 and 5 bars. Every variant beat buying at the open and selling at the close,
+  but bootstrap p-values were 0.45 to 0.50, so the authors could not tell the edge from luck.
+  Only the abstract was readable.
 trade_idea: A break of the opening range on a volume surge marks the day's direction.
 implementation: |-
   - Opening range 5/15/30 minutes; volume surge 1.2x or 1.5x; hold N = 2, 3 or 5 bars.
 
-  Linked: orb_breakout_in, this platform's NSE opening-range breakout, is the nearest coded strategy; its rules are Mesfin's, not this paper's.
+  Here (`intraday/india_papers.py` `orb_volume_signals`, `make india-intraday`, research 076): all 18 settings on the 100 largest stocks by today's market value, one-minute bars, 2021-08 to 2026-10. The range is the first bar from 09:16. A later bar that closes outside it is followed only if its volume is at least 1.2 or 1.5 times that bar's 20-session average (A-058). Entry at the next bar's open, exit N bars later or at 15:10, one trade a stock a day, equal slots. Charges plus 2 bps slippage a side (A-056). Result: every setting loses after costs, -41% to -73%. Gross, the 5-minute range loses (Sharpe -0.6 to -1.2), the 15-minute is about flat (0.3 to 0.7) and the 30-minute is best (1.0 to 1.3) at 1.6 to 2.0 bps a trade, against about 14 bps of costs.
+
+  Also linked: orb_breakout_in, this platform's NSE opening-range breakout; its rules are Mesfin's, not this paper's.
 red_flags:
-- 'SSRN blocked: only a search snippet was read.'
-- The linked strategy is a different rule set.
-reported_results: Not available.
+- 'SSRN blocked: only the abstract was read.'
+- The abstract does not say what a volume surge is measured against; the 20-session average
+  is assumed (A-058).
+- The paper tests one stock for one year and cannot reject luck itself.
+- 'The universe here is chosen by today''s market value: survivorship bias.'
+- '45,000 to 96,000 trades: the result is the cost of a round trip.'
+reported_results: 'Tata Motors, about one year: every variant returned more than buying at
+  the open and selling at the close; bootstrap p-values 0.45 to 0.50. From the abstract.'
 hypothesis: ''
 strategies:
 - kind: registered
   id: orb_breakout_in
   note: nearest coded ORB on NSE; not this paper's exact rules
+  timeframe: 0
+- kind: registered
+  id: orb_volume_surge
+  note: All 18 published settings, 100 largest stocks, after costs
   timeframe: 0
