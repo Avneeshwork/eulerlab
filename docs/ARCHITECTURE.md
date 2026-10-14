@@ -1384,9 +1384,23 @@ everything that failed.
 
 `ingest/daily_feed.STEPS` is the one list of daily steps. The Instruments button
 runs it (`POST /api/data/feed`), as does `make feed`; `make daily` runs the same
-steps plus those in `TERMINAL_ONLY` (fundamentals, Kite minute bars, the
-one-year crypto backfill, pruning). `tests/test_data_pipeline.py` fails if
+steps plus those in `TERMINAL_ONLY` (Kite minute bars, the one-year crypto
+backfill, the per-folder uploads, pruning). `tests/test_data_pipeline.py` fails if
 `make daily` gains a step that is in neither.
+
+`make daily` takes one dataset at a time (ADR-070): download it, upload its
+landing folder, delete the local copy, then the next.
+`make upload-tree TREES="..." DELETE=1` (`sync_cloud --only --then-delete`)
+lists only that folder's part of the bucket and deletes only the files a
+fresh listing shows there at the same size. The NSE files are deleted after
+market history, the price panel, Nifty options and the paper books have read
+them, and the US files after the US panel. The full `sync-cloud` sweep and
+`prune-local` still run last. The button still mirrors once, at the end of
+its own shorter run.
+
+Fundamentals is not in `make daily`. `make fundamentals-update` fetches,
+uploads and deletes under its own `fundamentals` lock; launchd runs it on
+Sunday at 10:00.
 
 Order: NSE end-of-day → participant OI → index closes and delivery → market
 history → price panel → Nifty options → **paper books** → mutual funds,
@@ -1595,6 +1609,7 @@ traded through without a signal now shows one.
 | Job | When | Runs |
 |---|---|---|
 | `com.eulerlab.daily` | 19:30 every day | `tools/daily_guard.sh` (`make daily`, and a message if it fails) |
+| `com.eulerlab.fundamentals` | 10:00 on Sunday | `make fundamentals-update` |
 | `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a

@@ -103,6 +103,55 @@ def plan_and_prune(
     )
 
 
+def prune_tree(
+    root: Path,
+    name: str,
+    store: ObjectStore,
+    *,
+    prefix: str,
+    dry_run: bool = True,
+) -> PruneResult:
+    """`plan_and_prune` for one dataset tree, listing only its part of the bucket.
+
+    The same rule: a file goes only when the bucket holds it at the exact same
+    size, confirmed by a listing taken now. `make daily` calls this straight
+    after a tree's upload, so each dataset is downloaded, uploaded and removed
+    before the next one starts (2026-10-13).
+    """
+    tree = root / name
+    files = [p for p in tree.rglob("*") if p.is_file() and p.name not in SKIP_NAMES]
+    # The bhavcopy tree's objects sit directly under the prefix, one folder a
+    # segment; every other tree is one folder named after itself.
+    folders = sorted({_remote_key(p, root, prefix)[len(prefix) :].split("/", 1)[0] for p in files})
+    remote: dict[str, int] = {}
+    for folder in folders:
+        remote.update(store.list_sizes(f"{prefix}{folder}/"))
+
+    deleted: list[Path] = []
+    mismatched: list[Path] = []
+    not_uploaded = 0
+    freed = 0
+    for path in files:
+        remote_size = remote.get(_remote_key(path, root, prefix))
+        local_size = path.stat().st_size
+        if remote_size is None:
+            not_uploaded += 1
+            continue
+        if remote_size != local_size:
+            mismatched.append(path)
+            continue
+        freed += local_size
+        deleted.append(path)
+        if not dry_run:
+            path.unlink()
+    return PruneResult(
+        deleted=deleted,
+        kept_not_uploaded=not_uploaded,
+        kept_size_mismatch=mismatched,
+        bytes_freed=freed,
+    )
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="prune-local",

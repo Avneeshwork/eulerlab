@@ -23,6 +23,25 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 
 ---
 
+## The nightly job uploads as it goes (2026-10-13)
+
+Operator: "what is the data upload going on right now it is running all time ... stop that", then "data 1 download, uploaded it, deleted from local then data 2 ... and lets make fundamental data weekly or on demand update". ADR-070.
+Verify: `uv run pytest -q tests/test_sync_only.py tests/test_schedule.py`; `make upload-tree TREES="mf calendar" DELETE=1 DRY=1`; `make -n daily-run | grep upload-tree`; `make schedule JOB=fundamentals`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4097 | **The 13 October nightly run was stopped by hand** | DONE — `make daily` from launchd, 1 h 14 min in, on minute bars. It holds the `feed` lock, so "Update all data" was refused while it ran. Its only upload was the last step, behind fundamentals (over ten hours on 8 October), so nothing it fetched had been uploaded |
+| T-4098 | **One dataset at a time: download, upload, delete** | DONE — `sync_cloud --only ... --then-delete`, `make upload-tree TREES="..." DELETE=1`. Lists only the named folders in the bucket, not all 142,000 objects; deletes only what a fresh listing shows there at the same size. Thirteen upload points in `daily-run`. NSE and US files are deleted after the builds that read them, a few steps after their upload. The full sweep and prune still run last. On the real bucket: 418 files from the stopped run uploaded in 75 s; `mf` and `calendar` uploaded and deleted. **No full `make daily` has run with it yet** |
+| T-4103 | **Deleted files came back within a minute** | NOTED — the running workbench reads the calendar and fund files and fetched them back from B2. By design (`landing_reader`); the same after every `prune-local` |
+| T-4104 | The next nightly run deletes 1.9 GB of local minute bars | NOTED — 12,636 files, all in B2. The intraday stock studies will download them again when next run (about 15 minutes) |
+| T-4099 | NSE's files for 13 October failed to download | OPEN — bhavcopy, participant OI, indices and delivery all reported `failed` at 19:42. Not diagnosed. The panel and paper books are on 12 October until they land |
+| T-4100 | **Fundamentals is weekly and on demand** | DONE — out of `daily-run`. `make fundamentals-update` (LIMIT=n for a few companies) fetches, uploads and deletes, under its own `fundamentals` lock, so it no longer blocks the nightly job or the button. `com.eulerlab.fundamentals` is installed and loaded: Sunday 10:00. Not yet run |
+| T-4105 | No button for fundamentals on Instruments | OPEN — on demand means the make target today |
+| T-4101 | "Update all data" on Instruments still uploads once at the end | OPEN — `daily_feed._mirror`. It has no fundamentals step, so the wait is short. Not changed |
+| T-4102 | Derived tables are not part of the nightly upload | NOTED — `make sync-derived` is separate, and the 710 MB price panel still fails to upload (T-4015) |
+
+---
+
 ## Archiving strategies (2026-10-13)
 
 Operator: "add option in strategy library to archieve some strategies and undo if wanted". ADR-069.

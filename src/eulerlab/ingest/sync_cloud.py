@@ -10,16 +10,20 @@ from eulerlab.ingest import landing_reader
 from eulerlab.ingest.cloud import (
     InsufficientCapabilities,
     MissingCredentials,
+    ObjectStore,
     S3ObjectStore,
+    StorageConfig,
     SyncResult,
     full_listing,
     load_storage_config,
+    object_key,
     plan_sync,
     sync,
     sync_directory,
 )
 from eulerlab.ingest.landing import Landing
 from eulerlab.ingest.manifest import TREES
+from eulerlab.ingest.prune_local import prune_tree
 
 DEFAULT_LANDING = Path("data/landing/nse")
 DEFAULT_CONFIG = Path("config/storage.yaml")
@@ -31,6 +35,107 @@ Bounded rather than looping until stable: a writer producing a new tree faster
 than the sync drains them would otherwise never let the command finish, and
 anything still arriving by the fifth sweep is honestly the next run's work.
 """
+
+
+def mirror_only(names: Sequence[str], args: argparse.Namespace, config: StorageConfig) -> int:
+    """Mirror the named trees and nothing else.
+
+    `make daily` used to download from every source and upload once at the
+    end, behind a fundamentals step that can take ten hours: a run stopped
+    before then had uploaded nothing (2026-10-13). Each download is now
+    followed by this, for the tree it wrote.
+
+    Only the named trees' part of the bucket is listed, so a small tree costs
+    one request, not an enumeration of 142,000 objects. The bhavcopy tree
+    (`args.landing`) is compared against its manifest, as the full mirror
+    does; every other tree by size. A tree with nothing on this machine is
+    reported and skipped. A name that is not a folder name is refused.
+    """
+    wanted = list(dict.fromkeys(names))
+    bad = [name for name in wanted if not name or Path(name).name != name or name.startswith(".")]
+    if bad:
+        print(f"sync-cloud: {bad[0]!r} is not a tree name")
+        return 2
+    try:
+        store = S3ObjectStore(config)
+    except MissingCredentials as exc:
+        print(f"sync-cloud: {exc}")
+        return 2
+    return mirror_trees(
+        wanted,
+        store,
+        config,
+        args.landing,
+        args.landing_root,
+        args.dry_run,
+        then_delete=bool(getattr(args, "then_delete", False)),
+    )
+
+
+def mirror_trees(
+    names: Sequence[str],
+    store: ObjectStore,
+    config: StorageConfig,
+    landing_dir: Path,
+    landing_root: Path,
+    dry_run: bool = False,
+    *,
+    then_delete: bool = False,
+) -> int:
+    """The work of `mirror_only`, with the store handed in.
+
+    With `then_delete`, a tree's local files are removed once it is uploaded:
+    only those a fresh listing shows in the bucket at the same size
+    (`prune_local.prune_tree`). A file that failed to upload is therefore kept.
+    """
+    failed = 0
+    for name in names:
+        root = landing_root / name
+        if not root.is_dir():
+            print(f"{name}: nothing on this machine, nothing to upload")
+            continue
+        if root.resolve() == landing_dir.resolve():
+            landing = Landing(landing_dir)
+            # The manifest lists files already pruned from this machine, so
+            # every folder it names is listed, not just the ones on disk.
+            folders = sorted(
+                {
+                    object_key(config.prefix, entry)[len(config.prefix) :].split("/", 1)[0]
+                    for entry in landing.entries().values()
+                }
+            )
+            remote: dict[str, int] = {}
+            for folder in folders:
+                remote.update(store.list_sizes(f"{config.prefix}{folder}/"))
+            if dry_run:
+                plan = plan_sync(landing, store, config, remote_sizes=remote)
+                print(
+                    f"{name}: would upload {len(plan.upload)}, already there {len(plan.already_present)}"
+                )
+                problems: list[str] = []
+            else:
+                result = sync(landing, store, config, remote_sizes=remote)
+                print(f"{name}: uploaded {result.uploaded}, already there {result.skipped}")
+                problems = [*result.mismatched, *result.failed]
+        else:
+            tree = sync_directory(root, store, prefix=f"{config.prefix}{name}/", dry_run=dry_run)
+            verb = "would upload" if dry_run else "uploaded"
+            print(f"{name}: {verb} {tree.uploaded}, already there {tree.skipped}")
+            problems = list(tree.failed)
+        if then_delete:
+            pruned = prune_tree(landing_root, name, store, prefix=config.prefix, dry_run=dry_run)
+            verb = "would delete" if dry_run else "deleted"
+            kept = pruned.kept_not_uploaded + len(pruned.kept_size_mismatch)
+            print(
+                f"{name}: {verb} {len(pruned.deleted)} local files "
+                f"({pruned.bytes_freed / 1e6:.1f} MB), kept {kept} not confirmed in the bucket"
+            )
+        if problems:
+            failed += len(problems)
+            print(f"  FAILED {len(problems)}:")
+            for problem in problems[:10]:
+                print(f"    {problem}")
+    return 1 if failed else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -59,9 +164,31 @@ def main(argv: Sequence[str] | None = None) -> int:
             "One request per object, so slow; run it as an occasional audit."
         ),
     )
+    parser.add_argument(
+        "--only",
+        nargs="+",
+        metavar="TREE",
+        help=(
+            "mirror only these dataset trees (folder names under the landing "
+            "root, e.g. nse crypto), listing only their part of the bucket. "
+            "What `make daily` runs after each download."
+        ),
+    )
+    parser.add_argument(
+        "--then-delete",
+        action="store_true",
+        help=(
+            "with --only: after each tree is uploaded, delete its local files "
+            "that the bucket now holds at the same size"
+        ),
+    )
     args = parser.parse_args(argv)
 
     config = load_storage_config(args.config)
+    if args.then_delete and not args.only:
+        parser.error("--then-delete needs --only; `make prune-local` prunes everything")
+    if args.only:
+        return mirror_only(args.only, args, config)
     landing = Landing(args.landing)
     if not landing.entries():
         print(f"landing zone {args.landing} is empty — nothing to sync")

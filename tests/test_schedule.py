@@ -46,6 +46,25 @@ def test_the_gap_signal_runs_at_1520_on_weekdays_only() -> None:
     assert str(job["StandardOutPath"]).endswith("data/logs/gap_signal.log")
 
 
+def test_fundamentals_runs_on_sunday_morning_and_not_from_the_nightly_job() -> None:
+    job = _job("fundamentals")
+    assert job["Label"] == "com.eulerlab.fundamentals"
+    assert job["ProgramArguments"] == ["/bin/zsh", "-lc", "cd /repo && make fundamentals-update"]
+    assert job["StartCalendarInterval"] == [{"Weekday": 7, "Hour": 10, "Minute": 0}]
+    assert job["RunAtLoad"] is False
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    nightly = makefile.split("\ndaily-run:\n", 1)[1].split("\n\n", 1)[0]
+    assert "fundamentals.backfill" not in nightly
+    weekly = makefile.split("\nfundamentals-run:\n", 1)[1].split("\n\n", 1)[0]
+    assert "fundamentals.backfill" in weekly
+    assert 'upload-tree TREES="fundamentals" DELETE=1' in weekly
+    # Its own lock: a ten-hour fetch must not hold up the nightly job or the button.
+    assert (
+        "filelock fundamentals --" in makefile
+        and "filelock feed -- $(MAKE) --no-print-directory fundamentals" not in makefile
+    )
+
+
 @pytest.mark.parametrize(
     ("when", "sends"),
     [

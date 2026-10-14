@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday library-sync gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
 
 help:
 	@echo "EulerLab — targets"
@@ -142,6 +142,27 @@ sync-derived:
 
 prune-local:
 	uv run python -m eulerlab.ingest.prune_local $(if $(DRY),--dry-run,)
+
+# Upload only the named landing folders: `make upload-tree TREES="nse crypto"`.
+# Lists only their part of the bucket. What `make daily` runs after each
+# download. DELETE=1 then removes the local files the bucket holds at the same
+# size. DRY=1 reports and changes nothing.
+upload-tree:
+	@echo "   upload$(if $(DELETE), then delete local,): $(TREES)"
+	@uv run python -m eulerlab.ingest.sync_cloud --only $(TREES) $(if $(DELETE),--then-delete,) $(if $(DRY),--dry-run,)
+
+# Company fundamentals: download, upload to B2, delete the local copies.
+# Weekly from launchd (`make schedule ACTION=install JOB=fundamentals`) and
+# on demand from here. Takes hours. It holds its own lock, not the feed lock,
+# so the nightly job and "Update all data" are not held up by it.
+# LIMIT=n fetches only n companies.
+fundamentals-update:
+	@uv run python -m eulerlab.ingest.filelock fundamentals -- $(MAKE) --no-print-directory fundamentals-run
+
+fundamentals-run:
+	@echo "== fundamentals =="
+	-uv run python -m eulerlab.fundamentals.backfill $(if $(LIMIT),--limit $(LIMIT),)
+	@$(MAKE) --no-print-directory upload-tree TREES="fundamentals" DELETE=1
 
 build-master:
 	uv run python -m eulerlab.master.build_master $(if $(DAILY),--cadence daily,)
@@ -381,12 +402,22 @@ daily:
 	@uv run python -m eulerlab.ingest.filelock feed -- $(MAKE) --no-print-directory daily-run
 
 daily-run:
+	@# One dataset at a time: download it, upload its folder to B2, delete the
+	@# local copy, then the next (`upload-tree ... DELETE=1`). A file is deleted
+	@# only when a fresh listing shows it in the bucket at the same size, so a
+	@# failed upload keeps its file. Two folders are deleted a little later
+	@# than they are uploaded, because a build right after reads them: the NSE
+	@# files (market history, price panel, Nifty options, paper books) and the
+	@# US files (US panel). Until 2026-10-13 everything was downloaded first
+	@# and uploaded once at the end, behind fundamentals.
 	@echo "== EOD bhavcopy =="
 	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
+	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
 	@echo "== participant OI =="
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
 	@echo "== NSE index closes (incl. India VIX) and delivery =="
 	-uv run python -m eulerlab.ingest.nse_daily_files --from $$(date -v-7d +%Y-%m-%d)
+	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
 	-uv run python -m eulerlab.market_history --skip-expiries
 	@# The panel and the paper books come straight after the bhavcopy, from the
 	@# local landed file, so a slow or failed network step below cannot leave
@@ -397,30 +428,42 @@ daily-run:
 	-$(MAKE) --no-print-directory nifty-options FROM=$$(date -v-30d +%Y-%m-%d)
 	@echo "== paper deployments (bring each up to the latest close) =="
 	-$(MAKE) --no-print-directory paper-daily
+	@# The builds above have read today's NSE files; the local copies can go.
+	-@$(MAKE) --no-print-directory upload-tree TREES="nse" DELETE=1
 	@echo "== mutual fund NAVs =="
 	-uv run python -m eulerlab.ingest.mf_backfill --snapshot-only
+	-@$(MAKE) --no-print-directory upload-tree TREES="mf" DELETE=1
 	@echo "== economic calendar =="
 	-uv run python -m eulerlab.ingest.forexfactory
+	-@$(MAKE) --no-print-directory upload-tree TREES="calendar" DELETE=1
 	@echo "== minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory daily-minute
+	-@$(MAKE) --no-print-directory upload-tree TREES="kite_minute" DELETE=1
 	@echo "== crypto (Binance public archive, no auth) =="
 	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
 	@echo "== crypto month-end gap (Binance daily archive) =="
 	-uv run python -m eulerlab.ingest.crypto_fill
+	-@$(MAKE) --no-print-directory upload-tree TREES="crypto" DELETE=1
 	@echo "== FX (FXCM weekly candles) =="
 	-uv run python -m eulerlab.ingest.fx_bulk_backfill --from-year $$(date +%Y)
+	-@$(MAKE) --no-print-directory upload-tree TREES="fx" DELETE=1
 	@echo "== per-instrument news (equity, crypto, FX) =="
 	-uv run python -m eulerlab.ingest.news
+	-@$(MAKE) --no-print-directory upload-tree TREES="news names" DELETE=1
 	@echo "== index levels, movers, sectors =="
 	-uv run python -m eulerlab.indices
+	-@$(MAKE) --no-print-directory upload-tree TREES="marketdata" DELETE=1
 	@echo "== US bars, actions, news =="
 	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars(s, start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
+	-@$(MAKE) --no-print-directory upload-tree TREES="us"
 	@echo "== US panel =="
 	-$(MAKE) --no-print-directory build-us-panel
-	@# Last of the fetches: it walks every symbol and took over ten hours on
-	@# 2026-10-08, holding every step behind it (T-4032).
-	@echo "== fundamentals =="
-	-uv run python -m eulerlab.fundamentals.backfill
+	-@$(MAKE) --no-print-directory upload-tree TREES="us" DELETE=1
+	@# Fundamentals is not here any more: it walks every symbol and took over
+	@# ten hours on 2026-10-08. It runs weekly and on demand
+	@# (`make fundamentals-update`).
+	@# A last sweep of every folder: it sends and removes whatever a step above
+	@# could not, and anything no step names.
 	@echo "== sync and prune =="
 	-$(MAKE) sync-cloud
 	$(MAKE) prune-local

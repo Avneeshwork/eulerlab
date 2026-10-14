@@ -449,9 +449,10 @@ def with_dependents(only: Sequence[str]) -> set[str]:
 
 
 TERMINAL_ONLY: dict[str, str] = {
-    "eulerlab.fundamentals.backfill": "walks every symbol for hours; overnight only",
+    "eulerlab.fundamentals.backfill": "walks every symbol for hours; weekly and on demand, not in make daily",
     "eulerlab.ingest.crypto_backfill": "a one-year backfill; the button fills the recent gap",
     "sync-cloud": "the button mirrors at the end of every run",
+    "upload-tree": "uploads and removes one folder after its download; the button mirrors once at the end",
     "prune-local": "deleting files is not a side effect of a refresh button",
     "manifest": "the button recounts after its mirror",
 }

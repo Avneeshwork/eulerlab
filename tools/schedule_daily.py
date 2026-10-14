@@ -33,7 +33,9 @@ denies a launchd agent access to all three, and the failure is obscure: the
 shell cannot even `getcwd`, so `make` runs somewhere else and reports "No rule
 to make target". That was the original six-day outage.
 
-**Two jobs.** `daily` runs `make daily` every evening. `gap-signal` runs
+**Three jobs.** `fundamentals` runs `make fundamentals-update` on Sunday at
+10:00: it left the nightly job on 2026-10-13 because it takes hours. `daily`
+runs `make daily` every evening. `gap-signal` runs
 `make gap-signal SCHEDULED=1` at 15:20 on weekdays: the Nifty gap strategy's
 decision, sent to Telegram ten minutes before the close (T-4047). The catch-up
 that suits the daily pull does not suit a message tied to a clock, so that
@@ -54,6 +56,8 @@ from xml.sax.saxutils import escape
 LOG_DIR = Path("data/logs")
 WEEKDAYS = (1, 2, 3, 4, 5)
 """launchd's numbering: 1 is Monday."""
+SUNDAY = 7
+"""launchd takes 0 or 7 for Sunday; 7 keeps `if weekday` true in `_when`."""
 
 
 @dataclass(frozen=True)
@@ -103,6 +107,21 @@ JOBS = {
             "15:20 IST is ten minutes before the close: late enough that the day's candle\n"
             "and VIX are nearly final, early enough to act. It needs a Kite token made that\n"
             "day; without one the message says so."
+        ),
+    ),
+    "fundamentals": Job(
+        name="fundamentals",
+        label="com.eulerlab.fundamentals",
+        command="cd {repo} && make fundamentals-update",
+        hour=10,
+        minute=0,
+        weekdays=(SUNDAY,),
+        log="fundamentals",
+        what="make fundamentals-update, every Sunday",
+        why_then=(
+            "Company fundamentals change quarterly and the fetch walks every company for\n"
+            "hours, so it left the nightly job on 2026-10-13. Sunday morning keeps it clear\n"
+            "of the 19:30 daily run and of market hours. It can also be run by hand."
         ),
     ),
 }
@@ -221,7 +240,9 @@ def status(job: Job = JOBS["daily"]) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Schedule the daily ingest or the gap signal.")
+    parser = argparse.ArgumentParser(
+        description="Schedule the daily ingest, the gap signal or the weekly fundamentals."
+    )
     parser.add_argument(
         "action", choices=["install", "uninstall", "status"], nargs="?", default="status"
     )
