@@ -5,8 +5,8 @@ Every task, its status, and the command that proves it. Statuses:
 
 ## Code quality and read-route speed (2026-10-16)
 
-Operator: "check all the changes, improve code quality and latency; commit all changes and make all branches clean". ADR-077; HISTORY #22.
-Verify: `make verify`; `uv run pytest -q tests/test_screen_common.py tests/test_api_panel.py tests/test_dashboard_speed.py tests/test_docs_check.py`.
+Operator: "check all the changes, improve code quality and latency; commit all changes and make all branches clean", then "do all waiting on me and the not-done tasks". ADR-077; HISTORY #22, #23.
+Verify: `make verify`; `uv run pytest -q tests/test_screen_common.py tests/test_api_panel.py tests/test_dashboard_speed.py tests/test_docs_check.py tests/test_request_caches.py`.
 
 | ID | Task | Status |
 |---|---|---|
@@ -14,9 +14,13 @@ Verify: `make verify`; `uv run pytest -q tests/test_screen_common.py tests/test_
 | T-4126 | One shared module for the intraday screens' summary, fee, EMA and RSI | DONE — `intraday/screen_common.py`, −356 lines; every old copy checked equal (`==`) to the shared one, so no stored result moves |
 | T-4127 | Read routes stop re-parsing unchanged files | DONE — `/api/window` 1.1 s → <1 ms, options history 3.2 s → 5 ms warm, Research Library 0.33 s → 43 ms, risk book 65 → 42 ms (ADR-077) |
 | T-4128 | `test_docs_check` wrote into the real `.git` from a worktree hook | FIXED — HISTORY #22. `core.bare` restored |
-| T-4129 | Remove the `Test <test@example.com>` identity the test left in `.git/config` | TODO — operator: `git config --unset user.name && git config --unset user.email`. Until then commits must pass `-c user.name=… -c user.email=…` or they are signed "Test" |
-| T-4130 | Delete the superseded `task-cash-flows` branch and the `EulerLab-flows` worktree | TODO — operator's call; `WIP.md` on that branch explains it |
-| T-4131 | The Angel env key is spelled `Angle_API_KEY` (mixed case, "Angle") in `.env.example` and `angel_mcx_gold.py` | TODO — rename both only together with the operator's local `.env` |
+| T-4129 | Remove the `Test <test@example.com>` identity the test left in `.git/config` | DONE — removed; commits use the global identity again |
+| T-4130 | Delete the superseded `task-cash-flows` branch and the `EulerLab-flows` worktree | DONE — both removed at the operator's instruction. The commit was `a540d3f` (recoverable from the reflog for about 90 days) |
+| T-4131 | The Angel env keys were spelled `Angle_API_KEY` / `ANGLE_*` | DONE — `ANGEL_API_KEY`, `ANGEL_CLIENT_CODE`, `ANGEL_PIN`, `ANGEL_TOTP_SECRET` in `.env`, `.env.example` and `angel_mcx_gold.py`; all four resolve from `.env` |
+| T-4132 | Cache the B2 results listing without showing stale state after a mirror | DONE — 1.3-2.4 s → 3 ms; dropped on mirror; "List the bucket again" and the listing time on the Data tab (ADR-077) |
+| T-4133 | Reuse a complete live answer for the dashboard map | DONE — 15 s; reopening the dashboard 3.7-4.8 s → about 1 s |
+| T-4134 | Both snapshot deadlines waited out the broker they abandoned | FIXED — HISTORY #23; `server._bounded` |
+| T-4135 | The movers' quote call (about 1 s) is still asked on every live snapshot | OPEN — its symbol list changes with each refresh, so it was left uncached |
 
 ## Dated paper deployment capital flows (2026-10-15)
 

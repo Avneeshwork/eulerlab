@@ -35,7 +35,7 @@ import threading
 import time
 import traceback
 import uuid
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from contextlib import asynccontextmanager
@@ -1631,7 +1631,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
         # turn a completed backtest into a failed one — but it must not be
         # silent either, so the outcome travels back in the job result and the
         # interface can say the mirror is behind.
-        mirrored = cloud_results.mirror_quietly(workspace)
+        mirrored = _mirror(workspace)
         summary["cloud"] = {
             "ok": mirrored.ok,
             "pushed": mirrored.pushed,
@@ -2557,13 +2557,23 @@ class MirrorRequest(BaseModel):
     workspace: str = ""
 
 
+CLOUD_LISTING_TTL = 60.0
+"""Seconds a bucket listing is shown before it is taken again. Another machine
+or `make daily` can push meanwhile; a mirror from this server drops it at once."""
+
+_CLOUD_LISTINGS: dict[str, tuple[float, list[str]]] = {}
+"""(when listed, the file names) by bucket prefix."""
+
+
 @app.get("/api/cloud/status")
-def cloud_status(workspace: str = "") -> dict[str, Any]:
+def cloud_status(workspace: str = "", refresh: bool = False) -> dict[str, Any]:
     """Whether results are being mirrored, and how far behind the bucket is.
 
-    `local` is counted from disk. `remote` is one LIST against the bucket, so
+    `local` is counted from disk. `remote` is a LIST against the bucket, so
     this is a real comparison rather than a record of what the last push
-    believed it did.
+    believed it did. The listing (1.3 s) is kept for `CLOUD_LISTING_TTL` and
+    dropped the moment this server mirrors; `listed_at` says how old it is and
+    `refresh=true` lists again (ADR-077).
     """
     tenant = workspace_mod.resolve(workspace or None)
     ready, reason = cloud_results.configured()
@@ -2585,21 +2595,33 @@ def cloud_status(workspace: str = "") -> dict[str, Any]:
     try:
         config = load_storage_config(cloud_results.STORAGE_CONFIG)
         payload["bucket"] = config.bucket
-        store = cloud_results.open_store()
         prefix = str(payload["prefix"])
-        remote = store.list_sizes(prefix)
-        payload["remote_files"] = sorted(key[len(prefix) :] for key in remote)
+        held = _CLOUD_LISTINGS.get(prefix)
+        if refresh or held is None or time.time() - held[0] > CLOUD_LISTING_TTL:
+            remote = cloud_results.open_store().list_sizes(prefix)
+            held = (time.time(), sorted(key[len(prefix) :] for key in remote))
+            _CLOUD_LISTINGS[prefix] = held
+        payload["remote_files"] = list(held[1])
+        payload["listed_at"] = datetime.fromtimestamp(held[0], UTC).isoformat()
         payload["reachable"] = True
     except Exception as exc:
         payload["reason"] = f"{type(exc).__name__}: {exc}"
     return payload
 
 
+def _mirror(workspace: workspace_mod.Workspace) -> cloud_results.Mirror:
+    """Mirror, then forget the bucket listing: it no longer says what is there."""
+    try:
+        return cloud_results.mirror_quietly(workspace)
+    finally:
+        _CLOUD_LISTINGS.clear()
+
+
 @app.post("/api/cloud/mirror")
 def cloud_mirror(request: MirrorRequest) -> dict[str, Any]:
     """Pull the bucket's results, merge, then push. Both copies end up equal."""
     tenant = workspace_mod.resolve(request.workspace or None).ensure()
-    outcome = cloud_results.mirror_quietly(tenant)
+    outcome = _mirror(tenant)
     return {
         "ok": outcome.ok,
         "pushed": outcome.pushed,
@@ -3265,6 +3287,45 @@ close instead. Measured at 3.3s for 2,458 symbols, so this is generous."""
 QUOTES_DEADLINE = 15.0
 """Seconds the snapshot waits for a live quote before rendering without one."""
 
+LIVE_UNIVERSE_TTL = 15.0
+"""Seconds a complete live answer for the map is reused. Kite allows one quote
+request a second (research 074), so the five calls cannot be made in parallel;
+reopening the dashboard inside this window asks nobody. Each quote keeps the
+time it was taken, so the screen's "live at" stays true."""
+
+_LIVE_UNIVERSE: dict[tuple[str, ...], tuple[float, dict[str, Any]]] = {}
+
+
+def _bounded[T](work: Callable[..., T], *args: Any, timeout: float) -> T:
+    """`work(*args)` on a thread, given up on after `timeout` seconds.
+
+    Not a `with` block, for the reason `daily_feed._run_step` gives: the
+    context manager exits through `shutdown(wait=True)` and so waits out the
+    very call the deadline abandoned. Both snapshot deadlines were inert that
+    way: a broker that hung for a minute held the page for a minute.
+    """
+    pool = ThreadPoolExecutor(1)
+    try:
+        return pool.submit(work, *args).result(timeout=timeout)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)
+
+
+def _universe_quotes(symbols: list[str]) -> tuple[dict[str, Any], str]:
+    """Live quotes for the map: a complete answer from the last 15 s, or Kite's."""
+    from eulerlab import quotes as quote_feed
+
+    key = tuple(symbols)
+    held = _LIVE_UNIVERSE.get(key)
+    if held is not None and time.monotonic() - held[0] < LIVE_UNIVERSE_TTL:
+        return held[1], ""
+    fetched, error = _bounded(quote_feed.nse_universe, symbols, timeout=LIVE_MAP_DEADLINE)
+    if fetched and not error:
+        _LIVE_UNIVERSE.clear()
+        _LIVE_UNIVERSE[key] = (time.monotonic(), fetched)
+    return fetched, error
+
+
 CALENDAR_EVENTS = 20
 """Calendar rows kept. Was 14; the operator asked for 20."""
 
@@ -3482,8 +3543,7 @@ def _quotes_band(symbols: list[str]) -> dict[str, Any]:
         # through the news feed. A broker that has not answered in fifteen
         # seconds will not answer usefully, and a snapshot without live prices
         # is a far smaller loss than a snapshot that never arrives.
-        with ThreadPoolExecutor(1) as pool:
-            result = pool.submit(quotes.live, symbols).result(timeout=QUOTES_DEADLINE)
+        result = _bounded(quotes.live, symbols, timeout=QUOTES_DEADLINE)
     except FuturesTimeout:
         return {
             "available": False,
@@ -3745,8 +3805,6 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     seen_at = ""
     seen_sources: tuple[str, ...] = ()
     try:
-        from eulerlab import quotes as quote_feed
-
         if not live:
             # No broker, but not necessarily the settled close either: the
             # last quotes this machine saw may be from after it (`last_seen`).
@@ -3757,10 +3815,7 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
             seen_at = seen.taken_at if seen_returns else ""
             seen_sources = seen.sources if seen_returns else ()
             raise _SettledOnly
-        with ThreadPoolExecutor(1) as pool:
-            fetched, live_error = pool.submit(quote_feed.nse_universe, sorted(returns)).result(
-                timeout=LIVE_MAP_DEADLINE
-            )
+        fetched, live_error = _universe_quotes(sorted(returns))
         for symbol, quote in fetched.items():
             if quote.previous_close > 0:
                 live_returns[symbol] = quote.last / quote.previous_close - 1.0

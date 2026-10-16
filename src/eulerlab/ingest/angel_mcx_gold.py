@@ -182,11 +182,11 @@ def _make_client() -> HistoricalClient:
         raise RuntimeError("Install the Angel One extras with `uv sync --extra angel`.") from exc
 
     logzero.logger.disabled = True  # searchScrip otherwise logs thousands of instruments
-    client = SmartConnect(require("Angle_API_KEY"))
+    client = SmartConnect(require("ANGEL_API_KEY"))
     session = client.generateSession(
-        require("ANGLE_CLIENT_CODE"),
-        require("ANGLE_PIN"),
-        pyotp.TOTP(require("ANGLE_TOTP_SECRET")).now(),
+        require("ANGEL_CLIENT_CODE"),
+        require("ANGEL_PIN"),
+        pyotp.TOTP(require("ANGEL_TOTP_SECRET")).now(),
     )
     if not isinstance(session, dict) or session.get("status") is not True:
         detail = (

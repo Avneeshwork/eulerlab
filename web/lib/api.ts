@@ -1095,6 +1095,7 @@ export type CloudStatus = {
   local_files: string[];
   remote_files: string[];
   reachable: boolean;
+  listed_at?: string;
 };
 
 export type MirrorResult = {
@@ -1498,8 +1499,10 @@ export const api = {
   backtest: (input: StrategyInput & { days: number; tier: 'A' | 'B'; starting_cash: number }) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/backtest', input),
   job: (id: string) => get<Job>(`/api/jobs/${id}`),
-  cloudStatus: (workspace = '') =>
-    get<CloudStatus>(`/api/cloud/status?workspace=${encodeURIComponent(workspace)}`),
+  cloudStatus: (workspace = '', refresh = false) =>
+    get<CloudStatus>(
+      `/api/cloud/status?workspace=${encodeURIComponent(workspace)}${refresh ? '&refresh=true' : ''}`
+    ),
   mirror: (workspace = '') => post<MirrorResult>('/api/cloud/mirror', { workspace }),
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),

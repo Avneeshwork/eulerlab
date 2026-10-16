@@ -65,3 +65,20 @@ def _no_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setenv("EULERLAB_TELEGRAM_SIGNALS", "0")
     monkeypatch.setenv("EULERLAB_TELEGRAM_BOT", "0")
+
+
+@pytest.fixture(autouse=True)
+def _empty_request_caches() -> None:
+    """Every test starts with the API's request caches empty (ADR-077).
+
+    They live for the server's life, so one test's live quotes or bucket
+    listing would otherwise be served to the next. Cleared only when the server
+    module is already loaded: importing it here would slow every other test.
+    """
+    import sys
+
+    server = sys.modules.get("eulerlab.api.server")
+    if server is not None:
+        server._LIVE_UNIVERSE.clear()
+        server._CLOUD_LISTINGS.clear()
+        server._HISTORY_POINTS.clear()

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Twenty-two times this project was wrong
+## Twenty-three times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -243,9 +243,19 @@ command then refused to run in a work tree, and any commit would have been
 signed "Test". No commit or ref was changed. Fixed: the fixture removes every
 `GIT_*` variable before it runs git; proved by running the test with `GIT_DIR`
 aimed at a decoy repository, whose config stayed unchanged. `core.bare` was put
-back by hand. **The `[user]` section the test wrote is still in `.git/config`
-until the operator removes it** (`git config --unset user.name`,
-`git config --unset user.email`).
+back by hand. The `[user]` section the test wrote was removed the same day at the
+operator's instruction.
+
+**23. Both snapshot deadlines were inert.** (2026-10-16) The live map (20 s)
+and the movers' quotes (15 s) were each wrapped in `with ThreadPoolExecutor(1)`
+and believed to be bounded; the code's own comment said a hung broker could no
+longer hold the page. Leaving the `with` block calls `shutdown(wait=True)`,
+which waits for the abandoned call. Measured: a 3 s call behind a 0.5 s deadline
+returned after 3.0 s. `daily_feed._run_step` had found and fixed the same fault
+earlier; these two were never changed. Fixed: `server._bounded` shuts the pool
+down without waiting, and a test fails if a deadline waits for the work. No
+stored number depended on it; only how long a broken broker could stall the
+dashboard.
 
 ---
 

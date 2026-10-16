@@ -35,8 +35,9 @@ never edit them without an explicit instruction in that session.
 
 - **Quality and speed (2026-10-16, ADR-077):** all work committed. Intraday screens share
   `screen_common` (−356 lines, same numbers). `/api/window` <1 ms (was 1.1 s), options history
-  5 ms warm (was 3.2 s), Research Library 43 ms (was 0.33 s). A test had written into `.git/config`
-  (HISTORY #22); fixed, but its "Test" identity is still there until removed (T-4129).
+  5 ms warm (was 3.2 s), Research Library 43 ms (was 0.33 s), B2 status 3 ms, dashboard reopened ~1 s.
+  Fixed: a test that wrote into `.git/config` (HISTORY #22); snapshot deadlines that did not bound (#23).
+  Angel env keys are now `ANGEL_*`; the superseded cash-flow branch is deleted.
 
 - **Paper deployment cash flows (ADR-076):** complete (T-4124). Flows are dated
   against the last decided close; replay applies them on the next decision.

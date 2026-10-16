@@ -163,6 +163,11 @@ export function DataTab({ workspace }: { workspace: string }) {
                 <b className={cloud.reachable ? '' : 'dim'}>
                   {cloud.reachable ? cloud.remote_files.length : '—'}
                 </b>
+                {cloud.listed_at && (
+                  <span className="tfine">
+                    as of {new Date(cloud.listed_at).toLocaleTimeString()}
+                  </span>
+                )}
               </div>
             </div>
             {!cloud.configured && (
@@ -178,6 +183,16 @@ export function DataTab({ workspace }: { workspace: string }) {
                 onClick={mirror}
               >
                 {busy ? 'Mirroring…' : 'Pull, merge, then push'}
+              </button>
+              <button
+                className="tbtn"
+                type="button"
+                disabled={busy || !cloud.configured}
+                onClick={() =>
+                  api.cloudStatus(workspace, true).then(setCloud).catch(() => setCloud(null))
+                }
+              >
+                List the bucket again
               </button>
               {note && <span className="tfine">{note}</span>}
             </div>
