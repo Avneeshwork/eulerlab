@@ -3,6 +3,21 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Code quality and read-route speed (2026-10-16)
+
+Operator: "check all the changes, improve code quality and latency; commit all changes and make all branches clean". ADR-077; HISTORY #22.
+Verify: `make verify`; `uv run pytest -q tests/test_screen_common.py tests/test_api_panel.py tests/test_dashboard_speed.py tests/test_docs_check.py`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4125 | Commit the uncommitted work (about 190 files) as one snapshot | DONE — `68f3323`; the `task-cash-flows` worktree's separate WIP committed on its own branch (`a540d3f`), not merged |
+| T-4126 | One shared module for the intraday screens' summary, fee, EMA and RSI | DONE — `intraday/screen_common.py`, −356 lines; every old copy checked equal (`==`) to the shared one, so no stored result moves |
+| T-4127 | Read routes stop re-parsing unchanged files | DONE — `/api/window` 1.1 s → <1 ms, options history 3.2 s → 5 ms warm, Research Library 0.33 s → 43 ms, risk book 65 → 42 ms (ADR-077) |
+| T-4128 | `test_docs_check` wrote into the real `.git` from a worktree hook | FIXED — HISTORY #22. `core.bare` restored |
+| T-4129 | Remove the `Test <test@example.com>` identity the test left in `.git/config` | TODO — operator: `git config --unset user.name && git config --unset user.email`. Until then commits must pass `-c user.name=… -c user.email=…` or they are signed "Test" |
+| T-4130 | Delete the superseded `task-cash-flows` branch and the `EulerLab-flows` worktree | TODO — operator's call; `WIP.md` on that branch explains it |
+| T-4131 | The Angel env key is spelled `Angle_API_KEY` (mixed case, "Angle") in `.env.example` and `angel_mcx_gold.py` | TODO — rename both only together with the operator's local `.env` |
+
 ## Dated paper deployment capital flows (2026-10-15)
 
 Operator: allow adding or withdrawing money from an active paper deployment
