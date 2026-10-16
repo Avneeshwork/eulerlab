@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -20,9 +18,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from eulerlab.costs.schedule import Segment, Side
+from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/inside_bar_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -142,37 +141,6 @@ def _exit(
     return min(day.last, EXIT_MINUTE), day.close[min(day.last, EXIT_MINUTE)], "last_close"
 
 
-def _fee(price: float, quantity: int, side: Side, day: date) -> float:
-    from eulerlab.costs.router import fill_cost
-
-    return fill_cost(
-        venue="equity",
-        price=price,
-        quantity=quantity,
-        side=side,
-        day=day,
-        segment=Segment.EQUITY_INTRADAY,
-    )
-
-
-def _stats(daily: Sequence[float]) -> dict[str, Any]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for change in daily:
-        equity *= 1.0 + change
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(daily) if len(daily) > 1 else 0.0
-    return {
-        "days": len(daily),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(daily) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
-
-
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
     gross: dict[date, float] = defaultdict(float)
     net: dict[date, float] = defaultdict(float)
@@ -198,9 +166,9 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                 pnl = direction * (exit_price - entry_price) * quantity
                 entry_side = Side.BUY if direction > 0 else Side.SELL
                 exit_side = Side.SELL if direction > 0 else Side.BUY
-                costs = _fee(entry_price, quantity, entry_side, day.day) + _fee(
-                    exit_price, quantity, exit_side, day.day
-                )
+                costs = sc.intraday_fee(
+                    entry_price, quantity, entry_side, day.day
+                ) + sc.intraday_fee(exit_price, quantity, exit_side, day.day)
                 costs += (entry_price + exit_price) * quantity * SLIPPAGE_BPS / 10_000.0
                 gross[day.day] += pnl / CAPITAL
                 net[day.day] += (pnl - costs) / CAPITAL
@@ -238,8 +206,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([gross[day] for day in dates]),
-        "net": _stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "estimated_costs_rupees": round(sum(float(row["costs"]) for row in trades), 2),

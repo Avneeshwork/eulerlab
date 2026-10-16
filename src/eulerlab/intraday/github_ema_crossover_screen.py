@@ -19,6 +19,7 @@ from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_ema_crossover_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -76,9 +77,9 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                 pnl = direction * (price - entry) * quantity
                 entry_side = Side.BUY if direction > 0 else Side.SELL
                 exit_side = Side.SELL if direction > 0 else Side.BUY
-                costs = ib._fee(entry, quantity, entry_side, closing_day.day) + ib._fee(
-                    price, quantity, exit_side, closing_day.day
-                )
+                costs = sc.intraday_fee(
+                    entry, quantity, entry_side, closing_day.day
+                ) + sc.intraday_fee(price, quantity, exit_side, closing_day.day)
                 costs += (entry + price) * quantity * SLIPPAGE_BPS / 10_000.0
                 gross[closing_day.day] += pnl / CAPITAL
                 net[closing_day.day] += (pnl - costs) / CAPITAL
@@ -164,8 +165,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": ib._stats([gross[day] for day in dates]),
-        "net": ib._stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": completed,
         "net_winning_trades": sum(row["gross_pnl"] - row["costs"] > 0 for row in trades),
         "net_profit_factor": round(sum(positive) / abs(sum(negative)), 3) if negative else None,

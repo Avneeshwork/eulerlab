@@ -4,19 +4,17 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import date
-from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_rsi2_pullback_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -33,61 +31,11 @@ DATA_END = date(2024, 11, 30)
 EXIT_MINUTE = 355  # 15:10
 
 
-def _rsi(values: Sequence[float], period: int = RSI_PERIOD) -> list[float | None]:
-    """Wilder RSI with a full warmup; the input is reset at each session."""
-    out: list[float | None] = [None] * len(values)
-    if len(values) <= period:
-        return out
-    changes = [right - left for left, right in pairwise(values)]
-    gains = [max(change, 0.0) for change in changes]
-    losses = [max(-change, 0.0) for change in changes]
-    avg_gain = statistics.fmean(gains[:period])
-    avg_loss = statistics.fmean(losses[:period])
-
-    def value(gain: float, loss: float) -> float:
-        if loss == 0:
-            return 100.0 if gain else 50.0
-        return 100.0 - 100.0 / (1.0 + gain / loss)
-
-    out[period] = value(avg_gain, avg_loss)
-    for index in range(period + 1, len(values)):
-        avg_gain = ((period - 1) * avg_gain + gains[index - 1]) / period
-        avg_loss = ((period - 1) * avg_loss + losses[index - 1]) / period
-        out[index] = value(avg_gain, avg_loss)
-    return out
-
-
 def _sma(values: Sequence[float], period: int) -> list[float | None]:
     out: list[float | None] = [None] * len(values)
     for index in range(period - 1, len(values)):
         out[index] = statistics.fmean(values[index - period + 1 : index + 1])
     return out
-
-
-def _fee_cost(entry: float, exit_: float, quantity: int, day: date, direction: int) -> float:
-    entry_side = Side.BUY if direction > 0 else Side.SELL
-    exit_side = Side.SELL if direction > 0 else Side.BUY
-    fees = ib._fee(entry, quantity, entry_side, day)
-    fees += ib._fee(exit_, quantity, exit_side, day)
-    return fees + (entry + exit_) * quantity * SLIPPAGE_BPS / 10_000.0
-
-
-def _stats(values: Sequence[float]) -> dict[str, float | int | None]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for move in values:
-        equity *= 1.0 + move
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(values) if len(values) > 1 else 0.0
-    return {
-        "days": len(values),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(values) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
 
 
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
@@ -106,7 +54,7 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
             offsets[session.day] = len(all_bars)
             all_bars.extend(bars)
         all_closes = [bar.close for bar in all_bars]
-        rsi_values = _rsi(all_closes)
+        rsi_values = sc.rsi(all_closes, RSI_PERIOD)
         slow_sma = _sma(all_closes, TREND_SMA_PERIOD)
         fast_sma = _sma(all_closes, FAST_SMA_PERIOD)
         for day in sessions:
@@ -153,7 +101,14 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                             exit_index = len(bars)
                         entry, quantity = float(position["entry"]), int(position["quantity"])
                         pnl = direction * (exit_price - entry) * quantity
-                        costs = _fee_cost(entry, exit_price, quantity, day.day, direction)
+                        costs = sc.round_trip_cost(
+                            entry,
+                            exit_price,
+                            quantity,
+                            day.day,
+                            direction,
+                            slippage_bps=SLIPPAGE_BPS,
+                        )
                         gross[day.day] += pnl / CAPITAL
                         net[day.day] += (pnl - costs) / CAPITAL
                         trades.append(
@@ -228,7 +183,14 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                 direction = int(position["direction"])
                 entry, quantity = float(position["entry"]), int(position["quantity"])
                 pnl = direction * (exit_price - entry) * quantity
-                costs = _fee_cost(entry, float(exit_price), quantity, day.day, direction)
+                costs = sc.round_trip_cost(
+                    entry,
+                    float(exit_price),
+                    quantity,
+                    day.day,
+                    direction,
+                    slippage_bps=SLIPPAGE_BPS,
+                )
                 gross[day.day] += pnl / CAPITAL
                 net[day.day] += (pnl - costs) / CAPITAL
                 trades.append(
@@ -266,8 +228,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([gross[day] for day in dates]),
-        "net": _stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "net_winners": len(winners),

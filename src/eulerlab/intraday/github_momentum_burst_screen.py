@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -17,10 +16,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_momentum_burst_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -77,14 +76,6 @@ def _burst(bars: Sequence[ib.Bar], atr_values: Sequence[float | None], index: in
     return 0
 
 
-def _fee_cost(entry: float, exit_: float, quantity: int, day: date, direction: int) -> float:
-    entry_side = Side.BUY if direction > 0 else Side.SELL
-    exit_side = Side.SELL if direction > 0 else Side.BUY
-    fees = ib._fee(entry, quantity, entry_side, day)
-    fees += ib._fee(exit_, quantity, exit_side, day)
-    return fees + (entry + exit_) * quantity * SLIPPAGE_BPS / 10_000.0
-
-
 def _exit(
     bars: Sequence[ib.Bar],
     atr_values: Sequence[float | None],
@@ -113,24 +104,6 @@ def _exit(
             stop = max(stop, candidate) if direction > 0 else min(stop, candidate)
     last_index = len(bars) - 1
     return bars[last_index].start, bars[last_index].close, "last_close"
-
-
-def _stats(daily_returns: Sequence[float]) -> dict[str, float | int | None]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for move in daily_returns:
-        equity *= 1.0 + move
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(daily_returns) if len(daily_returns) > 1 else 0.0
-    return {
-        "days": len(daily_returns),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(daily_returns) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
 
 
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
@@ -168,7 +141,9 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                     direction = int(position["direction"])
                     entry, quantity = float(position["entry"]), int(position["quantity"])
                     pnl = direction * (exit_price - entry) * quantity
-                    costs = _fee_cost(entry, exit_price, quantity, day.day, direction)
+                    costs = sc.round_trip_cost(
+                        entry, exit_price, quantity, day.day, direction, slippage_bps=SLIPPAGE_BPS
+                    )
                     gross[day.day] += pnl / CAPITAL
                     net[day.day] += (pnl - costs) / CAPITAL
                     trades.append(
@@ -249,8 +224,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([gross[day] for day in dates]),
-        "net": _stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "net_winners": len(winners),

@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from eulerlab.intraday.github_rsi2_pullback_screen import _rsi, _run, _sma
+from eulerlab.intraday.github_rsi2_pullback_screen import RSI_PERIOD, _run, _sma
 from eulerlab.intraday.india_papers import Day
+from eulerlab.intraday.screen_common import rsi as _rsi
 
 
 def _day(when: date, closes: list[float] | None = None) -> Day:
@@ -39,7 +40,7 @@ def _day(when: date, closes: list[float] | None = None) -> Day:
 
 
 def test_rsi2_warmup_and_sma_values() -> None:
-    rsi = _rsi([10.0, 9.0, 8.0, 7.0])
+    rsi = _rsi([10.0, 9.0, 8.0, 7.0], RSI_PERIOD)
     assert rsi[:2] == [None, None]
     assert rsi[2] == 0.0 and rsi[3] == 0.0
     assert _sma([1.0, 2.0, 3.0, 4.0], 3) == [None, None, 2.0, 3.0]

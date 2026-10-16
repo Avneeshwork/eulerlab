@@ -9,8 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import date
@@ -21,6 +19,7 @@ from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_keltner_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -32,24 +31,6 @@ SLIPPAGE_BPS = 2.0
 EVAL_START = date(2024, 1, 1)
 DATA_END = date(2024, 11, 30)
 EXIT_MINUTE = 355
-
-
-def _stats(values: Sequence[float]) -> dict[str, float | int | None]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for change in values:
-        equity *= 1.0 + change
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(values) if len(values) > 1 else 0.0
-    return {
-        "days": len(values),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(values) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
 
 
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
@@ -85,9 +66,9 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                 entry = float(position["entry"])
                 quantity = int(position["quantity"])
                 pnl = (price - entry) * quantity
-                costs = ib._fee(entry, quantity, Side.BUY, closing_day.day) + ib._fee(
-                    price, quantity, Side.SELL, closing_day.day
-                )
+                costs = sc.intraday_fee(
+                    entry, quantity, Side.BUY, closing_day.day
+                ) + sc.intraday_fee(price, quantity, Side.SELL, closing_day.day)
                 costs += (entry + price) * quantity * SLIPPAGE_BPS / 10_000.0
                 if EVAL_START <= closing_day.day <= DATA_END:
                     gross[closing_day.day] += pnl / CAPITAL
@@ -170,8 +151,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([gross[day] for day in dates]),
-        "net": _stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "estimated_costs_rupees": round(sum(float(row["costs"]) for row in trades), 2),

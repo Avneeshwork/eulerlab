@@ -26,6 +26,7 @@ from eulerlab.costs.schedule import Segment, Side
 from eulerlab.ingest.landing import Landing
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/fii_participant_oi_stock_strategies.json")
 LANDING = Path("data/landing/nse")
@@ -124,22 +125,7 @@ def _fill_cost(price: float, quantity: int, side: Side, when: date) -> float:
 
 
 def _stats(daily: list[tuple[date, float]]) -> dict[str, Any]:
-    values = [value for _, value in daily]
-    equity = peak = 1.0
-    drawdown = 0.0
-    for value in values:
-        equity *= 1.0 + value
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(values) if len(values) > 1 else 0.0
-    return {
-        "days": len(values),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(values) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
+    return sc.daily_stats([value for _, value in daily])
 
 
 def backtest(

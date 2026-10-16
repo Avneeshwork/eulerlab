@@ -1292,7 +1292,7 @@ what it is for; this is the map that tells you which one to open.
 |---|---|---|
 | `features/` | the daily panel, indicators, the feature library, IC | `panel`, `alt_panel`, `us_panel` |
 | `strategies/` | the registry: every strategy declared, and the capability catalog | `__init__`, `catalog` |
-| `intraday/` | the minute-bar engine — signals, the bracket executor, and one store per market | `paper_scan`, `bracket`, `us_store` |
+| `intraday/` | the minute-bar engine — signals, the bracket executor, and one store per market. Every `*_screen` takes its daily summary, intraday charges, EMA and RSI from `screen_common`; a screen keeps only its own rule | `paper_scan`, `bracket`, `us_store`, `screen_common` |
 | `backtest/` | Tier A vectorised and Tier B event-driven, plus the self-tests that check they agree | `vector`, `event_driven`, `selftest` |
 | `costs/` | what a fill costs, on the venue it would actually trade on | **`router`**, `model`, `us_equity`, `delta_exchange` |
 | `authoring/`, `llm/` | turning a description into a strategy, and the provider layer under it | `translate` |

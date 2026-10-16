@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_engulfing_screen import _engulfing, _rsi, _run
+from eulerlab.intraday.github_engulfing_screen import _engulfing, _run
 from eulerlab.intraday.india_papers import Day
 from eulerlab.intraday.inside_bar_screen import Bar
+from eulerlab.intraday.screen_common import rsi as _rsi
 
 
 def test_engulfing_requires_opposite_candle_colors_and_body_engulfment() -> None:

@@ -17,9 +17,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from eulerlab.costs.schedule import Segment, Side
+from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/company_github_stock_strategies.json")
 SYMBOLS = ("HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -31,39 +32,6 @@ TRAIN_END = date(2023, 12, 31)
 EVAL_START = date(2024, 1, 1)
 DATA_END = date(2024, 11, 30)
 EXIT_MINUTE = 355  # 15:10
-
-
-def _cost(price: float, quantity: int, side: Side, day: date) -> float:
-    from eulerlab.costs.router import fill_cost
-
-    return fill_cost(
-        venue="equity",
-        price=price,
-        quantity=quantity,
-        side=side,
-        day=day,
-        segment=Segment.EQUITY_INTRADAY,
-    )
-
-
-def _stats(values: Sequence[float]) -> dict[str, Any]:
-    if not values:
-        return {"days": 0, "total_return": 0.0, "sharpe": None, "max_drawdown": 0.0}
-    equity = peak = 1.0
-    drawdown = 0.0
-    for value in values:
-        equity *= 1.0 + value
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(values) if len(values) > 1 else 0.0
-    return {
-        "days": len(values),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(values) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
 
 
 def _profiles(days: Sequence[ip.Day]) -> dict[date, tuple[float, float, float]]:
@@ -112,7 +80,7 @@ def _execute(
     quantity = max(1, int(NOTIONAL / entry[1]))
     gross = direction * (exit_[1] - entry[1]) * quantity
     buy, sell = (entry, exit_) if direction > 0 else (exit_, entry)
-    costs = _cost(buy[1], quantity, Side.BUY, day.day) + _cost(
+    costs = sc.intraday_fee(buy[1], quantity, Side.BUY, day.day) + sc.intraday_fee(
         sell[1], quantity, Side.SELL, day.day
     )
     costs += (entry[1] + exit_[1]) * quantity * SLIPPAGE_BPS / 10_000.0
@@ -177,8 +145,8 @@ def _run(
         "params": params | ({"training_selection": training} if training else {}),
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats(gross_values),
-        "net": _stats(net_values),
+        "gross": sc.daily_stats(gross_values),
+        "net": sc.daily_stats(net_values),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "estimated_costs_rupees": round(sum(float(row["costs"]) for row in trades), 2),

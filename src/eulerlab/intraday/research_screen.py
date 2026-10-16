@@ -11,7 +11,6 @@ import argparse
 import io
 import json
 import math
-import statistics
 from collections.abc import Mapping, Sequence
 from datetime import date
 from pathlib import Path
@@ -21,6 +20,7 @@ import pyarrow.parquet as pq
 
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import india_papers as ip
+from eulerlab.intraday import screen_common as sc
 
 DATA_END = date(2024, 11, 30)
 EVAL_START = date(2024, 1, 1)
@@ -124,23 +124,7 @@ def _fill_cost(price: float, notional: float, side: Side, day: date) -> float:
 
 
 def _stats(daily: Sequence[tuple[date, float]]) -> dict[str, Any]:
-    returns = [value for _, value in daily]
-    if not returns:
-        return {"days": 0, "total_return": 0.0, "sharpe": None, "max_drawdown": 0.0}
-    mean = statistics.fmean(returns)
-    std = statistics.stdev(returns) if len(returns) > 1 else 0.0
-    equity = peak = 1.0
-    drawdown = 0.0
-    for value in returns:
-        equity *= 1 + value
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1)
-    return {
-        "days": len(returns),
-        "total_return": round(equity - 1, 6),
-        "sharpe": round(mean / std * math.sqrt(252), 3) if std else None,
-        "max_drawdown": round(drawdown, 6),
-    }
+    return sc.daily_stats([value for _, value in daily])
 
 
 def _gold_rule(

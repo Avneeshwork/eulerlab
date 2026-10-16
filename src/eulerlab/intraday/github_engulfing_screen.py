@@ -9,12 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import date
-from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +19,7 @@ from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_engulfing_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -54,30 +52,6 @@ def _engulfing(previous: ib.Bar, current: ib.Bar) -> int:
     ):
         return -1
     return 0
-
-
-def _rsi(values: Sequence[float], period: int = RSI_PERIOD) -> list[float | None]:
-    out: list[float | None] = [None] * len(values)
-    if len(values) <= period:
-        return out
-    changes = [right - left for left, right in pairwise(values)]
-    gains = [max(change, 0.0) for change in changes]
-    losses = [max(-change, 0.0) for change in changes]
-    avg_gain = statistics.fmean(gains[:period])
-    avg_loss = statistics.fmean(losses[:period])
-
-    def value(gain: float, loss: float) -> float:
-        if loss == 0:
-            return 100.0 if gain else 50.0
-        relative_strength = gain / loss
-        return 100.0 - 100.0 / (1.0 + relative_strength)
-
-    out[period] = value(avg_gain, avg_loss)
-    for index in range(period + 1, len(values)):
-        avg_gain = ((period - 1) * avg_gain + gains[index - 1]) / period
-        avg_loss = ((period - 1) * avg_loss + losses[index - 1]) / period
-        out[index] = value(avg_gain, avg_loss)
-    return out
 
 
 def _volume_ema(values: Sequence[float], period: int = VOLUME_EMA_PERIOD) -> list[float]:
@@ -121,24 +95,6 @@ def _exit(
     return min(day.last, EXIT_MINUTE), day.close[min(day.last, EXIT_MINUTE)], "last_close"
 
 
-def _stats(values: Sequence[float]) -> dict[str, float | int | None]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for change in values:
-        equity *= 1.0 + change
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(values) if len(values) > 1 else 0.0
-    return {
-        "days": len(values),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(values) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
-
-
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
     gross: dict[date, float] = defaultdict(float)
     net: dict[date, float] = defaultdict(float)
@@ -156,7 +112,7 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
             all_bars.extend((day.day, bar) for bar in bars)
         closes = [bar.close for _, bar in all_bars]
         volumes = [bar.volume for _, bar in all_bars]
-        rsi = _rsi(closes)
+        rsi = sc.rsi(closes, RSI_PERIOD)
         volume_ema = _volume_ema(volumes)
         offsets: dict[date, int] = {}
         cursor = 0
@@ -211,7 +167,7 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                 pnl = direction * (exit_price - entry) * quantity
                 entry_side = Side.BUY if direction > 0 else Side.SELL
                 exit_side = Side.SELL if direction > 0 else Side.BUY
-                costs = ib._fee(entry, quantity, entry_side, day.day) + ib._fee(
+                costs = sc.intraday_fee(entry, quantity, entry_side, day.day) + sc.intraday_fee(
                     exit_price, quantity, exit_side, day.day
                 )
                 costs += (entry + exit_price) * quantity * SLIPPAGE_BPS / 10_000.0
@@ -257,8 +213,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([gross[day] for day in dates]),
-        "net": _stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "net_winners": len(winners),

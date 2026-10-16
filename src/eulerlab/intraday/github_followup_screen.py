@@ -10,17 +10,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import date
 from pathlib import Path
 from typing import Any
 
-from eulerlab.costs.schedule import Segment, Side
+from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_followup_stock_strategies.json")
 SYMBOLS = ("HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -32,39 +31,16 @@ DATA_END = date(2024, 11, 30)
 EXIT_MINUTE = 355  # 15:10
 
 
-def _ema(values: Sequence[float], period: int) -> list[float]:
-    alpha = 2.0 / (period + 1.0)
-    result: list[float] = []
-    current = values[0]
-    for value in values:
-        current += alpha * (value - current)
-        result.append(current)
-    return result
-
-
 def _histogram(values: Sequence[float]) -> list[float]:
-    macd = [fast - slow for fast, slow in zip(_ema(values, 12), _ema(values, 26), strict=True)]
-    signal = _ema(macd, 9)
+    macd = [fast - slow for fast, slow in zip(sc.ema(values, 12), sc.ema(values, 26), strict=True)]
+    signal = sc.ema(macd, 9)
     return [line - average for line, average in zip(macd, signal, strict=True)]
-
-
-def _cost(price: float, quantity: int, side: Side, day: date) -> float:
-    from eulerlab.costs.router import fill_cost
-
-    return fill_cost(
-        venue="equity",
-        price=price,
-        quantity=quantity,
-        side=side,
-        day=day,
-        segment=Segment.EQUITY_INTRADAY,
-    )
 
 
 def _signal(day: ip.Day) -> dict[str, Any] | None:
     """Return first confirmed EMA-20 pullback; entry is next traded minute."""
     closes = day.close[: day.last + 1]
-    ema20 = _ema(closes, 20)
+    ema20 = sc.ema(closes, 20)
     hist = _histogram(closes)
     for minute in range(26, min(EXIT_MINUTE - 7, day.last - 6)):
         prior_close = closes[minute - 1]
@@ -145,24 +121,6 @@ def _exit(day: ip.Day, signal: Mapping[str, Any]) -> tuple[int, float, str]:
     return minute, day.close[minute], "time_exit"
 
 
-def _stats(daily: Sequence[float]) -> dict[str, Any]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for change in daily:
-        equity *= 1.0 + change
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(daily) if len(daily) > 1 else 0.0
-    return {
-        "days": len(daily),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(daily) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
-
-
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
     daily_gross: dict[date, float] = defaultdict(float)
     daily_net: dict[date, float] = defaultdict(float)
@@ -183,7 +141,7 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
             gross = direction * (exit_price - entry_price) * quantity
             entry_side = Side.BUY if direction > 0 else Side.SELL
             exit_side = Side.SELL if direction > 0 else Side.BUY
-            costs = _cost(entry_price, quantity, entry_side, day.day) + _cost(
+            costs = sc.intraday_fee(entry_price, quantity, entry_side, day.day) + sc.intraday_fee(
                 exit_price, quantity, exit_side, day.day
             )
             costs += (entry_price + exit_price) * quantity * SLIPPAGE_BPS / 10_000.0
@@ -221,8 +179,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([daily_gross[day] for day in trade_days]),
-        "net": _stats([daily_net[day] for day in trade_days]),
+        "gross": sc.daily_stats([daily_gross[day] for day in trade_days]),
+        "net": sc.daily_stats([daily_net[day] for day in trade_days]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "estimated_costs_rupees": round(sum(float(row["costs"]) for row in trades), 2),

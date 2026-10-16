@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -20,6 +19,7 @@ from typing import Any
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/github_momentum_pullback_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -31,20 +31,10 @@ DATA_END = date(2024, 11, 30)
 EXIT_MINUTE = 355
 
 
-def _ema(values: Sequence[float], period: int) -> list[float]:
-    alpha = 2.0 / (period + 1.0)
-    result: list[float] = []
-    current = values[0]
-    for value in values:
-        current += alpha * (value - current)
-        result.append(current)
-    return result
-
-
 def _positive_macd(values: Sequence[float]) -> list[bool]:
-    fast, slow = _ema(values, 12), _ema(values, 26)
+    fast, slow = sc.ema(values, 12), sc.ema(values, 26)
     line = [a - b for a, b in zip(fast, slow, strict=True)]
-    signal = _ema(line, 9)
+    signal = sc.ema(line, 9)
     return [a > b and a - b > 0 for a, b in zip(line, signal, strict=True)]
 
 
@@ -185,24 +175,6 @@ def _exit(day: ip.Day, signal: Mapping[str, Any]) -> tuple[int, float, str]:
     return minute, day.close[minute], "time_exit"
 
 
-def _stats(daily: Sequence[float]) -> dict[str, Any]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for change in daily:
-        equity *= 1.0 + change
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(daily) if len(daily) > 1 else 0.0
-    return {
-        "days": len(daily),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(daily) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
-
-
 def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
     gross_daily: dict[date, float] = defaultdict(float)
     net_daily: dict[date, float] = defaultdict(float)
@@ -276,8 +248,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": _stats([gross_daily[day] for day in trade_days]),
-        "net": _stats([net_daily[day] for day in trade_days]),
+        "gross": sc.daily_stats([gross_daily[day] for day in trade_days]),
+        "net": sc.daily_stats([net_daily[day] for day in trade_days]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "estimated_costs_rupees": round(sum(float(row["costs"]) for row in trades), 2),

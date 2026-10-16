@@ -14,8 +14,8 @@ from typing import Any
 
 from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/supertrend_alignment_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -216,7 +216,7 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
             exit_minute, exit_price, reason = _exit(day, entry_minute, entry_price, stop)
             quantity = max(1, int(NOTIONAL / entry_price))
             pnl = (exit_price - entry_price) * quantity
-            fees = ib._fee(entry_price, quantity, Side.BUY, day.day) + ib._fee(
+            fees = sc.intraday_fee(entry_price, quantity, Side.BUY, day.day) + sc.intraday_fee(
                 exit_price, quantity, Side.SELL, day.day
             )
             fees += (entry_price + exit_price) * quantity * SLIPPAGE_BPS / 10_000.0
@@ -261,8 +261,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": ib._stats([gross[day] for day in dates]),
-        "net": ib._stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "net_winning_trades": sum(value > 0 for value in net_trade_pnls),
         "net_profit_factor": round(sum(winners) / abs(sum(losers)), 3) if losers else None,

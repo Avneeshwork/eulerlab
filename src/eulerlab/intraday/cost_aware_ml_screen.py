@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import statistics
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -21,9 +19,10 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
-from eulerlab.costs.schedule import Segment, Side
+from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/cost_aware_ml_nse_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS")
@@ -52,19 +51,6 @@ FEATURES = (
     "bb_width",
     "rsi14",
 )
-
-
-def _fee(price: float, quantity: int, side: Side, day: date) -> float:
-    from eulerlab.costs.router import fill_cost
-
-    return fill_cost(
-        venue="equity",
-        price=price,
-        quantity=quantity,
-        side=side,
-        day=day,
-        segment=Segment.EQUITY_INTRADAY,
-    )
 
 
 def _records(days: list[ip.Day]) -> pd.DataFrame:
@@ -173,26 +159,10 @@ def _records(days: list[ip.Day]) -> pd.DataFrame:
 def _trade_cost(entry: float, exit_: float, quantity: int, day: date, direction: int) -> float:
     entry_side = Side.BUY if direction > 0 else Side.SELL
     exit_side = Side.SELL if direction > 0 else Side.BUY
-    fees = _fee(entry, quantity, entry_side, day) + _fee(exit_, quantity, exit_side, day)
+    fees = sc.intraday_fee(entry, quantity, entry_side, day) + sc.intraday_fee(
+        exit_, quantity, exit_side, day
+    )
     return fees + (entry + exit_) * quantity * SLIPPAGE_BPS / 10_000.0
-
-
-def _stats(daily: list[float]) -> dict[str, Any]:
-    equity = peak = 1.0
-    drawdown = 0.0
-    for change in daily:
-        equity *= 1.0 + change
-        peak = max(peak, equity)
-        drawdown = min(drawdown, equity / peak - 1.0)
-    deviation = statistics.stdev(daily) if len(daily) > 1 else 0.0
-    return {
-        "days": len(daily),
-        "total_return": round(equity - 1.0, 6),
-        "sharpe": round(statistics.fmean(daily) / deviation * math.sqrt(252), 3)
-        if deviation
-        else None,
-        "max_drawdown": round(drawdown, 6),
-    }
 
 
 def _fit_predict(frame: pd.DataFrame) -> tuple[np.ndarray, int]:
@@ -293,7 +263,7 @@ def _run_symbol(symbol: str, days: list[ip.Day]) -> dict[str, Any]:
         "gross_pnl_rupees": round(sum(t["gross_pnl"] for t in trades), 2),
         "costs_rupees": round(sum(t["costs"] for t in trades), 2),
         "ending_equity_rupees": round(sleeve_equity, 2),
-        "net": _stats(series),
+        "net": sc.daily_stats(series),
         "daily": [[d.isoformat(), round(daily[d], 8)] for d in dates],
         "trade_log": trades,
     }
@@ -336,7 +306,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         "runs": runs,
         "portfolio": {
             "sessions": len(common_days),
-            "net": _stats(daily),
+            "net": sc.daily_stats(daily),
             "trades": sum(int(r.get("trades", 0)) for r in runs),
             "fills": sum(int(r.get("fills", 0)) for r in runs),
             "ending_equity_rupees": round(sum(sleeve_equity.values()), 2),

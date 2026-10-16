@@ -19,6 +19,7 @@ from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday import screen_common as sc
 
 OUT = Path("data/derived/hikkake_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
@@ -176,9 +177,9 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
                 pnl = direction * (exit_price - entry_price) * quantity
                 entry_side = Side.BUY if direction > 0 else Side.SELL
                 exit_side = Side.SELL if direction > 0 else Side.BUY
-                fees = ib._fee(entry_price, quantity, entry_side, day.day) + ib._fee(
-                    exit_price, quantity, exit_side, day.day
-                )
+                fees = sc.intraday_fee(
+                    entry_price, quantity, entry_side, day.day
+                ) + sc.intraday_fee(exit_price, quantity, exit_side, day.day)
                 fees += (entry_price + exit_price) * quantity * SLIPPAGE_BPS / 10_000.0
                 gross[day.day] += pnl / CAPITAL
                 net[day.day] += (pnl - fees) / CAPITAL
@@ -216,8 +217,8 @@ def _run(data: Mapping[str, Sequence[ip.Day]]) -> dict[str, Any]:
         },
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "capital_rupees": CAPITAL,
-        "gross": ib._stats([gross[day] for day in dates]),
-        "net": ib._stats([net[day] for day in dates]),
+        "gross": sc.daily_stats([gross[day] for day in dates]),
+        "net": sc.daily_stats([net[day] for day in dates]),
         "trades": len(trades),
         "fills": 2 * len(trades),
         "estimated_costs_rupees": round(sum(float(row["costs"]) for row in trades), 2),
