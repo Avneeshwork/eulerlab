@@ -1,0 +1,36 @@
+id: H-0011
+title: A shallow intraday decision tree predicts next-minute NSE direction
+status: rejected
+
+claim: >
+  A depth-four Gini decision tree trained per stock on nine technical features
+  predicts one-minute direction well enough to earn positive NSE equity returns
+  after costs on the 2024 evaluation window.
+
+rationale: >
+  Naga et al. (2024) report a shallow decision tree on one-minute Nifty-50
+  stock data, with a 2022-2023 training period and 2023-2024 evaluation. The
+  local adaptation uses five fixed liquid NSE stocks, no interpolated bars,
+  the paper's nine feature families, and the same depth and split criteria.
+
+source: >
+  Naga et al. (2024), Decision Trees for Intuitive Intraday Trading
+  Strategies, arXiv:2405.13959. See docs/RESEARCH/084.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, INFY, TCS], criterion: gini, max_depth: 4, train: [2022, 2023], evaluate: 2024}
+
+result: >
+  Rejected after costs. The 2024 evaluation generated 182,050 events and
+  estimated ₹35,917,952 in charges and slippage on ₹1m starting capital; the
+  compounded account was depleted. The gross result was +70.09%, demonstrating
+  that this trading frequency is unusable after costs. This is not a
+  reproduction of the paper's ICICI Breeze/Nifty-50 pipeline.
+
+red_flags:
+  - The paper's reported strategy omits trading fees and slippage.
+  - The source's preprocessing interpolates missing bars; this screen drops incomplete feature windows instead.
+  - The local Kite source and five-stock sample differ from the paper's data and Nifty-50 universe.
+  - ADX14 is implemented as an unsmoothed directional-index proxy; it is not a full Wilder ADX.
+  - A one-minute prediction is tested with next-minute open-to-close fills, so overnight/open gaps are excluded.
+  - The threshold and tree are trained on 2022-2023 and evaluated only through 2024-11-30; holdout data remains unread.

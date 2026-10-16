@@ -82,7 +82,7 @@ def message(
     """The text to send for this run, or None when it did nothing worth a message."""
     header = (
         f"{deployment.mode.upper()} · {title_of(deployment.strategy_id)}\n"
-        f"{deployment.id} · capital {_rupees(deployment.capital)}"
+        f"{deployment.id} · invested {_rupees(state.get('invested', deployment.capital))}"
     )
     status = str(state.get("status", ""))
     if status in STOPPED:
@@ -103,7 +103,13 @@ def message(
     change = f" ({float(total):+.1%})" if isinstance(total, int | float) else ""
     book = state.get("book")
     holdings = f" · {len(book)} holdings" if isinstance(book, Sequence) else ""
-    footer = f"Equity {_rupees(state.get('equity'))}{change} · cash {_rupees(state.get('cash'))}{holdings}"
+    equity = state.get("equity")
+    invested = state.get("invested", deployment.capital)
+    gain = float(equity) - float(invested) if isinstance(equity, int | float) else None
+    gain_text = f" · gain {_rupees(gain)}" if gain is not None else ""
+    footer = (
+        f"Equity {_rupees(equity)}{change}{gain_text} · cash {_rupees(state.get('cash'))}{holdings}"
+    )
     upcoming = state.get("next_rebalance")
     if upcoming:
         footer += f"\nNext rebalance: {upcoming}"

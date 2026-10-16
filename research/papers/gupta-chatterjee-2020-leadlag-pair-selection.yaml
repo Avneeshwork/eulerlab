@@ -1,0 +1,30 @@
+id: gupta-chatterjee-2020-leadlag-pair-selection
+title: Selecting Stock Pairs for Pairs Trading While Incorporating Lead-Lag Relationship
+authors: Gupta, K.; Chatterjee, N.
+year: 2020
+kind: paper
+source_url: https://arxiv.org/abs/1906.05057
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- Indian-company and US-company datasets (source study)
+- Four fixed NSE stocks, one-minute Kite data (local adaptation)
+summary: The source proposes pair selection using a distance measure that includes lead-lag relationships and reports that combining the lead-lag measure with SSD selected pairs that performed best among the compared measures.
+trade_idea: Select an ordered pair and lag using past data, then trade the follower in the leader's direction when it has not yet reflected the leader's recent move.
+implementation: |-
+  Local adaptation: choose one ordered pair and lag (5, 10 or 15 minutes) by maximum positive training-period return correlation among two fixed sector pairs. In 2024, trade the follower after a five-minute leader move of at least 20 basis points when follower response is below one quarter of the signed move; enter next bar and exit after the learned lag.
+
+  Local result: see `docs/RESEARCH/087-new-indian-stock-intraday-candidates.md` and `data/derived/stock_intraday_candidates.json`.
+red_flags:
+- Local implementation simplifies the paper's pair-distance construction to return correlation and does not reproduce its SSD model.
+- Pair selection examines a small, fixed candidate set and may be unstable.
+- Minute-price fills omit the order book and do not establish after-cost tradability.
+- The local evaluation is one fixed 2024 window and a four-stock sample.
+reported_results: The source reports that its combined pair-selection measure produced the best-performing selected pairs in its datasets. The local screening result is recorded in the linked research note.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_leadlag_pair_convergence
+  note: Training-selected pair and lag, one 2024 screening window
+  timeframe: 0

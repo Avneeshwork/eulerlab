@@ -251,10 +251,19 @@ def _literal_prefix(pattern: str) -> str:
     to evaluate the glob remotely.
     """
     out: list[str] = []
-    for segment in pattern.split("/"):
+    segments = pattern.split("/")
+    for segment in segments:
         if any(ch in segment for ch in "*?["):
             break
         out.append(segment)
+    if len(out) == len(segments):
+        # No wildcard at all: the pattern names one file. Its prefix is the
+        # file itself, with no trailing slash. With one, a lookup for
+        # `2026/10/2026-10-13_udiff.zip` asked the bucket for a folder of that
+        # name, found nothing, and a file that had been pruned from this
+        # machine read as missing everywhere: the overnight deployment's order
+        # of 2026-10-13 was rejected for "lot size not found" on that account.
+        return pattern
     return "/".join(out) + "/" if out else ""
 
 

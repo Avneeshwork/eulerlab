@@ -1,0 +1,57 @@
+id: H-0009
+title: Gold moving average rules persist on the Indian Gold ETF
+status: rejected
+
+claim: >
+  A five-minute moving-average direction rule on GOLDBEES yields positive
+  after-cost returns on the 2024 NSE evaluation window using horizons
+  documented in the precious-metals technical-analysis literature.
+
+rationale: >
+  Batten, Ciner and Lucey (2018) evaluate SMA, EMA and WMA crossover rules on
+  five-minute OTC gold and silver prices. Their study warns about data mining
+  and does not establish that popular gold rules earn positive net returns.
+  This screen tests the source's common 1/50, 1/100, 1/150 and 1/200 settings
+  on the listed Indian Gold ETF as an instrument- and venue-specific check.
+
+source: >
+  Batten, J. A., Ciner, C., & Lucey, B. M. (2018), Does intraday technical
+  analysis have value in precious metal markets? Research note 084.
+
+configurations:
+  - {method: sma, short: 1, long: 50, timeframe: 5m}
+  - {method: sma, short: 1, long: 100, timeframe: 5m}
+  - {method: sma, short: 1, long: 150, timeframe: 5m}
+  - {method: sma, short: 1, long: 200, timeframe: 5m}
+  - {method: ema, short: 1, long: 50, timeframe: 5m}
+  - {method: ema, short: 1, long: 100, timeframe: 5m}
+  - {method: ema, short: 1, long: 150, timeframe: 5m}
+  - {method: ema, short: 1, long: 200, timeframe: 5m}
+  - {method: wma, short: 1, long: 50, timeframe: 5m}
+  - {method: wma, short: 1, long: 100, timeframe: 5m}
+  - {method: wma, short: 1, long: 150, timeframe: 5m}
+  - {method: wma, short: 1, long: 200, timeframe: 5m}
+
+result: >
+  Rejected by the fixed 2024 screen: all twelve settings lost after costs, from
+  -17.43% to -51.33% across 224 sessions. Gross returns were +10.28% to
+  +20.79%, but estimated charges and 1 bp per-side slippage were ₹1.27m to
+  ₹3.61m on ₹1m notional. A later, unchanged SMA(50)+20 bp filter also lost
+  18.61% net on 78 sufficiently covered sessions of one MCX Gold futures
+  contract (454 fills); see research 086. Neither Gold ETF nor MCX results
+  support the claim.
+
+red_flags:
+  - >
+    The source tests a very large rule universe; this fixed subset remains
+    subject to the literature's data-snooping warning.
+  - >
+    GOLDBEES is a Gold ETF traded on NSE, not the source's OTC gold market and
+    not MCX Gold futures. Its session, spreads, tracking error and fees differ.
+  - >
+    The archive contains minute OHLC bars, not tick quotes; next-bar open is a
+    conservative executable proxy, but true spread and queue position are not
+    measured.
+  - >
+    The evaluated period ends 2024-11-30 because the next archived 60-day file
+    crosses the holdout boundary. The holdout remains unread.

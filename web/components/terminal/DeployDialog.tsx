@@ -16,7 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import type { DeployPreview, FleetStrategy, Preflight } from '@/lib/api';
+import type { DeployPreview, FleetStrategy, Preflight, RiskWhatIf } from '@/lib/api';
 
 const rupees = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')}`;
 
@@ -37,6 +37,8 @@ export function DeployDialog({
   const [error, setError] = useState('');
   const [capital, setCapital] = useState(100_000);
   const [preview, setPreview] = useState<DeployPreview | null>(null);
+  // What adding this strategy would do to the risk of the book already deployed.
+  const [whatIf, setWhatIf] = useState<RiskWhatIf | null>(null);
   const [starting, setStarting] = useState(false);
   const [started, setStarted] = useState('');
 
@@ -44,11 +46,16 @@ export function DeployDialog({
   useEffect(() => {
     if (mode !== 'paper' || !(capital > 0)) return;
     setPreview(null);
+    setWhatIf(null);
     const timer = window.setTimeout(() => {
       api
         .deployPreview(strategy.id, capital)
         .then(setPreview)
         .catch(() => setPreview(null));
+      api
+        .riskWhatIf(strategy.id, capital)
+        .then(setWhatIf)
+        .catch(() => setWhatIf(null));
     }, 400);
     return () => window.clearTimeout(timer);
   }, [strategy.id, capital, mode]);
@@ -139,6 +146,25 @@ export function DeployDialog({
                 Paper: simulated fills at the next session&apos;s close, 5 bps worse, Indian
                 costs charged. Runs after each day&apos;s data lands, and catches up missed days.
               </p>
+              {whatIf?.ok && whatIf.enough_history && whatIf.var_after !== undefined && (
+                <p className="tfine">
+                  <b>Risk if you add it.</b>{' '}
+                  {whatIf.deployments > 0
+                    ? `The book's one-day 95% VaR goes from ${rupees(whatIf.var_before ?? 0)} to ${rupees(whatIf.var_after)} (${(whatIf.var_added ?? 0) >= 0 ? '+' : '−'}${rupees(Math.abs(whatIf.var_added ?? 0))}).`
+                    : `Its one-day 95% VaR would be ${rupees(whatIf.var_after)}.`}{' '}
+                  On its own it would be {rupees(whatIf.var_own ?? 0)}.
+                  {whatIf.most_alike && whatIf.most_alike.correlation >= 0.8
+                    ? ` It moves almost as one with "${whatIf.most_alike.title}" (${whatIf.most_alike.correlation.toFixed(2)}): adding it is closer to resizing that than to a new bet.`
+                    : whatIf.correlation_with_book !== null && whatIf.correlation_with_book !== undefined
+                      ? ` It moves ${whatIf.correlation_with_book.toFixed(2)} with the book already deployed.`
+                      : ''}
+                  {whatIf.gap && whatIf.gap.notional > 0 && whatIf.gap.enough
+                    ? ` On a night it holds the future, a 1-in-20 gap costs ${rupees(whatIf.gap.var95_when_held)}.`
+                    : ''}
+                  {whatIf.gap && whatIf.gap.notional === 0 ? ' This much money does not buy one lot, so it would never trade.' : ''}{' '}
+                  From today&apos;s names in equal amounts over {whatIf.history_days} days; an estimate, not a limit.
+                </p>
+              )}
             </div>
           )}
           {started && (

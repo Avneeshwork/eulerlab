@@ -1,0 +1,54 @@
+id: github-inside-bar-breakout
+title: 'GitHub inside-bar compression breakout: NSE minute screen'
+authors: EulerLab research
+year: 2026
+kind: note
+source_url: https://github.com/fmzquant/strategies/blob/master/%E5%86%85%E9%83%A8%E6%94%B6%E6%95%9B%E7%AA%81%E7%A0%B4%E7%AD%96%E7%95%A5Inside-Bar-Breakout-Strategy.md
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE listed equities (five-stock adaptation)
+- Cryptocurrency and FX markets (independent source screen only)
+summary: >-
+  Independent screen of a GitHub inside-bar compression breakout. The rule is
+  not in the existing strategy cards and differs from ORB by requiring a
+  strict nested-bar setup before a break. The FMZ source's code and prose are
+  not fully aligned and do not provide verified performance. A separate
+  non-Indian four-market screen reports aggregate PF 0.98 and negative mean
+  net performance. The fixed five-stock NSE adaptation also loses after costs.
+trade_idea: >-
+  Require a 5-minute bar to sit strictly inside the preceding mother bar. When
+  the immediately following 5-minute bar closes above the inside bar high or
+  below its low, enter at the next 5-minute open in the breakout direction.
+  Stop at the opposite inside-bar extreme and target 2R. This candidate is
+  measured and rejected after costs; it is not represented as profitable.
+implementation: >-
+  See docs/RESEARCH/093-github-inside-bar-breakout.md and
+  src/eulerlab/intraday/inside_bar_screen.py. Run `make inside-bar-intraday`;
+  sync the Strategy Library curve with `make library-sync`. The reader excludes
+  all parquet objects crossing 2024-11-30. It skips the initial 09:15 bin,
+  requires at least four observed minutes per 5-minute bar, enters next-bar
+  open after close confirmation, limits each stock to one trade per session,
+  and applies date-aware NSE intraday charges plus assumed 2 bp slippage per
+  side. The Strategy Library card links to this Research Library paper.
+red_flags:
+- FMZ's code treats both inside and outside bars as candle_control; its prose and code are not fully aligned.
+- Independent source performance is from non-Indian markets, short sample and not independently reproduced here.
+- Local universe has five fixed large-cap names and no point-in-time membership correction.
+- 2 bp per-side slippage is assumed; quotes, queue position and market impact are unavailable.
+- Five-minute OHLC cannot reveal intrabar stop/target ordering; stop-first is assumed.
+- The 2024 screen is a fixed evaluation sample, not a future untouched holdout.
+reported_results: >-
+  Local NSE result, 2024-01-01 through 2024-11-30: gross return -1.02%, net
+  return -20.40%, net Sharpe -9.065, net max drawdown -20.49%, 1,106 trades,
+  33.1% trade win rate, net profit factor 0.548, and ₹217,793 estimated fees
+  plus slippage. An independent four-market screen reports PF 0.98 and mean
+  net performance -1.2%, with only one of four markets profitable; source
+  results are not Indian equity evidence.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_inside_bar_breakout_2r
+  note: Negative costed NSE screen; see research note 093
+  timeframe: 0

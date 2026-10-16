@@ -296,6 +296,142 @@ export type StrategyResult = {
   caveat: string;
 };
 
+/** `/api/risk/book`: the deployed book's risk (ADR-071). Money in rupees, shares as fractions. */
+export type RiskVarMethod = { method: string; label: string; var95: number; var99: number; es95: number; es99: number };
+export type RiskDrawdown = { now: number; deepest: number; deepest_day: string | null; peak_day: string | null; path: [string, number][] };
+export type RiskAgainstBacktest = {
+  live: { day: number; value: number }[];
+  band: { day: number; low: number; mid: number; high: number }[];
+  verdict: 'inside' | 'below' | 'above' | 'too_early' | 'no_backtest' | 'not_started';
+  expected: number | null;
+};
+/** A position held only from a close to the next open (ADR-072). */
+export type RiskGap = {
+  contract: string;
+  lots: number;
+  lot_size: number;
+  notional: number;
+  nights: number;
+  nights_held: number;
+  held_share: number;
+  enough: boolean;
+  var95_when_held: number;
+  es95_when_held: number;
+  worst_night: { day: string; pnl: number } | null;
+  holds_tonight: boolean;
+  held_now: number;
+  worst_ever: { day: string; gap: number; pnl: number } | null;
+};
+export type RiskWhatIf =
+  | {
+      ok: true;
+      deployments: number;
+      enough_history: boolean;
+      history_days: number;
+      var_before?: number;
+      var_after?: number;
+      var_added?: number;
+      var_own?: number;
+      var_before_pct?: number;
+      var_after_pct?: number;
+      correlation_with_book?: number | null;
+      most_alike?: { title: string; correlation: number } | null;
+      coverage?: number;
+      names?: number;
+      gap?: RiskGap | null;
+    }
+  | { ok: false; error: string };
+export type RiskDeployment = {
+  id: string;
+  strategy_id: string;
+  title: string;
+  status: string;
+  /** Its place in the order deployments were created; its colour follows this. */
+  slot: number;
+  /** The book's VaR if this deployment were stopped. */
+  var_without: number | null;
+  gap: RiskGap | null;
+  capital: number;
+  equity: number;
+  cash: number;
+  invested: number;
+  positions: number;
+  since_start: number;
+  today: number;
+  volatility: number | null;
+  var95: number | null;
+  var_share: number;
+  var_component: number;
+  capital_share: number;
+  beta: number | null;
+  drawdown_now: number;
+  drawdown_deepest: number;
+  backtest_worst_drawdown: number | null;
+  days_live: number;
+  coverage: number;
+  flat: boolean;
+  against_backtest: RiskAgainstBacktest;
+};
+export type RiskLimit = {
+  name: string;
+  now: number;
+  limit: number;
+  unit: string;
+  used: number;
+  state: 'ok' | 'near' | 'over';
+  kind: 'enforced' | 'watch';
+  when: string;
+};
+export type RiskBook = {
+  as_of: string | null;
+  history_days: number;
+  enough_history: boolean;
+  window: [string, string] | null;
+  book: {
+    deployments: number;
+    capital: number;
+    equity: number;
+    cash: number;
+    invested: number;
+    exposure: number;
+    today: number;
+    today_pct: number;
+    since_start: number;
+    since_start_pct: number;
+    var95: number;
+    var95_pct: number;
+    es95: number;
+    var99: number;
+    standalone_sum: number;
+    diversification: number;
+    beta: number | null;
+    volatility: number | null;
+    drawdown: RiskDrawdown;
+    curve: [string, number][];
+    names: number;
+    shared_names: number;
+    coverage: number;
+  };
+  var: {
+    methods: RiskVarMethod[];
+    histogram: { from: number; to: number; days: number }[];
+    worst_day: { day: string; pnl: number; pct: number } | null;
+  };
+  deployments: RiskDeployment[];
+  names: { symbol: string; value: number; share: number; held_by: number; sector: string }[];
+  sectors: { sector: string; value: number; share: number }[];
+  correlation: { ids: string[]; titles: string[]; matrix: (number | null)[][] };
+  alike: { a: string; b: string; correlation: number }[];
+  stress: { key: string; label: string; note: string; loss: number; share: number }[];
+  stopped: { id: string; title: string; slot: number; capital: number; equity: number; made: number; made_pct: number; days_live: number; last_day: string | null }[];
+  limits: RiskLimit[];
+  watch_note: string;
+};
+export type RiskBookResponse =
+  | ({ ok: true; empty: false } & RiskBook)
+  | { ok: true; empty: true; reason: string }
+  | { ok: false; error: string };
+
 export type FleetStrategy = {
   /** The run on the parameters this strategy actually uses, on the market its
    *  paper tested. Null when no recorded sweep has covered it. */
@@ -407,9 +543,12 @@ export type DeploymentState = {
   traded_through?: string | null;
   as_of?: string;
   capital?: number;
+  invested?: number;
   equity?: number;
   cash?: number;
   total_return?: number;
+  flows?: { amount: number; last_decided: string; entered_at: string; decision_day?: string; applied_day?: string }[];
+  pending?: { amount: number; last_decided: string; entered_at: string }[];
   costs?: number;
   curve?: [string, number][];
   book?: DeploymentPosition[];
@@ -1182,6 +1321,8 @@ export type Paper = {
 
 export type PaperView = { paper: Paper; links: ResearchLinkView[] };
 
+export type PaperDraft = Pick<Paper, 'summary' | 'trade_idea' | 'implementation' | 'red_flags' | 'reported_results' | 'markets'>;
+
 async function del<T>(path: string): Promise<T> {
   const response = await fetch(path, { method: 'DELETE' });
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -1191,6 +1332,10 @@ async function del<T>(path: string): Promise<T> {
 export const api = {
   builderCatalog: () => get<BuilderCatalog>('/api/builder/catalog'),
   papers: () => get<{ papers: PaperView[] }>('/api/research/papers'),
+  draftPaper: (input: { title: string; authors: string; year: number | null; source_url: string; source_text: string; provider: string; model: string }) =>
+    post<{ ok: true; draft: PaperDraft; provider: string; model: string } | { ok: false; error: string }>('/api/research/draft', input),
+  paperStrategy: (paperId: string, provider: string, model: string) =>
+    post<Draft>(`/api/research/papers/${encodeURIComponent(paperId)}/strategy`, { provider, model }),
   savePaper: (paper: Partial<Paper>) =>
     post<({ ok: true } & PaperView) | { ok: false; errors: string[] }>('/api/research/papers', { paper }),
   linkPaper: (paperId: string, link: Partial<ResearchLink>) =>
@@ -1329,6 +1474,8 @@ export const api = {
       why: string;
       kill_switch_tripped: boolean;
     }>('/api/mode'),
+  riskBook: () => get<RiskBookResponse>('/api/risk/book'),
+  riskWhatIf: (strategy: string, capital: number) => post<RiskWhatIf>('/api/risk/what-if', { strategy, capital }),
   risk: () =>
     get<{
       ok: boolean;
@@ -1369,6 +1516,11 @@ export const api = {
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/run`, {}),
   stopDeployment: (id: string) =>
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/stop`, {}),
+  deploymentFlow: (id: string, action: 'add' | 'withdraw', amount: number) =>
+    post<{ ok: boolean; error?: string; flow?: { amount: number; last_decided: string; entered_at: string } }>(
+      `/api/deployments/${encodeURIComponent(id)}/flow`,
+      { action, amount },
+    ),
   data: () => get<DataStatus>('/api/data'),
   history: (symbol: string, assetClass = 'equity', days = 400) =>
     get<History>(
@@ -1519,6 +1671,8 @@ export type AssistantChoice = {
   is_default: boolean;
 };
 
+export type AssistantLiveModel = { id: string; name: string };
+
 export type AssistantTurn = { role: 'user' | 'assistant'; content: string };
 
 /** One tool the model called: this, and the question, is all that was sent. */
@@ -1528,10 +1682,12 @@ export type AssistantReply =
   | { ok: true; text: string; provider: string; model: string; host: string; used: AssistantUse[] }
   | { ok: false; error: string };
 
-export const assistantStatus = (provider = '') =>
-  get<AssistantStatus>(`/api/assistant/status?provider=${encodeURIComponent(provider)}`);
-export const assistantChat = (messages: AssistantTurn[], provider = '') =>
-  post<AssistantReply>('/api/assistant/chat', { messages, provider });
+export const assistantStatus = (provider = '', model = '') =>
+  get<AssistantStatus>(`/api/assistant/status?provider=${encodeURIComponent(provider)}&model=${encodeURIComponent(model)}`);
+export const assistantModels = () =>
+  get<{ ok: boolean; models: AssistantLiveModel[]; error?: string }>('/api/assistant/models');
+export const assistantChat = (messages: AssistantTurn[], provider = '', model = '') =>
+  post<AssistantReply>('/api/assistant/chat', { messages, provider, model });
 
 /* ---------------- company pages ---------------- */
 

@@ -1,0 +1,22 @@
+id: acharya-2013-foreign-fund-flows-stock-returns-india
+title: 'Foreign Fund Flows and Stock Returns: Evidence from India'
+authors: Acharya, Viral V.; Anshuman, V. Ravi; Kumar, Kiran
+year: 2013
+kind: paper
+source_url: https://nsearchives.nseindia.com/research/content/BS1.pdf
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- Indian individual stocks, daily, 2006-2011
+summary: Uses stock-level daily FII purchases and sales to form portfolios on abnormal flow innovations. High innovations coincide with permanent price increases; low innovations coincide with price falls that partly reverse within about a week. Effects grow in market stress and high global volatility. Evidence allows both information and temporary price pressure explanations.
+trade_idea: Abnormally high stock-specific FII selling may create a short-lived price-pressure component that partly reverses over subsequent days, while FII buying may carry information.
+implementation: 'The paper ranks stock-level FII flow innovations weekly. A local replication requires licensed stock-level historical institutional trade data; aggregate NSE FII/DII cash totals are not a substitute. No intraday entry time or one-minute rule is specified.'
+red_flags:
+- Sample is 2006-2011 and uses stock-level institutional trade data unavailable in this repository.
+- Daily formation-day effects do not establish an intraday strategy.
+- Flow innovation is distinct from raw net buying; abnormality is estimated using panel controls.
+- Costs, current market structure and present-day signal availability require fresh testing.
+reported_results: High-vs-low flow innovation portfolios have significant formation-day abnormal-return differences; low-flow names partly reverse over several days. The paper reports stronger impacts during stress/high VIX. These are study results, not locally reproduced returns.
+hypothesis: ''
+strategies: []

@@ -1,0 +1,29 @@
+id: nse-high-frequency-stock-clustering
+title: Cluster Analysis of Stocks Using Price Movements of High Frequency Data from National Stock Exchange
+authors: Sharma, C.; Habib, A.; Bowry, S.
+year: 2018
+kind: paper
+source_url: https://arxiv.org/abs/1803.09514
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE stocks with 30-second high-frequency price data (source study)
+- HDFCBANK/ICICIBANK and TCS/INFY, one-minute Kite data (local adaptation)
+summary: The paper applies functional PCA and kernel PCA to describe joint behavior and clusters in high-frequency NSE price movements. It suggests potential use in intraday strategies but does not specify a costed trading rule.
+trade_idea: Use historical stock co-movement to define candidate peers, then test whether one peer's short-horizon price move leads the other.
+implementation: |-
+  Local adaptation: pair HDFCBANK with ICICIBANK and TCS with INFY; choose the higher median-turnover stock from 2022-2023 as leader. At five-minute decision points, trade the peer for five minutes after a leader move of at least 20 basis points when the peer has followed less than one quarter of the signed move.
+
+  Local result: see `docs/RESEARCH/087-new-indian-stock-intraday-candidates.md` and `data/derived/stock_intraday_candidates.json`.
+red_flags:
+- Exploratory clustering is not evidence of predictive or profitable returns.
+- The source does not prescribe entry, exit, costs, or a holding period.
+- Local screen uses two fixed pairs, with two-basis-point assumed slippage per side.
+reported_results: The source describes bank, IT, auto, and energy clusters and says FPCA/KPCA cluster structure appears with a lag; it does not report net trading returns. The local screening result is recorded in the linked research note.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_liquid_leader_laggard
+  note: Fixed pairs, 2024 price-only screening adaptation
+  timeframe: 0

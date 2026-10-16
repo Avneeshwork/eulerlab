@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import date
 from pathlib import Path
 
@@ -57,11 +58,12 @@ def test_a_missing_file_at_the_wrong_size_in_b2_is_still_a_violation(
 
 
 def test_when_b2_is_unreachable_a_missing_file_fails_closed(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Cannot confirm cloud safety -> do not give the file a pass."""
     _land_then_delete_locally(tmp_path)
     assert _run(tmp_path, None, monkeypatch) == 1
+    assert "INTEGRITY UNVERIFIED" in capsys.readouterr().out
 
 
 def test_an_intact_on_disk_file_still_passes(
@@ -101,3 +103,16 @@ def test_a_tampered_on_disk_file_is_still_caught(
 
 def test_an_empty_landing_zone_needs_no_b2_check(tmp_path: Path) -> None:
     assert vl.main([str(tmp_path)]) == 0
+
+
+def test_b2_listing_is_interrupted_at_its_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SlowStore:
+        def list_sizes(self, prefix: str) -> dict[str, int]:
+            time.sleep(1)
+            return {}
+
+    monkeypatch.setattr(vl, "REMOTE_LIST_TIMEOUT_S", 0.01)
+    with pytest.raises(TimeoutError, match="integrity-check deadline"):
+        vl._list_sizes_bounded(SlowStore(), "nse/")  # type: ignore[arg-type]

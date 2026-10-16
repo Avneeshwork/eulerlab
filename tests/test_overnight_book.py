@@ -74,6 +74,7 @@ def _replay(deployment: store.Deployment, upto: int = 5, **kw: Any) -> dict[str,
         futures=_futures(upto),
         lots=kw.pop("lots", lambda day, expiry: LOT),
         traded_through=kw.pop("traded_through", None),
+        cash_flows=kw.pop("cash_flows", None),
     )
 
 
@@ -124,6 +125,21 @@ def test_a_replay_sends_nothing_twice_and_reads_the_same_book(
     oms = make_oms(deployment)
     assert all(state is OrderState.FILLED for state in oms.states().values())
     assert len(oms.states()) == 4
+
+
+def test_overnight_flow_is_applied_before_the_next_close_sizing(
+    deployment: store.Deployment,
+) -> None:
+    flow = {
+        "amount": 100_000.0,
+        "last_decided": DAYS[0].isoformat(),
+        "entered_at": "flow-overnight",
+    }
+    book = _replay(deployment, cash_flows=[flow])
+
+    assert book["flows"][0]["amount"] == 100_000
+    assert book["flows"][0]["decision_day"] == DAYS[1]
+    assert book["equity"] > deployment.capital + 100_000
 
 
 def test_a_book_too_small_for_one_lot_never_trades_and_says_why(

@@ -6,21 +6,30 @@ kind: paper
 source_url: https://arxiv.org/abs/2504.12828
 pdf: ''
 added: '2026-10-07'
-status: idea
+status: rejected
 markets:
 - Nifty 50 stocks, 5-minute bars, 3 months
-summary: Trains permutation decision trees, LSTM and RNN models on three months of 5-minute
-  candles for the Nifty 50 stocks, long only with trailing stops. The tree bot made 1.18%
-  against -2.29% for buy-and-hold.
-trade_idea: A model of short-term price paths, with a trailing stop, buys dips and sells rallies
-  intraday.
+summary: Uses a Permutation Decision Tree with Effort-To-Compress split gain on seven
+  candle-derived features and predicts whether the close 50 five-minute bars ahead will
+  exceed the current close. The paper reports 1.18% average PDT portfolio growth over a
+  roughly three-month Nifty 50 test, versus -2.29% buy-and-hold.
+trade_idea: Long when the trained PDT forecasts a higher close 50 five-minute bars later;
+  exit on a 0.5% trailing close stop or when the model prediction turns zero.
 implementation: |-
-  - Machine-learning signal with trailing stop and support thresholds; parameters not given in the abstract.
-
-  Not backtested: the model and its parameters are not specified enough to rebuild.
+  Audit of the linked paper and author code is in docs/RESEARCH/099-permutation-tree-paper-audit.md.
+  The headline result is rejected as evidence of an intraday edge: the released split
+  leaves training labels whose 50-bar outcomes cross into the test period, signals and
+  fills at the same close, and the forecast horizon may cross sessions. The released
+  execution code also does not implement an intraday square-off. No local backtest was
+  run because the published result cannot be compared fairly under these defects and
+  no post-2024-11-30 prices may be read.
 red_flags:
-- Three months of data.
-- Abstract only; not reproducible from what is published.
-reported_results: PDT bot +1.18%, LSTM +0.56%, RNN +0.59%, buy-and-hold -2.29%.
+- The full paper and author code are available; the earlier abstract-only catalog note was wrong.
+- Three-month test period and no transaction costs or slippage.
+- Split code trains through index split-1 even though the final 50 training labels use closes in the test period; removing the first 50 test rows does not purge those training labels.
+- A prediction computed from a bar's close is executed at that same close.
+- Fifty 5-minute bars are not an intraday horizon and can extend across sessions; code carries positions instead of forcing a daily square-off.
+- Paper specifies a 0.5% trailing stop, but reported execution results are not reproducible evidence of net profitability.
+reported_results: PDT +1.1802%, LSTM +0.557%, RNN +0.5896%, buy-and-hold -2.29% over the paper's short test sample, before costs.
 hypothesis: ''
 strategies: []

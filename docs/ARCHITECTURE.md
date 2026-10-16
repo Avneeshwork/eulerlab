@@ -96,6 +96,11 @@ Downloaded files land in `data/landing/` and are **never edited and never
 deleted**. Every file is hashed on arrival; `make check-landing` re-hashes them
 and proves nothing changed.
 
+For locally pruned files, the check confirms the recorded size against B2.
+Those listing requests use short timeouts, one attempt and a 15-second overall
+deadline; an unreachable B2 is reported as unconfirmed data and fails closed
+rather than stalling the check.
+
 Why so strict? Because every number downstream is derived from these files. If
 a raw file can be quietly "fixed", then a result can change without any code
 changing, and no investigation will ever find out why. Immutable raw data means
@@ -103,6 +108,13 @@ any result is reproducible from first principles.
 
 Local disk is not the storage of record — a Backblaze B2 bucket is (23,230
 objects, 4.45 GB). Local copies are pruned once B2 confirms the upload.
+
+`make mcx-instruments` fetches Kite's current MCX CSV once per IST calendar
+day. It validates the exchange, token, symbol, lot size and tick size, then
+lands the original response under `data/landing/mcx/` with a checksum and
+knowledge time. The command mirrors that tree to the dedicated `nse/mcx/`
+prefix in B2. This is a current contract snapshot; it does not create
+historical MCX instrument or lot-size records. See ADR-075 and research 081.
 
 ### Market history: index closes, delivery, the calendar and expiries
 
@@ -997,6 +1009,18 @@ engine holdings ≠ broker positions. A stale panel is reported, not halted.
 Live mode is refused in code until the Kite adapter has placed a supervised
 order (T-3336) and live limits exist.
 
+**Paper cash flows (ADR-076).** Add/withdraw requests are recorded on the
+deployment with their amount, entry time and latest decided date. They do not
+change the original capital or rewrite earlier orders. Replay applies a flow
+at the first later decision close and forces a rebalance there; fills settle at
+the following close. A withdrawal sizes the new book after the requested
+outflow and is paid only after the resulting sells settle. The overnight book
+settles its prior position at the open, then applies a flow before sizing the
+new close position. The state reports contributed capital (`invested`),
+applied flows and pending flows separately. `total_return` is time weighted,
+so an external deposit is not reported as a gain. Live deployments reject
+flows.
+
 ---
 
 # Part V — The workbench
@@ -1058,6 +1082,19 @@ remembered for the browser session; the next save links the new strategy to
 the paper and moves an `idea` to `specified`.
 
 ADR-059.
+
+New papers can be drafted from operator-pasted source text with a selectable
+assistant provider. OpenRouter choices come from its live free-model catalog
+filtered for ZDR endpoints and tool support, refreshed every ten minutes; the
+selected model is checked against that catalog before use. Inference still
+enforces ZDR and collection denial. The endpoint uses the assistant's approved-host, retention
+and `.env` redaction checks; it returns a draft and never saves it. Source text
+is not persisted, and a link alone is not fetched. On a paper page, **AI code &
+backtest** uses the selected provider for a strategy, validates it with the existing
+authoring sandbox, then submits it to the existing Tier B backtest job. The
+generated source and single-run results are shown for review. This path does not
+save or link the generated strategy, and the result is not robustness evidence.
+ADR-073.
 
 ### Tweezer Bottom, to the operator's report
 
@@ -1601,6 +1638,60 @@ file's fields, and the Telegram message on new fills.
 
 **It halts when** a held position has no opening price, or a past day that was
 traded through without a signal now shows one.
+
+## Risk on the deployed book (ADR-071)
+
+`risk/book.py` is arithmetic on values handed in; `api/risk_routes.py`
+gathers them; `GET /api/risk/book` returns one payload for three views under
+Live & Risk. It reads and never acts.
+
+**The idea.** A deployment is days old, so its own returns cannot give a risk
+figure. Instead today's holdings are run through the last 250 trading days:
+for a holding worth `v_i` rupees today and a past day's return `r_i(t)`,
+
+    pnl(t) = sum_i v_i * r_i(t)
+
+is what this exact book would have made or lost on day `t`. Every figure
+below is read from that series.
+
+| Figure | How |
+|---|---|
+| VaR, 95% | the k-th worst `pnl(t)`, k = ceil(0.05 * days); a loss, in rupees |
+| Expected shortfall | the average of those k worst days |
+| Normal curve | `z * sd - mean`, z = 1.645 or 2.326 |
+| Recent-weighted | the same with `sd^2 = sum w_t pnl(t)^2 / sum w_t`, `w` falling by 0.94 a day back (A-059) |
+| Component VaR | `VaR * cov(pnl_d, pnl_book) / var(pnl_book)` per deployment; the parts sum to the VaR |
+| Beta | `cov(r, r_m) / var(r_m)` against NIFTYBEES, over days both traded |
+| Stress, market fall | `sum_i v_i * beta_i * shock`; a name with no beta takes 1 |
+| Backtest band | for each horizon h, the 5th, 50th and 95th percentile of every h-day return in the stored backtest |
+
+Fewer than 60 days of prices gives no VaR. A name with no price on a day is
+flat that day, and the payload says what share of the book that covers. A
+deployment that holds nothing at the close has no risk here, and each view
+says so first. No verdict against a backtest before 20 days live.
+
+`config/risk_watch.yaml` holds four warning levels. They colour a row; the
+limits that stop trading are the kill switch's (section 6.5).
+
+**A position held only overnight (ADR-072).** The futures deployment is flat
+at every close, so holdings cannot describe it. It carries a `GapRule`: with
+`N` the rupees of future today's equity buys, `g(t)` the open of morning `t`
+over the previous close less one, and `H` the mornings the rule had been in
+position,
+
+    pnl(t) = N * g(t)  if t in H,  else 0
+
+joins the book's series, dated to the morning. Its VaR "on a night it holds"
+is the same nearest-rank figure over `{N * g(t) : t in H}` alone, and is
+given only with 30 such nights. The book's VaR therefore averages quiet and
+signal nights; the page shows both figures.
+
+**Adding and removing.** Every active deployment is read on each request;
+nothing registers one. A stopped deployment is in no figure and is listed
+with what it made. A deployment's colour is its place in creation order, so
+others keep theirs. Each row carries the book's VaR without it, and
+`POST /api/risk/what-if` gives the book's VaR before and after adding a
+strategy at a stated capital, sized as equal amounts of today's names (A-060).
 
 ## Scheduled jobs
 

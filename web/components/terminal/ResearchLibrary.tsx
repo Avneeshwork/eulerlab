@@ -15,8 +15,8 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { api, tweezerJob } from '@/lib/api';
-import type { Paper, PaperView, ResearchLinkView, TweezerResult } from '@/lib/api';
+import { api, assistantModels, assistantStatus, tweezerJob } from '@/lib/api';
+import type { AssistantLiveModel, AssistantStatus, Paper, PaperView, ResearchLinkView, TweezerResult } from '@/lib/api';
 import './builder.css';
 import './research.css';
 
@@ -29,6 +29,62 @@ const STATUS_LABEL: Record<Paper['status'], string> = {
 };
 
 export const BUILDER_PAPER_KEY = 'eulerlab.builder.forPaper';
+const AI_MODEL_KEY = 'eulerlab.research.model';
+
+function useResearchModel() {
+  const [selection, setSelection] = useState('');
+  const [status, setStatus] = useState<AssistantStatus | null>(null);
+  const [models, setModels] = useState<AssistantLiveModel[]>([]);
+  const [modelsError, setModelsError] = useState('');
+  const choose = (value: string) => {
+    setSelection(value);
+    try { window.localStorage.setItem(AI_MODEL_KEY, value); } catch { /* this visit only */ }
+  };
+  useEffect(() => {
+    try {
+      setSelection(window.localStorage.getItem(AI_MODEL_KEY) ?? window.localStorage.getItem('eulerlab.assistant.model') ?? '');
+    } catch { /* use configured default */ }
+  }, []);
+  useEffect(() => {
+    assistantModels().then((response) => {
+      if (response.ok) setModels(response.models);
+      else setModelsError(response.error ?? 'Could not load current OpenRouter ZDR models.');
+    }).catch((error) => setModelsError(String(error)));
+  }, []);
+  const [provider, model] = selection.includes('::') ? selection.split('::', 2) : [selection, ''];
+  useEffect(() => {
+    let current = true;
+    assistantStatus(provider, model).then((next) => current && setStatus(next)).catch(() => current && setStatus(null));
+    return () => { current = false; };
+  }, [provider, model]);
+  useEffect(() => {
+    if (models.length > 0 && status?.host === 'openrouter.ai' && !selection.includes('::')) {
+      choose(`openrouter-private::${models[0].id}`);
+    }
+  }, [selection, status, models]);
+  return { selection, provider, model, status, models, modelsError, choose };
+}
+
+function ModelPicker({ selection, status, models, modelsError, choose }: ReturnType<typeof useResearchModel>) {
+  if (!status || status.choices.length === 0) return <span className="tfine">Checking AI models…</span>;
+  return (
+    <label className="rl-model">
+      AI model
+      <select value={selection} onChange={(event) => choose(event.target.value)}>
+        <option value="">Default · {status.choices.find((choice) => choice.is_default)?.model ?? 'configured assistant'}</option>
+        {status.choices.filter((choice) => choice.host !== 'openrouter.ai').map((choice) => (
+          <option key={choice.name} value={choice.name} disabled={!choice.ready} title={choice.reason}>
+            {choice.name} · {choice.model}{choice.ready ? (choice.free ? '' : ' · paid') : ` — ${choice.blocked}`}
+          </option>
+        ))}
+        {models.length > 0 && <optgroup label="Current OpenRouter free models with ZDR">{models.map((choice) => (
+          <option key={choice.id} value={`openrouter-private::${choice.id}`}>{choice.name} · {choice.id}</option>
+        ))}</optgroup>}
+      </select>
+      {modelsError && <span title={modelsError}>ZDR list unavailable</span>}
+    </label>
+  );
+}
 
 type Section = 'overview' | 'rules' | 'flags' | 'strategies';
 type StatusFilter = '' | Paper['status'];
@@ -135,11 +191,53 @@ function TweezerRun({ link }: { link: ResearchLinkView }) {
 }
 
 function PaperForm({ initial, onSaved, onCancel }: { initial: Partial<Paper>; onSaved: (view: PaperView) => void; onCancel: () => void }) {
+  const ai = useResearchModel();
   const [draft, setDraft] = useState<Partial<Paper>>(initial);
   const [flags, setFlags] = useState((initial.red_flags ?? []).join('\n'));
   const [errors, setErrors] = useState<string[]>([]);
+  const [sourceText, setSourceText] = useState('');
+  const [drafting, setDrafting] = useState(false);
+  const [draftNote, setDraftNote] = useState('');
   const set = <K extends keyof Paper>(key: K, value: Paper[K]) => setDraft((d) => ({ ...d, [key]: value }));
+  const generate = async () => {
+    setDrafting(true);
+    setErrors([]);
+    setDraftNote('Generating a reviewable draft…');
+    try {
+      const response = await api.draftPaper({
+        title: draft.title ?? '',
+        authors: draft.authors ?? '',
+        year: draft.year ?? null,
+        source_url: draft.source_url ?? '',
+        source_text: sourceText,
+        provider: ai.provider,
+        model: ai.model,
+      });
+      if (!response.ok) {
+        setErrors([response.error]);
+        setDraftNote('');
+        return;
+      }
+      setDraft((current) => ({ ...current, ...response.draft }));
+      setFlags(response.draft.red_flags.join('\n'));
+      setDraftNote(`Draft from ${response.provider} · ${response.model}. Check it against the source before saving.`);
+    } catch (e) {
+      setErrors([String(e)]);
+      setDraftNote('');
+    } finally {
+      setDrafting(false);
+    }
+  };
   const save = async () => {
+    const incomplete = !draft.summary?.trim() || !draft.trade_idea?.trim() || !draft.implementation?.trim();
+    if (incomplete && sourceText.trim()) {
+      await generate();
+      return;
+    }
+    if (incomplete) {
+      setErrors(['Add the summary fields yourself or paste paper text and use Generate summary.']);
+      return;
+    }
     const response = await api.savePaper({
       ...draft,
       red_flags: flags
@@ -184,6 +282,14 @@ function PaperForm({ initial, onSaved, onCancel }: { initial: Partial<Paper>; on
           <input value={draft.hypothesis ?? ''} onChange={(e) => set('hypothesis', e.target.value)} placeholder="H-0005" />
         </label>
       </div>
+      {!initial.id && (
+        <label className="rl-text">
+          Paper text or abstract for the AI draft (sent to the selected, privacy-checked model; not saved)
+          <textarea rows={7} value={sourceText} onChange={(e) => setSourceText(e.target.value)} placeholder="Paste the abstract or relevant paper text. A link alone is not fetched." />
+        </label>
+      )}
+      {!initial.id && <ModelPicker {...ai} />}
+      {!initial.id && ai.status && !ai.status.ready && <p className="tnote bad">{ai.status.reason}</p>}
       {(
         [
           ['summary', 'Summary', 'What the paper did and found, in a few sentences.'],
@@ -211,13 +317,15 @@ function PaperForm({ initial, onSaved, onCancel }: { initial: Partial<Paper>; on
           </div>
         </div>
       )}
+      {draftNote && <p className="tfine">{draftNote}</p>}
       <div className="sb-actions">
         <button type="button" className="tbtn" onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className="tbtn go" onClick={save}>
-          Save paper
+        <button type="button" className="tbtn go" disabled={drafting} onClick={save}>
+          {drafting ? 'Generating…' : 'Save paper'}
         </button>
+        {!initial.id && <button type="button" className="tbtn" disabled={drafting || sourceText.trim().length < 80} onClick={generate}>Generate summary</button>}
       </div>
     </div>
   );
@@ -236,12 +344,14 @@ export function ResearchLibrary({
   onReport: (strategyId: string) => void;
   onBuild: () => void;
 }) {
+  const ai = useResearchModel();
   const [papers, setPapers] = useState<PaperView[] | null>(null);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<Partial<Paper> | null>(null);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<StatusFilter>('');
   const [section, setSection] = useState<Section>('overview');
+  const [codeRun, setCodeRun] = useState<{ status: 'idle' | 'working' | 'done' | 'failed'; source?: string; provider?: string; model?: string; result?: import('@/lib/api').Result; error?: string }>({ status: 'idle' });
   const frame = useRef<HTMLDivElement>(null);
   const reading = useRef<HTMLDivElement>(null);
 
@@ -298,6 +408,31 @@ export function ResearchLibrary({
     reading.current?.scrollTo({ top: 0 });
     frame.current?.querySelector('.rl-item[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [currentId]);
+
+  useEffect(() => setCodeRun({ status: 'idle' }), [currentId]);
+
+  const codeAndBacktest = async () => {
+    if (!p) return;
+    setCodeRun({ status: 'working' });
+    try {
+      const drafted = await api.paperStrategy(p.id, ai.provider, ai.model);
+      if (!drafted.ok || !drafted.source) throw new Error(drafted.error ?? 'The model returned no strategy code.');
+      setCodeRun({ status: 'working', source: drafted.source, provider: drafted.provider, model: drafted.model });
+      const started = await api.backtest({ mode: 'code', source: drafted.source, feature: '', top_n: 30, rebalance: 21, min_turnover: 0, days: 800, tier: 'B', starting_cash: 1_000_000 });
+      if (!started.ok || !started.job) throw new Error(started.error ?? 'The backtest did not start.');
+      for (;;) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1000));
+        const job = await api.job(started.job);
+        if (job.status === 'done') {
+          setCodeRun({ status: 'done', source: drafted.source, provider: drafted.provider, model: drafted.model, result: job.result });
+          return;
+        }
+        if (job.status === 'failed') throw new Error(job.error || job.message || 'Backtest failed.');
+      }
+    } catch (e) {
+      setCodeRun((state) => ({ ...state, status: 'failed', error: String(e) }));
+    }
+  };
 
   if (error) {
     return (
@@ -393,6 +528,7 @@ export function ResearchLibrary({
                 </p>
               </div>
               <div className="rl-actions">
+                <ModelPicker {...ai} />
                 <button type="button" className="tbtn sm" onClick={() => setEditing(p)}>
                   Edit
                 </button>
@@ -410,6 +546,9 @@ export function ResearchLibrary({
                   }}
                 >
                   Build its rules
+                </button>
+                <button type="button" className="tbtn sm" disabled={codeRun.status === 'working' || !ai.status?.ready} onClick={codeAndBacktest}>
+                  {codeRun.status === 'working' ? 'Coding / backtesting…' : 'AI code & backtest'}
                 </button>
                 {runnable.length > 0 && (
                   <button type="button" className="tbtn sm go" onClick={() => onBacktest(runnable)}>
@@ -458,6 +597,25 @@ export function ResearchLibrary({
                 </section>
               ) : null
             )}
+
+          {codeRun.status !== 'idle' && (
+            <section className="rl-section rl-ai-result">
+              <h3>AI strategy draft · review before relying on results</h3>
+              {codeRun.provider && <p className="tfine">{codeRun.provider} · {codeRun.model} · validated by the existing strategy sandbox</p>}
+              {codeRun.error && <p className="neg">{codeRun.error}</p>}
+              {codeRun.result && (
+                <div className="rl-result">
+                  <span>Sharpe <b>{codeRun.result.sharpe.toFixed(2)}</b></span>
+                  <span>Return <b className={codeRun.result.total_return >= 0 ? 'pos' : 'neg'}>{(codeRun.result.total_return * 100).toFixed(1)}%</b></span>
+                  <span>Max drawdown <b>{(codeRun.result.max_drawdown * 100).toFixed(1)}%</b></span>
+                  <span>{codeRun.result.fills} fills</span>
+                  <span className="tfine">{codeRun.result.period[0]} to {codeRun.result.period[1]} · Tier {codeRun.result.tier} · ₹10 lakh start</span>
+                </div>
+              )}
+              {codeRun.source && <details><summary>Generated strategy source</summary><pre>{codeRun.source}</pre></details>}
+              {codeRun.result && <p className="tfine">This is a single backtest, not evidence of robustness or a forecast. The draft is not saved or linked as a maintained strategy.</p>}
+            </section>
+          )}
 
           {section === 'rules' && (
             <section className="rl-section">

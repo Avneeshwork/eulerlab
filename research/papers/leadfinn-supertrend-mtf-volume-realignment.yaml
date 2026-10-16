@@ -1,0 +1,55 @@
+id: leadfinn-supertrend-mtf-volume-realignment
+title: 'Multi-timeframe Supertrend re-alignment with volume confirmation'
+authors: LeadFinn; EulerLab research
+year: 2026
+kind: report
+source_url: https://leadfinn.co/strategies/supertrend
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE listed equities (five-stock fixed adaptation)
+summary: >-
+  Tests LeadFinn's described long setup: the one-hour Supertrend is bullish,
+  the 15-minute Supertrend recovers from bearish to bullish, and 15-minute
+  volume crosses above its 20-period mean. The source gives a 1:2 target
+  example but does not report results for this exact multi-timeframe setup.
+  Its raw Supertrend flips lose in its own after-cost tests. The fixed five-stock
+  local adaptation is slightly positive gross and negative net with only 29
+  trades.
+trade_idea: >-
+  Align a 15-minute bullish Supertrend re-flip with the latest completed
+  bullish hourly Supertrend and a volume crossing above its 20-bar mean. Enter
+  at the next 15-minute open, stop at the signal Supertrend line, and target 2R.
+implementation: >-
+  See docs/RESEARCH/096-supertrend-mtf-volume-realignment.md and
+  src/eulerlab/intraday/supertrend_alignment_screen.py. Run
+  `make supertrend-alignment-intraday`, then `make library-sync` to attach the
+  costed daily curve. The screen aggregates local minute OHLCV to 15-minute and
+  60-minute bars, excludes 09:15 from bar inputs, and uses only completed hourly
+  bars. Evaluation covers 2024-01-01 through 2024-11-30; files crossing the
+  cutoff are excluded. Fees use the date-aware NSE intraday schedule plus
+  assumed 2 bp slippage per side. It limits each stock to one long trade per
+  session, assumes stop-first order if both brackets touch in one minute, and
+  forces exit at 15:10.
+red_flags:
+- The source is practitioner research; it provides no setup-specific performance for the multi-timeframe rule tested here.
+- The source's raw Supertrend rules have negative after-cost results, but those are not the exact re-alignment setup.
+- The local result has only 29 trades, too few to support a stable profitability conclusion.
+- Applying the same ATR(10), multiplier 3 to both timeframes and the next-bar entry/one-trade limit are fixed adaptations.
+- Five fixed large-cap names do not have point-in-time universe membership correction.
+- Assumed slippage is 2 bp per side; quote-level impact and partial fills are not modeled.
+- The fixed 2024 evaluation sample is not an untouched future holdout.
+reported_results: >-
+  Local NSE result, 2024-01-01 through 2024-11-30: 29 completed trades over
+  224 common sessions; +0.08% gross return, 1.075 gross profit factor,
+  -0.49% net return, -0.969 net Sharpe, -0.69% net max drawdown,
+  44.8% net winning trades, 0.648 net profit factor, and ₹5,713.37 estimated
+  charges and slippage. The result is too sparse and negative after costs to
+  qualify as profitable.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_supertrend_mtf_volume_reclaim
+  note: Negative sparse local test; 29 trades; see research note 096
+  timeframe: 0

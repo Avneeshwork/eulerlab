@@ -30,9 +30,24 @@ web = [
 crypto = [
     "ccxt>=4.4",
 ]
+# The explicitly sourced NSE decision-tree screen uses scikit-learn. Kept
+# optional so normal ingestion and API installs do not acquire the ML stack.
+research-ml = [
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+]
+# Angel One's authenticated history endpoint is only needed for its data
+# backfill and live broker paths. Keep the SDK out of non-Angel installs.
+angel = [
+    "logzero>=1.7",
+    "pyotp>=2.9",
+    "smartapi-python>=1.5.5",
+    "websocket-client>=1.8",
+]
 dev = [
     "boto3-stubs>=1.43.73",
     "mypy>=1.11",
+    "pandas-stubs>=2.2",
     "pre-commit>=3.8",
     "pyarrow-stubs>=20.0.0.20260625",
     "pytest>=8.3",
@@ -111,7 +126,7 @@ plugins = ["pydantic.mypy"]
 # that has not installed the `crypto` extra. Ignored here rather than silenced
 # at each import, so the exemption is visible in one place.
 [[tool.mypy.overrides]]
-module = ["ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect"]
+module = ["ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect", "sklearn.*", "sklearn"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

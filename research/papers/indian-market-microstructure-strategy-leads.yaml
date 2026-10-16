@@ -1,0 +1,53 @@
+id: indian-market-microstructure-strategy-leads
+title: 'Further Indian intraday strategy leads from market-microstructure research'
+authors: EulerLab research
+year: 2026
+kind: note
+source_url: https://onlinelibrary.wiley.com/doi/10.1111/jfir.12131
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- National Stock Exchange of India equities
+- BSE equities (day-trader microstructure source)
+summary: >-
+  Screen of ten microstructure findings for potentially distinct Indian
+  intraday hypotheses. The strongest new leads are repeated institutional
+  order-flow continuation in the same half-hour on subsequent days, and
+  algorithmic-trader timing measured at one- and five-minute horizons. Both
+  source studies rely on trader-tagged order/trade data that is absent from the
+  local OHLCV archive. NSE's new Closing Auction Session creates a separate
+  market-data research direction, but its history is short and its post-auction
+  return crosses overnight. Other findings duplicate existing order-flow,
+  opening/gap, volume and time-of-day work, or do not state a directional rule.
+trade_idea: >-
+  Priority candidate: for each stock and half-hour bucket, calculate the signed
+  net order submissions from repetitive institutional traders over recent
+  sessions. Enter in the direction of the prior same-bucket flow at the next
+  session's matching bucket and close at the bucket end. This is a hypothesis
+  from source-reported predictability, not a reconstructed or profitable NSE
+  system; trader IDs and participant classifications are required.
+implementation: >-
+  See docs/RESEARCH/092-indian-market-microstructure-strategy-leads.md. Source
+  and deduplication review only; no local backtest was run because the current
+  archive contains OHLCV, not tagged orders, trade initiator, trader class,
+  order-book snapshots or timestamped CAS imbalance histories. CAS archive
+  discovery is recorded for later feasibility work. The note includes ten
+  findings, data needs, duplicates and source-level negative evidence.
+red_flags:
+- Published NSE order-flow results rely on proprietary or exchange-grade trader-tagged data unavailable in the local archive.
+- Aggregate price-volume association is contemporaneous and does not by itself give a directional strategy.
+- A 2026 hourly OIB paper says abnormal returns vanish after costs.
+- CAS began on 2026-08-03 and its initial history is too short to establish robust profitability.
+- Trading a CAS closing print and exiting at the next open is an overnight position, outside the intraday target.
+- Participant-level flow strategies are vulnerable to selection bias and execution-cost leakage.
+- No candidate in this source screen has a local net-of-cost backtest or qualifies toward the five-strategy target.
+reported_results: >-
+  No local strategy results. Murphy and Thirumalai report same-half-hour return
+  predictability from repetitive institutional net order submissions in NSE
+  data. A separate study of 169 NSE stocks reports algorithmic traders' positive
+  one- and five-minute market-timing performance. A 2026 hourly NSE order-
+  imbalance study reports that apparent abnormal returns disappear after
+  trading costs. These are source findings, not reproduced portfolio returns.
+hypothesis: ''
+strategies: []

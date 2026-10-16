@@ -1,0 +1,34 @@
+id: H-0014
+title: A 5-minute Keltner close breakout earns positive NSE returns after costs
+status: rejected
+
+claim: >
+  On five fixed liquid NSE stocks, buying after a completed 5-minute close
+  above EMA(20) + 2 ATR(20) and exiting on a completed close below EMA(20)
+  produces positive returns after modeled intraday costs.
+
+rationale: >
+  A public Backtrader example implements this simple upper-Keltner breakout
+  and EMA-midline exit. Its example is not Indian-market profitability
+  evidence, so this is tested independently as a fixed India adaptation.
+
+source: >
+  cloudQuant/backtrader, test_108_keltner_channel_strategy.py. See
+  docs/RESEARCH/106-github-keltner-channel-nse-screen.md.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, TCS, INFY], bar_minutes: 5, ema: 20, atr: 20, multiplier: 2.0, side: long_only, entry: close above upper band then next open, exit: close below EMA then next open, evaluation: [2024-01-01, 2024-11-30], capital_rupees: 1000000, per_stock_notional: 200000, slippage_bps_per_side: 2}
+
+result: >
+  Rejected after costs. Across 224 sessions and 956 round trips, gross return
+  was +2.57% (Sharpe 0.603); net return was -15.04%, net Sharpe -3.684, and
+  net maximum drawdown -15.75%. Only 309/956 trades were net winners (32.3%);
+  net profit factor was 0.690. Estimated fees and slippage were ₹188,270.
+  Every stock was negative net.
+
+red_flags:
+  - The source's test example does not report an Indian or intraday alpha result.
+  - Keltner breakouts overlap broader trend and breakout families in the library.
+  - Five fixed current stocks leave survivorship and universe-selection bias.
+  - Slippage is assumed, not estimated from historical quotes or market impact.
+  - One evaluation window is used; no holdout after 2024-11-30 was read.

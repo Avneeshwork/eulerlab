@@ -51,6 +51,8 @@ class Deployment(BaseModel):
     slippage_bps: float = Field(default=5.0, ge=0)
     """Adverse slippage on every paper fill. A live order
     near the close does not get exactly the closing price (A-048)."""
+    flows: list[dict[str, Any]] = Field(default_factory=list)
+    """Dated external cash flows. Positive amounts are deposits."""
 
     @property
     def folder(self) -> Path:

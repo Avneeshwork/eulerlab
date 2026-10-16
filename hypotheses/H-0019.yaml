@@ -1,0 +1,31 @@
+id: H-0019
+title: Connors RSI(2) pullback with an SMA trend filter earns positive NSE intraday returns after costs
+status: rejected
+
+claim: >
+  On five fixed liquid NSE stocks, a continuous 5-minute close above/below
+  SMA(200) combined with Wilder RSI(2) <=10/>=90, exiting when price crosses
+  SMA(5), produces positive same-session returns after modeled costs.
+
+rationale: >
+  A public GitHub implementation supplies explicit RSI(2), SMA(200) and SMA(5)
+  rules, but does not establish Indian intraday profitability. This is a
+  fixed 5-minute adaptation tested independently.
+
+source: >
+  jesse-ai, example-strategies RSI2. See
+  docs/RESEARCH/111-github-rsi2-intraday-nse.md.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, TCS, INFY], timeframe: 5m, trend: SMA200, entry: RSI2 <=10 long above trend / >=90 short below trend, exit: SMA5 close cross, fill: next contiguous open, square_off: 15:10, evaluation: [2024-01-01, 2024-11-30], notional_per_stock: 200000, slippage_bps_per_side: 2}
+
+result: >
+  Rejected on the fixed development sample: 3,317 round trips across 224
+  common sessions returned +5.54% gross and -45.12% net after modeled costs,
+  with net Sharpe -19.004 and profit factor 0.281.
+
+red_flags:
+  - The timeframe adaptation is not reported by the source.
+  - Five fixed current stocks leave survivorship and universe-selection bias.
+  - OHLCV cannot resolve spread, queue position or partial fills.
+  - One evaluation window is used and must not be tuned against.

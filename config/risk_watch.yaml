@@ -1,0 +1,21 @@
+# Watch levels for the Risk screen (ADR-071). OPERATOR-OWNED.
+#
+# These WARN and do nothing else. Nothing here stops, reduces or refuses a
+# trade: the limits that act are in killswitch.yaml and are read by a separate
+# process. A level here turns a row on Live & Risk amber when it is 75% used
+# and red when it is passed.
+#
+# The values below were proposed with the screen on 2026-10-14 and are not
+# measured against anything. Change them to what you would actually act on.
+
+# The book's one-day 95% value at risk, as a share of equity.
+book_var_pct: 2.0
+
+# The whole book's fall from its highest equity.
+book_drawdown_pct: 10.0
+
+# Any one deployment's fall from its own highest equity.
+deployment_drawdown_pct: 8.0
+
+# The largest sector's share of the money invested.
+sector_pct: 35.0

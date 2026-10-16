@@ -1,0 +1,43 @@
+id: naga-2024-decision-tree-intraday
+title: Decision Trees for Intuitive Intraday Trading Strategies
+authors: Naga et al.
+year: 2024
+kind: paper
+source_url: https://arxiv.org/abs/2405.13959
+pdf: https://arxiv.org/pdf/2405.13959
+added: '2026-10-15'
+status: rejected
+markets:
+  - Nifty-50 equities, one-minute bars, 2022-2024 (paper)
+  - Five liquid NSE stocks, one-minute bars, 2022-2026 (here)
+summary: >
+  Trains a depth-four Gini decision tree on nine technical features to predict
+  next-minute return direction. Reported evaluation does not include trading
+  charges and uses gap interpolation that is not suitable for live fills.
+trade_idea: >
+  Use the shallow tree's predicted direction to take a one-minute position
+  after each completed signal bar.
+implementation: >
+  Per-stock fit on 2022-2023, evaluate 2024 through November, execute next
+  minute open-to-close, drop incomplete bars, and include NSE charges plus
+  assumed slippage. ADX is an unsmoothed proxy, not Wilder ADX. A follow-up
+  requires confidence of at least 0.80 and at most one event per stock-session;
+  it kept 47 trades in 440 later sessions and lost 0.95% net. See research note
+  085 and the optimization-oos result on the linked strategy.
+red_flags:
+  - Local universe contains five selected names, not point-in-time Nifty-50 constituents.
+  - The model's prediction uses next-minute close direction, but execution excludes the close-to-next-open move.
+  - Features and ADX proxy are not identical to the source vendor's preprocessing.
+  - Costless paper results are not directly comparable to this after-cost result.
+reported_results: >
+  Five-stock local adaptation, 2024 through November: +70.09% gross and account
+  depletion after ₹35.92m estimated charges and slippage on ₹1m starting
+  capital, across 182,050 one-minute events. No claim of profitability or live
+  readiness is made. The high-confidence, one-event-per-stock-session filter
+  still lost 0.95% net from 2025-01 through 2026-10-14; see research note 085.
+hypothesis: H-0011
+strategies:
+  - kind: registered
+    id: nse_minute_decision_tree
+    note: Depth 4, fixed split, five-stock adaptation with costs
+    timeframe: 1

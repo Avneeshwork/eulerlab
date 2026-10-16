@@ -15,9 +15,9 @@ summary: Copernican Journal of Finance & Accounting. Builds a measure of informa
   the direction of returns. Known from a search summary only.
 trade_idea: Order imbalance in the pre-open auction says how the first minutes will trade.
 implementation: |-
-  No trading rule. The finding is about volatility, not direction.
+  Proposed use: a pre-open auction-information score is a volatility/trade-eligibility gate for a separately specified opening strategy. It does not choose long or short direction.
 
-  Here: not coded. Research 077. Pre-open order data is not held.
+  Not coded. Data needed: timestamped historical NSE pre-open indicative equilibrium prices, matched quantity, buy/sell imbalance or order-level snapshots, and corresponding continuous-session trades. The current one-minute archive starts after the auction and cannot reconstruct it.
 red_flags:
 - 'Not read: search summary only.'
 - Predicts volatility, not returns.

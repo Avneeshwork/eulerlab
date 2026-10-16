@@ -1,0 +1,23 @@
+id: patell-wolfson-1983-intraday-announcement-speed
+title: The Intraday Speed of Adjustment of Stock Prices to Earnings and Dividend Announcements
+authors: Patell, J. M.; Wolfson, M. A.
+year: 1983
+kind: paper
+source_url: https://www.gsb.stanford.edu/faculty-research/working-papers/intraday-speed-adjustment-stock-prices-earnings-dividend
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- US stocks around earnings and dividend news releases
+summary: The study finds initial price response within the first few price changes after announcement; simple-rule returns dissipate within five to ten minutes, while volatility and serial-correlation effects last longer.
+trade_idea: Test a predeclared event-time entry immediately after a timestamped earnings release and compare fixed short exits from one to ten minutes; treat the paper's rapid adjustment as a negative prior for delayed entries.
+implementation: |-
+  Not coded. Data needed: historical exchange-time announcement timestamps, release classification and minute trades or quotes around each event. For NSE, announcements outside market hours must be separated from announcements during continuous trading.
+red_flags:
+- Old US sample; not evidence of a current NSE edge.
+- The source says simple trading-rule returns dissipate quickly.
+- Entry timing, spread, and event timestamps dominate a minute-bar approximation.
+- No point-in-time historical event table is in the current archive.
+reported_results: The source reports that simple-rule returns dissipate within five to ten minutes. No local strategy result is available.
+hypothesis: ''
+strategies: []

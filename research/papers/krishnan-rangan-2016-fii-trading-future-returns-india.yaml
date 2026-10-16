@@ -1,0 +1,21 @@
+id: krishnan-rangan-2016-fii-trading-future-returns-india
+title: 'Foreign Institutional Investor Trading and Future Returns: Evidence from an Emerging Economy'
+authors: Krishnan, Murugappa; Rangan, Srinivasan
+year: 2016
+kind: paper
+source_url: https://nsearchives.nseindia.com/research/content/nse_nyu/F_227_17_NSE_NYU_WP5.pdf
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- Indian stocks, quarterly FII holdings/trades and future returns
+summary: Studies whether FII trading predicts future stock returns. Reported evidence finds quarterly net FII buying negatively associated with later 3- and 12-month returns; stocks with no FII trade outperform positive- and negative-net-buying portfolios in the sample.
+trade_idea: Do not assume institutional entry signals future outperformance; test a no-trade or contrarian baseline against an FII-following baseline.
+implementation: 'This is a medium-term quarterly result, not an intraday rule. A replication needs stock-level FII trades/holdings and point-in-time portfolio data; no direct local data equivalent is available.'
+red_flags:
+- Quarterly horizon does not validate minute-level entry/exit timing.
+- Sample period and access to stock-level FII data limit current replication.
+- Reported average returns are not a net-of-cost intraday result.
+reported_results: 'The authors report average quarterly returns of 1.6%, 3.8% and 2.4% for portfolios with positive, zero and negative quarterly FII net buying, respectively, and a negative relation to future 3- and 12-month returns.'
+hypothesis: ''
+strategies: []

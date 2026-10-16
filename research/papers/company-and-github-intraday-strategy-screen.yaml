@@ -1,0 +1,99 @@
+id: company-and-github-intraday-strategy-screen
+title: Company and GitHub strategy screen for NSE intraday research
+authors: EulerLab research
+year: 2026
+kind: note
+source_url: https://github.com/pedrobraiti/volume-profile-trading
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- Indian listed equities (proposed adaptations)
+- US and Brazilian equities (external GitHub research only)
+summary: >-
+  Screen of public market-maker disclosures, investor materials, and public GitHub
+  trading-strategy repositories. Ten candidate rules are described, with repository
+  quality, duplication checks, data needs, and evidence limits. Eight price-data
+  candidates now have fixed NSE screens linked below; the two quote-driven rules
+  remain blocked by unavailable historical feeds. Company sources
+  disclose broad capabilities such as market making, ETF arbitrage, statistical
+  arbitrage, and high-frequency analytics; they do not reveal a reproducible
+  profitable NSE intraday signal. Most GitHub results are unverified, daily-bar,
+  duplicate, or explicitly negative after costs. The volume-profile repository
+  includes the clearest falsification workflow and finds no robust standalone alpha.
+trade_idea: >-
+  Research only price-data-feasible candidates first: Bollinger squeeze expansion,
+  initial-balance failure, and volume-exhaustion confirmation. Keep volume-profile
+  geometry conditional on acquiring suitable volume-at-price data. Market-making
+  and cross-venue arbitrage require order-book feeds and realistic queue/fill data.
+implementation: >-
+  See docs/RESEARCH/088-company-and-github-intraday-strategy-screen.md for ten
+  rule sketches, exact GitHub sources, company-material links, overlap analysis,
+  source quality and local data availability. Eight candidates are screened in
+  data/derived/company_github_stock_strategies.json using the fixed 2022-2023
+  training window and 2024-01-01 through 2024-11-30 evaluation window. Profile
+  levels are approximated from HLC3 minute volume, not true volume-at-price.
+  Inventory-skewed market making and cross-venue arbitrage remain data-blocked.
+red_flags:
+- Company declarations establish business activity or capabilities, not the exact
+  signal, fills, or profitability of an NSE adaptation.
+- Samssara's pitchbook is self-reported and hosted by a third party; its performance
+  claims have not been independently verified.
+- GitHub README results are author claims unless independently reproduced. Repositories
+  can change, omit data, or lack a license for reuse.
+- The volume-profile repository's data is primarily US/Brazil daily OHLCV, with only a
+  short intraday check; it explicitly rejects robust standalone alpha after falsification.
+- Fixed universe contains only four liquid stocks and remains survivorship-biased.
+- The current archive does not contain historical synchronized NSE/BSE quotes, full
+  order-book updates, or reliable volume-at-price trades for faithful microstructure tests.
+reported_results: >-
+  Eight local price-data screens are stored in
+  data/derived/company_github_stock_strategies.json. All eight are net negative
+  on the fixed four-stock 2024 evaluation window after date-aware NSE charges
+  and 2 bps slippage per side. The four profile screens use an HLC3-weighted
+  minute-volume proxy, not true volume-at-price. The two quote-driven strategies
+  have no result because required history is unavailable. External examples
+  include a negative Indian gap-and-go result after costs and a volume-profile
+  study that finds no robust standalone alpha.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_bollinger_squeeze_expansion
+  note: Fixed 2022-2023 training and 2024 evaluation; see research note 088
+  timeframe: 0
+- kind: registered
+  id: nse_initial_balance_failure
+  note: Fixed 2022-2023 training and 2024 evaluation; see research note 088
+  timeframe: 0
+- kind: registered
+  id: nse_time_adaptive_momentum_reversion
+  note: Training-selected session segment rule; see research note 088
+  timeframe: 0
+- kind: registered
+  id: nse_value_area_acceptance_breakout
+  note: HLC3-weighted volume proxy, not true volume-at-price
+  timeframe: 0
+- kind: registered
+  id: nse_value_area_edge_to_edge
+  note: HLC3-weighted volume proxy, not true volume-at-price
+  timeframe: 0
+- kind: registered
+  id: nse_volume_exhaustion_no_supply
+  note: Fixed low-volume new-low screen; see research note 088
+  timeframe: 0
+- kind: registered
+  id: nse_value_area_80_rule
+  note: HLC3 proxy negative-control screen
+  timeframe: 0
+- kind: registered
+  id: nse_poc_rejection_rotation
+  note: HLC3-weighted volume proxy, not true volume-at-price
+  timeframe: 0
+- kind: registered
+  id: nse_inventory_skewed_market_making
+  note: 'Data blocked: needs depth, signed trades, queue position and latency-aware fills'
+  timeframe: 0
+- kind: registered
+  id: nse_cross_venue_same_stock_dislocation
+  note: 'Data blocked: needs synchronized NSE/BSE quotes, depth and fill history'
+  timeframe: 0

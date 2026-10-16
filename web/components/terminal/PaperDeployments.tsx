@@ -34,6 +34,7 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
   const [items, setItems] = useState<Deployment[] | null>(null);
   const [problem, setProblem] = useState('');
   const [open, setOpen] = useState<string>('');
+  const [flowAmounts, setFlowAmounts] = useState<Record<string, string>>({});
 
   const load = useCallback(() => {
     api
@@ -119,6 +120,10 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
                 <b>{rupees(s.cash)}</b>
               </div>
               <div>
+                <span>Invested</span>
+                <b>{rupees(s.invested ?? d.capital)}</b>
+              </div>
+              <div>
                 <span>Costs paid</span>
                 <b>{rupees(s.costs)}</b>
               </div>
@@ -155,6 +160,38 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
             )}
 
             <div className="paper-actions">
+              <input
+                aria-label={`Cash flow amount for ${title(d.strategy_id)}`}
+                className="tinput sm"
+                inputMode="decimal"
+                min="1"
+                placeholder="Amount ₹"
+                type="number"
+                value={flowAmounts[d.id] ?? ''}
+                onChange={(event) =>
+                  setFlowAmounts((current) => ({ ...current, [d.id]: event.target.value }))
+                }
+              />
+              <button
+                className="tbtn sm"
+                type="button"
+                disabled={d.mode !== 'paper' || d.status !== 'active' || !!d.running || !(Number(flowAmounts[d.id]) > 0)}
+                onClick={() =>
+                  act(api.deploymentFlow(d.id, 'add', Number(flowAmounts[d.id])))
+                }
+              >
+                Add money
+              </button>
+              <button
+                className="tbtn sm"
+                type="button"
+                disabled={d.mode !== 'paper' || d.status !== 'active' || !!d.running || !(Number(flowAmounts[d.id]) > 0)}
+                onClick={() =>
+                  act(api.deploymentFlow(d.id, 'withdraw', Number(flowAmounts[d.id])))
+                }
+              >
+                Withdraw
+              </button>
               <button className="tbtn sm" type="button" onClick={() => setOpen(isOpen ? '' : d.id)}>
                 {isOpen ? 'Hide' : 'Positions & orders'}
               </button>
@@ -177,6 +214,27 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
                 Stop
               </button>
             </div>
+
+            {(s.pending?.length ?? 0) > 0 && (
+              <div className="tfine">
+                {s.pending?.map((flow) => (
+                  <div key={`${flow.entered_at}-${flow.last_decided}`}>
+                    pending: {flow.amount >= 0 ? '+' : '−'}{rupees(Math.abs(flow.amount))} at the next decision
+                  </div>
+                ))}
+              </div>
+            )}
+            {(s.flows?.length ?? 0) > 0 && (
+              <div className="tfine">
+                <b>Capital flows</b>
+                {s.flows?.map((flow) => (
+                  <div key={`${flow.entered_at}-${flow.last_decided}`}>
+                    {flow.amount >= 0 ? 'Added' : 'Withdrew'} {rupees(Math.abs(flow.amount))}
+                    {flow.applied_day ? ` · applied ${flow.applied_day}` : ''}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {isOpen && (
               <div className="paper-detail">

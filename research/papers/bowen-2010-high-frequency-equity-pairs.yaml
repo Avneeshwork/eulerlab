@@ -1,0 +1,30 @@
+id: bowen-2010-high-frequency-equity-pairs
+title: 'High Frequency Equity Pairs Trading: Transaction Costs, Speed of Execution and Patterns in Returns'
+authors: Bowen, D.; Hutchinson, M. C.; O'Sullivan, N.
+year: 2010
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1611623
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- FTSE 100 constituent pairs, high-frequency data, 2007 (source study)
+- HDFCBANK/ICICIBANK and TCS/INFY, one-minute NSE bars (local adaptation)
+summary: The source reports high-frequency pairs results are highly sensitive to transaction costs and execution speed; a one-period execution delay eliminates reported excess returns.
+trade_idea: When a pair's relative price spread moves far from its recent mean, hold opposite positions in each leg until the spread converges or a fixed time stop is reached.
+implementation: |-
+  Local adaptation: two fixed NSE pairs. Standardize the intraday log-price spread against a rolling 60-minute window; enter both legs at the next traded minute open when absolute z-score reaches 2; exit inside 0.5 or after 30 minutes; flatten by 15:10.
+
+  Local result: see `docs/RESEARCH/087-new-indian-stock-intraday-candidates.md` and `data/derived/stock_intraday_candidates.json`.
+red_flags:
+- Source market is UK equities, not India.
+- Source finds strong cost/execution sensitivity; the local market-order proxy cannot guarantee a next-bar fill.
+- Fixed pairs and a short evaluation period do not establish a general NSE effect.
+- Both legs incur charges and assumed slippage.
+reported_results: In the FTSE sample, 15 basis points of transaction costs cut excess returns by more than half, and a one-period wait eliminated them. The local screening result is recorded in the linked research note.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_intraday_pair_convergence
+  note: Fixed pair spread, rolling 60-minute z-score, 2024 screening window
+  timeframe: 0

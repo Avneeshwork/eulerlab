@@ -56,21 +56,6 @@
   letter-spacing: -0.025em;
   white-space: nowrap;
 }
-/* The mark: an upward tick in the accent. The reference reduced its own symbol
-   to the arrow inside the feather; this is that idea at 12px. */
-.tmark {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--r-sm);
-  background: var(--neon);
-  display: grid;
-  place-items: center;
-  color: #12160b;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-}
-
 .tnav { display: flex; gap: 2px; margin-left: var(--s4); align-self: stretch; }
 .tnav button {
   font: inherit;
@@ -1467,6 +1452,19 @@
 }
 .tsyncbox .tfine[data-state='failed'] { color: var(--down, #d2544b); }
 .tsyncbox .tfine[data-state='done'] { color: var(--ink-2); }
+.tsync-log {
+  max-width: min(42rem, 90vw);
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
+  padding: 0.7rem;
+  border: 1px solid var(--line, #444);
+  border-radius: var(--control-radius);
+  color: var(--ink-2);
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 
 /* Live quotes. The dot is the only animated thing on this page, and it earns
    that by marking the one number here that is not end-of-day. */

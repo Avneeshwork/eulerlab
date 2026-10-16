@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -62,11 +64,15 @@ MAX_QUESTION = 2000
 TIMEOUT_SECONDS = 60
 USER_AGENT = "EulerLab/0.1"
 
+_ZDR_MODELS: tuple[float, list[dict[str, str]]] = (0.0, [])
+_ZDR_MODELS_TTL = 600
+
 SYSTEM = """You are the assistant inside EulerLab, one person's quant research and trading platform for Indian markets.
 Answer questions about their data, strategies, research and paper trades.
 
 Rules:
 - Use the tools to look things up. Never state a number you did not get from a tool in this conversation.
+- If asked about an assistant or model error, use `find_documents` and `read_document` on `docs/RUNBOOKS/assistant-is-offline.md` before suggesting a change. Never remove the zero-retention requirement.
 - If the tools do not hold the answer, say so plainly. Do not guess.
 - You can only read. You cannot place orders, run backtests or change anything. If asked to, say which screen does it.
 - Be short and plain. Lead with the answer. Give figures with their dates.
@@ -135,6 +141,64 @@ def provider(config: client.LLMConfig | None = None, name: str = "") -> client.P
     return chosen
 
 
+def openrouter_zdr_models(*, refresh: bool = False) -> list[dict[str, str]]:
+    """Current free OpenRouter models with ZDR endpoints and tool support.
+
+    The model catalog changes more often than this repository. OpenRouter's
+    model-list filters are the source of truth; actual inference still sends
+    the per-request ZDR and data-collection constraints.
+    """
+    global _ZDR_MODELS
+    now = time.monotonic()
+    if not refresh and _ZDR_MODELS[0] > 0 and now - _ZDR_MODELS[0] < _ZDR_MODELS_TTL:
+        return list(_ZDR_MODELS[1])
+    chosen = provider(name="openrouter-private")
+    key = client._api_key(chosen)
+    if not key:
+        raise Refused("OpenRouter needs OPENROUTER_API_KEY to list current ZDR models.")
+    url = (
+        chosen.base_url.rstrip("/")
+        + "/models?zdr=true&max_price=0&max_output_price=0&supported_parameters=tools,temperature,max_tokens"
+    )
+    request = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {key}", "User-Agent": USER_AGENT},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            body = json.loads(response.read().decode())
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+        raise Refused("Could not refresh OpenRouter's current free ZDR model list.") from exc
+    rows = body.get("data") if isinstance(body, dict) else None
+    found: list[dict[str, str]] = []
+    if isinstance(rows, list):
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            model_id = str(row.get("id") or "")
+            if not re.fullmatch(r"[a-zA-Z0-9._-]+/[a-zA-Z0-9._:-]+", model_id):
+                continue
+            found.append({"id": model_id, "name": str(row.get("name") or model_id)[:120]})
+            if len(found) >= 100:
+                break
+    _ZDR_MODELS = (now, found)
+    return list(found)
+
+
+def selected_provider(name: str = "", model: str = "") -> client.Provider:
+    """Resolve a configured provider and optionally a currently ZDR-listed model."""
+    chosen = provider(name=name)
+    if not model or model == chosen.model:
+        return chosen
+    if host_of(chosen) != "openrouter.ai":
+        raise Refused("A model override is allowed only for the approved OpenRouter provider.")
+    if model not in {entry["id"] for entry in openrouter_zdr_models()}:
+        msg = f"{model} is not in OpenRouter's current free ZDR model list. Refresh the model list and choose an eligible model."
+        raise Refused(msg)
+    return chosen.model_copy(update={"model": model})
+
+
 def _policy(host: str) -> str:
     if host in ROUTING:
         return "zero retention, enforced on every request"
@@ -192,12 +256,12 @@ def choices(config: client.LLMConfig | None = None) -> list[dict[str, Any]]:
     return out
 
 
-def status(name: str = "") -> dict[str, Any]:
+def status(name: str = "", model: str = "") -> dict[str, Any]:
     """Whether the assistant can answer, and where a question would go."""
     listed = [{"name": n, "description": t.description} for n, t in tools.TOOLS.items()]
     base = {"tools": listed, "choices": choices()}
     try:
-        chosen = provider(name=name)
+        chosen = selected_provider(name=name, model=model)
     except (Refused, client.LLMUnavailable) as exc:
         return {"ready": False, "reason": str(exc), **base}
     host = host_of(chosen)
@@ -253,6 +317,31 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
         raise Refused(
             f"Could not reach {host_of(chosen)}. Check the internet connection and ask again."
         ) from exc
+
+
+def complete(system: str, user: str, *, chosen: client.Provider | None = None) -> Answer:
+    """One-turn completion using the same host, retention and redaction locks."""
+    chosen = chosen or provider()
+    body = _post(
+        chosen,
+        {
+            "model": chosen.model,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "temperature": chosen.temperature,
+            "max_tokens": chosen.max_tokens,
+        },
+    )
+    choices = body.get("choices")
+    if not isinstance(choices, list) or not choices:
+        raise Refused(f"{chosen.name} sent a reply with no answer in it.")
+    message = choices[0].get("message") or {}
+    answer = str(message.get("content") or "").strip()
+    if not answer:
+        raise Refused(f"{chosen.name} sent an empty answer.")
+    return Answer(answer, chosen.name, chosen.model, host_of(chosen))
 
 
 def _history(messages: Sequence[dict[str, Any]]) -> list[dict[str, str]]:

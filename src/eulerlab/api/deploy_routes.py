@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import threading
 import traceback
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter
@@ -43,6 +44,13 @@ class PreviewRequest(BaseModel):
 
     strategy: str
     capital: float = Field(gt=0)
+
+
+class FlowRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["add", "withdraw"]
+    amount: float = Field(gt=0, allow_inf_nan=False)
 
 
 def _rows() -> list[Any]:
@@ -226,3 +234,78 @@ def stop(deployment_id: str) -> dict[str, Any]:
     """Stop trading. Positions stay as they are at the paper broker; nothing is sold."""
     deployment = store.set_status(store.load(deployment_id), "stopped", "stopped by the operator")
     return {"ok": True, "deployment": _summary(deployment)}
+
+
+@router.post("/{deployment_id}/flow")
+def cash_flow(deployment_id: str, request: FlowRequest) -> dict[str, Any]:
+    """Queue external capital for the first decision after the current close."""
+    from eulerlab.ingest.filelock import exclusive
+
+    try:
+        # Match the run thread's process and in-process locks so its replay
+        # cannot observe half of a deployment update.
+        with RUN_LOCK, exclusive("paper_daily"):
+            deployment = store.load(deployment_id)
+            if deployment.mode == "live":
+                return {"ok": False, "error": "cash flows are disabled for live deployments"}
+            if deployment.status != "active":
+                return {"ok": False, "error": f"deployment is {deployment.status}"}
+            if RUNNING.get(deployment_id):
+                return {"ok": False, "error": "deployment is running; try again when it finishes"}
+
+            amount = request.amount if request.action == "add" else -request.amount
+            state = store.read_state(deployment) or {}
+            curve = state.get("curve") or []
+            last_decided = str(
+                state.get("last_decided")
+                or (curve[-2][0] if len(curve) > 1 else deployment.start.isoformat())
+            )
+            pending = [
+                flow
+                for flow in deployment.flows
+                if (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+                not in {
+                    (str(item.get("entered_at", "")), str(item.get("last_decided", "")))
+                    for item in state.get("flows", [])
+                }
+            ]
+            projected = (
+                float(state.get("equity", deployment.capital))
+                + sum(float(flow.get("amount", 0.0)) for flow in pending)
+                + amount
+            )
+            if request.action == "withdraw" and projected < MIN_CAPITAL:
+                return {
+                    "ok": False,
+                    "error": f"withdrawal must leave at least ₹{MIN_CAPITAL:,.0f} in the deployment",
+                }
+
+            flow = {
+                "amount": round(amount, 2),
+                "last_decided": last_decided,
+                "entered_at": datetime.now(UTC).isoformat(timespec="microseconds"),
+            }
+            updated = deployment.model_copy(update={"flows": [*deployment.flows, flow]})
+            store.save(updated)
+            applied = state.get("flows", [])
+            applied_keys = {
+                (str(item.get("entered_at", "")), str(item.get("last_decided", "")))
+                for item in applied
+            }
+            store.write_state(
+                updated,
+                {
+                    **state,
+                    "invested": state.get("invested", deployment.capital),
+                    "flows": applied,
+                    "pending": [
+                        item
+                        for item in updated.flows
+                        if (str(item.get("entered_at", "")), str(item.get("last_decided", "")))
+                        not in applied_keys
+                    ],
+                },
+            )
+            return {"ok": True, "flow": flow, "deployment": _summary(updated)}
+    except FileNotFoundError:
+        return {"ok": False, "error": "no such deployment"}

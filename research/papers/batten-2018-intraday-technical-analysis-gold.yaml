@@ -1,0 +1,54 @@
+id: batten-2018-intraday-technical-analysis-gold
+title: Does intraday technical analysis have value in precious metal markets?
+authors: Batten, J. A., Ciner, C., Lucey, B. M.
+year: 2018
+kind: paper
+source_url: https://c.mql5.com/forextsd/forum/174/does_technical_analysis_beat_the_market__evidence_from_high_frequency_trading_in_gold_and_silver.pdf
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+  - Gold and silver, five-minute OTC data, 2008-2014 (paper)
+  - GOLDBEES five-minute bars, 2021-2026 (here; ETF proxy, not MCX futures)
+  - GOLD26DECFUT, MCX standard Gold futures, five-minute bars, 2026-05-14 to 2026-10-14 (here; one contract only)
+summary: >
+  Tests SMA, EMA and WMA technical rules on precious metals and explicitly
+  addresses data snooping. The broad rule universe makes best-rule in-sample
+  results unreliable without a predeclared out-of-sample design.
+trade_idea: >
+  Check the source's commonly used short/long moving-average pairs on a listed
+  Indian Gold ETF with costs and delayed fills.
+implementation: >
+  Fixed SMA/EMA/WMA 1/50, 1/100, 1/150 and 1/200 five-minute direction rules
+  on GOLDBEES, plus a separate application of the fixed SMA(50) 20 bp dead-band
+  rule to the live MCX Gold contract. The dead-band filter was selected on 2024
+  ETF development data; its frozen 2025-10-14 ETF test returned +1.58% net with
+  1,290 fills. Applying those unchanged settings to one MCX contract returned
+  -18.61% net on 78 sufficiently covered sessions. See research notes 085 and
+  086; the markets and cost assumptions are distinct.
+red_flags:
+  - The 2024 and 2025-2026 screen is GOLDBEES, not OTC Gold or spot Gold.
+  - The MCX follow-up contains one contract and fewer than six months of usable sessions; it is not a five-year continuous futures test.
+  - The source evaluates a very large rule universe and warns about data mining.
+  - Intraday slippage is assumed; minute bars do not reveal historical spreads.
+  - The filtered +1.58% is cumulative over 440 sessions, with Sharpe 0.135 and
+    maximum drawdown 13.91%; it is a weak screen result, not evidence of a durable edge.
+  - GOLDBEES buy-and-hold returned +86.49% gross over the same dates, far more than
+    the filtered rule.
+reported_results: >
+  The fixed 2024 ETF settings lost after assumed costs. A 20 bp dead-band
+  SMA(50) selected on ETF development data returned +1.58% net from 2025-01
+  through 2026-10-14, but Sharpe was 0.135 and maximum drawdown 13.91%. On the
+  separate MCX GOLD26DECFUT sample it returned -18.61% net across 78 sessions,
+  with 454 fills, -3.988 daily Sharpe and -21.44% max drawdown. Neither result
+  supports live use; see research notes 085 and 086.
+hypothesis: H-0009
+strategies:
+  - kind: registered
+    id: gold_intraday_ma_rules
+    note: Fixed popular horizons; Gold ETF proxy, not MCX futures
+    timeframe: 5
+  - kind: registered
+    id: mcx_gold_intraday_ma_filter
+    note: Frozen SMA(50)+20 bp filter; one MCX contract sample only
+    timeframe: 5

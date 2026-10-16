@@ -105,12 +105,12 @@ def last_day_jsonl(path: Path, field: str = "d") -> str:
 _SCAN_CACHE: dict[tuple[str, str], tuple[int, dict[str, str]]] = {}
 
 
-def _max_by(path: Path, group: str, value: str) -> dict[str, str]:
+def _max_by(path: Path, group: str, value: str, *, nonempty: bool = False) -> dict[str, str]:
     """`{group value: max(value)}` across a JSONL manifest, cached by mtime."""
     if not path.exists():
         return {}
     stamp = path.stat().st_mtime_ns
-    key = (str(path), f"{group}|{value}")
+    key = (str(path), f"{group}|{value}|nonempty={nonempty}")
     cached = _SCAN_CACHE.get(key)
     if cached and cached[0] == stamp:
         return cached[1]
@@ -122,6 +122,8 @@ def _max_by(path: Path, group: str, value: str) -> dict[str, str]:
             try:
                 row = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            if nonempty and int(row.get("rows", 0)) <= 0:
                 continue
             g = str(row.get(group, "")) if group else ""
             v = str(row.get(value, ""))
@@ -271,6 +273,7 @@ STEPS_FOR: dict[str, tuple[str, ...]] = {
     "Mutual fund NAVs": ("mutual fund NAVs",),
     "Option chain snapshots": ("option chain",),
     "India minute bars (Kite)": ("India minute bars",),
+    "MCX iCOMDEX minute bars (Kite)": ("MCX index minute bars",),
 }
 """Each dataset's own Update button: the fetch it derives from, then the build.
 Every name must be a `daily_feed.STEPS` name (tests/test_data_pipeline.py)."""
@@ -375,6 +378,21 @@ def table(now: datetime | None = None) -> list[Row]:
         kite,
         "nse",
         detail="needs a Kite token minted today: log in to Kite above",
+        fix="Log in to Kite on this page, then Update",
+    )
+    mcx_indexes = _max_by(
+        LANDING / "mcx_indices" / "manifest.jsonl", "symbol", "end", nonempty=True
+    )
+    mcx_last = max(mcx_indexes.values(), default="")
+    add(
+        "Needs a Kite login",
+        "MCX iCOMDEX minute bars (Kite)",
+        mcx_last,
+        "nse",
+        detail=(
+            f"{len(mcx_indexes)} index series landed; Kite history is partial and the "
+            "full five-year window was queried, including empty history ranges"
+        ),
         fix="Log in to Kite on this page, then Update",
     )
     funda = _max_by(LANDING / "fundamentals" / "manifest.jsonl", "", "fetch_date").get("", "")

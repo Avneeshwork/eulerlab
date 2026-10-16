@@ -1,0 +1,53 @@
+id: github-ema-crossover-nse-screen
+title: 'GitHub EMA(5/15) crossover: costed NSE stock adaptation'
+authors: Mohan Yaduvanshi; EulerLab research
+year: 2026
+kind: note
+source_url: https://github.com/mohanyadu/Quantitative-Trading-System-NIFTY-5-Min-
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE listed equities (five-stock price-only adaptation)
+- NIFTY spot/futures/options (source repository's stated market)
+summary: >-
+  A fixed costed screen of a public GitHub repository's 5-minute EMA(5/15)
+  crossover baseline on five NSE stocks. The source describes an HMM regime
+  filter using options and futures variables unavailable in the local stock
+  OHLCV archive, so this measurement is explicitly the price-only baseline
+  adaptation. It loses substantially after costs. The repository reports a
+  negative uncosted test result for its own NIFTY baseline.
+trade_idea: >-
+  Enter long/short at the next 5-minute open when EMA(5) crosses above/below
+  EMA(15), reverse at the opposite cross, and flatten at 15:10.
+implementation: >-
+  See docs/RESEARCH/095-github-ema-crossover-nse-screen.md and
+  src/eulerlab/intraday/github_ema_crossover_screen.py. Run
+  `make github-ema-crossover-intraday`, then `make library-sync` to attach the
+  costed daily curve. The screen uses five fixed names and evaluation dates
+  2024-01-01 through 2024-11-30, date-aware NSE intraday charges, and assumed
+  2 bp slippage per side. The data reader excludes any parquet object crossing
+  2024-11-30. The source's options-feature HMM filter is omitted, not replaced,
+  because the local equity OHLCV archive does not contain IV, PCR, Greeks, or
+  futures basis.
+red_flags:
+- This is a price-only adaptation; the source HMM filter and its options/futures inputs are not measured.
+- The source README reports negative train/test returns for its own NIFTY baseline before costs and zero trades from its ML filter.
+- The source repository is small and its performance claims are not independently verified.
+- Five fixed large-cap stocks do not provide point-in-time universe membership.
+- Assumed 2 bp per-side slippage does not model quote-level liquidity or market impact.
+- EMA crossover turnover is high; estimated transaction costs dominate the result.
+- The local 2024 window is a fixed evaluation sample, not an untouched future holdout.
+reported_results: >-
+  NSE price-only adaptation for 2024-01-01 through 2024-11-30: 5,320 completed
+  round trips over 224 common sessions, -1.95% gross return, 0.987 gross
+  profit factor, -65.72% net return, -16.444 net Sharpe, -65.72% net maximum
+  drawdown, 23.8% net winning trades, 0.506 net profit factor, and
+  ₹1,047,631.68 estimated charges and slippage. The source's HMM-filtered
+  strategy remains untested because its options/futures inputs are unavailable.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_ema_5_15_crossover
+  note: Costed price-only NSE adaptation is negative; full HMM candidate is data blocked
+  timeframe: 0

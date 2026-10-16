@@ -1,0 +1,55 @@
+id: chesler-hikkake-nse-intraday-screen
+title: 'Hikkake failed inside-bar breakout: NSE minute screen'
+authors: Dan Chesler; EulerLab research
+year: 2004
+kind: note
+source_url: https://oxfordstrat.com/trading-strategies/hikkake-pattern/
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE listed equities (five-stock intraday adaptation)
+- 42 futures markets (Oxford Strategy source test, 1980-2014)
+summary: >-
+  A fixed screen of Chesler's Hikkake false-breakout entry on five NSE stocks.
+  The source specification uses an inside bar followed by an opposite-direction
+  range break, a one-tick stop entry within three bars, a pattern stop, and a
+  six-ATR stop. Oxford Strategy reports that longer holding periods above ten
+  bars were preferred in its multi-market futures study. This NSE same-session
+  adaptation loses after modeled costs.
+trade_idea: >-
+  After an inside bar and a bar that pushes beyond its range, enter only when
+  price reverses through the opposite inside-bar edge within three bars. Exit
+  at the tighter pattern/6x ATR(20) stop or by 15:10.
+implementation: >-
+  See docs/RESEARCH/094-hikkake-failed-breakout.md and
+  src/eulerlab/intraday/hikkake_screen.py. Run `make hikkake-intraday`, then
+  `make library-sync` to import the costed Strategy Library curve. The screen
+  uses five fixed NSE names, five-minute bars derived from one-minute OHLCV,
+  evaluation dates 2024-01-01 through 2024-11-30, date-aware NSE intraday
+  charges and assumed 2 bp slippage per side. The reader excludes any parquet
+  object crossing 2024-11-30. It flattens at 15:10, uses stop-first ordering
+  when stop and trigger coexist in a five-minute bar, and limits trades to one
+  per stock/session.
+red_flags:
+- The Oxford evidence is across 42 futures markets, not Indian equities; its reported preferred holding period is longer than ten bars.
+- The independent US-stock test found no meaningful one-day edge and did not include transaction costs.
+- The NSE test is a same-day adaptation of a source that prefers holding longer than ten bars.
+- Five fixed large-cap names create concentration and survivorship limitations.
+- Slippage is an assumed 2 bp per side; quote-level liquidity and market impact are not modeled.
+- Five-minute OHLC data cannot determine intrabar trigger/stop ordering; stop-first is assumed.
+- This fixed 2024 evaluation sample is not an untouched future holdout.
+reported_results: >-
+  Local NSE result for 2024-01-01 through 2024-11-30: 915 trades over 224
+  common sessions, +1.42% gross return, 1.057 gross profit factor, -15.31% net
+  return, -6.811 net Sharpe, -15.31% net maximum drawdown, 23.3% net winning
+  trades, 0.569 net profit factor, and ₹180,177.69 estimated charges and
+  slippage. The source itself reports a 42-market futures test and preference
+  for holding periods longer than ten bars; it does not establish NSE
+  profitability.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_hikkake_failed_inside_bar
+  note: Negative net NSE intraday result; see research note 094
+  timeframe: 0

@@ -123,6 +123,7 @@ def replay(
     futures: list[dict[str, Any]],
     lots: LotLookup,
     traded_through: date | None,
+    cash_flows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Walk the days since the deployment started. Returns the book, or a halt.
 
@@ -143,6 +144,8 @@ def replay(
     held: dict[str, int] = {}
     position: dict[str, Any] | None = None
     sent = 0
+    applied_flows: list[dict[str, Any]] = []
+    applied_flow_keys: set[tuple[str, str]] = set()
 
     def record(day: date, side: Side, symbol: str, quantity: int, price: float) -> float:
         nonlocal costs
@@ -208,6 +211,21 @@ def replay(
             held.pop(position["symbol"], None)
             position = None
 
+        # A flow takes effect on the first close after the last decision it
+        # records. The prior overnight position has already settled at open.
+        pre_flow_equity = equity
+        due_flows = [
+            flow
+            for flow in (cash_flows or [])
+            if str(flow.get("last_decided", "")) < day.isoformat()
+            and (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+            not in applied_flow_keys
+        ]
+        flow_amount = sum(float(flow.get("amount", 0.0)) for flow in due_flows)
+        if equity + flow_amount < 1_000.0:
+            return {"halt": "cash flow would leave less than ₹1,000 in the overnight book"}
+        equity += flow_amount
+
         # --- the close: open tonight's, if the day signals ----------------------
         if day in signal:
             chosen = contract_for(stored[day], day.isoformat())
@@ -270,6 +288,19 @@ def replay(
                             }
                         )
         curve.append([day.isoformat(), round(equity, 2)])
+        for flow in due_flows:
+            key = (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+            applied_flow_keys.add(key)
+            applied_flows.append(
+                {
+                    "amount": float(flow.get("amount", 0.0)),
+                    "last_decided": str(flow.get("last_decided", "")),
+                    "entered_at": str(flow.get("entered_at", "")),
+                    "decision_day": day,
+                    "applied_day": day,
+                    "pre_flow_equity": pre_flow_equity,
+                }
+            )
 
     return {
         "days": days,
@@ -282,6 +313,7 @@ def replay(
         "position": position,
         "sent": sent,
         "signal_today": bool(days) and days[-1] in signal,
+        "flows": applied_flows,
     }
 
 
@@ -324,6 +356,7 @@ def run(deployment: Deployment) -> dict[str, Any]:
             futures=sorted(_stored_days(NIFTY_FUTURES), key=lambda d: str(d["d"])),
             lots=lot_size,
             traded_through=traded_through,
+            cash_flows=deployment.flows,
         )
     except KillSwitchTripped as exc:
         return _halt(deployment, oms, state, f"kill switch: {exc}")
@@ -374,15 +407,50 @@ def run(deployment: Deployment) -> dict[str, Any]:
         )
     if stale := freshness(days[-1]):
         warnings.append(stale)
+    applied_flows = [
+        {**flow, "decision_day": flow["decision_day"].isoformat()} for flow in book["flows"]
+    ]
+    applied_keys = {
+        (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+        for flow in applied_flows
+    }
+    pending_flows = [
+        flow
+        for flow in deployment.flows
+        if (str(flow.get("entered_at", "")), str(flow.get("last_decided", ""))) not in applied_keys
+    ]
+    invested = deployment.capital + sum(float(flow["amount"]) for flow in applied_flows)
+    flow_by_day: dict[str, tuple[float, float]] = {}
+    for flow in applied_flows:
+        flow_day = str(flow["decision_day"])
+        amount, before = flow_by_day.get(flow_day, (0.0, float(flow["pre_flow_equity"])))
+        flow_by_day[flow_day] = (amount + float(flow["amount"]), before)
+    twr = 1.0
+    previous_equity = deployment.capital
+    for day, value in book["curve"]:
+        flow_period = flow_by_day.get(str(day))
+        if flow_period:
+            amount, before_flow = flow_period
+            if previous_equity > 0 and before_flow > 0:
+                twr *= before_flow / previous_equity
+            if before_flow + amount > 0:
+                twr *= float(value) / (before_flow + amount)
+        elif previous_equity > 0:
+            twr *= float(value) / previous_equity
+        previous_equity = float(value)
     state.update(
         status="ok",
         reason="",
         traded_through=days[-1].isoformat(),
         as_of=days[-1].isoformat(),
+        last_decided=days[-1].isoformat(),
         capital=deployment.capital,
+        invested=round(invested, 2),
+        flows=applied_flows,
+        pending=pending_flows,
         equity=round(equity, 2),
         cash=round(equity, 2),
-        total_return=round(equity / deployment.capital - 1.0, 6),
+        total_return=round(twr - 1.0, 6),
         costs=round(float(book["costs"]), 2),
         curve=curve,
         book=rows,

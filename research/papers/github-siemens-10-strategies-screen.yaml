@@ -1,0 +1,31 @@
+id: github-siemens-10-strategies-screen
+title: 'NSE Quant Backtest: ten systematic strategies on Siemens India'
+authors: Yatharth Bhatt
+year: 2026
+kind: note
+source_url: https://github.com/geekyyatharth/NSE-Quant-Backtest
+pdf: ''
+added: '2026-10-15'
+status: rejected
+markets:
+- Siemens India, daily bars, 2020-2024
+summary: The repository reports ten daily technical systems with next-open execution and a
+  2020-2022 / 2023-2024 split. It reports seven systems with positive OOS Sharpe, but its
+  predefined pass criteria reject all because the in-sample Sharpe values were negative.
+trade_idea: No new intraday rule selected; all ten strategies generate daily close signals and
+  execute at the next day's open.
+implementation: |-
+  Screened and excluded from the five Indian-stock intraday strategy objective. The ten
+  reported families are 20-day breakout/volume, EMA pullback, gap follow-through, top-down
+  moving-average/RSI filter, ADX/EMA, SAR/DMI/volume, Fibonacci retracement, RSI divergence,
+  Bollinger/MACD/volume and EMA 20/50/200. These overlap existing strategy families, use
+  daily bars, and cover only Siemens. No local implementation or backtest was run.
+red_flags:
+- Daily close-to-next-open trades do not meet the intraday objective.
+- One current constituent and 1,237 daily observations do not establish cross-sectional NSE robustness.
+- The README's own walk-forward pass criteria mark every reported strategy as a failure; positive OOS Sharpe alone is not a pass.
+- Similar breakout, gap, EMA, mean-reversion and indicator-confluence strategies have already been screened locally.
+- Repository currently shows zero stars and one commit; this is a source triage signal, not validation of the code or data.
+reported_results: The README reports seven of ten strategies with positive 2023-2024 OOS Sharpe (maximum 0.919), while all fail its stated walk-forward criteria because IS Sharpe was negative. Full-period daily strategy returns underperform Siemens buy-and-hold.
+hypothesis: ''
+strategies: []

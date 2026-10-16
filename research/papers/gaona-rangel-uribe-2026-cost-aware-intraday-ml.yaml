@@ -1,0 +1,37 @@
+id: gaona-rangel-uribe-2026-cost-aware-intraday-ml
+title: Intraday trading strategy selection under transaction costs with machine learning
+authors: Gaona, A.; Rangel-Madariaga, J.; Uribe, L.
+year: 2026
+kind: paper
+source_url: https://doi.org/10.3389/fams.2026.1888767
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- 24 U.S. equities, 10 FX pairs and 6 cryptocurrencies, one-minute data, 2022-2023
+summary: Compares Decision Tree, Random Forest and XGBoost models over 1-30 minute
+  forecasting horizons, with cost-aware directional labels, rolling out-of-sample evaluation,
+  and Bayesian model selection. Only a small subset of the 40 assets remains profitable under
+  the study's fixed cost assumptions; AAPL, MSFT and TSLA are among the positive equities.
+trade_idea: Use price/volume indicators to predict whether the next 30-minute move can exceed
+  transaction costs, then trade only predicted up or down opportunities with next-observation
+  execution and a flat class for moves below costs.
+implementation: |-
+  NSE adaptation in src/eulerlab/intraday/cost_aware_ml_screen.py: source-listed indicator
+  families, a fixed 30-minute horizon, a three-class cost-aware target, and a predeclared
+  Random Forest trained only on 2022-2023 then evaluated through 2024-11-30. Delayed next-minute
+  entry and next-open exit, live-equity sizing across five initial ₹200,000 sleeves, actual
+  date-aware NSE fees plus assumed 2 bp slippage per side.
+  The local run is an adaptation; it does not reproduce the paper's cross-asset Bayesian tuning.
+red_flags:
+- Paper uses U.S. equities, FX and crypto; Indian stock edge is unproven.
+- Its 200-pip equity cost is a fixed U.S. assumption, not NSE fees or observed spread.
+- The paper's positive equities show small average returns per trade; repeated optimization may overfit despite rolling evaluation.
+- Local results use five current liquid stocks and a fixed 2024 evaluation sample, not an untouched future holdout.
+reported_results: 'Source paper: only a subset of assets profitable after its assumed costs; among equities, TSLA Random Forest 30-minute down, AAPL Decision Tree 30-minute up and MSFT Decision Tree 30-minute down show positive cumulative P&L. Local NSE adaptation: 9,866 round trips over 224 sessions; ₹10 lakh split into five live-equity sleeves ended at ₹94,323 (-90.57%) after ₹9,94,693 of date-aware charges and assumed 2 bp slippage per side. It is not profitable.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_cost_aware_30m_random_forest
+  note: 'NSE adaptation, fixed model and horizon; 2022-2023 train / 2024 evaluation after costs'
+  timeframe: 0

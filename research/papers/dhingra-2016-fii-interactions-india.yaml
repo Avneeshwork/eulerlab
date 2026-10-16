@@ -1,0 +1,25 @@
+id: dhingra-2016-fii-interactions-india
+title: 'Foreign institutional investments in India: An empirical analysis of dynamic interactions with stock market return and volatility'
+authors: Dhingra, Vaishali S.; Gandhi, Shailesh; Bulsara, Hemantkumar P.
+year: 2016
+kind: paper
+source_url: https://www.sciencedirect.com/science/article/pii/S0970389616300854
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- Indian equity market, daily
+summary: Uses static and dynamic models of daily FII investments, market returns and volatility. Reports positive-feedback buying and negative-feedback withdrawal behaviour, with selling activity significantly raising volatility in its VAR impulse responses. Research 097 separately tests a locally defined, lagged participant-OI adaptation; that adaptation loses after modeled costs and is not the paper's flow rule.
+trade_idea: Use prior-day FII withdrawal as a risk/volatility-regime candidate, not as a standalone short signal.
+implementation: 'Potentially test lagged FII/FPI sell shocks as a next-session volatility filter. Historical aggregate cash-flow data are missing locally, and the source does not specify a minute-level execution rule.'
+red_flags:
+- Daily aggregate findings do not establish intraday timing or direction.
+- Feedback trading means price moves may cause flows as well as flows affecting prices.
+- Local official cash-flow endpoint exposes latest day only, not a historical backfill.
+reported_results: The authors report that FII selling significantly increases market volatility and that FII behaviour differs between investment and withdrawal periods; no locally reproduced strategy result.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: fii_index_futures_position_follow
+  note: Two-session-lagged NSE participant OI adaptation; not the paper's cash-flow rule.
+  timeframe: 1

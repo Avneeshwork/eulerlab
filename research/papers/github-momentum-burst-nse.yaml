@@ -1,0 +1,28 @@
+id: github-momentum-burst-nse
+title: 'Three-bar ATR momentum burst with volume confirmation: GitHub rule'
+authors: luckyloneranger repository contributors
+year: 2026
+kind: note
+source_url: https://github.com/luckyloneranger/backtest-platform/blob/main/strategies/strategies/deterministic/intraday_momentum.py
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE liquid stocks, 5-minute OHLCV adaptation
+summary: 'The source rule detects a close-to-close move exceeding 1.5 ATR across three bars, confirms volume above twice the prior 20-bar mean, and trails a stop by 1 ATR. The repository describes +32%/+39% for a combined regime-adaptive portfolio; it does not attribute those returns to this component alone.'
+trade_idea: 'Test the standalone 3-bar volatility-scaled momentum burst after Indian equity transaction costs.'
+implementation: 'Research 110 uses Wilder ATR(14), 3-bar close-to-close move >1.5 ATR, signal volume >2x preceding 20-bar mean, next contiguous 5-minute open, 1 ATR trailing stop updated on completed bars, 2-trade daily cap and 15:00 square-off. Position notional is 3% of ₹1,000,000 capital, capped at ₹200,000 per stock; date-aware NSE charges plus 2 bp slippage per side.'
+red_flags:
+- The source is a recent public repository with no independent validation of the standalone intraday_momentum component.
+- The README's positive performance is attributed to a combined portfolio, not this rule alone.
+- This remains in the broad momentum family, although its impulse trigger differs from existing pullback strategies.
+- Five fixed current stocks are not a point-in-time universe.
+- Minute OHLCV cannot resolve spread, queue position or partial fills; assumed slippage may understate costs.
+- The stop trail and entry are independently adapted to conservative next-bar fills.
+reported_results: 'Fixed 2024 NSE adaptation: 929 round trips across 224 common sessions, +0.05% gross and -3.82% net return, net Sharpe -14.622, net maximum drawdown -3.82%, 20.3% net winners, 0.276 profit factor, and ₹39,464 estimated costs. The source README reports performance only for a combined portfolio.'
+hypothesis: H-0018
+strategies:
+- kind: registered
+  id: nse_github_3bar_atr_momentum_burst
+  note: Fixed standalone NSE adaptation and local result in Research 110
+  timeframe: 0

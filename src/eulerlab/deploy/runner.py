@@ -251,6 +251,7 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
             strategy,
             asset_class="equity",
             starting_cash=deployment.capital,
+            cash_flows=deployment.flows,
             rebalance_every=int(getattr(strategy, "rebalance_every", 21)),
             gross_cap=GROSS,
             warmup=warmup,
@@ -323,15 +324,41 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     ]
     if stale := freshness(days[-1]):
         warnings.append(stale)
+    applied_flows: list[dict[str, Any]] = []
+    for flow in result.applied_flows:
+        decision_day, fill_day = flow.get("decision_day"), flow.get("fill_day")
+        if not isinstance(decision_day, date) or not isinstance(fill_day, date):
+            continue
+        applied_flows.append(
+            {
+                **flow,
+                "decision_day": decision_day.isoformat(),
+                "applied_day": fill_day.isoformat(),
+            }
+        )
+    applied_keys = {
+        (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+        for flow in applied_flows
+    }
+    pending_flows = [
+        flow
+        for flow in deployment.flows
+        if (str(flow.get("entered_at", "")), str(flow.get("last_decided", ""))) not in applied_keys
+    ]
+    invested = deployment.capital + sum(float(flow["amount"]) for flow in applied_flows)
     state.update(
         status="ok",
         reason="",
         traded_through=result.days[-1].isoformat() if result.days else None,
         as_of=days[-1].isoformat(),
+        last_decided=days[-2].isoformat() if len(days) > 1 else deployment.start.isoformat(),
         capital=deployment.capital,
+        invested=round(invested, 2),
+        flows=applied_flows,
+        pending=pending_flows,
         equity=round(equity, 2),
         cash=round(portfolio.cash, 2) if portfolio else deployment.capital,
-        total_return=round(equity / deployment.capital - 1.0, 6),
+        total_return=round(result.total_return, 6),
         costs=round(result.total_cost, 2),
         curve=[
             [d.isoformat(), round(v, 2)] for d, v in zip(result.days, result.equity, strict=True)

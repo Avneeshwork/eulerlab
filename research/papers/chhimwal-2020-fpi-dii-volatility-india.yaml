@@ -1,0 +1,21 @@
+id: chhimwal-2020-fpi-dii-volatility-india
+title: 'Impact of foreign and domestic investment in stock market volatility: Empirical evidence from India'
+authors: Chhimwal, Bhaskar; Bapat, Varadraj; McMillan, David
+year: 2020
+kind: paper
+source_url: https://doi.org/10.1080/23322039.2020.1754321
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- Indian large-cap, mid-cap and small-cap indices, daily, 2009-2018
+summary: Models unexpected FPI and DII flows against volatility in large-, mid- and small-cap market segments. Unexpected FPI shocks increase volatility; unexpected DII flows mitigate the effect, and unexpected FPI selling has a stronger volatility impact than buying.
+trade_idea: Test whether lagged DII buying moderates volatility after a large FPI sell shock; prioritize risk reduction and volatility outcomes before directional trades.
+implementation: 'Research 105 tests a deliberately weaker proxy because historical cash flows are unavailable: flag negative FII net index-futures OI changes at or below their trailing 20th percentile, then compare next-session realized volatility when DII net index-futures OI rises versus when it does not. The source uses unexpected cash flows; this is not a replication. The report is delayed by two sessions because historical release timestamps are absent.'
+red_flags:
+- The relationship is about conditional volatility, not necessarily next-day return direction.
+- Flow surprises depend on the fitted model and sample window.
+- Aggregate segment-level results do not identify affected stocks or intraday trade time.
+reported_results: Unexpected FPI flows raise volatility, unexpected DII flow reduces the impact, and FPI selling has a stronger effect than buying in the studied sample. Local OI proxy screen (2024; 44 FII exposure-drop events) shows mean next-session realized-volatility ratios 1.0577 with positive DII net-OI change (n=23) and 1.0701 without (n=21), inconclusive; not a reproduced strategy return.
+hypothesis: H-0013
+strategies: []

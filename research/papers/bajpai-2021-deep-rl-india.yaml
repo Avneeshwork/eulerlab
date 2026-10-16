@@ -6,17 +6,30 @@ kind: paper
 source_url: https://arxiv.org/abs/2106.16088
 pdf: ''
 added: '2026-10-07'
-status: idea
+status: rejected
 markets:
-- Ten Indian stocks
-summary: Compares DQN, double DQN and dueling double DQN trading agents on ten Indian stocks.
-trade_idea: A learned agent can time entries and exits better than fixed rules.
+- Ten Nifty 50 stocks; bar frequency and sample dates unspecified
+summary: Compares DQN, Double DQN and Dueling Double DQN agents on ten Nifty 50 stocks. The
+  paper specifies a 90-step window, hold/buy/sell actions, 50 training episodes and several
+  optimizer settings, but leaves the state representation, reward, capital/execution rules,
+  and bar frequency unclear. Reported test profits are gross currency amounts without costs
+  or a stated common starting capital.
+trade_idea: A learned agent maps a recent 90-step stock-price window to hold, buy or sell
+  actions; a causal, costed intraday rule cannot be reconstructed from the paper as published.
 implementation: |-
-  - Not specified in the abstract: no state, action or reward definition to rebuild.
-
-  Not backtested.
+  Full HTML paper reviewed at https://arxiv.org/html/2106.16088. It sets 50 episodes, batch
+  size 64, gamma 0.95, learning rate 0.00025, epsilon 1.0 decaying by 0.995 to 0.1, Adam,
+  and a 90-step window. It does not define the state features, reward function, network
+  dimensions, precise action/position semantics, bar frequency, or execution/cost model.
+  Reported positive test profits therefore cannot be independently reconstructed as an
+  intraday strategy. No local code or backtest was run; do not invent these design choices.
 red_flags:
-- Abstract only; no reproducible rule; no headline numbers in the abstract.
-reported_results: Not given in the abstract.
+- Ten randomly selected Nifty 50 datasets; sample membership and dates are not clearly documented.
+- Bar frequency is unspecified, so the work is not established as intraday.
+- Equal train/test split is stated, but exact split dates and model-selection procedure are unclear.
+- State representation, reward function, network architecture and execution semantics are missing.
+- Profits are reported in currency units with no common starting capital, fees, spread, slippage or benchmark-adjusted return.
+- Table results vary substantially by model and stock; one model performing better on average does not demonstrate net profitability.
+reported_results: The paper reports gross currency test profits for DQN, DDQN and Dueling DDQN across ten stocks; starting capital, costs, bar frequency and comparable return rates are not supplied.
 hypothesis: ''
 strategies: []

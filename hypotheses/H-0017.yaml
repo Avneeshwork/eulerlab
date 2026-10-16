@@ -1,0 +1,32 @@
+id: H-0017
+title: Strict engulfing with volume and RSI filters earns positive NSE intraday returns after costs
+status: rejected
+
+claim: >
+  On five fixed liquid NSE stocks, strict 5-minute engulfing patterns confirmed
+  by volume above the prior EMA(14) and RSI(14) below 40 for longs or above 60
+  for shorts, with pattern stops and a 5R target, produce positive returns
+  after modeled costs.
+
+rationale: >
+  A public GitHub example states explicit volume, RSI and reward-to-risk
+  thresholds but does not verify them on Indian equities. This fixed screen
+  independently tests the idea with next-bar fills and realistic charges.
+
+source: >
+  kavyansh34, Engulfing candle backtester. See
+  docs/RESEARCH/109-github-engulfing-volume-rsi-nse.md.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, TCS, INFY], timeframe: 5m, pattern: strict opposite-color body engulfing, volume: signal volume above prior EMA14, rsi: RSI14 below 40 long / above 60 short, stop: outer engulfing-pair extreme, target: 5R, evaluation: [2024-01-01, 2024-11-30], risk_per_trade: 1% of sleeve, slippage_bps_per_side: 2}
+
+result: >
+  Rejected on the fixed development sample: 360 round trips across 224 common
+  sessions returned -0.02% gross and -6.86% net after modeled charges, with
+  net Sharpe -5.088 and profit factor 0.519.
+
+red_flags:
+  - The source is a crypto example, not evidence of NSE profitability.
+  - Five fixed current stocks leave survivorship and universe-selection bias.
+  - OHLCV cannot resolve spread, queue position or partial fills.
+  - One evaluation window is used and must not be tuned against.

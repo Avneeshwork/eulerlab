@@ -1,0 +1,35 @@
+id: H-0012
+title: Lagged FII index-futures positioning predicts next-session NSE stock direction
+status: rejected
+
+claim: >
+  The sign of the change in FII net index-futures open interest predicts the
+  same-session direction of a liquid NSE stock basket when applied with a
+  conservative two-session lag, strongly enough to survive costs.
+
+rationale: >
+  Daily Indian-market studies associate FII withdrawal with volatility, while
+  NSE publishes participant-wise index-futures positions. This is an
+  exploratory, market-wide positioning proxy; it is not stock-specific FII
+  trading or an intraday entry/exit observation.
+
+source: >
+  Dhingra, Gandhi & Bulsara (2016), daily FII/return/volatility study; NSE
+  participant-wise F&O open-interest report. See docs/RESEARCH/097.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, INFY, TCS], position: FII Future Index Long minus Short, direction: sign of daily net-position change, lag: 2 NSE sessions, entry: 09:16, exit: 15:10, evaluation: [2024-01-01, 2024-11-30]}
+
+result: >
+  Rejected after modeled costs. Across 224 sessions and 1,120 stock round trips,
+  gross return was +20.54% (gross Sharpe 1.878) but net return was -3.31%, net
+  Sharpe -0.271, and maximum drawdown -10.45%. Fees plus assumed slippage were
+  ₹220,592 on ₹1,000,000 starting capital. The result is an OI-position
+  adaptation, not a replication of the papers' cash-flow measures.
+
+red_flags:
+  - NSE participant OI is a daily position snapshot, not signed cash-market flow or intraday trade timing.
+  - Historical report publication timestamps were unavailable; the rule uses an additional two-session lag.
+  - Five fixed stocks are not a point-in-time universe.
+  - 2 bp per-side slippage is an assumption; minute OHLCV cannot replay spread, queue, or market impact.
+  - Evaluation ends 2024-11-30; later data was not opened.

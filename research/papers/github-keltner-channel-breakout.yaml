@@ -1,0 +1,27 @@
+id: github-keltner-channel-breakout
+title: 'Keltner Channel close breakout with EMA midline exit'
+authors: cloudQuant/backtrader contributors
+year: 2026
+kind: note
+source_url: https://github.com/cloudQuant/backtrader/blob/development/tests/functional/strategies/volatility/test_108_keltner_channel_strategy.py
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE liquid stocks, 5-minute OHLCV adaptation
+summary: 'The public Backtrader strategy enters long when the completed close exceeds the Keltner upper band and exits when the close falls below the EMA middle line. The sample code uses EMA period 20 and ATR multiplier 2.0; its test harness is an educational example, not evidence of Indian-market profitability.'
+trade_idea: 'Test whether a simple long-only volatility-channel breakout with an EMA midline exit survives Indian equity transaction costs.'
+implementation: 'Research 106 translates the source to 5-minute NSE bars: continuous EMA(20), Wilder ATR(20), enter next bar after close above EMA + 2 ATR, exit next bar after close below EMA, and square off by 15:10. It uses fixed ₹200,000 per stock, date-aware exchange fees and assumed 2 bp slippage per side.'
+red_flags:
+- The source does not establish intraday NSE profitability.
+- Keltner breakouts overlap the broad trend and breakout families; existing squeeze and moving-average rules are adjacent.
+- The screen uses a fixed five-stock universe and a single 2024 evaluation period.
+- Minute OHLCV cannot resolve spread, queue position, partial fills, or market impact.
+- The source's optional volume confirmation is omitted because this candidate freezes the simple core rule.
+reported_results: 'The source is an educational strategy example and does not claim or establish Indian-market returns. Fixed local 2024 NSE adaptation: 956 round trips across five stocks, +2.57% gross and -15.04% net return, net Sharpe -3.684, 32.3% net winners, 0.690 net profit factor, and ₹188,270 estimated fees/slippage.'
+hypothesis: H-0014
+strategies:
+- kind: registered
+  id: nse_github_keltner_channel_breakout
+  note: Fixed NSE adaptation and local result in Research 106
+  timeframe: 0

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book
+.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
 
 help:
 	@echo "EulerLab — targets"
@@ -25,6 +25,9 @@ help:
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
 	@echo "  make kite-login   obtain a Kite access token (expires 6 AM daily)"
+	@echo "  make mcx-instruments  fetch today's MCX instrument master and mirror to B2"
+	@echo "  make mcx-gold-minute  fetch current Gold futures minutes and mirror to B2"
+	@echo "  make mcx-gold-backtest run the frozen MCX Gold rule with costs"
 	@echo "  make ingest-oi FROM=2020-01-01 [TO=...]"
 	@echo "                    backfill NSE participant-wise F&O open interest"
 	@echo "  make ingest-minute [YEARS=5] [LIMIT=n]"
@@ -166,6 +169,11 @@ fundamentals-run:
 
 build-master:
 	uv run python -m eulerlab.master.build_master $(if $(DAILY),--cadence daily,)
+
+# Current Kite MCX instruments plus their immutable raw response in B2's nse/mcx/ prefix.
+mcx-instruments:
+	uv run python -m eulerlab.ingest.kite_mcx
+	@$(MAKE) --no-print-directory upload-tree TREES="mcx"
 
 provenance:
 	@uv run python -m eulerlab.bitemporal.provenance $(if $(MANIFEST),--manifest $(MANIFEST),)
@@ -353,6 +361,78 @@ india-intraday:
 stock-intraday:
 	@uv run python -m eulerlab.intraday.stock_papers_run $(if $(STOCKS),--stocks $(STOCKS),)
 
+# Research 087: price-only tests of three non-duplicate Indian stock ideas.
+stock-intraday-candidates:
+	@uv run python -m eulerlab.intraday.stock_candidate_screen
+
+# Research 088: public company/GitHub candidates screened on the fixed NSE
+# minute universe. Volume-profile results are HLC3-weighted OHLCV proxies.
+company-github-intraday:
+	@uv run python -m eulerlab.intraday.company_github_screen
+
+# Research 089: additional GitHub strategy screen; one new price-data rule.
+github-followup-intraday:
+	@uv run python -m eulerlab.intraday.github_followup_screen
+
+# Research 090: GitHub surge/pullback continuation, using frozen code defaults.
+github-momentum-pullback-intraday:
+	@uv run python -m eulerlab.intraday.github_momentum_pullback_screen
+
+# Research 093: 5-minute inside-bar breakout on fixed NSE stocks.
+inside-bar-intraday:
+	@uv run python -m eulerlab.intraday.inside_bar_screen
+
+# Research 094: source-defined Hikkake false-breakout pattern on NSE minutes.
+hikkake-intraday:
+	@uv run python -m eulerlab.intraday.hikkake_screen
+
+# Research 095: price-only 5/15 EMA crossover adaptation from a GitHub repo.
+github-ema-crossover-intraday:
+	@uv run python -m eulerlab.intraday.github_ema_crossover_screen
+
+# Research 096: hourly trend-aligned 15-minute Supertrend re-entry.
+supertrend-alignment-intraday:
+	@uv run python -m eulerlab.intraday.supertrend_alignment_screen
+
+# Research 097: lagged NSE participant-wise FII index-futures positioning.
+fii-positioning-intraday:
+	@uv run python -m eulerlab.intraday.fii_participant_oi_screen
+
+# Research 103: cost-aware 30-minute Random Forest signal adapted to NSE stocks.
+cost-aware-ml-intraday:
+	@uv run --extra research-ml python -m eulerlab.intraday.cost_aware_ml_screen
+
+# Research 106: simple GitHub Keltner Channel close breakout.
+github-keltner-intraday:
+	@uv run python -m eulerlab.intraday.github_keltner_screen
+
+# Research 107: simple GitHub Turtle/Donchian 5-minute channel breakout.
+github-donchian-intraday:
+	@uv run python -m eulerlab.intraday.github_donchian_screen
+
+# Research 108: simple GitHub prior-day pivot breakout.
+github-pivot-intraday:
+	@uv run python -m eulerlab.intraday.github_pivot_breakout_screen
+
+# Research 109: GitHub engulfing + volume + RSI screen, adapted to NSE.
+github-engulfing-intraday:
+	@uv run python -m eulerlab.intraday.github_engulfing_screen
+
+# Research 110: GitHub 3-bar ATR momentum burst with volume confirmation.
+github-momentum-burst-intraday:
+	@uv run python -m eulerlab.intraday.github_momentum_burst_screen
+
+# Research 111: GitHub Connors RSI(2) pullback with SMA trend and exit.
+github-rsi2-intraday:
+	@uv run python -m eulerlab.intraday.github_rsi2_pullback_screen
+
+# Research 084: fixed Gold ETF moving-average and Indian stock reversal screens.
+gold-stock-intraday-screen:
+	@uv run --extra research-ml python -m eulerlab.intraday.research_screen
+
+gold-stock-intraday-optimize:
+	@uv run --extra research-ml python -m eulerlab.intraday.strategy_optimizer
+
 # Copy each research study's stored results into the strategy library. Safe
 # to run again; run it after any of the four study targets.
 library-sync:
@@ -394,6 +474,24 @@ kite-fresh:
 # of ~13,500 chunks, this keeps the tail current.
 daily-minute:
 	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
+
+# Five-year MCX iCOMDEX minute history; the manifest makes repeats incremental.
+mcx-index-minute:
+	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_mcx_indices --years 5
+
+# Available minute history for the current standard MCX Gold contract only.
+# Kite's continuous API returns expired-futures candles at daily frequency.
+mcx-gold-minute:
+	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_mcx_gold --years 5
+	@$(MAKE) --no-print-directory upload-tree TREES="mcx_gold"
+
+mcx-gold-backtest:
+	@uv run python -m eulerlab.intraday.mcx_gold_backtest
+
+# Angel One's active MCX Gold token supplies the rolled front-month minute series.
+angel-mcx-gold-minute:
+	@uv run --extra angel -m eulerlab.ingest.angel_mcx_gold $(if $(YEARS),--years $(YEARS),)
+	@$(MAKE) --no-print-directory upload-tree TREES="angel_mcx_gold"
 
 # `daily` holds the `feed` lock for the whole run, the lock the Instruments
 # button takes too, so the overnight job and a click cannot both append the
@@ -439,6 +537,9 @@ daily-run:
 	@echo "== minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory daily-minute
 	-@$(MAKE) --no-print-directory upload-tree TREES="kite_minute" DELETE=1
+	@echo "== MCX iCOMDEX minute bars (needs a token minted today) =="
+	-$(MAKE) --no-print-directory mcx-index-minute
+	-@$(MAKE) --no-print-directory upload-tree TREES="mcx_indices" DELETE=1
 	@echo "== crypto (Binance public archive, no auth) =="
 	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
 	@echo "== crypto month-end gap (Binance daily archive) =="

@@ -63,6 +63,11 @@ IST = ZoneInfo("Asia/Kolkata")
 FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)
 
 
+def _flow_amount(flow: dict[str, object]) -> float:
+    value = flow.get("amount", 0.0)
+    return float(value) if isinstance(value, (int, float)) else 0.0
+
+
 @dataclass
 class TierBResult:
     strategy: str
@@ -73,6 +78,7 @@ class TierBResult:
     cost_mode: str = "realistic"
     orders: list[Order] = field(default_factory=list)
     final_marks: dict[str, float] = field(default_factory=dict)
+    applied_flows: list[dict[str, object]] = field(default_factory=list)
     """The prices open positions were valued at on the last day.
 
     Returned rather than left for a caller to reconstruct. The report's
@@ -89,7 +95,20 @@ class TierBResult:
 
     @property
     def total_return(self) -> float:
-        return self.final_equity / self.starting_cash - 1.0
+        previous = self.starting_cash
+        growth = 1.0
+        flows_by_day: dict[date, float] = {}
+        for flow in self.applied_flows:
+            day = flow.get("fill_day")
+            amount = flow.get("amount")
+            if isinstance(day, date) and isinstance(amount, (int, float)):
+                flows_by_day[day] = flows_by_day.get(day, 0.0) + float(amount)
+        for day, equity in zip(self.days, self.equity, strict=True):
+            denominator = previous + flows_by_day.get(day, 0.0)
+            if denominator > 0:
+                growth *= equity / denominator
+            previous = equity
+        return growth - 1.0
 
     @property
     def total_cost(self) -> float:
@@ -122,6 +141,7 @@ def run(
     cost_multiplier: float = 1.0,
     executor: Executor | None = None,
     fit_capital: bool = False,
+    cash_flows: Sequence[dict[str, object]] | None = None,
 ) -> TierBResult:
     """Run `strategy` event by event.
 
@@ -265,6 +285,8 @@ def run(
     result = TierBResult(
         strategy=strategy.describe(), starting_cash=starting_cash, cost_mode=cost_mode
     )
+    pending_flows = list(cash_flows or [])
+    applied_flow_keys: set[tuple[str, str]] = set()
     sequence = 0
     previous_targets: dict[str, float] = {}
 
@@ -272,7 +294,15 @@ def run(
         today = days[index]
         fill_day = days[index + 1]
 
-        if (index - warmup) % rebalance_every == 0:
+        due_flows = [
+            flow
+            for flow in pending_flows
+            if str(flow.get("last_decided", "")) < today.isoformat()
+            and (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+            not in applied_flow_keys
+        ]
+        is_flow_day = bool(due_flows)
+        if (index - warmup) % rebalance_every == 0 or is_flow_day:
             # --- decide ---
             view = MarketView(as_of=today, history=_view_history(today))
             targets = normalise(strategy.target_weights(view), gross_cap=gross_cap)
@@ -283,13 +313,18 @@ def run(
                 if (price := mark_price(symbol, today)) is not None
             }
             equity = portfolio.equity(marks)
+            flow_amount = sum(_flow_amount(flow) for flow in due_flows)
+            if flow_amount > 0:
+                portfolio.cash += flow_amount
+                equity += flow_amount
+            sizing_equity = equity + min(flow_amount, 0.0)
             if fit_capital:
                 # A deployment's capital may be too small for every name: keep
                 # the top-ranked ones it can buy at today's close (deploy/sizing).
-                targets = fit_to_capital(targets, equity * gross_cap, marks.get)
+                targets = fit_to_capital(targets, sizing_equity * gross_cap, marks.get)
 
-            desired = target_quantities(equity, targets, partial(traded_price, day=fill_day))
-            if strategy.hold_unchanged:
+            desired = target_quantities(sizing_equity, targets, partial(traded_price, day=fill_day))
+            if strategy.hold_unchanged and not is_flow_day:
                 for symbol, quantity in portfolio.holdings().items():
                     if symbol in targets and previous_targets.get(symbol) == targets[symbol]:
                         desired[symbol] = quantity
@@ -323,6 +358,28 @@ def run(
                     portfolio.rejections.append(outcome)
                     continue
                 portfolio.apply(outcome)
+
+            # Deposits are available to the close's rebalance. Withdrawals are
+            # paid after its pro-rata sells have settled at the next close.
+            if flow_amount < 0:
+                payout = -flow_amount
+                if portfolio.cash + 1e-6 < payout:
+                    raise ValueError(
+                        f"withdrawal of ₹{payout:,.2f} exceeds cash settled by the rebalance"
+                    )
+                portfolio.cash -= payout
+            for flow in due_flows:
+                key = (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
+                applied_flow_keys.add(key)
+                result.applied_flows.append(
+                    {
+                        "amount": _flow_amount(flow),
+                        "last_decided": str(flow.get("last_decided", "")),
+                        "entered_at": str(flow.get("entered_at", "")),
+                        "decision_day": today,
+                        "fill_day": fill_day,
+                    }
+                )
 
         # --- mark to market ---
         marks = {

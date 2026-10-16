@@ -1,0 +1,25 @@
+id: nse-intraday-cross-correlation
+title: 'Uncovering the Internal Structure of the Indian Financial Market: Cross-Correlation Behavior in the NSE'
+authors: Sinha, S.; Pan, R. K.
+year: 2007
+kind: paper
+source_url: https://arxiv.org/abs/0704.2115
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- 201 frequently traded NSE stocks, high-frequency price changes (source study)
+- HDFCBANK, ICICIBANK, TCS, INFY, one-minute Kite data (local adaptation)
+summary: The source studies daily closing-price cross-correlations among 201 frequently traded NSE stocks from 1996 to 2006. It finds market-wide movement dominates and that distinct sector clusters are relatively weak. It does not publish a standalone, costed trading rule.
+trade_idea: A liquid stock may move before a related peer; a follower that has not yet matched the leader's move may continue in the leader's direction after entry.
+implementation: |-
+  Not a direct source for the intraday leader-laggard rule. A separate high-frequency NSE clustering paper is recorded in `nse-high-frequency-stock-clustering.yaml` and linked to the local adaptation.
+
+  Data needed for a new daily co-movement replication: survivorship-free, corporate-action-adjusted daily stock returns and historical industry membership.
+red_flags:
+- Source uses daily closing prices, not intraday data.
+- The source finds weak sector clusters relative to broad market co-movement.
+- It does not establish a profitable trading rule.
+reported_results: Source reports market-dominated daily cross-correlation structure, not strategy returns.
+hypothesis: ''
+strategies: []

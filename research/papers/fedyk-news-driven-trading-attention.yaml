@@ -1,0 +1,22 @@
+id: fedyk-news-driven-trading-attention
+title: 'News-Driven Trading: Who Reads the News and When?'
+authors: Fedyk, A.
+year: 2019
+kind: paper
+source_url: https://www.aeaweb.org/conference/2019/preliminary/940
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- US equity news and earnings events; professional news-click timestamps
+summary: The study uses proprietary finance-professional news-click data and finds dispersion in the timing of attention predicts volume surges around earnings and within minutes of individual news articles.
+trade_idea: Use the timing and breadth of attention to news as an event-activity filter, then test price direction as a separate signal with a short fixed holding period.
+implementation: |-
+  Not coded. Data needed: timestamped historical NSE company-news articles and a point-in-time attention or readership measure. A news headline list alone cannot reconstruct the source's proprietary click-dispersion signal.
+red_flags:
+- Predicts volume, not direction or net returns.
+- Source uses proprietary reader-click data unavailable locally.
+- News timestamps and relevance labels must be point-in-time to avoid look-ahead.
+reported_results: The source reports that attention-timing dispersion predicts trading-volume surges, including within minutes of individual articles; no local strategy result is available.
+hypothesis: ''
+strategies: []

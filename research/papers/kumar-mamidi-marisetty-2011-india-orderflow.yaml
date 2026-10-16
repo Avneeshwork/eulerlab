@@ -1,0 +1,22 @@
+id: kumar-mamidi-marisetty-2011-india-orderflow
+title: 'Global Markets Exposure and Price Efficiency: An Empirical Analysis of Order Flow Dynamics of NYSE-Listed Indian Firms'
+authors: Kumar, K.; Mamidi, V.; Marisetty, V.
+year: 2011
+kind: paper
+source_url: https://ideas.repec.org/a/eee/intfin/v21y2011i5p686-706.html
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- Six Indian firms cross-listed on the NYSE; order-flow and intraday transaction data
+summary: The study analyzes order imbalance before and after ADR listings and reports order-flow/return relationships across NSE, BSE, and NYSE. In NSE, order size and order count have different return associations.
+trade_idea: Separate the price response to large signed order size from broad order-count increases, then test continuation versus countervailing trades at short horizons.
+implementation: |-
+  Not coded. Data needed: timestamped signed orders or trades with size, order counts, and market identifiers for NSE stocks. Minute OHLCV does not reveal the variables in the source.
+red_flags:
+- The study concerns six cross-listed firms and an event around ADR listings, not a broad current stock universe.
+- The result is a price-formation relation, not a costed intraday strategy.
+- The source data and required event/order fields are unavailable locally.
+reported_results: The source reports differing price responses to order size and order count; no local strategy result is available.
+hypothesis: ''
+strategies: []

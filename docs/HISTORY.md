@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Twenty times this project was wrong
+## Twenty-one times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -217,6 +217,21 @@ meant to test. They stay failed and are not re-run; they are not evidence
 about opening-range breakouts on the Nifty either way. Shares are affected
 far less (the first bar widens the range by about 40%, as an opening auction
 would).
+
+**21. A file pruned from this machine could not be found in the bucket by its exact name.**
+(2026-10-14, ADR-072) `landing_reader._literal_prefix` returned a pattern's
+folders with a trailing slash. For a pattern with no wildcard, such as
+`2026/10/2026-10-13_udiff.zip`, that asked the bucket for a *folder* of that
+name, and `available` came back empty. While a file was still on disk nobody
+saw it. Once the local copy was gone the file read as missing everywhere. The
+overnight deployment reads its lot size from the day's F&O file by exact name:
+on 13 October the lookup failed, the order was rejected for "lot size not found
+in that day's F&O file", and the paper book did not take a signal it should
+have. Found while adding gap risk, which needs the same lookup. Fixed: a
+pattern with no wildcard is its own prefix. Not re-run: the 13 October night
+is not traded after the fact. **Any exact-name read of a pruned file before
+this date failed the same way**, and ADR-070 now prunes after every dataset,
+so it would have happened every night.
 
 ---
 

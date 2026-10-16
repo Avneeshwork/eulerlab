@@ -1,0 +1,34 @@
+id: H-0015
+title: A 5-minute Donchian breakout earns positive NSE returns after costs
+status: rejected
+
+claim: >
+  On five fixed NSE stocks, entering long after a close above the prior 78-bar
+  high and exiting after a close below the prior 39-bar low produces positive
+  net intraday returns after costs.
+
+rationale: >
+  A public GitHub project specifies these 5-minute channel lengths and applies
+  the signal one bar later. Its own short US out-of-sample screen is negative
+  on multiple tickers and excludes costs, so the Indian adaptation is tested
+  independently.
+
+source: >
+  James R. Powell, Donchain-Breakout, TurtleDonchain_Intraday.py. See
+  docs/RESEARCH/107-github-donchian-intraday-nse-screen.md.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, TCS, INFY], bar_minutes: 5, entry_bars: 78, exit_bars: 39, side: long_only, entry: completed close above prior channel then next open, exit: completed close below prior channel then next open, square_off: 15:10, evaluation: [2024-01-01, 2024-11-30], capital_rupees: 1000000, per_stock_notional: 200000, slippage_bps_per_side: 2}
+
+result: >
+  Negative after modeled costs. Across 224 sessions and 530 round trips, gross
+  return was +6.94% (Sharpe 1.387), but net return was -3.66%, net Sharpe
+  -0.740 and net maximum drawdown -6.05%. The net profit factor was 0.905;
+  estimated costs were ₹104,421. Four of five names were negative net.
+
+red_flags:
+  - The source uses a short US sample, reports negative out-of-sample Sharpe on several names, and omits costs.
+  - Daily square-off changes the source's continuous-position strategy.
+  - Five fixed stocks leave survivorship and universe-selection bias.
+  - Assumed slippage is not calibrated to historical quotes or market impact.
+  - One evaluation window is used; later holdout data was not read.

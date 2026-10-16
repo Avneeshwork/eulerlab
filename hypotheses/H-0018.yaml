@@ -1,0 +1,43 @@
+id: H-0018
+title: Three-bar ATR momentum burst with volume confirmation earns positive NSE intraday returns after costs
+status: rejected
+
+claim: >
+  On five fixed liquid NSE stocks, a 5-minute close-to-close move exceeding
+  1.5 Wilder ATR(14) over three bar intervals, confirmed by volume greater
+  than twice the preceding 20-bar mean and managed by a 1 ATR trailing stop,
+  produces positive returns after modeled costs.
+
+rationale: >
+  A public Indian-market backtesting repository specifies this impulse rule,
+  but reports performance only for a combined strategy portfolio. The
+  standalone component needs independent testing.
+
+source: >
+  luckyloneranger, backtest-platform intraday_momentum. See
+  docs/RESEARCH/110-github-momentum-burst-nse.md.
+
+configurations:
+  - universe: [RELIANCE, HDFCBANK, ICICIBANK, TCS, INFY]
+    timeframe: 5m
+    burst: "3-bar move >1.5 ATR14"
+    volume: ">2x prior 20-bar mean"
+    entry: next contiguous open
+    trailing_stop: 1 ATR14
+    max_trades_per_session: 2
+    square_off: "15:00"
+    evaluation: [2024-01-01, 2024-11-30]
+    position_fraction: 3%
+    slippage_bps_per_side: 2
+
+result: >
+  Rejected on the fixed development sample: 929 round trips across 224 common
+  sessions returned +0.05% gross and -3.82% net after modeled charges, with
+  net Sharpe -14.622 and profit factor 0.276. The combined source portfolio
+  claim is not attributed to this standalone component.
+
+red_flags:
+  - Five fixed current stocks leave survivorship and universe-selection bias.
+  - OHLCV cannot resolve spread, queue position or partial fills.
+  - The source's 3% sizing is a notional fraction, not a 3% risk budget.
+  - One evaluation window is used and must not be tuned against.

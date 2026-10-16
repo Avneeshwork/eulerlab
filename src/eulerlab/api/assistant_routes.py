@@ -30,18 +30,28 @@ class ChatRequest(BaseModel):
 
     messages: list[Turn] = Field(min_length=1, max_length=40)
     provider: str = Field(default="", max_length=80)
+    model: str = Field(default="", max_length=160)
     """A name from the status route's `choices`. Empty uses the default."""
 
 
 @router.get("/status")
-def assistant_status(provider: str = "") -> dict[str, Any]:
-    return chat.status(provider)
+def assistant_status(provider: str = "", model: str = "") -> dict[str, Any]:
+    return chat.status(provider, model)
+
+
+@router.get("/models")
+def assistant_models() -> dict[str, Any]:
+    """Fetch the current free OpenRouter models with ZDR endpoints."""
+    try:
+        return {"ok": True, "models": chat.openrouter_zdr_models()}
+    except (chat.Refused, LLMUnavailable) as exc:
+        return {"ok": False, "models": [], "error": str(exc)}
 
 
 @router.post("/chat")
 def assistant_chat(request: ChatRequest) -> dict[str, Any]:
     try:
-        chosen = chat.provider(name=request.provider)
+        chosen = chat.selected_provider(name=request.provider, model=request.model)
         answer = chat.ask([turn.model_dump() for turn in request.messages], chosen=chosen)
     except (chat.Refused, LLMUnavailable) as exc:
         return {"ok": False, "error": str(exc)}

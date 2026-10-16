@@ -1,0 +1,35 @@
+id: H-0013
+title: DII index-futures positioning moderates next-session volatility after FII exposure declines
+status: rejected
+
+claim: >
+  After unusually large declines in FII net index-futures OI, the next
+  evaluated session's realized volatility is lower when DII net index-futures
+  OI has increased over the same report interval than when it has not.
+
+rationale: >
+  Chhimwal and Bapat (2020) report that unexpected DII cash flows reduce the
+  volatility effect of unexpected FPI flows. This screen uses participant OI
+  changes only because no historical cash-flow series with release timestamps
+  is locally available; it is explicitly a weaker proxy.
+
+source: >
+  Chhimwal & Bapat (2020), Impact of foreign and domestic investment in stock
+  market volatility: Empirical evidence from India. See Research 105.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, INFY, TCS], evaluation: [2024-01-01, 2024-11-30], fii_shock: trailing 20th percentile of up to 60 prior net-index-futures-OI changes, min_history: 40, lag: 2 NSE sessions, dii_proxy: positive net-index-futures-OI change, outcome: next-session realized volatility over trailing 20-session mean}
+
+result: >
+  In 44 qualifying FII exposure-drop sessions, cross-sectional mean realized
+  volatility ratio was 1.0577 in 23 sessions with a DII net-OI increase and
+  1.0701 in 21 sessions without one. Medians were 1.0224 and 0.9886,
+  respectively. The small mean difference and opposing median comparison do
+  not support a consistent moderation effect; reject as an actionable signal.
+
+red_flags:
+  - NSE participant OI is position stock, not executed cash flow or signed intraday trading.
+  - OI changes cannot distinguish opening longs, short covering, opening shorts, and long unwinds.
+  - The two-session delay is conservative but is not a verified first-publication timestamp.
+  - Five fixed stocks and one 2024 sample have survivorship and regime limitations.
+  - The event sample is small and does not include a pre-registered holdout period.

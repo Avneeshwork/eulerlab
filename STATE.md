@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-08-20. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-15. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -16,7 +16,7 @@ or in `TASKS.md`, it did not happen.*
 make verify
 ```
 
-Expect **8 of 8 green, about 1,890 tests**. The `engine` row is the backtester
+Expect **8 of 8 green**. The test count changes as the suite grows. The `engine` row is the backtester
 self-test gate and the `chaos` row is the order-path gate; if either is red,
 stop and fix it before running anything, because every number downstream
 depends on them.
@@ -32,6 +32,12 @@ never edit them without an explicit instruction in that session.
 ---
 
 ## What is true today
+
+- **Paper deployment cash flows (ADR-076):** complete (T-4124). Flows are dated
+  against the last decided close; replay applies them on the next decision.
+  State and Telegram use contributed capital and time-weighted return; Paper
+  trading shows pending and completed flows. Focused tests and all 8 `make
+  verify` checks passed.
 
 - **Data:** 23,230 objects / 4.45 GB mirrored to Backblaze B2. Local landing is
   pruned to ~6.6 MB after every ingest — B2 is the storage of record. Panel
@@ -57,6 +63,10 @@ never edit them without an explicit instruction in that session.
 - **Data:** Tools → Instruments → **Update all data** brings every dataset up to
   date and its Data coverage table (`make coverage`) shows what is missing (ADR-061).
   The price panel and paper books update by themselves when new NSE data lands (ADR-062).
+- **MCX iCOMDEX (2026-10-15, research 082):** 1.81M one-minute candles landed for seven
+  indices and were mirrored with SHA-256 checks to `nse/mcx_indices/` in B2. Kite has no
+  minute history for five of the 12 indices in the supplied list; the Instruments
+  update reports the available series and records those gaps instead of filling them.
 - **Intraday (2026-10-11):** two papers run on NIFTYBEES minute bars (research 071).
   Both lose after NSE intraday charges of 4 bps a round trip. The noise-area rule has
   a stable gross edge of 3 bps a trade; nothing on the cash ETF can carry it.
@@ -68,6 +78,9 @@ never edit them without an explicit instruction in that session.
   repeating, on the 100 largest stocks. Neither exists here before costs; both rejected.
 - **Nightly job (ADR-070):** `make daily` takes one dataset at a time: download, upload to B2, delete locally.
   Fundamentals is weekly (Sunday 10:00) and on demand: `make fundamentals-update`. No full run yet.
+- **Risk on the deployed book (ADR-071):** Live & Risk has Risk overview, Performance and Stress & exposure:
+  VaR from today's holdings over 250 days, where the risk sits, limits with headroom. It warns; it does not act.
+  The overnight future's gap risk is included (ADR-072); the Deploy dialog shows the book's VaR before and after.
 - **Archive (ADR-069):** a strategy can be put away from the Strategies page and restored; it hides only.
 - **Telegram (ADR-063, ADR-068):** deployments report their orders; the bot answers 22 words
   (money, market, one stock, results, the machine) and plain questions. It cannot trade or stop anything.
@@ -82,13 +95,17 @@ never edit them without an explicit instruction in that session.
 - **Assistant (ADR-064):** floating button on every screen; OpenRouter free model with zero
   retention forced on every request; eleven read-only tools. Working: answered real questions
   correctly on 2026-10-12. Free limit is 50 requests a day.
+- **MCX instruments (ADR-075):** `make mcx-instruments` fetches Kite's daily MCX instrument CSV,
+  lands it immutably under `data/landing/mcx/`, and mirrors the separate `nse/mcx/` B2 prefix.
+  First live snapshot on 2026-10-15: 15,946 rows; raw CSV and manifest confirmed in B2.
+- **Research Library AI (ADR-073, ADR-074):** model picker loads current free OpenRouter ZDR choices; pasted source drafts paper fields and paper pages generate sandboxed code for Tier B. Code/results are shown but not saved. Provider locks remain; not yet checked in the UI.
 
 ---
 
 ## The commands that matter
 
 ```bash
-make verify        # is the repo sound?      7 checks, ~998 tests
+make verify        # is the repo sound?      8 checks
 make acceptance    # does each capability still work on real data?  11 checks
 make workbench     # the UI on :3000, API on :8000
 make montecarlo    # drawdown path risk and the Sharpe confidence interval

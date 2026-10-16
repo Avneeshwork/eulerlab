@@ -1,0 +1,27 @@
+id: github-prior-day-pivot-breakout
+title: 'Prior-day floor pivot breakout: R1/S1 threshold rule'
+authors: HPotter, via FMZ community strategy repository
+year: 2023
+kind: note
+source_url: https://github.com/fmzquant/strategies/blob/master/%E5%8A%A8%E6%80%81%E6%94%AF%E6%92%91%E9%98%BB%E5%8A%9B%E5%9B%9E%E6%B5%8B%E7%AD%96%E7%95%A5Dynamic-Pivot-Point-Backtest-Strategy.md
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE liquid stocks, 5-minute OHLCV adaptation
+summary: 'The source calculates PP=(prior H+L+C)/3, R1=2*PP-L and S1=2*PP-H. It enters long above R1, short below S1, and retains the position while price remains between the levels. The public script is educational and does not report verified NSE performance.'
+trade_idea: 'Test whether simple prior-day floor pivot thresholds carry intraday direction into liquid Indian stocks after realistic fees and slippage.'
+implementation: 'Research 108 computes levels only from the previous NSE session, waits for a completed 5-minute close beyond R1/S1, enters at the next open, reverses at the opposite threshold and forces flat at 15:10. Fixed ₹200,000 notional per stock; date-aware NSE costs plus 2 bp per-side slippage.'
+red_flags:
+- The source is a community script without independently verified performance.
+- Its sample config is a 15-minute Binance BTC strategy, not Indian equities.
+- Five fixed current stocks are not a point-in-time universe.
+- OHLCV does not resolve queue position, spread, or partial fills.
+- Reversals and high turnover can make transaction-cost assumptions decisive.
+reported_results: 'Source is educational code with no verified NSE result. Fixed local 2024 NSE adaptation: 816 round trips across five names, +12.14% gross and -4.50% net return, net Sharpe -0.701, 44.9% net winners, 0.928 net profit factor, and ₹160,678 estimated costs.'
+hypothesis: H-0016
+strategies:
+- kind: registered
+  id: nse_github_prior_day_pivot_breakout
+  note: Fixed NSE adaptation and local result in Research 108
+  timeframe: 0

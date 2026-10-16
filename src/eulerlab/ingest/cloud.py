@@ -241,7 +241,14 @@ def sync(
 class S3ObjectStore:
     """boto3-backed store. Constructed only when credentials are present."""
 
-    def __init__(self, config: StorageConfig) -> None:
+    def __init__(
+        self,
+        config: StorageConfig,
+        *,
+        connect_timeout_s: int = 10,
+        read_timeout_s: int = 30,
+        max_attempts: int = 3,
+    ) -> None:
         load_env()
         key_id = os.environ.get(KEY_ID_ENV, "").strip()
         app_key = os.environ.get(APP_KEY_ENV, "").strip()
@@ -268,9 +275,9 @@ class S3ObjectStore:
             aws_access_key_id=key_id,
             aws_secret_access_key=app_key,
             config=BotoConfig(
-                connect_timeout=10,
-                read_timeout=30,
-                retries={"max_attempts": 3, "mode": "standard"},
+                connect_timeout=connect_timeout_s,
+                read_timeout=read_timeout_s,
+                retries={"total_max_attempts": max_attempts, "mode": "standard"},
                 # Default is 10, which would throttle both the upload pool and
                 # the listing fan-out back to serial at their edges.
                 max_pool_connections=LISTING_WORKERS + UPLOAD_WORKERS,

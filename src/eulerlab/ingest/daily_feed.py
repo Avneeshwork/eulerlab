@@ -369,6 +369,18 @@ def _india_minute() -> str:
     return last[:160] or "minute bars up to date"
 
 
+def _mcx_index_minute(progress: Callable[[str], None] | None = None) -> str:
+    """Five-year Kite history for MCX iCOMDEX indices with available candles."""
+    from eulerlab.broker import kite_session
+    from eulerlab.ingest import kite_mcx_indices
+
+    if not kite_session.is_fresh(kite_session.load()):
+        return "skipped: no Kite token minted today. Log in to Kite on this page first"
+    text = _captured(lambda: kite_mcx_indices.main(["--years", "5"], on_progress=progress))
+    last = next((ln.strip() for ln in reversed(text.splitlines()) if ln.strip()), "")
+    return last[:160] or "MCX iCOMDEX minute history up to date"
+
+
 STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("NSE end-of-day", _nse_eod),
     ("participant OI", _participant_oi),
@@ -387,6 +399,7 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("US bars and actions", _us),
     ("US panel", _us_panel),
     ("India minute bars", _india_minute),
+    ("MCX index minute bars", _mcx_index_minute),
 )
 """The sources a daily refresh touches, in the order `make daily` runs them.
 
@@ -416,6 +429,7 @@ STEP_MODULES: dict[str, str] = {
     "US bars and actions": "eulerlab.ingest.alpaca",
     "US panel": "build-us-panel",
     "India minute bars": "daily-minute",
+    "MCX index minute bars": "mcx-index-minute",
 }
 """What each step runs, as `make daily` names it (a module or a make target).
 `tests/test_feed_parity.py` fails when `make daily` runs something that is

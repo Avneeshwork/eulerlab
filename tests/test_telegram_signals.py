@@ -81,6 +81,11 @@ def test_a_live_deployment_says_live() -> None:
     assert text is not None and text.startswith("LIVE · ")
 
 
+def test_reported_gain_uses_invested_capital_after_cash_flows() -> None:
+    text = signals.message(_deployment(), {}, {**STATE, "invested": 99_000.0, "equity": 102_017.0})
+    assert text is not None and "gain ₹3,017" in text
+
+
 def test_a_long_catch_up_is_capped() -> None:
     many = [
         {"day": "2026-10-09", "side": "buy", "quantity": 1, "symbol": f"S{i}"} for i in range(40)

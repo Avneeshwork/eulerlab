@@ -1,0 +1,46 @@
+id: H-0010
+title: Extreme one-minute losses reverse in liquid Indian stocks
+status: rejected
+
+claim: >
+  In five fixed, liquid NSE stocks, a one-minute loss at or below that stock's
+  0.1% training-period return quantile is followed by a positive next-minute
+  open-to-close return after NSE fees and assumed slippage.
+
+rationale: >
+  Rif and Utz (2021) report a one-minute reversal after extreme downward
+  movements in large, liquid Nasdaq-100 stocks. Their event threshold is
+  approximately one occurrence per 1,000 one-minute intervals. This study
+  freezes each stock's threshold using 2022-2023 Kite data and evaluates
+  2024-through-November without interpolation.
+
+source: >
+  Rif, M. & Utz, S. (2021), Short-term stock price reversals after extreme
+  downward price movements, Quarterly Review of Economics and Finance 81,
+  269-280. doi:10.1016/j.qref.2021.05.004. See research note 084.
+
+configurations:
+  - {universe: [RELIANCE, HDFCBANK, ICICIBANK, INFY, TCS], quantile: 0.001, event_horizon: 1m, hold: 1m}
+
+result: >
+  Rejected by the fixed 2024 screen: gross return +2.80%, net return -10.73%,
+  Sharpe -3.30 and maximum drawdown -10.89% across 224 sessions. The 712
+  events incurred estimated charges and 2 bps per-side slippage of ₹140,492
+  per ₹1m capital. This is an India OHLC adaptation, not Nasdaq tick replication.
+
+red_flags:
+  - >
+    The source uses nanosecond Nasdaq data; this screen uses one-minute Kite
+    OHLC bars on five Indian equities. Impact and reversal mechanics differ.
+  - >
+    The rule selects extreme observations, where OHLC price paths and next-bar
+    open execution can materially differ from the source's tick-level trade.
+  - >
+    The five-stock list is fixed using present-day familiarity and is not a
+    point-in-time constituent universe; survivorship bias remains.
+  - >
+    Slippage is assumed at 2 bps per side, not estimated from historical bid-
+    ask quotes. Costs can exceed the brief reversal.
+  - >
+    Thresholds are frozen from 2022-2023, while 2024 through November is the
+    evaluation window. No rows after 2024-11-30 are read.

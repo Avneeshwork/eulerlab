@@ -1,0 +1,40 @@
+id: rif-utz-2021-extreme-minute-reversal
+title: Short-term stock price reversals after extreme downward price movements
+authors: Rif, M., Utz, S.
+year: 2021
+kind: paper
+source_url: https://doi.org/10.1016/j.qref.2021.05.004
+pdf: ''
+added: '2026-10-15'
+status: rejected
+markets:
+  - Nasdaq-100, nanosecond data, 2014-2019 (paper)
+  - Five liquid NSE stocks, one-minute bars, 2022-2026 (here)
+summary: >
+  Reports a short-lived reversal after extreme one-minute downward moves in
+  large, liquid Nasdaq-100 constituents. The source defines an extreme event
+  at approximately one per thousand one-minute intervals.
+trade_idea: >
+  Buy after a one-minute decline beyond a threshold frozen from a prior
+  training sample and exit after one minute.
+implementation: >
+  Per-stock 0.1% left-tail threshold learned in 2022-2023 and frozen for
+  2024-through-November. Enter next traded minute open; exit that minute close.
+  A stricter 0.025% tail cutoff was selected on 2024 development data; it cut
+  events 74% but lost 4.38% net in the frozen 2025-10-14 sample. See research
+  note 085 and the optimization-oos result on the linked strategy.
+red_flags:
+  - Source uses Nasdaq nanosecond data; the local screen uses NSE one-minute OHLC.
+  - The five-stock sample is not a point-in-time universe and has survivorship bias.
+  - The short holding period is sensitive to spread, fees and execution.
+reported_results: >
+  See data/derived/gold_stock_intraday_screen.json. The 2024 sample lost after
+  costs. Tightening the trigger to the 0.025% training tail reduced test events
+  by 74% but still lost 4.38% net from 2025-01 through 2026-10-14; see research
+  note 085. No configuration is proposed for live trading.
+hypothesis: H-0010
+strategies:
+  - kind: registered
+    id: extreme_minute_reversal
+    note: Fixed training threshold, five-stock NSE adaptation
+    timeframe: 1

@@ -61,6 +61,8 @@ class Chunk:
     token: int
     start: date
     end: date
+    from_time: str = "09:00:00"
+    to_time: str = "16:00:00"
 
     @property
     def key(self) -> str:
@@ -251,12 +253,12 @@ class KiteHistorical:
         msg = f"{last} after {MAX_ATTEMPTS} attempts"
         raise KiteError(msg)
 
-    def instruments(self) -> dict[str, int]:
-        return parse_instruments(self._get(INSTRUMENTS_URL, timeout=120.0))
+    def instruments(self, exchange: str = "NSE") -> dict[str, int]:
+        return parse_instruments(self._get(INSTRUMENTS_URL, timeout=120.0), exchange=exchange)
 
     def candles(self, chunk: Chunk, interval: str = "minute") -> list[list[object]]:
         query = urllib.parse.urlencode(
-            {"from": f"{chunk.start} 09:00:00", "to": f"{chunk.end} 16:00:00"}
+            {"from": f"{chunk.start} {chunk.from_time}", "to": f"{chunk.end} {chunk.to_time}"}
         )
         url = f"{HISTORICAL_URL.format(token=chunk.token, interval=interval)}?{query}"
         payload = json.loads(self._get(url))

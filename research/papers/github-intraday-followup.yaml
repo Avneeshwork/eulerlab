@@ -1,0 +1,55 @@
+id: github-intraday-followup
+title: 'GitHub intraday strategy follow-up: EMA/MACD pullback screen'
+authors: EulerLab research
+year: 2026
+kind: note
+source_url: https://github.com/spagnola-analytics/intraday-strategies
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE listed equities (fixed four-stock adaptation)
+- MES/ES futures (source repository only)
+summary: >-
+  Follow-up screen of ten public GitHub repositories. One distinct price-data
+  candidate was sufficiently specified and is reproducibly tested: an EMA-20
+  pullback with MACD histogram confirmation, a five-minute swing stop and 1R
+  target. The source describes MES futures, not Indian equities. Other reviewed
+  strategies duplicate existing ORB, VWAP, gaps, extreme reversals, or daily
+  indicator work; the source's overnight high/low fade is blocked by missing
+  NSE overnight traded-price history.
+trade_idea: >-
+  On a completed one-minute bar, enter a pullback that touches EMA-20 and
+  closes back with the prevailing trend while MACD histogram confirms. Enter
+  next bar, use the prior five-bar swing as stop and target 1R. This is a
+  research candidate and has not been shown profitable on NSE.
+implementation: >-
+  See docs/RESEARCH/089-github-intraday-followup.md. Fixed four-stock evaluation
+  uses data/derived/github_followup_stock_strategies.json for 2024-01-01 through
+  2024-11-30; the loader excludes files crossing the cutoff. Run
+  `make github-followup-intraday` and `make library-sync` to reproduce and link
+  the measured result. Same-bar stop and target resolves to stop. NSE charges
+  plus assumed 2 bps per side are applied. The overnight high/low fade is a
+  separate data-blocked card.
+red_flags:
+- Source rule is described for MES futures; this NSE adaptation has not been validated on the source market.
+- The source README does not publish independently verified NSE performance; the repository has limited public history.
+- Four fixed stocks retain survivorship and narrow-universe bias.
+- Assumed slippage is not calibrated to order-book replay; market impact and partial fills are absent.
+- Minute OHLC cannot determine intrabar ordering, so stop is prioritized when both stop and target are touched.
+- Overnight high/low fade requires an NSE session and price source not present in the local archive.
+reported_results: >-
+  The frozen NSE screen returned gross -0.26%, net -19.17%, net Sharpe -16.704,
+  896 trades, and ₹210,107 estimated charges plus slippage. The four-stock
+  evaluation window is 2024-01-01 through 2024-11-30. The result is negative;
+  the overnight fade has no measured result.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_ema_macd_swing_pullback
+  note: Costed 2024 NSE minute screen; see research note 089
+  timeframe: 0
+- kind: registered
+  id: nse_overnight_extreme_fade
+  note: 'Blocked: source requires overnight futures levels unavailable in the NSE cash archive'
+  timeframe: 0

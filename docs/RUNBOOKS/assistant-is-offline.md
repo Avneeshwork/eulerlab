@@ -14,7 +14,7 @@ prints the same. Nothing is sent to anyone while it is off.
 | The free quota is used up | Wait a minute. OpenRouter's free models allow 20 requests a minute and 50 a day (1,000 a day once 10 credits have ever been bought). One question uses one to six requests |
 | HTTP 401, Invalid API Key | The key is not a Groq key. Groq keys start with `gsk_`. A key starting `xai-` is from xAI (the Grok model), a different company. Seen 2026-10-12 |
 | HTTP 403, error code 1010 | Cloudflare refusing Python's default user agent. Fixed 2026-10-12: `chat.USER_AGENT`. If it returns, that header was dropped |
-| No zero-retention endpoint serves the model | The free model lost its zero-retention endpoint, so OpenRouter refused and nothing was sent on. Choose another under `openrouter-private` in `config/llm.yaml`. Research 073 says how the current one was found |
+| No zero-retention endpoint serves the model | OpenRouter refused before sending the prompt. Model IDs and endpoint policies change. In Tools → Research Library, choose a current entry under **Current OpenRouter free models with ZDR**; EulerLab loads it from OpenRouter's live filtered catalog. The request still enforces ZDR and data-collection denial. If the list is empty, use a ready local model or a Groq model only after ZDR is enabled in Groq and `EULERLAB_ASSISTANT_ZDR=1` is set. See research 080. |
 | No `OPENROUTER_API_KEY` in `.env` | Create a key at openrouter.ai and add it |
 | Could not reach the host | No internet, or the name could not be looked up. Seen 2026-10-12 as `[Errno 8] nodename nor servname provided`; it cleared by itself. Check the connection and ask again |
 | The API is not running | Start it: `make api` |
@@ -36,9 +36,9 @@ Seen 2026-10-12. `web/app/globals.css` gives every `textarea` a 300px minimum
 height and full width. `assistant.css` undoes each by name under
 `.asst-panel`. A new form control in the panel needs the same care.
 
-## Adding a model to the list
+## Adding a fixed model to the list
 
-The panel's Model list is `config/llm.yaml`. Nothing else needs editing.
+The floating Assistant's fixed Model list is `config/llm.yaml`. Research Library's OpenRouter list is fetched from the current ZDR catalog instead of being copied into config.
 
 1. Add a block under `providers` with a `name`, `base_url`, `model` and
    `api_key_var`. Copy `openrouter-private` and change the `model` line to

@@ -1,0 +1,44 @@
+id: github-validation-screen-2026-10
+title: 'Further GitHub intraday strategy validation screen'
+authors: EulerLab research
+year: 2026
+kind: note
+source_url: https://github.com/Divo15/quant-internship-banknifty
+pdf: ''
+added: '2026-10-15'
+status: rejected
+markets:
+- US equities (most reviewed repositories)
+- Bank Nifty minute data (Divo15 source repository)
+- NSE equities (existing local evaluation archive; no new source was re-tested)
+summary: >-
+  Ten additional GitHub repositories were screened for reproducible intraday
+  signals, out-of-sample evidence and fit to the available NSE minute archive.
+  Divo15 reports +39.2% over its full Bank Nifty sample but also reports a
+  negative out-of-sample result (about -$31,060, profit factor 0.83); its
+  Hurst-selected z-score mode overlaps existing OU and momentum studies. Other
+  repositories were infrastructure, synthetic-data demonstrations, duplicates,
+  non-Indian universes, or lacked a sufficiently specified distinct strategy.
+trade_idea: >-
+  No new strategy is proposed from this screen. The Hurst regime selector may
+  merit a separately preregistered incremental test if suitable index data and
+  a clean holdout become available; the source headline is not profitability
+  evidence.
+implementation: >-
+  Source triage and deduplication only; no new local NSE strategy backtest was
+  run. See docs/RESEARCH/091-github-strategy-validation-screen.md for each
+  repository's disposition and links. Existing GitHub-derived NSE tests remain
+  documented in research notes 088-090.
+red_flags:
+- The Divo15 source's full-period positive return conflicts with its negative out-of-sample result.
+- Divo15's Hurst-selected z-score rule overlaps existing OU and momentum strategy families.
+- Most screened repositories target US or Chinese equities and do not provide NSE evidence.
+- Some repositories publish synthetic demonstrations or infrastructure rather than tested strategy returns.
+- No source headline or in-sample-only result qualifies toward the five-strategy target.
+reported_results: >-
+  Source-reported Divo15 metrics: full-period total return +39.2%, full-period
+  Sharpe 0.34, OOS profit factor 0.83 and OOS P&L approximately -$31,060. These
+  are claims from the source repository and were not independently reproduced.
+  No new local NSE strategy result was generated in this screen.
+hypothesis: ''
+strategies: []

@@ -1,0 +1,50 @@
+id: github-surge-pullback-breakout
+title: 'GitHub surge and pullback breakout screen'
+authors: EulerLab research
+year: 2026
+kind: note
+source_url: https://github.com/woshishuaige2/ross-cameron-trading-strategy
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- US small-cap equities (source repository)
+- NSE listed equities (five-stock adaptation)
+summary: >-
+  Screen of ten newly reviewed GitHub sources and an independent test of a
+  surge, pullback and first higher-high breakout rule. The source uses positive
+  MACD, session VWAP, volume confirmation and candle-under-candle exits. Its
+  README and code conflict on thresholds; this screen freezes the code defaults.
+  Eight other candidates were duplicates, wrong-market/timeframe, or too vague
+  to test without inventing rules.
+trade_idea: >-
+  After a sharp intraday move, buy a controlled pullback's first green
+  higher-high bar only when MACD, VWAP and relative volume confirm. Exit at the
+  structural stop, large fixed target, candle-under-candle reversal or session
+  close. This is a research candidate, not a proven profitable strategy.
+implementation: >-
+  See docs/RESEARCH/090-github-surge-pullback-breakout.md. The frozen five-stock
+  NSE evaluation covers 2024-01-01 through 2024-11-30; the loader excludes
+  files crossing the cutoff. Run `make github-momentum-pullback-intraday` and
+  `make library-sync`. The local adaptation lacks the source's premarket and
+  catalyst context and uses code defaults: 2.0x relative volume and 0.3%-5%
+  retracement. The Research Library card displays the costed result.
+red_flags:
+- Source strategy is designed for US small-cap momentum, not large Indian stocks.
+- README and code disagree on relative-volume, pullback and stop thresholds.
+- Local archive has no premarket/catalyst context; this is a limited adaptation.
+- Only one trade occurred, so results are statistically uninformative.
+- Five fixed names retain universe and survivorship limitations.
+- Assumed 2 bp slippage per side and estimated NSE charges omit market impact and detailed fills.
+- Minute-bar collisions resolve to stop first but still cannot reconstruct trade sequencing.
+reported_results: >-
+  Gross return -0.08%; net return -0.10%; net Sharpe -1.061; one trade; estimated
+  fees and slippage ₹197. The single HDFCBANK trade on 2024-06-04 entered at
+  ₹763.30 and exited at ₹760.10 on the candle-under-candle rule. This does not
+  qualify as evidence of profitability. No data after 2024-11-30 was read.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_surge_pullback_new_high
+  note: One-trade costed NSE screen; see research note 090
+  timeframe: 0

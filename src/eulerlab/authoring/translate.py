@@ -197,6 +197,8 @@ def draft(
     *,
     mode: str = "composed",
     provider_name: str | None = None,
+    privacy_safe: bool = False,
+    model_name: str = "",
 ) -> Draft:
     """Ask the model, validate what comes back, return it unrun."""
     if mode not in MODES:
@@ -204,13 +206,29 @@ def draft(
         raise ValueError(msg)
 
     system = COMPOSED_SYSTEM if mode == "composed" else CODE_SYSTEM
-    reply = client.complete(system, description.strip(), provider_name=provider_name)
+    if privacy_safe:
+        from eulerlab.assistant import chat
+
+        chosen = chat.selected_provider(name=provider_name or "", model=model_name)
+        chat_reply = chat.complete(system, description.strip(), chosen=chosen)
+        answer_text, answer_provider, answer_model = (
+            chat_reply.text,
+            chat_reply.provider,
+            chat_reply.model,
+        )
+    else:
+        client_reply = client.complete(system, description.strip(), provider_name=provider_name)
+        answer_text, answer_provider, answer_model = (
+            client_reply.text,
+            client_reply.provider,
+            client_reply.model,
+        )
 
     if mode == "composed":
-        spec, warnings = parse_composed(reply.text)
+        spec, warnings = parse_composed(answer_text)
         explanation = ""
         try:
-            raw = json.loads(_strip_fence(reply.text)[_strip_fence(reply.text).find("{") :])
+            raw = json.loads(_strip_fence(answer_text)[_strip_fence(answer_text).find("{") :])
             explanation = str(raw.get("explanation", ""))
         except (json.JSONDecodeError, ValueError):
             explanation = ""
@@ -219,11 +237,11 @@ def draft(
             spec=spec,
             explanation=explanation,
             warnings=warnings,
-            provider=reply.provider,
-            model=reply.model,
+            provider=answer_provider,
+            model=answer_model,
         )
 
-    source = _strip_fence(reply.text)
+    source = _strip_fence(answer_text)
     # Compiled here, immediately, so an invalid draft fails now rather than
     # after the operator has approved it and a backtest has started.
     SandboxedStrategy(source, name="draft")
@@ -232,8 +250,8 @@ def draft(
         source=source,
         spec={"name": "authored"},
         explanation="Validated by the sandbox. Read it before running it.",
-        provider=reply.provider,
-        model=reply.model,
+        provider=answer_provider,
+        model=answer_model,
     )
 
 

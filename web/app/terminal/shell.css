@@ -30,15 +30,6 @@
   cursor: pointer;
   margin-right: var(--s2);
 }
-.terminal .tmark {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r-md);
-  background: var(--ink);
-  color: var(--ground);
-  font-size: 15px;
-}
-
 .terminal .tnav {
   margin-left: 0;
   align-self: center;
@@ -89,7 +80,6 @@
 /* Phones get OpenAlgo's bottom navigation: the same six links, fixed to the
    bottom edge with the label under the icon. */
 @media (max-width: 720px) {
-  .terminal .tbrand-name,
   .terminal .tcmd kbd { display: none; }
   /* A backdrop filter makes the bar the containing block for fixed children,
      which would pin the bottom nav to the top bar instead of the viewport. */

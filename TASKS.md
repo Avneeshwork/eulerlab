@@ -3,9 +3,48 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Dated paper deployment capital flows (2026-10-15)
+
+Operator: allow adding or withdrawing money from an active paper deployment
+without changing already-traded replay days. ADR-076.
+Verify: `uv run pytest -q tests/test_deployment_flows.py tests/test_deploy_runner.py tests/test_overnight_book.py`; `make verify`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4124 | Record dated paper flows, apply at next decision, report time-weighted returns and expose controls in Paper trading | DONE — dated paper flows, next-decision sizing, invested and pending state, TWR, Telegram gain and UI controls; focused replay and guard tests pass |
+
 Sprints 0–14 are seeded from `docs/AI_BUILD_PLAN.md` §6 and
 `docs/sprint_01_kickoff.md`. Sprints 15+ are planned three ahead, per the build
 plan — they are listed here as scope only, not as tasks.
+
+## MCX instrument snapshot from Kite (2026-10-15)
+
+Operator: fetch the current MCX instruments from Zerodha and store them in their own B2 folder. ADR-075; research 081.
+Verify: `uv run pytest -q tests/test_kite_mcx.py`; `make mcx-instruments` fetches today's raw snapshot and mirrors `data/landing/mcx/` to `nse/mcx/` in B2.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4122 | Fetch Kite MCX instruments and mirror the immutable daily snapshot to B2 | DONE — fetched 15,946 rows on 2026-10-15; raw CSV and manifest confirmed in the `nse/mcx/` B2 prefix |
+
+## MCX iCOMDEX minute history (2026-10-15)
+
+Operator: fetch the MCX indices shown in the supplied image, first, with Zerodha Kite; upload to B2 and expose refresh through Instruments. Research 082.
+Verify: `pytest tests/test_kite_mcx_indices.py tests/test_data_pipeline.py tests/test_daily_feed_partial.py tests/test_kite_routes.py`; B2 checksum verification for `mcx_indices`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4123 | Fetch and wire Kite MCX iCOMDEX index minute bars | DONE — queried the full five-year range; 1,811,889 candles across seven series; five unsupported series explicitly recorded; 257 B2 objects checksum verified |
+
+## AI-assisted Research Library (2026-10-15)
+
+Operator: add paper field drafts and sandboxed code/backtest actions to the Research Library, using the existing AI setup. ADR-073.
+Verify after implementation: review the draft and source-handling flow in Tools → Research Library; inspect the sandboxed generated source before trusting its Tier B result.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4119 | Draft summary, trade idea, implementation, source results, markets and red flags from pasted source text; use assistant provider locks and do not persist source text | DONE — `/api/research/draft`; draft is reviewable before saving, model is selectable |
+| T-4120 | Add paper-page AI code & backtest action through authoring sandbox and existing Tier B job | DONE — model is selectable; shows generated code and result; does not persist the generated strategy |
+| T-4121 | Recover from stale OpenRouter free models without weakening ZDR | DONE — Research Library refreshes its picker from the live filtered catalog; assistant can read the offline runbook as a reference |
 
 ---
 
@@ -20,6 +59,29 @@ Verify: `uv run pytest -q tests/test_options_strategies.py`; `make nifty-options
 | T-4027 | **Monthly short strangle (Bangur 2020)** | DONE — three distances; only 6% OTM made money (+43% of margin over 11 years) and it lost 104% of margin in March 2020. Not deployable |
 | T-4028 | **Covered call (Aggarwal 2011)** | DONE — the paper's daily rule loses 79% to costs; held monthly it is about flat against the future's +33%. Not reproduced |
 | T-4029 | Options strategies are not on the Strategies page | OPEN — they run outside the daily engine (`options/strategies.py`), which trades weights of equities |
+
+---
+
+## What other platforms have, and a risk screen (2026-10-14)
+
+Operator: "look over Nautilus Trader and other platforms and let me know what features are missing ... make a screen which shows risk on current trading strategies: current VaR, strategy distribution, maximum risk, allocation ... research on it first and then make a mockup". Research 079.
+Verify: read `docs/RESEARCH/079-what-other-platforms-have-and-a-risk-screen.md`; open the mockup linked in it.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4106 | **Feature gaps against NautilusTrader, QuantConnect and OpenAlgo** | DONE — research 079. Seven gaps matter now, all about seeing and controlling risk while trading: no view across deployments, no risk number, no exposure or concentration, no headroom on limits, no reduce-only state, no loss limit that acts, no live-against-backtest chart. Documentation pages were read through summaries |
+| T-4107 | **Mockup of the risk screens** | DONE — three screens with sample numbers: overview (VaR, where the risk is, allocation, limits), performance by deployment, stress and exposure. Not checked in a browser by me |
+| T-4108 | **Portfolio roll-up across deployments** | DONE 2026-10-14 — ADR-071. `risk/book.py`, `risk/report.py`, `GET /api/risk/book`: equity, P&L, cash, exposure, names, overlap, sectors, drawdown, for every active deployment together. Verify: `uv run pytest -q tests/test_risk_book.py`; Live & Risk → Risk overview |
+| T-4109 | **VaR from current positions** | DONE 2026-10-14 — ADR-071. Today's holdings run through 250 days; VaR and expected shortfall at 95% and 99% three ways; component VaR by deployment; beta; six stress scenarios; correlation between deployments; the live path inside its backtest band. No figure under 60 days of prices. On the real books: VaR ₹2,363, 0.11% of equity, because 95% of the money sits in the overnight deployment, which holds nothing at the close |
+| T-4112 | **Three views under Live & Risk** | DONE 2026-10-14 — Risk overview, Performance, Stress & exposure (`RiskBook.tsx`). `#live/performance` links to a view. Seen in a headless browser on the real paper books, dark theme, 1400 px; light theme and a phone width were not looked at |
+| T-4113 | **Gap risk for the overnight future** | DONE 2026-10-14 — ADR-072. The future is in the book's VaR as it is run (in position 78 of the last 250 nights), with its own figures for a night it holds. On the real books: book VaR ₹6,126 (was ₹2,363 without it); the future is 88% of it; on a night it holds, 1-in-20 loss ₹11,445, shortfall ₹18,036, worst night of the year −₹27,243, worst gap on record −10.0% (23 March 2020) = −₹1.48 lakh at today's one lot |
+| T-4115 | **A 1-in-20 night in the future is more than the kill switch's daily loss limit** | NOTED — ₹11,445 against ₹10,000. The switch would trip after the open, with the loss taken. The limit, the size, or accepting it is the operator's call |
+| T-4116 | **The 13 October order was rejected by a lookup bug** | FIXED — HISTORY #21. An exact-name read of a file pruned from this machine found nothing in the bucket, so "lot size not found". The signal night was missed and is not traded after the fact. Verify: `uv run pytest -q tests/test_risk_book.py -k exact_file` |
+| T-4117 | **Adding and removing a deployment** | DONE 2026-10-14 — ADR-072. Any active deployment is in the figures on the next read; a stopped one leaves them and is listed with what it made. Colours follow creation order, so the rest keep theirs. Each row shows the book's VaR without it. The Deploy dialog shows the book's VaR before and after adding the strategy (`POST /api/risk/what-if`). Checked on the live API for a share strategy and for the future; the dialog line and the stopped list were not seen in a browser (nothing is stopped today) |
+| T-4118 | The what-if sizes a new strategy in equal amounts | OPEN — A-060. The preview gives names, not sizes |
+| T-4114 | The rounding bug in the first VaR | NOTED — `(1 - 0.95) * 100` is 5.000000000000004 in floating point, and its ceiling put a sixth day in a five-day tail. Caught by the hand-worked test before any figure was shown |
+| T-4110 | **Limits with headroom** | DONE as warnings 2026-10-14 — the kill switch's daily loss (₹10,000, which already existed) and rupees-in-one-name limits are shown with how much is used. Four new levels in `config/risk_watch.yaml` (book VaR 2%, book drawdown 10%, deployment drawdown 8%, largest sector 35%) **warn and do nothing else**. Their values came from the mockup, not from the operator: change them. Orders-a-day and unresolved-order limits are not shown: the screen has no count of today's live orders |
+| T-4111 | A reduce-only state for a deployment | TODO — between trading and stopped; needs a decision record |
 
 ---
 

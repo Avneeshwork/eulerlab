@@ -58,6 +58,7 @@ import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
 import { OptionsTab } from '@/components/terminal/OptionsTab';
 import { RiskTab } from '@/components/terminal/RiskTab';
+import { RiskBookView } from '@/components/terminal/RiskBook';
 import { BacktestDialog } from '@/components/terminal/BacktestDialog';
 import { DataTab } from '@/components/terminal/DataTab';
 import { DeployDialog } from '@/components/terminal/DeployDialog';
@@ -164,6 +165,9 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
 
 const PAGE_IDS = Object.keys(TITLES) as PageId[];
 
+const LIVE_VIEWS = ['overview', 'performance', 'stress', 'deploy', 'risk'] as const;
+type LiveView = (typeof LIVE_VIEWS)[number];
+
 /** `#strategies`, or `#report/<strategy id>` for one strategy's report. */
 function readHash(): { page: PageId; strategy: string } {
   if (typeof window === 'undefined') return { page: 'dashboard', strategy: '' };
@@ -174,7 +178,7 @@ function readHash(): { page: PageId; strategy: string } {
 
 export default function TerminalPage() {
   const [page, setPageState] = useState<PageId>('dashboard');
-  const [liveView, setLiveView] = useState<'deploy' | 'risk'>('deploy');
+  const [liveView, setLiveView] = useState<LiveView>('overview');
   const [fleet, setFleet] = useState<Fleet | null>(null);
   const [problem, setProblem] = useState('');
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -213,6 +217,10 @@ export default function TerminalPage() {
       const { page: next, strategy } = readHash();
       setPageState(next);
       setReportId(strategy);
+      // `#live/performance` opens that view of Live & Risk, so a view can be linked to.
+      if (next === 'live' && (LIVE_VIEWS as readonly string[]).includes(strategy)) {
+        setLiveView(strategy as LiveView);
+      }
     };
     apply();
     const onHash = apply;
@@ -274,9 +282,6 @@ export default function TerminalPage() {
     <>
       <header className="tbar">
         <button className="tbrand" type="button" onClick={() => setPage('dashboard')}>
-          <span className="tmark" aria-hidden="true">
-            ↗
-          </span>
           <span className="tbrand-name">EulerLab</span>
         </button>
         <nav className="tnav" aria-label="Sections">
@@ -413,6 +418,15 @@ export default function TerminalPage() {
         {page === 'live' && (
           <>
             <div className="tseg" role="tablist" aria-label="Live and risk">
+              <button type="button" role="tab" aria-selected={liveView === 'overview'} onClick={() => setLiveView('overview')}>
+                Risk overview
+              </button>
+              <button type="button" role="tab" aria-selected={liveView === 'performance'} onClick={() => setLiveView('performance')}>
+                Performance
+              </button>
+              <button type="button" role="tab" aria-selected={liveView === 'stress'} onClick={() => setLiveView('stress')}>
+                Stress &amp; exposure
+              </button>
               <button
                 type="button"
                 role="tab"
@@ -430,7 +444,9 @@ export default function TerminalPage() {
                 Risk limits &amp; kill switch
               </button>
             </div>
-            {liveView === 'deploy' ? (
+            {liveView === 'overview' || liveView === 'performance' || liveView === 'stress' ? (
+              <RiskBookView view={liveView} />
+            ) : liveView === 'deploy' ? (
               <LiveTab
                 fleet={fleet?.strategies ?? []}
                 workspace={workspace}

@@ -34,6 +34,7 @@ export function InstrumentsTab() {
     state: 'idle',
     note: '',
   });
+  const [syncLog, setSyncLog] = useState('');
   const polling = useRef<number | null>(null);
 
   // Stop polling when the tab unmounts, or a closed page keeps asking the API
@@ -184,6 +185,7 @@ export function InstrumentsTab() {
   }
 
   async function startSync() {
+    setSyncLog('');
     setSync({ state: 'running', note: 'starting…' });
     const started = await api.syncData().catch((e) => ({ ok: false, error: String(e) }));
     if (!started.ok || !('job' in started) || !started.job) {
@@ -196,7 +198,11 @@ export function InstrumentsTab() {
       if (!job) return;
       if (job.status === 'done' || job.status === 'failed') {
         if (polling.current) window.clearInterval(polling.current);
-        const uploaded = (job.result as { uploaded?: number } | undefined)?.uploaded;
+        const result = job.result as { uploaded?: number; log?: string } | undefined;
+        const uploaded = result?.uploaded;
+        if (job.status === 'failed') {
+          setSyncLog(result?.log ?? 'The sync did not return a captured log.');
+        }
         setSync({
           state: job.status,
           note:
@@ -307,6 +313,11 @@ export function InstrumentsTab() {
                   : 'Downloads only what is missing, rebuilds every table, then uploads what the cloud lacks.'
                 : sync.note}
           </div>
+          {syncLog && (
+            <pre className="tsync-log" aria-label="Cloud mirror log">
+              {syncLog}
+            </pre>
+          )}
           {steps.length > 0 && (
             <ul className="feedsteps">
               {steps.map((step) => (

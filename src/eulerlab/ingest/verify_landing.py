@@ -15,14 +15,34 @@ and does not fail the check.
 
 from __future__ import annotations
 
+import signal
 import sys
 from pathlib import Path
 
-from eulerlab.ingest.cloud import InsufficientCapabilities, S3ObjectStore, load_storage_config
+from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
 from eulerlab.ingest.landing import Landing, sha256_of
 
 DEFAULT_LANDING = Path("data/landing/nse")
 STORAGE_CONFIG = Path("config/storage.yaml")
+REMOTE_LIST_TIMEOUT_S = 15
+
+
+def _list_sizes_bounded(store: S3ObjectStore, prefix: str) -> dict[str, int]:
+    """Abort a slow multi-page cloud listing after one overall deadline."""
+    if not hasattr(signal, "setitimer"):
+        return store.list_sizes(prefix)
+
+    def timeout_handler(_signum: int, _frame: object) -> None:
+        raise TimeoutError("B2 listing exceeded its integrity-check deadline")
+
+    previous_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    previous_timer = signal.getitimer(signal.ITIMER_REAL)
+    signal.setitimer(signal.ITIMER_REAL, REMOTE_LIST_TIMEOUT_S)
+    try:
+        return store.list_sizes(prefix)
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+        signal.signal(signal.SIGALRM, previous_handler)
 
 
 def _remote_sizes(prefix: str) -> dict[str, int] | None:
@@ -36,9 +56,11 @@ def _remote_sizes(prefix: str) -> dict[str, int] | None:
         return None
     try:
         config = load_storage_config(STORAGE_CONFIG)
-        store = S3ObjectStore(config)
-        return store.list_sizes(config.prefix)
-    except (InsufficientCapabilities, Exception):
+        # Bound both individual requests and the full multi-page listing so
+        # an unavailable endpoint cannot stall this integrity check for minutes.
+        store = S3ObjectStore(config, connect_timeout_s=3, read_timeout_s=5, max_attempts=1)
+        return _list_sizes_bounded(store, prefix)
+    except Exception:
         return None
 
 
@@ -53,21 +75,26 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     remote = _remote_sizes("nse/")
-    real_problems: list[str] = []
+    violations: list[str] = []
     pruned: list[str] = []
+    unconfirmed: list[str] = []
     on_disk = 0
 
     for entry in entries.values():
         path = root / entry.path
         if not path.exists():
-            if remote is not None and remote.get(f"nse/{entry.path}") == entry.size_bytes:
+            if remote is None:
+                unconfirmed.append(entry.path)
+            elif remote.get(f"nse/{entry.path}") == entry.size_bytes:
                 pruned.append(entry.path)
             else:
-                real_problems.append(f"{entry.path}: missing, and not confirmed in B2")
+                violations.append(
+                    f"{entry.path}: missing, and not present at the recorded size in B2"
+                )
             continue
         on_disk += 1
         if sha256_of(path.read_bytes()) != entry.sha256:
-            real_problems.append(f"{entry.path}: checksum changed since it was written")
+            violations.append(f"{entry.path}: checksum changed since it was written")
 
     total_bytes = sum(e.size_bytes for e in entries.values())
     print(f"landed files      : {len(entries)}  ({on_disk} on disk, {len(pruned)} pruned to B2)")
@@ -75,12 +102,20 @@ def main(argv: list[str] | None = None) -> int:
     print(f"total rows        : {sum(e.rows for e in entries.values()):,}")
     if remote is None:
         print("note: could not reach B2, so a locally-absent file cannot be told apart")
-        print("      from a genuinely lost one. Treating all as violations.")
+        print("      from a genuinely lost one.")
 
-    if real_problems:
-        print(f"\nIMMUTABILITY VIOLATED — {len(real_problems)} problem(s):")
-        for problem in real_problems:
+    if violations:
+        print(f"\nIMMUTABILITY VIOLATED — {len(violations)} problem(s):")
+        for problem in violations[:20]:
             print(f"  {problem}")
+        if len(violations) > 20:
+            print(f"  ... and {len(violations) - 20} more")
+        return 1
+
+    if unconfirmed:
+        print(
+            f"\nINTEGRITY UNVERIFIED — {len(unconfirmed)} locally pruned file(s) could not be checked in B2"
+        )
         return 1
 
     print("\nall on-disk files match their recorded checksums")

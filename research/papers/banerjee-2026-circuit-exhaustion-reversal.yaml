@@ -1,0 +1,34 @@
+id: banerjee-2026-circuit-exhaustion-reversal
+title: 'Price discovery after circuit breaker exhaustion: evidence from the National Stock Exchange of India'
+authors: Banerjee, Pradyumna
+year: 2026
+kind: paper
+source_url: https://ssrn.com/abstract=6621599
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- NSE equities, daily bhavcopy 2008-2024
+summary: The abstract reports that after an upper-circuit day the next opening price overshoots
+  by 1.86% on average, followed by 0.23% intraday reversal; the effect is stronger for liquid
+  stocks. The author identifies circuit-hit days using daily high equal to low and reports
+  clustered-error and near-miss placebo checks.
+trade_idea: For a stock that was locked at its upper circuit on session t, short after the
+  next session's opening auction and cover before that session ends, aiming to capture the
+  reported intraday reversal of the opening overshoot.
+implementation: |-
+  No local backtest. The full SSRN PDF returned HTTP 403, so only the abstract is available.
+  Literal source screen on the local 2021-08-20 through 2024-11-29 minute archive found no
+  high==low sessions among RELIANCE, HDFCBANK, ICICIBANK, INFY, TCS or GOLDBEES (0 candidate
+  events across 806-807 sessions per instrument). A source-faithful test needs a broad,
+  point-in-time NSE universe with official daily price-band/circuit data and next-session
+  minute bars. The current local historical minute archive has only these six pre-cutoff
+  symbols; do not substitute generic large gaps for circuit exhaustion.
+red_flags:
+- The linked full paper could not be retrieved; exact event filters, return measurement, sample composition and liquidity treatment are not verified beyond the abstract.
+- Reported 0.23% intraday reversal may not survive cash-equity short-sale availability, next-open spread/slippage, and costs.
+- A handful of liquid stocks do not provide a sufficient event sample; a broad current-survivor universe risks survivorship bias.
+- Distinct from generic overnight gap fade because the conditioning event is an actual prior-session circuit lock, but no profitable rule is established.
+reported_results: 'Paper abstract: +1.86% next-day opening overshoot and +0.23% intraday reversal after upper-circuit exhaustion; not independently verified or costed locally.'
+hypothesis: ''
+strategies: []

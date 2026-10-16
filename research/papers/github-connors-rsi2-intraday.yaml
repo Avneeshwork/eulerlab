@@ -1,0 +1,28 @@
+id: github-connors-rsi2-intraday
+title: 'Connors RSI(2) pullback: GitHub example adaptation'
+authors: Jesse AI example-strategies contributors
+year: 2020
+kind: note
+source_url: https://github.com/jesse-ai/example-strategies/blob/master/RSI2/__init__.py
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE liquid stocks, 5-minute OHLCV adaptation
+summary: 'The public strategy uses a 200-bar SMA trend filter, RSI(2) <=10 for longs and >=90 for shorts, and exits at SMA(5). It is not an Indian-market backtest.'
+trade_idea: 'Test whether very short RSI pullbacks filtered by a longer trend SMA can yield positive intraday returns in NSE stocks after costs.'
+implementation: 'Research 111 applies SMA(200), Wilder RSI(2) thresholds 10/90 and SMA(5) exits to continuous 5-minute bars. Signals use completed closes and next contiguous opens; positions flatten at 15:10. Allocate ₹200,000 per stock; date-aware NSE charges plus 2 bp slippage per side.'
+red_flags:
+- The source's market and timeframe are not specified as Indian intraday stocks; 5-minute bars are an explicit local adaptation.
+- The source example provides no independently validated result for NSE stocks.
+- SMA(200) means 200 five-minute bars here, not 200 daily bars.
+- This is related to the broad mean-reversion family, though the extreme RSI(2)/SMA trend rule is not already a standalone library card.
+- Five fixed current stocks are not a point-in-time universe.
+- Minute OHLCV lacks spread, order-book depth and queue position.
+reported_results: 'Fixed 2024 NSE 5-minute adaptation: 3,317 round trips across 224 common sessions, +5.54% gross and -45.12% net return, net Sharpe -19.004, net maximum drawdown -45.12%, 35.6% net winners, 0.281 profit factor, and ₹653,190 estimated costs.'
+hypothesis: H-0019
+strategies:
+- kind: registered
+  id: nse_github_connors_rsi2_intraday_pullback
+  note: Fixed NSE 5-minute adaptation and local result in Research 111
+  timeframe: 0

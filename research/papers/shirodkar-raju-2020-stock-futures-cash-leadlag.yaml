@@ -1,0 +1,25 @@
+id: shirodkar-raju-2020-stock-futures-cash-leadlag
+title: Do the Single Stock Futures and the Underlying Stocks Lead-Lag? Empirical Evidence from Indian Markets
+authors: Shirodkar, S.; Raju, G. A.
+year: 2020
+kind: paper
+source_url: https://irgu.unigoa.ac.in/drs/handle/unigoa/6287
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- 30 liquid NSE single-stock futures and underlying cash stocks, one-minute returns, 2017-2019
+summary: The study applies VECM, Hasbrouck information shares, and common-factor weights to one-minute returns and reports that single-stock futures contribute more to price discovery than cash.
+trade_idea: If futures lead the cash share in a stable intraday direction, trade the cash share after the futures move and exit after a short fixed horizon.
+implementation: |-
+  Proposed test only: estimate lead/lag direction and lag on a training period for eligible stock futures, then trade the underlying cash stock at the next available minute when the future moves and the cash price has not followed.
+
+  Data needed here: point-in-time single-stock futures instrument master, expired-contract minute history with actual expiry dates, synchronized NSE cash minute bars, and contract-roll mapping. The current Kite archive contains NSE cash minute bars but not historical single-stock futures minute bars.
+red_flags:
+- The source is a price-discovery study, not a costed trading strategy.
+- Source sample ends in 2019 and uses 30 actively traded names.
+- Futures/cash timestamps, expiry handling, spread, and both-leg costs matter.
+- No local backtest is possible until expired futures minute data is obtained.
+reported_results: The authors report greater price-discovery contribution from single-stock futures than from the underlying cash market; no strategy returns are reported.
+hypothesis: ''
+strategies: []

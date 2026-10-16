@@ -1,0 +1,22 @@
+id: gupta-kumar-2025-open-orderbook-india
+title: 'Information Content of an Open Limit-Order Book: Indian Evidence'
+authors: Gupta, M.; Kumar, S.
+year: 2025
+kind: paper
+source_url: https://doi.org/10.37625/abr.28.1.34-64
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- NSE equity order-book and trade-book data, 2014-2018
+summary: The study finds deeper levels of the NSE limit order book contribute to short-term return predictability beyond best prices, return autocorrelation, volume, and trade imbalance.
+trade_idea: Use multi-level bid and ask depth to forecast short-horizon price direction and trade only when predicted movement exceeds spread and costs.
+implementation: |-
+  Not coded. Data needed: timestamped historical NSE level-2 or deeper order-book snapshots and trades with instrument IDs, plus a quote-aware execution simulator. The current Kite archive has one-minute OHLCV bars only.
+red_flags:
+- Predictability is not a net strategy result.
+- The source uses proprietary historical order-book and trade-book data.
+- The local archive does not contain depth snapshots or queue-position information.
+reported_results: Deeper limit-order-book levels add short-term return predictability after controls; no local strategy result is available.
+hypothesis: ''
+strategies: []

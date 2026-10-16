@@ -1,0 +1,22 @@
+id: tripathi-dixit-vipul-2021-order-imbalance-india
+title: 'Information Content of Order Imbalance in an Order-Driven Market: Indian Evidence'
+authors: Tripathi, A.; Dixit, A.; Vipul
+year: 2021
+kind: paper
+source_url: https://doi.org/10.1016/j.frl.2020.101863
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- 195 most-active NSE stocks, transaction data and intraday order-book snapshots, 2015-2017
+summary: The study finds short-horizon returns are predictable from order imbalance, with the strongest evidence within five minutes and the effect fading within thirty minutes; the authors also discuss bid-ask bounce and deeper book levels.
+trade_idea: Estimate signed buy/sell pressure and test a short-horizon continuation trade only when the signal exceeds the bid-ask-bounce effect and estimated round-trip costs.
+implementation: |-
+  Not coded. Data needed: timestamped NSE transactions with aggressor-side or sufficiently detailed quote data to infer trade direction, plus historical order-book snapshots for validation. One-minute OHLCV volume is not a valid substitute for signed order flow.
+red_flags:
+- Predictability is not a costed implementation result.
+- The source reports an effect strongest over five minutes that decays by thirty minutes.
+- Data is proprietary and unavailable in the current minute archive.
+reported_results: Short-term predictability is strongest in the first five minutes and fades within thirty minutes in the source sample; no local result is available.
+hypothesis: ''
+strategies: []

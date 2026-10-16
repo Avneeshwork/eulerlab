@@ -1,0 +1,22 @@
+id: batra-2003-fii-trading-strategies-india
+title: FII Trading Strategies
+authors: Batra, Amita
+year: 2003
+kind: paper
+source_url: https://icrier.org/pdf/wp109.pdf
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- Indian aggregate equity market, daily and monthly, 2000-2002
+summary: Finds aggregate FIIs chase daily market returns and herd, but not at monthly horizons. Granger-causality tests support market returns leading daily FII flows. Large FII buy/sell imbalances do not show persistent subsequent price impact or a destabilizing effect in the event study.
+trade_idea: Treat reported FII entry/exit as potentially lagging confirmation of prior market moves. Do not take a same-direction intraday position from the daily aggregate; test only with point-in-time released flows and later-session outcomes.
+implementation: 'The paper studies aggregate daily equity purchases and market returns, not stock-level orders or intraday executions. A local replication needs historical FII daily flows with original release timestamps; the current NSE endpoint has only the latest observation. No intraday signal is specified.'
+red_flags:
+- Sample is historical (2000-2002) and may not reflect current market structure.
+- Aggregate daily flows cannot identify stock selection or trade time.
+- Flow-return feedback is endogenous; the source finds market returns lead flows.
+- Event-study evidence is about persistence and destabilization, not a tested trading strategy net of costs.
+reported_results: Daily lagged market returns predict FII trading imbalance; monthly positive-feedback evidence is absent. Event tests of large buy and sell imbalance days find no significant persistent return impact.
+hypothesis: ''
+strategies: []

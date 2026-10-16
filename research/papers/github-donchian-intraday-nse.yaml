@@ -1,0 +1,27 @@
+id: github-donchian-intraday-nse
+title: '5-minute Donchian channel breakout adaptation for NSE stocks'
+authors: James R. Powell
+year: 2026
+kind: note
+source_url: https://github.com/JamesRPowell/Donchain-Breakout/blob/main/TurtleDonchain_Intraday.py
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE liquid stocks, 5-minute OHLCV adaptation
+summary: 'The source uses a 78-bar prior rolling high for long entry and a 39-bar prior rolling low for exit on 5-minute bars. It applies signals one bar later. Its short 60-day US sample includes negative out-of-sample Sharpe values and the README explicitly cautions that the sample is too short to establish a general edge.'
+trade_idea: 'Test whether a simple structural channel breakout can capture NSE intraday trends after realistic fees, slippage and daily square-off.'
+implementation: 'Research 107 uses five fixed Indian large-cap stocks, prior 78-bar high and prior 39-bar low channels, next contiguous 5-minute open fills, no overnight positions, ₹200,000 notional per stock, date-aware NSE charges and 2 bp assumed slippage per side.'
+red_flags:
+- The source has no Indian equity results and its own US test period is short.
+- The method is a generic breakout and overlaps the broader breakout/trend family.
+- Intraday implementation square-offs daily, while the source's continuous series can remain invested across sessions.
+- Five fixed current stocks are not a point-in-time universe.
+- Assumed slippage is not estimated from quote or order-book data.
+reported_results: 'Source README shows a short US 5-minute sample with negative out-of-sample Sharpe on several symbols, no costs, and cautions against broad conclusions. Local fixed 2024 NSE adaptation: 530 round trips across five names, +6.94% gross and -3.66% net return, net Sharpe -0.740, 40.8% net winners, 0.905 net profit factor, and ₹104,421 estimated costs.'
+hypothesis: H-0015
+strategies:
+- kind: registered
+  id: nse_github_donchian_breakout
+  note: Fixed NSE adaptation and local result in Research 107
+  timeframe: 0

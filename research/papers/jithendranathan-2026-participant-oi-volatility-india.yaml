@@ -1,0 +1,22 @@
+id: jithendranathan-2026-participant-oi-volatility-india
+title: 'Trading Activity, Open Interest, and Volatility: Evidence from the Indian Derivatives Market'
+authors: Jithendranathan, Thadavillil
+year: 2026
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6675000
+pdf: ''
+added: '2026-10-15'
+status: idea
+markets:
+- Indian equity derivatives, participant-level, multi-instrument
+summary: 'The SSRN abstract distinguishes trading volume as transaction intensity from open interest as outstanding positions. It reports that higher volatility is associated with increased trading activity, especially puts and index futures, but not corresponding OI growth; higher activity often coincides with declining OI, consistent with short-horizon adjustment and position unwinding.'
+trade_idea: 'Do not read daily OI accumulation as contemporaneous institutional trading. A future test could ask whether participant-tagged volume and position unwinds predict short-horizon volatility, conditional on instrument and participant.'
+implementation: 'The local NSE participant archive provides daily OI snapshots but not participant-wise traded volume or intraday order flow. Research 105 tests only a lagged OI-based FII/DII volatility proxy, not this paper’s volume mechanism.'
+red_flags:
+- SSRN working paper; not peer-reviewed evidence.
+- The abstract describes a derivatives-market volatility association, not a net-of-cost trading rule.
+- Local data lacks the participant-wise transaction-volume series needed to reproduce the reported mechanism.
+- Participant OI changes do not identify whether a participant opened or closed directional risk.
+reported_results: 'Source abstract reports volatility increases with trading activity, particularly put options and index futures, without matching OI increases; activity is often associated with declining OI.'
+hypothesis: ''
+strategies: []

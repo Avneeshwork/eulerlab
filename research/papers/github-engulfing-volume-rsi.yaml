@@ -1,0 +1,28 @@
+id: github-engulfing-volume-rsi
+title: 'Engulfing candle with volume and RSI filters: GitHub example'
+authors: Kavyansh34 repository contributors
+year: 2024
+kind: note
+source_url: https://github.com/kavyansh34/Engulfing_candle_backtester
+pdf: ''
+added: '2026-10-15'
+status: backtested
+markets:
+- NSE liquid stocks, 5-minute OHLCV adaptation
+summary: 'The repository describes a BTCUSDT example using bullish/bearish engulfing patterns, RSI(14) thresholds of 40/60, volume above EMA(14), and 1:5 risk/reward. It supplies no validated Indian equity results and omits transaction costs.'
+trade_idea: 'Test whether strict engulfing patterns with volume expansion and RSI thresholds can produce positive after-cost intraday returns in liquid NSE stocks.'
+implementation: 'Research 109 independently implements strict opposite-color body engulfing, completed-bar RSI(14), signal volume above the previous-bar volume EMA(14), next contiguous 5-minute open entry, outer pair extreme stop, fixed 5R target, one trade per symbol/session and 15:10 square-off. Fixed 1% of each ₹200,000 stock sleeve at risk, capped at sleeve notional; date-aware NSE charges plus 2 bp slippage per side.'
+red_flags:
+- The source targets crypto rather than Indian equities and has no audited performance.
+- Its pattern code does not consistently enforce candle colors and its long stop uses the wrong pair extreme; this screen corrects both.
+- The source skips fees and slippage; costs materially affect minute strategies.
+- Five fixed current stocks are not a point-in-time universe.
+- Minute OHLCV cannot resolve spread, queue position or partial fills.
+- Stop-first ordering is assumed when stop and target both trade inside one bar.
+reported_results: 'Fixed 2024 NSE adaptation: 360 round trips over 224 common sessions, -0.02% gross and -6.86% net return, net Sharpe -5.088, net maximum drawdown -6.86%, 24.7% net winners, 0.519 profit factor, and ₹70,759 estimated costs.'
+hypothesis: H-0017
+strategies:
+- kind: registered
+  id: nse_github_engulfing_volume_rsi
+  note: Fixed NSE adaptation and local result in Research 109
+  timeframe: 0
