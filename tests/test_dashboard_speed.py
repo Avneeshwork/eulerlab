@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -283,6 +284,7 @@ def test_the_historys_light_chain_gives_the_same_point_as_the_full_chain(
         landing_reader, "available", lambda *a, **k: ["fo/2026/10/2026-10-09_udiff.zip"]
     )
     monkeypatch.setattr(landing_reader, "read", lambda *a, **k: payload)
+    monkeypatch.setattr(server, "_HISTORY_POINTS", {})
 
     full = server._chain_payload("NIFTY", "", "", summary=False)
     light = server._chain_payload("NIFTY", "", "", summary=True)
@@ -294,6 +296,38 @@ def test_the_historys_light_chain_gives_the_same_point_as_the_full_chain(
     assert len(light["strikes"]) == 1 and len(full["strikes"]) == 5
     assert "smile" in full and "smile" not in light
     assert server.options_history("NIFTY", days=5)["points"] == [point]
+
+
+def test_a_history_day_is_parsed_once_and_a_failed_day_is_tried_again(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A landed bhavcopy never changes, so its point is kept. A day whose chain
+    could not be read (a fetch that failed) must not be remembered as empty."""
+    from eulerlab.api import server
+
+    calls: list[str] = []
+    point = {"day": "2026-10-09", "straddle": 230.0}
+
+    def chain(underlying: str, day: str, expiry: str, *, summary: bool) -> dict[str, Any]:
+        calls.append(day)
+        return {"ok": day == "2026-10-09", "point": point}
+
+    monkeypatch.setattr(server, "_HISTORY_POINTS", {})
+    monkeypatch.setattr(server, "_chain_payload", chain)
+    monkeypatch.setattr(
+        server, "options_days", lambda limit=400: {"days": ["2026-10-12", "2026-10-09"]}
+    )
+    monkeypatch.setattr(
+        "eulerlab.options.history.history_point",
+        lambda payload: payload["point"] if payload["ok"] else None,
+    )
+
+    first = server.options_history("NIFTY", days=2)
+    second = server.options_history("nifty", days=2)
+
+    assert first["points"] == second["points"] == [point]
+    assert first["skipped"] == second["skipped"] == ["2026-10-12"]
+    assert calls == ["2026-10-09", "2026-10-12", "2026-10-12"], "only the failed day is re-read"
 
 
 def test_a_row_read_from_the_file_is_the_row_the_constructor_makes(tmp_path: Path) -> None:

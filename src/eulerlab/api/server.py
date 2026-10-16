@@ -3173,15 +3173,16 @@ def window(
     reading a result as covering a period it does not.
     """
     try:
-        rows = _rows_for(asset_class, days)
-        every = _rows_for(asset_class, 0)
+        if asset_class == AssetClass.EQUITY.value:
+            all_days, picked = PANEL.days(), PANEL.days(days)
+        else:
+            all_days = trading_days(_rows_for(asset_class, 0))
+            picked = trading_days(_rows_for(asset_class, days))
     except (FileNotFoundError, OSError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
-    if not rows:
+    if not picked:
         return {"ok": False, "error": _no_panel_message(asset_class)}
 
-    all_days = trading_days(every)
-    picked = trading_days(rows)
     warmup = warmup_for(len(picked))
     traded = picked[warmup:] if warmup < len(picked) else []
 
@@ -4290,6 +4291,13 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
     }
 
 
+_HISTORY_POINTS: dict[tuple[str, str], dict[str, Any] | None] = {}
+"""One straddle-history point per (underlying, day), kept for the server's life.
+A landed bhavcopy never changes, so neither does its point; re-parsing 30 of
+them was 3.2 s of every warm request (measured 2026-10-16). A day whose chain
+could not be read is not kept, so a failed fetch is tried again next time."""
+
+
 @app.get("/api/options/history")
 def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]:
     """The at-the-money straddle, its implied vol and the forward, day by day.
@@ -4309,7 +4317,14 @@ def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]
     points: list[dict[str, Any]] = []
     skipped: list[str] = []
     for day in reversed(listed["days"]):
-        point = history_point(_chain_payload(underlying, day, "", summary=True))
+        key = (underlying.upper(), day)
+        if key in _HISTORY_POINTS:
+            point = _HISTORY_POINTS[key]
+        else:
+            payload = _chain_payload(underlying, day, "", summary=True)
+            point = history_point(payload)
+            if payload.get("ok"):
+                _HISTORY_POINTS[key] = point
         if point is None:
             skipped.append(day)
         else:

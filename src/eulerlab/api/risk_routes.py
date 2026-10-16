@@ -181,13 +181,51 @@ def _prices(symbols: set[str]) -> dict[str, dict[date, float]]:
     return {symbol: index[symbol] for symbol in symbols if symbol in index}
 
 
+def _stamp(paths: list[Path]) -> tuple[tuple[str, int, int], ...]:
+    """Name, mtime and size of each file: changes whenever any of them is rewritten."""
+    out = []
+    for path in paths:
+        try:
+            info = path.stat()
+        except OSError:
+            continue
+        out.append((path.name, info.st_mtime_ns, info.st_size))
+    return tuple(out)
+
+
+_SECTORS: dict[str, Any] = {}
+_BACKTESTS: dict[Path, tuple[tuple[tuple[str, int, int], ...], dict[str, Any]]] = {}
+"""Sectors and backtest summaries, kept until their files change. Re-parsing the
+company digest and every stored report was half of each `/api/risk/book`
+request (about 40 of 65 ms, measured 2026-10-16)."""
+
+
+def _sectors() -> dict[str, str]:
+    stamp = _stamp([company_digest.DIGEST_PATH])
+    if _SECTORS.get("stamp") != stamp:
+        found = {symbol: c.sector for symbol, c in company_digest.load_digest().items()}
+        _SECTORS.update(stamp=stamp, sectors=found)
+    return dict(_SECTORS["sectors"])
+
+
 def _backtest(tenant: workspace_mod.Workspace, strategy_id: str) -> dict[str, Any]:
-    """The longest stored backtest of a strategy: its equity and worst drawdown."""
+    """The longest stored backtest of a strategy, read again only when a report changes."""
     folder = tenant.root / "reports" / strategy_id
-    best: dict[str, Any] = {}
     if not folder.is_dir():
-        return best
-    for path in sorted(folder.glob("*.json")):
+        return {}
+    paths = sorted(folder.glob("*.json"))
+    stamp = _stamp(paths)
+    cached = _BACKTESTS.get(folder)
+    if cached is None or cached[0] != stamp:
+        cached = (stamp, _longest_backtest(paths))
+        _BACKTESTS[folder] = cached
+    return dict(cached[1])
+
+
+def _longest_backtest(paths: list[Path]) -> dict[str, Any]:
+    """Its equity and worst drawdown, from the report with the longest curve."""
+    best: dict[str, Any] = {}
+    for path in paths:
         try:
             loaded = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -213,7 +251,7 @@ def book(workspace: str = "") -> dict[str, Any]:
         levels = watch.load()
     except Exception as exc:  # a malformed config must not blank the screen
         return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
-    sectors = {symbol: c.sector for symbol, c in company_digest.load_digest().items()}
+    sectors = _sectors()
     payload = report.build(
         books,
         prices,

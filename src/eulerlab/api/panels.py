@@ -64,10 +64,18 @@ class _Panel:
             return rows
         return rows[starts[-days] :]
 
-    def days(self) -> list[date]:
-        """Every trading day in the panel, oldest first."""
+    def days(self, window: int = 0) -> list[date]:
+        """The trading days `rows(window)` covers, oldest first; every day for 0.
+
+        Read from the list built when the panel loaded. `trading_days(rows)` on
+        the full panel walks 5.4 million rows: 0.57 s a call, twice per
+        `/api/window` request (measured 2026-10-16).
+        """
         self.rows()
-        return self._days
+        found = self._days
+        if not window or window >= len(found):
+            return found
+        return found[-window:]
 
     def coverage(self) -> dict[str, object]:
         """What the panel contains: the figures `alt_panel.coverage` gives.

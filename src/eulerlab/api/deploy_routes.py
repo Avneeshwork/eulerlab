@@ -236,6 +236,11 @@ def stop(deployment_id: str) -> dict[str, Any]:
     return {"ok": True, "deployment": _summary(deployment)}
 
 
+def _flow_key(flow: dict[str, Any]) -> tuple[str, str]:
+    """A flow's identity: when it was entered and the close it was dated against."""
+    return str(flow.get("entered_at", "")), str(flow.get("last_decided", ""))
+
+
 @router.post("/{deployment_id}/flow")
 def cash_flow(deployment_id: str, request: FlowRequest) -> dict[str, Any]:
     """Queue external capital for the first decision after the current close."""
@@ -260,15 +265,9 @@ def cash_flow(deployment_id: str, request: FlowRequest) -> dict[str, Any]:
                 state.get("last_decided")
                 or (curve[-2][0] if len(curve) > 1 else deployment.start.isoformat())
             )
-            pending = [
-                flow
-                for flow in deployment.flows
-                if (str(flow.get("entered_at", "")), str(flow.get("last_decided", "")))
-                not in {
-                    (str(item.get("entered_at", "")), str(item.get("last_decided", "")))
-                    for item in state.get("flows", [])
-                }
-            ]
+            applied = state.get("flows", [])
+            applied_keys = {_flow_key(item) for item in applied}
+            pending = [flow for flow in deployment.flows if _flow_key(flow) not in applied_keys]
             projected = (
                 float(state.get("equity", deployment.capital))
                 + sum(float(flow.get("amount", 0.0)) for flow in pending)
@@ -287,23 +286,13 @@ def cash_flow(deployment_id: str, request: FlowRequest) -> dict[str, Any]:
             }
             updated = deployment.model_copy(update={"flows": [*deployment.flows, flow]})
             store.save(updated)
-            applied = state.get("flows", [])
-            applied_keys = {
-                (str(item.get("entered_at", "")), str(item.get("last_decided", "")))
-                for item in applied
-            }
             store.write_state(
                 updated,
                 {
                     **state,
                     "invested": state.get("invested", deployment.capital),
                     "flows": applied,
-                    "pending": [
-                        item
-                        for item in updated.flows
-                        if (str(item.get("entered_at", "")), str(item.get("last_decided", "")))
-                        not in applied_keys
-                    ],
+                    "pending": [*pending, flow],
                 },
             )
             return {"ok": True, "flow": flow, "deployment": _summary(updated)}

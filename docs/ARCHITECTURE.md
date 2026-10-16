@@ -1612,6 +1612,20 @@ Still slow, and why: the live snapshot takes about 5 s because it asks Kite
 for the whole universe in 16 calls of 200 symbols; it no longer blocks the
 first paint. The first call to `/api/fleet` after a restart takes 2.7 s.
 
+A third pass on 2026-10-16 timed every read route again, warm. Unlike the two
+above, these **do** keep a result between requests, each dropped by the change
+that would make it wrong (ADR-077):
+
+| What | Before | After | How |
+|---|---|---|---|
+| `/api/window` | 1.1 s | under 1 ms | `PANEL.days(n)`: the day list built when the panel loaded, not two scans of every row |
+| Options history, 30 days, warm | 3.2 s | 5 ms | One point per (underlying, day), kept: a landed bhavcopy never changes. First request after a restart is unchanged |
+| Research Library list | 0.33 s | 43 ms | libyaml's `CSafeLoader` (same result on all 96 papers) and each paper kept until its file changes |
+| `/api/risk/book` | 65 ms | 42 ms | Sectors and backtest summaries kept until the digest or a report changes |
+
+Not cached, deliberately: `/api/cloud/status` (1.3 s) lists the bucket so it
+shows the bucket's real state, and `/api/snapshot`'s time is the broker.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

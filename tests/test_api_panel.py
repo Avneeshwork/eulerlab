@@ -45,6 +45,30 @@ def test_the_same_window_and_universe_is_still_cached() -> None:
     assert panel.index(800, rows, "all") is panel.index(800, rows, "all")
 
 
+def test_days_are_the_days_the_same_window_of_rows_covers(
+    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`days(n)` replaced `trading_days(rows(n))` in `/api/window` and the
+    snapshot. It must name exactly the days those rows hold, for every window."""
+    from pathlib import Path
+
+    from eulerlab.api import panels
+    from eulerlab.features.panel import trading_days
+
+    stored = [
+        _row(symbol, date(2026, 1, day), 1.0) for day in (2, 5, 6, 7) for symbol in ("AAA", "BBB")
+    ]
+    path = Path(str(tmp_path)) / "panel.jsonl"
+    path.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(panels, "PANEL_PATH", path)
+    monkeypatch.setattr(panels, "read_panel", lambda: list(stored))
+    panel = _Panel()
+
+    for window in (0, 1, 2, 4, 9):
+        assert panel.days(window) == trading_days(panel.rows(window)), window
+    assert panel.days(2) == [date(2026, 1, 6), date(2026, 1, 7)]
+
+
 def test_all_means_every_symbol_in_the_panel() -> None:
     rows = [_row("AAA", date(2026, 1, 2), 1.0), _row("BBB", date(2026, 1, 2), 2.0)]
     kept, size, resolved = _universe_rows(rows, "all")

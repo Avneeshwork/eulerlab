@@ -106,16 +106,33 @@ def _path(paper_id: str, root: Path) -> Path:
     return root / f"{paper_id}.yaml"
 
 
+_LOADER: Any = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+"""libyaml's safe loader when PyYAML was built with it: the same safe subset,
+about ten times faster than the pure-Python parser."""
+
+_PARSED: dict[Path, tuple[tuple[int, int], Paper | None]] = {}
+"""Each paper as parsed, kept until its file's mtime or size changes. Parsing
+all 96 papers was 0.31 s of every 0.33 s Research Library read (2026-10-16)."""
+
+
 def load(paper_id: str, *, root: Path | None = None) -> Paper | None:
     root = root or ROOT
     try:
         path = _path(paper_id, root)
     except ValueError:
         return None
-    if not path.exists():
+    try:
+        info = path.stat()
+    except OSError:
         return None
-    raw: Any = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return Paper.model_validate(raw) if isinstance(raw, dict) else None
+    stamp = (info.st_mtime_ns, info.st_size)
+    cached = _PARSED.get(path)
+    if cached is None or cached[0] != stamp:
+        raw: Any = yaml.load(path.read_text(encoding="utf-8"), Loader=_LOADER)
+        cached = (stamp, Paper.model_validate(raw) if isinstance(raw, dict) else None)
+        _PARSED[path] = cached
+    # A copy, so a caller that edits its paper cannot change the next reader's.
+    return cached[1].model_copy(deep=True) if cached[1] is not None else None
 
 
 def all_papers(*, root: Path | None = None) -> list[Paper]:
