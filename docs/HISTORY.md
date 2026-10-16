@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Twenty-one times this project was wrong
+## Twenty-two times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -232,6 +232,20 @@ pattern with no wildcard is its own prefix. Not re-run: the 13 October night
 is not traded after the fact. **Any exact-name read of a pruned file before
 this date failed the same way**, and ADR-070 now prunes after every dataset,
 so it would have happened every night.
+
+**22. A test that builds throwaway repositories wrote into the real one.**
+(2026-10-16) `tests/test_docs_check.py` creates temporary git repositories and
+was believed to touch nothing else. Git sets `GIT_DIR` and `GIT_INDEX_FILE` for
+a hook run from a linked worktree; the pre-commit pytest hook passed them on,
+so the test's `git init` and `git config` ran against the real `.git`. It set
+`core.bare = true` and a local `Test <test@example.com>` identity. Every git
+command then refused to run in a work tree, and any commit would have been
+signed "Test". No commit or ref was changed. Fixed: the fixture removes every
+`GIT_*` variable before it runs git; proved by running the test with `GIT_DIR`
+aimed at a decoy repository, whose config stayed unchanged. `core.bare` was put
+back by hand. **The `[user]` section the test wrote is still in `.git/config`
+until the operator removes it** (`git config --unset user.name`,
+`git config --unset user.email`).
 
 ---
 

@@ -7,6 +7,7 @@ one-off manual run, so it keeps being true.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
@@ -29,6 +30,12 @@ def _write(repo: Path, relpath: str, text: str = "x\n") -> None:
 @pytest.fixture
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.delenv("DOCS_CHECK_BASE", raising=False)
+    # A pre-commit hook in a linked worktree runs with GIT_DIR (and
+    # GIT_INDEX_FILE) set. Inherited, they point every `git` below at the real
+    # repository: on 2026-10-16 `git init` here set core.bare and a "Test"
+    # identity in the real config. The throwaway repo must be the only target.
+    for name in [n for n in os.environ if n.startswith("GIT_")]:
+        monkeypatch.delenv(name)
     root = tmp_path / "repo"
     root.mkdir()
     _git(root, "init", "-q", "-b", "main")
