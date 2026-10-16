@@ -1623,7 +1623,7 @@ that would make it wrong (ADR-077):
 | Research Library list | 0.33 s | 43 ms | libyaml's `CSafeLoader` (same result on all 96 papers) and each paper kept until its file changes |
 | `/api/risk/book` | 65 ms | 42 ms | Sectors and backtest summaries kept until the digest or a report changes |
 | `/api/cloud/status` | 1.3 to 2.4 s | 3 ms inside 60 s | The bucket listing, dropped when this server mirrors; the Data tab shows its time and can list again |
-| Dashboard with live prices, reopened | 3.7 to 4.8 s | about 1 s inside 15 s | A complete live answer for the map is reused; the rest is the movers' own quote call |
+| Dashboard with live prices, reopened | 3.7 to 4.8 s | 0.35 s inside 15 s | A complete live answer for the map is reused, and the movers band takes its prices from it. A mover Kite did not price goes to Yahoo only, and Yahoo is not asked for 10 minutes after a 429 |
 
 Both snapshot deadlines were inert until this pass (HISTORY #23): `_bounded`
 now returns at the deadline instead of when the broker finally answers.

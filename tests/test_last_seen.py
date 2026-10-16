@@ -184,7 +184,7 @@ def test_a_live_answer_is_saved_and_a_partial_one_is_not(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _panel(monkeypatch)
-    monkeypatch.setattr(server, "_quotes_band", lambda symbols: {"available": False})
+    monkeypatch.setattr(server, "_quotes_band", lambda symbols, held=None: {"available": False})
     at = "2026-10-12T09:22:00+00:00"
     answer = {"AAA": _quote("AAA", 103.0, 100.0, at)}
 

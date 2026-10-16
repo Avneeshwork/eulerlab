@@ -3521,8 +3521,13 @@ def _world_band() -> dict[str, Any]:
     }
 
 
-def _quotes_band(symbols: list[str]) -> dict[str, Any]:
+def _quotes_band(symbols: list[str], held: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Live prices for the movers, broker first.
+
+    `held` is the map's live answer from this same request: Kite, the same
+    venue, with each quote's own time. A mover it priced is taken from it, and
+    only the rest are asked for. Asking again for prices fetched a moment ago
+    was about 1 s of every live snapshot (measured 2026-10-16).
 
     Zerodha is primary because it is the venue this platform trades through, so
     its quote is the price an order would actually meet. Yahoo is the fallback
@@ -3543,7 +3548,27 @@ def _quotes_band(symbols: list[str]) -> dict[str, Any]:
         # through the news feed. A broker that has not answered in fifteen
         # seconds will not answer usefully, and a snapshot without live prices
         # is a far smaller loss than a snapshot that never arrives.
-        result = _bounded(quotes.live, symbols, timeout=QUOTES_DEADLINE)
+        result = quotes.QuoteResult()
+        for symbol in symbols:
+            if held and symbol in held:
+                result.quotes[symbol] = held[symbol]
+                result.sources[held[symbol].source] = result.sources.get(held[symbol].source, 0) + 1
+        remainder = [symbol for symbol in symbols if symbol not in result.quotes]
+        if remainder and held:
+            # Kite was asked for these in this request and did not price them
+            # (a rights entitlement, a renamed name): only the fallback is left.
+            found, error = _bounded(quotes.from_yahoo, remainder, timeout=QUOTES_DEADLINE)
+            result.quotes.update(found)
+            if found:
+                result.sources["yahoo"] = result.sources.get("yahoo", 0) + len(found)
+            if error:
+                result.errors["yahoo"] = error
+        elif remainder:
+            asked = _bounded(quotes.live, remainder, timeout=QUOTES_DEADLINE)
+            result.quotes.update(asked.quotes)
+            for source, count in asked.sources.items():
+                result.sources[source] = result.sources.get(source, 0) + count
+            result.errors.update(asked.errors)
     except FuturesTimeout:
         return {
             "available": False,
@@ -3801,6 +3826,7 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     live_at = ""
     live_returns: dict[str, float] = {}
     live_error = ""
+    fetched: dict[str, Any] = {}
     seen_returns: dict[str, float] = {}
     seen_at = ""
     seen_sources: tuple[str, ...] = ()
@@ -3998,7 +4024,8 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
         "world": _world_band(),
         "us": _us_band(),
         "quotes": _quotes_band(
-            [str(t["symbol"]) for t in [*by_move[:SNAPSHOT_MOVERS], *by_move[-SNAPSHOT_MOVERS:]]]
+            [str(t["symbol"]) for t in [*by_move[:SNAPSHOT_MOVERS], *by_move[-SNAPSHOT_MOVERS:]]],
+            held=fetched,
         )
         if live
         else {"available": False, "reason": "live prices are loading", "quotes": {}},

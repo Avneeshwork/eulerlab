@@ -69,7 +69,7 @@ def _no_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture(autouse=True)
 def _empty_request_caches() -> None:
-    """Every test starts with the API's request caches empty (ADR-077).
+    """Every test starts with the API's request caches empty (ADR-077), and Yahoo not backed off.
 
     They live for the server's life, so one test's live quotes or bucket
     listing would otherwise be served to the next. Cleared only when the server
@@ -77,6 +77,9 @@ def _empty_request_caches() -> None:
     """
     import sys
 
+    quotes = sys.modules.get("eulerlab.quotes")
+    if quotes is not None:
+        quotes._yahoo_blocked_until[0] = 0.0
     server = sys.modules.get("eulerlab.api.server")
     if server is not None:
         server._LIVE_UNIVERSE.clear()

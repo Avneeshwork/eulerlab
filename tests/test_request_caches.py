@@ -96,3 +96,74 @@ def test_the_bucket_listing_is_reused_until_a_mirror_or_a_refresh(
     assert server.cloud_status()["remote_files"] == ["a.jsonl", "b.jsonl", "c.jsonl"], (
         "a mirror from this server must not leave the old listing on screen"
     )
+
+
+def _quote(symbol: str, last: float, source: str = "zerodha") -> quotes.Quote:
+    return quotes.Quote(symbol, last, 100.0, source, "2026-10-16T09:20:00+00:00")
+
+
+def test_movers_the_map_priced_are_not_asked_for_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kite was asked for every mover in the same request. One it priced is
+    reused; one it did not goes to the fallback only, never back to Kite."""
+    asked: list[list[str]] = []
+
+    def yahoo(symbols: list[str]) -> tuple[dict[str, quotes.Quote], str]:
+        asked.append(symbols)
+        return {s: _quote(s, 99.0, "yahoo") for s in symbols}, ""
+
+    def kite(*_: object, **__: object) -> None:
+        raise AssertionError("Kite was asked again for a mover it had just been asked for")
+
+    monkeypatch.setattr(quotes, "from_yahoo", yahoo)
+    monkeypatch.setattr(quotes, "live", kite)
+    monkeypatch.setattr(quotes, "from_zerodha", kite)
+
+    band = server._quotes_band(["AAA", "BBB"], held={"AAA": _quote("AAA", 101.0)})
+
+    assert asked == [["BBB"]], "only the mover the map did not price is asked"
+    assert band["quotes"]["AAA"]["last"] == 101.0 and band["quotes"]["AAA"]["source"] == "zerodha"
+    assert band["quotes"]["BBB"]["source"] == "yahoo"
+    assert band["sources"] == {"zerodha": 1, "yahoo": 1}
+
+    asked.clear()
+    covered = server._quotes_band(["AAA"], held={"AAA": _quote("AAA", 101.0)})
+    assert asked == [] and covered["available"] and covered["source"] == "zerodha"
+
+
+def test_without_the_maps_answer_the_movers_are_asked_broker_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asked: list[list[str]] = []
+
+    def live(symbols: list[str]) -> quotes.QuoteResult:
+        asked.append(symbols)
+        return quotes.QuoteResult(
+            quotes={s: _quote(s, 101.0) for s in symbols}, sources={"zerodha": 1}
+        )
+
+    monkeypatch.setattr(quotes, "live", live)
+    band = server._quotes_band(["AAA"], held={})
+    assert asked == [["AAA"]] and band["source"] == "zerodha"
+
+
+def test_after_a_429_yahoo_is_not_asked_until_the_backoff_ends(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import urllib.error
+    import urllib.request
+
+    requests: list[str] = []
+
+    def blocked(request: urllib.request.Request, timeout: float) -> None:
+        requests.append(request.full_url)
+        raise urllib.error.HTTPError(request.full_url, 429, "Too Many Requests", {}, None)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(urllib.request, "urlopen", blocked)
+
+    assert quotes.from_yahoo(["AAA", "BBB"]) == ({}, quotes.YAHOO_BLOCKED)
+    assert quotes.from_yahoo(["CCC"]) == ({}, quotes.YAHOO_BLOCKED)
+    assert len(requests) == 1, "one 429, then no request inside the backoff"
+
+    monkeypatch.setattr(quotes, "_yahoo_blocked_until", [0.0])
+    quotes.from_yahoo(["DDD"])
+    assert len(requests) == 2, "asked again once the backoff has passed"

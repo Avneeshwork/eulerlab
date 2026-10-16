@@ -29,7 +29,8 @@ Option 2. Each cache is dropped by what makes it wrong:
 | Sectors and backtest summaries (`risk_routes`) | the digest's or any report's name, mtime or size changes |
 | A straddle-history point (`server._HISTORY_POINTS`) | never: a landed bhavcopy is immutable. A day whose chain failed to read is not kept |
 | The B2 results listing (`/api/cloud/status`) | 60 s pass, **or** this server mirrors, **or** the operator presses "List the bucket again" (`refresh=true`). The screen shows the listing's time |
-| The map's live quotes (`/api/snapshot`) | 15 s pass. Only a complete answer is kept. Kite allows one quote request a second, so the five calls cannot run in parallel |
+| The map's live quotes (`/api/snapshot`) | 15 s pass. Only a complete answer is kept. Kite allows one quote request a second, so the five calls cannot run in parallel. The movers band reads its prices from the same answer |
+| Yahoo's 429 (`quotes.from_yahoo`) | 10 minutes pass; the reason is still reported each time |
 
 Amended the same day at the operator's request: the B2 listing and the live
 quotes were first left uncached. The listing is cached only because a mirror

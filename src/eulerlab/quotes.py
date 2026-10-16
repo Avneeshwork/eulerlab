@@ -49,6 +49,7 @@ source and its timestamp, and the band says which it is showing.
 from __future__ import annotations
 
 import json
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -185,6 +186,16 @@ def from_zerodha(symbols: list[str]) -> tuple[dict[str, Quote], str]:
     return out, ""
 
 
+YAHOO_BLOCKED = "Yahoo returned 429 (blocked for scripted access)"
+
+YAHOO_BACKOFF = 600.0
+"""Seconds Yahoo is not asked after a 429. Short enough that the fallback comes
+back by itself within ten minutes of the block lifting."""
+
+_yahoo_blocked_until = [0.0]
+"""Monotonic time before which a 429 is assumed, without a request."""
+
+
 def from_yahoo(symbols: list[str], *, suffix: str = ".NS") -> tuple[dict[str, Quote], str]:
     """Live quotes from Yahoo's public chart endpoint. Returns (quotes, error).
 
@@ -194,6 +205,8 @@ def from_yahoo(symbols: list[str], *, suffix: str = ".NS") -> tuple[dict[str, Qu
     """
     if not symbols:
         return {}, ""
+    if time.monotonic() < _yahoo_blocked_until[0]:
+        return {}, YAHOO_BLOCKED
     stamp = datetime.now(UTC).isoformat()
     out: dict[str, Quote] = {}
     blocked = ""
@@ -206,8 +219,11 @@ def from_yahoo(symbols: list[str], *, suffix: str = ".NS") -> tuple[dict[str, Qu
         except urllib.error.HTTPError as exc:
             if exc.code == 429:
                 # One 429 means every following request is one too. Stop rather
-                # than spend a minute proving it symbol by symbol.
-                return out, "Yahoo returned 429 (blocked for scripted access)"
+                # than spend a minute proving it symbol by symbol, and do not
+                # ask again for YAHOO_BACKOFF seconds: every live dashboard paid
+                # 0.4 s to be told this again (measured 2026-10-16).
+                _yahoo_blocked_until[0] = time.monotonic() + YAHOO_BACKOFF
+                return out, YAHOO_BLOCKED
             blocked = f"HTTP {exc.code}"
             continue
         except (urllib.error.URLError, TimeoutError, ValueError) as exc:

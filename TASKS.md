@@ -20,7 +20,7 @@ Verify: `make verify`; `uv run pytest -q tests/test_screen_common.py tests/test_
 | T-4132 | Cache the B2 results listing without showing stale state after a mirror | DONE — 1.3-2.4 s → 3 ms; dropped on mirror; "List the bucket again" and the listing time on the Data tab (ADR-077) |
 | T-4133 | Reuse a complete live answer for the dashboard map | DONE — 15 s; reopening the dashboard 3.7-4.8 s → about 1 s |
 | T-4134 | Both snapshot deadlines waited out the broker they abandoned | FIXED — HISTORY #23; `server._bounded` |
-| T-4135 | The movers' quote call (about 1 s) is still asked on every live snapshot | OPEN — its symbol list changes with each refresh, so it was left uncached |
+| T-4135 | The movers' quote call (about 1 s) was asked on every live snapshot | DONE — the movers come from the map's own Kite answer; a mover Kite did not price (NATCO-RE, a rights entitlement) goes to Yahoo only, which is not asked for 10 min after a 429. Reopened dashboard 1.4 s → 0.35 s; same 23 of 24 movers priced |
 
 ## Dated paper deployment capital flows (2026-10-15)
 
