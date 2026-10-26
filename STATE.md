@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-26. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-27. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,12 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Quality and speed pass (2026-10-27):** all uncommitted work committed; `make verify` 8 of 8.
+  Engines agree again (Tier A got Tier B's cash and delisting rules, HISTORY #28). FX now pays its
+  recorded spread (it paid nothing, HISTORY #30). Panel: 2.6 → 1.85 GB, read about 8 s from a
+  columnar copy in `data/cache/` (was 37 s). After a restart: `/api/data` 37 s → under 1 s,
+  instruments 12 s → 0.15 s. Warm: dashboard 0.68 → 0.18 s, strategy table 0.22 → 0.07 s,
+  company page 2 ms for tickers no rename touched. Open: T-4139, T-4155.
 - **Indian data from the close (2026-10-26, ADR-079):** `make india-live` retries the Indian steps from 15:31
   until the bhavcopy and minute bars are in. Coverage reads **missing** from 15:31. Minute-built bars stand in until the
   bhavcopy lands. They are not used by the panel or the paper books. F&O stocks' minute bars end at 15:14 since the
