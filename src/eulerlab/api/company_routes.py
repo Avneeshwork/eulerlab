@@ -119,8 +119,17 @@ def _cached_prices(
         return {"series": []}
     try:
         from eulerlab.api.panels import PANEL
+        from eulerlab.features.panel import stored_renames
 
-        held = PANEL.symbol_rows(symbol, PRICE_DAYS)
+        # From memory only for a symbol no rename touches, where the loaded
+        # panel and the file scan are the same rows; otherwise the file scan,
+        # as before (`panel.renamed_names`).
+        renamed = stored_renames()
+        held = (
+            PANEL.symbol_rows(symbol, PRICE_DAYS)
+            if renamed is not None and symbol not in renamed
+            else None
+        )
         mine = held if held is not None else read_symbol_rows(symbol, PRICE_DAYS, PANEL_PATH)
     except (FileNotFoundError, OSError):
         return {"series": []}

@@ -32,7 +32,7 @@ import gzip
 import json
 import statistics
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -386,7 +386,3 @@ def sanity_checks(symbol: str, year_month: str, *, directory: Path | None = None
     if not check.complete:
         problems.append(f"{check.missing:,} of {check.expected:,} minutes absent")
     return problems
-
-
-def utc_ms(when: datetime) -> int:
-    return int(when.replace(tzinfo=UTC).timestamp() * 1000)

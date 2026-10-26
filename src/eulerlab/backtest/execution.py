@@ -25,6 +25,7 @@ anything.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date
 from typing import Protocol, runtime_checkable
 
@@ -67,9 +68,12 @@ class SimulatedExecutor:
         brokerage: Brokerage | None = None,
         cost_multiplier: float = 1.0,
         fund_symbols: frozenset[str] = frozenset(),
+        spreads: Mapping[tuple[str, date], float] | None = None,
     ) -> None:
         self.cost_mode = cost_mode
         self.fund_symbols = fund_symbols
+        self.spreads = spreads or {}
+        """FX: the spread recorded per (symbol, day) (`vector.fx_spreads`)."""
         # Required, not defaulted. The venue decides the bill, and a default
         # here is how US trades came to be charged Indian delivery costs while
         # the routing code above them said otherwise.
@@ -98,6 +102,7 @@ class SimulatedExecutor:
                 self.brokerage,
                 self.asset_class,
                 fund_unit=order.symbol in self.fund_symbols,
+                spread=self.spreads.get((order.symbol, day), 0.0),
             )
             * self.cost_multiplier
         )

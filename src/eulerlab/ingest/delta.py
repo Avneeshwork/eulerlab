@@ -177,13 +177,6 @@ def candles(
 LANDING = __import__("pathlib").Path("data/landing/delta")
 
 
-def candles_path(symbol: str, month: str, *, root: object = None) -> object:
-    from pathlib import Path
-
-    base = root if root is not None else LANDING
-    return Path(str(base)) / "candles" / symbol / f"{month}.jsonl.gz"
-
-
 def land_candles(
     symbols: tuple[tuple[str, str], ...] = MAJORS,
     *,

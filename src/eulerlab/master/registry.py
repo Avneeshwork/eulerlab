@@ -13,7 +13,7 @@ claim the changeover date.
 from __future__ import annotations
 
 from bisect import bisect_right
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -186,6 +186,3 @@ class Registry:
 
     def __iter__(self) -> Iterator[Instrument]:
         return iter(self._by_id.values())
-
-    def all_ids(self) -> Iterable[InstrumentId]:
-        return self._by_id.keys()

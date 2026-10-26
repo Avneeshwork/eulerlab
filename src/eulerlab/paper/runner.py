@@ -28,7 +28,7 @@ entire purpose is to stop trading.
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -70,11 +70,14 @@ class OMSExecutor:
         asset_class: str,
         brokerage: Brokerage | None = None,
         fund_symbols: frozenset[str] = frozenset(),
+        spreads: Mapping[tuple[str, date], float] | None = None,
     ) -> None:
         self.oms = oms
         self.asset_class = asset_class
         self.brokerage = brokerage
         self.fund_symbols = fund_symbols
+        self.spreads = spreads or {}
+        """FX: the recorded spread per (symbol, day), as the backtest charges it."""
         self.submitted = 0
         self.rejected = 0
         self.resolved_after_timeout = 0
@@ -119,6 +122,7 @@ class OMSExecutor:
             self.brokerage,
             self.asset_class,
             fund_unit=order.symbol in self.fund_symbols,
+            spread=self.spreads.get((order.symbol, day), 0.0),
         )
         return Fill(
             client_order_id=order.client_order_id,
@@ -228,7 +232,11 @@ def run(
     """
     oms.recover()
     executor = OMSExecutor(
-        oms, brokerage=brokerage, asset_class=asset_class, fund_symbols=vector.fund_symbols(rows)
+        oms,
+        brokerage=brokerage,
+        asset_class=asset_class,
+        fund_symbols=vector.fund_symbols(rows),
+        spreads=vector.fx_spreads(rows) if asset_class == "fx" else None,
     )
     result = event_driven.run(
         rows,

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Twenty-nine times this project was wrong
+## Thirty times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -339,6 +339,17 @@ number changed. Any rule that reads an F&O stock's bars after 15:14 since
 from the last bar) never had them. Its intraday figures for those dates need
 rechecking (T-4137). For F&O stocks, NSE's close is the auction price, which no
 minute bar shows.
+
+**30. FX backtests paid no cost while marked "realistic".** (2026-10-27) The
+cost router returns zero for FX, saying the engine charges the bid-ask spread
+carried on each row. Neither engine did: `vector.spread_cost` existed,
+documented, and was never called, and nothing read `PanelRow.spread`.
+`COSTED_CLASSES` includes FX, so every FX daily run was labelled `realistic`
+and charged nothing. Found by a dead-code sweep. Fixed: `_costs_for` charges
+half the spread recorded on the fill day per unit (`spread`, from
+`vector.fx_spreads`) in Tier A, Tier B and the paper executor, which still agree.
+No FX result was stored in any workspace, so no stored number changes. Any FX
+figure produced outside the result store before this date was frictionless.
 
 ---
 

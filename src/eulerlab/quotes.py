@@ -331,17 +331,3 @@ def nse_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
                 at=stamp,
             )
     return out, ""
-
-
-def volume_of(row: dict[str, object]) -> float:
-    """Traded volume from a Kite quote row, or zero.
-
-    Kite names it `volume` on some segments and `volume_traded` on others, and
-    reading only one of them reported every stock as untraded on whichever
-    segment used the other spelling.
-    """
-    for key in ("volume", "volume_traded"):
-        value = row.get(key)
-        if isinstance(value, (int, float)):
-            return float(value)
-    return 0.0

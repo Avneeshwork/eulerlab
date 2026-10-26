@@ -29,9 +29,6 @@ fields".
 
 from __future__ import annotations
 
-import gzip
-import json
-from datetime import date
 from pathlib import Path
 
 from eulerlab.corp_actions.parse import CorporateAction, Kind, ParsedComponent
@@ -94,58 +91,6 @@ def _components(row: dict[str, object]) -> tuple[ParsedComponent, ...]:
         )
 
     return ()
-
-
-def read_actions(*, root: Path = LANDING, allow_cloud: bool = True) -> list[CorporateAction]:
-    """Every landed US action, translated. Disk and bucket both."""
-    payloads: list[bytes] = []
-    local = sorted(root.glob("*.jsonl.gz")) if root.exists() else []
-    if local:
-        payloads = [p.read_bytes() for p in local]
-    elif allow_cloud:
-        from eulerlab.ingest import landing_reader
-
-        for relative in sorted(landing_reader.available("us", "actions/*.jsonl.gz")):
-            try:
-                payloads.append(landing_reader.read(relative))
-            except (OSError, ValueError):
-                continue
-
-    out: list[CorporateAction] = []
-    for payload in payloads:
-        for line in gzip.decompress(payload).decode("utf-8", errors="replace").splitlines():
-            if not line.strip():
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-
-            components = _components(row)
-            if not components:
-                continue
-            ex_raw = str(row.get("ex_date") or "")
-            if not ex_raw:
-                # No ex-date means no date to apply the factor from. Dropped
-                # rather than dated from `process_date`, which is when the
-                # exchange filed it and not when the price moved.
-                continue
-            try:
-                ex_date = date.fromisoformat(ex_raw[:10])
-            except ValueError:
-                continue
-
-            symbol = str(row.get("symbol") or "")
-            out.append(
-                CorporateAction(
-                    isin=str(row.get("cusip") or ""),
-                    symbol=symbol,
-                    ex_date=ex_date,
-                    components=components,
-                    raw_subject=str(row.get("action_type", "")),
-                )
-            )
-    return out
 
 
 def summary(actions: list[CorporateAction]) -> dict[str, int]:

@@ -204,8 +204,15 @@ def _costs_for(
     asset_class: str,
     *,
     fund_unit: bool = False,
+    spread: float = 0.0,
 ) -> float:
     """What one fill costs, from the one router that knows every venue.
+
+    FX is charged here, from `spread`: the bid-ask spread recorded on the
+    fill day's row (`fx_spreads`). The router returns zero for FX on the
+    understanding that the engine charges the spread, and until 2026-10-27
+    neither engine did: `spread_cost` was never called, so every FX run
+    labelled "realistic" paid nothing (HISTORY #30).
 
     Delivery rates: Tier A holds overnight, so NSE charges STT at the delivery
     rate rather than the intraday one.
@@ -217,6 +224,8 @@ def _costs_for(
     required argument makes that a type error instead of a silent wrong number.
     """
     del brokerage  # the router owns the schedule, including the broker's part
+    if asset_class == "fx":
+        return spread_cost(price, quantity, spread)
     from eulerlab.costs.router import fill_cost
 
     return fill_cost(
@@ -228,6 +237,11 @@ def _costs_for(
         segment=Segment.EQUITY_DELIVERY,
         fund_unit=fund_unit,
     )
+
+
+def fx_spreads(rows: Sequence[PanelRow]) -> dict[tuple[str, date], float]:
+    """The recorded spread per (symbol, day), for the rows that carry one."""
+    return {(row.symbol, row.day): row.spread for row in rows if row.spread > 0}
 
 
 def fund_symbols(rows: Sequence[PanelRow]) -> frozenset[str]:
@@ -416,12 +430,21 @@ def run(
             return None
         return price_index[symbol][days_[position]]
 
+    spreads = fx_spreads(rows) if asset_class == "fx" else {}
+
     def _fill_cost(day: date, symbol: str, price: float, quantity: int, side: Side) -> float:
         if cost_mode == "replication":
             return 0.0
         return (
             _costs_for(
-                day, price, quantity, side, brokerage, asset_class, fund_unit=symbol in funds
+                day,
+                price,
+                quantity,
+                side,
+                brokerage,
+                asset_class,
+                fund_unit=symbol in funds,
+                spread=spreads.get((symbol, day), 0.0),
             )
             * cost_multiplier
         )

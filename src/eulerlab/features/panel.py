@@ -50,6 +50,7 @@ from zoneinfo import ZoneInfo
 from eulerlab.bitemporal.store import BitemporalStore, Record
 from eulerlab.corp_actions.build_factors import PRICE_FACTORS
 from eulerlab.corp_actions.prices import instrument_key
+from eulerlab.filecache import FileMemo
 from eulerlab.quality.sources import bars_from_bhavcopy
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -303,9 +304,57 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
         return _parse_jsonl(path)
     rows = _read_columns(path)
     if rows is None:
-        rows = canonical_symbols(_parse_jsonl(path))
-        _write_columns(path, rows)
+        raw = _parse_jsonl(path)
+        renamed = renamed_names(raw)
+        rows = canonical_symbols(raw)
+        _write_columns(path, rows, renamed)
     return rows
+
+
+def renamed_names(rows: Sequence[PanelRow]) -> frozenset[str]:
+    """Every symbol a rename touches: a stored name whose rows `canonical_symbols`
+    moves, and every name rows are moved to.
+
+    For any other symbol, the loaded panel and `read_symbol_rows` give the same
+    rows. For these they can differ: an ISIN that changed (GOLDSHARE's
+    face-value split in 2021) or a DVR merged into its parent (GATECHDVR) puts
+    rows under different tickers in the two readers (2026-10-27)."""
+    latest = {row.isin: row.symbol for row in rows if row.isin}
+    names: set[str] = set()
+    for row in rows:
+        if row.isin and latest[row.isin] != row.symbol:
+            names.add(row.symbol)
+            names.add(latest[row.isin])
+    return frozenset(names)
+
+
+def stored_renames(path: Path = PANEL_PATH) -> frozenset[str] | None:
+    """`renamed_names` of the panel file, from its columnar copy; None when the
+    copy is missing or was made from a different file. The copy's metadata is
+    read once per version of the copy; the match to `path` is checked on every
+    call, so a changed panel file is never answered for."""
+    target = _columns_file(path)
+    if target is None or not target.exists():
+        return None
+    metadata = _COPY_METADATA(target)
+    if metadata is None or not all(metadata.get(k) == v for k, v in _source_stamp(path).items()):
+        return None
+    try:
+        return frozenset(json.loads(metadata[b"renamed_symbols"]))
+    except (KeyError, ValueError):
+        return None
+
+
+def _metadata_of(target: Path) -> dict[bytes, bytes] | None:
+    import pyarrow.parquet as pq
+
+    try:
+        return dict(pq.read_schema(target).metadata or {})
+    except (OSError, ValueError):
+        return None
+
+
+_COPY_METADATA = FileMemo(_metadata_of, size=2)
 
 
 def _parse_jsonl(path: Path) -> list[PanelRow]:
@@ -414,8 +463,9 @@ took 0.29 s alone and 4 s during a read. The copy records the JSONL's size and
 modification time and is used only while both still match, so it can never
 answer for a different panel. It is made only from the default panel path."""
 
-COLUMNS_VERSION = "2"
-"""Bumped whenever what the copy holds changes; 2: the renamed rows."""
+COLUMNS_VERSION = "3"
+"""Bumped whenever what the copy holds changes; 2: the renamed rows; 3: the
+renamed symbols in its metadata."""
 _COLUMN_BATCH = 500_000
 
 
@@ -434,7 +484,7 @@ def _source_stamp(path: Path) -> dict[bytes, bytes]:
     }
 
 
-def _write_columns(path: Path, rows: Sequence[PanelRow]) -> None:
+def _write_columns(path: Path, rows: Sequence[PanelRow], renamed: frozenset[str]) -> None:
     """Write the copy, or nothing. A copy that could differ from the JSONL is
     worse than none: any value not already a float (an int `5` would come
     back as `5.0` and print differently) or a set spread means no copy."""
@@ -457,7 +507,9 @@ def _write_columns(path: Path, rows: Sequence[PanelRow]) -> None:
             "isin": pa.array([r.isin for r in rows]).dictionary_encode(),
             **{name: pa.array(values, pa.float64()) for name, values in columns.items()},
         }
-    ).replace_schema_metadata(_source_stamp(path))
+    ).replace_schema_metadata(
+        {**_source_stamp(path), b"renamed_symbols": json.dumps(sorted(renamed)).encode()}
+    )
     with contextlib.suppress(OSError):
         target.parent.mkdir(parents=True, exist_ok=True)
         part = target.with_name(f"{target.name}.{os.getpid()}.part")
@@ -475,7 +527,8 @@ def _read_columns(path: Path) -> list[PanelRow] | None:
 
     try:
         source = pq.ParquetFile(target)
-        if source.schema_arrow.metadata != _source_stamp(path):
+        metadata = source.schema_arrow.metadata or {}
+        if not all(metadata.get(k) == v for k, v in _source_stamp(path).items()):
             return None
         epoch = date(1970, 1, 1)
         days: dict[int, date] = {}
@@ -787,24 +840,3 @@ def trading_days(rows: Sequence[PanelRow]) -> list[date]:
             found.add(day)
             previous = day
     return sorted(found)
-
-
-def iter_rows(path: Path = PANEL_PATH) -> Iterator[PanelRow]:
-    """Stream the panel without holding it all in memory."""
-    if not path.exists():
-        return
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            yield PanelRow(
-                day=date.fromisoformat(row["d"]),
-                symbol=row["s"],
-                close=row["c"],
-                volume=row["v"],
-                turnover=row["t"],
-                open=row.get("o", 0.0),
-                high=row.get("h", 0.0),
-                low=row.get("l", 0.0),
-            )

@@ -105,3 +105,28 @@ def test_the_in_memory_symbol_rows_match_the_file_and_step_aside_when_it_changes
             ]
     os.utime(source, ns=(5, 5))
     assert held.symbol_rows("AAA", 2) is None  # the caller reads the file instead
+
+
+def test_the_copy_records_which_symbols_a_rename_touches(source: Path) -> None:
+    panel.read_panel(source)
+    assert panel.stored_renames(source) == frozenset({"OLDCO", "NEWCO"})
+    os.utime(source, ns=(9, 9))
+    assert panel.stored_renames(source) is None  # a different file: unknown
+
+
+def test_renamed_names_covers_an_isin_shared_by_two_tickers() -> None:
+    def row(day: str, symbol: str, isin: str) -> panel.PanelRow:
+        from datetime import date
+
+        return panel.PanelRow(
+            day=date.fromisoformat(day), symbol=symbol, close=1.0, volume=1.0,
+            turnover=1.0, isin=isin,
+        )  # fmt: skip
+
+    rows = [
+        row("2021-03-25", "GOLDSHARE", "OLDISIN"),
+        row("2021-03-26", "GOLDSHARE", "NEWISIN"),
+        row("2021-04-01", "GOLDNEW", "NEWISIN"),
+        row("2021-04-01", "PLAIN", "PLAINISIN"),
+    ]
+    assert panel.renamed_names(rows) == frozenset({"GOLDSHARE", "GOLDNEW"})

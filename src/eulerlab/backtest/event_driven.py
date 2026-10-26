@@ -49,7 +49,7 @@ from eulerlab.backtest.events import (
 )
 from eulerlab.backtest.execution import Executor, SimulatedExecutor
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
-from eulerlab.backtest.vector import fund_symbols
+from eulerlab.backtest.vector import fund_symbols, fx_spreads
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Side
 from eulerlab.deploy.sizing import fit_to_capital
@@ -287,6 +287,7 @@ def run(
         brokerage=brokerage,
         cost_multiplier=cost_multiplier,
         fund_symbols=fund_symbols(rows),
+        spreads=fx_spreads(rows) if asset_class == "fx" else None,
     )
     portfolio = Portfolio(cash=starting_cash)
     result = TierBResult(

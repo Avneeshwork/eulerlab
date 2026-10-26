@@ -23,6 +23,9 @@ Verify: `make verify` (8 of 8).
 | T-4150 | Company page 0.45 s per page scanning the panel file; first page 1.5 s listing factor files | DONE. In-memory per-symbol rows (2 ms); factor files cached by path, so a new release no longer needs a restart |
 | T-4151 | `read_symbol_rows` returned a renamed stock's whole history instead of `days` | FIXED. Capped. The chart showed about 11 years where others showed 5; betas (capped at 1,260 observations) and 52-week figures were unaffected |
 | T-4152 | Strategy table 0.22 s (mandate.yaml parsed 52×), coverage 0.16 s (`relative_to` 3,674×) | DONE. 0.07 s and 0.07 s |
+| T-4153 | FX runs labelled "realistic" paid no spread (HISTORY #30) | FIXED. Half the recorded spread per unit in Tier A, Tier B and paper; engines agree; no stored FX result existed |
+| T-4154 | Dead code: 15 functions referenced nowhere (source, tests, tools, Makefile, UI, docs) | DONE. About 200 lines removed; kept `OrderStatus`, `underlyings` and `underlying_lot_size_at` on purpose |
+| T-4155 | The backtest panel and the company page disagree on tickers whose rows span more than one ISIN (GOLDSHARE 2021, GATECHDVR; 27 of 494 renamed) | OPEN. Decide which reading a stock page should show. The company page keeps its old reading until then |
 | T-4144 | Slow first calls: `/api/data` 26.6 s, `/api/instruments` 8.2 s, `/api/snapshot` 5.5 s, `/api/fleet` 3.0 s; `/api/capabilities` slower on a repeat call | TODO |
 
 ## Indian data from the close (2026-10-26)

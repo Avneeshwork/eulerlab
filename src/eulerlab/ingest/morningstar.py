@@ -347,29 +347,6 @@ def parse_isin(page: str) -> str:
     return match.group(0) if match else ""
 
 
-def read_landed(path: Path) -> list[Rating]:
-    """Ratings from a landed snapshot, so a crawl need not re-walk the listing."""
-    out: list[Rating] = []
-    with gzip.open(path, "rt", encoding="utf-8") as handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            out.append(
-                Rating(
-                    morningstar_id=str(row["morningstar_id"]),
-                    name=str(row["name"]),
-                    category=str(row.get("category") or ""),
-                    medalist=str(row.get("medalist") or ""),
-                    star_rating=row.get("star_rating"),
-                    equity_stylebox=row.get("equity_stylebox"),
-                    fixed_income_stylebox=row.get("fixed_income_stylebox"),
-                    rating_date=None,
-                )
-            )
-    return out
-
-
 def known_isins(*, path: Path = ISIN_PATH) -> dict[str, str]:
     """Morningstar id -> ISIN for everything already fetched.
 
@@ -385,44 +362,6 @@ def known_isins(*, path: Path = ISIN_PATH) -> dict[str, str]:
         row = json.loads(line)
         out[str(row["morningstar_id"])] = str(row["isin"])
     return out
-
-
-def fetch_isins(
-    ratings: list[Rating],
-    *,
-    path: Path = ISIN_PATH,
-    pace: float = 0.8,
-    limit: int = 0,
-) -> dict[str, str]:
-    """Walk the fund pages and record each ISIN, skipping what is already known.
-
-    An empty ISIN is recorded too, deliberately. Without it a fund whose page
-    genuinely has none would be retried on every future run forever.
-    """
-    known = known_isins(path=path)
-    todo = [r for r in ratings if r.morningstar_id not in known]
-    if limit:
-        todo = todo[:limit]
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    session = _Session()
-    for index, rating in enumerate(todo, start=1):
-        try:
-            page = session.open_path(rating.path)
-            isin = parse_isin(page)
-        except Exception:
-            isin = ""
-        known[rating.morningstar_id] = isin
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps({"morningstar_id": rating.morningstar_id, "isin": isin}, sort_keys=True)
-                + "\n"
-            )
-        if index % 200 == 0 or index == len(todo):
-            found = sum(1 for v in known.values() if v)
-            print(f"  [{index:>5}/{len(todo)}] {found:,} ISINs known")
-        time.sleep(pace)
-    return known
 
 
 ENRICHED_DIR = Path("data/landing/mf/enriched")

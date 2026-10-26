@@ -1800,7 +1800,15 @@ chart after a restart waited 29 s.
 The loaded panel also keeps each symbol's rows in day order (`_Panel.symbol_rows`,
 built in the load pass). The company page reads its five years from there:
 0.45 s of scanning the 746 MB file per page → 2 ms. It falls back to
-`read_symbol_rows` when the panel is not loaded or the file has changed.
+`read_symbol_rows` when the panel is not loaded or the file has changed, and
+for every symbol a rename touches (`panel.renamed_names`, kept in the copy's
+metadata). For those the two readers differ: the loaded panel files each
+ISIN's rows under its latest ticker, while `read_symbol_rows` takes the rows
+stored under the ticker and then the rest of each ISIN. GOLDSHARE's 2021 ISIN
+change and GATECHDVR's merger come out differently (27 of 494 renamed tickers
+on 2026-10-27). The company page keeps the file scan for those, so what it
+shows has not changed. Which reading is right for a stock page is an open
+question (T-4155).
 `mandate.yaml` (52 YAML parses per strategy-table request) and the adopted
 results are read through `FileMemo` (the strategy table 0.22 s → 0.07 s). The
 coverage table slices paths instead of calling `Path.relative_to` 3,674 times
