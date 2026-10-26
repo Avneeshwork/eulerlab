@@ -13,7 +13,9 @@ never lists the bucket.
 ### What "should reach" means
 
 - **nse** — the latest weekday that is not a known NSE closure, counting today
-  only from 19:00 IST, when the day's files are out. Future holidays are not
+  from 15:31 IST, one minute after the close (ADR-079). Until today's file
+  lands the row reads **missing**, not "behind": the operator asked to see the
+  gap from the close, and `make india-live` is retrying it. Future holidays are not
   known here (T-3998), so a holiday reads as one session behind until the next
   trading day lands.
 - **amfi** — mutual fund NAVs are published late in the evening: the previous
@@ -159,10 +161,15 @@ def _weekday_back(day: date, closed: frozenset[date]) -> date:
     return day
 
 
+NSE_DUE = (15, 31)
+"""One minute after the cash close (ADR-079). Was 19:00, when the files are
+usually out; the operator wants the gap shown from the close instead."""
+
+
 # ASSUMPTION: A-051 — the cut-off times below are observed, not published.
 def expected_nse(now: datetime, closed: frozenset[date]) -> date:
     ist = now.astimezone(IST)
-    day = ist.date() if ist.hour >= 19 else ist.date() - timedelta(days=1)
+    day = ist.date() if (ist.hour, ist.minute) >= NSE_DUE else ist.date() - timedelta(days=1)
     return _weekday_back(day, closed)
 
 
@@ -228,6 +235,10 @@ def _grade(
     expected = EXPECTED[cadence](now, closed)
     behind = sessions_behind(last_day, expected, cadence, closed)
     status = "ok" if behind == 0 else "behind" if behind == 1 else "stale"
+    if cadence == "nse" and behind == 1 and expected == now.astimezone(IST).date():
+        # Only today's session is absent: due since 15:31 and not in yet.
+        status = "missing"
+        detail = f"today's data not in yet{'; ' + detail if detail else ''}"
     return Row(group, name, last, expected.isoformat(), behind, status, detail, fix)
 
 
@@ -327,8 +338,23 @@ def table(now: datetime | None = None) -> list[Row]:
             )
         )
 
+    from eulerlab.ingest.provisional_daily import standing_days
+
+    due = expected_nse(now, closed).isoformat()
+    stand_in = standing_days().get(due, 0)
+    kite = _max_by(LANDING / "kite_minute" / "manifest.jsonl", "", "end").get("", "")
+    cash_detail = "every NSE equity, daily"
+    if nse.get("cm", "") < due:
+        cash_detail = (
+            f"provisional bars from minute data for {stand_in} stocks until it lands"
+            if stand_in
+            else "no minute bars for today either"
+            if kite < due
+            else "minute bars in, session not complete yet"
+        )
+
     landed = "NSE files (landed)"
-    add(landed, "Cash bhavcopy", nse.get("cm", ""), "nse", detail="every NSE equity, daily")
+    add(landed, "Cash bhavcopy", nse.get("cm", ""), "nse", detail=cash_detail)
     add(landed, "F&O bhavcopy", nse.get("fo", ""), "nse", detail="every derivative, daily")
     add(landed, "Participant OI", nse.get("participant_oi", ""), "nse")
     add(landed, "Index closes (incl. VIX)", nse.get("indices", ""), "nse")
@@ -371,13 +397,16 @@ def table(now: datetime | None = None) -> list[Row]:
     )
 
     slow = "Not in the button"
-    kite = _max_by(LANDING / "kite_minute" / "manifest.jsonl", "", "end").get("", "")
     add(
         "Needs a Kite login",
         "India minute bars (Kite)",
         kite,
         "nse",
-        detail="needs a Kite token minted today: log in to Kite above",
+        detail=(
+            "daily bhavcopy is in; minute bars need a Kite token minted today"
+            if kite < due <= nse.get("cm", "")
+            else "needs a Kite token minted today: log in to Kite above"
+        ),
         fix="Log in to Kite on this page, then Update",
     )
     mcx_indexes = _max_by(

@@ -182,11 +182,15 @@ def test_every_registered_strategy_can_actually_be_built() -> None:
 
 
 def test_ten_published_strategies_are_registered() -> None:
+    from eulerlab.backtest.events_daily import BUILDERS as EVENTS
+    from eulerlab.backtest.evidence_daily import BUILDERS as EVIDENCE
+    from eulerlab.backtest.github_daily import BUILDERS as GITHUB
     from eulerlab.backtest.india_papers import BUILDERS as INDIA
     from eulerlab.backtest.published import BUILDERS
 
-    # The ten from docs/RESEARCH/017, plus one per Indian-equity paper (064).
-    assert len(BUILDERS) == 10 + len(INDIA)
+    # The ten from docs/RESEARCH/017, one per Indian-equity paper (064), and
+    # the daily GitHub rules (113).
+    assert len(BUILDERS) == 10 + len(INDIA) + len(GITHUB) + len(EVIDENCE) + len(EVENTS)
     for name in BUILDERS:
         assert name in REGISTRY, f"{name} builds but is not declared"
 

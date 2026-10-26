@@ -1,0 +1,29 @@
+id: tripathi-aggarwal-2013-dividend-opportunity-india
+title: 'Dividend Opportunity Index: An Opportunity for Small Investors'
+authors: Tripathi, V., Aggarwal, S.
+year: 2013
+kind: paper
+source_url: https://papers.ssrn.com/abstract=2258327
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- NSE, CNX Dividend Opportunities index, 2007-2012
+summary: The high-dividend portfolio (NSE's Dividend Opportunities index) beat the market
+  portfolio over 2007-2012 at lower risk, which the authors read as mispricing; later practitioner
+  comparisons with the Nifty are mixed.
+trade_idea: High-yield stocks are cheap and stable; their yield is a return the market under-prices.
+implementation: |-
+  - High-yield portfolio against the market.
+
+  Here: india_dividend_yield_30, top 30 by trailing 12-month dividend yield among the 250 most-traded, every six months; yields above 15% excluded.
+red_flags:
+- One Indian study, 2007-2012; later evidence mixed.
+- 'High yield clusters in PSUs, utilities and commodities: a sector bet.'
+reported_results: 'Reported: outperformance of the market at lower risk, 2007-2012.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_dividend_yield_30
+  note: ''
+  timeframe: 0

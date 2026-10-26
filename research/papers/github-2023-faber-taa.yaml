@@ -1,0 +1,30 @@
+id: github-2023-faber-taa
+title: Faber tactical asset allocation app (GitHub, mmoraschini)
+authors: mmoraschini (GitHub); model from Faber (2007), A Quantitative Approach to Tactical
+  Asset Allocation
+year: 2023
+kind: note
+source_url: https://github.com/mmoraschini/faber-taa
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- Any yfinance ticker, monthly decisions (repository)
+summary: Hold an asset while its month-end close is above its 10-month average, otherwise
+  cash. GPL-3.0.
+trade_idea: Being out of an asset class while it trades below its long average avoids most
+  of its deep drawdowns at a small cost in return.
+implementation: |-
+  - Repository: streamlit_app.py calc_10month_sma (mean daily close over ten months), In = close > SMA.
+
+  Here: nse_github_faber_taa_etf splits capital in quarters across NIFTYBEES, JUNIORBEES, GOLDBEES and MON100, each quarter in LIQUIDBEES while its ETF is below average.
+red_flags:
+- 'Four Indian ETFs, three of them Indian or gold: less diversified than Faber''s five classes.'
+- MON100 only from June 2021.
+reported_results: Interactive results only.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_faber_taa_etf
+  note: ''
+  timeframe: 0

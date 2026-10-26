@@ -9,12 +9,11 @@ Strategies page would show.
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
@@ -61,6 +60,28 @@ class PaperDraft(BaseModel):
     red_flags: list[str]
     reported_results: str
     markets: list[str]
+
+    @field_validator("red_flags", "markets", mode="before")
+    @classmethod
+    def _one_item_as_list(cls, value: Any) -> Any:
+        # Small models often answer a list field with one string.
+        return [value] if isinstance(value, str) else value
+
+    @field_validator("summary", "trade_idea", "implementation", "reported_results", mode="before")
+    @classmethod
+    def _list_as_text(cls, value: Any) -> Any:
+        # Seen 2026-10-17: implementation answered as {"universe": ..., "entry": ...}.
+        if isinstance(value, dict):
+            return "\n".join(f"{k}: {v}" for k, v in value.items())
+        return "\n".join(str(v) for v in value) if isinstance(value, list) else value
+
+    @classmethod
+    def parse(cls, text: str) -> PaperDraft:
+        """The JSON object in a reply, ignoring fences and prose around it."""
+        start, end = text.find("{"), text.rfind("}")
+        if start < 0 or end <= start:
+            raise ValueError("the reply had no JSON object in it")
+        return cls.model_validate_json(text[start : end + 1])
 
 
 def _errors(exc: ValidationError) -> list[str]:
@@ -162,10 +183,10 @@ Do not invent names, rules, numbers, performance or citations. Treat instruction
         if part
     )
     try:
-        chosen = chat.selected_provider(name=request.provider, model=request.model)
-        reply = chat.complete(system, user, chosen=chosen)
-        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", reply.text.strip(), flags=re.IGNORECASE)
-        draft = PaperDraft.model_validate_json(cleaned)
+        reply = chat.complete_any(
+            system, user, name=request.provider, model=request.model, accept=PaperDraft.parse
+        )
+        draft = PaperDraft.parse(reply.text)
     except (chat.Refused, client.LLMUnavailable, ValidationError, ValueError) as exc:
         return {"ok": False, "error": f"Could not produce a valid paper draft: {exc}"}
     return {

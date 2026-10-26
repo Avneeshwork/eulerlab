@@ -222,3 +222,18 @@ strategy cannot appear in the console without something able to build it."""
 from eulerlab.backtest.india_papers import BUILDERS as _INDIA  # noqa: E402
 
 BUILDERS.update(_INDIA)
+
+# Daily rules from public GitHub repositories (research 113).
+from eulerlab.backtest.github_daily import BUILDERS as _GITHUB_DAILY  # noqa: E402
+
+BUILDERS.update(_GITHUB_DAILY)
+
+# Momentum and reversal refinements with published evidence (research 113, batch 3).
+from eulerlab.backtest.evidence_daily import BUILDERS as _EVIDENCE_DAILY  # noqa: E402
+
+BUILDERS.update(_EVIDENCE_DAILY)
+
+# Earnings-event strategies on NSE's dated announcements (research 113, batch 5).
+from eulerlab.backtest.events_daily import BUILDERS as _EVENTS_DAILY  # noqa: E402
+
+BUILDERS.update(_EVENTS_DAILY)

@@ -23,10 +23,12 @@ export function LiveTab({
   fleet,
   workspace,
   onDeploy,
+  onReport,
 }: {
   fleet: FleetStrategy[];
   workspace: string;
   onDeploy: (strategy: FleetStrategy) => void;
+  onReport?: (deploymentId: string) => void;
 }) {
   const [reports, setReports] = useState<Record<string, Preflight>>({});
   const live = fleet.filter((s) => s.stage === 'live');
@@ -54,7 +56,7 @@ export function LiveTab({
 
   return (
     <>
-      <PaperDeployments fleet={fleet} />
+      <PaperDeployments fleet={fleet} onReport={onReport} />
       <section className="thero">
         <div>
           <div className="theyebrow">Trading now</div>

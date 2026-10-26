@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import concurrent.futures as cf
 import json
+import mmap
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime
@@ -182,8 +183,62 @@ def _cash_files(manifest: Path, *, start: str, end: str) -> list[tuple[str, str]
     return sorted(seen.items())
 
 
-def read_panel(path: Path = PANEL_PATH) -> list[PanelRow]:
-    """Load the cached panel, oldest first.
+def canonical_symbols(rows: list[PanelRow]) -> list[PanelRow]:
+    """Every row under the latest symbol its ISIN traded as, so a renamed stock
+    is one history, not two.
+
+    The engine keys positions by symbol, and until 2026-10-18 a stock renamed
+    while held (TATAGLOBAL -> TATACONSUM) became a position that could never be
+    sold or re-priced again, while the strategy bought around it with cash it
+    did not have (HISTORY #28). CLAUDE.md: instrument joins use internal IDs,
+    never a ticker. The ISIN is the internal ID the panel carries.
+
+    Rows sharing a symbol are never split (an ISIN that changes on a
+    face-value split keeps its symbol). On a day both names have a row, the row
+    already under the current name is kept. `rows` must be in day order; only
+    the days that changed are re-sorted.
+    """
+    latest: dict[str, tuple[date, str]] = {}
+    for row in rows:
+        if row.isin and (row.isin not in latest or row.day >= latest[row.isin][0]):
+            latest[row.isin] = (row.day, row.symbol)
+    out: list[PanelRow] = []
+    renamed: list[bool] = []
+    changed_days: set[date] = set()
+    for row in rows:
+        target = latest.get(row.isin, (row.day, row.symbol))[1] if row.isin else row.symbol
+        if target != row.symbol:
+            moved = object.__new__(PanelRow)
+            object.__setattr__(moved, "__dict__", {**row.__dict__, "symbol": target})
+            out.append(moved)
+            renamed.append(True)
+            changed_days.add(row.day)
+        else:
+            out.append(row)
+            renamed.append(False)
+    if not changed_days:
+        return out
+    result: list[PanelRow] = []
+    begin = 0
+    for end in range(1, len(out) + 1):
+        if end == len(out) or out[end].day != out[begin].day:
+            if out[begin].day in changed_days:
+                kept: dict[str, tuple[bool, PanelRow]] = {}
+                for k in range(begin, end):
+                    row, was_renamed = out[k], renamed[k]
+                    # A row already under the current name beats a renamed one.
+                    if row.symbol not in kept or (kept[row.symbol][0] and not was_renamed):
+                        kept[row.symbol] = (was_renamed, row)
+                result.extend(r for _, r in sorted(kept.values(), key=lambda x: x[1].symbol))
+            else:
+                result.extend(out[begin:end])
+            begin = end
+    return result
+
+
+def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[PanelRow]:
+    """Load the cached panel, oldest first, under each ISIN's current symbol
+    (`canonical_symbols`; `canonical=False` for the names as stored).
 
     This is the server's cold start: 5.4 million lines, 746 MB. It took 51
     seconds (measured 2026-10-12) and now takes about a quarter of that, from
@@ -258,12 +313,88 @@ def read_panel(path: Path = PANEL_PATH) -> list[PanelRow]:
             append(built)
     if not days_ordered:
         out.sort(key=lambda r: (r.day, r.symbol))
-        return out
+        return canonical_symbols(out) if canonical else out
     starts.append(len(out))
     for index in unsorted_days:
         begin, end = starts[index], starts[index + 1]
         out[begin:end] = sorted(out[begin:end], key=lambda r: r.symbol)
-    return out
+    return canonical_symbols(out) if canonical else out
+
+
+def read_symbol_rows(symbol: str, days: int, path: Path = PANEL_PATH) -> list[PanelRow]:
+    """Read the recent history for one symbol, canonicalizing ticker changes.
+
+    The panel is ordered by date, so scanning backwards finds recent bars
+    first. It parses only rows for the requested symbol and ISINs discovered
+    under its current name, preserving the same rename handling as
+    `canonical_symbols` while avoiding a full-panel object build.
+    """
+    if not path.exists() or days <= 0 or path.stat().st_size == 0:
+        return []
+
+    import orjson
+
+    marker = f'"s": "{symbol}"'.encode("ascii")
+    by_day: dict[date, tuple[bool, PanelRow]] = {}
+    instruments: set[str] = set()
+
+    def reverse_offsets(data: mmap.mmap, token: bytes) -> Iterator[int]:
+        end = len(data)
+        chunk_size = 16 * 1024 * 1024
+        while end > 0:
+            start = max(0, end - chunk_size)
+            search_end = min(len(data), end + len(token) - 1)
+            while (found := data.rfind(token, start, search_end)) >= 0:
+                if found < end:
+                    yield found
+                search_end = found
+            end = start
+
+    def add_line(data: mmap.mmap, position: int, *, direct: bool) -> None:
+        start = data.rfind(b"\n", 0, position) + 1
+        end = data.find(b"\n", position)
+        row = orjson.loads(data[start : len(data) if end < 0 else end])
+        isin = row.get("i", row.get("isin", ""))
+        if direct and isin:
+            instruments.add(isin)
+        day = date.fromisoformat(row["d"])
+        panel_row = PanelRow(
+            day=day,
+            symbol=symbol,
+            close=row["c"],
+            volume=row["v"],
+            turnover=row["t"],
+            isin=isin,
+            open=row.get("o", 0.0),
+            high=row.get("h", 0.0),
+            low=row.get("l", 0.0),
+        )
+        previous = by_day.get(day)
+        if previous is None or (direct and not previous[0]):
+            by_day[day] = (direct, panel_row)
+
+    with path.open("rb") as handle, mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_READ) as data:
+        # Newest rows are at the end. Read only enough direct bars for the
+        # common case; aliases are needed only if that history is shorter.
+        for position in reverse_offsets(data, marker):
+            add_line(data, position, direct=True)
+            if len(by_day) >= days:
+                break
+
+        if len(by_day) < days and instruments:
+            # A recently renamed ticker may have fewer than five years under
+            # its current name. Pull older rows for each discovered ISIN.
+            for isin in instruments:
+                for field in (b'"isin": "', b'"i": "'):
+                    token = field + isin.encode("ascii") + b'"'
+                    for position in reverse_offsets(data, token):
+                        start = data.rfind(b"\n", 0, position) + 1
+                        end = data.find(b"\n", position)
+                        row = orjson.loads(data[start : len(data) if end < 0 else end])
+                        if row["s"] != symbol:
+                            add_line(data, position, direct=False)
+
+    return [by_day[day][1] for day in sorted(by_day)]
 
 
 class UnadjustablePanel(RuntimeError):

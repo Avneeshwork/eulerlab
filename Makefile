@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
+.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
 
 help:
 	@echo "EulerLab — targets"
@@ -87,6 +87,7 @@ help:
 	@echo "  make reconcile-book  broker positions vs ours; the broker wins"
 	@echo ""
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
+	@echo "  make india-live   Indian data from 15:31, retried until in (schedulable)"
 
 install:
 	uv sync --extra dev
@@ -316,6 +317,18 @@ rebuild-ohlc:
 india-papers:
 	@uv run --extra web python -m eulerlab.research.run_india $(if $(ONLY),--only $(ONLY),)
 
+# Research 113: five daily rules from GitHub repositories, on the same engine and window.
+github-daily:
+	@uv run --extra web python -m eulerlab.research.run_india --set github $(if $(ONLY),--only $(ONLY),)
+
+# Research 113 batch 3: momentum and reversal refinements with published evidence.
+evidence-daily:
+	@uv run --extra web python -m eulerlab.research.run_india --set evidence $(if $(ONLY),--only $(ONLY),)
+
+# Research 113 batch 5: earnings-event strategies, on the announcement data's window.
+events-daily:
+	@uv run --extra web python -m eulerlab.research.run_india --set events $(if $(ONLY),--only $(ONLY),)
+
 # Sweep volatility-adjusted momentum's window, names held and rebalance; choose
 # on 2016-2023, test once on 2024 on. Resumable. Research 067.
 tune-sharpe-momentum:
@@ -426,6 +439,14 @@ github-momentum-burst-intraday:
 github-rsi2-intraday:
 	@uv run python -m eulerlab.intraday.github_rsi2_pullback_screen
 
+# Research 112: five Indian intraday rules over every F&O stock, one pass (~15 min).
+india-five-intraday:
+	@uv run python -m eulerlab.intraday.india_five_screen
+
+# NSE results-filing timestamps: lands each finished quarter once, then derives.
+nse-earnings-announcements:
+	@uv run python -m eulerlab.ingest.nse_earnings_announcements
+
 # Research 084: fixed Gold ETF moving-average and Indian stock reversal screens.
 gold-stock-intraday-screen:
 	@uv run --extra research-ml python -m eulerlab.intraday.research_screen
@@ -493,6 +514,12 @@ angel-mcx-gold-minute:
 	@uv run --extra angel -m eulerlab.ingest.angel_mcx_gold $(if $(YEARS),--years $(YEARS),)
 	@$(MAKE) --no-print-directory upload-tree TREES="angel_mcx_gold"
 
+# The Indian data from 15:31 IST, retried every 10 minutes until the bhavcopy
+# and minute bars are in (or 21:00); minute bars stand in meanwhile. ADR-079.
+# Scheduled by `make schedule ACTION=install JOB=india-live`. ONCE=1: one pass.
+india-live:
+	@uv run python -m eulerlab.ingest.india_live $(if $(ONCE),--once,)
+
 # `daily` holds the `feed` lock for the whole run, the lock the Instruments
 # button takes too, so the overnight job and a click cannot both append the
 # same day (T-4032). If the other holds it, this exits 75 and says who.
@@ -536,6 +563,8 @@ daily-run:
 	-@$(MAKE) --no-print-directory upload-tree TREES="calendar" DELETE=1
 	@echo "== minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory daily-minute
+	@echo "== provisional daily bars (minute bars while the bhavcopy is missing) =="
+	-uv run python -m eulerlab.ingest.provisional_daily
 	-@$(MAKE) --no-print-directory upload-tree TREES="kite_minute" DELETE=1
 	@echo "== MCX iCOMDEX minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory mcx-index-minute
@@ -555,7 +584,7 @@ daily-run:
 	-uv run python -m eulerlab.indices
 	-@$(MAKE) --no-print-directory upload-tree TREES="marketdata" DELETE=1
 	@echo "== US bars, actions, news =="
-	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars(s, start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
+	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars([*s, 'SPY'], start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
 	-@$(MAKE) --no-print-directory upload-tree TREES="us"
 	@echo "== US panel =="
 	-$(MAKE) --no-print-directory build-us-panel
@@ -622,7 +651,7 @@ us-sp500:
 	@uv run python -c "from eulerlab.ingest import alpaca; n,e=alpaca.land_sp500(); print(f'{n} constituents{chr(32)}{e}')"
 
 us-bars:
-	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); w,n,e=alpaca.land_bars(s, start='$(FROM)' or '2016-01-01'); print(f'{w} symbols, {n:,} bars {e}')"
+	@uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); w,n,e=alpaca.land_bars([*s, 'SPY'], start='$(FROM)' or '2016-01-01'); print(f'{w} symbols, {n:,} bars {e}')"
 
 # Fetch, sync and prune a batch at a time: the full window is ~3 GB against
 # ~4 GB of free disk, so landing it all and syncing afterwards would run out.

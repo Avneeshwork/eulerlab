@@ -1,0 +1,32 @@
+id: practitioner-delivery-spike-continuation-india
+title: High delivery percentage on an up move as a continuation signal (Indian broker guidance)
+authors: Indian broker and screener commentary (share.market, Jainam, 5paisa)
+year: 2024
+kind: note
+source_url: https://www.share.market/buzz/learn/stock-volume-technical-analysis/
+pdf: ''
+added: '2026-10-16'
+status: backtested
+markets:
+- NSE stocks
+summary: Indian broker education pages say a price move on high delivery (shares taken into
+  demat rather than squared off the same day) shows conviction and tends to hold, while a
+  high-volume move on low delivery tends to fail. None cites a test.
+trade_idea: A stock that rose on an unusual share of delivery-based buying is bought next
+  morning if the open holds the gain.
+implementation: 'Coded as nse_delivery_spike_next_day_long (research 112): delivery % at least
+  twice its previous 20-session mean and a close at least 2% up; next day, long at 09:20 if
+  the 09:19 close is above the prior close; flat 15:10; capital split over the day''s candidates,
+  at least ten ways.'
+red_flags:
+- 'No academic or exchange study found (research 112 searched): broker commentary only.'
+- Delivery % falls when F&O activity rises (Jainam), so a spike can be a fall in day trading,
+  not a rise in conviction.
+- Thresholds (2x, +2%) are this project's fixed choices.
+reported_results: 'None: the sources make claims without figures.'
+hypothesis: H-0024
+strategies:
+- kind: registered
+  id: nse_delivery_spike_next_day_long
+  note: Research 112
+  timeframe: 0

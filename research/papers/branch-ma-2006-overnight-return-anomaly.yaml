@@ -1,0 +1,37 @@
+id: branch-ma-2006-overnight-return-anomaly
+title: 'The Overnight Return: One More Anomaly (and the 2018 retrospective)'
+authors: Branch, B.; Ma, A.
+year: 2006
+kind: paper
+source_url: https://www.cxoadvisory.com/calendar-effects/recent-overnight-intraday-stock-return-correlations/
+pdf: ''
+added: '2026-10-16'
+status: backtested
+markets:
+- US stocks (paper)
+- NSE F&O stocks (here)
+summary: Across NYSE, AMEX and NASDAQ stocks 1994-2005, a stock's overnight (close-to-open)
+  return is negatively correlated with its following open-to-close return, about -0.22. A
+  2018 retrospective on 2011-2017 finds the correlation still negative but weaker, carried
+  mainly by small stocks and absent among S&P 500 names.
+trade_idea: 'Prices that gap overnight partly reverse during the day: buy the stocks that
+  fell most overnight and short those that rose most, at the open, and close at the end of
+  the session.'
+implementation: 'Coded as nse_overnight_intraday_reversal_decile (research 112): every F&O
+  stock with minute data, ranked each day on prior close to the 09:19 close; worst decile
+  long, best decile short at 09:20; flat 15:10; half the capital each side; NSE intraday charges
+  plus 2 bp slippage a side; 2021-08-20 to 2024-11-29.'
+red_flags:
+- 'Read through CXO Advisory''s summaries, not the papers: the PDFs were not retrieved.'
+- The authors themselves doubt anyone but market makers can capture it after spreads and fees.
+- The 2018 retrospective finds it gone in large caps; the NSE F&O universe is large caps.
+- Lou, Polk and Skouras (JFE 2019) find short-term reversal profits sit in a different part
+  of the day from momentum's; the decomposition is not this exact rule.
+reported_results: Correlation about -0.22 between overnight and next open-to-close returns,
+  1994-2005; weaker 2011-2017 and absent in S&P 500 stocks (secondary summary).
+hypothesis: H-0020
+strategies:
+- kind: registered
+  id: nse_overnight_intraday_reversal_decile
+  note: Research 112
+  timeframe: 0

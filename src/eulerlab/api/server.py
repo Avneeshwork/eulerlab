@@ -50,7 +50,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import cloud_results, last_seen, reports, strategy_results, walk_run
+from eulerlab import attribution, cloud_results, last_seen, reports, strategy_results, walk_run
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.api import (
@@ -347,6 +347,7 @@ def _engine_run(
     universe: str = "all",
     cost_mode: str = "realistic",
     asset_class: str,
+    span: tuple[date, date] | None = None,
 ) -> _EngineRun:
     """The one place this API calls an engine.
 
@@ -357,7 +358,7 @@ def _engine_run(
     """
     days = trading_days(rows)
     warmup = warmup_for(len(days))
-    index = PANEL.index(days_window, rows, universe)
+    index = PANEL.index(days_window, rows, universe, span=span)
 
     if tier == "A":
         run = vector.run(
@@ -648,6 +649,8 @@ def _fleet_payload(
     us_all_results: dict[str, dict[str, Any]],
     walks: dict[str, Any],
 ) -> dict[str, Any]:
+    from eulerlab.deploy.runner import paper_blocker
+
     measured: dict[str, list[strategy_results.Row]] = {}
     for result in strategy_results.load():
         measured.setdefault(result.strategy_id, []).append(result)
@@ -695,6 +698,9 @@ def _fleet_payload(
                     if row.declaration.id in strategy_studies.IDS
                     else "daily"
                 ),
+                # Read by the Deploy button on each row: the same rule the
+                # deploy route enforces (`deploy.runner.paper_blocker`).
+                "deploy_blocker": paper_blocker(row.declaration.id),
                 "source": row.declaration.source,
                 "published": row.declaration.published,
                 "logic": list(row.declaration.logic),
@@ -1064,7 +1070,30 @@ def _build_registered(strategy_id: str) -> Strategy:
     return builder()
 
 
-from eulerlab.api.requests import BatchRunRequest, FeedRequest, PruneRequest  # noqa: E402
+from eulerlab.api.requests import (  # noqa: E402
+    BatchRunRequest,
+    FeedRequest,
+    PruneRequest,
+    window_of,
+)
+
+WINDOW_WARMUP = 253
+"""Trading days kept before an explicit window's start: the engine's largest
+warmup (`warmup_for`), so trading begins at the start, not a year after it."""
+
+
+def windowed(rows: list[PanelRow], start: date, end: date) -> list[PanelRow]:
+    """Rows from `WINDOW_WARMUP` trading days before `start` through `end`.
+
+    Until 2026-10-18 the daily batch read only `days` and ran every request
+    over the panel's whole span, so `--from`/`--to` were silently ignored
+    (research 113's event strategies ran 2016-2026, not 2021-2024).
+    """
+    days = sorted({r.day for r in rows if r.day <= end})
+    first = next((i for i, d in enumerate(days) if d >= start), len(days))
+    begin = days[max(0, first - WINDOW_WARMUP)] if days else start
+    return [r for r in rows if begin <= r.day <= end]
+
 
 ILLUSTRATION = ("ALPHA", "BETA", "GAMMA", "DELTA", "EPSILON")
 ILLUSTRATION_SCORES = (0.42, 0.28, 0.11, -0.06, -0.19)
@@ -1358,6 +1387,10 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
             if not rows:
                 msg = _no_panel_message(request.asset_class)
                 raise RuntimeError(msg)
+            window_start, window_end = window_of(request)
+            span = (window_start, window_end) if window_start and window_end else None
+            if span:
+                rows = windowed(rows, *span)
             rows, universe_size, resolved = _universe_rows(
                 rows,
                 request.universe,
@@ -1383,6 +1416,7 @@ def _run_batch(job: Job, request: BatchRunRequest) -> None:
                 rebalance=int(getattr(strategy, "rebalance_every", 21)),
                 universe=index_key(_universe_label(request), resolved, request.asset_class),
                 cost_mode=cost_mode_for(request.asset_class),
+                span=span,
             )
             if not engine.equity:
                 msg = f"the {request.days}-day window is too short to produce a run"
@@ -1948,16 +1982,19 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         return {"ok": False, "mode": request.mode, "checks": checks, "blockers": 1}
 
     from eulerlab.deploy import overnight
+    from eulerlab.deploy.runner import paper_blocker
 
     has_runner = request.strategy in overnight.STRATEGIES
+    blocker = paper_blocker(request.strategy)
     check(
-        "Satisfies the Strategy interface",
-        declaration.is_strategy_subclass or has_runner,
-        "emits target weights"
-        if declaration.is_strategy_subclass
-        else "not a target-weight strategy; it trades through its own overnight book (ADR-066)"
-        if has_runner
-        else "intraday bracket shapes cannot be expressed as target weights (ADR-037)",
+        "Paper trading can run it",
+        not blocker,
+        blocker
+        or (
+            "trades through its own overnight book (ADR-066)"
+            if has_runner
+            else "emits daily target weights, which the paper runner rebalances to"
+        ),
     )
 
     supported = [
@@ -2673,9 +2710,41 @@ def report(
     return {
         "ok": True,
         "report": payload,
+        # Where the return came from: holdings, sectors, years, market (`attribution`).
+        "attribution": attribution.analyse(payload),
         "runs": [_run_choice(choice) for choice in runs],
         "history": reports.history(tenant, strategy, target),
     }
+
+
+@app.get("/api/report/attribution")
+def report_attribution(
+    strategy: str, workspace: str = "", configuration: str = "", run: str = ""
+) -> dict[str, Any]:
+    """The detailed attribution of one stored run (research 115).
+
+    Rebuilds the daily book from the fills, so the first call for a run takes
+    about a minute (the monthly base is built once for every run); later calls
+    for the same run are cached.
+    """
+    from eulerlab import attribution_detail
+
+    tenant = workspace_mod.resolve(workspace or None)
+    target = configuration
+    if not target:
+        recent = result_store.latest(tenant, strategy)
+        if recent is None:
+            return {"ok": False, "error": f"{strategy} has no run to attribute"}
+        target = recent.configuration
+    payload = reports.load(tenant, strategy, target, run)
+    if payload is None:
+        return {"ok": False, "error": "no report stored for that run"}
+    key = f"{strategy}|{target}|{run}|{payload.get('final_equity')}|{len(payload.get('orders') or [])}"
+    try:
+        detail = attribution_detail.analyse_detail(payload, key=key)
+    except Exception as exc:  # one view failing must say so, not take the page down
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
+    return {"ok": True, "detail": detail}
 
 
 def _run_choice(run: result_store.Run) -> dict[str, Any]:

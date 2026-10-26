@@ -36,30 +36,56 @@ CAPITAL = 1_000_000.0
 
 
 def _files(
-    symbol: str, *, root: Path | None = None, cutoff: date = DATA_END
+    symbol: str,
+    *,
+    root: Path | None = None,
+    cutoff: date = DATA_END,
+    cache: bool = True,
+    since: date | None = None,
 ) -> list[tuple[str, bytes]]:
-    """Read only complete 60-day objects that end before the strict cutoff."""
+    """Read only complete 60-day objects that end before the strict cutoff.
+
+    `since` keeps out every file that starts on or before it: a paper book
+    passes the holdout's end (`mandate.yaml`), so no holdout file is opened.
+    """
     if root is not None:
         paths = [str(path) for path in (root / symbol).glob("*.parquet")]
         return [
-            (path, Path(path).read_bytes()) for path in sorted(paths) if _file_end(path) <= cutoff
+            (path, Path(path).read_bytes())
+            for path in sorted(paths)
+            if _file_end(path) <= cutoff and (since is None or _file_start(path) > since)
         ]
 
     from eulerlab.ingest import landing_reader
 
     names = ip.archive_files(symbol)
-    eligible = [name for name in names if _file_end(name) <= cutoff]
-    return [(name, landing_reader.read(name)) for name in eligible]
+    eligible = [
+        name
+        for name in names
+        if _file_end(name) <= cutoff and (since is None or _file_start(name) > since)
+    ]
+    return [(name, landing_reader.read(name, cache=cache)) for name in eligible]
 
 
 def _file_end(name: str) -> date:
     return date.fromisoformat(Path(name).stem.rsplit("_", 1)[-1])
 
 
-def load_days(symbol: str, *, root: Path | None = None, cutoff: date = DATA_END) -> list[ip.Day]:
+def _file_start(name: str) -> date:
+    return date.fromisoformat(Path(name).stem.split("_", 1)[0])
+
+
+def load_days(
+    symbol: str,
+    *,
+    root: Path | None = None,
+    cutoff: date = DATA_END,
+    cache: bool = True,
+    since: date | None = None,
+) -> list[ip.Day]:
     """Read through a named cutoff; never open a file that crosses it."""
     rows: dict[str, dict[int, tuple[float, float, float, float, float]]] = {}
-    for _, blob in _files(symbol, root=root, cutoff=cutoff):
+    for _, blob in _files(symbol, root=root, cutoff=cutoff, cache=cache, since=since):
         table = pq.read_table(
             io.BytesIO(blob), columns=["ts", "open", "high", "low", "close", "volume"]
         )

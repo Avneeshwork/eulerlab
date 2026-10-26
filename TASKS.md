@@ -3,6 +3,31 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Quality and latency pass (2026-10-27)
+
+Operator: "commit all changes and look to improve code quality and latency on all features and pages we have", then "B and approved" (fix the red checks before committing).
+Verify: `make verify` (8 of 8).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4139 | Measure how much HISTORY #28 (delisted holdings, cash-limited buys) moved stored backtest results | OPEN. Re-run the stored strategies on both engine versions and compare |
+| T-4140 | Tier A without Tier B's cash and delisting rules (engines 4.5e-05 apart) | FIXED. Back to 1.4e-16. Golden file updated: −₹74.62, all from trimmed last buys |
+| T-4141 | Paper attribution paired a buy in one book with a sell in the other | FIXED. Residual ₹2,875 → 2.5e-10 |
+| T-4142 | 24 mypy errors, 7 ruff and 2 web lint findings in the uncommitted work | FIXED. No behaviour change |
+| T-4143 | Two stale tests: `without_top_5` (−10% is right) and the rebalance-cost test, whose ranking never moved | FIXED |
+| T-4144 | Slow first calls: `/api/data` 26.6 s, `/api/instruments` 8.2 s, `/api/snapshot` 5.5 s, `/api/fleet` 3.0 s; `/api/capabilities` slower on a repeat call | TODO |
+
+## Indian data from the close (2026-10-26)
+
+Operator: "set timing to update just after market is over"; show data missing from 15:31 and use minute data in place of the daily file until it arrives, and the other way round. ADR-079; HISTORY #29.
+Verify: `uv run pytest -q tests/test_india_live.py tests/test_data_pipeline.py tests/test_schedule.py`; `make coverage`; `make india-live ONCE=1`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4136 | `make india-live` from 15:31 on weekdays, every 10 min until the bhavcopy and minute bars are in or 21:00; coverage reads **missing** from 15:31; minute-built provisional bars until the bhavcopy lands, then retired, not deleted; company page shows them; minute ingest lands today only once its 15:29 candle is in | DONE. On 2026-10-26: 413 provisional bars. Open, high and low match the bhavcopy exactly on 23 Oct; the close is 26 bps off at the median (non-F&O) |
+| T-4137 | F&O stocks have no minute bars after 15:14 from 2026-08-03 (closing auction, HISTORY #29) | OPEN. Recheck the intraday studies that read an F&O stock's bars after 15:14 on dates from 2026-08-03 |
+| T-4138 | Load the 15:31 job | WAITING ON OPERATOR. `make schedule ACTION=install JOB=india-live`, then the `launchctl load -w` line it prints. Also note that `com.eulerlab.daily` (19:30) is not loaded on this Mac |
+
 ## Code quality and read-route speed (2026-10-16)
 
 Operator: "check all the changes, improve code quality and latency; commit all changes and make all branches clean", then "do all waiting on me and the not-done tasks". ADR-077; HISTORY #22, #23.

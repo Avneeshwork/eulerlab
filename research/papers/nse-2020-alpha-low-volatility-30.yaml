@@ -1,0 +1,31 @@
+id: nse-2020-alpha-low-volatility-30
+title: Nifty Alpha Low-Volatility 30 Index (whitepaper)
+authors: NSE Indices Ltd
+year: 2020
+kind: report
+source_url: https://www.niftyindices.com/docs/default-source/indices/nifty-alpha-low-volatility-30/nifty-alpha-low-volatility-30-whitepaper_2020.pdf
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- Nifty 100 + Nifty Midcap 50, F&O stocks
+summary: A 30-stock index ranking Nifty 100 and Midcap 50 stocks on an equal blend of one-year
+  Jensen's alpha and low volatility, rebalanced every June and December, tracked by several
+  index funds.
+trade_idea: Stocks that beat the market without volatility keep doing so.
+implementation: |-
+  - Jensen's alpha from a year of daily returns (Nifty 50, MIBOR); volatility from a year of daily returns; equal-weight percentile blend; weights tilt free-float caps, capped 5%.
+
+  Here: india_alpha_low_volatility_30, 150 most-traded, risk-free zero, equal weights, every 126 sessions.
+red_flags:
+- The index's own history before launch is a backtest.
+- Equal weights and turnover-based universe differ from the index.
+- Methodology from the whitepaper summary; the full document was not read.
+reported_results: Index factsheets report outperformance of the Nifty 50 with lower volatility
+  over its history.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_alpha_low_volatility_30
+  note: ''
+  timeframe: 0

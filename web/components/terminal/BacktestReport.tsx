@@ -14,6 +14,11 @@
  * curve and the fill ledger the endpoint already returns (lib/backtestStats).
  * The reconciliation stays visible, because an attribution that does not add
  * up should never be read without saying so.
+ *
+ * The same page reports a paper or live deployment (`deployment` set): the
+ * server builds the same payload from its own record (`deploy/analysis.py`),
+ * with the curve time-weighted so money added or withdrawn is not a return,
+ * the rupees made beside it, and the strategy's backtest figures alongside.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -31,9 +36,9 @@ import {
   type Trade,
 } from '@/lib/backtestStats';
 import { moneyIn } from '@/lib/money';
-import type { FleetStrategy, FullReport, RunChoice, Tuning } from '@/lib/api';
+import type { Attribution, AttributionDetail, FleetStrategy, FullReport, RunChoice, Tuning } from '@/lib/api';
 
-type Tab = 'overview' | 'equity' | 'drawdown' | 'returns' | 'trades' | 'instruments' | 'orders' | 'tuning';
+type Tab = 'overview' | 'equity' | 'drawdown' | 'returns' | 'trades' | 'instruments' | 'attribution' | 'orders' | 'tuning';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -52,17 +57,23 @@ function tone(value: number | null | undefined): 'good' | 'bad' | undefined {
 
 export function BacktestReport({
   strategy,
+  deployment,
   bar,
   workspace,
   onBack,
+  backLabel = 'Strategies',
 }: {
   strategy: FleetStrategy;
+  /** A deployment id: report its paper or live record instead of a backtest. */
+  deployment?: string;
+  backLabel?: string;
   /** The noise bar, so the Sharpe card can say whether it clears it. */
   bar: number | null;
   workspace: string;
   onBack: () => void;
 }) {
   const [report, setReport] = useState<FullReport | null>(null);
+  const [attribution, setAttribution] = useState<Attribution | null>(null);
   const [runs, setRuns] = useState<RunChoice[]>([]);
   const [chosen, setChosen] = useState('');
   const [error, setError] = useState('');
@@ -72,6 +83,7 @@ export function BacktestReport({
 
   useEffect(() => {
     let live = true;
+    if (deployment) return;
     api
       .tuning(strategy.id)
       .then((found) => live && setTuning(found.ran ? found : null))
@@ -79,20 +91,35 @@ export function BacktestReport({
     return () => {
       live = false;
     };
-  }, [strategy.id]);
+  }, [strategy.id, deployment]);
 
   useEffect(() => {
     setError('');
     setReport(null);
+    if (deployment) {
+      api
+        .deploymentReport(deployment, workspace)
+        .then((response) => {
+          if (response.ok && response.report) {
+            setReport(response.report);
+            setAttribution(response.attribution ?? null);
+          } else setError(response.error ?? 'This deployment has nothing to report yet.');
+        })
+        .catch((problem) => setError(problem instanceof Error ? problem.message : String(problem)));
+      return;
+    }
     api
       .report(strategy.id, workspace, chosen)
       .then((response) => {
         setRuns(response.runs ?? []);
-        if (response.ok && response.report) setReport(response.report);
+        if (response.ok && response.report) {
+          setReport(response.report);
+          setAttribution(response.attribution ?? null);
+        }
         else setError(response.error ?? 'This strategy has no stored run to report on yet.');
       })
       .catch((problem) => setError(problem instanceof Error ? problem.message : String(problem)));
-  }, [strategy.id, workspace, chosen]);
+  }, [strategy.id, deployment, workspace, chosen]);
 
   const market = report?.asset_class ?? strategy.asset_class ?? 'equity';
   const money = moneyIn(market);
@@ -114,9 +141,12 @@ export function BacktestReport({
     <div className="rpt-head">
       <div style={{ minWidth: 0 }}>
         <button className="rpt-back" type="button" onClick={onBack}>
-          <ArrowLeft size={14} aria-hidden="true" /> Strategies
+          <ArrowLeft size={14} aria-hidden="true" /> {backLabel}
         </button>
-        <h1>{strategy.title}</h1>
+        <h1>
+          {deployment && <span className="assettag">{report?.deployment?.mode === 'live' ? 'Live' : 'Paper'}</span>}{' '}
+          {strategy.title}
+        </h1>
         <p>
           {report ? (
             <>
@@ -125,8 +155,16 @@ export function BacktestReport({
                 ? report.instruments.slice(0, 6).join(', ') +
                   (report.instruments.length > 6 ? ` +${report.instruments.length - 6} more` : '')
                 : report.universe}{' '}
-              · {report.period[0]} to {report.period[1]} · tier {report.tier} · starting capital{' '}
-              {money(report.starting_cash)}
+              · {report.period[0]} to {report.period[1]} ·{' '}
+              {report.deployment ? (
+                <>
+                  {report.deployment.status} since {report.deployment.start} · {money(report.deployment.put_in)} put in
+                </>
+              ) : (
+                <>
+                  tier {report.tier} · starting capital {money(report.starting_cash)}
+                </>
+              )}
             </>
           ) : (
             'Backtest report'
@@ -178,7 +216,9 @@ export function BacktestReport({
 
   const m = report.metrics;
   const { trades, stats } = derived;
-  const net = report.final_equity - report.starting_cash;
+  const dep = report.deployment;
+  // A deployment's curve is time-weighted; its rupees made are its own figure.
+  const net = dep ? dep.made : report.final_equity - report.starting_cash;
   const clears = bar !== null && m.sharpe >= bar;
 
   const TABS: { id: Tab; label: string }[] = [
@@ -188,6 +228,7 @@ export function BacktestReport({
     { id: 'returns', label: 'Returns' },
     { id: 'trades', label: `Trades (${stats.closed})` },
     { id: 'instruments', label: `Instruments (${report.constituents.length})` },
+    ...(attribution ? [{ id: 'attribution' as const, label: 'Attribution' }] : []),
     { id: 'orders', label: `Orders (${report.orders.length})` },
     ...(tuning ? [{ id: 'tuning' as const, label: 'Optimisation' }] : []),
   ];
@@ -253,6 +294,8 @@ export function BacktestReport({
         />
       </div>
 
+      {dep && report.backtest && <AgainstBacktest report={report} />}
+
       <div className="rpt-tabs" role="tablist" aria-label="Report sections">
         {TABS.map((item) => (
           <button
@@ -299,7 +342,7 @@ export function BacktestReport({
 
             <div className="rpt-stack">
               {report.benchmark && (
-                <Card title={`Against holding ${report.benchmark.symbol}`} sub="Same sessions, bought on the first and held.">
+                <Card title={`Passive hold · ${report.benchmark.symbol}`} sub="Same instrument, bought on the first session and held; the market index comparison is in Attribution.">
                   <KV
                     rows={[
                       ['This strategy', money(net), net >= 0 ? 'pos' : 'neg'],
@@ -309,13 +352,32 @@ export function BacktestReport({
                         report.benchmark.net_pnl >= 0 ? 'pos' : 'neg',
                       ],
                       [
-                        'Difference',
+                        'Strategy minus passive hold',
                         money(net - report.benchmark.net_pnl),
                         net - report.benchmark.net_pnl >= 0 ? 'pos' : 'neg',
                       ],
                       ['Benchmark Sharpe', num(report.benchmark.sharpe)],
                       ['Benchmark worst fall', pct(-Math.abs(report.benchmark.max_drawdown), 1)],
                       ['Time in the market', pct(m.invested_fraction, 0)],
+                    ]}
+                  />
+                </Card>
+              )}
+              {dep && (
+                <Card title="Money" sub="Deposits and withdrawals move these rupees, never the returns.">
+                  <KV
+                    rows={[
+                      [`Starting capital, ${dep.start}`, money(dep.starting_capital)],
+                      ...dep.flows.map((flow): [string, string, 'pos' | 'neg'] => [
+                        `${flow.amount >= 0 ? 'Added' : 'Withdrawn'} ${flow.day}`,
+                        money(flow.amount),
+                        flow.amount >= 0 ? 'pos' : 'neg',
+                      ]),
+                      ['Put in', money(dep.put_in)],
+                      ['Equity now', money(dep.equity)],
+                      ['Made', money(dep.made), dep.made >= 0 ? 'pos' : 'neg'],
+                      ['Return, time-weighted', pct(dep.time_weighted_return)],
+                      ['Slippage assumed', `${dep.slippage_bps} bp a fill`],
                     ]}
                   />
                 </Card>
@@ -442,6 +504,18 @@ export function BacktestReport({
           onQuery={setQuery}
           money={money}
           filename={`${strategy.id}-trades.csv`}
+        />
+      )}
+
+      {tab === 'attribution' && attribution && (
+        <AttributionTab
+          a={attribution}
+          money={money}
+          loadDetail={() =>
+            deployment
+              ? api.deploymentAttribution(deployment, workspace)
+              : api.reportAttribution(strategy.id, workspace, chosen || report.configuration)
+          }
         />
       )}
 
@@ -813,4 +887,465 @@ function OrderList({
       )}
     </Card>
   );
+}
+
+/** A deployment's figures beside its strategy's backtest, metric by metric. */
+function AgainstBacktest({ report }: { report: FullReport }) {
+  const tested = report.backtest;
+  if (!tested) return null;
+  const m = report.metrics;
+  const rows: [string, number | null | undefined, number | null | undefined, (v: number | null | undefined) => string][] = [
+    ['Total return', m.total_return, tested.metrics.total_return, (v) => pct(v)],
+    ['CAGR', m.annualised, tested.metrics.annualised, (v) => pct(v)],
+    ['Sharpe', m.sharpe, tested.metrics.sharpe, (v) => num(v)],
+    ['Sortino', m.sortino, tested.metrics.sortino, (v) => num(v)],
+    ['Volatility, a year', m.volatility, tested.metrics.volatility, (v) => pct(v, 1)],
+    ['Max drawdown', m.drawdown.depth, tested.max_drawdown, (v) => pct(v)],
+    ['Up days', m.hit_rate, tested.metrics.hit_rate, (v) => pct(v, 1)],
+    ['Best day', m.best_day, tested.metrics.best_day, (v) => pct(v)],
+    ['Worst day', m.worst_day, tested.metrics.worst_day, (v) => pct(v)],
+    ['Return given up to costs', m.cost_drag, tested.metrics.cost_drag, (v) => pct(v)],
+  ];
+  const mode = report.deployment?.mode === 'live' ? 'Live' : 'Paper';
+  return (
+    <Card
+      title={`${mode} against its backtest`}
+      sub={`This record (${m.trading_days} days) beside the strategy's longest stored backtest${tested.period ? `, ${tested.period[0]} to ${tested.period[1]}` : ''}. A few weeks is a small sample: annualised figures over it are noisy.`}
+    >
+      <table className="ttable">
+        <thead>
+          <tr>
+            <th scope="col">Metric</th>
+            <th scope="col">{mode}</th>
+            <th scope="col">Backtest</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, ours, theirs, show]) => (
+            <tr key={label}>
+              <td>{label}</td>
+              <td>{show(ours)}</td>
+              <td>{show(theirs)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
+/** Where the return came from: holdings, sectors, years and the market. */
+function AttributionTab({
+  a,
+  money,
+  loadDetail,
+}: {
+  a: Attribution;
+  money: (value: number) => string;
+  loadDetail: () => Promise<{ ok: boolean; detail?: AttributionDetail; error?: string }>;
+}) {
+  const [view, setView] = useState<'overview' | 'results' | 'detail'>('overview');
+  const [detail, setDetail] = useState<AttributionDetail | null>(null);
+  const [detailState, setDetailState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [detailError, setDetailError] = useState('');
+  const runDetail = () => {
+    setDetailState('loading');
+    loadDetail()
+      .then((answer) => {
+        if (answer.ok && answer.detail) {
+          setDetail(answer.detail);
+          setDetailState('idle');
+        } else {
+          setDetailError(answer.error ?? 'No detail came back.');
+          setDetailState('error');
+        }
+      })
+      .catch((problem) => {
+        setDetailError(problem instanceof Error ? problem.message : String(problem));
+        setDetailState('error');
+      });
+  };
+  const h = a.holdings;
+  const m = a.market;
+  const share = (v: number | null | undefined) => pct(v ?? null, 0);
+  const holdingsBars = [...h.best, ...h.worst]
+    .sort((x, y) => y.contribution - x.contribution)
+    .map((row) => ({ label: row.symbol, value: row.contribution, detail: share(h.net_profit ? row.contribution / h.net_profit : null) }));
+  return (
+    <>
+      <section className="att-summary">
+        <div className="att-summary-copy">
+          <span className="att-eyebrow">RETURN DRIVERS</span>
+          <h2>Where did the return come from?</h2>
+          <p>Start with the names that moved the result, then check whether the gains were broad, steady, and independent of the market.</p>
+        </div>
+        <div className="att-kpis">
+          <div><span>Net contribution</span><b className={h.net_profit >= 0 ? 'pos' : 'neg'}>{money(h.net_profit)}</b><small>{h.names} names traded</small></div>
+          <div><span>Win rate by name</span><b>{share(h.names ? h.winners / h.names : null)}</b><small>{h.winners} winners · {h.losers} losers</small></div>
+        </div>
+      </section>
+
+      <nav className="att-nav" aria-label="Attribution views">
+        {([
+          ['overview', 'Overview', true],
+          ['results', 'Performance drivers', true],
+          ['detail', 'Full analysis', true],
+        ] as const).map(([id, label, available]) => <button key={id} type="button" disabled={!available} aria-pressed={view === id} onClick={() => setView(id)}>{label}{id === 'detail' && detail && <span className="att-nav-ready">Ready</span>}</button>)}
+      </nav>
+
+      <div hidden={view !== 'overview'}>
+      <div className="att-grid att-primary-grid">
+        <Card title="Holdings that moved the result" sub="Best and worst instrument contribution, after costs. Share is relative to net profit.">
+          <ContributionTiles rows={holdingsBars} money={money} />
+          <div className="att-chart-legend"><span><i className="att-dot gain" /> Added return</span><span><i className="att-dot loss" /> Reduced return</span><span className="att-chart-hint">Tile area shows contribution size</span></div>
+        </Card>
+        <Card title="Profit concentration" sub="Share of gross gains from winning holdings. Losses do not shrink the denominator.">
+          <div className="att-concentration">
+            <div className="att-donut" style={{ background: `conic-gradient(var(--up) 0 ${Math.max(0, Math.min(100, (h.share_of_gross_profit.top_5 ?? 0) * 100))}%, var(--surface-3) 0 100%)` }}><div><b>{share(h.share_of_gross_profit.top_5)}</b><span>top five winners</span></div></div>
+            <div className="att-concentration-stats">
+              <div><span>Top winner</span><b>{share(h.share_of_gross_profit.top_1)}</b></div>
+              <div><span>Top ten winners</span><b>{share(h.share_of_gross_profit.top_10)}</b></div>
+              <div className="att-concentration-divider" />
+              <div><span>Excluding top name</span><b className={(h.without_top_1.annualised ?? 0) < 0 ? 'neg' : 'pos'}>{pct(h.without_top_1.annualised)}</b><small>Total {pct(h.without_top_1.total_return)}</small></div>
+              <div><span>Excluding top five</span><b className={(h.without_top_5.annualised ?? 0) < 0 ? 'neg' : 'pos'}>{pct(h.without_top_5.annualised)}</b><small>Total {pct(h.without_top_5.total_return)}</small></div>
+              <div><span>Winners for 50% / 80% of gains</span><b>{h.names_for_half ?? '—'} / {h.names_for_four_fifths ?? '—'}</b></div>
+            </div>
+          </div>
+          <p className="att-insight">Use the exclusion returns below to see whether the strategy stayed profitable without its biggest contributors.</p>
+        </Card>
+      </div>
+
+      <p className="tfine att-note">{a.note}</p>
+      </div>
+
+      <section className="att-view" hidden={view !== 'results'}>
+        <div className="att-view-heading"><div><span className="att-eyebrow">PERFORMANCE DRIVERS</span><h2>How did the strategy perform?</h2><p>Read sector and industry contribution, performance over time, and market exposure together.</p></div><span className="att-view-count">{a.years.filter((y) => (y.return ?? 0) > 0).length} positive years · {h.names} names</span></div>
+        <div className="att-results-grid">
+          {a.sectors && (['sector', 'industry'] as const).map((level) => <Card key={level} title={`${level === 'sector' ? 'Sector' : 'Industry'} contribution`} sub="Net contribution after costs; bar detail shows share and breadth of winners."><ContributionBars rows={a.sectors![level].map((r) => ({ label: r.name, value: r.contribution, detail: `${share(r.share)} · ${r.winners}/${r.names} positive` }))} money={money} compact /></Card>)}
+          {m && <Card title={`Market comparison · ${m.index}`} sub={`${m.from} to ${m.through} · close-to-close price return, excluding distributions · ${m.days} matched sessions. The annual residual is the raw-return regression intercept; no risk-free rate is available.${m.days < 60 ? ' Cumulative comparison only; beta and residual need 60 sessions.' : ''}`}>
+            <div className="att-market-hero"><div><span>Strategy cumulative</span><b className={(m.strategy_total ?? 0) < 0 ? 'neg' : 'pos'}>{pct(m.strategy_total)}</b></div><div><span>{m.index} price return</span><b className={(m.market_total ?? 0) < 0 ? 'neg' : 'pos'}>{pct(m.market_total)}</b></div></div>
+            <div className="att-market-grid">{[['Market-model residual / year', pct(m.alpha_annual)], ['Market-linked return / year', pct(m.from_market_annual)], ['Beta', num(m.beta)], ['Correlation', num(m.correlation)], ['R² explained', pct(m.r_squared, 0)]].map(([label, value]) => <div key={label}><span>{label}</span><b>{value}</b></div>)}</div>
+          </Card>}
+          <div className="att-result-years"><Card title="Annual return profile" sub="Return, net trading profit, and leading contributor for each year."><YearBars rows={a.years.map((y) => ({ label: y.year, value: y.return, detail: y.top_symbol ?? '—', subdetail: share(y.top_share), profit: y.trading_profit, topProfit: y.top_profit }))} money={money} /></Card></div>
+        </div>
+        {!detail && <p className="att-insight">Run <button className="att-inline-link" type="button" onClick={() => setView('detail')}>Full analysis</button> to see Brinson allocation and selection effects, factor exposures, risk drivers, drawdowns, and trade behavior.</p>}
+      </section>
+
+      <section className="att-view" hidden={view !== 'detail'}>
+        <div className="att-view-heading"><div><span className="att-eyebrow">MODEL DIAGNOSTICS</span><h2>Full analysis</h2><p>Rebuilt holdings, sector effects, factors, risk, drawdowns, trade behavior and capacity.</p></div><span className="att-view-count">{detail ? `Rebuilt in ${detail.seconds}s` : 'On-demand'}</span></div>
+
+      {!detail && <Card title="Build full analysis" sub="Rebuild the trade history, then calculate sector effects, factor exposure, risk and execution diagnostics.">
+        <div className="att-analysis-launch">
+          <button className="tbtn go" type="button" disabled={detailState === 'loading'} onClick={runDetail}>
+            {detailState === 'loading' ? 'Rebuilding portfolio history… (about a minute the first time)' : 'Run full analysis'}
+          </button>
+          {detailState !== 'loading' && <span>Calculates once, then the result stays open while you inspect the sections.</span>}
+        </div>
+        {detailState === 'error' && <div className="tnote bad">{detailError}</div>}
+      </Card>}
+      {detail && <DetailViews d={detail} money={money} />}
+      </section>
+    </>
+  );
+}
+
+function ContributionBars({ rows, money, compact = false, formatValue }: { rows: { label: string; value: number; detail?: string }[]; money: (value: number) => string; compact?: boolean; formatValue?: (value: number) => string }) {
+  const max = Math.max(1, ...rows.map((row) => Math.abs(row.value)));
+  if (!rows.length) return <p className="tfine">No contributions to show.</p>;
+  return <div className={`att-bars${compact ? ' compact' : ''}`}>
+    {rows.map((row) => <div className="att-bar-row" key={row.label}>
+      <b className="att-bar-label" title={row.label}>{row.label}</b>
+      <div className="att-bar-track"><div className={`att-bar-fill ${row.value < 0 ? 'loss' : 'gain'}`} style={{ width: `${Math.max(1, Math.abs(row.value) / max * 50)}%` }} /></div>
+      <strong className={row.value < 0 ? 'neg' : 'pos'}>{formatValue ? formatValue(row.value) : money(row.value)}</strong>
+      {row.detail && <span className="att-bar-detail">{row.detail}</span>}
+    </div>)}
+  </div>;
+}
+
+function ContributionTiles({ rows, money, large = false }: { rows: { label: string; value: number; detail?: string }[]; money: (value: number) => string; large?: boolean }) {
+  const max = Math.max(1, ...rows.map((row) => Math.abs(row.value)));
+  return <div className={`att-tiles${large ? ' large' : ''}`}>
+    {rows.map((row) => <div key={row.label} className={`att-tile ${row.value < 0 ? 'loss' : 'gain'}`} style={{ gridColumn: `span ${Math.max(2, Math.min(6, Math.round((Math.abs(row.value) / max) * 6)))}` }}>
+      <span>{row.label}</span><b>{row.value < 0 ? '−' : '+'}{money(Math.abs(row.value))}</b>{row.detail && <small>{row.detail} of net</small>}
+    </div>)}
+  </div>;
+}
+
+function YearBars({ rows, money }: { rows: { label: string; value: number | null; detail: string; subdetail: string; profit?: number; topProfit?: number | null }[]; money?: (value: number) => string }) {
+  const max = Math.max(0.01, ...rows.map((row) => Math.abs(row.value ?? 0)));
+  return <div className="att-years">
+    {rows.map((row) => <div className="att-year" key={row.label}>
+      <b className={(row.value ?? 0) < 0 ? 'neg' : 'pos'}>{pct(row.value, 0)}</b>
+      <div className="att-year-plot"><div className={`att-year-bar ${(row.value ?? 0) < 0 ? 'loss' : ''}`} style={{ height: `${Math.max(4, Math.abs(row.value ?? 0) / max * 100)}%` }} /></div>
+      <span className="att-year-label">{row.label}</span><small>{row.detail} · {row.subdetail} share</small>
+      {row.profit !== undefined && money && <small className={row.profit < 0 ? 'neg' : 'pos'}>Net {money(row.profit)}</small>}
+      {row.topProfit !== undefined && row.topProfit !== null && money && <small>Driver {money(row.topProfit)}</small>}
+    </div>)}
+  </div>;
+}
+
+function MonthBars({ rows, money }: { rows: { month: string; return: number | null; drivers: { symbol: string; profit: number }[] }[]; money: (value: number) => string }) {
+  const max = Math.max(0.01, ...rows.map((row) => Math.abs(row.return ?? 0)));
+  return <div className="att-month-list">{rows.map((row) => <div className="att-month-row" key={row.month}>
+    <b>{row.month}</b><div className="att-month-track"><div className={(row.return ?? 0) < 0 ? 'loss' : 'gain'} style={{ width: `${Math.max(3, Math.abs(row.return ?? 0) / max * 100)}%` }} /></div>
+    <strong className={(row.return ?? 0) < 0 ? 'neg' : 'pos'}>{pct(row.return, 1)}</strong><span>{row.drivers.map((driver) => `${driver.symbol} ${money(driver.profit)}`).join(' · ')}</span>
+  </div>)}</div>;
+}
+
+function RollingRows({ rows }: { rows: { month: string; beta: number | null; alpha_annual: number | null }[] }) {
+  const max = Math.max(0.01, ...rows.map((row) => Math.abs(row.alpha_annual ?? 0)));
+  return <div className="att-rolling-rows">{rows.map((row) => {
+    const alpha = row.alpha_annual ?? 0;
+    return <div className="att-rolling-row" key={row.month}>
+      <b>{row.month}</b><div className="att-rolling-track"><i className={alpha < 0 ? 'loss' : 'gain'} style={{ width: `${Math.max(1, Math.abs(alpha) / max * 50)}%`, ...(alpha < 0 ? { right: '50%' } : { left: '50%' }) }} /></div>
+      <span className={alpha < 0 ? 'neg' : 'pos'}>{pct(row.alpha_annual, 1)} residual</span><span>β {num(row.beta)}</span>
+    </div>;
+  })}</div>;
+}
+
+/** The detailed attribution, section by section. */
+function DetailViews({ d, money }: { d: AttributionDetail; money: (value: number) => string }) {
+  const share = (v: number | null | undefined, digits = 0) => pct(v ?? null, digits);
+  const tone2 = (v: number | null | undefined) => ((v ?? 0) >= 0 ? 'pos' : 'neg');
+  const e = d.exposure;
+  return (
+    <>
+      <div className={`tnote ${d.rebuild.trusted ? 'ok' : 'warn'}`}>
+        <span className="mk">{d.rebuild.trusted ? '✓' : '!'}</span>
+        <div>
+          Rebuilt book matches the stored equity to within {share(d.rebuild.max_gap, 2)}. {d.rebuild.trusted ? '' : 'Holdings-based views are provisional because the rebuild does not agree with the run.'}{' '}
+          {d.rebuild.note}
+        </div>
+      </div>
+
+      <section className="att-analysis-section">
+        <div className="att-analysis-heading"><div><span className="att-eyebrow">RETURNS & DRIVERS</span><h3>What produced the return?</h3><p>Sector decisions and style exposure, with sample size and model limits alongside the estimates.</p></div><span className="att-view-count">{d.factors ? `${d.factors.months} monthly observations` : 'Coverage notes below'}</span></div>
+        <div className="att-analysis-grid">
+          {d.brinson && <div className="att-analysis-card att-analysis-brinson">
+            <Card title="Brinson–Fachler attribution" sub={`Sector effects use the ${d.brinson.benchmark} reference basket over ${d.brinson.months} months, linked with Carino and current NSE sector labels. This model is separate from the NIFTYBEES / S&P 500 market comparison in Performance drivers.`}>
+              <div className="att-brinson-metrics">
+                {[
+                  ['Actual strategy', share(d.brinson.actual_total, 1), d.brinson.actual_total],
+                  ['Month-start portfolio', share(d.brinson.portfolio_buy_hold, 1), d.brinson.portfolio_buy_hold],
+                  ['Benchmark total', share(d.brinson.benchmark_total, 1), d.brinson.benchmark_total],
+                  ['Benchmark annual', share(d.brinson.benchmark_annual, 1), d.brinson.benchmark_annual],
+                ].map(([label, value, raw]) => <div key={String(label)}><span>{String(label)}</span><b className={tone2(Number(raw))}>{String(value)}</b></div>)}
+              </div>
+              <div className="att-detail-viz">
+                <div className="att-detail-viz-title"><b>Active return drivers</b><span>Annualised contributions</span></div>
+                <ContributionBars rows={[
+                  { label: 'Allocation', value: d.brinson.allocation ?? 0 },
+                  { label: 'Selection', value: d.brinson.selection ?? 0 },
+                  { label: 'Interaction', value: d.brinson.interaction ?? 0 },
+                  { label: 'Trading', value: d.brinson.trading ?? 0 },
+                ]} money={money} formatValue={(v) => pct(v, 1)} compact />
+              </div>
+              <div className="tscroll"><table className="ttable">
+                <thead><tr><th>Sector</th><th className="r">Weight (bench.)</th><th className="r">Allocation</th><th className="r">Selection</th><th className="r">Interaction</th><th className="r">Total</th></tr></thead>
+                <tbody>{d.brinson.sectors.map((r) => <tr key={r.sector}>
+                  <td>{r.sector}</td><td className="r">{share(r.average_weight)} ({share(r.benchmark_weight)})</td>
+                  <td className={`r ${tone2(r.allocation)}`}>{share(r.allocation, 1)}</td><td className={`r ${tone2(r.selection)}`}>{share(r.selection, 1)}</td>
+                  <td className={`r ${tone2(r.interaction)}`}>{share(r.interaction, 1)}</td><td className={`r ${tone2(r.total)}`}>{share(r.total, 1)}</td>
+                </tr>)}</tbody>
+              </table></div>
+            </Card>
+          </div>}
+
+          <div className="att-analysis-card att-analysis-factors"><FactorModelCard factors={d.factors} note={d.factor_note} /></div>
+          {!d.brinson && d.brinson_note && <div className="att-analysis-card att-analysis-brinson-note"><Card title="Sector attribution coverage"><p className="att-model-note">{d.brinson_note}</p></Card></div>}
+        </div>
+      </section>
+
+      <section className="att-analysis-section">
+        <div className="att-analysis-heading"><div><span className="att-eyebrow">PORTFOLIO & RISK</span><h3>How the book was invested</h3><p>Exposure, concentration of risk, and the periods that hurt most.</p></div></div>
+        <div className="att-analysis-grid">
+          {e && <div className="att-analysis-card">
+            <Card title="Portfolio exposure" sub={e.note}>
+              <div className="att-market-hero"><div><span>Average invested</span><b>{share(e.invested_mean)}</b></div><div><span>Peak invested</span><b>{share(e.invested_max)}</b></div></div>
+              {(e.invested_max ?? 0) > 1.02 && <div className="tnote warn"><span className="mk">!</span><div>This run was more than fully invested: {share(e.invested_mean)} on average, up to {share(e.invested_max)}. Cash went negative, so part of the return was earned on money the strategy did not have.</div></div>}
+              <div className="att-detail-viz"><div className="att-detail-viz-title"><b>Capital deployed by year</b><span>Average invested</span></div>
+                <div className="att-exposure-bars">{e.by_year.map((y) => <div key={y.year} className="att-exposure-row"><b>{y.year}</b><div className="att-bar-track"><div className="att-bar-fill gain" style={{ width: `${Math.max(0, Math.min(100, (y.invested ?? 0) * 100))}%` }} /></div><strong>{share(y.invested, 0)}</strong><span>{num(y.holdings, 1)} holdings · {num(y.effective_holdings, 1)} effective</span></div>)}</div>
+              </div>
+              {e.frozen.length > 0 && <div className="tscroll"><p className="tfine"><b>Frozen positions</b> — held after the stock&apos;s last price in the data (renamed or delisted).</p><table className="ttable"><thead><tr><th>Symbol</th><th>Last price</th><th>Held until</th><th className="r">Value then</th></tr></thead><tbody>{e.frozen.map((f) => <tr key={f.symbol}><td>{f.symbol}</td><td>{f.last_price}</td><td>{f.held_until}</td><td className="r">{money(f.value)}</td></tr>)}</tbody></table></div>}
+            </Card>
+          </div>}
+
+          {d.risk && <div className="att-analysis-card">
+            <Card title="Risk contribution" sub={`Book as of ${d.risk.as_of} · volatility ${share(d.risk.volatility_annual)} a year · ${share(d.risk.invested)} invested. Contributions use Euler allocation.`}>
+              <ContributionBars rows={d.risk.holdings.map((h) => ({ label: h.symbol, value: h.share_of_risk ?? 0, detail: `${share(h.weight, 1)} weight` }))} money={money} formatValue={(v) => share(v, 1)} compact />
+              <div className="att-detail-viz"><div className="att-detail-viz-title"><b>Risk by sector</b><span>Share of portfolio risk</span></div><ContributionBars rows={d.risk.sectors.map((r) => ({ label: r.sector, value: r.share_of_risk ?? 0 }))} money={money} formatValue={(v) => share(v, 1)} compact /></div>
+            </Card>
+          </div>}
+
+          {d.drawdowns.length > 0 && <div className="att-analysis-card">
+            <Card title="Drawdown episodes" sub="Peak to trough, recovery status, and the holdings that contributed most to each loss.">
+              <div className="att-drawdown-list">{d.drawdowns.map((x) => <div className="att-drawdown-row" key={x.peak}>
+                <div className="att-dd-depth"><b>{share(x.depth)}</b><span>{x.days_to_trough} days to trough</span></div>
+                <div className="att-dd-timeline"><b>{x.peak} → {x.trough}</b><span>{x.recovered ? `Recovered ${x.recovered}` : 'Not recovered'}</span></div>
+                <div className="att-dd-drivers">{x.worst.map((w) => <span key={w.symbol}>{w.symbol} <b>{money(w.loss)}</b> · {share(w.share)} of episode</span>)}</div>
+              </div>)}</div>
+            </Card>
+          </div>}
+
+          {d.months.best.length > 0 && <div className="att-analysis-card">
+            <Card title="Best and worst months" sub="Monthly outcome with the three holdings that moved most.">
+              <MonthBars rows={[...d.months.best, ...d.months.worst]} money={money} />
+            </Card>
+          </div>}
+        </div>
+      </section>
+
+      <section className="att-analysis-section">
+        <div className="att-analysis-heading"><div><span className="att-eyebrow">TRADING & ROBUSTNESS</span><h3>Does the edge survive execution and time?</h3><p>Trade outcomes, capacity limits, and rolling market-adjusted results.</p></div></div>
+        <div className="att-analysis-grid">
+          {d.trades.by_holding_period && <div className="att-analysis-card">
+            <Card title="Trade outcomes by holding period" sub={`${d.trades.closed} closed trades · best 1% (${d.trades.best_1pct_trades}) generated ${share(d.trades.best_1pct_share_of_gross_profit)} of gross profit · win/loss payoff ${num(d.trades.payoff_ratio)}.`}>
+              <ContributionBars rows={d.trades.by_holding_period.map((b) => ({ label: b.holding, value: b.net, detail: `${b.trades} trades · ${share(b.win_rate)} won · avg ${share(b.average_return, 1)}` }))} money={money} compact />
+            </Card>
+          </div>}
+          {d.trades.by_sector && <div className="att-analysis-card">
+            <Card title="Trade outcomes by sector" sub={`${d.trades.closed} closed trades · net result and sector win rate.`}>
+              <ContributionBars rows={d.trades.by_sector.map((b) => ({ label: b.sector, value: b.net, detail: `${b.trades} trades · ${share(b.win_rate)} won` }))} money={money} compact />
+            </Card>
+          </div>}
+          {d.capacity && <div className="att-analysis-card">
+            <Card title="Strategy capacity" sub={`${d.capacity.entries} buys measured against median daily turnover over the preceding 60 sessions, at ${share(d.capacity.participation)} participation.`}>
+              <div className="att-capacity-kpis"><div><span>Typical buy, days to trade</span><b>{num(d.capacity.median_days_to_trade, 3)}</b></div><div><span>90th percentile</span><b>{num(d.capacity.p90_days_to_trade, 3)} <small>days</small></b></div><div><span>Capital for 90% same day</span><b>{money(d.capacity.capital_where_90pct_trade_in_a_day)}</b></div><div><span>Capital for half same day</span><b>{money(d.capacity.capital_where_median_trades_in_a_day)}</b></div></div>
+              {d.capacity.note && <p className="tfine">{d.capacity.note}</p>}
+              <div className="att-tightest"><b>Most constrained buys</b>{d.capacity.tightest.map((t) => <div key={`${t.symbol}-${t.day}`}><span>{t.symbol} · {t.day}</span><b>{money(t.capital_for_one_day)}</b></div>)}</div>
+            </Card>
+          </div>}
+          {d.rolling.length > 0 && <div className="att-analysis-card att-analysis-rolling">
+            <Card title={`Rolling twelve-month market model · ${d.market_label}`} sub="Market beta and the annualized regression residual through time. Raw returns are used, with no risk-free rate.">
+              <RollingRows rows={d.rolling} />
+            </Card>
+          </div>}
+        </div>
+      </section>
+    </>
+  );
+}
+
+const houseFactorCatalog: Record<string, { label: string; short: string; construction: string }> = {
+  market: {
+    label: 'Market',
+    short: 'Broad market exposure',
+    construction: 'A beta near 1 means the strategy moved about one-for-one with the reference market in this sample.',
+  },
+  size: {
+    label: 'Size · turnover proxy',
+    short: 'Lower-turnover minus higher-turnover stocks',
+    construction: 'Within the 500 most-traded stocks, the bottom half by turnover minus the top half. Turnover stands in for size because point-in-time market capitalisation is not held.',
+  },
+  momentum: {
+    label: 'Momentum · 12–1',
+    short: 'Recent winners minus recent losers',
+    construction: 'Within the same 500-stock universe, the top 30% minus bottom 30% by return from 12 months ago to 1 month ago. The skipped month reduces short-term reversal overlap.',
+  },
+  low_volatility: {
+    label: 'Low volatility',
+    short: 'Lower-volatility minus higher-volatility stocks',
+    construction: 'Within the same universe, the bottom 30% minus top 30% by trailing 12-month monthly volatility.',
+  },
+};
+
+const officialUsFactorCatalog: Record<string, { label: string; short: string; construction: string }> = {
+  market: { label: 'Market · Mkt-RF', short: 'U.S. market excess return', construction: 'Broad U.S. market return less the published one-month risk-free rate. The strategy exposure is measured against this factor; the S&P 500 comparison is shown separately using SPY.' },
+  size: { label: 'Size · SMB', short: 'Small minus big stocks', construction: 'The published Small Minus Big return factor from Kenneth French’s U.S. factor library.' },
+  value: { label: 'Value · HML', short: 'High minus low book-to-market', construction: 'The published High Minus Low book-to-market return factor.' },
+  profitability: { label: 'Profitability · RMW', short: 'Robust minus weak profitability', construction: 'The published Robust Minus Weak operating-profitability return factor.' },
+  investment: { label: 'Investment · CMA', short: 'Conservative minus aggressive investment', construction: 'The published Conservative Minus Aggressive investment return factor.' },
+  momentum: { label: 'Momentum · Mom', short: 'Prior winners minus prior losers', construction: 'The published winner-minus-loser factor, formed from prior returns over months −12 to −2.' },
+};
+
+function FactorModelCard({ factors, note }: { factors: AttributionDetail['factors']; note: string | null }) {
+  if (!factors) return <Card title="Factor model unavailable"><p className="att-model-note">{note ?? 'The return history does not support a factor estimate yet.'}</p></Card>;
+  const catalog = factors.model_name.startsWith('Fama/French') ? officialUsFactorCatalog : houseFactorCatalog;
+  const factorLabel = (key: string) => catalog[key]?.label ?? (key === 'risk_free' ? 'Risk-free return' : key.replaceAll('_', ' '));
+  const contributionRows = [
+    ...Object.entries(factors.exposures).map(([key, value]) => ({
+      label: factorLabel(key),
+      value: value.contribution_annual ?? 0,
+      detail: `β ${num(value.beta)} · t ${num(value.t)}`,
+    })),
+    ...(factors.risk_free_annual == null ? [] : [{ label: 'Risk-free return', value: factors.risk_free_annual, detail: 'Published RF' }]),
+    { label: 'Model residual', value: factors.alpha_annual ?? 0, detail: `t ${num(factors.alpha_t)}` },
+  ];
+  return <Card title="Factor attribution" sub={`${factors.model_name} · ${factors.period_from ?? '—'} to ${factors.period_through ?? '—'} · ${factors.months} monthly observations · ${factors.factors}.`}>
+    {note && <div className="att-factor-note"><b>Model coverage</b><p>{note}{factors.source_url && <> <a href={factors.source_url} target="_blank" rel="noreferrer">Data source</a></>}</p></div>}
+    <div className="att-factor-kpis">
+      <div><span>Strategy average / year</span><b className={(factors.strategy_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(factors.strategy_annual, 1)}</b><small>Arithmetic monthly mean × 12</small></div>
+      <div><span>Model intercept / year</span><b className={(factors.alpha_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(factors.alpha_annual, 1)}</b><small>Regression intercept × 12</small></div>
+      <div><span>Model fit</span><b>{pct(factors.r_squared, 0)}</b><small>R² · adjusted {pct(factors.adjusted_r_squared, 0)}</small></div>
+      <div><span>Sample</span><b>{factors.months} <small>months</small></b><small>{factors.period_from ?? '—'} — {factors.period_through ?? '—'}</small></div>
+    </div>
+
+    <div className="att-detail-viz att-factor-waterfall">
+      <div className="att-detail-viz-title"><b>What the model assigns to each driver</b><span>Annualized arithmetic contribution</span></div>
+      <ContributionBars rows={contributionRows} money={() => ''} compact formatValue={(value) => pct(value, 1)} />
+      <p className="att-factor-reconcile">Factor contributions + model residual reconcile to the strategy&apos;s annualized arithmetic return, within rounding. This regression describes co-movement; it does not prove that a factor caused the return.</p>
+    </div>
+
+    <div className="att-factor-details">
+      {Object.entries(factors.exposures).map(([key, value]) => {
+        const meta = catalog[key] ?? { label: key.replaceAll('_', ' '), short: 'Custom return spread', construction: 'Custom long-short spread constructed from the available equity panel.' };
+        const construction = key === 'market' && factors.risk_free_annual == null ? `Monthly close-to-close return on ${factors.market_label}. ${meta.construction}` : meta.construction;
+        const tValue = value.t ?? 0;
+        return <article className="att-factor-detail" key={key}>
+          <div className="att-factor-detail-top"><div><b>{meta.label}</b><span>{meta.short}</span></div><i className={Math.abs(tValue) >= 2 ? 'evidence' : ''}>t {num(value.t)}</i></div>
+          <div className="att-factor-detail-metrics">
+            <div><span>Strategy exposure (β)</span><b>{num(value.beta)}</b></div>
+            <div><span>Factor return / year</span><b className={(value.factor_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(value.factor_annual, 1)}</b></div>
+            <div><span>Return contribution / year</span><b className={(value.contribution_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(value.contribution_annual, 1)}</b></div>
+          </div>
+          <details><summary>How this factor is built</summary><p>{construction}</p></details>
+        </article>;
+      })}
+    </div>
+
+    {factors.yearly.length > 1 && <div className="att-factor-years">
+      <div className="att-detail-viz-title"><b>Factor contribution by year</b><span>Full-period exposures held fixed</span></div>
+      <FactorYearRows periods={factors.yearly} officialUs={factors.model_name.startsWith('Fama/French')} />
+      <p className="tfine">Factor pieces use full-period betas; the residual is the observed return left after those pieces in that year, so each row reconciles. Values are annualized monthly averages, not compounded annual returns. The final partial year uses only its observed months.</p>
+    </div>}
+
+    <details className="att-factor-method">
+      <summary>Model assumptions and reliability</summary>
+      <p>Monthly ordinary least squares. The model uses {factors.inference}; t-statistics are a noise check, not a pass/fail test. As a rough convention, |t| below 2 means the estimate is uncertain in this sample. {factors.risk_free_annual == null ? 'No risk-free rate is available for this model.' : 'The published risk-free rate is included for this model.'} The intercept is not proof of skill or future alpha.</p>
+    </details>
+  </Card>;
+}
+
+function FactorYearRows({ periods, officialUs }: { periods: NonNullable<AttributionDetail['factors']>['yearly']; officialUs: boolean }) {
+  const catalog = officialUs ? officialUsFactorCatalog : houseFactorCatalog;
+  const keys = Object.keys(periods[0]?.contributions ?? {});
+  const maxSide = Math.max(0.01, ...periods.map((row) => {
+    const values = Object.values(row.contributions).map((value) => value ?? 0);
+    return Math.max(values.filter((value) => value > 0).reduce((sum, value) => sum + value, 0), Math.abs(values.filter((value) => value < 0).reduce((sum, value) => sum + value, 0)));
+  }));
+  const color: Record<string, string> = { market: 'market', size: 'size', value: 'value', profitability: 'profitability', investment: 'investment', momentum: 'momentum', low_volatility: 'lowvol', risk_free: 'riskfree', residual: 'residual' };
+  return <div className="att-factor-year-list">
+    <div className="att-factor-year-legend">{keys.map((key) => <span key={key}><i className={color[key] ?? 'other'} />{key === 'residual' ? 'Residual' : key === 'risk_free' ? 'Risk-free return' : catalog[key]?.label ?? key}</span>)}</div>
+    {periods.map((period) => {
+      let leftUsed = 0;
+      let rightUsed = 0;
+      return <div className="att-factor-year-entry" key={period.year}>
+        <div className="att-factor-year-row">
+          <b>{period.year}<small>{period.months} mo</small></b>
+          <div className="att-factor-year-track" aria-label={`Factor contributions in ${period.year}`}>
+            {keys.map((key) => {
+              const value = period.contributions[key] ?? 0;
+              const width = Math.abs(value) / maxSide * 50;
+              const left = value >= 0 ? 50 + rightUsed : 50 - leftUsed - width;
+              if (value >= 0) rightUsed += width;
+              else leftUsed += width;
+              return width > 0 ? <i key={key} title={`${key === 'residual' ? 'Residual' : key === 'risk_free' ? 'Risk-free return' : catalog[key]?.label ?? key}: ${pct(value, 1)}`} className={color[key] ?? 'other'} style={{ left: `${left}%`, width: `${width}%` }} /> : null;
+            })}
+          </div>
+          <strong className={(period.strategy_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(period.strategy_annual, 1)}</strong>
+        </div>
+        <div className="att-factor-year-values">{keys.map((key) => <span key={key} title={key === 'residual' ? 'Model residual' : key === 'risk_free' ? 'Risk-free return' : catalog[key]?.label ?? key}><i className={color[key] ?? 'other'} />{pct(period.contributions[key], 1)}</span>)}</div>
+      </div>;
+    })}
+  </div>;
 }

@@ -45,6 +45,7 @@ GITHUB_PIVOT = "github_pivot_stock_strategies"
 GITHUB_ENGULFING = "github_engulfing_stock_strategies"
 GITHUB_MOMENTUM_BURST = "github_momentum_burst_stock_strategies"
 GITHUB_RSI2 = "github_rsi2_pullback_stock_strategies"
+INDIA_FIVE = "india_five_intraday"
 
 COMMANDS = {
     SESSION: "make intraday-papers",
@@ -69,6 +70,7 @@ COMMANDS = {
     GITHUB_ENGULFING: "make github-engulfing-intraday",
     GITHUB_MOMENTUM_BURST: "make github-momentum-burst-intraday",
     GITHUB_RSI2: "make github-rsi2-intraday",
+    INDIA_FIVE: "make india-five-intraday",
 }
 
 FIRST_PRINT = (
@@ -1236,6 +1238,126 @@ ENTRIES: tuple[dict[str, Any], ...] = (
         ],
         "configurations": {
             "30-minute cost-aware Random Forest; 2022-2023 train / 2024 evaluation": "nse_cost_aware_30m_random_forest"
+        },
+    },
+    {
+        "id": "nse_overnight_intraday_reversal_decile",
+        "title": "Overnight gap reversal, decile long-short (F&O stocks)",
+        "summary": "Each morning buy the stocks that gapped down most and short those that gapped up most; flat at 15:10.",
+        "kind": "quant",
+        "shape": "event",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[paper] Branch & Ma (2006; retrospective 2018), The Overnight Return: One More Anomaly",
+        "published": "Overnight returns correlate about -0.22 with the next open-to-close return in US stocks 1994-2005; weaker 2011-2017 and absent in S&P 500 names (secondary summary).",
+        "paper_url": "https://www.cxoadvisory.com/calendar-effects/recent-overnight-intraday-stock-return-correlations/",
+        "tested_on": "Every NSE stock with Kite minute files (about 418, today's F&O names); 2021-08-20 to 2024-11-29",
+        "research": "docs/RESEARCH/112-five-indian-intraday-rules-on-fo-stocks.md",
+        "study": INDIA_FIVE,
+        "instrument": "NSE F&O stocks, cash segment intraday",
+        "logic": [
+            "Rank every stock by its move from the prior close to the 09:19 close; skip a day with fewer than 100 ranked names.",
+            "At the 09:20 open buy the worst decile and short the best decile, equal notional, half the capital each side.",
+            "Hold to 15:10. NSE intraday charges plus 2 bp assumed slippage per side. Run with make india-five-intraday.",
+        ],
+        "configurations": {
+            "decile long-short, 09:20 to 15:10": "nse_overnight_intraday_reversal_decile"
+        },
+    },
+    {
+        "id": "nse_stock_expiry_pin_to_max_oi_strike",
+        "title": "Expiry-day pin to the most-held strike (stock options)",
+        "summary": "On monthly stock-option expiry, trade a stock near its highest open-interest strike toward that strike from 13:30.",
+        "kind": "quant",
+        "shape": "event",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[paper] Ni, Pearson & Poteshman (2005), Stock price clustering on option expiration dates, JFE 78(1)",
+        "published": "Optionable US stocks' closes cluster at strikes on expiration dates; returns altered by at least 16.5 bp on average.",
+        "paper_url": "https://doi.org/10.1016/j.jfineco.2004.08.005",
+        "tested_on": "Every NSE stock with Kite minute files (about 418, today's F&O names); 2021-08-20 to 2024-11-29",
+        "research": "docs/RESEARCH/112-five-indian-intraday-rules-on-fo-stocks.md",
+        "study": INDIA_FIVE,
+        "instrument": "NSE F&O stocks, cash segment intraday",
+        "logic": [
+            "Monthly stock-option expiries (last Thursday, or the trading day before). Strike with the most call+put open interest at the previous close.",
+            "At 13:30, a stock 0.25% to 1.5% from that strike is traded toward it at the 13:30 open.",
+            "Exit at the next open after a minute touches the strike, else 15:10. Capital split equally, at least ten ways. NSE charges plus 2 bp a side.",
+        ],
+        "configurations": {
+            "0.25%-1.5% from max-OI strike, 13:30 on": "nse_stock_expiry_pin_to_max_oi_strike"
+        },
+    },
+    {
+        "id": "nse_results_in_hours_follow_five_minutes",
+        "title": "Results in market hours: follow the first five minutes",
+        "summary": "When results come out between 09:20 and 14:30, follow a 1%+ move in the first five minutes until 15:10.",
+        "kind": "quant",
+        "shape": "event",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[paper] Asian Journal of Accounting Research (2019), earnings announcement timing in India; Patell & Wolfson (1984)",
+        "published": "Indian market responses differ for results released during and after trading hours (abstract). Patell & Wolfson: simple-rule returns gone within 5-10 minutes.",
+        "paper_url": "https://www.emerald.com/insight/content/doi/10.1108/AJAR-04-2019-0023/full/html",
+        "tested_on": "Every NSE stock with Kite minute files (about 418, today's F&O names); 2021-08-20 to 2024-11-29",
+        "research": "docs/RESEARCH/112-five-indian-intraday-rules-on-fo-stocks.md",
+        "study": INDIA_FIVE,
+        "instrument": "NSE F&O stocks, cash segment intraday",
+        "logic": [
+            "Disclosure time is the first NSE disclosure: the results row or an earlier same-day board-meeting outcome (make nse-earnings-announcements).",
+            "Measure the move from the close before disclosure over the next five minutes; at 1% or more, enter in its direction at the next open.",
+            "Hold to 15:10. ₹1 lakh a trade, ten a day at most. July-December 2022 excluded (NSE labelled results differently). NSE charges plus 2 bp a side.",
+        ],
+        "configurations": {
+            "1% five-minute reaction, held to 15:10": "nse_results_in_hours_follow_five_minutes"
+        },
+    },
+    {
+        "id": "nse_nr7_opening_range_breakout",
+        "title": "NR7, then the opening-range breakout",
+        "summary": "After the narrowest daily range in seven sessions, follow the first close outside the 09:16-09:30 range.",
+        "kind": "quant",
+        "shape": "event",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[practitioner] Crabel (1990), Day Trading with Short Term Price Patterns and Opening Range Breakout; Holmberg, Lönnbark & Lundström (2013)",
+        "published": "Crabel reports no audited figures; Holmberg et al. find an opening-range breakout rule earns returns significantly above zero (abstract).",
+        "paper_url": "https://ideas.repec.org/a/eee/finlet/v10y2013i1p27-33.html",
+        "tested_on": "Every NSE stock with Kite minute files (about 418, today's F&O names); 2021-08-20 to 2024-11-29",
+        "research": "docs/RESEARCH/112-five-indian-intraday-rules-on-fo-stocks.md",
+        "study": INDIA_FIVE,
+        "instrument": "NSE F&O stocks, cash segment intraday",
+        "logic": [
+            "NR7: the previous session's high-low range is the narrowest of the last seven.",
+            "Opening range 09:16-09:30 (the 09:15 print is skipped, research 075). The first one-minute close outside it is followed at the next open.",
+            "Stop at the other side of the range, filled at the worse of it and the open; else flat 15:10. Capital split over the day's NR7 names, at least ten ways.",
+        ],
+        "configurations": {
+            "NR7, 15-minute range, stop at the other side": "nse_nr7_opening_range_breakout"
+        },
+    },
+    {
+        "id": "nse_delivery_spike_next_day_long",
+        "title": "Delivery spike on an up day, bought next morning",
+        "summary": "After a +2% close on at least twice the usual delivery %, buy at 09:20 if the open holds the gain; flat at 15:10.",
+        "kind": "quant",
+        "shape": "event",
+        "asset_class": "equity",
+        "timeframe": "1m",
+        "source": "[practitioner] Indian broker guidance on delivery percentage (no academic source found)",
+        "published": "Broker pages claim moves on high delivery hold; none gives figures.",
+        "paper_url": "https://www.share.market/buzz/learn/stock-volume-technical-analysis/",
+        "tested_on": "Every NSE stock with Kite minute files (about 418, today's F&O names); 2021-08-20 to 2024-11-29",
+        "research": "docs/RESEARCH/112-five-indian-intraday-rules-on-fo-stocks.md",
+        "study": INDIA_FIVE,
+        "instrument": "NSE F&O stocks, cash segment intraday",
+        "logic": [
+            "Delivery % (published after the close) at least twice its previous 20-session mean, on a close at least 2% up.",
+            "Next session: if the 09:19 close is above the prior close, buy at the 09:20 open. Long only.",
+            "Flat at 15:10. Capital split over the day's candidates, at least ten ways. NSE charges plus 2 bp a side.",
+        ],
+        "configurations": {
+            "2x delivery %, +2% close, long next day": "nse_delivery_spike_next_day_long"
         },
     },
 )

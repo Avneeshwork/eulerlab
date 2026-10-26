@@ -1,0 +1,29 @@
+id: avramov-kaplanski-subrahmanyam-2021-ma-distance
+title: Moving Average Distance as a Predictor of Equity Returns
+authors: Avramov, D., Kaplanski, G., Subrahmanyam, A.
+year: 2021
+kind: paper
+source_url: https://ideas.repec.org/a/wly/revfec/v39y2021i2p127-145.html
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks 1977-2018; international settings (abstract)
+summary: The ratio of a stock's 21-day to its 200-day moving average predicts cross-sectional
+  returns, with value-weighted hedge alphas near 9% a year, beyond momentum and the 52-week
+  high, also internationally. Attributed to underreaction to deviations from price anchors.
+trade_idea: Stocks trading well above their long-run anchor keep drifting up.
+implementation: |-
+  - MAD = MA(21)/MA(200), decile sorts, monthly.
+
+  Here: india_ma_distance holds the top 30 of the point-in-time 250 most-traded, monthly, long only.
+red_flags:
+- Overlaps momentum and the 52-week high already in the library.
+- International tests from the abstract only; full text not read.
+reported_results: 'Reported: about 9% annual value-weighted alpha for the hedge portfolio.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_ma_distance
+  note: ''
+  timeframe: 0

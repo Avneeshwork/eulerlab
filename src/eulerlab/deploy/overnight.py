@@ -115,6 +115,50 @@ def contract_for(contracts: dict[str, dict[str, Any]], day: str) -> tuple[str, f
     return None
 
 
+def inputs_of(day: gf.Day) -> dict[str, Any]:
+    """What the rule read for one day, as stored in the state."""
+    return {
+        "nifty_open": day.open,
+        "nifty_close": day.close,
+        "vix_open": day.vix_open,
+        "vix_close": day.vix_close,
+        "vix_previous_close": day.vix_previous_close,
+        "signal": gf.predict(gf.Model.JOINT, day),
+    }
+
+
+def changed_inputs(day: date, then: dict[str, Any] | None, now: gf.Day) -> str:
+    """One sentence: what a run saw for `day` before, and what the data says now.
+
+    Added after the 2026-10-14 halt, when the 13 Oct values the earlier run had
+    used could not be recovered: the landing file had been fetched again.
+    """
+    current = inputs_of(now)
+
+    def show(values: dict[str, Any]) -> str:
+        return (
+            f"Nifty {values['nifty_open']} to {values['nifty_close']}, "
+            f"VIX {values['vix_open']} to {values['vix_close']}, "
+            f"signal {values['signal'] or 'none'}"
+        )
+
+    if then is None:
+        return f"Now: {show(current)}. What the earlier run saw was not recorded."
+    differs = [k for k in current if current[k] != then.get(k)]
+    return f"Then: {show(then)}. Now: {show(current)}. Changed: {', '.join(differs) or 'nothing'}."
+
+
+def _as_day(stamp: str, values: dict[str, Any]) -> gf.Day:
+    return gf.Day(
+        date.fromisoformat(stamp),
+        values["nifty_open"],
+        values["nifty_close"],
+        values["vix_open"],
+        values["vix_close"],
+        values["vix_previous_close"],
+    )
+
+
 def replay(
     deployment: Deployment,
     oms: Any,
@@ -124,13 +168,19 @@ def replay(
     lots: LotLookup,
     traded_through: date | None,
     cash_flows: list[dict[str, Any]] | None = None,
+    recorded: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Walk the days since the deployment started. Returns the book, or a halt.
+
+    `recorded` is what earlier runs saw for each day (`inputs`, below). A halt
+    for a changed past day quotes it beside today's values, so the operator
+    sees what changed, not only that something did.
 
     Pure of the filesystem apart from `oms`, which is where the orders go.
     """
     signal = {s.day for s in sessions if gf.predict(gf.Model.JOINT, s) == gf.UP}
-    known_days = {s.day for s in sessions}
+    by_day = {s.day: s for s in sessions}
+    known_days = set(by_day)
     stored = {date.fromisoformat(str(f["d"])): f["contracts"] for f in futures}
     # Only days both sources hold. A future day without its index row cannot
     # be judged yet, and judging it later would mean trading in the past.
@@ -242,7 +292,10 @@ def replay(
                     if traded_through is not None and day <= traded_through:
                         return {
                             "halt": f"{day} now signals a trade but was already traded through "
-                            f"without one: the history changed. Nothing is sent for a past day"
+                            f"without one: the history changed. Nothing is sent for a past day. "
+                            + changed_inputs(
+                                day, (recorded or {}).get(day.isoformat()), by_day[day]
+                            )
                         }
                     lot = lots(day, expiry)
                     if not lot:
@@ -313,6 +366,7 @@ def replay(
         "position": position,
         "sent": sent,
         "signal_today": bool(days) and days[-1] in signal,
+        "inputs": {day.isoformat(): inputs_of(by_day[day]) for day in days},
         "flows": applied_flows,
     }
 
@@ -335,6 +389,8 @@ def run(deployment: Deployment) -> dict[str, Any]:
         "ran_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "traded_through": previous.get("traded_through"),
         "warnings": warnings,
+        # Kept through a halt, so the record of what was seen is never lost.
+        "inputs": previous.get("inputs") or {},
     }
 
     if oms.kill_switch.is_tripped():
@@ -357,6 +413,7 @@ def run(deployment: Deployment) -> dict[str, Any]:
             lots=lot_size,
             traded_through=traded_through,
             cash_flows=deployment.flows,
+            recorded=previous.get("inputs") or {},
         )
     except KillSwitchTripped as exc:
         return _halt(deployment, oms, state, f"kill switch: {exc}")
@@ -438,7 +495,18 @@ def run(deployment: Deployment) -> dict[str, Any]:
         elif previous_equity > 0:
             twr *= float(value) / previous_equity
         previous_equity = float(value)
+    recorded = previous.get("inputs") or {}
+    for stamp, now in book["inputs"].items():
+        then = recorded.get(stamp)
+        if then is not None and then != now:
+            # The signal is unchanged (a changed signal halts in `replay`), so
+            # nothing traded differently; the change is still worth seeing.
+            warnings.append(
+                f"{stamp}'s data changed since it was traded: "
+                + changed_inputs(date.fromisoformat(stamp), then, _as_day(stamp, now))
+            )
     state.update(
+        inputs={**recorded, **book["inputs"]},
         status="ok",
         reason="",
         traded_through=days[-1].isoformat(),
@@ -472,5 +540,6 @@ def run(deployment: Deployment) -> dict[str, Any]:
         },
         seconds=round(time.monotonic() - began),
     )
+    store.write_fills(deployment, book["fills"])
     store.write_state(deployment, state)
     return state

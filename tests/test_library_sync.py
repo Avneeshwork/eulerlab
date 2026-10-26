@@ -22,7 +22,7 @@ from eulerlab.strategies import REGISTRY, studies
 
 
 def test_every_study_is_in_the_library_and_says_where_it_came_from() -> None:
-    assert len(studies.ENTRIES) == len(studies.IDS) == 43
+    assert len(studies.ENTRIES) == len(studies.IDS) == 48
     for entry in studies.ENTRIES:
         declared = REGISTRY[entry["id"]]
         assert declared.is_strategy_subclass is False, "none can run in an engine"
@@ -622,3 +622,19 @@ def test_a_study_linked_from_a_paper_offers_no_backtest_button() -> None:
     assert study["exists"] is True
     assert study["runnable"] is False
     assert engine["runnable"] is True
+
+
+def test_a_paper_draft_accepts_the_shapes_small_models_answer_in() -> None:
+    from eulerlab.api.research_routes import PaperDraft
+
+    reply = """Here you go:
+```json
+{"summary": "s", "trade_idea": "t",
+ "implementation": {"universe": "unspecified", "costs": "before costs"},
+ "red_flags": "Not stated in the supplied text.", "reported_results": ["r1", "r2"],
+ "markets": "US equities"}
+```"""
+    draft = PaperDraft.parse(reply)
+    assert draft.implementation == "universe: unspecified\ncosts: before costs"
+    assert draft.red_flags == ["Not stated in the supplied text."]
+    assert draft.reported_results == "r1\nr2" and draft.markets == ["US equities"]

@@ -22,15 +22,23 @@ from pathlib import Path
 from typing import Any
 
 OUT = Path("data/derived/india_papers.json")
+GITHUB_OUT = Path("data/derived/github_daily.json")
+EVIDENCE_OUT = Path("data/derived/evidence_daily.json")
+EVENTS_OUT = Path("data/derived/events_daily.json")
 START, END = "2016-01-01", "2026-09-30"
 
 
 def run_one(strategy_id: str, *, start: str, end: str, tier: str) -> dict[str, Any]:
     from eulerlab.api import server
     from eulerlab.api.requests import BatchRunRequest
-    from eulerlab.backtest.india_papers import BY_ID
+    from eulerlab.backtest import events_daily, evidence_daily, github_daily, india_papers
 
-    spec = BY_ID[strategy_id]
+    spec = {
+        **india_papers.BY_ID,
+        **github_daily.BY_ID,
+        **evidence_daily.BY_ID,
+        **events_daily.BY_ID,
+    }[strategy_id]
     # The API abandons a job after 15 minutes so the workbench never hangs on
     # one. This is an offline research run: a rule replayed daily over the
     # whole panel for ten years (india_bb_rsi) needs longer, and is allowed it.
@@ -97,14 +105,36 @@ def benchmark(start: str, end: str) -> dict[str, Any]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    from eulerlab.backtest.india_papers import STRATEGIES
+    from eulerlab.backtest import events_daily, evidence_daily, github_daily, india_papers
 
     parser = argparse.ArgumentParser(prog="india-papers")
     parser.add_argument("--only", default="", help="comma-separated strategy ids")
-    parser.add_argument("--from", dest="start", default=START)
-    parser.add_argument("--to", dest="end", default=END)
+    parser.add_argument(
+        "--set",
+        choices=("papers", "github", "evidence", "events"),
+        default="papers",
+        help="papers: backtest.india_papers; github / evidence: research 113's batches",
+    )
+    parser.add_argument("--from", dest="start", default=None)
+    parser.add_argument("--to", dest="end", default=None)
     parser.add_argument("--tier", default="B")
     args = parser.parse_args(argv)
+    STRATEGIES = {
+        "papers": india_papers.STRATEGIES,
+        "github": github_daily.STRATEGIES,
+        "evidence": evidence_daily.STRATEGIES,
+        "events": events_daily.STRATEGIES,
+    }[args.set]
+    out_path = {
+        "papers": OUT,
+        "github": GITHUB_OUT,
+        "evidence": EVIDENCE_OUT,
+        "events": EVENTS_OUT,
+    }[args.set]
+    # The event strategies' data covers 2021-07 to 2024 only (`events_daily`).
+    window = events_daily.EVENTS_WINDOW if args.set == "events" else (START, END)
+    args.start = args.start or window[0]
+    args.end = args.end or window[1]
 
     wanted = {x for x in args.only.split(",") if x}
     rows = []
@@ -121,8 +151,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     previous: dict[str, Any] = {}
-    if OUT.exists() and wanted:
-        previous = {r["id"]: r for r in json.loads(OUT.read_text(encoding="utf-8")).get("runs", [])}
+    if out_path.exists() and wanted:
+        previous = {
+            r["id"]: r for r in json.loads(out_path.read_text(encoding="utf-8")).get("runs", [])
+        }
     merged = {**previous, **{r["id"]: r for r in rows}}
     out = {
         "window": [args.start, args.end],
@@ -132,9 +164,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "note": "Screening runs: none of these is in the trial ledger.",
         "runs": list(merged.values()),
     }
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(out, indent=2), encoding="utf-8")
-    print(f"written to {OUT}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
+    print(f"written to {out_path}")
     return 0
 
 

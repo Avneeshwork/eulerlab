@@ -563,6 +563,15 @@ export function Library({
                       >
                         {running ? '…' : 'Backtest'}
                       </button>
+                      <button
+                        className="tbtn sm ghost-line"
+                        type="button"
+                        disabled={!!strategy.deploy_blocker}
+                        onClick={() => onDeploy(strategy)}
+                        title={strategy.deploy_blocker ? `Cannot paper-trade: ${strategy.deploy_blocker}` : 'Put it on paper trading'}
+                      >
+                        Deploy
+                      </button>
                     </td>
                   </tr>
                 );
@@ -607,7 +616,13 @@ export function Library({
             <button className="tbtn" type="button" onClick={() => onExplain(openStrategy.id)}>
               How it works
             </button>
-            <button className="tbtn ghost-line" type="button" onClick={() => onDeploy(openStrategy)}>
+            <button
+              className="tbtn ghost-line"
+              type="button"
+              disabled={!!openStrategy.deploy_blocker}
+              onClick={() => onDeploy(openStrategy)}
+              title={openStrategy.deploy_blocker ? `Cannot paper-trade: ${openStrategy.deploy_blocker}` : 'Put it on paper trading'}
+            >
               Deploy
             </button>
             <button

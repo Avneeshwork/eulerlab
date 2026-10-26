@@ -119,3 +119,17 @@ def read_state(deployment: Deployment) -> dict[str, Any] | None:
 
 def write_state(deployment: Deployment, state: dict[str, Any]) -> None:
     _write_json(deployment.folder / "state.json", state)
+
+
+def write_fills(deployment: Deployment, fills: list[dict[str, Any]]) -> None:
+    """Every fill, beside the state's last 200, for the deployment's report."""
+    _write_json(deployment.folder / "fills.json", {"fills": fills})
+
+
+def read_fills(deployment: Deployment) -> list[dict[str, Any]] | None:
+    """Every fill, or None for a deployment last run before this file existed."""
+    path = deployment.folder / "fills.json"
+    if not path.exists():
+        return None
+    fills: list[dict[str, Any]] = json.loads(path.read_text(encoding="utf-8"))["fills"]
+    return fills

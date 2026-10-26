@@ -15,6 +15,7 @@ deployments were created, counting stopped ones, so the rest keep theirs.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from datetime import date
 from pathlib import Path
@@ -151,18 +152,7 @@ def _book(deployment: store.Deployment) -> rb.Book:
     # the rule carries, so it is not also run through share prices.
     held_now = sum(h.value for h in found.holdings)
     rule = _gap_rule(found.equity, held_now)
-    return rb.Book(
-        found.id,
-        found.strategy_id,
-        found.title,
-        found.capital,
-        found.equity,
-        found.cash,
-        (),
-        found.curve,
-        found.status,
-        rule=rule,
-    )
+    return dataclasses.replace(found, holdings=(), rule=rule)
 
 
 def _all() -> tuple[list[rb.Book], list[rb.Book], dict[str, int]]:
@@ -233,7 +223,12 @@ def _longest_backtest(paths: list[Path]) -> dict[str, Any]:
         values = (loaded.get("equity") or {}).get("values") or []
         if len(values) > len(best.get("equity") or []):
             depth = ((loaded.get("metrics") or {}).get("drawdown") or {}).get("depth")
-            best = {"equity": values, "worst_drawdown": depth, "period": loaded.get("period")}
+            best = {
+                "equity": values,
+                "worst_drawdown": depth,
+                "period": loaded.get("period"),
+                "metrics": loaded.get("metrics") or {},
+            }
     return best
 
 

@@ -1,0 +1,30 @@
+id: github-2026-spy-ibs-mean-reversion
+title: SPY IBS mean reversion (GitHub, toniker10)
+authors: toniker10 (GitHub)
+year: 2026
+kind: note
+source_url: https://github.com/toniker10/SPY-IBS-Mean-Reversion-Strategy
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- SPY, daily, 1993 onward (repository)
+summary: 'Internal bar strength, IBS = (close - low) / (high - low), on SPY: long from a close
+  with IBS under 0.20 until a close with IBS over 0.80. No licence stated.'
+trade_idea: An index ETF that closes near its daily low tends to recover over the next days.
+implementation: |-
+  - Repository: IBS_ENTRY = 0.20, IBS_EXIT = 0.80; position shifted one bar (held from the signal close).
+
+  Here: nse_github_ibs_niftybees runs it on NIFTYBEES; the engine fills at the next close, one session later than the repository.
+red_flags:
+- One instrument; the edge is documented mostly on US index ETFs.
+- One-day fill lag versus the repository, which matters for a short-holding rule.
+- 'No licence: the rule is re-implemented, not copied.'
+reported_results: The repository prints CAGR, Sharpe and drawdown when run; no figures are
+  committed.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_ibs_niftybees
+  note: ''
+  timeframe: 0

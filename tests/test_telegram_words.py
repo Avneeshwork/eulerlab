@@ -156,7 +156,7 @@ def test_pnl_gives_each_deployment_and_the_total(monkeypatch: pytest.MonkeyPatch
     text = bot.answer("pnl")
     assert "₹+2,000 (+2.00%) · 2026-10-09: +2.00%" in text
     assert "₹-1,000 (-0.05%)" in text
-    assert text.endswith("PAPER in all: ₹2,101,000 from ₹2,100,000, ₹+1,000 (+0.05%)")
+    assert text.endswith("PAPER in all: ₹2,101,000 from ₹2,100,000 put in, ₹+1,000 (+0.05%)")
 
 
 # --- the market and one stock -----------------------------------------------------------

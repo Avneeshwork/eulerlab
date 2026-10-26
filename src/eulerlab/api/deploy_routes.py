@@ -153,6 +153,29 @@ def preview(request: PreviewRequest) -> dict[str, Any]:
 
     if request.strategy in overnight.STRATEGIES:
         return _overnight_preview(request.capital)
+    from eulerlab.deploy import intraday_book, study_book
+    from eulerlab.intraday.paper_scan import ALL_SIGNALS
+
+    if (module := study_book.module_of(request.strategy)) and intraday_book.holdout_end():
+        first = intraday_book.first_session(
+            datetime.now(UTC).date(), intraday_book.holdout_end() or datetime.now(UTC).date()
+        )
+        return {
+            "ok": False,  # no names to count; the sentence below is the preview
+            "error": f"Runs its study ({module}) over each session's minute bars from {first}, "
+            "sized to this capital; flat at every close.",
+        }
+    if request.strategy in ALL_SIGNALS:
+        found, end = intraday_book.instrument(request.strategy), intraday_book.holdout_end()
+        if found is None or end is None:
+            return {"ok": False, "error": intraday_book.blocker(request.strategy)}
+        symbol, market = found
+        first = intraday_book.first_session(datetime.now(UTC).date(), end)
+        return {
+            "ok": False,  # no names to count; the sentence below is the preview
+            "error": f"Trades {symbol} on minute bars from {first}, one setup a session, "
+            f"flat at every close; capital in {intraday_book.MARKETS[market]}.",
+        }
     rows = _rows()
     if not rows:
         return {"ok": False, "error": "no panel on disk"}
@@ -183,6 +206,24 @@ def deploy(request: DeployRequest) -> dict[str, Any]:
     if request.capital < MIN_CAPITAL:
         return {"ok": False, "error": f"capital must be at least ₹{MIN_CAPITAL:,.0f}"}
     from eulerlab.deploy import overnight
+    from eulerlab.deploy.runner import paper_blocker
+
+    if blocker := paper_blocker(request.strategy):
+        return {"ok": False, "error": f"cannot paper-trade: {blocker}"}
+    from eulerlab.deploy import intraday_book, study_book
+    from eulerlab.intraday.paper_scan import ALL_SIGNALS
+
+    if request.strategy in ALL_SIGNALS or study_book.module_of(request.strategy):
+        end = intraday_book.holdout_end()
+        assert end is not None  # `paper_blocker` refuses without it
+        deployment = store.create(
+            request.strategy,
+            mode=request.mode,
+            capital=request.capital,
+            start=intraday_book.first_session(datetime.now(UTC).date(), end),
+        )
+        _run_in_background(deployment.id)
+        return {"ok": True, "deployment": _summary(deployment)}
 
     if request.strategy in overnight.STRATEGIES:
         latest = _overnight_latest()
@@ -216,6 +257,44 @@ def get_deployment(deployment_id: str) -> dict[str, Any]:
         return {"ok": True, "deployment": _summary(store.load(deployment_id))}
     except FileNotFoundError:
         return {"ok": False, "error": "no such deployment"}
+
+
+@router.get("/{deployment_id}/report")
+def report(deployment_id: str, workspace: str = "") -> dict[str, Any]:
+    """The backtest report's analysis of this deployment's own record (`deploy/analysis`)."""
+    from eulerlab import workspace as workspace_mod
+    from eulerlab.api.risk_routes import _backtest
+    from eulerlab.deploy import analysis
+
+    try:
+        deployment = store.load(deployment_id)
+    except FileNotFoundError:
+        return {"ok": False, "error": "no such deployment"}
+    tested = _backtest(workspace_mod.resolve(workspace or None), deployment.strategy_id)
+    return analysis.build(
+        deployment, store.read_state(deployment), store.read_fills(deployment), tested
+    )
+
+
+@router.get("/{deployment_id}/attribution")
+def attribution_detail(deployment_id: str, workspace: str = "") -> dict[str, Any]:
+    """The detailed attribution of a deployment's own record (research 115)."""
+    from eulerlab import attribution_detail as detail_mod
+    from eulerlab.deploy import analysis
+
+    try:
+        deployment = store.load(deployment_id)
+    except FileNotFoundError:
+        return {"ok": False, "error": "no such deployment"}
+    state = store.read_state(deployment)
+    built = analysis.build(deployment, state, store.read_fills(deployment), None)
+    if not built["ok"]:
+        return built
+    key = f"deployment|{deployment_id}|{(state or {}).get('traded_through')}"
+    try:
+        return {"ok": True, "detail": detail_mod.analyse_detail(built["report"], key=key)}
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}"[:300]}
 
 
 @router.post("/{deployment_id}/run")

@@ -35,6 +35,7 @@ import contextlib
 import fnmatch
 import os
 import threading
+import time
 from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
@@ -293,12 +294,42 @@ def has_any(tree: str, pattern: str = "**/*", *, allow_cloud: bool = True) -> bo
         return False
 
 
-def read(relative: str, *, allow_cloud: bool = True) -> bytes:
+DOWNLOAD_ATTEMPTS = 5
+DOWNLOAD_PAUSE_S = 5.0
+"""Doubled after each failure: 5, 10, 20, 40 s. botocore's own three quick
+retries were not enough on 2026-10-17, when one read timeout ended a scan of
+418 stocks an hour in."""
+
+
+def _get_with_retries(store: object, key: str) -> bytes:
+    """`store.get`, retried with growing pauses on network failures only.
+
+    A missing or forbidden object (`ClientError`) fails at once: waiting does
+    not change it.
+    """
+    from botocore.exceptions import BotoCoreError
+
+    pause = DOWNLOAD_PAUSE_S
+    for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+        try:
+            payload: bytes = store.get(key)  # type: ignore[attr-defined]
+            return payload
+        except (BotoCoreError, ConnectionError, TimeoutError):
+            if attempt == DOWNLOAD_ATTEMPTS:
+                raise
+            time.sleep(pause)
+            pause *= 2
+    raise AssertionError("unreachable")
+
+
+def read(relative: str, *, allow_cloud: bool = True, cache: bool = True) -> bytes:
     """The file's bytes, fetching and caching from B2 when it is not local.
 
     Cached on the way through, so a backtest that reads a pruned archive pays
     the download once and then runs at local speed — and the next prune is free
-    to remove it again.
+    to remove it again. `cache=False` returns the bytes without keeping them: a
+    pass over every stock's minute history is gigabytes, and on 2026-10-16 the
+    first such pass filled the disk.
     """
     local = LANDING_ROOT / relative
     if local.exists():
@@ -308,7 +339,9 @@ def read(relative: str, *, allow_cloud: bool = True) -> bytes:
         raise FileNotFoundError(msg)
 
     store, _ = _store_and_prefix()
-    payload = store.get(remote_key(relative))  # type: ignore[attr-defined]
+    payload = _get_with_retries(store, remote_key(relative))
+    if not cache:
+        return bytes(payload)
     local.parent.mkdir(parents=True, exist_ok=True)
     tmp = local.with_suffix(local.suffix + ".partial")
     tmp.write_bytes(payload)

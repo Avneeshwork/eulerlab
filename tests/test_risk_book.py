@@ -417,3 +417,55 @@ def test_an_exact_file_is_looked_up_as_a_file_not_a_folder() -> None:
         landing_reader._literal_prefix("2026/10/2026-10-13_udiff.zip")
         == "2026/10/2026-10-13_udiff.zip"
     )
+
+
+# --- deposits and withdrawals are not profit ----------------------------------------
+
+
+def _deposited() -> rb.Book:
+    """₹1,000 that earns 10%, then ₹1,000 more added, then 10% again on the lot."""
+    d = days(3)
+    curve = ((d[0], 1000.0), (d[1], 1100.0), (d[2], 2310.0))
+    return rb.Book("x", "s", "x", 1000.0, 2310.0, 2310.0, (), curve, flows=((d[2], 1000.0),))
+
+
+def test_a_deposit_is_not_profit() -> None:
+    """2026-10-17: adding money showed as profit on the paper trading pages."""
+    b = _deposited()
+    assert b.deployed == 2000.0 and b.made == pytest.approx(310.0)
+    assert b.total_return == pytest.approx(1.1 * 1.1 - 1)
+    assert rb.today_pnl(b, days(3)[2]) == pytest.approx(210.0), "not 1,210"
+
+
+def test_a_withdrawal_is_not_a_loss_or_a_drawdown() -> None:
+    d = days(3)
+    curve = ((d[0], 1000.0), (d[1], 1100.0), (d[2], 600.0))
+    b = rb.Book("x", "s", "x", 1000.0, 600.0, 600.0, (), curve, flows=((d[2], -500.0),))
+    assert b.made == pytest.approx(100.0) and b.total_return == pytest.approx(0.1)
+    assert rb.today_pnl(b, d[2]) == 0.0
+    assert rb.drawdown(b.growth())["now"] == 0.0
+
+
+def test_live_against_backtest_takes_the_deposit_out() -> None:
+    live = rb.against_backtest(_deposited(), [])["live"]
+    assert [p["value"] for p in live] == [100.0, 100.0, 110.0, 121.0]
+
+
+def test_flows_are_read_from_state_and_reach_the_payload() -> None:
+    d = days(3)
+    state = {
+        "equity": 2310.0,
+        "cash": 2310.0,
+        "curve": [[day.isoformat(), v] for day, v in zip(d, (1000.0, 1100.0, 2310.0), strict=True)],
+        "flows": [
+            {"amount": 1000.0, "decision_day": d[1].isoformat(), "applied_day": d[2].isoformat()}
+        ],
+    }
+    found = rb.book_from_state("x", "s", "x", 1000.0, "active", state)
+    assert found.flows == ((d[2], 1000.0),)
+    payload = _payload([found], {rb.MARKET: series([0.0] * 5)})
+    row, total = payload["deployments"][0], payload["book"]
+    assert row["capital"] == 2000.0 and row["moved"] == 1000.0 and row["made"] == 310.0
+    assert row["since_start"] == pytest.approx(0.21) and row["drawdown_now"] == 0.0
+    assert total["since_start"] == 310.0 and total["since_start_pct"] == pytest.approx(0.21)
+    assert total["today"] == pytest.approx(210.0) and total["today_pct"] == pytest.approx(0.1)

@@ -192,6 +192,10 @@ def parse_composed(text: str) -> tuple[dict[str, Any], list[str]]:
     )
 
 
+def _compiles(text: str) -> None:
+    SandboxedStrategy(_strip_fence(text), name="draft")
+
+
 def draft(
     description: str,
     *,
@@ -209,8 +213,14 @@ def draft(
     if privacy_safe:
         from eulerlab.assistant import chat
 
-        chosen = chat.selected_provider(name=provider_name or "", model=model_name)
-        chat_reply = chat.complete(system, description.strip(), chosen=chosen)
+        chat_reply = chat.complete_any(
+            system,
+            description.strip(),
+            name=provider_name or "",
+            model=model_name,
+            # A draft the sandbox rejects sends the request on to the next model.
+            accept=None if mode == "composed" else _compiles,
+        )
         answer_text, answer_provider, answer_model = (
             chat_reply.text,
             chat_reply.provider,

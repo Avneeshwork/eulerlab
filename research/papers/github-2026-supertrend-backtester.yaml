@@ -1,0 +1,29 @@
+id: github-2026-supertrend-backtester
+title: Supertrend backtester (GitHub, darshandeshmukh11)
+authors: darshandeshmukh11 (GitHub)
+year: 2026
+kind: note
+source_url: https://github.com/darshandeshmukh11/supertrend-backtester
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- Any yfinance ticker, daily (repository)
+summary: 'A Streamlit backtester: Supertrend with ATR period 10 and multiplier 2.2, long when
+  the direction turns up, out when it turns down, filled at the next open. No licence stated.'
+trade_idea: Supertrend trails price by a volatility band; staying long while it points up
+  rides trends and cuts reversals.
+implementation: |-
+  - Repository: app.py compute_supertrend (simple-mean ATR, hl2 +/- 2.2 ATR, carried final bands).
+
+  Here: nse_github_supertrend_10_22 holds up to 20 of the point-in-time 250 most-traded stocks while each points up; the engine fills at the next close, not the next open.
+red_flags:
+- 'A trend filter with frequent flips in sideways markets: costs matter.'
+- Fill timing differs from the repository by part of a day.
+reported_results: Interactive results only.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_supertrend_10_22
+  note: ''
+  timeframe: 0

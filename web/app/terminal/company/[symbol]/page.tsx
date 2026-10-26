@@ -18,6 +18,7 @@ import {
   type CompanyHit,
   type CompanyPage,
   type CompanyTable,
+  type FairValue,
 } from '@/lib/api';
 import './company.css';
 
@@ -67,6 +68,152 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
       <b>{value}</b>
       {note && <small>{note}</small>}
     </div>
+  );
+}
+
+function FairValuePanel({ value, series }: { value: FairValue; series: [string, number][] }) {
+  const coe = value.cost_of_equity;
+  const assumptions = value.assumptions;
+  const models = value.models ?? {};
+  const upperCase = assumptions?.valuation_scenarios?.high;
+  const modelNames: Record<string, string> = {
+    residual_income: 'Central case · residual income',
+    residual_income_low: 'Lower historical ROE case',
+    residual_income_high: upperCase?.terminal_mode === 'persistent_excess_returns'
+      ? 'Upper ROE · persistent returns'
+      : 'Upper historical ROE case',
+    peer_pe: 'Peer P/E',
+    peer_pb: 'Peer P/B cross-check',
+  };
+  if (value.status !== 'available' || value.fair_value_per_share == null) {
+    return (
+      <section className="tpanel co-fair-value">
+        <div className="co-fv-heading">
+          <div>
+            <p className="co-kicker">Valuation estimate</p>
+            <h3>Fair value</h3>
+          </div>
+          <span className="co-fv-badge is-low">Unavailable</span>
+        </div>
+        <p className="tfine">{value.reason || 'Required inputs are not held for this company.'}</p>
+        {(value.warnings ?? []).length > 0 && (
+          <details className="co-fv-details">
+            <summary>Data notes ({value.warnings?.length})</summary>
+            <ul className="co-fv-warnings">
+              {(value.warnings ?? []).map((warning) => <li key={warning}>{warning}</li>)}
+            </ul>
+          </details>
+        )}
+      </section>
+    );
+  }
+  const upside = value.upside;
+  const marketPrice = value.current_price;
+  const pricePosition = value.model_range && marketPrice != null
+    ? marketPrice < value.model_range.low
+      ? 'Below model range'
+      : marketPrice > value.model_range.high
+        ? 'Above model range'
+        : 'Within model range'
+    : upside == null
+      ? DASH
+      : share(upside);
+  const centralGapNote = upside == null
+    ? undefined
+    : `Central case ${share(upside)}`;
+  const modelRows = Object.entries(models).filter(
+    ([key, amount]) => key !== 'composite' && amount != null,
+  );
+  const coePercent = (amount?: number) => (amount == null ? DASH : `${fixed(amount * 100, 1)}%`);
+
+  return (
+    <section className="tpanel co-fair-value">
+      <div className="co-fv-heading">
+        <div>
+          <h3>Fair value</h3>
+        </div>
+        <span className="co-fv-badge is-low">Low confidence</span>
+      </div>
+      {value.confidence_reason && <p className="tfine">{value.confidence_reason}</p>}
+      <div className="co-fv-summary">
+        <Stat label="Current price" value={price(value.current_price)} />
+        <Stat label="Central scenario" value={price(value.fair_value_per_share)} />
+        <Stat
+          label={value.model_range ? 'Price vs scenarios' : 'Gap vs central case'}
+          value={pricePosition}
+          note={value.model_range ? centralGapNote : undefined}
+        />
+        <Stat
+          label={value.range_type === 'roe_persistence_scenarios' ? 'ROE scenario range' : 'Scenario range'}
+          value={
+            value.model_range
+              ? `${price(value.model_range.low)} – ${price(value.model_range.high)}`
+              : DASH
+          }
+        />
+      </div>
+      <PriceChart series={series} fairValue={value} />
+      {modelRows.length > 0 && (
+        <div className="co-fv-models">
+          {modelRows.map(([key, amount]) => (
+            <div key={key}>
+              <span>{modelNames[key] || key}</span>
+              <b>{price(amount)}</b>
+            </div>
+          ))}
+        </div>
+      )}
+      <details className="co-fv-details">
+        <summary>Assumptions &amp; data notes</summary>
+        <div className="co-fv-assumptions">
+          <p>
+            Cost of equity {coePercent(coe?.rate)} · India 10Y {coePercent(coe?.risk_free_rate)} ·
+            {' '}betas M/S/H {plain(coe?.betas.MF)} / {plain(coe?.betas.SMB)} /{' '}
+            {plain(coe?.betas.HML)} ({coe?.beta_observations ?? 0} observations).
+          </p>
+          <p>
+            {coe?.method || 'Cost of equity method'} · India ERP{' '}
+            {coe?.premia ? percent(coe.premia.market * 100) : DASH}
+            {coe?.market_erp_as_of ? ` as of ${coe.market_erp_as_of}` : ''} ·{' '}
+            {coe?.factor_release || 'Factor data'}
+            {coe?.factor_through ? ` through ${coe.factor_through}` : ''}
+            {coe?.premia ? ` · SMB/HML premia ${percent(coe.premia.size * 100)} / ${percent(coe.premia.value * 100)}` : ''}.
+          </p>
+          {assumptions && (
+            <p>
+              {assumptions.forecast_method} Payout {percent(assumptions.payout_ratio * 100)}
+              {assumptions.payout_assumed ? ' (assumed)' : ''}.
+            </p>
+          )}
+          {assumptions && (
+            <p>
+              TTM ROE proxy {percent((assumptions.current_roe ?? 0) * 100)} · year 5 ROE anchor{' '}
+              {percent((assumptions.valuation_scenarios?.base?.year_5_roe_anchor ?? 0) * 100)} ·{' '}
+              year 10 ROE converges to cost of equity {percent((assumptions.valuation_scenarios?.base?.long_run_roe ?? 0) * 100)}.
+            </p>
+          )}
+          {assumptions?.terminal_roe_source && (
+            <p>ROE anchor: {assumptions.terminal_roe_source}.</p>
+          )}
+          {assumptions && (
+            <div className="co-fv-sensitivity">
+              {Object.entries(assumptions.sensitivity).map(([key, amount]) => (
+                <div key={key}>
+                  <span>{key.replaceAll('_', ' ')}</span>
+                  <b>{price(amount)}</b>
+                </div>
+              ))}
+            </div>
+          )}
+          {(value.warnings ?? []).map((warning) => <p key={warning}>{warning}</p>)}
+          <p className="co-fv-provenance">
+            Fundamentals {value.fundamentals_as_of || DASH} · price {value.price_as_of || DASH} ·{' '}
+            {value.model_version}
+          </p>
+          <p className="tfine">Model estimate for research, not investment advice.</p>
+        </div>
+      </details>
+    </section>
   );
 }
 
@@ -128,7 +275,7 @@ const W = 900;
 const H = 260;
 const PAD = { top: 12, right: 56, bottom: 22, left: 4 };
 
-function PriceChart({ series }: { series: [string, number][] }) {
+function PriceChart({ series, fairValue }: { series: [string, number][]; fairValue?: FairValue }) {
   const [range, setRange] = useState('1Y');
   const [hover, setHover] = useState<number | null>(null);
   const frame = useRef<SVGSVGElement>(null);
@@ -140,10 +287,19 @@ function PriceChart({ series }: { series: [string, number][] }) {
   if (shown.length < 2) return <p className="tfine">No price history is held for this company.</p>;
 
   const values = shown.map(([, close]) => close);
-  const low = Math.min(...values);
-  const high = Math.max(...values);
+  const modelRange = fairValue?.model_range;
+  const target = fairValue?.fair_value_per_share ?? null;
+  const overlay = Boolean(modelRange && target != null);
+  const hasRoeScenarios = fairValue?.range_type === 'roe_persistence_scenarios';
+  const upperCasePersists = fairValue?.assumptions?.valuation_scenarios?.high?.terminal_mode
+    === 'persistent_excess_returns';
+  const rangeLabel = hasRoeScenarios ? 'ROE scenario range' : 'value range';
+  const chartRight = W - PAD.right - (overlay ? 190 : 0);
+  const chartValues = overlay ? [...values, modelRange!.low, modelRange!.high, target!] : values;
+  const low = Math.min(...chartValues);
+  const high = Math.max(...chartValues);
   const span = high - low || 1;
-  const x = (i: number) => PAD.left + (i / (shown.length - 1)) * (W - PAD.left - PAD.right);
+  const x = (i: number) => PAD.left + (i / (shown.length - 1)) * (chartRight - PAD.left);
   const y = (v: number) => PAD.top + (1 - (v - low) / span) * (H - PAD.top - PAD.bottom);
   const line = shown.map(([, v], i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`);
   const area = `${line.join(' ')} L${x(shown.length - 1)},${H - PAD.bottom} L${x(0)},${H - PAD.bottom} Z`;
@@ -155,9 +311,7 @@ function PriceChart({ series }: { series: [string, number][] }) {
     const box = frame.current?.getBoundingClientRect();
     if (!box) return;
     const inside = ((event.clientX - box.left) / box.width) * W;
-    const index = Math.round(
-      ((inside - PAD.left) / (W - PAD.left - PAD.right)) * (shown.length - 1),
-    );
+    const index = Math.round(((inside - PAD.left) / (chartRight - PAD.left)) * (shown.length - 1));
     setHover(Math.max(0, Math.min(shown.length - 1, index)));
   }
 
@@ -196,7 +350,7 @@ function PriceChart({ series }: { series: [string, number][] }) {
         ref={frame}
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label={`Adjusted closing price over ${range}: ${share(change)}`}
+        aria-label={`Adjusted closing price over ${range}: ${share(change)}${overlay ? `; fair value ${price(target!)}, ${rangeLabel} ${price(modelRange!.low)} to ${price(modelRange!.high)}` : ''}`}
         onPointerMove={move}
         onPointerLeave={() => setHover(null)}
       >
@@ -214,6 +368,42 @@ function PriceChart({ series }: { series: [string, number][] }) {
             </text>
           </g>
         ))}
+        {overlay && modelRange && target != null && (
+          <g className="co-valuation-zone">
+            <line
+              className="co-valuation-divider"
+              x1={chartRight + 10}
+              x2={chartRight + 10}
+              y1={PAD.top}
+              y2={H - PAD.bottom}
+            />
+            <text className="co-valuation-label" x={chartRight + 23} y={PAD.top + 12}>
+              ROE SCENARIOS
+            </text>
+            <text className="co-valuation-sub" x={chartRight + 23} y={PAD.top + 27}>
+              low fade · {upperCasePersists ? 'upper persists' : 'upper fade'}
+            </text>
+            <rect
+              className="co-valuation-band"
+              x={chartRight + 23}
+              y={y(modelRange.high)}
+              width={W - PAD.right - chartRight - 35}
+              height={Math.max(2, y(modelRange.low) - y(modelRange.high))}
+              rx="4"
+            />
+            <line
+              className="co-valuation-target"
+              x1={chartRight + 23}
+              x2={W - PAD.right - 5}
+              y1={y(target)}
+              y2={y(target)}
+            />
+            <circle className="co-valuation-dot" cx={chartRight + 23} cy={y(target)} r="4" />
+            <text className="co-valuation-value" x={chartRight + 23} y={y(target) - 9}>
+              {price(target)}
+            </text>
+          </g>
+        )}
         {ticks.map((i) => (
           <text
             key={i}
@@ -240,7 +430,19 @@ function PriceChart({ series }: { series: [string, number][] }) {
           </g>
         )}
       </svg>
-      <p className="tfine">Closing prices, adjusted for splits and bonuses.</p>
+      {overlay && (
+        <div className="co-chart-legend" aria-label="Chart legend">
+          <span><i className="is-price" /> Share price</span>
+          <span><i className="is-fair" /> Fair value</span>
+          <span><i className="is-range" /> {hasRoeScenarios ? 'ROE scenario range' : 'Value range'}</span>
+        </div>
+      )}
+      <p className="tfine">
+        Closing prices adjusted for splits and bonuses
+        {overlay && hasRoeScenarios
+          ? ` · range reflects historical ROE levels${upperCasePersists ? ' and a persistent-return upper case' : ' with both cases fading to cost of equity'}`
+          : ''}.
+      </p>
     </div>
   );
 }
@@ -439,6 +641,13 @@ export default function CompanyPageView({ params }: { params: { symbol: string }
               {px.day ? `Close on ${longDate(px.day)}` : 'Price from the fundamentals file'}
               {px.previous_close != null && `, previous ${price(px.previous_close)}`}
             </p>
+            {px.provisional && (
+              <p className="tfine co-provisional">
+                {longDate(px.provisional.d)}: {price(px.provisional.close)} at 15:29 from minute
+                bars ({share(px.close ? px.provisional.close / px.close - 1 : 0)}). NSE&apos;s
+                bhavcopy for that day is missing; this is replaced when it lands.
+              </p>
+            )}
             <div className="co-stats two">
               <Stat label="Market cap" value={bigRupees(profile.market_cap)} />
               <Stat label="Volume" value={volume(px.volume)} />
@@ -502,10 +711,14 @@ export default function CompanyPageView({ params }: { params: { symbol: string }
         </aside>
 
         <div className="co-main">
-          <section className="tpanel">
-            <h3>Performance</h3>
-            <PriceChart series={px.series} />
-          </section>
+          {page.fair_value ? (
+            <FairValuePanel value={page.fair_value} series={px.series} />
+          ) : (
+            <section className="tpanel">
+              <h3>Performance</h3>
+              <PriceChart series={px.series} />
+            </section>
+          )}
 
           <section className="tpanel">
             <h3>Key metrics</h3>

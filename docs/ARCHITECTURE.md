@@ -430,6 +430,16 @@ one interface used by Tier A, Tier B, paper trading and live. When the two
 engines are configured identically they agree to **1.4 × 10⁻¹⁶ relative** —
 machine epsilon.
 
+**Rules both engines apply the same way (HISTORY #28).** A holding with no
+panel row on or after the fill day has left the data (delisted, or merged into
+another ISIN) and is sold at its last price before the day's rebalance. A
+renamed stock is not in that set: the panel carries every ISIN under its
+current symbol (`panel.canonical_symbols`). At a rebalance the orders go in
+symbol order, all sells first. A buy is cut to what the cash on hand can pay
+for, with `BUY_COST_RESERVE` (0.3%) held back for charges, and is skipped if
+that is nothing. So cash never goes below zero, and no leverage appears that
+the strategy did not ask for.
+
 ### The Strategy interface
 
 A strategy is deliberately tiny:
@@ -1009,6 +1019,14 @@ engine holdings ≠ broker positions. A stale panel is reported, not halted.
 Live mode is refused in code until the Kite adapter has placed a supervised
 order (T-3336) and live limits exist.
 
+The overnight Nifty-futures book also records, in its state's `inputs`, the
+Nifty open and close, VIX open, close and previous close, and the signal it
+read for every day it walked. A later run that finds a past day's signal
+changed halts with those values beside today's ("Then … Now … Changed …");
+one that finds the values changed but the signal not continues with a
+warning. Added after the 2026-10-14 halt, whose earlier 13 Oct values could
+not be recovered because the landing file had been fetched again.
+
 **Paper cash flows (ADR-076).** Add/withdraw requests are recorded on the
 deployment with their amount, entry time and latest decided date. They do not
 change the original capital or rewrite earlier orders. Replay applies a flow
@@ -1020,6 +1038,73 @@ new close position. The state reports contributed capital (`invested`),
 applied flows and pending flows separately. `total_return` is time weighted,
 so an external deposit is not reported as a gain. Live deployments reject
 flows.
+
+**A deployment's report (`deploy/analysis.py`).** `GET
+/api/deployments/{id}/report` puts a paper or live deployment's own record
+through `reports.build`, the backtest report's builder, so the page at
+`#deployment/{id}` has the same tabs: equity, drawdown, calendar returns, round
+trips, per-instrument attribution, fills. Three differences. The curve is the
+time-weighted one (`risk.book.growth`) scaled to the starting capital, from the
+start date at that capital, so a deposit is no return and day one's costs are.
+Rupees made (equity less money put in) and each flow are shown beside it, and
+the attribution reconciles against those rupees. The strategy's longest stored
+backtest's metrics sit beside its own. Every run writes all fills to
+`fills.json`; the state keeps only the last 200, and a report built from those
+says so.
+
+**Where a return came from (`attribution.py`, research 114).** Every report
+read through `/api/report` or `/api/deployments/{id}/report` carries an
+`attribution`: holdings (share of profit from the best 1/5/10, names for half
+and four-fifths, the return without the best 1 and 5), profit by NSE sector and
+industry (today's labels, A-061), each year's return and largest contributor,
+and a daily regression on the Nifty 50 (beta, R², alpha, the return beta alone
+earned). Computed on read, so old reports have it; shown in the report's
+Attribution tab. Brinson attribution needs benchmark sector weights, not held.
+
+**Detailed attribution (`attribution_detail.py`, research 115).** On request
+(`/api/report/attribution`, `/api/deployments/{id}/attribution`; the report's
+"Run detailed analysis"), the daily book is rebuilt from the fills and today's
+adjusted closes and checked against the stored equity (views hidden beyond a
+2% gap). From it: exposure by year (invested share, holdings, effective
+holdings) and frozen positions (held after the stock's last price); Brinson-
+Fachler by sector each month against the equal-weight point-in-time 250,
+Carino-linked; a monthly regression on market (Nifty 50), size (turnover),
+momentum (12-1) and low volatility built from the panel; Euler risk shares of
+the final book; the three deepest drawdowns and best/worst months with their
+drivers; trades by holding period and sector; capacity at 20% of median daily
+turnover; rolling twelve-month beta and alpha. A month-end base for every stock
+is cached in `data/derived/attribution_monthly.json`, rebuilt when the panel
+changes.
+
+**Minute-bar strategies on paper (`deploy/intraday_book.py`, ADR-078).** A
+coded intraday signal deploys on the instrument its library result was
+measured on (NIFTYBEES, QQQ/SPY or BTCUSDT). Each run scans that instrument's
+minute bars with `paper_scan.scan_symbol`, the scanner its backtests use, from
+the deployment's start to yesterday, and sends every bracket leg through the
+deployment's OMS; costs are `bracket._cost` on the paper fill. It trades from
+the day after it is made, reads nothing on or before `mandate.yaml`'s
+`forward_evidence: holdout_end` (no such line: it cannot deploy), halts if a
+past day gains a trade, and is flat at every close. US minute bars are fetched
+by the book itself; Indian ones need the day's Kite login. Not yet: deposits
+and withdrawals, sizing on current equity, Tweezer Bottom (no adopted
+instrument), and the option structures.
+
+**Research studies on paper (`deploy/study_book.py`, ADR-078 stage 2).**
+Twenty-seven study strategies deploy. Twenty-two come from thirteen modules
+that share one shape (`run_all` → `_run` inside `EVAL_START..DATA_END` → each
+run's `id` and full `trade_log`): the book runs the module's own `run_all`
+with those two constants set to the paper window and its `rs` loader held to
+files starting after the holdout end (`load_days(since=…)`), under a lock, and
+puts all three back. Five are research 112's cross-sectional screens: the book
+scans every F&O stock (`cs.scan(since=…)`) for the one screen and records every
+trade handed to `cs.report`, not the 2,000 it keeps. Checked 2026-10-17 on the
+studies' own 2024 windows: Donchian 530/530, initial-balance failure 774/774
+and Hikkake 915/915 trades identical; overnight reversal 56,974/56,974 and NR7
+42,380/42,380 trades captured. Quantities scale by deployment capital ÷ study
+capital; each trade is two OMS orders (shorts sell first), NSE intraday
+charges on the paper fill. Not yet: the India and stock session papers, the
+gold-stock screen, the stock candidates, the FII screen, the cost-aware ML
+study, MCX gold and the option structures (each a different engine).
 
 ---
 
@@ -1089,7 +1174,15 @@ filtered for ZDR endpoints and tool support, refreshed every ten minutes; the
 selected model is checked against that catalog before use. Inference still
 enforces ZDR and collection denial. The endpoint uses the assistant's approved-host, retention
 and `.env` redaction checks; it returns a draft and never saves it. Source text
-is not persisted, and a link alone is not fetched. On a paper page, **AI code &
+is not persisted, and a link alone is not fetched. Neither draft depends on
+one model: unless the operator picked a model, `chat.complete_any` moves on to
+the last model that answered, then each configured provider the locks allow,
+then OpenRouter's current free ZDR list. A model that turned a request away is
+skipped for 30 minutes; a host whose key or connection failed is skipped for the
+rest of the walk. At most three models may actually answer (each spends free
+allowance), one try is cut off at 150 s and the walk at 420 s, inside the web
+proxy's 600 s (`experimental.proxyTimeout`). A reply the caller cannot use
+(no JSON, or code the sandbox rejects) counts as that model failing. On a paper page, **AI code &
 backtest** uses the selected provider for a strategy, validates it with the existing
 authoring sandbox, then submits it to the existing Tier B backtest job. The
 generated source and single-run results are shown for review. This path does not
@@ -1476,6 +1569,39 @@ the panel's last day, all in one `run_all` so the panel is read once. Outside
 any run, the API's lifespan starts `autoupdate.watch`, which calls the same
 `catch_up()` every 300 s and skips while the `feed` lock is held.
 
+**India from the close (ADR-079).** `make india-live` (launchd 15:31, weekdays)
+runs `refresh(only=india_live.INDIA_STEPS)`, which is NSE end-of-day,
+participant OI, index closes and delivery, and India minute bars, plus their
+dependents. It repeats every 600 s until today's cash bhavcopy is in the NSE
+manifest and today's minute bars are in the Kite manifest, or until 21:00 IST.
+With no Kite token minted today, the bhavcopy alone is enough. A holiday exits
+at once. `coverage.expected_nse` counts today from 15:31 (`NSE_DUE`). An NSE
+row whose only absent session is today reads `missing` with "today's data not
+in yet".
+
+*Provisional daily bars.* `provisional_daily.record(day)` builds one bar per
+symbol from the landed minute bars: open of 09:15, high max, low min, close of
+the last minute, and summed volume. A session is complete when its last candle
+is 15:29, or 15:14 from 2026-08-03 (`session_ends`), when F&O stocks stop
+continuous trading at 15:15 for the closing auction (A-053, HISTORY #29).
+Anything else is left out and counted as incomplete. Lines are appended to `data/derived/provisional_daily.jsonl`
+with `event_time` 15:30 IST and `knowledge_time` now. The set is re-appended
+only when it changes. When the day's bhavcopy lands, a `superseded_by:
+bhavcopy` line retires the day. `read(as_of)` is bitemporal: it ignores lines
+known after `as_of`. The panel never reads this file. The company page shows
+the bar beside the official close (`price.provisional`). Checked on 23 Oct
+2026 against the bhavcopy for the 203 non-F&O symbols: open, high and low are
+identical, and the close differs by a median of 26 bps (p95 92 bps), because
+NSE's close is the 15:00–15:30 weighted average. For F&O stocks, NSE's close is
+the closing auction price.
+
+*Minute bars land only complete days.* `backfill_minute.last_complete_session`
+switches to today at 15:31 (was 15:45), and `complete_days` drops today from a
+chunk until today's last candle is a session end (15:29, or 15:14 for an F&O
+stock), keeping the same key, so the next pass fetches today again. Older days
+are landed as Kite serves them. The rule assumes Kite never stalls a non-F&O
+stock at exactly 15:14 after 15:31.
+
 **Minute bars (Kite).** `ingest/backfill_minute` plans its requests from the
 manifest: for each symbol, the weekdays in the window that no landed range
 covers, cut into 60-day chunks (`kite_minute.uncovered_chunks`). The window
@@ -1681,6 +1807,19 @@ below is read from that series.
 | Stress, market fall | `sum_i v_i * beta_i * shock`; a name with no beta takes 1 |
 | Backtest band | for each horizon h, the 5th, 50th and 95th percentile of every h-day return in the stored backtest |
 
+**Deposits and withdrawals are neither profit nor loss.** Each stored flow
+carries `applied_day`, the first curve day whose equity includes it. Every
+percentage on these pages, the paper trading page and the Telegram `pnl` reply
+is the time-weighted return `rb.growth`:
+
+    index(t) = index(t-1) * equity(t) / (equity(t-1) + flow(t)),   index(start) = 1
+
+the rule `TierBResult.total_return` already used. Rupees made are equity less
+the money put in (`Book.deployed` = capital + flows). Today's P&L subtracts
+that day's flow. Drawdown and the live line against the backtest band are read
+from the index, never from equity: the backtest has no flows, and a withdrawal
+is not a drawdown.
+
 Fewer than 60 days of prices gives no VaR. A name with no price on a day is
 flat that day, and the payload says what share of the book that covers. A
 deployment that holds nothing at the close has no risk here, and each view
@@ -1782,6 +1921,25 @@ symbol carries that symbol.
 **Not held, and said so on the page.** Analyst ratings, price targets, forward
 estimates, a discounted cash flow, the company description, chief executive,
 employees and listing date.
+
+### Fair-value estimates
+
+The company endpoint also assembles an internal residual-income estimate from
+the held book value per share, trailing EPS, peer ratios, adjusted daily prices,
+the IIMA Indian factor files and the latest held India 10-year yield. Daily
+factor betas use up to five years of observations and are shrunk toward neutral
+priors. The market ERP uses the roadmap's 7.78% IIMB estimate; IIMA's full
+monthly history supplies SMB/HML premia. Cost of equity is bounded to 10%-16%.
+The headline composite equally weights the available
+residual-income and peer-multiple estimates; banks/NBFCs use P/B as their
+multiple check. These first peer checks are not adjusted for growth or ROE.
+
+The API writes each distinct result to `data/derived/fair_value/<SYMBOL>/` as
+an immutable JSON snapshot containing model version, input paths, factor hashes,
+assumptions, sensitivity values and warnings. Results are low confidence until
+analyst forecasts and point-in-time filing vintages are held. The IIMA factor
+series currently ends in December 2025; its page may revise history between
+releases. The UI names these constraints and shows both source dates.
 
 ## The assistant (ADR-064)
 

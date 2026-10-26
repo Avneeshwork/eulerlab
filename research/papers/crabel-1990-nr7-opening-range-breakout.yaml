@@ -1,0 +1,40 @@
+id: crabel-1990-nr7-opening-range-breakout
+title: Day Trading with Short Term Price Patterns and Opening Range Breakout
+authors: Crabel, T.; with Holmberg, U., Lönnbark, C. and Lundström, C. (2013)
+year: 1990
+kind: book
+source_url: https://ideas.repec.org/a/eee/finlet/v10y2013i1p27-33.html
+pdf: ''
+added: '2026-10-16'
+status: backtested
+markets:
+- US futures (sources)
+- NSE F&O stocks (here)
+summary: Crabel's book pairs contraction days, the narrowest range of the last seven sessions
+  (NR7), with an opening-range breakout the next day, arguing that expansion follows contraction.
+  Holmberg, Lönnbark and Lundström (Finance Research Letters 10(1), 2013) test an opening-range
+  breakout rule that trades only when price moves a set threshold beyond the open; its keywords
+  name crude oil futures, which the abstract itself does not confirm.
+trade_idea: After a quiet day, the next day's first decisive move out of its opening range
+  is likelier to run.
+implementation: 'Coded as nse_nr7_opening_range_breakout (research 112): after an NR7 session,
+  the 09:16-09:30 range; the first one-minute close outside it is followed at the next open,
+  stop at the other side, flat at 15:10; capital split over the day''s NR7 names, at least
+  ten ways.'
+red_flags:
+- Crabel is a trading book, not peer-reviewed; no formal test of the NR7 filter was found
+  (research 112 searched).
+- Holmberg et al. test an opening-range breakout, not the NR7 filter; the market (likely crude
+  futures) is not confirmed by the abstract.
+- Opening-range breakouts on NIFTYBEES and the 100 largest stocks lost after costs here (research
+  076).
+- The 15-minute range and the stop are this project's fixed choices.
+reported_results: 'Holmberg et al. (2013): the ORB strategy gives returns significantly above
+  zero and a success rate above a fair game (abstract, read 2026-10-16). Crabel reports no
+  audited statistics.'
+hypothesis: H-0023
+strategies:
+- kind: registered
+  id: nse_nr7_opening_range_breakout
+  note: Research 112
+  timeframe: 0

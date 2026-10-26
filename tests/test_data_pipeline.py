@@ -104,12 +104,15 @@ def test_two_builders_at_once_write_each_day_once(tmp_path: Path) -> None:
 # --- coverage --------------------------------------------------------------------
 
 AFTER_CLOSE = datetime(2026, 10, 8, 14, 0, tzinfo=UTC)  # 19:30 IST, a Thursday
-BEFORE_FILES = datetime(2026, 10, 8, 10, 0, tzinfo=UTC)  # 15:30 IST
+JUST_AFTER = datetime(2026, 10, 8, 10, 1, tzinfo=UTC)  # 15:31 IST
+AT_CLOSE = datetime(2026, 10, 8, 10, 0, tzinfo=UTC)  # 15:30 IST
+NEXT_MORNING = datetime(2026, 10, 9, 4, 0, tzinfo=UTC)  # 09:30 IST, Friday
 
 
-def test_nse_expects_today_only_after_1900_ist() -> None:
+def test_nse_expects_today_from_1531_ist() -> None:
     assert coverage.expected_nse(AFTER_CLOSE, frozenset()) == date(2026, 10, 8)
-    assert coverage.expected_nse(BEFORE_FILES, frozenset()) == date(2026, 10, 7)
+    assert coverage.expected_nse(JUST_AFTER, frozenset()) == date(2026, 10, 8)
+    assert coverage.expected_nse(AT_CLOSE, frozenset()) == date(2026, 10, 7)
 
 
 def test_weekends_and_known_closures_are_not_sessions() -> None:
@@ -122,15 +125,27 @@ def test_weekends_and_known_closures_are_not_sessions() -> None:
 
 
 def test_judge_grades_by_sessions_behind() -> None:
-    def status(last: str) -> str:
+    def status(last: str, now: datetime = NEXT_MORNING) -> str:
         return coverage.judge(
-            group="g", name="n", last=last, cadence="nse", now=AFTER_CLOSE, closed=frozenset()
+            group="g", name="n", last=last, cadence="nse", now=now, closed=frozenset()
         ).status
 
     assert status("2026-10-08") == "ok"
     assert status("2026-10-07") == "behind"
     assert status("2026-10-05") == "stale"
     assert status("") == "missing"
+
+
+def test_todays_session_reads_missing_from_1531() -> None:
+    row = coverage.judge(
+        group="g", name="n", last="2026-10-07", cadence="nse", now=JUST_AFTER, closed=frozenset()
+    )
+    assert (row.status, row.expected) == ("missing", "2026-10-08")
+    assert row.detail.startswith("today's data not in yet")
+    before = coverage.judge(
+        group="g", name="n", last="2026-10-07", cadence="nse", now=AT_CLOSE, closed=frozenset()
+    )
+    assert before.status == "ok"
 
 
 def test_the_last_line_is_read_from_the_end(tmp_path: Path) -> None:

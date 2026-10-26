@@ -8,6 +8,7 @@ have seen, tells you a great deal.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, timedelta
 
 import pytest
@@ -149,8 +150,18 @@ def test_costs_reduce_the_final_equity() -> None:
 
 def test_more_frequent_rebalancing_costs_more() -> None:
     """The asymmetry that kills high-turnover strategies. If this did not
-    hold, the cost model would not be reaching the engine."""
-    rows = _panel(n_symbols=40, n_days=320)
+    hold, the cost model would not be reaching the engine.
+
+    The leaders rotate every 30 days, so a frequent rebalance has something to
+    trade. On `_panel` the ranking never moves and both runs make the same ~30
+    trades, which is how this test went red on a ₹0.13 difference when buys
+    became limited to the cash on hand (HISTORY #28)."""
+    rows = [
+        replace(
+            row, turnover=1_000_000.0 - (int(row.symbol[3:]) + (row.day - START).days // 30) % 40
+        )
+        for row in _panel(n_symbols=40, n_days=320)
+    ]
     rare = run(
         rows,
         RankAndHold("turnover_liquidity", top_n=10, min_names=20),

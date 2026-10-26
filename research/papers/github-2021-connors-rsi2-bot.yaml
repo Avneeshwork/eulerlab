@@ -1,0 +1,32 @@
+id: github-2021-connors-rsi2-bot
+title: Larry Connors RSI(2) bot (GitHub, leo-aa88)
+authors: leo-aa88 (GitHub); rule from Connors & Alvarez (2008), Short Term Trading Strategies
+  That Work
+year: 2021
+kind: note
+source_url: https://github.com/leo-aa88/larry_connors_rsi2_bot
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- Binance ETH/USDT, 15-minute bars (repository)
+summary: 'A bot implementing Connors'' RSI(2) long rule: trade only above the 200-period average,
+  buy when RSI(2) falls under 5, sell when the close is back above the 5-period average. GPL-3.0;
+  no backtest results in the repository.'
+trade_idea: A sharp short-term drop inside a long-term uptrend tends to bounce.
+implementation: |-
+  - Repository: close > MA200 and RSI(2) < RSI_OVERSOLD (5) to buy; close > MA5 to sell (larry_connors_rsi2_bot.py, config RSI_OVERSOLD = 5).
+
+  Here: nse_github_rsi2_daily runs it on daily bars of the point-in-time 250 most-traded NSE stocks, up to 10 names, filled at the next close.
+red_flags:
+- The repository runs on 15-minute crypto bars; the daily stock version is Connors' original,
+  not the repository's setting.
+- 'No stop: a falling stock can stay oversold below its 5-day average for a long time.'
+- The repository reports no results.
+reported_results: None in the repository.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_rsi2_daily
+  note: ''
+  timeframe: 0

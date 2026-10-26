@@ -1,0 +1,38 @@
+id: ni-pearson-poteshman-2005-stock-pinning
+title: Stock price clustering on option expiration dates
+authors: Ni, S. X.; Pearson, N. D.; Poteshman, A. M.
+year: 2005
+kind: paper
+source_url: https://doi.org/10.1016/j.jfineco.2004.08.005
+pdf: ''
+added: '2026-10-16'
+status: backtested
+markets:
+- US optionable stocks (paper)
+- NSE stock options (here)
+summary: 'On expiration dates, closing prices of US stocks with listed options cluster at
+  option strike prices. The abstract credits two drivers: hedge rebalancing by option market
+  makers and stock-price manipulation by firm proprietary traders. In India, Gupta, Metia
+  and Trivedi (NSE working paper, 2004) also tested pinning on NSE stock-option expiries;
+  their PDF could not be read here.'
+trade_idea: 'On expiry day a stock trading near its most-held strike tends to be pulled to
+  it in the last hours: trade toward that strike in the afternoon and leave once it gets there.'
+implementation: 'Coded as nse_stock_expiry_pin_to_max_oi_strike (research 112): monthly stock-option
+  expiries 2021-08 to 2024-11; strike with the most call+put open interest at the previous
+  close; at 13:30 a stock 0.25% to 1.5% from it is traded toward it; exit at the next open
+  after touching it, else 15:10.'
+red_flags:
+- 'The Indian source (Gupta, Metia and Trivedi 2004) could not be read: its PDF text is font-encoded.'
+- The 0.25%-1.5% band and the 13:30 start are this project's fixed choices, not the paper's.
+- Pinning is a statement about the close; a 15:10 exit leaves the last twenty minutes, where
+  much of it may happen.
+- Open interest is the previous close's, not the expiry morning's.
+reported_results: On each expiration date, optionable stocks' returns are altered by an average
+  of at least 16.5 basis points, about $9 billion of market capitalisation (abstract, JFE
+  78(1), 49-87; confirmed 2026-10-16 from the HKBU scholars page).
+hypothesis: H-0021
+strategies:
+- kind: registered
+  id: nse_stock_expiry_pin_to_max_oi_strike
+  note: Research 112
+  timeframe: 0

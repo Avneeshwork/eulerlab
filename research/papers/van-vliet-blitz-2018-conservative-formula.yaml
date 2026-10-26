@@ -1,0 +1,32 @@
+id: van-vliet-blitz-2018-conservative-formula
+title: 'The Conservative Formula: Quantitative Investing Made Easy'
+authors: Van Vliet, P., Blitz, D.
+year: 2018
+kind: paper
+source_url: https://alphaarchitect.com/the-conservative-formula-quantitative-investing-made-easy/
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US 1929-2016; Europe, Japan, emerging markets; India (SSRN 4163613)
+summary: 'Among the lower-volatility half of large stocks, rank on 12-1 momentum and net payout
+  yield and hold the best 100 of 1,000. US 1929-2016: 15.1% a year against 9.3% for the market,
+  with lower volatility. An Indian study reports a quarterly 100-stock version beating the
+  BSE 100 by 12.6% a year.'
+trade_idea: Calm stocks with momentum that pay out cash are underpriced; the three effects
+  add up.
+implementation: |-
+  - 36-month volatility, keep the lower half; average of momentum and net-payout ranks; top 10%, equal weight.
+
+  Here: india_conservative_formula, point-in-time 250 most-traded, top 30, quarterly; payout = trailing 12-month dividend yield from NSE corporate actions (no buybacks).
+red_flags:
+- Buybacks are missing from the payout leg.
+- A split after a dividend's ex-date overstates that stock's yield until a year passes.
+- Indian study read from its SSRN abstract only.
+reported_results: 'Reported: 15.1% vs 9.3% a year (US); +12.6% a year over the BSE 100 (India).'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_conservative_formula
+  note: ''
+  timeframe: 0

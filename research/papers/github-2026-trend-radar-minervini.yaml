@@ -1,0 +1,33 @@
+id: github-2026-trend-radar-minervini
+title: 'Trend-Radar: Minervini trend template for the Nifty 500 (GitHub, abeer555)'
+authors: abeer555 (GitHub); criteria from Minervini (2013), Trade Like a Stock Market Wizard
+year: 2026
+kind: note
+source_url: https://github.com/abeer555/Trend-Radar
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- Nifty 500 (repository)
+summary: A Nifty 500 screener scoring Minervini's eight trend-template criteria with an RS
+  rank built from 3, 6, 9 and 12-month returns. GPL-3.0; its backtest is a stub.
+trade_idea: Stocks already in a strong stage-2 uptrend with high relative strength keep outperforming.
+implementation: |-
+  - Repository: signals/trend_template.py (50/150/200-day averages, 200 rising over 22 days, >= 30% above the 52-week low, within 25% of the high, RS rank >= 70); config RS_WEIGHTS 0.4/0.2/0.2/0.2.
+
+  Here: nse_github_minervini_template holds up to 20 passing stocks by RS score each month, from the point-in-time 250 most-traded.
+red_flags:
+- The repository screens; it never backtests (backtest.py is a stub).
+- RS rank is percentile within the point-in-time 250 here, within the Nifty 500 there.
+- Overlaps the 52-week-high and momentum strategies already in the library.
+reported_results: 'None: the backtest is not implemented.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_minervini_template
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: nse_github_weinstein_stage2
+  note: ''
+  timeframe: 0

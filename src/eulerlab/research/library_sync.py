@@ -30,6 +30,29 @@ CAPITAL = 1_000_000.0
 TIER = "study"
 
 
+STANDARD_RUNS = frozenset(
+    {
+        studies.STOCK_CANDIDATES,
+        studies.COMPANY_GITHUB,
+        studies.GITHUB_FOLLOWUP,
+        studies.GITHUB_MOMENTUM_PULLBACK,
+        studies.INSIDE_BAR,
+        studies.HIKKAKE,
+        studies.GITHUB_EMA,
+        studies.SUPERTREND_MTF,
+        studies.GITHUB_KELTNER,
+        studies.GITHUB_DONCHIAN,
+        studies.GITHUB_PIVOT,
+        studies.GITHUB_ENGULFING,
+        studies.GITHUB_MOMENTUM_BURST,
+        studies.INDIA_FIVE,
+    }
+)
+"""Studies whose output is `runs`, each with an `id`, `net` from
+`screen_common.daily_stats`, `fills` and `daily` as [day, return] pairs. One
+reader for all of them: the thirteen copies it replaced were identical."""
+
+
 def _curve(returns: Sequence[float]) -> list[float]:
     equity, out = CAPITAL, [CAPITAL]
     for move in returns:
@@ -111,100 +134,7 @@ def measured(study: str, payload: Mapping[str, Any], name: str) -> dict[str, Any
             "days": net["sessions"],
             "curve": result_store.downsample(curve),
         }
-    if study == studies.STOCK_CANDIDATES:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        daily = run.get("daily", [])
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in daily]),
-        }
-    if study == studies.COMPANY_GITHUB:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        daily = run.get("daily", [])
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in daily]),
-        }
-    if study == studies.GITHUB_FOLLOWUP:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_MOMENTUM_PULLBACK:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.INSIDE_BAR:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.HIKKAKE:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_EMA:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.SUPERTREND_MTF:
+    if study in STANDARD_RUNS:
         run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
         if run is None:
             return None
@@ -241,71 +171,6 @@ def measured(study: str, payload: Mapping[str, Any], name: str) -> dict[str, Any
             "max_drawdown": net["max_drawdown"],
             "fills": int(run["fills"]),
             "days": int(run["sessions"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_KELTNER:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_DONCHIAN:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_PIVOT:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_ENGULFING:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
-            "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
-        }
-    if study == studies.GITHUB_MOMENTUM_BURST:
-        run = next((row for row in payload.get("runs", []) if row.get("id") == name), None)
-        if run is None:
-            return None
-        net = run["net"]
-        return {
-            "sharpe": net["sharpe"] or 0.0,
-            "total_return": net["total_return"],
-            "max_drawdown": net["max_drawdown"],
-            "fills": int(run["fills"]),
-            "days": int(net["days"]),
             "curve": _curve([float(row[1]) for row in run.get("daily", [])]),
         }
     if study == studies.GITHUB_RSI2:

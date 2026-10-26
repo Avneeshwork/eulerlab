@@ -66,6 +66,13 @@ process:
   # and it cannot be regenerated.
   holdout_reads_permitted: 1
 
+forward_evidence:
+  # Added on the operator's instruction, 2026-10-17 (ADR-078).
+  # Minute data on or before this date is the holdout (read once, by the
+  # operator). Minute data after it is forward paper evidence: paper books read
+  # it only from each deployment's start, never earlier, never as warmup.
+  holdout_end: 2026-10-17
+
 notes: >
   A strategy that fails this gate is dead. It is not tuned and resubmitted, and
   the gate is not argued with — that rule exists precisely for the moment when

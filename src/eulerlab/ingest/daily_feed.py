@@ -214,14 +214,23 @@ def _us(on_detail: Callable[[str], None] | None = None) -> str:
     output is indistinguishable from one that has hung, and the operator's only
     recourse is to reload and start again.
     """
-    from eulerlab.ingest import alpaca
+    from eulerlab.ingest import alpaca, landing_reader
 
+    # Include SPY as the actual tradable S&P 500 proxy used by backtest
+    # comparisons. Seed its two-year panel window once; daily refreshes then
+    # fetch only the recent bars. Keep it out of constituent-only actions/news.
     symbols = alpaca.sp500_symbols()
     if on_detail:
         on_detail(f"{len(symbols)} symbols — bars")
     bars, _rows, err = alpaca.land_bars(symbols, start=_days_ago(7))
     if err:
         raise RuntimeError(err[:160])
+    has_spy = bool(landing_reader.available("us", "bars/SPY/*.jsonl.gz"))
+    spy_start = _days_ago(7) if has_spy else _days_ago(730)
+    spy_bars, _spy_rows, spy_err = alpaca.land_bars(["SPY"], start=spy_start)
+    if spy_err:
+        raise RuntimeError(spy_err[:160])
+    bars += spy_bars
     if on_detail:
         on_detail(f"{len(symbols)} symbols — corporate actions")
     alpaca.land_actions(symbols, start=_days_ago(7))
@@ -381,6 +390,13 @@ def _mcx_index_minute(progress: Callable[[str], None] | None = None) -> str:
     return last[:160] or "MCX iCOMDEX minute history up to date"
 
 
+def _provisional_daily() -> str:
+    """Daily bars from minute bars while the bhavcopy is missing (ADR-079)."""
+    from eulerlab.ingest import provisional_daily
+
+    return provisional_daily.record(provisional_daily.latest_session()).render()
+
+
 STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("NSE end-of-day", _nse_eod),
     ("participant OI", _participant_oi),
@@ -399,6 +415,7 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("US bars and actions", _us),
     ("US panel", _us_panel),
     ("India minute bars", _india_minute),
+    ("provisional daily bars", _provisional_daily),
     ("MCX index minute bars", _mcx_index_minute),
 )
 """The sources a daily refresh touches, in the order `make daily` runs them.
@@ -429,6 +446,7 @@ STEP_MODULES: dict[str, str] = {
     "US bars and actions": "eulerlab.ingest.alpaca",
     "US panel": "build-us-panel",
     "India minute bars": "daily-minute",
+    "provisional daily bars": "eulerlab.ingest.provisional_daily",
     "MCX index minute bars": "mcx-index-minute",
 }
 """What each step runs, as `make daily` names it (a module or a make target).
@@ -437,7 +455,8 @@ neither here nor in `TERMINAL_ONLY` — the button and the overnight job drifted
 apart once already, silently, for four sources."""
 
 DEPENDENTS: dict[str, tuple[str, ...]] = {
-    "NSE end-of-day": ("price panel", "Nifty options"),
+    "NSE end-of-day": ("price panel", "Nifty options", "provisional daily bars"),
+    "India minute bars": ("provisional daily bars",),
     "price panel": ("paper books",),
     "NSE index closes and delivery": ("market history",),
     "US bars and actions": ("US panel",),

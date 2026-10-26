@@ -203,7 +203,16 @@ def attribute(
     for key in sorted(bt.keys() | pp.keys()):
         b = bt.get(key)
         p = pp.get(key)
-        if b is not None and p is not None:
+        if b is not None and p is not None and b.side is not p.side:
+            # One book bought what the other sold that day. They are two
+            # different trades, so each goes to its own bucket; pairing them
+            # applied the backtest's sign to paper's fill and left the split
+            # 2,875 rupees short (2026-10-27).
+            result.trades_backtest_only += 1
+            result.trades_paper_only += 1
+            only_backtest += _signed(b) * b.price + b.cost
+            only_paper += -(_signed(p) * p.price + p.cost)
+        elif b is not None and p is not None:
             result.trades_matched += 1
             shared = min(b.quantity, p.quantity)
             sign = 1 if b.side is Side.BUY else -1

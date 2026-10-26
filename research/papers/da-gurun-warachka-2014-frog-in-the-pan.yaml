@@ -1,0 +1,31 @@
+id: da-gurun-warachka-2014-frog-in-the-pan
+title: 'Frog in the Pan: Continuous Information and Momentum'
+authors: Da, Z., Gurun, U. G., Warachka, M.
+year: 2014
+kind: paper
+source_url: https://academicweb.nd.edu/~zda/Frog.pdf
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks; international replication incl. emerging markets (Goyal, Jegadeesh & Subrahmanyam)
+summary: Investors underreact to information that arrives in many small pieces. Momentum is
+  far stronger among winners whose past return came gradually (low information discreteness)
+  than among those whose return came in a few jumps.
+trade_idea: Among recent winners, the steady risers keep rising; the jumpers do not.
+implementation: |-
+  - ID = sgn(PRET) x (%neg - %pos) over the formation window (as coded in abeer555/Trend-Radar).
+
+  Here: india_frog_in_the_pan, top 30% by 12-1 return then the 30 lowest ID, monthly, point-in-time 250 most-traded NSE stocks.
+red_flags:
+- The paper's holding periods overlap over 6 months; monthly rebalance here.
+- Full text not read here (PDF not extractable on this machine); formula from Trend-Radar's
+  code and secondary summaries.
+reported_results: 'Reported: momentum of 5.94% (continuous) against -2.07% (discrete) over
+  six months (secondary summary).'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_frog_in_the_pan
+  note: ''
+  timeframe: 0

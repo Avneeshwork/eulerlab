@@ -1,0 +1,29 @@
+id: blitz-huij-lansdorp-verbeek-2013-residual-reversal
+title: Short-Term Residual Reversal
+authors: Blitz, D., Huij, J., Lansdorp, S., Verbeek, M.
+year: 2013
+kind: paper
+source_url: https://repub.eur.nl/pub/40707
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks, incl. large caps after 1990
+summary: Short-term reversal measured on residual returns, scaled by residual volatility,
+  earns risk-adjusted returns about twice conventional reversal, without its dynamic factor
+  exposures.
+trade_idea: Last month's stock-specific losers bounce back next month.
+implementation: |-
+  - 36-month Fama-French residuals, last month's residual over its s.d., decile sorts.
+
+  Here: india_residual_reversal, market-only model on NIFTYBEES, the 30 lowest, monthly, long only.
+red_flags:
+- Monthly turnover is high; delivery costs on the whole book every month.
+- Market-only residuals; methodology from secondary summaries.
+reported_results: 'Reported: risk-adjusted returns about twice a conventional reversal strategy.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_residual_reversal
+  note: ''
+  timeframe: 0

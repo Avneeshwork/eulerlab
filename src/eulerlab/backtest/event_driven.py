@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from functools import partial
 from zoneinfo import ZoneInfo
@@ -43,6 +43,7 @@ from eulerlab.backtest.events import (
     Order,
     Portfolio,
     Rejection,
+    client_order_id,
     plan_orders,
     target_quantities,
 )
@@ -50,6 +51,7 @@ from eulerlab.backtest.execution import Executor, SimulatedExecutor
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
 from eulerlab.backtest.vector import fund_symbols
 from eulerlab.costs.model import Brokerage
+from eulerlab.costs.schedule import Side
 from eulerlab.deploy.sizing import fit_to_capital
 from eulerlab.features.panel import (
     PanelRow,
@@ -66,6 +68,11 @@ FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)
 def _flow_amount(flow: dict[str, object]) -> float:
     value = flow.get("amount", 0.0)
     return float(value) if isinstance(value, (int, float)) else 0.0
+
+
+BUY_COST_RESERVE = 0.003
+"""Held back from a buy's cash check for its charges (Indian delivery buys pay
+about 0.12%), so a buy sized to the last rupee does not take cash below zero."""
 
 
 @dataclass
@@ -294,6 +301,34 @@ def run(
         today = days[index]
         fill_day = days[index + 1]
 
+        # --- delisted while held -------------------------------------------
+        # A holding whose stock has no row on or after the fill day has left the
+        # data for good: delisted, or merged into another ISIN. It is sold at its
+        # last price. Until 2026-10-18 it stayed in the book forever, unsellable
+        # and frozen at that price, while the strategy bought around it with cash
+        # it did not have (HISTORY #28). A renamed stock is not here: the panel
+        # carries it under its current symbol (`canonical_symbols`).
+        for symbol, quantity in sorted(portfolio.holdings().items()):
+            seen = ordered_days.get(symbol)
+            last = mark_price(symbol, fill_day)
+            if quantity <= 0 or not seen or seen[-1] >= fill_day or last is None:
+                continue
+            sequence += 1
+            exit_order = Order(
+                client_order_id=client_order_id(strategy.describe(), today, symbol, sequence),
+                strategy_id=strategy.describe(),
+                signal_day=today,
+                symbol=symbol,
+                side=Side.SELL,
+                quantity=quantity,
+            )
+            result.orders.append(exit_order)
+            outcome = engine.execute(exit_order, day=fill_day, price=last)
+            if isinstance(outcome, Rejection):
+                portfolio.rejections.append(outcome)
+            else:
+                portfolio.apply(outcome)
+
         due_flows = [
             flow
             for flow in pending_flows
@@ -350,10 +385,26 @@ def run(
             # replaces. Everything above it — the view, the weights, the
             # sizing, the orders — is shared code, so any difference between a
             # backtest and a paper run is the executor's doing and nothing else.
-            for order in orders:
-                outcome = engine.execute(
-                    order, day=fill_day, price=traded_price(order.symbol, fill_day)
-                )
+            #
+            # Sells before buys, and no buy beyond the cash on hand, as a broker
+            # would refuse it. Until 2026-10-18 buys were sized on the decision
+            # day's equity and filled whatever the sells raised, so a sell that
+            # failed or fetched less left cash negative: leverage the strategy
+            # never asked for (HISTORY #28).
+            for order in sorted(orders, key=lambda o: o.side is Side.BUY):
+                price = traded_price(order.symbol, fill_day)
+                if order.side is Side.BUY and price:
+                    affordable = int(max(0.0, portfolio.cash) / (price * (1 + BUY_COST_RESERVE)))
+                    if affordable <= 0:
+                        portfolio.rejections.append(
+                            Rejection(
+                                order.client_order_id, fill_day, order.symbol, "insufficient cash"
+                            )
+                        )
+                        continue
+                    if affordable < order.quantity:
+                        order = replace(order, quantity=affordable)
+                outcome = engine.execute(order, day=fill_day, price=price)
                 if isinstance(outcome, Rejection):
                     portfolio.rejections.append(outcome)
                     continue

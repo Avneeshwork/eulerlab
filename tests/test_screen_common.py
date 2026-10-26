@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -46,3 +47,56 @@ def test_round_trip_cost_is_both_fills_plus_slippage_on_both() -> None:
 
     assert cost == pytest.approx(fees + (100.0 + 101.0) * 10 * 2.0 / 10_000.0)
     assert sc.round_trip_cost(100.0, 101.0, 10, day, 1, slippage_bps=0.0) == pytest.approx(fees)
+
+
+def test_a_read_without_cache_leaves_nothing_on_disk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pass over every stock's minute history filled the disk on 2026-10-16:
+    `landing_reader.read` kept each download. The scan now reads without it."""
+    from eulerlab.ingest import landing_reader
+
+    class Bucket:
+        def get(self, key: str) -> bytes:
+            return b"minute bars"
+
+    monkeypatch.setattr(landing_reader, "LANDING_ROOT", tmp_path)
+    monkeypatch.setattr(landing_reader, "cloud_enabled", lambda: True)
+    monkeypatch.setattr(landing_reader, "_store_and_prefix", lambda: (Bucket(), ""))
+
+    assert landing_reader.read("kite_minute/X/a.parquet", cache=False) == b"minute bars"
+    assert not any(tmp_path.rglob("*")), "nothing kept"
+    assert landing_reader.read("kite_minute/X/a.parquet") == b"minute bars"
+    assert (tmp_path / "kite_minute/X/a.parquet").exists(), "the default still caches"
+
+
+def test_a_download_timeout_is_retried_but_a_missing_file_is_not(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """2026-10-17: one B2 read timeout ended a 418-stock scan an hour in."""
+    from botocore.exceptions import ClientError, ReadTimeoutError
+
+    from eulerlab.ingest import landing_reader
+
+    class Flaky:
+        calls = 0
+
+        def get(self, key: str) -> bytes:
+            Flaky.calls += 1
+            if "missing" in key:
+                raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
+            if Flaky.calls < 3:
+                raise ReadTimeoutError(endpoint_url="b2")
+            return b"bars"
+
+    monkeypatch.setattr(landing_reader, "LANDING_ROOT", tmp_path)
+    monkeypatch.setattr(landing_reader, "cloud_enabled", lambda: True)
+    monkeypatch.setattr(landing_reader, "_store_and_prefix", lambda: (Flaky(), ""))
+    monkeypatch.setattr(landing_reader, "DOWNLOAD_PAUSE_S", 0.0)
+
+    assert landing_reader.read("kite_minute/X/a.parquet", cache=False) == b"bars"
+    assert Flaky.calls == 3
+    Flaky.calls = 0
+    with pytest.raises(ClientError):
+        landing_reader.read("kite_minute/X/missing.parquet", cache=False)
+    assert Flaky.calls == 1

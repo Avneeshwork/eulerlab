@@ -1,0 +1,31 @@
+id: kaniel-ozoguz-starks-2012-high-volume-premium
+title: 'The High Volume Return Premium: Cross-Country Evidence'
+authors: Kaniel, R., Ozoguz, A., Starks, L.
+year: 2012
+kind: paper
+source_url: https://ideas.repec.org/a/eee/jfinec/v103y2012i2p255-279.html
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- 41 countries, developed and emerging
+summary: Stocks with unusually high trading volume over a week earn higher returns over the
+  following weeks, in 41 countries, developed and emerging alike; not a risk or liquidity
+  effect; consistent with Merton's investor-recognition story.
+trade_idea: A burst of attention brings a stock new holders, and its price drifts up as recognition
+  widens.
+implementation: |-
+  - High volume: formation-week volume in the top decile of itself and the preceding reference weeks (Gervais, Kaniel & Mingelgrin 2001).
+
+  Here: india_high_volume_premium, rupee turnover above each of the ten weeks before, held four weeks, up to 30 names, weekly.
+red_flags:
+- Whether India is among the 41 countries was not confirmed from the abstract.
+- 'Pure volume rule: big-news weeks are included, not separated by return as the paper''s
+  controls do.'
+reported_results: 'Reported: a premium present in developed and emerging markets.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_high_volume_premium
+  note: ''
+  timeframe: 0

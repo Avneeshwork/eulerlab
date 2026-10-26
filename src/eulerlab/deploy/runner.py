@@ -160,6 +160,47 @@ def freshness(last_day: date, now: datetime | None = None) -> str:
     )
 
 
+def paper_blocker(strategy_id: str) -> str:
+    """Why paper trading cannot run this strategy, or "" when it can.
+
+    The one rule the strategy list's Deploy button, the preflight and the
+    deploy route all read, so none can offer what another refuses: until
+    2026-10-17 the preflight passed `buy_and_hold`, which the route rejected.
+    """
+    from eulerlab.backtest.published import BUILDERS
+    from eulerlab.deploy import overnight
+    from eulerlab.strategies import REGISTRY
+
+    declaration = REGISTRY.get(strategy_id)
+    if declaration is None:
+        return f"no strategy named {strategy_id!r}"
+    if strategy_id in overnight.STRATEGIES:
+        return ""
+    from eulerlab.deploy import intraday_book
+    from eulerlab.intraday.paper_scan import ALL_SIGNALS
+
+    if strategy_id in ALL_SIGNALS:
+        # Minute-bar signals trade through their own book (`intraday_book`).
+        return intraday_book.blocker(strategy_id)
+    from eulerlab.deploy import study_book
+
+    if study_book.module_of(strategy_id) is not None:
+        return study_book.blocker(strategy_id)
+    if not declaration.is_strategy_subclass:
+        # The intraday book covers the coded minute-bar signals. Research
+        # studies, Tweezer Bottom and the option structures each run through
+        # their own code, which is not yet wired to a paper book (ADR-078).
+        return (
+            "its engine is not wired to paper trading yet: research studies, Tweezer "
+            "Bottom and option structures are the next stages (ADR-078)"
+        )
+    if strategy_id == "buy_and_hold":
+        return "it is the engine's control, kept to be compared against, not traded"
+    if strategy_id not in BUILDERS:
+        return "it has no builder the paper runner can construct"
+    return ""
+
+
 def _strategy(strategy_id: str) -> Any:
     from eulerlab.backtest.published import BUILDERS
 
@@ -184,8 +225,15 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     # The overnight future has its own book (ADR-066): the equity engine fills
     # once a day at the close and cannot hold from one close to the next open.
     # Same OMS, journal, kill switch and state file either way.
+    from eulerlab.deploy import intraday_book, study_book
+    from eulerlab.intraday.paper_scan import ALL_SIGNALS
+
     if deployment.strategy_id in overnight.STRATEGIES:
         state = overnight.run(deployment)
+    elif deployment.strategy_id in ALL_SIGNALS:
+        state = intraday_book.run(deployment)
+    elif study_book.module_of(deployment.strategy_id) is not None:
+        state = study_book.run(deployment)
     else:
         state = _run(deployment, rows)
     signals.announce(deployment, previous, state)
@@ -380,6 +428,7 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
         intended=intended,
         seconds=round(time.monotonic() - began),
     )
+    store.write_fills(deployment, fills)
     store.write_state(deployment, state)
     return state
 

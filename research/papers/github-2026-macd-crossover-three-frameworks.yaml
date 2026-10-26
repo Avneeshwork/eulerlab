@@ -1,0 +1,28 @@
+id: github-2026-macd-crossover-three-frameworks
+title: MACD crossover in three frameworks (GitHub, Sunkeerth)
+authors: Sunkeerth (GitHub)
+year: 2026
+kind: note
+source_url: https://github.com/Sunkeerth/macd-crossover-backtest-three-frameworks
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- One instrument per run (repository)
+summary: 'MACD(12, 26) against its 9-period signal: a cross up is a buy and a cross down a
+  sell, implemented in vectorbt, Nautilus and MT5. No licence stated.'
+trade_idea: Momentum turning up, measured by the MACD cross, starts a short trend worth following.
+implementation: |-
+  - Repository: macd_core.py calculate_macd and generate_signals (EMAs seeded with the first value).
+
+  Here: nse_github_macd_crossover, long only, up to 20 of the point-in-time 250 most-traded stocks.
+red_flags:
+- 'High turnover: crosses every few weeks per stock.'
+- The repository also shorts; only the long side is run here.
+reported_results: Per-framework outputs when run; nothing committed.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_macd_crossover
+  note: ''
+  timeframe: 0

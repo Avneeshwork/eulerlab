@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { Spark } from '@/components/terminal/Spark';
 import { api } from '@/lib/api';
-import type { Deployment, FleetStrategy } from '@/lib/api';
+import type { Deployment, DeploymentState, FleetStrategy } from '@/lib/api';
 
 const rupees = (value: number | undefined) =>
   value === undefined ? '—' : `₹${Math.round(value).toLocaleString('en-IN')}`;
@@ -23,6 +23,24 @@ const pct = (value: number | undefined, digits = 1) =>
     ? '—'
     : `${value < 0 ? '−' : '+'}${Math.abs(value * 100).toFixed(digits)}%`;
 
+// The equity curve with deposits and withdrawals taken out, from 1. Plotting
+// raw equity drew every deposit as a jump in value (2026-10-17). The same
+// rule as `risk/book.py: growth` and the engine's total_return.
+function growth(s: DeploymentState, capital: number): number[] {
+  const moved = new Map<string, number>();
+  for (const flow of s.flows ?? []) {
+    if (flow.applied_day) moved.set(flow.applied_day, (moved.get(flow.applied_day) ?? 0) + flow.amount);
+  }
+  let index = 1;
+  let previous = capital;
+  return (s.curve ?? []).map(([day, value]) => {
+    const base = previous + (moved.get(day) ?? 0);
+    if (base > 0) index *= value / base;
+    previous = value;
+    return index;
+  });
+}
+
 const STATUS_LABEL: Record<string, string> = {
   ok: 'Up to date',
   waiting: 'Waiting for the next close',
@@ -30,7 +48,14 @@ const STATUS_LABEL: Record<string, string> = {
   error: 'Run failed',
 };
 
-export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
+export function PaperDeployments({
+  fleet,
+  onReport,
+}: {
+  fleet: FleetStrategy[];
+  /** Open the deployment's full report, the backtest report's tabs on its own record. */
+  onReport?: (deploymentId: string) => void;
+}) {
   const [items, setItems] = useState<Deployment[] | null>(null);
   const [problem, setProblem] = useState('');
   const [open, setOpen] = useState<string>('');
@@ -92,7 +117,7 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
               <div>
                 <b>{title(d.strategy_id)}</b>
                 <span className="tfine">
-                  Paper · {rupees(d.capital)} · started {d.start}
+                  {d.mode === 'live' ? 'Live' : 'Paper'} · {rupees(d.capital)} · started {d.start}
                 </span>
               </div>
               <span className={`paper-badge s-${status}`}>
@@ -120,9 +145,15 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
                 <b>{rupees(s.cash)}</b>
               </div>
               <div>
-                <span>Invested</span>
+                <span title="Starting capital plus deposits, less withdrawals">Put in</span>
                 <b>{rupees(s.invested ?? d.capital)}</b>
               </div>
+              {s.equity !== undefined && (
+                <div>
+                  <span title="Equity less the money put in: deposits and withdrawals are not profit">Made</span>
+                  <b className={s.equity - (s.invested ?? d.capital) >= 0 ? 'pos' : 'neg'}>{rupees(s.equity - (s.invested ?? d.capital))}</b>
+                </div>
+              )}
               <div>
                 <span>Costs paid</span>
                 <b>{rupees(s.costs)}</b>
@@ -137,7 +168,7 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
               </div>
               {s.curve && s.curve.length > 1 && (
                 <div className="paper-spark">
-                  <Spark curve={s.curve.map(([, v]) => v)} clears={false} width={140} height={34} />
+                  <Spark curve={growth(s, d.capital)} clears={false} width={140} height={34} />
                 </div>
               )}
             </div>
@@ -192,6 +223,17 @@ export function PaperDeployments({ fleet }: { fleet: FleetStrategy[] }) {
               >
                 Withdraw
               </button>
+              {onReport && (
+                <button
+                  className="tbtn sm go"
+                  type="button"
+                  disabled={!s.curve?.length}
+                  onClick={() => onReport(d.id)}
+                  title="The backtest report's tabs on this deployment's own record, beside its backtest"
+                >
+                  Detailed analysis
+                </button>
+              )}
               <button className="tbtn sm" type="button" onClick={() => setOpen(isOpen ? '' : d.id)}>
                 {isOpen ? 'Hide' : 'Positions & orders'}
               </button>

@@ -132,3 +132,19 @@
   .rk-bar-name { flex-basis: 120px; }
   .rk-bar-value { flex-basis: 96px; }
 }
+
+/* A deployment's name in the table opens its full report. */
+.rk-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.rk-link:hover,
+.rk-link:focus-visible {
+  color: var(--ink-2);
+}

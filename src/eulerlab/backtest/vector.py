@@ -43,9 +43,11 @@ from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from eulerlab.backtest.strategy import MarketView, Strategy, normalise
+from eulerlab.bitemporal.store import BitemporalStore
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.features.panel import (
@@ -118,7 +120,9 @@ class BacktestResult:
         return out
 
 
-def build_adjusted_index(rows: Sequence[PanelRow]) -> dict[str, dict[date, float]]:
+def build_adjusted_index(
+    rows: Sequence[PanelRow], *, factor_store: BitemporalStore | None = None
+) -> dict[str, dict[date, float]]:
     """Back-adjusted close prices per symbol, built once.
 
     Hoisted out of `run()` because it depends only on the panel, and a
@@ -126,9 +130,32 @@ def build_adjusted_index(rows: Sequence[PanelRow]) -> dict[str, dict[date, float
     `make validate` into a forty-minute command for work that is identical
     every time.
     """
+    store = factor_store if factor_store is not None else load_price_factor_store()
+    return _build_factor_adjusted_index(rows, store)
+
+
+def build_total_return_index(
+    rows: Sequence[PanelRow], *, factor_store: BitemporalStore | None = None
+) -> tuple[dict[str, dict[date, float]], str]:
+    """Dividend-reinvested closes and the latest event date in their factor file."""
+    store = (
+        factor_store
+        if factor_store is not None
+        else load_price_factor_store(Path("data/derived/total_return_factors.jsonl"))
+    )
+    through = max(
+        (record.event_time.date() for record in store.query(as_of=FAR_FUTURE)),
+        default=None,
+    )
+    return _build_factor_adjusted_index(rows, store), through.isoformat() if through else ""
+
+
+def _build_factor_adjusted_index(
+    rows: Sequence[PanelRow], factor_store: BitemporalStore
+) -> dict[str, dict[date, float]]:
     histories = by_symbol(rows)
     events: dict[str, list[tuple[date, float]]] = {}
-    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
+    for record in factor_store.query(as_of=FAR_FUTURE):
         events.setdefault(record.key, []).append((record.event_time.date(), record.value))
     for series in events.values():
         series.sort()
@@ -207,6 +234,10 @@ def fund_symbols(rows: Sequence[PanelRow]) -> frozenset[str]:
     """The symbols that are fund units (ETFs): an `INF` ISIN. They pay a
     different STT from shares, so both engines must know which they are."""
     return frozenset(row.symbol for row in rows if row.isin.startswith("INF"))
+
+
+BUY_COST_RESERVE = 0.003
+"""Held back from a buy's cash check for its charges; the same as Tier B's."""
 
 
 def run(
@@ -385,6 +416,16 @@ def run(
             return None
         return price_index[symbol][days_[position]]
 
+    def _fill_cost(day: date, symbol: str, price: float, quantity: int, side: Side) -> float:
+        if cost_mode == "replication":
+            return 0.0
+        return (
+            _costs_for(
+                day, price, quantity, side, brokerage, asset_class, fund_unit=symbol in funds
+            )
+            * cost_multiplier
+        )
+
     def portfolio_value(day: date) -> float:
         total = cash
         for symbol, quantity in holdings.items():
@@ -400,6 +441,19 @@ def run(
         # decision made from today's data trade at today's price, which is the
         # most common lookahead in a vectorised backtest.
         fill_day = days[index + 1]
+
+        # Delisted while held: sold at its last price, as Tier B does (HISTORY #28).
+        for symbol, quantity in sorted(holdings.items()):
+            seen = ordered_days.get(symbol)
+            last = mark_price(symbol, fill_day)
+            if quantity <= 0 or not seen or seen[-1] >= fill_day or last is None:
+                continue
+            cost = _fill_cost(fill_day, symbol, last, quantity, Side.SELL)
+            cash += last * quantity - cost
+            result.fills.append(
+                Fill(fill_day, symbol, Side.SELL, last, quantity, last * quantity, cost)
+            )
+            holdings.pop(symbol)
 
         if (index - warmup) % rebalance_every == 0:
             view = MarketView(as_of=today, history=_view_history(today))
@@ -418,8 +472,13 @@ def run(
                         desired[symbol] = quantity
             previous_targets = targets
 
-            for symbol in set(holdings) | set(desired):
-                delta = desired.get(symbol, 0) - holdings.get(symbol, 0)
+            # Sorted, sells before buys, and no buy beyond the cash on hand: the
+            # order Tier B fills in (`plan_orders`, then its cash check).
+            moves = [
+                (symbol, desired.get(symbol, 0) - holdings.get(symbol, 0))
+                for symbol in sorted(set(holdings) | set(desired))
+            ]
+            for symbol, delta in sorted(moves, key=lambda move: move[1] > 0):
                 if delta == 0:
                     continue
                 price = traded_price(symbol, fill_day)
@@ -428,30 +487,23 @@ def run(
                     # position simply carries; it is not silently revalued to
                     # zero or force-closed at a made-up price.
                     continue
+                if delta > 0:
+                    delta = min(delta, int(max(0.0, cash) / (price * (1 + BUY_COST_RESERVE))))
+                    if delta <= 0:
+                        continue
                 side = Side.BUY if delta > 0 else Side.SELL
                 quantity = abs(delta)
-                notional = price * quantity
-                cost = (
-                    0.0
-                    if cost_mode == "replication"
-                    else _costs_for(
-                        fill_day,
-                        price,
-                        quantity,
-                        side,
-                        brokerage,
-                        asset_class,
-                        fund_unit=symbol in funds,
-                    )
-                    * cost_multiplier
-                )
+                cost = _fill_cost(fill_day, symbol, price, quantity, side)
                 cash -= delta * price
                 cash -= cost
-                result.fills.append(Fill(fill_day, symbol, side, price, quantity, notional, cost))
-                if desired.get(symbol, 0) == 0:
+                result.fills.append(
+                    Fill(fill_day, symbol, side, price, quantity, price * quantity, cost)
+                )
+                held = holdings.get(symbol, 0) + delta
+                if held == 0:
                     holdings.pop(symbol, None)
                 else:
-                    holdings[symbol] = desired[symbol]
+                    holdings[symbol] = held
 
         result.days.append(fill_day)
         result.equity.append(portfolio_value(fill_day))

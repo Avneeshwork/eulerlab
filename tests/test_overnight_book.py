@@ -75,6 +75,7 @@ def _replay(deployment: store.Deployment, upto: int = 5, **kw: Any) -> dict[str,
         lots=kw.pop("lots", lambda day, expiry: LOT),
         traded_through=kw.pop("traded_through", None),
         cash_flows=kw.pop("cash_flows", None),
+        recorded=kw.pop("recorded", None),
     )
 
 
@@ -270,3 +271,41 @@ def test_the_whole_run_writes_a_state_the_screen_can_read_and_marks_an_open_posi
     again = overnight.run(deployment)
     assert again["sent_this_run"] == 0 and again["equity"] == state["equity"]
     assert again["fills"] == state["fills"]
+
+
+def test_the_book_records_what_the_rule_read_each_day(deployment: store.Deployment) -> None:
+    book = _replay(deployment, upto=2)
+    assert book["inputs"][DAYS[0].isoformat()] == {
+        "nifty_open": 100.0,
+        "nifty_close": 101.0,
+        "vix_open": 15.0,
+        "vix_close": 14.0,
+        "vix_previous_close": None,
+        "signal": gf.UP,
+    }
+    assert book["inputs"][DAYS[1].isoformat()]["signal"] == gf.DOWN
+
+
+def test_a_halt_quotes_what_the_earlier_run_saw_beside_what_is_there_now(
+    deployment: store.Deployment,
+) -> None:
+    """2026-10-14: the halt said history changed, and the old values were gone."""
+    seen = {
+        DAYS[0].isoformat(): {
+            "nifty_open": 100.0,
+            "nifty_close": 99.5,  # RED when first read
+            "vix_open": 15.0,
+            "vix_close": 14.0,
+            "vix_previous_close": None,
+            "signal": None,
+        }
+    }
+    book = _replay(deployment, upto=2, traded_through=DAYS[1], recorded=seen)
+    assert "Then: Nifty 100.0 to 99.5, VIX 15.0 to 14.0, signal none." in book["halt"]
+    assert "Now: Nifty 100.0 to 101.0, VIX 15.0 to 14.0, signal up." in book["halt"]
+    assert "Changed: nifty_close, signal." in book["halt"]
+
+
+def test_a_halt_with_nothing_recorded_says_so(deployment: store.Deployment) -> None:
+    book = _replay(deployment, upto=2, traded_through=DAYS[1])
+    assert "What the earlier run saw was not recorded." in book["halt"]

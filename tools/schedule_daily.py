@@ -33,7 +33,8 @@ denies a launchd agent access to all three, and the failure is obscure: the
 shell cannot even `getcwd`, so `make` runs somewhere else and reports "No rule
 to make target". That was the original six-day outage.
 
-**Three jobs.** `fundamentals` runs `make fundamentals-update` on Sunday at
+**Four jobs.** `india-live` runs `make india-live` at 15:31 on weekdays: the
+Indian data from one minute after the close, retried until it is in (ADR-079). `fundamentals` runs `make fundamentals-update` on Sunday at
 10:00: it left the nightly job on 2026-10-13 because it takes hours. `daily`
 runs `make daily` every evening. `gap-signal` runs
 `make gap-signal SCHEDULED=1` at 15:20 on weekdays: the Nifty gap strategy's
@@ -92,6 +93,21 @@ JOBS = {
         why_then=(
             "19:30 IST is the default because NSE bhavcopy and the AMFI NAV file are\n"
             "both published in the evening. Running earlier fetches yesterday."
+        ),
+    ),
+    "india-live": Job(
+        name="india-live",
+        label="com.eulerlab.indialive",
+        command="cd {repo} && make india-live",
+        hour=15,
+        minute=31,
+        weekdays=WEEKDAYS,
+        log="india_live",
+        what="make india-live, Monday to Friday",
+        why_then=(
+            "15:31 IST is one minute after the NSE close. It retries every 10 minutes until\n"
+            "the bhavcopy and the minute bars are in, or 21:00, using minute bars as\n"
+            "provisional daily bars meanwhile (ADR-079). It exits at once on an NSE holiday."
         ),
     ),
     "gap-signal": Job(

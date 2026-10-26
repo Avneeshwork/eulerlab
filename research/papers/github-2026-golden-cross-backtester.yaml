@@ -1,0 +1,29 @@
+id: github-2026-golden-cross-backtester
+title: Golden cross / death cross backtester (GitHub, lukelebaudy)
+authors: lukelebaudy (GitHub)
+year: 2026
+kind: note
+source_url: https://github.com/lukelebaudy/Golden-Cross-Backtester
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- A single stock or index, daily (repository)
+summary: Buys when the 50-day average crosses above the 200-day and sells at the cross back
+  below, all in or all out of one instrument. No licence stated.
+trade_idea: Long-term trends persist; the 50/200 cross keeps a holder in the trend and out
+  of long declines.
+implementation: |-
+  - Repository: backtester.py calculate_signals, MA50/MA200 crossings on the close.
+
+  Here: nse_github_golden_cross holds up to 20 of the point-in-time 250 most-traded stocks from a golden cross to the next death cross.
+red_flags:
+- 'Slow signal: few trades, large lag at turns.'
+- Applied to a cross-section here; the repository trades one instrument.
+reported_results: Prints return and drawdown for a chosen ticker; nothing committed.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_golden_cross
+  note: ''
+  timeframe: 0

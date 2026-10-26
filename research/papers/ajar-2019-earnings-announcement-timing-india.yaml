@@ -1,0 +1,38 @@
+id: ajar-2019-earnings-announcement-timing-india
+title: Does earnings surprise determine the timing of the earnings announcement? Evidence
+  from India
+authors: Asian Journal of Accounting Research (2019)
+year: 2019
+kind: paper
+source_url: https://www.emerald.com/insight/content/doi/10.1108/AJAR-04-2019-0023/full/html
+pdf: ''
+added: '2026-10-16'
+status: backtested
+markets:
+- BSE SENSEX stocks (paper)
+- NSE F&O stocks (here)
+summary: An event study of twelve quarterly earnings announcements by the 30 SENSEX companies
+  finds statistically different market responses to announcements made during and after trading
+  hours; announcements after hours meet a negative response, and large surprises make an after-hours
+  release more likely.
+trade_idea: Results released while the market is open are priced in front of everyone; if
+  the first minutes under-react, following the first move to the close earns the remainder.
+implementation: 'Coded as nse_results_in_hours_follow_five_minutes (research 112): first NSE
+  disclosure of results (results row or an earlier same-day board-meeting outcome) between
+  09:20 and 14:30; five-minute move from the last close before it; a move of 1% or more is
+  followed from the next open to 15:10; ₹1 lakh a trade, ten a day at most. July-December
+  2022 is excluded: NSE labelled results differently then.'
+red_flags:
+- Read through the publisher's abstract and a search summary; authors' names were not confirmed.
+- 'Patell and Wolfson (1984) find simple-rule returns gone within five to ten minutes: a negative
+  prior for entering at minute five.'
+- Timestamps are NSE's dissemination times; a BSE filing can come first.
+- The 1% threshold and the five-minute reaction are this project's fixed choices.
+reported_results: Different market responses to announcements during and after trading hours;
+  a negative response after hours (abstract).
+hypothesis: H-0022
+strategies:
+- kind: registered
+  id: nse_results_in_hours_follow_five_minutes
+  note: Research 112
+  timeframe: 0

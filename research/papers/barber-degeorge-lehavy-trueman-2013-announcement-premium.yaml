@@ -1,0 +1,31 @@
+id: barber-degeorge-lehavy-trueman-2013-announcement-premium
+title: The Earnings Announcement Premium Around the Globe
+authors: Barber, B. M., De George, E. T., Lehavy, R., Trueman, B.
+year: 2013
+kind: paper
+source_url: https://doi.org/10.1016/j.jfineco.2013.01.007
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- 'Many international markets (title); US origin: Frazzini & Lamont (2007)'
+summary: Stocks earn abnormal returns in the window around scheduled earnings announcements,
+  in markets around the world; the expected announcement date can be predicted from the same
+  quarter a year earlier.
+trade_idea: Attention and risk around scheduled news earn a premium that can be collected
+  by holding the reporters.
+implementation: |-
+  - Predicted announcement month from a year earlier; long announcers.
+
+  Here: india_earnings_announcement_premium holds liquid stocks expected to report in the next ten sessions (same-quarter NSE disclosure + 364 days), weekly, up to 30. 2021-08 to 2024-11.
+red_flags:
+- Under three and a half years of announcement data; H2 2022 labelled differently.
+- Whether India is in the paper's sample was not checked; full text not read.
+reported_results: 'Reported: an announcement premium in markets around the globe (title and
+  abstract).'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_earnings_announcement_premium
+  note: ''
+  timeframe: 0

@@ -1,0 +1,30 @@
+id: blitz-huij-martens-2011-residual-momentum
+title: Residual Momentum
+authors: Blitz, D., Huij, J., Martens, M.
+year: 2011
+kind: paper
+source_url: https://repub.eur.nl/pub/22252
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks; idiosyncratic momentum priced in developed and emerging markets (Blitz, Hanauer
+  & Vidojevic 2020)
+summary: Ranking on stock-specific (residual) returns, scaled by their volatility, gives momentum
+  profits about twice as large on a risk-adjusted basis as total-return momentum, more consistent
+  and less exposed to crashes.
+trade_idea: Momentum that is not just market or factor exposure persists.
+implementation: |-
+  - 36-month Fama-French three-factor regressions; score = 12-1 residual return over its s.d.
+
+  Here: india_residual_momentum with a market-only model on NIFTYBEES, top 30, monthly.
+red_flags:
+- 'Market-only residuals: no Indian size and value factor series is held point-in-time.'
+- Methodology from secondary summaries; journal text not read.
+reported_results: 'Reported: risk-adjusted profits about twice total-return momentum.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_residual_momentum
+  note: ''
+  timeframe: 0

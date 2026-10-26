@@ -115,6 +115,27 @@ class Book:
     note: str = ""
     rule: GapRule | None = None
     """Set for a deployment whose risk is a gap, not a holding at the close."""
+    flows: tuple[tuple[date, float], ...] = ()
+    """Deposits (+) and withdrawals (-), each dated by the first curve day whose
+    equity includes it. Money moved in or out, never profit or loss."""
+
+    @property
+    def deployed(self) -> float:
+        """The money put in: the starting capital plus every flow so far."""
+        return self.capital + sum(amount for _, amount in self.flows)
+
+    @property
+    def made(self) -> float:
+        return self.equity - self.deployed
+
+    def growth(self) -> list[tuple[date, float]]:
+        return growth(self.curve, self.flows, self.capital)
+
+    @property
+    def total_return(self) -> float:
+        """Time-weighted: what ₹1 held from the start would have become, less 1."""
+        path = self.growth()
+        return path[-1][1] - 1.0 if path else 0.0
 
 
 def book_from_state(
@@ -140,6 +161,13 @@ def book_from_state(
     curve = tuple(
         (date.fromisoformat(str(day)), float(value)) for day, value in state.get("curve") or []
     )
+    # `applied_day` is the curve day that first includes the flow, in both the
+    # rebalancing runner (the fill day) and the overnight book (the close).
+    flows = tuple(
+        (date.fromisoformat(str(flow["applied_day"])), float(flow["amount"]))
+        for flow in state.get("flows") or []
+        if flow.get("applied_day") and isinstance(flow.get("amount"), int | float)
+    )
     equity = float(state.get("equity") or capital)
     return Book(
         id=deployment_id,
@@ -151,6 +179,7 @@ def book_from_state(
         holdings=holdings,
         curve=curve,
         status=status,
+        flows=flows,
     )
 
 
@@ -408,8 +437,38 @@ def histogram(pnl: Sequence[float], equity: float, bins: int = 12) -> list[dict[
 # --- equity paths -------------------------------------------------------------------
 
 
+def growth(
+    curve: Sequence[tuple[date, float]],
+    flows: Sequence[tuple[date, float]],
+    start: float,
+) -> list[tuple[date, float]]:
+    """Equity with deposits and withdrawals taken out, as an index from 1.
+
+    Each day's change is measured on the day before's equity plus that day's
+    flow, so adding ₹1 L moves the index by nothing and only trading moves it.
+    The same rule as `TierBResult.total_return`. Every percentage on the risk
+    page is read from this, never from equity against the starting capital:
+    that read a deposit as profit (seen 2026-10-17).
+    """
+    by_day: dict[date, float] = {}
+    for day, amount in flows:
+        by_day[day] = by_day.get(day, 0.0) + amount
+    index, previous = 1.0, start
+    out: list[tuple[date, float]] = []
+    for day, value in curve:
+        base = previous + by_day.get(day, 0.0)
+        if base > 0:
+            index *= value / base
+        out.append((day, index))
+        previous = value
+    return out
+
+
 def drawdown(curve: Sequence[tuple[date, float]]) -> dict[str, Any]:
-    """Where equity sits below its highest point so far, and the deepest it has been."""
+    """Where a path sits below its highest point so far, and the deepest it has been.
+
+    Pass `growth(...)`, not equity: a withdrawal is not a drawdown.
+    """
     peak = 0.0
     peak_day: date | None = None
     deepest, deepest_day = 0.0, None
@@ -450,10 +509,12 @@ def combined_curve(books: Sequence[Book]) -> list[tuple[date, float]]:
 
 
 def today_pnl(book: Book, as_of: date | None) -> float:
-    """The last day's change in equity, if the curve reaches `as_of`."""
+    """The last day's change in equity, less any money moved in that day."""
     if len(book.curve) < 2 or (as_of is not None and book.curve[-1][0] != as_of):
         return 0.0
-    return book.curve[-1][1] - book.curve[-2][1]
+    last = book.curve[-1][0]
+    moved = sum(amount for day, amount in book.flows if day == last)
+    return book.curve[-1][1] - book.curve[-2][1] - moved
 
 
 def backtest_band(
@@ -491,9 +552,10 @@ def backtest_band(
 
 def against_backtest(book: Book, backtest: Sequence[float]) -> dict[str, Any]:
     """The live path beside its backtest band, and a one-word verdict."""
+    # The backtest band has no deposits in it, so the live path must not either.
     live = [{"day": 0, "value": 100.0}] + [
-        {"day": i, "value": round(value / book.capital * 100, 3)}
-        for i, (_, value) in enumerate(book.curve, start=1)
+        {"day": i, "value": round(value * 100, 3)}
+        for i, (_, value) in enumerate(book.growth(), start=1)
     ]
     days_live = len(book.curve)
     band = backtest_band(backtest, days_live) if backtest else []

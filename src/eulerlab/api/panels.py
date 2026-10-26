@@ -39,7 +39,9 @@ class _Panel:
         day order, so "the last N days" is a slice. It used to be a pass over
         all 5.4 million rows to list the days and another to filter them:
         1.2 to 1.9 seconds on every request that asked (measured 2026-10-12)."""
-        self._indices: dict[tuple[int, str], dict[str, dict[date, float]]] = {}
+        self._indices: dict[
+            tuple[int, str, tuple[date, date] | None], dict[str, dict[date, float]]
+        ] = {}
 
     def rows(self, days: int = 0) -> list[PanelRow]:
         with self._lock:
@@ -97,7 +99,12 @@ class _Panel:
         }
 
     def index(
-        self, days: int, rows: list[PanelRow], universe: str = "all"
+        self,
+        days: int,
+        rows: list[PanelRow],
+        universe: str = "all",
+        *,
+        span: tuple[date, date] | None = None,
     ) -> dict[str, dict[date, float]]:
         """Back-adjusted prices for this row set.
 
@@ -108,7 +115,8 @@ class _Panel:
         nifty50 never contained.
         """
         with self._lock:
-            key = (days, universe)
+            # And by an explicit window, so two windows of one length never share.
+            key = (days, universe, span)
             if key not in self._indices:
                 self._indices[key] = build_adjusted_index(rows)
             return self._indices[key]

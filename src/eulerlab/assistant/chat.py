@@ -26,6 +26,8 @@ Only what `tools.TOOLS` lists, all of it read-only. See that module.
 
 from __future__ import annotations
 
+import contextlib
+import http.client
 import json
 import os
 import re
@@ -34,6 +36,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -85,6 +89,22 @@ Post = Callable[[client.Provider, dict[str, Any]], dict[str, Any]]
 
 class Refused(RuntimeError):
     """The assistant will not send, and the message says what to fix."""
+
+
+class ModelUnavailable(Refused):
+    """This one model could not answer now; another on the same host might.
+
+    No zero-retention endpoint, a per-model free quota, a server error, a
+    timeout or an empty reply. Kept apart from the other refusals because
+    `complete_any` moves on to the next model for these and only these: a
+    missing key or no internet would fail the same way on every model.
+    """
+
+    def __init__(self, message: str, *, served: bool = True) -> None:
+        super().__init__(message)
+        self.served = served
+        """False when the host turned the request away before any model ran
+        it, so it cost none of the free daily allowance."""
 
 
 @dataclass(frozen=True)
@@ -297,23 +317,42 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
             return parsed
     except urllib.error.HTTPError as exc:
         if exc.code == 404 and host_of(chosen) in ROUTING:
-            raise Refused(
+            raise ModelUnavailable(
                 f"No zero-retention endpoint serves {chosen.model} right now, so nothing "
-                "was sent on. Pick another model: docs/RUNBOOKS/assistant-is-offline.md."
+                "was sent on. Pick another model: docs/RUNBOOKS/assistant-is-offline.md.",
+                served=False,
             ) from exc
         if exc.code == 429:
-            raise Refused(
+            raise ModelUnavailable(
                 "The free quota is used up for the moment. Try again in a minute."
             ) from exc
+        if exc.code >= 500:
+            raise ModelUnavailable(f"{chosen.name} returned HTTP {exc.code}.") from exc
         detail = redact.scrub(exc.read().decode(errors="replace"))[:300]
-        raise Refused(f"{chosen.name} returned HTTP {exc.code}: {detail}") from exc
+        if exc.code in (401, 402):
+            # A bad key or no credit: every model on this host would fail alike.
+            raise Refused(f"{chosen.name} returned HTTP {exc.code}: {detail}") from exc
+        # Any other 4xx is about this model. Seen 2026-10-17: 403 "only
+        # available on agentic harnesses" for one of the listed free models.
+        raise ModelUnavailable(
+            f"{chosen.model} returned HTTP {exc.code}: {detail}", served=False
+        ) from exc
     except TimeoutError as exc:
-        raise Refused(
+        raise ModelUnavailable(
             f"{chosen.name} did not answer in {TIMEOUT_SECONDS} seconds. Ask again."
+        ) from exc
+    except (http.client.HTTPException, ConnectionError, json.JSONDecodeError) as exc:
+        # Seen 2026-10-17: IncompleteRead, the host closing mid-answer.
+        raise ModelUnavailable(
+            f"{chosen.model} broke off its answer ({type(exc).__name__})."
         ) from exc
     except urllib.error.URLError as exc:
         # Seen 2026-10-12 as "[Errno 8] nodename nor servname provided": the
         # name could not be looked up, which on this Mac meant no internet.
+        if host_of(chosen) in LOCAL_HOSTS:
+            raise Refused(
+                f"Nothing is listening at {chosen.base_url}. Start Ollama (`ollama serve`)."
+            ) from exc
         raise Refused(
             f"Could not reach {host_of(chosen)}. Check the internet connection and ask again."
         ) from exc
@@ -336,12 +375,154 @@ def complete(system: str, user: str, *, chosen: client.Provider | None = None) -
     )
     choices = body.get("choices")
     if not isinstance(choices, list) or not choices:
-        raise Refused(f"{chosen.name} sent a reply with no answer in it.")
+        raise ModelUnavailable(f"{chosen.name} sent a reply with no answer in it.")
     message = choices[0].get("message") or {}
     answer = str(message.get("content") or "").strip()
     if not answer:
-        raise Refused(f"{chosen.name} sent an empty answer.")
+        raise ModelUnavailable(f"{chosen.name} sent an empty answer.")
+    if choices[0].get("finish_reason") == "length":
+        # Seen 2026-10-17: a strategy draft ending mid-string. A cut-off
+        # answer cannot parse or compile, so it is the model's failure.
+        raise ModelUnavailable(f"{chosen.model} ran out of room before it finished.")
     return Answer(answer, chosen.name, chosen.model, host_of(chosen))
+
+
+FALLBACK_ANSWERS = 3
+"""Models that may actually answer, the first included. Each answer counts
+against a free daily allowance, so a run of bad replies costs at most three."""
+
+FALLBACK_MODELS = 12
+"""Models asked at all. A model with no zero-retention endpoint is refused
+before anything is sent and costs no allowance, but OpenRouter's ZDR list
+named six such models on 2026-10-17, so the walk needs a bound of its own."""
+
+ATTEMPT_SECONDS = 150
+"""One model's limit. The socket timeout bounds each read, not the answer:
+on 2026-10-17 a free model trickled for 470 seconds and then broke off."""
+
+TOTAL_SECONDS = 420
+"""The whole walk's limit, inside the web proxy's ten minutes (`web/next.config.mjs`)."""
+
+DEAD_SECONDS = 1800
+"""How long a model that turned a request away is skipped."""
+
+_DEAD: dict[tuple[str, str], float] = {}
+_LAST_GOOD: list[client.Provider] = []
+
+
+def _alternatives(chosen: client.Provider) -> list[client.Provider]:
+    """Every other model the locks allow: the last one that answered, the
+    other configured providers, then OpenRouter's current free ZDR list."""
+    out = list(_LAST_GOOD)
+    try:
+        config = client.load_config()
+    except client.LLMUnavailable:
+        config = None
+    for entry in config.providers if config else []:
+        try:
+            out.append(provider(config, name=entry.name))
+        except (Refused, client.LLMUnavailable):
+            continue  # an unapproved host: never a fallback
+    if host_of(chosen) == "openrouter.ai":
+        with contextlib.suppress(Refused, client.LLMUnavailable):
+            out += [
+                chosen.model_copy(update={"model": row["id"]}) for row in openrouter_zdr_models()
+            ]
+    seen = {(chosen.base_url, chosen.model)}
+    unique = []
+    for candidate in out:
+        if (candidate.base_url, candidate.model) not in seen:
+            seen.add((candidate.base_url, candidate.model))
+            unique.append(candidate)
+    return unique
+
+
+def _within(seconds: float, system: str, user: str, chosen: client.Provider) -> Answer:
+    """`complete`, abandoned after `seconds`; the late answer is discarded."""
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(complete, system, user, chosen=chosen).result(timeout=seconds)
+    except FutureTimeout as exc:
+        raise ModelUnavailable(
+            f"{chosen.model} took longer than {round(seconds)} seconds."
+        ) from exc
+    finally:
+        pool.shutdown(wait=False)
+
+
+def complete_any(
+    system: str,
+    user: str,
+    *,
+    name: str = "",
+    model: str = "",
+    accept: Callable[[str], object] | None = None,
+) -> Answer:
+    """`complete`, moving on to another model when this one cannot answer.
+
+    The research library's drafts broke on 2026-10-17 because the configured
+    free model had left OpenRouter's zero-retention list, and of the nine
+    models still listed only one served a request, slowly. Free catalogues
+    change weekly, so a single pinned model is not something a page can
+    depend on.
+
+    A model the operator picked is never swapped. Otherwise every candidate is
+    one `provider` accepts, and each goes through `complete`, so the host,
+    retention and redaction locks are the same for every attempt. `accept`
+    checks the text (parse it, compile it); a `ValueError` from it counts as
+    that model failing, since a small model's malformed JSON says nothing
+    about the next one's.
+    """
+    chosen = selected_provider(name=name, model=model)
+    candidates = [chosen]
+    failures: list[str] = []
+    tried = answered = 0
+    expanded = bool(model)  # an operator's pick has no alternatives
+    closed: set[str] = set()  # hosts whose key or connection failed
+    began = time.monotonic()
+    while candidates and tried < FALLBACK_MODELS and answered < FALLBACK_ANSWERS:
+        current = candidates.pop(0)
+        left = TOTAL_SECONDS - (time.monotonic() - began)
+        if left < 20:
+            failures.append(f"(stopped: {TOTAL_SECONDS} seconds spent)")
+            break
+        key = (current.base_url, current.model)
+        if current.base_url in closed:
+            continue
+        if not model and _DEAD.get(key, 0.0) > time.monotonic():
+            failures.append(f"{current.model}: skipped, refused within the last half hour")
+        else:
+            tried += 1
+            try:
+                answer = _within(min(ATTEMPT_SECONDS, left), system, user, current)
+                answered += 1
+                if accept is not None:
+                    accept(answer.text)
+                _LAST_GOOD[:] = [current]
+                return answer
+            except ModelUnavailable as exc:
+                answered += exc.served
+                if not exc.served:
+                    _DEAD[key] = time.monotonic() + DEAD_SECONDS
+                failures.append(f"{current.model}: {exc}")
+            except ValueError as exc:
+                failures.append(f"{current.model}: unusable reply ({str(exc)[:200]})")
+            except (Refused, client.LLMUnavailable) as exc:
+                # A bad key or unreachable host fails every model it serves,
+                # but says nothing about another provider.
+                closed.add(current.base_url)
+                failures.append(f"{current.name}: {exc}")
+        if not expanded:
+            expanded = True
+            candidates += _alternatives(chosen)
+    if len(failures) == 1:
+        raise Refused(failures[0].split(": ", 1)[1])
+    raise Refused(
+        f"No model could answer ({tried} tried). The fixes, fastest first: a valid "
+        "GROQ_API_KEY in .env; Ollama running locally; or wait a minute for the free "
+        "OpenRouter quota (docs/RUNBOOKS/assistant-is-offline.md). Each model: "
+        + " | ".join(failures)
+    )
 
 
 def _history(messages: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
@@ -384,7 +565,7 @@ def ask(
         body = post(chosen, payload)
         choices = body.get("choices")
         if not isinstance(choices, list) or not choices:
-            raise Refused(f"{chosen.name} sent a reply with no answer in it.")
+            raise ModelUnavailable(f"{chosen.name} sent a reply with no answer in it.")
         message = choices[0].get("message") or {}
         calls = message.get("tool_calls") or []
         if not calls:

@@ -168,9 +168,25 @@ def peers(
     """Companies in the same industry, largest first, and the industry's median P/E."""
     me = companies.get(symbol)
     if me is None or not me.industry:
-        return {"industry": "", "count": 0, "median_pe": None, "rows": []}
+        return {
+            "industry": "",
+            "count": 0,
+            "median_pe": None,
+            "valuation_median_pe": None,
+            "valuation_median_pb": None,
+            "median_roe": None,
+            "rows": [],
+        }
     same = [c for c in companies.values() if c.industry == me.industry]
     earning = [c.pe for c in same if c.pe is not None and c.pe > 0]
+    other = [c for c in same if c.symbol != symbol]
+    peer_pe = [c.pe for c in other if c.pe is not None and c.pe > 0]
+    peer_pb = [
+        c.price / c.book_value
+        for c in other
+        if c.price is not None and c.price > 0 and c.book_value is not None and c.book_value > 0
+    ]
+    peer_roe = [c.roe for c in other if c.roe is not None]
     same.sort(key=lambda c: -(c.market_cap or 0))
     rows = [c for c in same if c.symbol != symbol][:MAX_PEERS]
     return {
@@ -178,6 +194,17 @@ def peers(
         "count": len(same),
         "median_pe": statistics.median(earning) if len(earning) >= MIN_PEERS_FOR_MEDIAN else None,
         "pe_count": len(earning),
+        # Excluding the subject avoids letting its current multiple set its
+        # own peer-multiple cross-check.
+        "valuation_median_pe": statistics.median(peer_pe)
+        if len(peer_pe) >= MIN_PEERS_FOR_MEDIAN
+        else None,
+        "valuation_median_pb": statistics.median(peer_pb)
+        if len(peer_pb) >= MIN_PEERS_FOR_MEDIAN
+        else None,
+        "median_roe": statistics.median(peer_roe)
+        if len(peer_roe) >= MIN_PEERS_FOR_MEDIAN
+        else None,
         "rows": [
             {
                 "symbol": c.symbol,
@@ -225,7 +252,14 @@ def news(symbol: str, files: Iterable[bytes], name: str = "") -> list[dict[str, 
 def news_files(months: int = 3) -> list[bytes]:
     from eulerlab.ingest import landing_reader
 
-    paths = sorted(landing_reader.available("news", "equity/*.jsonl.gz"))[-months:]
+    pattern = "equity/*.jsonl.gz"
+    local = landing_reader.available("news", pattern, allow_cloud=False)
+    # The daily mirror keeps the current archive months locally. Avoid a
+    # bucket listing on the page's critical path when those archives suffice;
+    # use the union lookup if pruning left fewer than the requested months.
+    paths = sorted(local)[-months:]
+    if len(paths) < months:
+        paths = sorted(landing_reader.available("news", pattern))[-months:]
     return [landing_reader.read(path) for path in paths]
 
 

@@ -57,3 +57,19 @@ passes the locks, not that it answers; no request is sent until you ask.
 never sends a probe, so opening the panel costs no quota.
 
 **To switch it off:** remove `EULERLAB_ASSISTANT_ZDR` from `.env`.
+
+## Research Library: "No model could answer"
+
+Seen 2026-10-17. The paper draft and **AI code & backtest** try several models
+before they give up (`chat.complete_any`), so this message means every one
+failed. It ends with one line per model saying why.
+
+| Line says | Fix |
+|---|---|
+| `groq returned HTTP 401` | Replace `GROQ_API_KEY` in `.env` (see the table above). Groq is fast and the most dependable fix |
+| `ollama: Nothing is listening` | Install Ollama (ollama.com), `ollama pull qwen2.5-coder:7b` (about 4.7 GB), then `ollama serve`. Free, private, no quota |
+| `skipped, refused within the last half hour` | That model turned a request away recently. Restart the API (`make api`) to forget, or wait |
+| `free quota is used up` | Wait a minute; 50 free requests a day without credits |
+| `ran out of room` / `took longer than 150 seconds` | A slow free model. Another try may pick a different one |
+
+The diagnosis without the page: `uv run python -c "from eulerlab.assistant import chat; print(chat.complete_any('Reply OK.', 'ping').model)"`.

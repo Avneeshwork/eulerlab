@@ -1,0 +1,34 @@
+id: github-2021-skyte-clenow-momentum
+title: Andreas Clenow - Stocks on the Move (GitHub, skyte)
+authors: skyte (GitHub); Clenow (2015), Stocks on the Move
+year: 2021
+kind: note
+source_url: https://github.com/skyte/momentum
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- S&P 500 and Nasdaq 100 (repository)
+summary: Ranks stocks by the annualised slope of an exponential regression over 125 days times
+  its R^2, excludes stocks under their 100-day average or with a 15% gap, and sizes positions
+  by ATR risk parity. Apache-2.0; 41 stars.
+trade_idea: Steady, smooth trends persist; volatility-scaled sizing keeps any one stock from
+  dominating risk.
+implementation: |-
+  - momentum_posis.py: momentum(), atr_20(), exclusion rules; config: 125 days, 25 positions, 15% gap.
+
+  Here: nse_github_stocks_on_the_move, point-in-time 250 most-traded, top 25, weights ~ close/ATR(20), weekly.
+red_flags:
+- Clenow's book adds an index filter that the repository omits; omitted here too.
+- 'Weekly rebalance: more turnover than the monthly momentum strategies.'
+reported_results: None committed.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_stocks_on_the_move
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: india_drift_momentum_combo
+  note: ''
+  timeframe: 0

@@ -1,0 +1,30 @@
+id: barroso-santa-clara-2015-momentum-moments
+title: Momentum Has Its Moments
+authors: Barroso, P., Santa-Clara, P.
+year: 2015
+kind: paper
+source_url: https://ciencia.ucp.pt/en/publications/momentum-has-its-moments/
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks, 1927-2011
+summary: Momentum's risk is variable and predictable from its own recent volatility. Scaling
+  exposure by the inverse of six-month realized volatility nearly eliminates momentum crashes
+  and roughly doubles its Sharpe ratio.
+trade_idea: Cut momentum exposure when its recent volatility is high; crashes follow volatile
+  spells.
+implementation: |-
+  - 126-day realized variance of daily returns; exposure scaled to a volatility target.
+
+  Here: india_scaled_momentum, long-only top 30 by 12-1, exposure = min(1, 3-year vol / 6-month vol of the selection), rest in cash.
+red_flags:
+- 'Long only: scaling a long book mostly adds cash rather than removing a short leg''s crash.'
+- Target set to the book's own 3-year volatility to avoid choosing a number.
+reported_results: 'Reported: Sharpe ratio nearly doubled, crashes largely removed.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_scaled_momentum
+  note: ''
+  timeframe: 0

@@ -7,6 +7,7 @@ import json
 import os
 import time
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -31,15 +32,41 @@ MIN_INTERVAL_S = 0.34
 
 
 def last_complete_session(now: datetime | None = None) -> date:
-    """Today from 15:45 IST, otherwise yesterday.
+    """Today from 15:31 IST, otherwise yesterday.
 
-    A chunk ending on a day still trading holds half a session, and its key is
-    then landed: the rest of that day would never be fetched. So the range
-    stops at the last session that has closed.
+    Was 15:45, because a chunk ending on a day still trading holds half a
+    session and its landed key meant the rest of that day was never fetched.
+    `complete_days` now refuses to land today until its last candle is in, so
+    the cut-off can sit one minute after the close (ADR-079).
     """
     ist = (now or datetime.now(UTC)).astimezone(ZoneInfo("Asia/Kolkata"))
-    closed = (ist.hour, ist.minute) >= (15, 45)
+    closed = (ist.hour, ist.minute) >= (15, 31)
     return ist.date() if closed else ist.date() - timedelta(days=1)
+
+
+def complete_days(
+    chunk: Chunk, candles: list[list[object]], today: date
+) -> tuple[Chunk | None, list[list[object]]]:
+    """Drop today from a chunk until today's session is complete.
+
+    Complete means a candle at the session's last minute: 15:29, or 15:14 for
+    an F&O stock, whose continuous trading ends at 15:15 for the closing
+    auction (`provisional_daily.session_ends`, HISTORY #29). Only today is
+    checked: an older day is landed as Kite serves it, since refetching it
+    would never change it. Returns (None, []) when nothing is left to land.
+    """
+    from eulerlab.ingest.provisional_daily import session_ends
+
+    if chunk.end != today:
+        return chunk, candles
+    stamp = today.isoformat()
+    todays = sorted(str(c[0]) for c in candles if str(c[0]).startswith(stamp))
+    if todays and todays[-1][11:16] in session_ends(today):
+        return chunk, candles
+    if chunk.start >= today:
+        return None, []
+    kept = [c for c in candles if not str(c[0]).startswith(stamp)]
+    return replace(chunk, end=today - timedelta(days=1)), kept
 
 
 def _access_token() -> str:
@@ -108,7 +135,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     print(f"estimate   : {len(todo) * MIN_INTERVAL_S / 60:.0f} min at 3 req/s\n")
 
-    fetched = rows = failed = 0
+    fetched = rows = failed = unfinished = 0
     last = 0.0
     for index, chunk in enumerate(todo, start=1):
         gap = MIN_INTERVAL_S - (time.monotonic() - last)
@@ -128,14 +155,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             continue
 
+        landing, candles = complete_days(chunk, candles, end)
+        if landing is None:
+            unfinished += 1
+            continue
         table = candles_to_table(candles)
-        store.write(chunk, table)
+        store.write(landing, table)
         fetched += 1
         rows += table.num_rows
         if index % 200 == 0:
             print(f"  {index}/{len(todo)} chunks, {rows:,} bars, {failed} failed")
 
     print(f"\ndone: {fetched} chunks, {rows:,} bars, {failed} failed")
+    if unfinished:
+        print(f"{unfinished} symbol(s) not complete today; fetched again next run")
     return 1 if failed else 0
 
 

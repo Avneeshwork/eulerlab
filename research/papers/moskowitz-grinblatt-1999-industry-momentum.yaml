@@ -1,0 +1,30 @@
+id: moskowitz-grinblatt-1999-industry-momentum
+title: Do Industries Explain Momentum?
+authors: Moskowitz, T. J., Grinblatt, M.
+year: 1999
+kind: paper
+source_url: https://doi.org/10.1111/0022-1082.00146
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks, 1963-1995, 20 industries
+summary: 'Industry momentum is strong and accounts for much of individual-stock momentum:
+  buying past winning industries and selling losers is profitable, mostly from the long side,
+  at six-month horizons.'
+trade_idea: Whole industries trend; the leading industries keep leading for months.
+implementation: |-
+  - Industries ranked on six-month past returns; top three bought, bottom three sold, held six months.
+
+  Here: india_industry_momentum, 39 NSE industries (today's classification, A-061), top three by six-month equal-weight return, monthly, long only.
+red_flags:
+- No Indian test of industry momentum found.
+- Today's industry labels applied to the past.
+- Monthly rebalance instead of six-month overlapping holds.
+reported_results: 'Reported: industry momentum profitable and the larger part of stock momentum.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_industry_momentum
+  note: ''
+  timeframe: 0

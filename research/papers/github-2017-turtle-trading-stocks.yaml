@@ -1,0 +1,30 @@
+id: github-2017-turtle-trading-stocks
+title: Turtle trading on stock dailies (GitHub, Harvey-Sun)
+authors: Harvey-Sun (GitHub)
+year: 2017
+kind: note
+source_url: https://github.com/Harvey-Sun/TurtleTrading
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- China A-shares, 50 small caps, 2013-2016 (repository)
+summary: 'Turtle rules on stock dailies: enter above the 20-day high, exit below the 10-day
+  low or 2 ATR under entry, ATR-sized units with up to four adds. 51 stars; no licence stated.'
+trade_idea: Breakouts to new highs continue often enough that cutting losers quickly leaves
+  a positive trend-following edge.
+implementation: |-
+  - Repository: D1 = 20 entry channel, Ds = 10 exit channel, 2 x ATR stop, unit_limit = 4 (TurtleTrading.py).
+
+  Here: nse_github_turtle_20_10 runs one unit per name (no pyramiding, no ATR sizing) on the point-in-time 250 most-traded NSE stocks, up to 20 names.
+red_flags:
+- Pyramiding and ATR sizing are left out.
+- The repository's universe was 50 Chinese small caps; this is NSE's most-traded 250.
+- 'No licence: re-implemented.'
+reported_results: Log files only; no summary figures.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_turtle_20_10
+  note: ''
+  timeframe: 0

@@ -1,0 +1,30 @@
+id: github-2025-accelerating-dual-momentum
+title: Accelerating dual momentum (GitHub, AleksLi1)
+authors: AleksLi1 (GitHub); model from allocatesmartly.com
+year: 2025
+kind: note
+source_url: https://github.com/AleksLi1/Accelerating_Dual_Momentum
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- SPY, VBR, TLT, TIP (repository)
+summary: 'Monthly tactical allocation: hold SPY or VBR, whichever has the higher mean of 1,
+  3 and 6-month return, if positive; otherwise TLT or TIP by 1-month return. No licence stated.'
+trade_idea: Equity trends persist over months; stepping aside when both trend down avoids
+  the worst drawdowns.
+implementation: |-
+  - Repository README rules, first trading day of each month.
+
+  Here: nse_github_dual_momentum_etf uses NIFTYBEES and JUNIORBEES as the risk pair and GOLDBEES and LIQUIDBEES as the safe pair, every 21 sessions.
+red_flags:
+- 'Four ETFs and one decision a month: few independent bets.'
+- 'Gold is not a bond: the safe leg behaves differently from TLT/TIP.'
+- 'No licence: re-implemented.'
+reported_results: A chart and a stats table in the README (images); no numbers in text.
+hypothesis: ''
+strategies:
+- kind: registered
+  id: nse_github_dual_momentum_etf
+  note: ''
+  timeframe: 0

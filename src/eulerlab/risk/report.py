@@ -120,7 +120,9 @@ def build(
     as_of = max((b.curve[-1][0] for b in books if b.curve), default=None)
 
     equity = sum(b.equity for b in books)
-    capital = sum(b.capital for b in books)
+    # Money in, net of deposits and withdrawals. Profit is equity less this;
+    # every percentage is time-weighted (`rb.growth`), so moving money is neither.
+    capital = sum(b.deployed for b in books)
     cash = sum(b.cash for b in books)
     invested = sum(h.value for b in books for h in b.holdings)
 
@@ -143,7 +145,10 @@ def build(
     worst = min(range(history), key=lambda i: total[i]) if total else None
 
     curve = rb.combined_curve(books)
-    book_dd = rb.drawdown(curve)
+    book_growth = rb.growth(
+        curve, [flow for b in books for flow in b.flows], sum(b.capital for b in books)
+    )
+    book_dd = rb.drawdown(book_growth)
     names = rb.by_name(books)
     grouped = rb.by_sector(names, sectors)
     betas = {
@@ -164,7 +169,7 @@ def build(
     for b in books:
         pnl = parts[b.id]
         _, sd = rb._mean_sd([p / b.equity for p in pnl]) if b.equity > 0 and pnl else (0.0, 0.0)
-        dd = rb.drawdown(b.curve)
+        dd = rb.drawdown(b.growth())
         tested = backtests.get(b.strategy_id) or {}
         rows.append(
             {
@@ -173,12 +178,15 @@ def build(
                 "title": label[b.id],
                 "status": b.status,
                 "slot": (slots or {}).get(b.id, books.index(b)),
-                "capital": round(b.capital, 2),
+                "capital": round(b.deployed, 2),
+                "starting_capital": round(b.capital, 2),
+                "moved": round(b.deployed - b.capital, 2),
                 "equity": round(b.equity, 2),
                 "cash": round(b.cash, 2),
                 "invested": round(sum(h.value for h in b.holdings), 2),
                 "positions": len(b.holdings),
-                "since_start": _pct(b.equity - b.capital, b.capital),
+                "made": round(b.made, 2),
+                "since_start": round(b.total_return, 6),
                 "today": round(rb.today_pnl(b, as_of), 2),
                 "volatility": round(sd * rb.TRADING_DAYS**0.5, 6) if enough else None,
                 "var95": round(standalone[b.id], 2) if enough else None,
@@ -297,10 +305,15 @@ def build(
             "cash": round(cash, 2),
             "invested": round(invested, 2),
             "exposure": _pct(invested, equity),
+            "moved": round(capital - sum(b.capital for b in books), 2),
             "today": round(today, 2),
-            "today_pct": _pct(today, equity - today),
+            "today_pct": (
+                round(book_growth[-1][1] / book_growth[-2][1] - 1, 6)
+                if len(book_growth) > 1 and book_growth[-1][0] == as_of and book_growth[-2][1] > 0
+                else 0.0
+            ),
             "since_start": round(equity - capital, 2),
-            "since_start_pct": _pct(equity - capital, capital),
+            "since_start_pct": round(book_growth[-1][1] - 1, 6) if book_growth else 0.0,
             "var95": var95,
             "var95_pct": _pct(var95, equity),
             "es95": table[0]["es95"] if table else 0.0,
@@ -373,10 +386,10 @@ def build(
                 "id": b.id,
                 "title": b.title,
                 "slot": (slots or {}).get(b.id, len(books)),
-                "capital": round(b.capital, 2),
+                "capital": round(b.deployed, 2),
                 "equity": round(b.equity, 2),
-                "made": round(b.equity - b.capital, 2),
-                "made_pct": _pct(b.equity - b.capital, b.capital),
+                "made": round(b.made, 2),
+                "made_pct": round(b.total_return, 6),
                 "days_live": len(b.curve),
                 "last_day": b.curve[-1][0].isoformat() if b.curve else None,
             }

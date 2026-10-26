@@ -782,6 +782,40 @@ def _india_papers() -> dict[str, Declaration]:
     }
 
 
+def _github_daily() -> dict[str, Declaration]:
+    """Daily rules from public GitHub repositories (research 113), built by
+    `backtest.github_daily`, and the published momentum and reversal
+    refinements of its batch 3 (`backtest.evidence_daily`), on the same engine
+    and universe as the India papers."""
+    from eulerlab.backtest import events_daily, evidence_daily, github_daily
+
+    # A GitHub rule is cited as one wherever it is coded (`nse_github_*`).
+    tagged = [("[GitHub]", s) for s in github_daily.STRATEGIES] + [
+        ("[GitHub]" if s.id.startswith("nse_github_") else "[paper]", s)
+        for s in (*evidence_daily.STRATEGIES, *events_daily.STRATEGIES)
+    ]
+
+    return {
+        s.id: Declaration(
+            id=s.id,
+            title=s.title,
+            summary=s.summary,
+            kind="quant",
+            shape="single-instrument",
+            asset_class=AssetClass.EQUITY,
+            timeframe=Timeframe.DAILY,
+            emits=Emits.TARGET_WEIGHT,
+            lookback=s.lookback,
+            source=f"{tag} {s.citation}",
+            published=s.summary,
+            tested_on="NSE equities",
+            recommended_class=AssetClass.EQUITY,
+            logic=list(s.logic),
+        )
+        for tag, s in tagged
+    }
+
+
 def _studies() -> dict[str, Declaration]:
     """Strategies that run as calculations, outside both engines.
 
@@ -824,6 +858,7 @@ REGISTRY.update(_paper_signals())
 REGISTRY.update(_crypto_signals())
 REGISTRY.update(_india_signals())
 REGISTRY.update(_india_papers())
+REGISTRY.update(_github_daily())
 REGISTRY.update(_studies())
 
 

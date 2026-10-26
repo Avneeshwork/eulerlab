@@ -315,6 +315,37 @@
   height: auto;
   touch-action: none;
 }
+.co-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  padding: var(--s2) 0;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+.co-chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+.co-chart-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--neon-deep);
+}
+.co-chart-legend i.is-price {
+  background: #38a9e8;
+}
+.co-chart-legend i.is-fair {
+  background: #b34cf0;
+}
+.co-chart-legend i.is-range {
+  border-radius: 2px;
+  background: color-mix(in srgb, #b34cf0 30%, transparent);
+  border: 1px solid color-mix(in srgb, #b34cf0 55%, transparent);
+}
 .co-grid {
   stroke: var(--rule);
   stroke-width: 1;
@@ -499,4 +530,225 @@
 .co-news small {
   font-size: var(--t-micro);
   color: var(--ink-3);
+}
+
+/* Fair-value model card */
+.co-fair-value {
+  border-color: color-mix(in srgb, var(--neon-deep) 40%, var(--rule-2));
+}
+.co-fv-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+.co-page .co-fv-heading h3 {
+  margin: 0;
+}
+.co-fv-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s3);
+  padding: var(--s3) 0 var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+.co-fv-summary .co-stat {
+  min-width: 0;
+  padding-left: var(--s3);
+  border-left: 2px solid var(--neon-deep);
+}
+.co-fv-summary .co-stat span {
+  display: block;
+  color: var(--ink-3);
+  font-size: var(--t-micro);
+}
+.co-fv-summary .co-stat b {
+  display: block;
+  margin-top: 3px;
+  font-size: clamp(1rem, 1.6vw, 1.35rem);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.co-fv-summary .co-stat small {
+  display: none;
+}
+.co-kicker {
+  margin: 0 0 var(--s1);
+  color: var(--ink-3);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.co-fv-badge {
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-pill);
+  padding: 3px var(--s2);
+  color: var(--ink-2);
+  font-size: var(--t-micro);
+  white-space: nowrap;
+}
+.co-fv-badge.is-low {
+  border-color: color-mix(in srgb, var(--down) 50%, var(--rule-2));
+  color: var(--down);
+}
+.co-fv-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s4) 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.co-fair-value .co-chart {
+  margin-top: var(--s3);
+}
+.co-fair-value .co-line {
+  stroke: #38a9e8;
+}
+.co-fair-value .co-area {
+  fill: #38a9e8;
+}
+.co-valuation-divider {
+  stroke: var(--rule-2);
+  stroke-dasharray: 3 4;
+}
+.co-valuation-label,
+.co-valuation-sub,
+.co-valuation-value {
+  font-family: var(--ui);
+  font-variant-numeric: tabular-nums;
+}
+.co-valuation-label {
+  fill: var(--ink-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+.co-valuation-sub {
+  fill: var(--ink-3);
+  font-size: 9px;
+}
+.co-valuation-band {
+  fill: color-mix(in srgb, #b34cf0 20%, transparent);
+  stroke: color-mix(in srgb, #b34cf0 45%, transparent);
+}
+.co-valuation-target {
+  stroke: #b34cf0;
+  stroke-width: 2.5;
+}
+.co-valuation-dot {
+  fill: #b34cf0;
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.co-valuation-value {
+  fill: #b34cf0;
+  font-size: 11px;
+  font-weight: 700;
+}
+.co-fv-hero > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+.co-fv-hero span {
+  color: var(--ink-3);
+  font-size: var(--t-small);
+}
+.co-fv-hero b {
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  font-variant-numeric: tabular-nums;
+}
+.co-fv-range {
+  margin: var(--s3) 0;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+.co-fv-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s4);
+  margin: var(--s4) 0;
+}
+.co-fv-stats .co-stat b {
+  font-size: var(--t-body);
+}
+.co-fv-models,
+.co-fv-sensitivity {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s2);
+}
+.co-fv-models > div,
+.co-fv-sensitivity > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--t-small);
+}
+.co-fv-models span,
+.co-fv-sensitivity span {
+  color: var(--ink-3);
+}
+.co-fv-models b,
+.co-fv-sensitivity b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.co-fv-details {
+  margin-top: var(--s4);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s3);
+}
+.co-fv-details summary {
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+.co-fv-assumptions {
+  display: grid;
+  gap: var(--s2);
+  padding-top: var(--s3);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+.co-fv-assumptions p {
+  margin: 0;
+}
+.co-fv-sensitivity {
+  margin-top: var(--s2);
+}
+.co-fv-warnings {
+  display: grid;
+  gap: var(--s1);
+  margin: var(--s4) 0 0;
+  padding-left: var(--s4);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+.co-fv-warning {
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+.co-fv-provenance {
+  margin: var(--s4) 0 var(--s1);
+  color: var(--ink-3);
+  font-size: var(--t-micro);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .co-fv-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .co-fv-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-16. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-26. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,10 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Indian data from the close (2026-10-26, ADR-079):** `make india-live` retries the Indian steps from 15:31
+  until the bhavcopy and minute bars are in. Coverage reads **missing** from 15:31. Minute-built bars stand in until the
+  bhavcopy lands. They are not used by the panel or the paper books. F&O stocks' minute bars end at 15:14 since the
+  closing auction began on 3 Aug (HISTORY #29, T-4137). Neither launchd job (15:31, 19:30) is loaded on this Mac yet (T-4138).
 - **Quality and speed (2026-10-16, ADR-077):** all work committed. Intraday screens share
   `screen_common` (−356 lines, same numbers). `/api/window` <1 ms (was 1.1 s), options history
   5 ms warm (was 3.2 s), Research Library 43 ms (was 0.33 s), B2 status 3 ms, dashboard reopened 0.35 s.

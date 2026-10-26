@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Twenty-three times this project was wrong
+## Twenty-nine times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -256,6 +256,89 @@ earlier; these two were never changed. Fixed: `server._bounded` shuts the pool
 down without waiting, and a test fails if a deadline waits for the work. No
 stored number depended on it; only how long a broken broker could stall the
 dashboard.
+
+**24. The research library's AI depended on one free model.** (2026-10-17)
+Both drafts (paper summary, strategy code) sent every request to the single
+model named in `config/llm.yaml`. When OpenRouter dropped that model's
+zero-retention endpoint, every draft failed before it was sent. Its own
+"free ZDR" list turned out to be unreliable too: of nine models listed, six had no such
+endpoint, two answered 403 ("agentic harnesses only"), and the one that served
+took 470 s and broke off mid-reply. Behind that, Next's proxy dropped any
+request over 30 s, so a slow success also failed in the browser, and a dropped
+connection (`IncompleteRead`) escaped as a 500. Fixed: `chat.complete_any`
+walks every model the locks allow, skips refusers for 30 minutes, bounds each
+try (150 s) and the walk (420 s); the proxy allows 600 s; a malformed reply
+counts as that model failing. No stored result depended on it. What it does not
+fix: with Groq's key invalid and Ollama not installed, no model may be up.
+
+**25. Money added or withdrawn was counted as profit or loss.** (2026-10-17)
+The engine's own `total_return` was time-weighted and correct, but the risk
+page, its live-against-backtest chart, the paper page's sparkline and the
+Telegram `pnl` reply all measured equity against the *starting* capital.
+Measured on the two deployments with flows: ₹10,000 plus ₹20,000 added showed
+**+200.59%**; it had made ₹59, **+0.40%**. ₹1,00,000 less ₹20,000 withdrawn
+showed **−19.97%**; it had made ₹35, **+0.30%**. Drawdown and the "last
+session" figure jumped on the flow day the same way, and the live line left
+the backtest band for no reason. Every since-start, drawdown and band verdict
+shown for a deployment with flows before this date is invalid. Fixed:
+`risk.book.growth` takes flows out; `tests/test_risk_book.py` pins a deposit
+and a withdrawal.
+
+**26. A position rule paid STT to re-size every holding every day.** (2026-10-18)
+Research 113's position strategies (`github_daily.PositionRule`) and three
+others gave every stock in a trade 1/max(n, slots) of capital. With a hundred
+names above a golden cross, each day's change in n trimmed or topped up all of
+them: 122,004 fills for the golden cross, 239,553 for MACD, 171,132 for Turtle.
+The repositories hold a fixed position to the exit. Fixed: fixed 1/slots, the
+longest-held kept. Per year, before -> after: golden cross 12.9% -> 18.3%,
+Supertrend 7.9% -> 17.5%, Turtle 7.1% -> 13.5%; MACD +3.1% -> -4.7% and the
+high-volume premium 8.4% -> 5.5% (their old versions were costly index funds).
+Every first-pass figure for those eight strategies is invalid; research 113
+states both.
+
+**27. `--from`/`--to` never reached the daily engine.** (2026-10-18) The batch
+read only `days` and ran every daily request over the panel's whole span; only
+the intraday path applied an explicit window. Research 113's event strategies,
+asked for 2021-08 to 2024-11, ran 2016-2026 and kept trading into 2025, and
+were compared with the Nifty over the wrong dates. Fixed: `server.windowed`
+keeps a year of warmup before the start, and the adjusted-price cache is keyed
+on the window too. Any earlier run that passed `--from`/`--to` to the daily
+batch (`make india-papers` defaults among them) ran on the whole panel instead;
+for ten-year windows the difference is the last few weeks.
+
+**28. A stock that left the data stayed in the book, and buys spent cash that was not there.** (2026-10-18, finished 2026-10-27)
+Both engines kept positions by symbol. A stock renamed while held (TATAGLOBAL
+-> TATACONSUM) or delisted had no more prices, so its position could never be
+sold and stayed frozen at its last price. Buys were sized on the decision day's
+equity and filled whatever the sells raised, so a sell that failed or fetched
+less left cash negative: leverage the strategy never asked for. Fixed: the
+panel carries each ISIN under its current symbol (`canonical_symbols`); a
+holding with no later row is sold at its last price; sells go before buys, and
+no buy goes beyond the cash on hand (0.3% held back for charges). Tier B got
+this on 2026-10-18 and Tier A did not, so the two engines disagreed (4.5e-05)
+until 2026-10-27, when Tier A got the same rules (back to 1.4e-16). The golden
+file moved by Rs 74.62 of Rs 16.7 lakh (0.0045%), all from trimmed last buys:
+with the cash rule off it reproduces the old file exactly. Any stored backtest
+that held a renamed or delisted stock, or rebalanced from a sell that fetched
+less than planned, is affected. The size of that effect on stored results was
+not measured (T-4139). The paper attribution split also paired a buy in one
+book with a sell in the other on the same day, and stopped closing (Rs 2,875
+residual on its test). Fixed the same day.
+
+**29. An F&O stock's minute bars end at 15:14, not 15:29.** (2026-10-26) The
+minute ingest, and the first version of provisional bars (ADR-079), took a
+session as complete only at its 15:29 candle. From 2026-08-03, F&O stocks stop
+continuous trading at 15:15 for the closing auction (A-053), so Kite has no
+candle after 15:14 for them. On 2026-10-26, all 210 Kite symbols that ended at
+15:14 were stock-future underlyings in the F&O bhavcopy, and none of the 203
+that ended at 15:29 were. So the first provisional run left out every F&O
+stock as "incomplete" (203 bars where 413 were due). Fixed before commit:
+`provisional_daily.session_ends` accepts 15:14 from 2026-08-03. No stored
+number changed. Any rule that reads an F&O stock's bars after 15:14 since
+2026-08-03 (an exit "at 15:25", an end-of-day-reversal entry, a close taken
+from the last bar) never had them. Its intraday figures for those dates need
+rechecking (T-4137). For F&O stocks, NSE's close is the auction price, which no
+minute bar shows.
 
 ---
 

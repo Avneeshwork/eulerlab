@@ -351,11 +351,18 @@ export type RiskDeployment = {
   /** The book's VaR if this deployment were stopped. */
   var_without: number | null;
   gap: RiskGap | null;
+  /** Starting capital plus deposits, less withdrawals. */
   capital: number;
+  starting_capital: number;
+  /** Net deposits (+) or withdrawals (−) so far. */
+  moved: number;
   equity: number;
   cash: number;
   invested: number;
   positions: number;
+  /** Rupees: equity less the money put in. */
+  made: number;
+  /** Time-weighted: deposits and withdrawals are not returns. */
   since_start: number;
   today: number;
   volatility: number | null;
@@ -395,6 +402,7 @@ export type RiskBook = {
     invested: number;
     exposure: number;
     today: number;
+    moved: number;
     today_pct: number;
     since_start: number;
     since_start_pct: number;
@@ -471,6 +479,8 @@ export type FleetStrategy = {
   runnable: boolean;
   /** `overnight`: a close-to-next-open hold, run as a calculation (research 072). */
   engine: 'daily' | 'intraday' | 'overnight' | 'study';
+  /** Why paper trading cannot run it; empty when it can (`deploy.runner.paper_blocker`). */
+  deploy_blocker?: string;
   /** Put away by the operator: hidden from the default list, nothing else (ADR-069). */
   archived?: boolean;
   source: string;
@@ -739,6 +749,29 @@ export type FullReport = {
   orders: OrderRow[];
   rejections: { day: string; symbol: string; reason: string }[];
   equity: { days: string[]; values: number[] };
+  /** Set on a paper or live deployment's report (`deploy/analysis.py`). Its
+   *  `equity` is time-weighted; rupees made are here. */
+  deployment?: {
+    id: string;
+    mode: 'paper' | 'live';
+    status: string;
+    status_reason: string;
+    start: string;
+    starting_capital: number;
+    put_in: number;
+    equity: number;
+    made: number;
+    time_weighted_return: number;
+    flows: { day: string; amount: number }[];
+    slippage_bps: number;
+    actual_equity: number[];
+  };
+  /** The strategy's longest stored backtest, beside a deployment's figures. */
+  backtest?: {
+    period: [string, string] | null;
+    metrics: Partial<Record<'total_return' | 'annualised' | 'sharpe' | 'sortino' | 'volatility' | 'hit_rate' | 'best_day' | 'worst_day' | 'cost_drag' | 'turnover_x', number | null>>;
+    max_drawdown: number | null;
+  } | null;
 };
 
 export type OptionHistoryPoint = {
@@ -782,6 +815,121 @@ export type ReportResponse = {
   error?: string;
   report?: FullReport;
   runs?: RunChoice[];
+  attribution?: Attribution;
+};
+
+type Num = number | null;
+
+/** The detailed attribution (`attribution_detail.py`, research 115). */
+export type AttributionDetail = {
+  seconds: number;
+  market_label: string;
+  rebuild: { max_gap: Num; trusted: boolean; note: string };
+  exposure: {
+    invested_mean: Num;
+    invested_max: Num;
+    by_year: { year: number; invested: Num; holdings: Num; effective_holdings: Num }[];
+    frozen: { symbol: string; last_price: string; held_until: string; value: number }[];
+    note: string;
+  } | null;
+  brinson: {
+    months: number;
+    benchmark: string;
+    portfolio_buy_hold: Num;
+    benchmark_total: Num;
+    benchmark_annual: Num;
+    actual_total: Num;
+    active: Num;
+    allocation: Num;
+    selection: Num;
+    interaction: Num;
+    trading: Num;
+    sectors: { sector: string; allocation: Num; selection: Num; interaction: Num; total: Num; average_weight: Num; benchmark_weight: Num }[];
+  } | null;
+  factors: {
+    months: number;
+    period_from: string | null;
+    period_through: string | null;
+    market_label: string;
+    model_name: string;
+    source_url: string | null;
+    r_squared: Num;
+    adjusted_r_squared: Num;
+    alpha_annual: Num;
+    alpha_t: Num;
+    strategy_annual: Num;
+    risk_free_annual: Num;
+    inference: string;
+    yearly: { year: number; months: number; strategy_annual: Num; contributions: Record<string, Num> }[];
+    exposures: Record<string, { beta: Num; t: Num; factor_annual: Num; contribution_annual: Num }>;
+    factors: string;
+  } | null;
+  factor_note: string | null;
+  brinson_note: string | null;
+  rolling: { month: string; beta: Num; alpha_annual: Num }[];
+  risk: {
+    as_of: string;
+    volatility_annual: Num;
+    invested: Num;
+    holdings: { symbol: string; weight: Num; share_of_risk: Num }[];
+    sectors: { sector: string; share_of_risk: Num }[];
+  } | null;
+  drawdowns: { peak: string; trough: string; recovered: string | null; depth: Num; days_to_trough: number; worst: { symbol: string; loss: number; share: Num }[] }[];
+  months: Record<'best' | 'worst', { month: string; return: Num; drivers: { symbol: string; profit: number }[] }[]>;
+  trades: {
+    closed: number;
+    best_1pct_trades?: number;
+    best_1pct_share_of_gross_profit?: Num;
+    payoff_ratio?: Num;
+    by_holding_period?: { holding: string; trades: number; net: number; win_rate: Num; average_return: Num }[];
+    by_sector?: { sector: string; trades: number; net: number; win_rate: Num }[];
+  };
+  capacity: {
+    entries: number;
+    participation: number;
+    note?: string;
+    median_days_to_trade: Num;
+    p90_days_to_trade: Num;
+    capital_where_90pct_trade_in_a_day: number;
+    capital_where_median_trades_in_a_day: number;
+    tightest: { symbol: string; day: string; capital_for_one_day: number }[];
+  } | null;
+};
+
+/** Where a report's return came from (`attribution.py`). */
+export type Attribution = {
+  holdings: {
+    net_profit: number;
+    names: number;
+    winners: number;
+    losers: number;
+    share_of_profit: Record<'top_1' | 'top_5' | 'top_10', number | null>;
+    share_of_gross_profit: Record<'top_1' | 'top_5' | 'top_10', number | null>;
+    names_for_half: number | null;
+    names_for_four_fifths: number | null;
+    without_top_1: { total_return: number | null; annualised: number | null };
+    without_top_5: { total_return: number | null; annualised: number | null };
+    best: { symbol: string; contribution: number }[];
+    worst: { symbol: string; contribution: number }[];
+  };
+  sectors: Record<'sector' | 'industry', { name: string; contribution: number; share: number | null; names: number; winners: number }[]> | null;
+  years: { year: string; return: number | null; trading_profit: number; top_symbol: string | null; top_profit: number | null; top_share: number | null }[];
+  market: {
+    beta: number | null;
+    alpha_annual: number | null;
+    r_squared: number | null;
+    correlation: number | null;
+    strategy_total: number | null;
+    market_total: number | null;
+    from: string;
+    through: string;
+    strategy_mean_annual: number | null;
+    market_mean_annual: number | null;
+    from_market_annual: number | null;
+    days: number;
+    index: string;
+  } | null;
+  note: string;
 };
 
 export type WindowInfo = {
@@ -1507,6 +1655,18 @@ export const api = {
   preflight: (strategy: string, mode: 'paper' | 'live', workspace = '') =>
     post<Preflight>('/api/deploy/preflight', { strategy, mode, workspace }),
   deployments: () => get<{ deployments: Deployment[] }>('/api/deployments'),
+  reportAttribution: (strategy: string, workspace = '', configuration = '') =>
+    get<{ ok: boolean; detail?: AttributionDetail; error?: string }>(
+      `/api/report/attribution?strategy=${encodeURIComponent(strategy)}&workspace=${encodeURIComponent(workspace)}&configuration=${encodeURIComponent(configuration)}`,
+    ),
+  deploymentAttribution: (id: string, workspace = '') =>
+    get<{ ok: boolean; detail?: AttributionDetail; error?: string }>(
+      `/api/deployments/${encodeURIComponent(id)}/attribution?workspace=${encodeURIComponent(workspace)}`,
+    ),
+  deploymentReport: (id: string, workspace = '') =>
+    get<{ ok: boolean; report?: FullReport; error?: string; attribution?: Attribution }>(
+      `/api/deployments/${encodeURIComponent(id)}/report?workspace=${encodeURIComponent(workspace)}`,
+    ),
   deployPreview: (strategy: string, capital: number) =>
     post<DeployPreview>('/api/deployments/preview', { strategy, capital }),
   deploy: (strategy: string, mode: 'paper' | 'live', capital: number) =>
@@ -1709,6 +1869,84 @@ export type CompanyPeer = {
   roe: number | null;
 };
 
+export type FairValue = {
+  status: 'available' | 'unavailable';
+  symbol?: string;
+  model_version?: string;
+  run_id?: string;
+  confidence?: string;
+  confidence_reason?: string;
+  reason?: string;
+  fair_value_per_share?: number | null;
+  current_price?: number | null;
+  upside?: number | null;
+  range_type?: 'roe_persistence_scenarios' | 'none';
+  valuation_method?: string;
+  price_as_of?: string;
+  fundamentals_as_of?: string;
+  fundamentals_path?: string;
+  sector_model?: string;
+  models?: Record<string, number | null>;
+  model_range?: { low: number; high: number } | null;
+  cost_of_equity?: {
+    rate: number;
+    uncapped_rate: number;
+    risk_free_rate: number;
+    risk_free_source: string;
+    risk_free_as_of: string;
+    risk_free_fallback: boolean;
+    premia: { market: number; size: number; value: number };
+    market_erp_as_of?: string;
+    premia_sources?: { market: string; size: string; value: string };
+    betas: { MF: number; SMB: number; HML: number };
+    raw_betas?: { MF: number; SMB: number; HML: number } | null;
+    beta_observations: number;
+    beta_fallback: boolean;
+    clamped?: boolean;
+    method?: string;
+    factor_release: string;
+    factor_through: string;
+    factor_premium_observations: Record<string, number>;
+    factor_source: string;
+    factor_sha256: string;
+    beta_source: string;
+    beta_sha256: string;
+  };
+  assumptions?: {
+    book_value_per_share: number;
+    reported_eps_per_share: number;
+    current_roe?: number;
+    historical_roe?: { period: string; roe: number }[];
+    terminal_roe_source?: string;
+    payout_ratio: number;
+    payout_assumed: boolean;
+    forecast_method: string;
+    forecast_roe: { year_1: number; year_2: number; year_3: number; year_5?: number; year_10?: number };
+    forecast_eps: { year_1: number; year_2?: number; year_5?: number; year_10?: number };
+    valuation_scenarios?: Record<string, {
+      value: number;
+      year_5_roe_anchor: number;
+      long_run_roe: number;
+      terminal_mode: string;
+      terminal_growth: number;
+      terminal_payout: number;
+      terminal_book_value: number;
+      terminal_value: number;
+      year_1_eps: number;
+      year_5_eps: number;
+      year_10_eps: number;
+      year_1_roe: number;
+      year_5_roe: number;
+      year_10_roe: number;
+      explicit_years: number;
+    }>;
+    book_value_roll_forward?: { year_1: number; year_2: number };
+    sector_model: string;
+    sensitivity: Record<string, number>;
+  };
+  warnings?: string[];
+};
+
 /** Everything held about one company. Statement figures are in ₹ crore;
  *  prices and per-share figures in ₹; `market_cap` in ₹. */
 export type CompanyPage = {
@@ -1753,11 +1991,17 @@ export type CompanyPage = {
     count: number;
     median_pe: number | null;
     pe_count?: number;
+    valuation_median_pe?: number | null;
+    valuation_median_pb?: number | null;
+    median_roe?: number | null;
     rows: CompanyPeer[];
   };
   price: {
     /** Adjusted closes, oldest first. */
     series: [string, number][];
+    /** Dividend-reinvested closes used for risk estimation. */
+    total_return_series?: [string, number][];
+    total_return_factor_through?: string;
     day?: string;
     close?: number;
     previous_close?: number | null;
@@ -1765,8 +2009,19 @@ export type CompanyPage = {
     volume?: number | null;
     high_52w?: number;
     low_52w?: number;
+    /** A session the bhavcopy has not reached yet, built from Kite minute bars. */
+    provisional?: {
+      d: string;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+      source: string;
+    };
   };
   news: { title: string; link: string; publisher: string; time: string }[];
+  fair_value?: FairValue;
   /** What a stock page usually shows and no landed file holds. */
   not_held: string[];
 };

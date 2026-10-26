@@ -67,7 +67,7 @@ const VERDICT: Record<RiskDeployment['against_backtest']['verdict'], string> = {
 
 const STATE_LABEL: Record<RiskLimit['state'], string> = { ok: 'OK', near: 'Near', over: 'Over' };
 
-export function RiskBookView({ view }: { view: View }) {
+export function RiskBookView({ view, onReport }: { view: View; onReport?: (deploymentId: string) => void }) {
   const [data, setData] = useState<RiskBookResponse | null>(null);
   const [problem, setProblem] = useState('');
 
@@ -91,7 +91,7 @@ export function RiskBookView({ view }: { view: View }) {
     <div className="rk">
       <Caveats risk={data} />
       {view === 'overview' && <Overview risk={data} />}
-      {view === 'performance' && <Performance risk={data} />}
+      {view === 'performance' && <Performance risk={data} onReport={onReport} />}
       {view === 'stress' && <Stress risk={data} />}
     </div>
   );
@@ -142,7 +142,7 @@ function Overview({ risk }: { risk: RiskBook }) {
         <div className="rk-tile">
           <span>Equity</span>
           <b>{lakh(b.equity)}</b>
-          <span>on {lakh(b.capital)} deployed · {b.deployments} deployment{b.deployments === 1 ? '' : 's'}</span>
+          <span>on {lakh(b.capital)} put in{b.moved ? ` (${b.moved > 0 ? 'with' : 'after'} ${lakh(Math.abs(b.moved))} ${b.moved > 0 ? 'added' : 'withdrawn'})` : ''} · {b.deployments} deployment{b.deployments === 1 ? '' : 's'}</span>
         </div>
         <div className="rk-tile">
           <span>Last session{risk.as_of ? `, ${risk.as_of}` : ''}</span>
@@ -403,7 +403,7 @@ function Histogram({ risk }: { risk: RiskBook }) {
   );
 }
 
-function Performance({ risk }: { risk: RiskBook }) {
+function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymentId: string) => void }) {
   const [picked, setPicked] = useState(risk.deployments.find((d) => !d.flat)?.id ?? risk.deployments[0]?.id ?? '');
   const chosen = risk.deployments.find((d) => d.id === picked) ?? risk.deployments[0];
   const biggest = Math.max(1, ...risk.deployments.map((d) => Math.abs(d.today)));
@@ -413,22 +413,27 @@ function Performance({ risk }: { risk: RiskBook }) {
     <>
       <section className="rk-card">
         <h3>Every deployment</h3>
-        <p className="rk-sub">One row each. Click a row to draw it in the chart below.</p>
+        <p className="rk-sub">One row each. Click a row to draw it in the chart below{onReport ? '; its name opens the full report' : ''}.</p>
         <div className="rk-scroll">
           <table className="rk-table" style={{ minWidth: 1240 }}>
             <thead>
               <tr>
-                <th scope="col">Deployment</th><th scope="col">Capital</th><th scope="col">Equity</th><th scope="col">Since start</th><th scope="col">Last session</th>
+                <th scope="col">Deployment</th><th scope="col" title="Starting capital plus deposits, less withdrawals">Put in</th><th scope="col">Equity</th><th scope="col" title="Rupees made, and the time-weighted return: adding or withdrawing money changes neither">Since start</th><th scope="col">Last session</th>
                 <th scope="col">Volatility, a year</th><th scope="col">VaR 95%, 1 day</th><th scope="col" title="The book's VaR if this deployment were stopped">Book VaR without it</th><th scope="col">Beta to Nifty</th><th scope="col">Drawdown now</th><th scope="col">Worst in backtest</th><th scope="col">Days live</th><th scope="col">Positions</th>
               </tr>
             </thead>
             <tbody className="rk-num">
               {risk.deployments.map((d) => (
                 <tr key={d.id} className="pick" aria-selected={d.id === chosen?.id} tabIndex={0} onClick={() => setPicked(d.id)} onKeyDown={(event) => event.key === 'Enter' && setPicked(d.id)}>
-                  <td className="name" title={d.title}><span className="rk-dot" style={{ display: 'inline-block', marginRight: 8, background: colourOf(d.slot) }} />{d.title}</td>
-                  <td>{lakh(d.capital)}</td>
+                  <td className="name" title={d.title}>
+                    <span className="rk-dot" style={{ display: 'inline-block', marginRight: 8, background: colourOf(d.slot) }} />
+                    {onReport && d.days_live > 0 ? (
+                      <button type="button" className="rk-link" onClick={(event) => { event.stopPropagation(); onReport(d.id); }}>{d.title}</button>
+                    ) : d.title}
+                  </td>
+                  <td title={d.moved ? `${lakh(d.starting_capital)} at the start, ${d.moved > 0 ? '+' : '−'}${lakh(Math.abs(d.moved))} moved since` : undefined}>{lakh(d.capital)}</td>
                   <td>{lakh(d.equity)}</td>
-                  <td>{pct(d.since_start, 2, true)}</td>
+                  <td>{signedInr(d.made)} ({pct(d.since_start, 2, true)})</td>
                   <td>{signedInr(d.today)}</td>
                   <td>{d.flat ? '—' : pct(d.volatility, 0)}</td>
                   <td>{d.flat || d.var95 === null ? '—' : inr(d.var95)}</td>
@@ -441,7 +446,7 @@ function Performance({ risk }: { risk: RiskBook }) {
                 </tr>
               ))}
               <tr style={{ fontWeight: 600 }}>
-                <td>The book</td><td>{lakh(b.capital)}</td><td>{lakh(b.equity)}</td><td>{pct(b.since_start_pct, 2, true)}</td><td>{signedInr(b.today)}</td>
+                <td>The book</td><td>{lakh(b.capital)}</td><td>{lakh(b.equity)}</td><td>{signedInr(b.since_start)} ({pct(b.since_start_pct, 2, true)})</td><td>{signedInr(b.today)}</td>
                 <td>{pct(b.volatility, 1)}</td><td>{risk.enough_history ? inr(b.var95) : '—'}</td><td>—</td><td>{b.beta === null ? '—' : b.beta.toFixed(2)}</td><td>{pct(b.drawdown.now, 1)}</td><td>—</td><td>{b.curve.length}</td><td>{b.names}</td>
               </tr>
             </tbody>
@@ -453,7 +458,7 @@ function Performance({ risk }: { risk: RiskBook }) {
             <p className="rk-sub">No longer trading, so in none of the figures on these pages. Kept here with what each made.</p>
             <div className="rk-scroll">
               <table className="rk-table">
-                <thead><tr><th scope="col">Deployment</th><th scope="col">Capital</th><th scope="col">Ended at</th><th scope="col">Made</th><th scope="col">Days live</th><th scope="col">Last day</th></tr></thead>
+                <thead><tr><th scope="col">Deployment</th><th scope="col">Put in</th><th scope="col">Ended at</th><th scope="col">Made</th><th scope="col">Days live</th><th scope="col">Last day</th></tr></thead>
                 <tbody className="rk-num">
                   {risk.stopped.map((d) => (
                     <tr key={d.id}>
@@ -473,7 +478,7 @@ function Performance({ risk }: { risk: RiskBook }) {
         <section className="rk-card wide">
           <h3>Live against its backtest</h3>
           <p className="rk-sub" title={chosen?.title}>
-            {chosen?.title}. The shaded band is where its backtest says equity should be after this many days, nine times in ten. A line that leaves the band is not behaving as tested.
+            {chosen?.title}. The shaded band is where its backtest says equity should be after this many days, nine times in ten. A line that leaves the band is not behaving as tested. Deposits and withdrawals are taken out of the line, as the backtest has none.
           </p>
           {chosen && <Band deployment={chosen} colour={colourOf(chosen.slot)} />}
         </section>
@@ -503,13 +508,13 @@ function Performance({ risk }: { risk: RiskBook }) {
       <div className="rk-row">
         <section className="rk-card wide">
           <h3>Drawdown of the book</h3>
-          <p className="rk-sub">How far the whole book&rsquo;s equity sits below its highest point so far. Zero means a new high.</p>
+          <p className="rk-sub">How far the whole book&rsquo;s return sits below its best so far, with deposits and withdrawals taken out. Zero means a new high.</p>
           <Underwater risk={risk} />
         </section>
 
         <section className="rk-card narrow">
           <h3>Who made and lost money in the last session</h3>
-          <p className="rk-sub">Each deployment&rsquo;s change in equity{risk.as_of ? ` on ${risk.as_of}` : ''}. They sum to {signedInr(b.today)}.</p>
+          <p className="rk-sub">Each deployment&rsquo;s profit or loss{risk.as_of ? ` on ${risk.as_of}` : ''}, not counting money added or withdrawn. They sum to {signedInr(b.today)}.</p>
           <div className="rk-bars">
             {risk.deployments.map((d) => (
               <div className="rk-bar-row" key={d.id}>

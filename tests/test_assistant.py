@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from eulerlab.assistant import chat, redact, tools
+from eulerlab.llm import client as client_mod
 from eulerlab.llm.client import LLMConfig, Provider
 
 GROQ = Provider(
@@ -328,3 +329,108 @@ def test_a_pick_from_the_list_passes_the_same_locks() -> None:
         chat.provider(config, "openai")
     with pytest.raises(chat.Refused, match="no provider named"):
         chat.provider(config, "made-up")
+
+
+OPENROUTER = Provider(
+    name="openrouter-private",
+    base_url="https://openrouter.ai/api/v1",
+    model="gone:free",
+    api_key_var="OPENROUTER_API_KEY",
+)
+
+
+def _catalogue(
+    monkeypatch: pytest.MonkeyPatch, outcomes: dict[str, Any], listed: list[str]
+) -> list[str]:
+    """Each model answers with its text, or raises its exception; returns who was asked."""
+    asked: list[str] = []
+
+    def fake_complete(system: str, user: str, *, chosen: Provider | None = None) -> chat.Answer:
+        assert chosen is not None and chosen.base_url == OPENROUTER.base_url
+        asked.append(chosen.model)
+        outcome = outcomes[chosen.model]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return chat.Answer(outcome, chosen.name, chosen.model, "openrouter.ai")
+
+    monkeypatch.setattr(chat, "selected_provider", lambda name="", model="": OPENROUTER)
+    monkeypatch.setattr(chat, "complete", fake_complete)
+    monkeypatch.setattr(chat, "_DEAD", {})
+    monkeypatch.setattr(chat, "_LAST_GOOD", [])
+    monkeypatch.setattr(client_mod, "load_config", lambda: _config(OPENROUTER))
+    monkeypatch.setattr(
+        chat, "openrouter_zdr_models", lambda: [{"id": m, "name": m} for m in listed]
+    )
+    return asked
+
+
+def test_a_model_gone_from_the_catalogue_falls_through_to_one_that_answers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2026-10-17: the configured free model left OpenRouter's ZDR list and
+    every research-library draft failed before it was sent."""
+    asked = _catalogue(
+        monkeypatch,
+        {
+            "gone:free": chat.ModelUnavailable("no ZDR endpoint", served=False),
+            "harness-only:free": chat.ModelUnavailable("HTTP 403", served=False),
+            "bad-json:free": "not json",
+            "good:free": '{"ok": 1}',
+        },
+        ["gone:free", "harness-only:free", "bad-json:free", "good:free"],
+    )
+
+    def accept(text: str) -> None:
+        json.loads(text)
+
+    answer = chat.complete_any("s", "u", accept=accept)
+    assert answer.model == "good:free"
+    assert asked == ["gone:free", "harness-only:free", "bad-json:free", "good:free"]
+
+
+def test_fallback_stops_after_three_answers_and_says_what_each_model_did(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    models = [f"m{i}:free" for i in range(6)]
+    asked = _catalogue(
+        monkeypatch, {m: chat.ModelUnavailable("timed out") for m in models}, models[1:]
+    )
+    first = OPENROUTER.model_copy(update={"model": "m0:free"})
+    monkeypatch.setattr(chat, "selected_provider", lambda name="", model="": first)
+    monkeypatch.setattr(client_mod, "load_config", lambda: _config(first))
+    with pytest.raises(chat.Refused, match=r"3 tried.*m0:free: timed out"):
+        chat.complete_any("s", "u")
+    assert asked == models[:3], "each served request spends free allowance"
+
+
+def test_a_model_the_operator_picked_is_not_swapped(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _catalogue(
+        monkeypatch,
+        {"gone:free": chat.ModelUnavailable("no ZDR endpoint", served=False), "good:free": "x"},
+        ["good:free"],
+    )
+    with pytest.raises(chat.Refused, match="no ZDR endpoint"):
+        chat.complete_any("s", "u", model="gone:free")
+    assert asked == ["gone:free"]
+
+
+def test_a_bad_key_is_not_retried_on_the_same_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked = _catalogue(
+        monkeypatch, {"gone:free": chat.Refused("HTTP 401"), "good:free": "x"}, ["good:free"]
+    )
+    with pytest.raises(chat.Refused, match="401"):
+        chat.complete_any("s", "u")
+    assert asked == ["gone:free"]
+
+
+def test_a_model_that_turned_us_away_is_skipped_next_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asked = _catalogue(
+        monkeypatch,
+        {"gone:free": chat.ModelUnavailable("no ZDR endpoint", served=False), "good:free": "x"},
+        ["good:free"],
+    )
+    assert chat.complete_any("s", "u").model == "good:free"
+    assert chat.complete_any("s", "u").model == "good:free"
+    assert asked == ["gone:free", "good:free", "good:free"]

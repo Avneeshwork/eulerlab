@@ -1,0 +1,32 @@
+id: jacobsen-zhang-2018-halloween-everywhere
+title: 'The Halloween Indicator, ''Sell in May and Go Away'': Everywhere and All the Time'
+authors: Jacobsen, B., Zhang, C. Y.
+year: 2018
+kind: paper
+source_url: https://www.bnains.org/backtest/periode/The_Halloween_Indicator_everywhere_and_all_the_time_-_Ben_Jacobsen_%26_Cherry_Y._Zhang.pdf
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- 114 stock markets, over 320 years
+summary: Stock returns from November to April exceed those from May to October by about 4.5
+  points a year on average, in 89 of 114 markets (significant in 42), and by about 6.25 points
+  over the last 50 years; a sell-in-May strategy beat the market over five-year horizons more
+  than 80% of the time.
+trade_idea: Equities earn their premium mostly in winter; holding cash through summer gives
+  up little.
+implementation: |-
+  - Long equities November-April, cash May-October.
+
+  Here: india_halloween_nifty, NIFTYBEES Nov-Apr, LIQUIDBEES May-Oct.
+red_flags:
+- India's own coefficient not read from the country tables.
+- A calendar rule with no economic mechanism agreed on; a 2020 study calls it a statistical
+  quirk.
+reported_results: 'Reported: winter minus summer about 4.5 points a year on average.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_halloween_nifty
+  note: ''
+  timeframe: 0

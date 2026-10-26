@@ -85,7 +85,8 @@ type PageId =
   | 'data'
   | 'sip'
   | 'research'
-  | 'report';
+  | 'report'
+  | 'deployment';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
 
@@ -161,7 +162,13 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
   research: { title: 'Research Library', sub: 'Every paper behind a strategy, and how its strategies did.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
+  deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
 };
+
+/** The strategy in a deployment id, `{mode}-{strategy}-{YYYY-MM-DD}-{hash}` (deploy/deployments.py). */
+function strategyOfDeployment(id: string): string {
+  return id.match(/^(?:paper|live)-(.+)-\d{4}-\d{2}-\d{2}-[0-9a-f]{6}$/)?.[1] ?? '';
+}
 
 const PAGE_IDS = Object.keys(TITLES) as PageId[];
 
@@ -275,6 +282,8 @@ export default function TerminalPage() {
   );
 
   const reporting = fleet?.strategies.find((s) => s.id === reportId) ?? null;
+  const deployedStrategy =
+    page === 'deployment' ? (fleet?.strategies.find((s) => s.id === strategyOfDeployment(reportId)) ?? null) : null;
   const heading = TITLES[page];
   const activeNav: PageId = heading.parent ?? page;
 
@@ -412,6 +421,23 @@ export default function TerminalPage() {
             </div>
           ))}
 
+        {page === 'deployment' &&
+          (deployedStrategy ? (
+            <BacktestReport
+              key={reportId}
+              strategy={deployedStrategy}
+              deployment={reportId}
+              bar={fleet?.bar ?? null}
+              workspace={workspace}
+              backLabel="Live & Risk"
+              onBack={() => setPage('live')}
+            />
+          ) : (
+            <div className="tempty">
+              {fleet ? 'No deployment by that name.' : 'Reading the registry…'}
+            </div>
+          ))}
+
         {page === 'charts' && <ChartTab />}
         {page === 'options' && <OptionsTab />}
 
@@ -445,12 +471,13 @@ export default function TerminalPage() {
               </button>
             </div>
             {liveView === 'overview' || liveView === 'performance' || liveView === 'stress' ? (
-              <RiskBookView view={liveView} />
+              <RiskBookView view={liveView} onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'deploy' ? (
               <LiveTab
                 fleet={fleet?.strategies ?? []}
                 workspace={workspace}
                 onDeploy={setDeploying}
+                onReport={(id) => setPage('deployment', id)}
               />
             ) : (
               <RiskTab />

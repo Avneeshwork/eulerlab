@@ -1,0 +1,34 @@
+id: chan-jegadeesh-lakonishok-1996-announcement-drift
+title: Momentum Strategies
+authors: Chan, L. K. C., Jegadeesh, N., Lakonishok, J.
+year: 1996
+kind: paper
+source_url: https://doi.org/10.1111/j.1540-6261.1996.tb05222.x
+pdf: ''
+added: '2026-10-18'
+status: specified
+markets:
+- US stocks; Indian drift 2002-2017 in Theoretical Economics Letters (research 113)
+summary: 'Prices drift in the direction of earnings news for months: stocks with the best
+  reaction around their announcement keep outperforming. Indian evidence finds drift in the
+  direction of the surprise over 2002-2017, with another study finding none in 2014-2018.'
+trade_idea: The market underreacts to results; a strong first reaction is followed by more.
+implementation: |-
+  - Earnings news measured by the announcement-window return as well as by the surprise.
+
+  Here: india_announcement_drift, two-day return around NSE's disclosure less NIFTYBEES, top fifth of stocks that reported 2-60 sessions ago, weekly. 2021-08 to 2024-11.
+red_flags:
+- Indian evidence is mixed by period; drift is clearest after bad news, which a long-only
+  book cannot use.
+- Short data window.
+reported_results: 'Reported: drift persisting for months after the announcement.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: india_announcement_drift
+  note: ''
+  timeframe: 0
+- kind: registered
+  id: india_drift_momentum_combo
+  note: ''
+  timeframe: 0

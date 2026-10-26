@@ -297,34 +297,45 @@ def pnl(_: str = "") -> str:
     from eulerlab import telegram_bot
     from eulerlab.deploy import deployments as store
     from eulerlab.deploy.signals import title_of
+    from eulerlab.risk import book as rb
 
     found = telegram_bot._deployments()
     if not found:
         return "No active deployments."
     lines: list[str] = []
-    totals: dict[str, list[float]] = {}
+    totals: dict[str, list[rb.Book]] = {}
     for number, deployment in enumerate(found, start=1):
         state = store.read_state(deployment) or {}
         equity = state.get("equity")
         if not isinstance(equity, int | float):
             lines.append(f"{number}. {title_of(deployment.strategy_id)}: not run yet")
             continue
-        curve = [p for p in state.get("curve") or [] if isinstance(p, list) and len(p) == 2]
+        # Deposits and withdrawals are not profit: the gain is equity less the
+        # money put in, the percentage time-weighted (`risk.book.growth`).
+        book = rb.book_from_state(
+            deployment.id, deployment.strategy_id, "", deployment.capital, "", state
+        )
+        path = book.growth()
         day = ""
-        if len(curve) > 1 and curve[-2][1]:
-            day = f" · {curve[-1][0]}: {_pct(curve[-1][1] / curve[-2][1] - 1, 2)}"
-        gain = float(equity) - float(deployment.capital)
+        if len(path) > 1 and path[-2][1]:
+            day = f" · {path[-1][0]}: {_pct(path[-1][1] / path[-2][1] - 1, 2)}"
         lines.append(
             f"{number}. {title_of(deployment.strategy_id)}\n"
-            f"   ₹{gain:+,.0f} ({_pct(gain / float(deployment.capital), 2)}){day}"
+            f"   ₹{book.made:+,.0f} ({_pct(book.total_return, 2)}){day}"
         )
-        sums = totals.setdefault(deployment.mode.upper(), [0.0, 0.0])
-        sums[0] += float(deployment.capital)
-        sums[1] += float(equity)
-    for mode, (capital, equity) in sorted(totals.items()):
+        totals.setdefault(deployment.mode.upper(), []).append(book)
+    for mode, books in sorted(totals.items()):
+        deployed = sum(b.deployed for b in books)
+        equity = sum(b.equity for b in books)
+        # The same whole-book return as the risk page (`risk.report.build`).
+        path = rb.growth(
+            rb.combined_curve(books),
+            [flow for b in books for flow in b.flows],
+            sum(b.capital for b in books),
+        )
         lines.append(
-            f"{mode} in all: ₹{equity:,.0f} from ₹{capital:,.0f}, "
-            f"₹{equity - capital:+,.0f} ({_pct(equity / capital - 1, 2)})"
+            f"{mode} in all: ₹{equity:,.0f} from ₹{deployed:,.0f} put in, "
+            f"₹{equity - deployed:+,.0f} ({_pct(path[-1][1] - 1 if path else 0.0, 2)})"
         )
     return "\n".join(lines)
 
