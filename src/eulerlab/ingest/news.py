@@ -51,17 +51,20 @@ import gzip
 import io
 import json
 import re
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 LANDING = Path("data/landing/news")
 NAMES_LANDING = Path("data/landing/names")
@@ -818,6 +821,48 @@ def affected(title: str, *, limit: int = 6) -> Affected:
     return Affected(symbols=found, sectors=tuple(seen))
 
 
+_PARSED: OrderedDict[bytes, list[tuple[datetime, dict[str, Any]]]] = OrderedDict()
+_PARSED_LOCK = threading.Lock()
+
+
+def _dated_rows(payload: bytes) -> list[tuple[datetime, dict[str, Any]]]:
+    """A month file's stories with their parsed `event_time`, parsed once per content.
+
+    The dashboard refreshes every few seconds and re-parsed 37,766 lines each
+    time: 0.48 s of its 0.7 s (2026-10-27). Keyed by a hash of the bytes, so a
+    file the sweep has appended to is parsed again. Rows are shared between
+    callers and must not be changed.
+    """
+    import hashlib
+
+    import orjson
+
+    key = hashlib.blake2b(payload, digest_size=16).digest()
+    with _PARSED_LOCK:
+        if key in _PARSED:
+            _PARSED.move_to_end(key)
+            return _PARSED[key]
+    rows: list[tuple[datetime, dict[str, Any]]] = []
+    for line in gzip.decompress(payload).splitlines():
+        if not line.strip():
+            continue
+        try:
+            try:
+                row = orjson.loads(line)
+            except orjson.JSONDecodeError:
+                # What the reader did before: undecodable bytes replaced.
+                row = json.loads(line.decode("utf-8", errors="replace"))
+            when = datetime.fromisoformat(str(row.get("event_time", "")))
+        except (ValueError, AttributeError):
+            continue
+        rows.append((when, row))
+    with _PARSED_LOCK:
+        _PARSED[key] = rows
+        while len(_PARSED) > 8:
+            _PARSED.popitem(last=False)
+    return rows
+
+
 def recent(
     symbols: list[str],
     *,
@@ -868,23 +913,12 @@ def recent(
             # archive only goes back as far as the first sweep.
             continue
 
-        for line in gzip.decompress(payload).decode("utf-8", errors="replace").splitlines():
-            if not line.strip():
+        for when, row in _dated_rows(payload):
+            if when < cutoff:
                 continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-
             tickers = {str(s).upper() for s in _as_list(row.get("symbols"))}
             hit = tickers & wanted
             if not hit:
-                continue
-            try:
-                when = datetime.fromisoformat(str(row.get("event_time", "")))
-            except ValueError:
-                continue
-            if when < cutoff:
                 continue
 
             title = str(row.get("title", ""))
@@ -976,25 +1010,14 @@ def recent_all(
             except (OSError, ValueError, FileNotFoundError):
                 continue
 
-            text = gzip.decompress(payload).decode("utf-8", errors="replace")
-            for line in text.splitlines():
-                if not line.strip():
-                    continue
-                try:
-                    row = json.loads(line)
-                except json.JSONDecodeError:
+            for when, row in _dated_rows(payload):
+                if when < cutoff:
                     continue
                 if not row.get("matched"):
                     # The archive keeps unmatched rows on purpose; a tape is
                     # still a claim about relevance, so they stay out of it.
                     continue
                 if formulaic(str(row.get("title", ""))):
-                    continue
-                try:
-                    when = datetime.fromisoformat(str(row.get("event_time", "")))
-                except ValueError:
-                    continue
-                if when < cutoff:
                     continue
 
                 guid = str(row.get("guid", ""))

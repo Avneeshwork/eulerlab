@@ -1785,6 +1785,18 @@ always list live. `/api/data` answers before the panel is in memory and starts
 the read; the Data tab asks again until the counts arrive. After a restart:
 `/api/data` 37 s → under 1 s, and `/api/instruments` 11.8 s → 0.15 s.
 
+**Repeated reads removed (2026-10-27).** `filecache.FileMemo` keeps a parsed
+file until its modification time or size changes. The landing census
+(`manifest.load`) was parsed 16 times per dashboard snapshot, and each
+strategy's result log once per row. `adopted.read()` sat inside a list
+comprehension and ran 143 times per snapshot; it now runs once. News month
+files are parsed once per content (`news._dated_rows`, keyed by a hash of the
+bytes), and the outputs were checked identical on the real files. Warm
+`/api/snapshot`: 0.68 s → 0.18 s. Each day's straddle point is kept in
+`data/cache/options_history.jsonl` (`HISTORY_POINT_VERSION` retires old
+points), and missing days are computed four at a time. The first options
+chart after a restart waited 29 s.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

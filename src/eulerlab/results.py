@@ -40,6 +40,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eulerlab.filecache import FileMemo
 from eulerlab.workspace import Workspace
 
 CURVE_POINTS = 64
@@ -233,7 +234,15 @@ def record(workspace: Workspace, run: Run) -> Path:
 
 
 def _read_rows(workspace: Workspace, strategy_id: str) -> list[dict[str, Any]]:
-    path = _path(workspace, strategy_id)
+    """The strategy's log, parsed once per version of the file (`filecache`).
+
+    The strategy table asked once per row, 261 times per dashboard snapshot,
+    and re-parsed every unchanged log each time (2026-10-27). Shared: callers
+    read the rows and never change them."""
+    return _ROWS(_path(workspace, strategy_id))
+
+
+def _parse_rows(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     out: list[dict[str, Any]] = []
@@ -247,6 +256,9 @@ def _read_rows(workspace: Workspace, strategy_id: str) -> list[dict[str, Any]]:
             # finished being written is not a result.
             continue
     return out
+
+
+_ROWS = FileMemo(_parse_rows)
 
 
 def drop_duplicates(workspace: Workspace, *, dry_run: bool = True) -> dict[str, tuple[int, int]]:

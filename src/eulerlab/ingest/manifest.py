@@ -38,6 +38,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from eulerlab.filecache import FileMemo
+
 PATH = Path("data/derived/landing_manifest.json")
 
 TREES: tuple[tuple[str, str, str], ...] = (
@@ -189,6 +191,7 @@ def save(manifest: Manifest, path: Path = PATH) -> Path:
     tmp = path.with_suffix(".partial")
     tmp.write_text(json.dumps(payload, indent=1), encoding="utf-8")
     tmp.replace(path)
+    _LOADED.clear()
     return path
 
 
@@ -198,7 +201,14 @@ def load(path: Path = PATH) -> Manifest | None:
     None rather than an empty manifest: an empty one would be indistinguishable
     from a landing zone with nothing in it, and the caller must be able to tell
     "not counted" from "counted, zero".
+
+    Parsed once per version of the file (`filecache`); a dashboard snapshot
+    asked 16 times. The result is shared: do not change it.
     """
+    return _LOADED(path)
+
+
+def _load(path: Path) -> Manifest | None:
     if not path.exists():
         return None
     try:
@@ -216,6 +226,9 @@ def load(path: Path = PATH) -> Manifest | None:
                 latest=str(row.get("latest", "")),
             )
     return out
+
+
+_LOADED = FileMemo(_load, size=8)
 
 
 def _main() -> None:

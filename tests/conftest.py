@@ -57,6 +57,19 @@ def _private_panel_copy(
 
 
 @pytest.fixture(autouse=True)
+def _private_options_history(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or appends to the server's saved straddle points."""
+    from eulerlab.api import server
+
+    folder = tmp_path_factory.mktemp("options_history")
+    monkeypatch.setattr(server, "OPTIONS_HISTORY_CACHE", folder / "points.jsonl")
+    monkeypatch.setattr(server, "_HISTORY_POINTS", {})
+    monkeypatch.setattr(server, "_history_loaded", False)
+
+
+@pytest.fixture(autouse=True)
 def _private_last_seen(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

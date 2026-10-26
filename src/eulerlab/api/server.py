@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import os
 import statistics
 import threading
@@ -4062,7 +4063,8 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     fleet_rows = list(strategy_fleet(tenant.ledger))
     # Same adopted results the library judges on, so the snapshot's count and
     # the library's flags cannot disagree about the same strategies.
-    clearing = [r for r in fleet_rows if _clears(tenant, r, bar, adopted_mod.read())]
+    adopted_results = adopted_mod.read()  # once, not once per row (143 reads)
+    clearing = [r for r in fleet_rows if _clears(tenant, r, bar, adopted_results)]
 
     return {
         "ok": True,
@@ -4468,6 +4470,42 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
 
 
 _HISTORY_POINTS: dict[tuple[str, str], dict[str, Any] | None] = {}
+
+OPTIONS_HISTORY_CACHE = Path("data/cache/options_history.jsonl")
+"""Each day's straddle point, kept across restarts. A landed bhavcopy never
+changes, so neither does its point; after a restart the first chart waited
+29 s to download and parse 60 of them again (2026-10-27)."""
+
+HISTORY_POINT_VERSION = "1"
+"""Bumped when `options.history.history_point` changes what it computes, so
+no point from an older calculation is served."""
+
+_HISTORY_LOCK = threading.Lock()
+_history_loaded = False
+
+
+def _load_history_points() -> None:
+    global _history_loaded
+    if _history_loaded:
+        return
+    _history_loaded = True
+    with contextlib.suppress(OSError):
+        for line in OPTIONS_HISTORY_CACHE.read_text(encoding="utf-8").splitlines():
+            with contextlib.suppress(ValueError, KeyError, TypeError):
+                row = json.loads(line)
+                if row["version"] == HISTORY_POINT_VERSION:
+                    _HISTORY_POINTS[(row["underlying"], row["day"])] = row["point"]
+
+
+def _keep_history_point(key: tuple[str, str], point: dict[str, Any] | None) -> None:
+    _HISTORY_POINTS[key] = point
+    line = {"version": HISTORY_POINT_VERSION, "underlying": key[0], "day": key[1], "point": point}
+    with contextlib.suppress(OSError, TypeError, ValueError):
+        OPTIONS_HISTORY_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        with OPTIONS_HISTORY_CACHE.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(line, sort_keys=True) + "\n")
+
+
 """One straddle-history point per (underlying, day), kept for the server's life.
 A landed bhavcopy never changes, so neither does its point; re-parsing 30 of
 them was 3.2 s of every warm request (measured 2026-10-16). A day whose chain
@@ -4490,17 +4528,29 @@ def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]
     from eulerlab.options.history import history_point
 
     listed = options_days(limit=max(1, min(days, 120)))
+    wanted = [(underlying.upper(), day) for day in reversed(listed["days"])]
+    with _HISTORY_LOCK:
+        _load_history_points()
+        missing = [key for key in wanted if key not in _HISTORY_POINTS]
+    computed: dict[tuple[str, str], dict[str, Any] | None] = {}
+
+    def compute(key: tuple[str, str]) -> None:
+        payload = _chain_payload(underlying, key[1], "", summary=True)
+        computed[key] = history_point(payload)
+        # A day whose chain could not be read is tried again next time.
+        if payload.get("ok"):
+            with _HISTORY_LOCK:
+                _keep_history_point(key, computed[key])
+
+    # Four at a time: each day is a download from B2, then a parse.
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="options-history") as pool:
+        list(pool.map(compute, missing))
+
     points: list[dict[str, Any]] = []
     skipped: list[str] = []
-    for day in reversed(listed["days"]):
-        key = (underlying.upper(), day)
-        if key in _HISTORY_POINTS:
-            point = _HISTORY_POINTS[key]
-        else:
-            payload = _chain_payload(underlying, day, "", summary=True)
-            point = history_point(payload)
-            if payload.get("ok"):
-                _HISTORY_POINTS[key] = point
+    for key in wanted:
+        day = key[1]
+        point = computed[key] if key in computed else _HISTORY_POINTS.get(key)
         if point is None:
             skipped.append(day)
         else:

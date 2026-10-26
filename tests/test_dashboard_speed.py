@@ -566,3 +566,38 @@ def test_the_data_route_answers_before_the_panel_is_read(monkeypatch: pytest.Mon
     assert answer["panel"] == {"loaded": False, "rows": 0}
     assert started == [True]
     assert "sources" in answer and "universes" in answer
+
+
+def test_straddle_points_survive_a_restart(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After a restart the first options chart waited 29 s (2026-10-27)."""
+    from eulerlab.api import server
+
+    days = ["2026-10-23", "2026-10-22"]
+    monkeypatch.setattr(server, "options_days", lambda limit=400: {"ok": True, "days": days})
+    calls: list[str] = []
+
+    def chain(underlying: str, day: str, expiry: str, *, summary: bool) -> dict[str, object]:
+        calls.append(day)
+        return {"ok": True, "day": day}
+
+    monkeypatch.setattr(server, "_chain_payload", chain)
+    monkeypatch.setattr(
+        "eulerlab.options.history.history_point", lambda payload: {"day": payload["day"]}
+    )
+    first = server.options_history("NIFTY", days=2)
+    assert sorted(calls) == sorted(days)
+    assert [p["day"] for p in first["points"]] == ["2026-10-22", "2026-10-23"]
+
+    # A restarted server: nothing in memory, the saved file still there.
+    monkeypatch.setattr(server, "_HISTORY_POINTS", {})
+    monkeypatch.setattr(server, "_history_loaded", False)
+    calls.clear()
+    again = server.options_history("NIFTY", days=2)
+    assert calls == [] and again == first
+
+    # A point from an older calculation is not served.
+    monkeypatch.setattr(server, "HISTORY_POINT_VERSION", "next")
+    monkeypatch.setattr(server, "_HISTORY_POINTS", {})
+    monkeypatch.setattr(server, "_history_loaded", False)
+    server.options_history("NIFTY", days=2)
+    assert sorted(calls) == sorted(days)
