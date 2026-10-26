@@ -548,3 +548,21 @@ def test_repeated_rows_are_dropped_and_the_library_says_the_same(
     ]
     assert (results.summary(workspace, "s"), results.best(workspace, "s")) == before
     assert results.drop_duplicates(workspace, dry_run=False) == {}
+
+
+def test_the_data_route_answers_before_the_panel_is_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After a restart `/api/data` waited 37 s for the panel (2026-10-27)."""
+    from eulerlab.api import server
+
+    started: list[bool] = []
+    from eulerlab.api.panels import PANEL
+
+    monkeypatch.setattr(PANEL, "loaded", lambda: False)
+    monkeypatch.setattr(server, "_load_panel_in_background", lambda: started.append(True))
+    monkeypatch.setattr(
+        PANEL, "rows", lambda days=0: pytest.fail("the route must not read the panel")
+    )
+    answer = server.data_status()
+    assert answer["panel"] == {"loaded": False, "rows": 0}
+    assert started == [True]
+    assert "sources" in answer and "universes" in answer

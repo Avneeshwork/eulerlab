@@ -1769,6 +1769,22 @@ identical rows (every field of all 5,420,230 compared). `make api` watches
 only `src/` for reloads (`--reload-dir src`): uvicorn polled all 64,323 files
 in the repo four times a second, a whole CPU core, all day.
 
+**The panel's columnar copy (2026-10-27).** `read_panel` keeps a Parquet copy
+of the renamed rows in `data/cache/price_panel.columns.parquet` (120 MB). The
+copy records the JSONL's size and modification time, and is read only while
+both match. The first read after a rebuild parses the JSONL (about 33 s of CPU)
+and writes the copy; every read after that takes about 8 s. All 5,420,230 rows
+are identical, value and type, to the JSONL reader. No copy is written if any
+number is not already a float. While the read runs it holds the interpreter
+lock, so a shorter read is what unblocks startup: `/api/data` took 0.29 s alone
+and 4 s during a read. `data/cache/` is never uploaded (`make sync-derived`
+mirrors all of `data/derived/`). It also holds the screens' saved bucket
+listings (`landing_reader.LISTING_DIR`): after a restart a screen gets the last
+listing at once and a new one is fetched behind it. Backtests and ingests
+always list live. `/api/data` answers before the panel is in memory and starts
+the read; the Data tab asks again until the counts arrive. After a restart:
+`/api/data` 37 s → under 1 s, and `/api/instruments` 11.8 s → 0.15 s.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

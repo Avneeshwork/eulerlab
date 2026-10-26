@@ -120,6 +120,50 @@ _LISTED: dict[tuple[str, str], tuple[float, tuple[str, ...]]] = {}
 _REFRESHING: set[tuple[str, str]] = set()
 _REFRESH_LOCK = threading.Lock()
 
+LISTING_DIR = Path("data/cache/listings")
+"""The last listing of each tree, kept on disk for screens (`stale_ok`) only.
+
+The in-memory listing was lost on every restart, so the first screen opened
+after one waited for the whole enumeration: 7.5 s for crypto behind the
+Instruments search, 8 s per tree in the preload (measured 2026-10-27). A
+screen now gets the last listing at once and a new one is fetched behind it,
+the same rule `stale_ok` already applied after five minutes. A backtest or an
+ingest never reads this file. Under `data/cache/`, which nothing uploads:
+`make sync-derived` mirrors all of `data/derived/`."""
+
+
+def _listing_file(key: tuple[str, str]) -> Path:
+    import hashlib
+
+    digest = hashlib.sha256(f"{key[0]}|{key[1]}".encode()).hexdigest()[:20]
+    return LISTING_DIR / f"{digest}.json"
+
+
+def _save_listing(key: tuple[str, str], paths: tuple[str, ...]) -> None:
+    import json
+
+    target = _listing_file(key)
+    with contextlib.suppress(OSError):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.with_suffix(".part")
+        part.write_text(
+            json.dumps({"tree": key[0], "pattern": key[1], "paths": list(paths)}),
+            encoding="utf-8",
+        )
+        part.replace(target)
+
+
+def _saved_listing(key: tuple[str, str]) -> tuple[str, ...] | None:
+    import json
+
+    try:
+        saved = json.loads(_listing_file(key).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if saved.get("tree") != key[0] or saved.get("pattern") != key[1]:
+        return None
+    return tuple(str(path) for path in saved.get("paths", ()))
+
 
 def _remote_listing(tree: str, pattern: str, *, stale_ok: bool = False) -> tuple[str, ...]:
     """Remote paths under a tree matching a pattern, memoised briefly.
@@ -140,6 +184,11 @@ def _remote_listing(tree: str, pattern: str, *, stale_ok: bool = False) -> tuple
     now = time.monotonic()
     if cached is not None and now - cached[0] < _LISTING_TTL:
         return cached[1]
+    if cached is None and stale_ok:
+        saved = _saved_listing(key)
+        if saved is not None:
+            # Older than any limit: it is used once and refreshed below.
+            cached = _LISTED[key] = (now - _LISTING_TTL - 1.0, saved)
     if cached is not None and stale_ok:
         with _REFRESH_LOCK:
             start = key not in _REFRESHING
@@ -187,6 +236,7 @@ def _fetch_listing(tree: str, pattern: str) -> tuple[str, ...]:
             found.append(relative)
     out = tuple(found)
     _LISTED[key] = (time.monotonic(), out)
+    _save_listing(key, out)
     return out
 
 
@@ -217,6 +267,7 @@ def prime_listing(keys: Iterable[str], prefix: str, wanted: Iterable[tuple[str, 
     for tree, pattern in wanted:
         found = tuple(sorted(r for r in relatives if _matches(r, tree, pattern)))
         _LISTED[(tree, pattern)] = (now, found)
+        _save_listing((tree, pattern), found)
         filled += 1
     return filled
 

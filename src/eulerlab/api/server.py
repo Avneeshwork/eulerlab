@@ -2556,15 +2556,41 @@ def data_status() -> dict[str, Any]:
     size.
     """
     panel: dict[str, Any] = {}
+    if not PANEL.loaded():
+        # Answered now, not after the 20-30 s read: this page waited 37 s
+        # after a restart (2026-10-27). The read runs in the background and
+        # the page asks again until the counts are in.
+        _load_panel_in_background()
+        return {**_data_sources(), "panel": {"loaded": False, "rows": 0}}
     try:
-        # `loaded` is read AFTER the rows, not before: reading it first reports
-        # the state this request walked in on, which is False on the very
-        # request that loads the panel and reads as a contradiction next to
-        # five million rows.
         panel |= PANEL.coverage()
-        panel["loaded"] = PANEL.loaded()
+        panel["loaded"] = True
     except (FileNotFoundError, OSError) as exc:
         panel |= {"error": str(exc), "rows": 0, "loaded": False}
+    return {**_data_sources(), "panel": panel}
+
+
+_PANEL_LOADING = threading.Lock()
+
+
+def _load_panel_in_background() -> None:
+    """Start reading the panel unless a read is already running (the preload's
+    or an earlier request's); `PANEL.rows()` holds its own lock."""
+    if not _PANEL_LOADING.acquire(blocking=False):
+        return
+
+    def read() -> None:
+        try:
+            with contextlib.suppress(Exception):
+                PANEL.rows()
+        finally:
+            _PANEL_LOADING.release()
+
+    threading.Thread(target=read, daemon=True, name="panel-load").start()
+
+
+def _data_sources() -> dict[str, Any]:
+    """Universe sizes and landing counts: files on disk, never the panel."""
 
     universes: list[dict[str, Any]] = []
     for name in sorted(catalog.UNIVERSE_FILES):
@@ -2576,7 +2602,6 @@ def data_status() -> dict[str, Any]:
         universes.append({"name": name, "symbols": len(symbols)})
 
     return {
-        "panel": panel,
         "universes": universes,
         "universe_caveat": catalog.UNIVERSE_CAVEAT,
         "sources": [

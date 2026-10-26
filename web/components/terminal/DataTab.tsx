@@ -35,6 +35,15 @@ export function DataTab({ workspace }: { workspace: string }) {
 
   useEffect(load, [load]);
 
+  // After a restart the API answers before the panel is in memory; ask again
+  // until its counts arrive.
+  const waiting = data !== null && !data.panel.loaded && !data.panel.error;
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setTimeout(() => api.data().then(setData).catch(() => undefined), 3000);
+    return () => clearTimeout(timer);
+  }, [waiting, data]);
+
   const mirror = useCallback(async () => {
     setBusy(true);
     setNote('');
@@ -65,7 +74,9 @@ export function DataTab({ workspace }: { workspace: string }) {
           <p className="thsub">
             {data?.panel.first && data.panel.last
               ? `${data.panel.symbols?.toLocaleString('en-IN')} symbols across ${data.panel.days?.toLocaleString('en-IN')} trading days, ${data.panel.first} to ${data.panel.last}. Counted from the panel itself, not from a configured expectation.`
-              : 'Reading the panel…'}
+              : data && !data.panel.loaded && !data.panel.error
+                ? 'The server is reading the panel into memory; the counts appear here when it is done.'
+                : 'Reading the panel…'}
           </p>
         </div>
         <div className="thstats">

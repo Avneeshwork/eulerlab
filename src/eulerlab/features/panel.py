@@ -37,10 +37,11 @@ import contextlib
 import gc
 import json
 import mmap
+import os
 from bisect import bisect_left
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields, replace
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from operator import attrgetter
 from pathlib import Path
 from typing import Any
@@ -290,9 +291,29 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
     """Load the cached panel, oldest first, under each ISIN's current symbol
     (`canonical_symbols`; `canonical=False` for the names as stored).
 
-    This is the server's cold start: 5.4 million lines, 746 MB. It took 51
-    seconds (measured 2026-10-12) and now takes about a quarter of that, from
-    five changes, none of them a cache:
+    The renamed rows come from the columnar copy when it was made from this
+    exact file (see `COLUMNS_DIR`); otherwise from the JSONL, which then writes
+    that copy. Renaming depends only on the file, so the copy holds its result
+    rather than redoing it on every read (6 s). The names as stored are always
+    read from the JSONL.
+    """
+    if not path.exists():
+        return []
+    if not canonical:
+        return _parse_jsonl(path)
+    rows = _read_columns(path)
+    if rows is None:
+        rows = canonical_symbols(_parse_jsonl(path))
+        _write_columns(path, rows)
+    return rows
+
+
+def _parse_jsonl(path: Path) -> list[PanelRow]:
+    """Every line of the panel file, days in order and symbols sorted within a day.
+
+    This was the server's cold start: 5.4 million lines, 746 MB. It took 51
+    seconds (measured 2026-10-12) and then about a quarter of that, from five
+    changes:
 
     - the file is read a line at a time, not into one 746 MB string and then a
       5.4-million-item list of lines;
@@ -301,8 +322,6 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
     - only the days whose symbols are out of order are sorted, and the whole
       file only if its days are.
     """
-    if not path.exists():
-        return []
     import orjson
 
     out: list[PanelRow] = []
@@ -374,12 +393,141 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
             append(built)
     if not days_ordered:
         out.sort(key=lambda r: (r.day, r.symbol))
-        return canonical_symbols(out) if canonical else out
+        return out
     starts.append(len(out))
     for index in unsorted_days:
         begin, end = starts[index], starts[index + 1]
         out[begin:end] = sorted(out[begin:end], key=lambda r: r.symbol)
-    return canonical_symbols(out) if canonical else out
+    return out
+
+
+# --- the columnar copy ------------------------------------------------------------
+
+COLUMNS_DIR = Path("data/cache")
+"""Where the panel's columnar copy lives. Not `data/derived/`, which
+`make sync-derived` uploads whole; this is a copy of a file already there.
+
+Reading 5.4 million JSON lines took about 27 s of CPU; the same rows from
+Parquet columns take about 8 s (2026-10-27). While the read runs it holds the
+interpreter lock, and every request in that time waited for it: `/api/data`
+took 0.29 s alone and 4 s during a read. The copy records the JSONL's size and
+modification time and is used only while both still match, so it can never
+answer for a different panel. It is made only from the default panel path."""
+
+COLUMNS_VERSION = "2"
+"""Bumped whenever what the copy holds changes; 2: the renamed rows."""
+_COLUMN_BATCH = 500_000
+
+
+def _columns_file(path: Path) -> Path | None:
+    if path.resolve() != PANEL_PATH.resolve():
+        return None
+    return COLUMNS_DIR / f"{path.stem}.columns.parquet"
+
+
+def _source_stamp(path: Path) -> dict[bytes, bytes]:
+    info = path.stat()
+    return {
+        b"eulerlab_version": COLUMNS_VERSION.encode(),
+        b"source_size": str(info.st_size).encode(),
+        b"source_mtime_ns": str(info.st_mtime_ns).encode(),
+    }
+
+
+def _write_columns(path: Path, rows: Sequence[PanelRow]) -> None:
+    """Write the copy, or nothing. A copy that could differ from the JSONL is
+    worse than none: any value not already a float (an int `5` would come
+    back as `5.0` and print differently) or a set spread means no copy."""
+    target = _columns_file(path)
+    if target is None or not rows:
+        return
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    numeric = ("close", "volume", "turnover", "open", "high", "low")
+    columns = {name: [getattr(r, name) for r in rows] for name in numeric}
+    if any(set(map(type, values)) != {float} for values in columns.values()):
+        return
+    if any(r.spread != 0.0 for r in rows):
+        return
+    table = pa.table(
+        {
+            "day": pa.array([r.day for r in rows], pa.date32()),
+            "symbol": pa.array([r.symbol for r in rows]).dictionary_encode(),
+            "isin": pa.array([r.isin for r in rows]).dictionary_encode(),
+            **{name: pa.array(values, pa.float64()) for name, values in columns.items()},
+        }
+    ).replace_schema_metadata(_source_stamp(path))
+    with contextlib.suppress(OSError):
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.with_name(f"{target.name}.{os.getpid()}.part")
+        pq.write_table(table, part, compression="zstd", row_group_size=_COLUMN_BATCH)
+        part.replace(target)
+
+
+def _read_columns(path: Path) -> list[PanelRow] | None:
+    """The rows from the copy, or None when there is no copy for this file."""
+    target = _columns_file(path)
+    if target is None or not target.exists():
+        return None
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    try:
+        source = pq.ParquetFile(target)
+        if source.schema_arrow.metadata != _source_stamp(path):
+            return None
+        epoch = date(1970, 1, 1)
+        days: dict[int, date] = {}
+        shared: dict[str, str] = {}
+        out: list[PanelRow] = []
+        append, new_row = out.append, object.__new__
+        put = list(_SETTERS.values())
+        with _collector_paused():
+            for batch in source.iter_batches(batch_size=_COLUMN_BATCH):
+                cols: dict[str, Any] = dict(zip(batch.schema.names, batch.columns, strict=True))
+                day_numbers = cols["day"].cast(pa.int32()).to_numpy().tolist()
+                day_list = [
+                    days.get(n) or days.setdefault(n, epoch + timedelta(days=n))
+                    for n in day_numbers
+                ]
+
+                def coded(name: str, cols: dict[str, Any] = cols) -> list[str]:
+                    column = cols[name]
+                    names = [shared.setdefault(n, n) for n in column.dictionary.to_pylist()]
+                    return [names[k] for k in column.indices.to_numpy().tolist()]
+
+                def floats(name: str, cols: dict[str, Any] = cols) -> list[float]:
+                    values: list[float] = cols[name].to_numpy().tolist()
+                    return values
+
+                for values in zip(
+                    day_list,
+                    coded("symbol"),
+                    floats("close"),
+                    floats("volume"),
+                    floats("turnover"),
+                    coded("isin"),
+                    floats("open"),
+                    floats("high"),
+                    floats("low"),
+                    strict=True,
+                ):
+                    built = new_row(PanelRow)
+                    put[0](built, values[0])
+                    put[1](built, values[1])
+                    put[2](built, values[2])
+                    put[3](built, values[3])
+                    put[4](built, values[4])
+                    put[5](built, values[5])
+                    put[6](built, 0.0)
+                    put[7](built, values[6])
+                    put[8](built, values[7])
+                    put[9](built, values[8])
+                    append(built)
+    except (OSError, ValueError, KeyError, pa.ArrowException):
+        return None
+    return out
 
 
 def read_symbol_rows(symbol: str, days: int, path: Path = PANEL_PATH) -> list[PanelRow]:

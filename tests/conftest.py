@@ -39,6 +39,24 @@ def _private_locks(
 
 
 @pytest.fixture(autouse=True)
+def _private_listings(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or writes the real server's saved bucket listings."""
+    monkeypatch.setattr(landing_reader, "LISTING_DIR", tmp_path_factory.mktemp("listings"))
+
+
+@pytest.fixture(autouse=True)
+def _private_panel_copy(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or writes the real panel's columnar copy."""
+    from eulerlab.features import panel
+
+    monkeypatch.setattr(panel, "COLUMNS_DIR", tmp_path_factory.mktemp("panel_copy"))
+
+
+@pytest.fixture(autouse=True)
 def _private_last_seen(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

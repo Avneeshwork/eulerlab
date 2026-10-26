@@ -16,6 +16,8 @@ Verify: `make verify` (8 of 8).
 | T-4142 | 24 mypy errors, 7 ruff and 2 web lint findings in the uncommitted work | FIXED. No behaviour change |
 | T-4143 | Two stale tests: `without_top_5` (−10% is right) and the rebalance-cost test, whose ranking never moved | FIXED |
 | T-4145 | The panel took 2.8 GB with 5.3 GB already in swap; a full GC paused a request for 1.48 s; the reload watcher used a core all day | DONE. Slotted rows and shared strings (about 2.6 → 1.85 GB), rename step by binary search, `gc.freeze()` after load, `--reload-dir src`. Read 37.5 s → 27.4 s CPU, rows identical |
+| T-4146 | Panel read 27-37 s CPU after every restart, blocking requests on the interpreter lock | DONE. Columnar copy in `data/cache/` (renamed rows, keyed to the JSONL's size and mtime): about 8 s, rows identical |
+| T-4147 | After a restart, the first screen waited for a full B2 listing (7.5 s crypto) | DONE. Screens' listings saved under `data/cache/listings`, refreshed behind the answer; backtests list live |
 | T-4144 | Slow first calls: `/api/data` 26.6 s, `/api/instruments` 8.2 s, `/api/snapshot` 5.5 s, `/api/fleet` 3.0 s; `/api/capabilities` slower on a repeat call | TODO |
 
 ## Indian data from the close (2026-10-26)

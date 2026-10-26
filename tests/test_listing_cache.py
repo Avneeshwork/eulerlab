@@ -115,3 +115,42 @@ def test_priming_replaces_rather_than_accumulates() -> None:
         [f"{prefix}calendar/two.jsonl.gz"], prefix, [("calendar", "*.jsonl.gz")]
     )
     assert landing_reader._LISTED[("calendar", "*.jsonl.gz")][1] == ("calendar/two.jsonl.gz",)
+
+
+# --- the saved listing (2026-10-27) ----------------------------------------------
+
+
+def test_a_screen_gets_the_saved_listing_after_a_restart_and_it_is_refreshed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    key = ("crypto", "*/*.jsonl.gz")
+    landing_reader._save_listing(key, ("crypto/BTCUSDT/2026-08.jsonl.gz",))
+    monkeypatch.setattr(landing_reader, "_LISTED", {})  # a restarted server
+    refreshed: list[tuple[str, str]] = []
+    monkeypatch.setattr(
+        landing_reader, "_refresh_listing", lambda tree, pattern: refreshed.append((tree, pattern))
+    )
+
+    def no_fetch(tree: str, pattern: str) -> tuple[str, ...]:
+        raise AssertionError("a screen must not wait for the bucket when a listing is saved")
+
+    monkeypatch.setattr(landing_reader, "_fetch_listing", no_fetch)
+    found = landing_reader._remote_listing(*key, stale_ok=True)
+    assert found == ("crypto/BTCUSDT/2026-08.jsonl.gz",)
+    for thread in __import__("threading").enumerate():
+        if thread.name == "listing":
+            thread.join(timeout=5)
+    assert refreshed == [key]
+
+
+def test_a_backtest_never_reads_the_saved_listing(monkeypatch: pytest.MonkeyPatch) -> None:
+    key = ("crypto", "*/*.jsonl.gz")
+    landing_reader._save_listing(key, ("crypto/OLD/2020-01.jsonl.gz",))
+    monkeypatch.setattr(landing_reader, "_LISTED", {})
+    monkeypatch.setattr(landing_reader, "_fetch_listing", lambda tree, pattern: ("live",))
+    assert landing_reader._remote_listing(*key) == ("live",)
+
+
+def test_a_listing_saved_for_another_tree_is_not_used(monkeypatch: pytest.MonkeyPatch) -> None:
+    landing_reader._save_listing(("fx", "*/*/*.jsonl.gz"), ("fx/x",))
+    assert landing_reader._saved_listing(("crypto", "*/*.jsonl.gz")) is None
