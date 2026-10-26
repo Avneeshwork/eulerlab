@@ -371,8 +371,10 @@ def test_a_row_read_from_the_file_is_the_row_the_constructor_makes(tmp_path: Pat
     assert second == panel_mod.PanelRow(
         day=date(2026, 1, 6), symbol="AAA", close=11.0, volume=1.0, turnover=11.0
     )
-    # Every field the dataclass declares is set, and nothing else is.
-    assert list(vars(first)) == [f.name for f in dataclasses.fields(panel_mod.PanelRow)]
+    # Slotted (no per-row dict), and every field the dataclass declares is set.
+    names = [f.name for f in dataclasses.fields(panel_mod.PanelRow)]
+    assert not hasattr(first, "__dict__")
+    assert all(hasattr(first, name) for name in names)
     with pytest.raises(dataclasses.FrozenInstanceError):
         first.close = 1.0  # type: ignore[misc]
 

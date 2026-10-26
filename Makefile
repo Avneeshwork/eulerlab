@@ -250,8 +250,11 @@ build-factors:
 # One command to keep every dataset current, safe to schedule. Each step is
 # idempotent: already-current data costs nothing, so re-running is cheap and
 # a missed day self-heals on the next run.
+# --reload-dir src: without it uvicorn polls every file under the repo,
+# data/ included (64,323 files), four times a second for changed .py files:
+# a whole CPU core, all day (measured 2026-10-27). src/ is 618 files.
 api:
-	uv run --extra web uvicorn eulerlab.api.server:app --port 8000 --reload
+	uv run --extra web uvicorn eulerlab.api.server:app --port 8000 --reload --reload-dir src
 
 ui:
 	cd web && npm install --silent && npm run dev

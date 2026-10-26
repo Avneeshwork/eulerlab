@@ -1754,6 +1754,21 @@ that would make it wrong (ADR-077):
 Both snapshot deadlines were inert until this pass (HISTORY #23): `_bounded`
 now returns at the deadline instead of when the broker finally answers.
 
+**The panel in memory (2026-10-27).** The loaded panel took 2.8 GB on an
+8.6 GB machine that was already 5.3 GB into swap, so every read and every
+request slowed. `PanelRow` is now slotted (no dict per row), and each symbol
+and ISIN string is stored once. `canonical_symbols` takes the renamed rows
+out of each day and puts them back by binary search: 444,603 rows on all
+2,916 days carry an older name, and walking every row of every day took as
+long as parsing the file. The reader pauses the cyclic collector while it
+allocates, and the API calls `gc.freeze()` after a load. A full collection
+over 5.4 million tracked rows took 1.48 s, landing on whichever request
+triggered it; frozen, it takes no measurable time. Measured by CPU time, read
+side by side: 37.5 s → 27.4 s, and peak memory about 2.6 → 1.85 GB, with
+identical rows (every field of all 5,420,230 compared). `make api` watches
+only `src/` for reloads (`--reload-dir src`): uvicorn polled all 64,323 files
+in the repo four times a second, a whole CPU core, all day.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

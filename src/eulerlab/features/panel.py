@@ -33,11 +33,15 @@ cross-section that actually existed on a date.
 from __future__ import annotations
 
 import concurrent.futures as cf
+import contextlib
+import gc
 import json
 import mmap
+from bisect import bisect_left
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, fields, replace
 from datetime import date, datetime
+from operator import attrgetter
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -52,9 +56,13 @@ PANEL_PATH = Path("data/derived/price_panel.jsonl")
 NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PanelRow:
-    """One symbol on one date, adjusted."""
+    """One symbol on one date, adjusted.
+
+    Slotted: 5.4 million of these are held in the API's memory. With a
+    `__dict__` each the loaded panel took 2.8 GB on an 8.6 GB machine that was
+    already swapping; slotted, with shared symbol strings, 1.7 GB (2026-10-27)."""
 
     day: date
     symbol: str
@@ -170,6 +178,13 @@ def load_price_factor_store(path: Path = PRICE_FACTORS) -> BitemporalStore:
     return store
 
 
+_FIELDS = tuple(f.name for f in fields(PanelRow))
+_SETTERS: dict[str, Callable[[PanelRow, object], None]] = {
+    name: getattr(PanelRow, name).__set__ for name in _FIELDS
+}
+"""Each slot's own setter, which a frozen dataclass's `__setattr__` does not block."""
+
+
 def _cash_files(manifest: Path, *, start: str, end: str) -> list[tuple[str, str]]:
     if not manifest.exists():
         return []
@@ -198,42 +213,77 @@ def canonical_symbols(rows: list[PanelRow]) -> list[PanelRow]:
     already under the current name is kept. `rows` must be in day order; only
     the days that changed are re-sorted.
     """
-    latest: dict[str, tuple[date, str]] = {}
-    for row in rows:
-        if row.isin and (row.isin not in latest or row.day >= latest[row.isin][0]):
-            latest[row.isin] = (row.day, row.symbol)
-    out: list[PanelRow] = []
-    renamed: list[bool] = []
-    changed_days: set[date] = set()
-    for row in rows:
-        target = latest.get(row.isin, (row.day, row.symbol))[1] if row.isin else row.symbol
-        if target != row.symbol:
-            moved = object.__new__(PanelRow)
-            object.__setattr__(moved, "__dict__", {**row.__dict__, "symbol": target})
-            out.append(moved)
-            renamed.append(True)
-            changed_days.add(row.day)
-        else:
-            out.append(row)
-            renamed.append(False)
-    if not changed_days:
-        return out
+    # In day order the last row seen for an ISIN is on its latest day, so a
+    # plain assignment leaves the latest symbol (on a tie, the later row, as
+    # the `>=` comparison this replaced did).
+    latest = {row.isin: row.symbol for row in rows if row.isin}
+    moved_at = [i for i, row in enumerate(rows) if row.isin and latest[row.isin] != row.symbol]
+    if not moved_at:
+        return list(rows)
+    # Each day is already sorted by symbol. Only its renamed rows move: they
+    # are taken out and put back under the current name by binary search, so
+    # no day is walked or re-sorted row by row. 444,603 rows on all 2,916 days
+    # carry an older name; rebuilding every day in Python took 10-17 s, as
+    # long as parsing the file (2026-10-27).
+    by_symbol = attrgetter("symbol")
     result: list[PanelRow] = []
-    begin = 0
-    for end in range(1, len(out) + 1):
-        if end == len(out) or out[end].day != out[begin].day:
-            if out[begin].day in changed_days:
-                kept: dict[str, tuple[bool, PanelRow]] = {}
-                for k in range(begin, end):
-                    row, was_renamed = out[k], renamed[k]
-                    # A row already under the current name beats a renamed one.
-                    if row.symbol not in kept or (kept[row.symbol][0] and not was_renamed):
-                        kept[row.symbol] = (was_renamed, row)
-                result.extend(r for _, r in sorted(kept.values(), key=lambda x: x[1].symbol))
-            else:
-                result.extend(out[begin:end])
-            begin = end
+    cursor = 0
+    position = 0
+    while position < len(moved_at):
+        first = moved_at[position]
+        day = rows[first].day
+        begin, end = first, first + 1
+        while begin > 0 and rows[begin - 1].day == day:
+            begin -= 1
+        while end < len(rows) and rows[end].day == day:
+            end += 1
+        mine: list[int] = []
+        while position < len(moved_at) and moved_at[position] < end:
+            mine.append(moved_at[position])
+            position += 1
+        result.extend(rows[cursor:begin])
+        today = rows[begin:end]
+        for index in reversed(mine):
+            del today[index - begin]
+        for index in mine:
+            row = rows[index]
+            target = latest[row.isin]
+            spot = bisect_left(today, target, key=by_symbol)
+            # A row already under the current name, or an earlier renamed one,
+            # keeps the place.
+            if spot < len(today) and today[spot].symbol == target:
+                continue
+            today.insert(spot, _with_symbol(row, target))
+        result.extend(today)
+        cursor = end
+    result.extend(rows[cursor:])
     return result
+
+
+def _with_symbol(row: PanelRow, symbol: str) -> PanelRow:
+    """`replace(row, symbol=...)` without `__init__`'s frozen check per field."""
+    moved = object.__new__(PanelRow)
+    for name, put in _SETTERS.items():
+        put(moved, symbol if name == "symbol" else getattr(row, name))
+    return moved
+
+
+@contextlib.contextmanager
+def _collector_paused() -> Iterator[None]:
+    """No cyclic garbage collection while millions of rows are allocated.
+
+    The collector's full passes rescan every tracked object, and while the
+    panel grows that is all of it, again and again. Rows hold no cycles, so
+    nothing is missed: reference counting still frees everything. Measured on
+    the real panel: 19.2 s with the collector, 16.5 s without (2026-10-27).
+    """
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        yield
+    finally:
+        if was_enabled:
+            gc.enable()
 
 
 def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[PanelRow]:
@@ -256,8 +306,25 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
     import orjson
 
     out: list[PanelRow] = []
-    append, new_row, set_fields = out.append, object.__new__, object.__setattr__
+    append, new_row = out.append, object.__new__
+    # The slots' own setters: a frozen dataclass's `__setattr__` refuses, and
+    # `PanelRow(...)` pays for the frozen check on each of ten fields.
+    (
+        set_day,
+        set_symbol,
+        set_close,
+        set_volume,
+        set_turnover,
+        set_isin,
+        set_spread,
+        set_open,
+        set_high,
+        set_low,
+    ) = (getattr(PanelRow, f.name).__set__ for f in fields(PanelRow))
     days: dict[str, date] = {}
+    # One string per symbol and ISIN, not one per row: 10.8 million strings
+    # were about 600 MB of the panel's memory.
+    shared: dict[str, str] = {}
     # Whether the days come in order, and which days' symbols do not. The
     # appender writes days in order but not always their symbols, and sorting
     # 5.4 million rows by a Python key for that is 5.4 million key calls;
@@ -265,7 +332,7 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
     days_ordered, last_stamp, last_symbol = True, "", ""
     starts: list[int] = []
     unsorted_days: list[int] = []
-    with path.open("rb") as handle:
+    with path.open("rb") as handle, _collector_paused():
         for line in handle:
             if not line.strip():
                 continue
@@ -286,30 +353,24 @@ def read_panel(path: Path = PANEL_PATH, *, canonical: bool = True) -> list[Panel
             ):
                 unsorted_days.append(len(starts) - 1)
             last_symbol = symbol
-            # Built without `PanelRow.__init__`. A frozen dataclass sets each
-            # of its ten fields through `object.__setattr__`, and for 5.4
-            # million rows that was a third of the whole read. Handing the row
-            # its fields in one step gives the same object: equal, same hash,
-            # same repr. `tests/test_dashboard_speed.py` holds this to
-            # `PanelRow(...)` and to the dataclass's field list, so a field
-            # added to `PanelRow` and not here fails a test, not a backtest.
+            # Built without `PanelRow.__init__`, through the slot setters:
+            # the frozen check on ten fields was a third of the whole read.
+            # `tests/test_dashboard_speed.py` holds this to `PanelRow(...)` and
+            # to the dataclass's field list, so a field added to `PanelRow` and
+            # not here fails a test, not a backtest.
+            symbol = shared.setdefault(symbol, symbol)
+            isin = row.get("i", row.get("isin", ""))
             built = new_row(PanelRow)
-            set_fields(
-                built,
-                "__dict__",
-                {
-                    "day": day,
-                    "symbol": symbol,
-                    "close": row["c"],
-                    "volume": row["v"],
-                    "turnover": row["t"],
-                    "isin": row.get("i", row.get("isin", "")),
-                    "spread": 0.0,
-                    "open": row.get("o", 0.0),
-                    "high": row.get("h", 0.0),
-                    "low": row.get("l", 0.0),
-                },
-            )
+            set_day(built, day)
+            set_symbol(built, symbol)
+            set_close(built, row["c"])
+            set_volume(built, row["v"])
+            set_turnover(built, row["t"])
+            set_isin(built, shared.setdefault(isin, isin))
+            set_spread(built, 0.0)
+            set_open(built, row.get("o", 0.0))
+            set_high(built, row.get("h", 0.0))
+            set_low(built, row.get("l", 0.0))
             append(built)
     if not days_ordered:
         out.sort(key=lambda r: (r.day, r.symbol))

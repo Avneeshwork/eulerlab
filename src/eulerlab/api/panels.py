@@ -12,6 +12,7 @@ transport that happens to ask for it.
 
 from __future__ import annotations
 
+import gc
 import threading
 from datetime import date
 
@@ -52,6 +53,13 @@ class _Panel:
             stamp = PANEL_PATH.stat().st_mtime_ns if PANEL_PATH.exists() else None
             if self._rows is None or stamp != self._stamp:
                 self._rows = read_panel()
+                # Out of the cyclic collector's view. With 5.4 million rows
+                # tracked, each full collection took 1.48 s and landed on
+                # whichever request triggered it; frozen, it takes no
+                # measurable time (2026-10-27). Rows hold no cycles, so when a
+                # rebuilt panel replaces these, reference counting still frees
+                # them.
+                gc.freeze()
                 self._stamp = stamp
                 self._indices.clear()
                 self._days, self._starts, self._per_symbol = [], [], {}
