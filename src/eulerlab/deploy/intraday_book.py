@@ -40,6 +40,7 @@ from eulerlab.backtest.events import Order, client_order_id
 from eulerlab.costs.schedule import Side
 from eulerlab.deploy import deployments as store
 from eulerlab.deploy.deployments import Deployment
+from eulerlab.filecache import FileMemo
 from eulerlab.oms.killswitch import KillSwitchTripped
 from eulerlab.oms.states import OrderState
 
@@ -50,11 +51,23 @@ MARKETS = {"equity": "INR", "us": "USD", "crypto": "USD"}
 """The adopted market of each intraday strategy, and the money it is counted in."""
 
 
+def _mandate() -> dict[str, Any]:
+    """`gates.load_mandate()`, parsed once per version of the file. The strategy
+    table asked 52 times per request, 0.3 s of YAML (2026-10-27)."""
+    global _MANDATE
+    from eulerlab.gates import MANDATE_PATH, load_mandate
+
+    if _MANDATE is None:
+        _MANDATE = FileMemo(load_mandate, size=2)
+    return _MANDATE(MANDATE_PATH)
+
+
+_MANDATE: FileMemo[dict[str, Any]] | None = None
+
+
 def holdout_end() -> date | None:
     """The operator's holdout end (`mandate.yaml: forward_evidence.holdout_end`), or None."""
-    from eulerlab.gates import load_mandate
-
-    value = (load_mandate().get("forward_evidence") or {}).get("holdout_end")
+    value = (_mandate().get("forward_evidence") or {}).get("holdout_end")
     if value is None:
         return None
     return value if isinstance(value, date) else date.fromisoformat(str(value))

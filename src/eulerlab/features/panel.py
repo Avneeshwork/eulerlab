@@ -603,7 +603,9 @@ def read_symbol_rows(symbol: str, days: int, path: Path = PANEL_PATH) -> list[Pa
                         if row["s"] != symbol:
                             add_line(data, position, direct=False)
 
-    return [by_day[day][1] for day in sorted(by_day)]
+    # Capped here: the older names' rows came uncapped, so a renamed stock
+    # returned its whole history where every other returned `days` (2026-10-27).
+    return [by_day[day][1] for day in sorted(by_day)][-days:]
 
 
 class UnadjustablePanel(RuntimeError):

@@ -20,6 +20,9 @@ Verify: `make verify` (8 of 8).
 | T-4147 | After a restart, the first screen waited for a full B2 listing (7.5 s crypto) | DONE. Screens' listings saved under `data/cache/listings`, refreshed behind the answer; backtests list live |
 | T-4148 | Dashboard snapshot 0.68 s warm: news re-parsed, census parsed 16×, adopted results read 143×, result logs re-parsed | DONE. 0.18 s; news output identical on real files |
 | T-4149 | Options history 29 s after a restart (60 bhavcopies downloaded and parsed again) | DONE. Points kept in `data/cache/`, versioned; missing days four at a time |
+| T-4150 | Company page 0.45 s per page scanning the panel file; first page 1.5 s listing factor files | DONE. In-memory per-symbol rows (2 ms); factor files cached by path, so a new release no longer needs a restart |
+| T-4151 | `read_symbol_rows` returned a renamed stock's whole history instead of `days` | FIXED. Capped. The chart showed about 11 years where others showed 5; betas (capped at 1,260 observations) and 52-week figures were unaffected |
+| T-4152 | Strategy table 0.22 s (mandate.yaml parsed 52×), coverage 0.16 s (`relative_to` 3,674×) | DONE. 0.07 s and 0.07 s |
 | T-4144 | Slow first calls: `/api/data` 26.6 s, `/api/instruments` 8.2 s, `/api/snapshot` 5.5 s, `/api/fleet` 3.0 s; `/api/capabilities` slower on a repeat call | TODO |
 
 ## Indian data from the close (2026-10-26)

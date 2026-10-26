@@ -74,3 +74,34 @@ def test_the_names_as_stored_always_come_from_the_jsonl(source: Path) -> None:
     panel.read_panel(source)
     raw = panel.read_panel(source, canonical=False)
     assert "OLDCO" in {r.symbol for r in raw}
+
+
+def test_a_renamed_stock_gets_the_days_asked_for_not_its_whole_history(source: Path) -> None:
+    """The older name's rows came uncapped (2026-10-27)."""
+    rows = panel.read_symbol_rows("NEWCO", 1, source)
+    assert [(r.day.isoformat(), r.symbol) for r in rows] == [("2026-01-06", "NEWCO")]
+    both = panel.read_symbol_rows("NEWCO", 5, source)
+    assert [(r.day.isoformat(), r.close) for r in both] == [
+        ("2026-01-05", 10.0),
+        ("2026-01-06", 11.0),
+    ]
+
+
+def test_the_in_memory_symbol_rows_match_the_file_and_step_aside_when_it_changes(
+    source: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.api import panels
+
+    monkeypatch.setattr(panels, "PANEL_PATH", source)
+    monkeypatch.setattr(panels, "read_panel", lambda: panel.read_panel(source))
+    held = panels._Panel()
+    held.rows()
+    for symbol in ("NEWCO", "AAA", "ZED"):
+        for days in (1, 2, 5):
+            memory = held.symbol_rows(symbol, days)
+            assert memory is not None
+            assert [_key(r) for r in memory] == [
+                _key(r) for r in panel.read_symbol_rows(symbol, days, source)
+            ]
+    os.utime(source, ns=(5, 5))
+    assert held.symbol_rows("AAA", 2) is None  # the caller reads the file instead

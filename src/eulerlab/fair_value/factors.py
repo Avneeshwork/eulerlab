@@ -15,13 +15,25 @@ DAILY_SEGMENT = "iima_daily_survivorship_adjusted"
 MONTHLY_SEGMENT = "iima_monthly_survivorship_adjusted"
 
 
-def _read_latest(segment: str) -> tuple[str, str, list[dict[str, str]]]:
+def _latest_path(segment: str) -> str:
+    """The newest landed release of one factor file.
+
+    Looked up on every call, so a new release is used without a restart. It
+    was cached with the parsed file for the server's lifetime. A screen's
+    listing (`stale_ok`): the first company page after a restart waited 1.5 s
+    for a live one (2026-10-27). The release used is recorded with every
+    valuation (path and SHA-256)."""
     from eulerlab.ingest import landing_reader
 
-    paths = landing_reader.available(TREE, f"{segment}/*/*/*.csv")
+    paths = landing_reader.available(TREE, f"{segment}/*/*/*.csv", stale_ok=True)
     if not paths:
         raise FileNotFoundError(f"No IIMA factor file is held under {TREE}/{segment}")
-    relative = max(paths)
+    return max(paths)
+
+
+def _read_release(relative: str) -> tuple[str, str, list[dict[str, str]]]:
+    from eulerlab.ingest import landing_reader
+
     payload = landing_reader.read(relative)
     rows = list(csv.DictReader(io.StringIO(payload.decode("utf-8-sig"))))
     if not rows or set(rows[0]) != {"Date", "SMB", "HML", "WML", "MF", "RF"}:
@@ -34,8 +46,9 @@ FactorRow = tuple[str, float | None, float | None, float | None, float | None, f
 
 
 @lru_cache(maxsize=4)
-def _cached(segment: str) -> tuple[str, str, tuple[FactorRow, ...]]:
-    relative, digest, rows = _read_latest(segment)
+def _cached(relative: str) -> tuple[str, str, tuple[FactorRow, ...]]:
+    """One release, parsed. Keyed by path: a landed file never changes."""
+    relative, digest, rows = _read_release(relative)
     compact: list[FactorRow] = []
     for row in rows:
         values: list[float | None] = []
@@ -53,7 +66,7 @@ def _cached(segment: str) -> tuple[str, str, tuple[FactorRow, ...]]:
 def observations(frequency: str) -> dict[str, Any]:
     """Return a date-indexed factor series, converting percentage points to decimals."""
     segment = DAILY_SEGMENT if frequency == "daily" else MONTHLY_SEGMENT
-    relative, digest, compact = _cached(segment)
+    relative, digest, compact = _cached(_latest_path(segment))
     rows: dict[str, dict[str, float]] = {}
     for date, mf, smb, hml, wml, rf in compact:
         if not date:

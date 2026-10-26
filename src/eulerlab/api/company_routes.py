@@ -118,7 +118,10 @@ def _cached_prices(
     if panel_stamp is None:
         return {"series": []}
     try:
-        mine = read_symbol_rows(symbol, PRICE_DAYS, PANEL_PATH)
+        from eulerlab.api.panels import PANEL
+
+        held = PANEL.symbol_rows(symbol, PRICE_DAYS)
+        mine = held if held is not None else read_symbol_rows(symbol, PRICE_DAYS, PANEL_PATH)
     except (FileNotFoundError, OSError):
         return {"series": []}
     if not mine:

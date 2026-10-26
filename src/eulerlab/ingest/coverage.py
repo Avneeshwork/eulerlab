@@ -141,7 +141,10 @@ def _local_latest(tree: str, pattern: str) -> str:
     root = LANDING / tree
     if not root.exists():
         return ""
-    return latest_date(str(p.relative_to(root)) for p in root.glob(pattern))
+    # Sliced, not `Path.relative_to`: every glob result is under `root`, and
+    # 3,674 `relative_to` calls were most of this table's 0.16 s.
+    cut = len(str(root)) + 1
+    return latest_date(str(p)[cut:] for p in root.glob(pattern))
 
 
 def _census_latest(key: str) -> str:

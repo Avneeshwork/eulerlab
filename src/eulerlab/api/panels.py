@@ -34,6 +34,10 @@ class _Panel:
         self._rows: list[PanelRow] | None = None
         self._stamp: int | None = None
         self._per_symbol: dict[str, int] = {}
+        self._by_symbol: dict[str, list[PanelRow]] = {}
+        """Each symbol's rows in day order, built in the same pass. The company
+        page scanned the 746 MB file backwards for one symbol: 0.45 s a page
+        (2026-10-27). About 45 MB of references."""
         self._days: list[date] = []
         self._starts: list[int] = []
         """The trading days, and where each one's rows begin. The rows are in
@@ -62,17 +66,35 @@ class _Panel:
                 gc.freeze()
                 self._stamp = stamp
                 self._indices.clear()
-                self._days, self._starts, self._per_symbol = [], [], {}
-                counts = self._per_symbol
+                self._days, self._starts, self._by_symbol = [], [], {}
+                by_symbol = self._by_symbol
                 for position, row in enumerate(self._rows):
                     if not self._days or row.day != self._days[-1]:
                         self._days.append(row.day)
                         self._starts.append(position)
-                    counts[row.symbol] = counts.get(row.symbol, 0) + 1
+                    held = by_symbol.get(row.symbol)
+                    if held is None:
+                        by_symbol[row.symbol] = [row]
+                    else:
+                        held.append(row)
+                self._per_symbol = {symbol: len(held) for symbol, held in by_symbol.items()}
             rows, starts = self._rows, self._starts
         if not days or days >= len(starts):
             return rows
         return rows[starts[-days] :]
+
+    def symbol_rows(self, symbol: str, days: int) -> list[PanelRow] | None:
+        """The last `days` rows of one symbol, from memory; None when the panel
+        is not loaded or the file has changed since (the caller reads the file).
+
+        The same rows `panel.read_symbol_rows` finds: the loaded panel is
+        already under each ISIN's current symbol."""
+        stamp = PANEL_PATH.stat().st_mtime_ns if PANEL_PATH.exists() else None
+        with self._lock:
+            if self._rows is None or stamp != self._stamp or days <= 0:
+                return None
+            held = self._by_symbol.get(symbol, [])
+            return held[-days:]
 
     def days(self, window: int = 0) -> list[date]:
         """The trading days `rows(window)` covers, oldest first; every day for 0.

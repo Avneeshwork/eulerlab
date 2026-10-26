@@ -1797,6 +1797,17 @@ bytes), and the outputs were checked identical on the real files. Warm
 points), and missing days are computed four at a time. The first options
 chart after a restart waited 29 s.
 
+The loaded panel also keeps each symbol's rows in day order (`_Panel.symbol_rows`,
+built in the load pass). The company page reads its five years from there:
+0.45 s of scanning the 746 MB file per page → 2 ms. It falls back to
+`read_symbol_rows` when the panel is not loaded or the file has changed.
+`mandate.yaml` (52 YAML parses per strategy-table request) and the adopted
+results are read through `FileMemo` (the strategy table 0.22 s → 0.07 s). The
+coverage table slices paths instead of calling `Path.relative_to` 3,674 times
+(0.16 s → 0.07 s). IIMA factor files are cached by path, a landed file being
+immutable, so a new release is used without a restart; it had been cached per
+segment for the server's lifetime.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

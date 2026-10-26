@@ -49,6 +49,8 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+from eulerlab.filecache import FileMemo
+
 RESULTS_PATH = Path("data/derived/adopted_results.jsonl")
 
 EQUITY = 1_000_000.0
@@ -408,7 +410,7 @@ def merge(results: list[Result], path: Path = RESULTS_PATH) -> None:
     # per-kind file stays for now so a rollback needs no migration.
     strategy_results.merge(strategy_results.HOME, [_as_row(r) for r in results])
 
-    existing = read(path)
+    existing = dict(read(path))  # a copy: `read` returns a shared value
     for result in results:
         existing[result.strategy_id] = {
             "strategy_id": result.strategy_id,
@@ -452,7 +454,14 @@ def _as_row(result: Result) -> dict[str, Any]:
 
 
 def read(path: Path = RESULTS_PATH) -> dict[str, dict[str, Any]]:
-    """Every cached headline result, keyed by strategy. Corrupt lines skipped."""
+    """Every cached headline result, keyed by strategy. Corrupt lines skipped.
+
+    Parsed once per version of the file (`filecache`): the strategy table
+    asked once per row. Shared between callers: do not change it."""
+    return _READ(path)
+
+
+def _read(path: Path) -> dict[str, dict[str, Any]]:
     if not path.exists():
         return {}
     out: dict[str, dict[str, Any]] = {}
@@ -466,3 +475,6 @@ def read(path: Path = RESULTS_PATH) -> dict[str, dict[str, Any]]:
         if isinstance(row, dict) and row.get("strategy_id"):
             out[str(row["strategy_id"])] = row
     return out
+
+
+_READ = FileMemo(_read)
