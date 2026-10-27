@@ -24,6 +24,7 @@ import { AdoptedReport } from '@/components/terminal/AdoptedReport';
 import { SweepPanel } from '@/components/terminal/SweepPanel';
 import { TuningPanel } from '@/components/terminal/TuningPanel';
 import { WalkPanel } from '@/components/terminal/WalkPanel';
+import { Bar, Info, Move } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
@@ -396,7 +397,6 @@ export function Library({
             key={option.value}
             className="tchip"
             type="button"
-            title={option.note}
             aria-pressed={assetClass === option.value}
             onClick={() => setAssetClass(assetClass === option.value ? '' : option.value)}
           >
@@ -425,15 +425,22 @@ export function Library({
           label="Verdict"
           value={verdict}
           onChange={(v) => setVerdict(v as StrategyVerdict | '')}
-          options={VERDICTS.map((v) => ({ value: v.value, label: v.label, title: v.hint }))}
+          options={VERDICTS.map((v) => ({ value: v.value, label: v.label }))}
         />
+        <Info label="What the filters mean">
+          {VERDICTS.map((v) => `${v.label}: ${v.hint}`).join(' ')}{' '}
+          {classes
+            .filter((option) => option.note)
+            .map((option) => `${option.label}: ${option.note}`)
+            .join(' ')}{' '}
+          Archived: strategies you have put away; their results and trials are kept.
+        </Info>
         {(archivedCount > 0 || showArchived) && (
           <div className="st-chips" role="group" aria-label="Archive">
             <button
               className="tchip sm"
               type="button"
               aria-pressed={showArchived}
-              title="Strategies you have put away. Their results and trials are kept."
               onClick={() => {
                 setShowArchived((v) => !v);
                 setSelected(new Set());
@@ -451,7 +458,7 @@ export function Library({
           <span>
             {lastArchive.archived ? 'Archived' : 'Restored'} {lastArchive.ids.length}{' '}
             {lastArchive.ids.length === 1 ? 'strategy' : 'strategies'}.
-            {lastArchive.archived && ' Results, trials and any deployment are unchanged.'}
+
           </span>
           <button className="tbtn sm" type="button" onClick={() => void setArchived(lastArchive.ids, !lastArchive.archived, true)}>
             Undo
@@ -489,7 +496,14 @@ export function Library({
               <SortHead label="Strategy" sort="name" current={sort} descending={descending} onSort={sortBy} align="left" />
               <th className="st-spark">Equity</th>
               <SortHead label="Annual return" sort="annual" current={sort} descending={descending} onSort={sortBy} />
-              <th title="NIFTYBEES held over the same period, before costs">Nifty, same period</th>
+              <th>
+                Nifty, same period
+                <Info align="right">
+                  NIFTYBEES held over the same period, before costs. Annual return and Sharpe are the
+                  strategy&apos;s latest run after costs; the bar under Sharpe is drawn against the noise
+                  bar a strategy must clear. Max drawdown is the deepest fall from a peak.
+                </Info>
+              </th>
               <SortHead label="Max drawdown" sort="drawdown" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Sharpe" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
@@ -543,14 +557,29 @@ export function Library({
                         />
                       )}
                     </td>
-                    <td className={`num ${(annualOf(strategy) ?? 0) >= 0 ? 'pos' : 'neg'}`}>{pct(annualOf(strategy))}</td>
+                    <td className="num">
+                      <Move value={annualOf(strategy)} text={pct(annualOf(strategy))} />
+                    </td>
                     <td className="num tdim">{pct(t?.nifty_return ?? null, 0)}</td>
                     <td className="num neg">{pct(strategy.result.max_drawdown ?? null, 0)}</td>
-                    <td className="num">{strategy.sharpe === null ? '—' : strategy.sharpe.toFixed(2)}</td>
+                    <td className="num st-sharpe">
+                      {strategy.sharpe === null ? (
+                        '—'
+                      ) : (
+                        <>
+                          <b>{strategy.sharpe.toFixed(2)}</b>
+                          <Bar
+                            value={strategy.sharpe}
+                            max={Math.max(fleet.bar, 0.01)}
+                            tone={strategy.sharpe >= fleet.bar ? 'up' : strategy.sharpe > 0 ? 'accent' : 'down'}
+                          />
+                        </>
+                      )}
+                    </td>
                     <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
                     <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
                     <td>
-                      <span className={`st-verdict v-${v}`} title={VERDICTS.find((x) => x.value === v)?.hint}>
+                      <span className={`st-verdict v-${v}`}>
                         {VERDICTS.find((x) => x.value === v)?.label}
                       </span>
                     </td>
@@ -588,7 +617,10 @@ export function Library({
         <aside className="st-drawer" aria-label={`${openStrategy.title} details`}>
           <div className="st-drawer-head">
             <div>
-              <h2>{openStrategy.title}</h2>
+              <h2>
+                {openStrategy.title}
+                {openStrategy.summary && <Info label="What this strategy is">{openStrategy.summary}</Info>}
+              </h2>
               <span className={`st-verdict v-${verdictOf(openStrategy)}`}>
                 {VERDICTS.find((x) => x.value === verdictOf(openStrategy))?.label}
               </span>
@@ -597,7 +629,6 @@ export function Library({
               ×
             </button>
           </div>
-          <p className="st-summary">{openStrategy.summary}</p>
           <div className="st-stats">
             <Fact label="Annual return" value={pct(annualOf(openStrategy))} />
             <Fact label="Nifty, same period" value={pct(openStrategy.table?.nifty_return ?? null, 0)} />
@@ -673,9 +704,7 @@ export function Library({
       {selected.size > 0 && (
         <div className="tsel">
           <b>{selected.size}</b> selected
-          <span className="price">
-            Instruments, period and capital are chosen in the next step.
-          </span>
+          <Info>Instruments, period and capital are chosen in the next step.</Info>
           <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
             Clear
           </button>

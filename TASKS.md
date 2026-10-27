@@ -13,7 +13,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | ID | Screen | Status |
 |---|---|---|
 | T-4170 | Shared UI kit: `ui/` (Info, Heading, Stat, Seg, Tabs, Sparkline, Bar, Chip) used by every screen | DONE. `web/components/terminal/ui/` (Info, Heading, Stat/Stats, Chip, Seg, Empty, Move/signed, Sparkline, Bar) and `ui.css`; page subtitles and Tools card descriptions moved behind (i) |
-| T-4171 | Strategies (Library) | TODO |
+| T-4171 | Strategies (Library) | DONE. Headline as stat tiles; Sharpe drawn as a bar against the noise bar; returns with arrows; verdict, class and column notes behind (i); drawer summary behind (i). Fits 390 px |
 | T-4172 | Strategy report (BacktestReport, AdoptedReport) | TODO |
 | T-4173 | Live & Risk (LiveTab, RiskBook, RiskTab, PaperDeployments, deployment report) | TODO |
 | T-4174 | Options (OptionsTab, OptionsTools, OptionsCharts, PayoffBuilder) | TODO |

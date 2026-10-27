@@ -70,7 +70,7 @@ import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
-import { Info as InfoButton } from '@/components/terminal/ui';
+import { Info as InfoButton, Move, Stat, Stats } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
@@ -374,21 +374,25 @@ export default function TerminalPage() {
 
         {page === 'strategies' && (
           <>
-            <p className="st-headline" title={fleet?.bar_note}>
-              <b>{fleet?.strategies.length ?? '—'}</b> strategies · <b>{fleet ? clearing : '—'}</b> beat the noise bar
-              (Sharpe {fleet ? fleet.bar.toFixed(2) : '—'}, from {fleet?.bar_trials ?? 0} trials) · {fleet ? measured : '—'}{' '}
-              backtested
-              {fleet?.market?.total_return !== null && fleet?.market?.total_return !== undefined && (
-                <>
-                  {' '}
-                  · Nifty held since {fleet.market.since.slice(0, 4)}:{' '}
-                  <b>
-                    {fleet.market.total_return >= 0 ? '+' : ''}
-                    {(fleet.market.total_return * 100).toFixed(0)}%
-                  </b>
-                </>
-              )}
-            </p>
+            <div className="st-headline">
+              <Stats>
+                <Stat label="Strategies" value={fleet?.strategies.length ?? '—'} />
+                <Stat
+                  label="Beat the noise bar"
+                  value={fleet ? clearing : '—'}
+                  tone={fleet && clearing > 0 ? 'up' : ''}
+                  sub={fleet ? `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_trials ?? 0} trials` : undefined}
+                  info={fleet?.bar_note}
+                />
+                <Stat label="Backtested" value={fleet ? measured : '—'} />
+                {fleet?.market?.total_return !== null && fleet?.market?.total_return !== undefined && (
+                  <Stat
+                    label={`Nifty held since ${fleet.market.since.slice(0, 4)}`}
+                    value={<Move value={fleet.market.total_return} digits={0} />}
+                  />
+                )}
+              </Stats>
+            </div>
 
             <Library
               fleet={fleet}
