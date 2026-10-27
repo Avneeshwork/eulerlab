@@ -34,8 +34,6 @@ from collections.abc import Callable, Iterator, Sequence
 from datetime import date
 from pathlib import Path
 
-import boto3
-
 from eulerlab.corp_actions.adjust import ClosePriceLookup
 from eulerlab.env import require
 from eulerlab.ingest.landing import ManifestEntry
@@ -221,6 +219,8 @@ def build_close_index(
     remaining = [e for e in entries if e.trade_date not in already]
     if not remaining:
         return index
+
+    import boto3  # here, not at the top: it costs 0.16 s on every import of the panel
 
     client = boto3.client(
         "s3",

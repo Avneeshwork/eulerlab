@@ -116,3 +116,25 @@ def _empty_request_caches() -> None:
         server._LIVE_UNIVERSE.clear()
         server._CLOUD_LISTINGS.clear()
         server._HISTORY_POINTS.clear()
+        server._LANDING_COUNTS.clear()
+
+
+@pytest.fixture(autouse=True)
+def _simulated_order_clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The order governor waits on a simulated clock, not real seconds.
+
+    Paper runs send many orders at 5 a second, so a test that ran one slept
+    through the limit for real: 25 of `test_paper_attribution.py`'s 27 s
+    (2026-10-27). The limit is still enforced and still counted; only the wait
+    is simulated. `test_ems_governor.py` passes its own clock and is unaffected.
+    """
+    from eulerlab.oms import ems
+
+    now = [0.0]
+
+    def sleep(seconds: float) -> None:
+        now[0] += seconds
+
+    defaults = dict(ems.Governor.__init__.__kwdefaults__ or {})
+    defaults.update(clock=lambda: now[0], sleep=sleep)
+    monkeypatch.setattr(ems.Governor.__init__, "__kwdefaults__", defaults)

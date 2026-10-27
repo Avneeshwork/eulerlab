@@ -11,6 +11,10 @@ Verify: `make verify` (8 of 8).
 | ID | Task | Status |
 |---|---|---|
 | T-4139 | Measure how much HISTORY #28 (delisted holdings, cash-limited buys) moved stored backtest results | DONE (partial). 9 strategies compared; 6 moved < 0.04 Sharpe; `fifty_two_week_high` 1.52 → 2.39, `illiquidity_premium` 1.04 → 1.24, `india_contrarian_36m` 0.13 → 0.09. See HISTORY #28 |
+| T-4157 | Tests slept through the 5-orders-a-second governor in real time (25 of `test_paper_attribution.py`'s 27 s) | DONE. Simulated clock in tests only. Suite 153 s → 119 s |
+| T-4158 | First dashboard snapshot after a restart took 3.9 s: US panel parse 1.2 s, calendar waiting 1.3 s on B2 | DONE. 3.9 → 2.0 s (0.18 s without live quotes). The band reads the last two sessions from the file's end (12 ms); full US read 1.2 → 0.46 s; calendar uses the saved listing. Rows identical |
+| T-4159 | `/api/data` walked every landing file with three `stat` calls on each request (0.3 s) | DONE. One `stat` per file, counts reused 30 s (identical counts) |
+| T-4160 | `boto3` imported at the top of the panel's import chain (0.16 s on every import) | DONE. Panel import 0.22 → 0.015 s |
 | T-4156 | `fifty_two_week_high` returns 41.9x over 3,000 days on the fixed engine (was 7.5x) | OPEN. Check turnover, fills and the top contributors before trusting it |
 | T-4140 | Tier A without Tier B's cash and delisting rules (engines 4.5e-05 apart) | FIXED. Back to 1.4e-16. Golden file updated: −₹74.62, all from trimmed last buys |
 | T-4141 | Paper attribution paired a buy in one book with a sell in the other | FIXED. Residual ₹2,875 → 2.5e-10 |
@@ -248,7 +252,7 @@ Verify: `uv run pytest -q tests/test_dashboard_speed.py`; `curl -s -o /dev/null 
 | T-4072 | Every batch waited 43 s on the results mirror | DONE — it downloaded all 70 result files each time. Now 2 s: a file whose **content hash** matches the bucket's is skipped (the listing's ETag is the MD5; checked on all 70 files). The first version compared sizes and could miss two different files of equal size; that hole is closed and tested. `make results-pull` downloads everything |
 | T-4071 | The price panel reads in 13.5 s, was 19 | DONE — rows built in one step; only out-of-order days sorted. `trading_days` and `by_symbol` skip work that changes nothing. Paper-book update 20.8 s for two deployments, same equity to the paisa |
 | T-4065 | The panel is 5.4 million Python objects in memory | NOTED — now a 13.5 s read (T-4071), of which 6 s is parsing JSON. Going lower needs a columnar panel, which changes every reader: 11 modules call `read_panel` and all take `list[PanelRow]`. Not done; needs a decision record first |
-| T-4066 | `/api/fleet` takes 2.7 s on its first call after a restart | OPEN — not profiled |
+| T-4066 | `/api/fleet` takes 2.7 s on its first call after a restart | DONE — 1.3 s first call, 0.07 s after (measured 2026-10-27, after the columnar copy and FileMemo) |
 
 ---
 

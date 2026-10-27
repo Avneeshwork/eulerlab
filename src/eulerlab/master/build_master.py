@@ -8,8 +8,6 @@ from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
-import boto3
-
 from eulerlab.env import require
 from eulerlab.master.build import BuildStats, observe_day
 from eulerlab.master.registry import Registry
@@ -22,6 +20,8 @@ RENAMES_PATH = Path("config/symbol_renames.json")
 
 
 def _client() -> object:
+    import boto3  # here, not at the top: it costs 0.16 s on every import of the panel
+
     return boto3.client(
         "s3",
         endpoint_url="https://s3.us-west-004.backblazeb2.com",

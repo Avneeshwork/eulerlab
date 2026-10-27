@@ -1822,6 +1822,30 @@ coverage table slices paths instead of calling `Path.relative_to` 3,674 times
 immutable, so a new release is used without a restart; it had been cached per
 segment for the server's lifetime.
 
+**First loads after a restart (2026-10-27, second pass).** The first dashboard
+snapshot took 3.9 s; it now takes 2.0 s, of which the live quotes are most
+(0.18 s with `live=false`). The US band read all 259,000 rows of the US panel
+for its last two sessions. `us_panel.last_sessions` reads blocks from the end
+of the file, which `build` writes sorted by (day, symbol), until it holds one
+day more than asked, and drops that possibly cut day: 12 ms, rows identical.
+`us_panel.read` itself is parsed with orjson, shares one date and one string
+per distinct day and symbol, and fills its slotted rows through the slot
+setters with the collector paused: 1.2 s → 0.46 s, rows identical. The calendar band lists the bucket with
+`stale_ok` (the saved listing, refreshed in the background), so it no longer
+waits 1.3 s on B2. `/api/cloud/status` still lists the bucket on the request:
+it is a live comparison, and the Data tab loads it on its own without waiting.
+`/api/data` counted the landing trees with three `stat` calls per file on every
+request (0.3 s); it now walks with `os.scandir`, one `stat` per file, and
+reuses each count for `LANDING_COUNT_TTL` (30 s), cleared after a mirror.
+`boto3` is imported where a client is made, not at the top of
+`corp_actions.prices` and `master.build_master`: importing the panel took
+0.22 s → 0.015 s, and the API starts about 0.3 s sooner.
+
+In tests the order governor waits on a simulated clock (`tests/conftest.py`).
+Paper runs send many orders at 5 a second and the tests slept through it for
+real: 25 of `test_paper_attribution.py`'s 27 s. The limit is still enforced
+and counted. Paper and live runs still wait in real time.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

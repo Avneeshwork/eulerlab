@@ -2084,20 +2084,48 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
 # --- data ---------------------------------------------------------------------
 
 
+LANDING_COUNT_TTL = 30.0
+"""Seconds a landing count is reused. Files land a few times a day; the Data
+tab asked for all five counts on every visit and they took 0.3 s (2026-10-27)."""
+
+_LANDING_COUNTS: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
 def _landing_source(name: str) -> dict[str, Any]:
-    """Count what is actually on disk under one landing source."""
+    """Count what is actually on disk under one landing source.
+
+    One `stat` per file through `os.scandir`; `rglob` plus `is_file` plus two
+    more `stat` calls made three per file.
+    """
+    held = _LANDING_COUNTS.get(name)
+    if held is not None and time.monotonic() - held[0] < LANDING_COUNT_TTL:
+        return held[1]
     root = Path("data/landing") / name
     if not root.exists():
         return {"name": name, "present": False, "files": 0, "newest": None}
-    files = [p for p in root.rglob("*") if p.is_file()]
-    newest = max((p.stat().st_mtime for p in files), default=0.0)
-    return {
+    files = 0
+    size = 0
+    newest = 0.0
+    folders = [str(root)]
+    while folders:
+        with os.scandir(folders.pop()) as entries:
+            for entry in entries:
+                if entry.is_dir(follow_symlinks=False):
+                    folders.append(entry.path)
+                elif entry.is_file():
+                    info = entry.stat()
+                    files += 1
+                    size += info.st_size
+                    newest = max(newest, info.st_mtime)
+    out = {
         "name": name,
         "present": True,
-        "files": len(files),
-        "bytes": sum(p.stat().st_size for p in files),
+        "files": files,
+        "bytes": size,
         "newest": datetime.fromtimestamp(newest, tz=UTC).date().isoformat() if newest else None,
     }
+    _LANDING_COUNTS[name] = (time.monotonic(), out)
+    return out
 
 
 def _run_sync(job: Job) -> None:
@@ -2134,6 +2162,7 @@ def _run_sync(job: Job) -> None:
 
         job.message = "recounting the landing zone"
         saved = manifest.save(manifest.build())
+        _LANDING_COUNTS.clear()
 
         job.status = "done" if code == 0 else "failed"
         job.result = {
@@ -3499,7 +3528,7 @@ def _us_band() -> dict[str, Any]:
 
     from eulerlab.features import us_panel
 
-    rows = us_panel.read()
+    rows = us_panel.last_sessions(2)  # all 259,000 rows took 0.5-1.4 s
     if not rows:
         return {
             "available": False,
@@ -3800,7 +3829,7 @@ def _calendar_band() -> dict[str, Any]:
     try:
         from eulerlab.ingest import forexfactory
 
-        events = forexfactory.read_all()
+        events = forexfactory.read_all(stale_ok=True)
     except Exception as exc:
         return {
             "available": False,

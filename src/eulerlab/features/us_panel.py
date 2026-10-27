@@ -23,16 +23,19 @@ in a second. The decade is still in B2 for anything that wants it.
 
 from __future__ import annotations
 
+import gc
 import gzip
 import json
-from dataclasses import dataclass
+import sys
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, fields
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 PANEL_PATH = Path("data/derived/us_panel.jsonl")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class UsRow:
     """One symbol on one day."""
 
@@ -172,30 +175,103 @@ def _build(*, years: float, path: Path, full: bool) -> tuple[int, int]:
     return len(rows), len(symbols)
 
 
+_SETTERS: tuple[Callable[[UsRow, object], None], ...] = tuple(
+    getattr(UsRow, f.name).__set__ for f in fields(UsRow)
+)
+"""Each slot's own setter, in field order. A frozen dataclass's `__init__`
+goes through `object.__setattr__` once per field, which was most of the read."""
+
+
 def read(path: Path = PANEL_PATH) -> list[UsRow]:
-    """Every row in the derived panel. One file, one pass."""
+    """Every row in the derived panel. One file, one pass.
+
+    Parsed with orjson, with one shared date and one shared string per
+    distinct day and symbol, and rows filled through their slot setters with
+    the collector paused: 259,000 rows 1.2 s -> about 0.5 s (2026-10-27).
+    """
     if not path.exists():
         return []
+    with path.open("rb") as handle:
+        return _parse(handle)
+
+
+TAIL_BLOCK = 1 << 18
+"""Bytes read per step from the end of the file. One session is about 50 KB."""
+
+
+def last_sessions(count: int = 2, path: Path = PANEL_PATH) -> list[UsRow]:
+    """The rows of the last `count` sessions, read from the end of the file.
+
+    `build` writes rows sorted by (day, symbol), so the newest sessions are
+    the file's last lines. The snapshot needs only two of 519 sessions and
+    read all 259,000 rows for them. The end is read in blocks until it holds
+    more than `count` days, so the earliest day kept is complete; a day cut
+    off by the block edge is the one dropped.
+    """
+    if count <= 0 or not path.exists():
+        return []
+    size = path.stat().st_size
+    with path.open("rb") as handle:
+        offset = size
+        rows: list[UsRow] = []
+        while True:
+            offset = max(0, offset - TAIL_BLOCK * max(1, count))
+            handle.seek(offset)
+            data = handle.read(size - offset)
+            if offset > 0:
+                data = data[data.find(b"\n") + 1 :]
+            rows = _parse(data.splitlines())
+            days = sorted({row.day for row in rows})
+            if offset == 0 or len(days) > count:
+                break
+    kept = set(days[-count:])
+    return [row for row in rows if row.day in kept]
+
+
+def _parse(lines: Iterable[bytes]) -> list[UsRow]:
+    """Rows from JSON lines; unreadable lines are skipped."""
+    import orjson
+
     out: list[UsRow] = []
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
+    days: dict[str, date] = {}
+    names: dict[str, str] = {}
+    append, new_row = out.append, object.__new__
+    set_day, set_symbol, set_close, set_volume, set_open, set_high, set_low = _SETTERS
+    collecting = gc.isenabled()
+    gc.disable()
+    try:
+        for line in lines:
             if not line.strip():
                 continue
             try:
-                row = json.loads(line)
-                out.append(
-                    UsRow(
-                        day=date.fromisoformat(row["d"]),
-                        symbol=str(row["s"]),
-                        close=float(row["c"]),
-                        volume=float(row.get("v", 0.0)),
-                        open=float(row.get("o", 0.0)),
-                        high=float(row.get("h", 0.0)),
-                        low=float(row.get("l", 0.0)),
-                    )
-                )
-            except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                row = orjson.loads(line)
+                stamp = row["d"]
+                day = days.get(stamp)
+                if day is None:
+                    day = days[stamp] = date.fromisoformat(stamp)
+                raw = str(row["s"])
+                symbol = names.get(raw)
+                if symbol is None:
+                    symbol = names[raw] = sys.intern(raw)
+                close = float(row["c"])
+                volume = float(row.get("v", 0.0))
+                opened = float(row.get("o", 0.0))
+                high = float(row.get("h", 0.0))
+                low = float(row.get("l", 0.0))
+            except (orjson.JSONDecodeError, KeyError, TypeError, ValueError):
                 continue
+            item = new_row(UsRow)
+            set_day(item, day)
+            set_symbol(item, symbol)
+            set_close(item, close)
+            set_volume(item, volume)
+            set_open(item, opened)
+            set_high(item, high)
+            set_low(item, low)
+            append(item)
+    finally:
+        if collecting:
+            gc.enable()
     return out
 
 

@@ -187,13 +187,20 @@ def land(*, root: Path = LANDING, now: datetime | None = None) -> tuple[int, int
     return len(existing), len(existing) - before
 
 
-def read_all(*, root: Path = LANDING, allow_cloud: bool = True) -> list[Event]:
-    """Every landed event, from disk or the bucket."""
+def read_all(
+    *, root: Path = LANDING, allow_cloud: bool = True, stale_ok: bool = False
+) -> list[Event]:
+    """Every landed event, from disk or the bucket.
+
+    `stale_ok` is for the dashboard: the bucket listing comes from the saved
+    copy and is refreshed in the background (`landing_reader.available`), so
+    the first snapshot after a restart does not wait 1.3 s on the bucket.
+    """
     from eulerlab.ingest import landing_reader
 
     out: list[Event] = []
     if allow_cloud:
-        paths = landing_reader.available("calendar", "*.jsonl.gz")
+        paths = landing_reader.available("calendar", "*.jsonl.gz", stale_ok=stale_ok)
         loader = landing_reader.read
     else:
         paths = [str(p.relative_to(Path("data/landing"))) for p in sorted(root.glob("*.jsonl.gz"))]
