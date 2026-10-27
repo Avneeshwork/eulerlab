@@ -275,6 +275,7 @@ function Gauge({ card }: { card: PulseCard }) {
   if (card.key === 'trend' && card.spark) {
     return (
       <>
+        {card.badge && <span className="mc-chip bad">{card.badge}</span>}
         <Sparkline
           values={card.spark}
           average={card.spark_average}
@@ -283,45 +284,61 @@ function Gauge({ card }: { card: PulseCard }) {
         />
         <div className="mc-card-facts">
           <span>
-            3M <Move value={card.value} />
+            vs 10M <Move value={card.value} />
           </span>
           <span>
-            200D <b>{card.average ? fmt(card.average, 0) : '—'}</b>
+            Off high <Move value={card.drawdown} />
+          </span>
+        </div>
+        <div className="mc-card-facts">
+          <span>Month-end {card.month_end?.slice(0, 7)}</span>
+          <span>
+            10M <b>{card.average ? fmt(card.average, 0) : '—'}</b>
           </span>
         </div>
       </>
     );
   }
-  if ((card.key === 'participation' || card.key === 'fear') && card.zones) {
-    const fear = card.key === 'fear';
+  if (card.key === 'participation' && card.zones) {
+    return (
+      <>
+        {card.tag && <span className={`mc-chip ${card.tag === 'Stretched' ? 'good' : 'bad'}`}>{card.tag}</span>}
+        <Dial value={card.value} zones={card.zones} colours={['bad', 'mid', 'good']} labels={['0', '50', '100']} />
+        <div className="mc-card-facts">
+          <span>
+            Above 200D <b>{card.value.toFixed(0)}%</b>
+          </span>
+          <span>
+            H-L index <b>{card.high_low?.toFixed(0) ?? '—'}</b>
+          </span>
+        </div>
+        <div className="mc-card-facts">
+          <span>
+            Above 50D <b>{card.above_50?.toFixed(0) ?? '—'}%</b>
+          </span>
+          <span>
+            Highs <b className="pos">{card.new_highs}</b> · Lows <b className="neg">{card.new_lows}</b>
+          </span>
+        </div>
+      </>
+    );
+  }
+  if (card.key === 'fear' && card.zones) {
     return (
       <>
         <Dial
           value={card.value}
           zones={card.zones}
-          colours={fear ? ['good', 'mid', 'bad'] : ['bad', 'mid', 'good']}
-          labels={fear ? ['Calm', 'Normal', 'Elevated'] : ['Narrow', 'Mixed', 'Broad']}
+          colours={['good', 'mid', 'bad']}
+          labels={['Calm', 'Normal', 'Elevated']}
         />
         <div className="mc-card-facts">
-          {fear ? (
-            <>
-              <span>
-                VIX <b>{card.level?.toFixed(1)}</b>
-              </span>
-              <span>
-                Rank <b>{card.value.toFixed(0)}</b>
-              </span>
-            </>
-          ) : (
-            <>
-              <span>
-                Above 50D <b>{card.value.toFixed(0)}%</b>
-              </span>
-              <span>
-                Highs <b className="pos">{card.new_highs}</b> · Lows <b className="neg">{card.new_lows}</b>
-              </span>
-            </>
-          )}
+          <span>
+            VIX <b>{card.level?.toFixed(1)}</b>
+          </span>
+          <span>
+            Rank <b>{card.value.toFixed(0)}</b>
+          </span>
         </div>
       </>
     );

@@ -24,78 +24,132 @@ def _nifty(closes: list[float]) -> dict[str, list[IndexDay]]:
     }
 
 
-def test_no_card_carries_generated_text() -> None:
-    """The info text is the same whatever the numbers: a definition, not a sentence about today."""
-    up = mp.trend_card(_nifty([100.0 + i for i in range(260)]))
-    down = mp.trend_card(_nifty([400.0 - i for i in range(260)]))
-    assert up is not None and down is not None
-    assert up["info"] == down["info"] == mp.INFO["trend"]
-    assert "sentence" not in up and "rule" not in up
+def test_no_summary_is_generated() -> None:
     assert not hasattr(mp, "summary")
 
 
-# --- trend --------------------------------------------------------------------
+# --- trend: Faber's 10-month rule (research 122) ------------------------------------
 
 
-def test_a_rising_index_above_its_average_is_an_uptrend() -> None:
-    card = mp.trend_card(_nifty([100.0 + i for i in range(260)]))
+def _daily(month_closes: list[float], *, current: float | None = None) -> dict[str, list[IndexDay]]:
+    """Twenty trading days a month at each month's close, plus an unfinished month."""
+    rows: list[IndexDay] = []
+    year, month = 2023, 1
+    for close in month_closes:
+        for k in range(20):
+            rows.append(IndexDay(date(year, month, 1 + k), close, None, None, None))
+        month += 1
+        if month == 13:
+            year, month = year + 1, 1
+    if current is not None:
+        rows.append(IndexDay(date(year, month, 1), current, None, None, None))
+    return {"Nifty 50": rows}
+
+
+def test_month_ends_leave_out_the_unfinished_month() -> None:
+    series = _daily([100.0, 101.0, 102.0], current=50.0)["Nifty 50"]
+    ends = mp.month_ends(series)
+    assert [row.close for row in ends] == [100.0, 101.0, 102.0]
+    assert ends[-1].day == date(2023, 3, 20)
+
+
+def test_above_the_ten_month_average_is_an_uptrend() -> None:
+    card = mp.trend_card(_daily([100.0 + i for i in range(30)], current=50.0))
     assert card is not None
     assert (card["word"], card["direction"], card["tone"]) == ("Uptrend", "up", "good")
-    assert card["value"] == pytest.approx(359 / 296 - 1, abs=1e-4)
-    assert card["average"] == pytest.approx(sum(range(160, 360)) / 200, abs=0.01)
+    # The unfinished month (50) is not read: the last month-end is 129.
+    assert card["close"] == 129.0
+    assert card["average"] == pytest.approx(sum(range(120, 130)) / 10)
+    # 30 month-ends give 21 with a 10-month average; both lines get the same 21.
+    assert len(card["spark"]) == len(card["spark_average"]) == 21
+    longer = mp.trend_card(_daily([100.0 + i for i in range(40)]))
+    assert longer is not None
+    assert len(longer["spark"]) == len(longer["spark_average"]) == 24
 
 
-def test_the_trend_gauge_gets_a_year_of_closes_and_averages_on_one_scale() -> None:
-    card = mp.trend_card(_nifty([100.0 + i for i in range(500)]))
-    assert card is not None
-    assert len(card["spark"]) == len(card["spark_average"]) == 64
-    assert card["spark"][-1] == 599.0
-    assert card["spark_average"][-1] == pytest.approx(sum(range(400, 600)) / 200, abs=0.01)
+def test_below_the_ten_month_average_is_a_downtrend() -> None:
+    card = mp.trend_card(_daily([200.0 - i for i in range(30)]))
+    assert card is not None and card["word"] == "Downtrend"
+    assert card["value"] < 0
 
 
-def test_a_falling_index_below_its_average_is_a_downtrend() -> None:
-    card = mp.trend_card(_nifty([400.0 - i for i in range(260)]))
+def test_exactly_on_the_average_is_not_above_it() -> None:
+    card = mp.trend_card(_daily([100.0] * 12))
     assert card is not None and card["word"] == "Downtrend"
 
 
-def test_above_the_average_but_down_on_the_quarter_is_sideways() -> None:
-    closes = [100.0] * 150 + [200.0] * 46 + [180.0] * 64
-    card = mp.trend_card(_nifty(closes))
-    assert card is not None and card["word"] == "Sideways"
+def test_fewer_than_ten_month_ends_has_no_trend_card() -> None:
+    assert mp.trend_card(_daily([100.0] * 9, current=100.0)) is None
 
 
-def test_too_short_a_history_has_no_trend_card() -> None:
-    assert mp.trend_card(_nifty([100.0] * 150)) is None
+@pytest.mark.parametrize(
+    ("last", "badge"),
+    [(91.0, None), (90.0, "Correction"), (80.01, "Correction"), (80.0, "Bear market")],
+)
+def test_the_drawdown_badge_uses_the_conventional_bands(last: float, badge: str | None) -> None:
+    series = _daily([100.0] * 12, current=last)
+    fall, name = mp.drawdown_badge(series["Nifty 50"])
+    assert fall == pytest.approx(last / 100.0 - 1.0)
+    assert name == badge
 
 
-# --- participation ------------------------------------------------------------
+def test_no_card_carries_generated_text_faber() -> None:
+    up = mp.trend_card(_daily([100.0 + i for i in range(30)]))
+    down = mp.trend_card(_daily([200.0 - i for i in range(30)]))
+    assert up is not None and down is not None
+    assert up["info"] == down["info"] == mp.INFO["trend"]
 
 
-def _breadth(above_50: float | None, highs: int = 0, lows: int = 0) -> dict[str, Any]:
+# --- participation: 200-day share and the High-Low Index (research 122) -------------
+
+
+def _breadth(
+    above_200: float | None, high_low: float | None = 50.0, above_50: float | None = 50.0
+) -> dict[str, Any]:
     return {
         "available": True,
-        "latest": {"above_50": above_50, "new_highs": highs, "new_lows": lows},
+        "latest": {
+            "above_200": above_200,
+            "high_low_index": high_low,
+            "above_50": above_50,
+            "new_highs": 16,
+            "new_lows": 101,
+        },
     }
 
 
 @pytest.mark.parametrize(
-    ("share", "word"), [(60.0, "Broad"), (59.9, "Mixed"), (40.0, "Mixed"), (39.9, "Narrow")]
+    ("above_200", "high_low", "word"),
+    [
+        (50.0, 50.0, "Broad"),
+        (80.0, 70.0, "Broad"),
+        (49.9, 49.9, "Narrow"),
+        (33.3, 21.7, "Narrow"),
+        (60.0, 40.0, "Mixed"),
+        (40.0, 60.0, "Mixed"),
+    ],
 )
-def test_participation_thresholds(share: float, word: str) -> None:
-    card = mp.participation_card(_breadth(share))
+def test_participation_needs_both_lines_to_agree(
+    above_200: float, high_low: float, word: str
+) -> None:
+    card = mp.participation_card(_breadth(above_200, high_low))
     assert card is not None and card["word"] == word
-    assert card["zones"] == [40.0, 60.0]
+    assert card["value"] == above_200 and card["high_low"] == high_low
 
 
-def test_participation_sends_the_dial_its_value_and_the_counts() -> None:
-    card = mp.participation_card(_breadth(16.2, highs=16, lows=101))
-    assert card is not None
-    assert (card["value"], card["new_highs"], card["new_lows"]) == (16.2, 16, 101)
+@pytest.mark.parametrize(
+    ("above_50", "tag"),
+    [(29.9, "Washed out"), (30.0, None), (70.0, None), (70.1, "Stretched"), (None, None)],
+)
+def test_the_fifty_day_tag_uses_stockcharts_levels(above_50: float | None, tag: str | None) -> None:
+    card = mp.participation_card(_breadth(60.0, 60.0, above_50))
+    assert card is not None and card["tag"] == tag
 
 
 def test_no_breadth_no_participation_card() -> None:
     assert mp.participation_card({"available": False, "reason": "loading"}) is None
     assert mp.participation_card(_breadth(None)) is None
+    assert mp.participation_card(_breadth(60.0, None)) is None
 
 
 # --- fear ---------------------------------------------------------------------
@@ -182,7 +236,7 @@ def test_no_fii_rank_no_money_card() -> None:
 
 def test_the_pulse_keeps_order_and_drops_missing_cards() -> None:
     out = mp.pulse(
-        _nifty([100.0 + i for i in range(260)]),
+        _daily([100.0 + i for i in range(30)]),
         _strip(50.0),
         {"available": False, "reason": "loading"},
         _positions(0.5, 50.0),

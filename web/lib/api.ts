@@ -1360,6 +1360,16 @@ export type PulseCard = {
   median?: number;
   usual?: number | null;
   percentile?: number;
+  /** Trend (Faber): the month-end the word was read on, today's fall from the
+   *  52-week high, and its band ("Correction", "Bear market") if any. */
+  month_end?: string;
+  drawdown?: number;
+  badge?: string | null;
+  /** Participation: the High-Low Index that confirms it, the 50-day share
+   *  and its extreme tag ("Washed out", "Stretched") if any. */
+  high_low?: number;
+  above_50?: number | null;
+  tag?: string | null;
 };
 export type MarketContext = {
   ok: boolean;

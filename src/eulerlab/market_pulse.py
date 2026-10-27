@@ -5,8 +5,10 @@ a word from a fixed rule over one figure, plus what its gauge needs to draw
 that figure. There is no generated text: the operator asked for numbers and
 pictures on the page and explanations only behind an info button
 (ADR-082), so `info` is a fixed definition of the rule with no numbers filled
-in. The thresholds are ours, not a standard; the four are not added into one
-score. None of it has passed the gate.
+in. Trend and Participation use published rules (research 122, ADR-083):
+Faber's 10-month average, and the share of stocks above their 200-day average
+against StockCharts' 50% line. Fear and Big money thresholds are still ours.
+The four are not added into one score. None of it has passed the gate.
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from eulerlab.market_context import BENCHMARK, SPARK_POINTS, IndexDay, thin
+from eulerlab.market_context import BENCHMARK, IndexDay
 
 UP, DOWN, FLAT = "up", "down", "flat"
 """Card direction, drawn as an arrow beside the colour (research 121 [3])."""
@@ -22,20 +24,39 @@ UP, DOWN, FLAT = "up", "down", "flat"
 GOOD, BAD, NEUTRAL = "good", "bad", "neutral"
 """Card tone: how a long-only holder would feel about it, nothing more."""
 
-TREND_AVERAGE = 200
-TREND_LOOKBACK = 63
+TREND_MONTHS = 10
+"""Faber's rule (research 122 [1]): the month-end close against the mean of the
+last 10 month-end closes."""
 
-PARTICIPATION_ZONES = (40.0, 60.0)
+CORRECTION, BEAR = -0.10, -0.20
+"""Drawdown from the 52-week high: the conventional bands (research 122 [7])."""
+
+BREADTH_LINE = 50.0
+"""StockCharts' bias line for the share of stocks above their 200-day average,
+and the High-Low Index's midpoint (research 122 [4], [5])."""
+
+WASHED_OUT, STRETCHED = 30.0, 70.0
+"""StockCharts' oversold and overbought levels for the 50-day share (research 122 [4])."""
+
 FEAR_ZONES = (30.0, 70.0)
 MONEY_ZONES = (25.0, 75.0)
 
 INFO = {
-    "trend": "Nifty 50 against its 200-day average and against its close 3 months (63 sessions) "
-    "ago. Uptrend: above the average and higher. Downtrend: below and lower. Sideways: "
-    "anything else. The line is the past year; the dashed line is the 200-day average.",
-    "participation": "The share of NSE stocks closing above their own 50-day average, on "
-    "split-adjusted closes, funds and ETFs excluded. 60% or more: Broad. 40-60%: Mixed. "
-    "Under 40%: Narrow. StockCharts reads above 70% as stretched and below 30% as washed out.",
+    "trend": "Faber's rule (Journal of Wealth Management, 2007; tested on US stocks from "
+    "1900): the last month-end close of Nifty 50 against the mean of the last 10 month-end "
+    "closes. Above: Uptrend. Below: Downtrend. It changes only at a month's end. Brock, "
+    "Lakonishok & LeBaron (1992) found returns after a fall below a moving average negative "
+    "and more volatile; Gunasekarage & Power (2001) found such rules predictive in India, "
+    "1990-2000. The badge is the daily fall from the 52-week high: 10-20% is a Correction, "
+    "20% or more a Bear market, by convention. The line is 24 month-ends with the 10-month "
+    "average dashed. On 2016-2026 Nifty it changed word twice a year. Research 122.",
+    "participation": "The share of NSE stocks closing above their own 200-day average "
+    "(split-adjusted, funds and ETFs excluded), confirmed by the High-Low Index (10-day "
+    "mean of new highs / (highs + lows) x 100). Both at 50 or above: Broad. Both below "
+    "50: Narrow. Otherwise Mixed. StockCharts: the 50% line works best with the 200-day "
+    "share. The tag uses StockCharts' levels for the 50-day share: under 30 Washed out, "
+    "over 70 Stretched. Zaremba et al. (2021) found breadth predicts market returns in 64 "
+    "countries. Research 122.",
     "fear": "India VIX is NSE's 30-day implied volatility of Nifty options: what traders pay "
     "for protection. The dial ranks today's close against the previous year's closes. Above "
     "the 70th percentile: Elevated. Under the 30th: Calm. Else Normal.",
@@ -46,8 +67,9 @@ INFO = {
 }
 
 NOTE = (
-    "Each word comes from the rule in its info button. The thresholds are ours, not a "
-    "standard, and the four are not added into one score. Context, not a signal."
+    "Each word comes from the rule in its info button. Trend and Participation use published "
+    "rules (Faber 2007; StockCharts); the Fear and Big money thresholds are ours. The four "
+    "are not added into one score, and none is a guarantee. Context, not a signal."
 )
 
 
@@ -65,61 +87,96 @@ def _card(
     }
 
 
-def _band(value: float, zones: tuple[float, float]) -> int:
-    """0 below the low zone edge, 1 between, 2 at or above the high edge."""
-    low, high = zones
-    return 0 if value < low else 2 if value >= high else 1
+def month_ends(series: Sequence[IndexDay]) -> list[IndexDay]:
+    """The last trading day of each completed month, oldest first.
+
+    The month of the latest row is left out: it has not ended, and Faber's
+    rule reads only month-end closes."""
+    if not series:
+        return []
+    out: list[IndexDay] = []
+    for row in series:
+        if out and (out[-1].day.year, out[-1].day.month) == (row.day.year, row.day.month):
+            out[-1] = row
+        else:
+            out.append(row)
+    latest = series[-1].day
+    if (out[-1].day.year, out[-1].day.month) == (latest.year, latest.month):
+        out.pop()
+    return out
+
+
+def drawdown_badge(series: Sequence[IndexDay]) -> tuple[float, str | None]:
+    """Today's fall from the 52-week high, and its conventional name."""
+    year = [row.close for row in series[-252:]]
+    fall = series[-1].close / max(year) - 1.0
+    # Rounded before the comparison: 90 / 100 - 1 is -0.09999999999999998.
+    band = round(fall, 9)
+    return fall, "Bear market" if band <= BEAR else "Correction" if band <= CORRECTION else None
 
 
 def trend_card(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any] | None:
-    """Nifty 50 against its 200-day average and its 3-month change."""
+    """Faber's 10-month rule on Nifty 50, with the drawdown band as a badge."""
     nifty = series.get(BENCHMARK, ())
-    if len(nifty) < TREND_AVERAGE + 1:
+    ends = month_ends(nifty)
+    if len(ends) < TREND_MONTHS:
         return None
-    closes = [row.close for row in nifty]
-    close = closes[-1]
-    average = sum(closes[-TREND_AVERAGE:]) / TREND_AVERAGE
-    change = close / closes[-1 - TREND_LOOKBACK] - 1.0
-    # The average for each of the last year's days, so the gauge can draw it.
-    year = min(252, len(closes) - TREND_AVERAGE + 1)
+    closes = [row.close for row in ends]
+    average = sum(closes[-TREND_MONTHS:]) / TREND_MONTHS
+    last = closes[-1]
+    up = last > average
+    # The same months for both lines: the average exists only from the tenth
+    # month-end, and a shorter average line would be stretched across the chart.
+    span = min(24, len(closes) - TREND_MONTHS + 1)
+    shown = closes[-span:]
     averages = [
-        sum(closes[i - TREND_AVERAGE + 1 : i + 1]) / TREND_AVERAGE
-        for i in range(len(closes) - year, len(closes))
+        sum(closes[i - TREND_MONTHS + 1 : i + 1]) / TREND_MONTHS
+        for i in range(len(closes) - span, len(closes))
     ]
-    above = close > average
-    if above and change > 0:
-        word, direction, tone = "Uptrend", UP, GOOD
-    elif not above and change < 0:
-        word, direction, tone = "Downtrend", DOWN, BAD
-    else:
-        word, direction, tone = "Sideways", FLAT, NEUTRAL
+    fall, badge = drawdown_badge(nifty)
     return _card(
         "trend",
         "Trend",
-        word,
-        direction,
-        tone,
-        value=round(change, 4),
-        close=round(close, 2),
+        "Uptrend" if up else "Downtrend",
+        UP if up else DOWN,
+        GOOD if up else BAD,
+        value=round(last / average - 1.0, 4),
+        month_end=ends[-1].day.isoformat(),
+        close=round(last, 2),
         average=round(average, 2),
-        spark=thin(closes[-year:], SPARK_POINTS),
-        spark_average=thin(averages, SPARK_POINTS),
+        spark=[round(v, 2) for v in shown],
+        spark_average=[round(v, 2) for v in averages],
+        drawdown=round(fall, 4),
+        badge=badge,
     )
 
 
 def participation_card(breadth: Mapping[str, Any]) -> dict[str, Any] | None:
-    """How many stocks take part, from the share above their 50-day average."""
+    """Share of stocks above their 200-day average, confirmed by the High-Low Index."""
     if not breadth.get("available"):
         return None
     latest = breadth["latest"]
-    share = latest.get("above_50")
-    if share is None:
+    share, high_low = latest.get("above_200"), latest.get("high_low_index")
+    if share is None or high_low is None:
         return None
-    word, direction, tone = (
-        ("Narrow", DOWN, BAD),
-        ("Mixed", FLAT, NEUTRAL),
-        ("Broad", UP, GOOD),
-    )[_band(float(share), PARTICIPATION_ZONES)]
+    above = float(share) >= BREADTH_LINE
+    highs_lead = float(high_low) >= BREADTH_LINE
+    if above and highs_lead:
+        word, direction, tone = "Broad", UP, GOOD
+    elif not above and not highs_lead:
+        word, direction, tone = "Narrow", DOWN, BAD
+    else:
+        word, direction, tone = "Mixed", FLAT, NEUTRAL
+    short = latest.get("above_50")
+    tag = (
+        None
+        if short is None
+        else "Washed out"
+        if short < WASHED_OUT
+        else "Stretched"
+        if short > STRETCHED
+        else None
+    )
     return _card(
         "participation",
         "Participation",
@@ -127,7 +184,10 @@ def participation_card(breadth: Mapping[str, Any]) -> dict[str, Any] | None:
         direction,
         tone,
         value=share,
-        zones=list(PARTICIPATION_ZONES),
+        zones=[BREADTH_LINE, BREADTH_LINE],
+        high_low=high_low,
+        above_50=short,
+        tag=tag,
         new_highs=latest.get("new_highs", 0),
         new_lows=latest.get("new_lows", 0),
     )

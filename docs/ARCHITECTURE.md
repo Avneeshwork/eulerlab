@@ -1885,19 +1885,20 @@ data of its own.
 
 | Card | Rule | Word |
 |---|---|---|
-| Trend | Nifty 50 against its 200-day average, and its change over 63 sessions | above and up Uptrend; below and down Downtrend; else Sideways |
-| Participation | % of stocks above their 50-day average | 60+ Broad; 40-60 Mixed; under 40 Narrow |
+| Trend (ADR-083) | Faber: last completed month-end close of Nifty 50 against the mean of the last 10 month-end closes; badge from the fall off the 252-day high | above Uptrend, else Downtrend; badge Correction at 10-20%, Bear market at 20%+ |
+| Participation (ADR-083) | % of stocks above their 200-day average, and the High-Low Index | both 50+ Broad; both under 50 Narrow; else Mixed. Tag from the 50-day share: under 30 Washed out, over 70 Stretched |
 | Fear | India VIX percentile over the previous 251 closes | above 70 Elevated; under 30 Calm; else Normal |
 | Big money | FII index-futures long share, percentile against its own last 249 files | under 25 More bearish than usual; above 75 More bullish than usual; else Usual |
 
-The thresholds are ours. The cards are not added into one score. There is no
+Trend and Participation use published rules (research 122, ADR-083); the Fear and Big money thresholds are ours. The cards are not added into one score. There is no
 generated text (ADR-082): a card is a word, its gauge and a fixed definition
 behind an info button.
 
 | Figure | Drawn as | Data sent |
 |---|---|---|
-| Trend | Year line of Nifty 50 with its 200-day average dashed | `spark`, `spark_average` (64 points each, `thin`) |
-| Participation, Fear | Half-circle dial, three zones, a needle | `value` 0-100, `zones` |
+| Trend | Up to 24 month-end closes with the 10-month average dashed, the same months for both; the badge | `spark`, `spark_average`, `month_end`, `drawdown`, `badge` |
+| Participation | Half-circle dial of the 200-day share, split at 50; H-L index and 50-day share beside it; the tag | `value`, `zones`, `high_low`, `above_50`, `tag` |
+| Fear | Half-circle dial, three zones, a needle | `value` 0-100, `zones` |
 | Big money | Long-of-100 bar with the usual (median) tick; 60-day line | `value`, `usual`, `spark` |
 | Indices | Tile: close, today, year line, five horizon blocks shaded by size | `spark` per index |
 | Valuation | Range bar: low to high since the start date, median tick, today's dot | `low`, `high`, `median` per PE/PB/yield |

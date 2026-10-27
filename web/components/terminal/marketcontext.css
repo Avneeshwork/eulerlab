@@ -178,6 +178,16 @@
 }
 .mc-card.good .mc-card-word { color: var(--clear); }
 .mc-card.bad .mc-card-word { color: var(--fail); }
+.mc-chip {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: var(--t-micro);
+  font-weight: 600;
+}
+.mc-chip.bad { color: var(--fail); }
+.mc-chip.good { color: var(--clear); }
 .mc-card-facts {
   display: flex;
   justify-content: space-between;
