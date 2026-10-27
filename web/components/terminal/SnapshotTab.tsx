@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { Info } from './Info';
+import { Info } from './ui';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 import {
   IndexContext,

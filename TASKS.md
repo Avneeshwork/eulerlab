@@ -3,6 +3,30 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## UI revamp (2026-10-28, ADR-084)
+
+Operator: "now i want you to revamp all screen ui don't ask for permission and setup auto start if session credit used".
+Rules for every screen (ADR-084): numbers and pictures on the page; every explanation, definition and caveat behind an `Info` (i) button, none inline; the chart type chosen for the question it answers; arrows beside red/green; the shared kit in `web/components/terminal/ui/`; fits a 390 px phone (no horizontal page scroll); a long screen split into tabs kept in the URL.
+Work on branch `ui-revamp`; one screen per commit; do not push. Verify: `make verify`, then a desktop and a 390 px screenshot of the screen.
+Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourly) continues from the first TODO below when `data/cache/ui-revamp.active` exists and has not been touched for 90 minutes. Delete that file to stop it.
+
+| ID | Screen | Status |
+|---|---|---|
+| T-4170 | Shared UI kit: `ui/` (Info, Heading, Stat, Seg, Tabs, Sparkline, Bar, Chip) used by every screen | DONE. `web/components/terminal/ui/` (Info, Heading, Stat/Stats, Chip, Seg, Empty, Move/signed, Sparkline, Bar) and `ui.css`; page subtitles and Tools card descriptions moved behind (i) |
+| T-4171 | Strategies (Library) | TODO |
+| T-4172 | Strategy report (BacktestReport, AdoptedReport) | TODO |
+| T-4173 | Live & Risk (LiveTab, RiskBook, RiskTab, PaperDeployments, deployment report) | TODO |
+| T-4174 | Options (OptionsTab, OptionsTools, OptionsCharts, PayoffBuilder) | TODO |
+| T-4175 | Charts (ChartTab, MacroBand) | TODO |
+| T-4176 | Tools hub, Strategy Builder | TODO |
+| T-4177 | Research library | TODO |
+| T-4178 | Instruments, Data | TODO |
+| T-4179 | SIP backtester | TODO |
+| T-4180 | Company page (`app/terminal/company/[symbol]`) | TODO |
+| T-4181 | Dialogs (Backtest, Deploy, Explain) | TODO |
+| T-4182 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
+| T-4183 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | TODO |
+
 ## Quality and latency pass (2026-10-27)
 
 Operator: "commit all changes and look to improve code quality and latency on all features and pages we have", then "B and approved" (fix the red checks before committing).

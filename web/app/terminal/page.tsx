@@ -70,6 +70,7 @@ import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
+import { Info as InfoButton } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
@@ -360,8 +361,12 @@ export default function TerminalPage() {
                 <span>{heading.title}</span>
               </nav>
             )}
-            <h1>{heading.title}</h1>
-            <p>{heading.sub}</p>
+            {/* The title alone; what the page is for opens from its info
+                button (ADR-084). */}
+            <h1 className="tpage-title">
+              {heading.title}
+              <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>
+            </h1>
           </div>
         )}
 
@@ -490,21 +495,22 @@ export default function TerminalPage() {
             {TOOLS.map((tool) => {
               const Icon = tool.icon;
               return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  className="ttool-card"
-                  onClick={() => setPage(tool.id)}
-                >
-                  <span className="ttool-icon" aria-hidden="true">
-                    <Icon size={20} />
+                <div key={tool.id} className="ttool-card">
+                  <button type="button" className="ttool-open" onClick={() => setPage(tool.id)}>
+                    <span className="ttool-icon" aria-hidden="true">
+                      <Icon size={20} />
+                    </span>
+                    <b>
+                      {tool.title}
+                      <ChevronRight size={16} aria-hidden="true" />
+                    </b>
+                  </button>
+                  <span className="ttool-info">
+                    <InfoButton align="right" label={`About ${tool.title}`}>
+                      {tool.description}
+                    </InfoButton>
                   </span>
-                  <b>
-                    {tool.title}
-                    <ChevronRight size={16} aria-hidden="true" />
-                  </b>
-                  <span>{tool.description}</span>
-                </button>
+                </div>
               );
             })}
           </div>

@@ -1911,6 +1911,15 @@ second tap, a click elsewhere or Escape. Hover tooltips remain only for values.
 The breadth series is still computed (Participation and the new-high lists use
 it), but its chart is not drawn.
 
+### One visual language for every screen (ADR-084)
+
+Every terminal screen is built from `web/components/terminal/ui/`: `Info` (the
+only place explanation lives, a tap-to-open button), `Heading`, `Stat`/`Stats`,
+`Chip`, `Seg`, `Empty`, `Move` (signed change with an arrow), `Sparkline` and
+`Bar` (a bar inside a table cell). A page's title carries its description in
+an info button; the Tools cards do the same. Screens move onto the kit one per
+commit on the `ui-revamp` branch (TASKS, UI revamp).
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

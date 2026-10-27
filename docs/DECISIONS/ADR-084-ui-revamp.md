@@ -1,0 +1,7 @@
+# ADR-084: One visual language for every screen
+
+- **Context:** the operator asked to revamp every screen's UI without being asked for each step, after the Dashboard moved to numbers and pictures with all explanation behind info buttons (ADR-082). Other screens still carry paragraphs, hover-only "?" tooltips, plain tables where a chart reads faster, and layouts that do not fit a phone.
+- **Options:** (a) restyle each screen on its own; (b) a small shared kit in `web/components/terminal/ui/` and each screen moved onto it, one per commit; (c) a component library dependency.
+- **Choice:** (b). Rules for every screen: numbers and pictures on the page; every explanation, definition and caveat behind an `Info` button, none inline; the chart type chosen for the question it answers; arrows beside red and green; fits a 390 px phone without page-level horizontal scroll; a long screen split into tabs kept in the URL. Presentation only: no data, endpoint or calculation changes.
+- **Why:** one set of parts keeps screens consistent and makes the rules checkable. No new dependency: the parts are small and the cost rule asks for a measured need first.
+- **Cost if wrong:** a screen whose text was the content (a research note, a hypothesis) loses reading flow when its prose moves behind buttons; those keep their body text and move only the explanations of the interface. Work continues unattended through `tools/ui_revamp_resume.sh` when the session stops; it commits on a branch and never pushes, so the operator merges.
