@@ -1319,6 +1319,132 @@ export type BatchResult = {
   }[];
 };
 
+/** `/api/market-context` (research 120): context a trader reads before the
+ *  open. Each section can be unavailable on its own, with a reason. */
+export type Unavailable = { available: false; reason: string };
+export type Horizon = '1d' | '1w' | '1m' | '3m' | '1y';
+export type IndexTrend = {
+  name: string;
+  as_of: string;
+  close: number;
+  change: Record<Horizon, number | null>;
+};
+export type ValuationCell = { value: number; percentile: number | null; median: number | null; since: string } | null;
+export type MarketContext = {
+  ok: boolean;
+  strip:
+    | {
+        available: true;
+        indices: IndexTrend[];
+        vix: { level: number; percentile_1y: number | null; median_1y: number; note: string } | null;
+        gsec_note: string;
+      }
+    | Unavailable;
+  valuation:
+    | {
+        available: true;
+        indices: { name: string; as_of: string; since: string; pe: ValuationCell; pb: ValuationCell; dy: ValuationCell }[];
+        note: string;
+      }
+    | Unavailable;
+  sectors:
+    | {
+        available: true;
+        benchmark: string;
+        sectors: {
+          name: string;
+          change_1d: number | null;
+          relative: { '1w': number | null; '1m': number | null; '3m': number | null };
+          rising: boolean;
+          phase: 'leading' | 'weakening' | 'lagging' | 'improving' | null;
+        }[];
+        note: string;
+      }
+    | Unavailable;
+  breadth:
+    | {
+        available: true;
+        as_of: string;
+        stocks: number;
+        latest: {
+          above_20: number | null;
+          above_50: number | null;
+          above_200: number | null;
+          new_highs: number;
+          new_lows: number;
+          record_high_percent: number | null;
+          high_low_index: number | null;
+        };
+        series: {
+          days: string[];
+          above_20: (number | null)[];
+          above_50: (number | null)[];
+          above_200: (number | null)[];
+          new_highs: number[];
+          new_lows: number[];
+          high_low_index: (number | null)[];
+        };
+        new_high_names: BreadthName[];
+        new_low_names: BreadthName[];
+        note: string;
+      }
+    | Unavailable;
+  positioning:
+    | {
+        available: true;
+        as_of: string;
+        filling: boolean;
+        participants: {
+          participant: 'FII' | 'DII' | 'Pro' | 'Client';
+          index_futures_long_share: number | null;
+          change_1d: number | null;
+          change_5d: number | null;
+          percentile: number | null;
+          history_days: number;
+          index_calls_net: number;
+          index_puts_net: number;
+        }[];
+        series: { days: string[] } & Record<'FII' | 'DII' | 'Pro' | 'Client', (number | null)[]>;
+        note: string;
+      }
+    | (Unavailable & { filling?: boolean });
+  options:
+    | {
+        available: true;
+        as_of: string;
+        expiry: string;
+        days_to_expiry: number | null;
+        spot_forward: number | null;
+        pcr_oi: number | null;
+        pcr_oi_before: number | null;
+        max_pain: number | null;
+        atm_iv: number | null;
+        atm_iv_before: number | null;
+        straddle: number | null;
+        since: string;
+        note: string;
+      }
+    | Unavailable;
+  delivery:
+    | {
+        available: true;
+        as_of: string;
+        sessions: number;
+        found: number;
+        stocks: {
+          symbol: string;
+          delivery_pct: number;
+          usual_pct: number;
+          ratio: number;
+          change_1d: number | null;
+          turnover_cr: number;
+        }[];
+        note: string;
+      }
+    | Unavailable;
+};
+export type BreadthName = { symbol: string; close: number; change_1d: number | null; turnover_cr: number };
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: 'no-store' });
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -1711,6 +1837,7 @@ export const api = {
   pruneData: (dryRun: boolean) =>
     post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
   /** `live` false answers from held data alone, without waiting on a broker. */
+  marketContext: () => get<MarketContext>('/api/market-context'),
   snapshot: (workspace = '', live = true) =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}&live=${live}`),
   tweezer: (input: {

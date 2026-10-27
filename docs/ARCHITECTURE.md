@@ -1846,6 +1846,36 @@ Paper runs send many orders at 5 a second and the tests slept through it for
 real: 25 of `test_paper_attribution.py`'s 27 s. The limit is still enforced
 and counted. Paper and live runs still wait in real time.
 
+## Market context on the dashboard (research 120, ADR-080)
+
+`/api/market-context` answers beside `/api/snapshot`, and the Dashboard's
+India view draws it in five bands. Every input is already landed. Each
+section is computed on its own: one that fails says why and the rest still
+show. The whole answer is kept 60 s once complete.
+
+| Band | Source | Definition |
+|---|---|---|
+| Indices | `index_history.jsonl` (FileMemo, 20 indices of 146 parsed) | Close and change over 1, 5, 21, 63 and 252 sessions. India VIX ranked against the previous 251 closes |
+| Valuation | the same file | NSE's PE, PB and dividend yield, each ranked against its own history. PE only from 1 April 2021 (A-062): NSE moved it to consolidated earnings and Nifty 50's fell from about 40 to 33 overnight |
+| Breadth | the price panel, last 520 sessions | Split- and bonus-adjusted closes in a days x stocks grid (`price_grid`, the factors `build_adjusted_index` uses). % of stocks above their 20, 50 and 200-day averages (90% of the window present). New 52-week closing highs and lows against the previous 251 closes. High-Low Index = 10-day mean of highs / (highs + lows) x 100. Stocks only: ISINs starting `INF` (funds, ETFs) are dropped. Lists show names with a 20-day median turnover of Rs 10 crore or more |
+| Sector strength | `index_history.jsonl` | 20 NSE sector indices. Relative return = (1 + sector) / (1 + Nifty 50) - 1 over 5, 21, 63 sessions. Rising: 1-month relative now above its value 5 sessions ago. Phase: 3-month relative above or below zero crossed with rising |
+| F&O positioning | NSE participant-wise OI, last 260 files | Long share = index futures long / (long + short), per FII, DII, Pro, Client; changes over 1 and 5 files; percentile against the earlier files. Options shown as raw net contracts. Parsed days kept in `data/cache/participant_positions.jsonl`; files only in the bucket are read in one background thread |
+| Nifty options | `options_history("NIFTY", 6)` | PCR by open interest, max pain, ATM IV and straddle of the nearest open expiry, against 5 sessions earlier |
+| Delivery spikes | last 21 lines of `delivery.jsonl` (read from the end of the 194 MB file) | Today's delivery % at least 1.5x its mean over the previous 20 sessions (75% of them present), among names with Rs 10 crore median turnover |
+
+The breadth grid takes about 3 s the first time after a restart and is kept per
+(last panel day, row count, factor file stamp); later answers take 0.14 s.
+
+Participant files are listed as their own tree, `participant_oi`. They sit in
+the bucket at `nse/participant_oi/...` while the local copy is under
+`data/landing/nse/`. Listed as the `nse` tree, `landing_reader` asks the bucket
+for `nse/nse/...` and finds only the local files (T-4162).
+
+None of these figures has passed the gate. They are context. The page carries
+each definition, and Sensibull's own statement that PCR and max pain "do not
+have high predictive power". Not shown, because neither is landed: FII/DII
+cash flows and upcoming results.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

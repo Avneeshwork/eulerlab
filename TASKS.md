@@ -11,6 +11,11 @@ Verify: `make verify` (8 of 8).
 | ID | Task | Status |
 |---|---|---|
 | T-4139 | Measure how much HISTORY #28 (delisted holdings, cash-limited buys) moved stored backtest results | DONE (partial). 9 strategies compared; 6 moved < 0.04 Sharpe; `fifty_two_week_high` 1.52 → 2.39, `illiquidity_premium` 1.04 → 1.24, `india_contrarian_36m` 0.13 → 0.09. See HISTORY #28 |
+| T-4161 | Dashboard lacks what trader platforms lead with: index trend and valuation, breadth depth, sector strength, F&O positioning (research 120) | DONE. `/api/market-context` and five India bands (ADR-080). 22 tests |
+| T-4162 | `landing_reader` asks the bucket for `nse/nse/...` for the `nse` tree; NSE files are at `nse/...`. Only local NSE files are seen, and `market_history._read` fails for pruned files | OPEN. The dashboard lists `participant_oi` as its own tree instead. Fix `remote_key` and the listing for the `nse` tree, then check every `nse/` reader |
+| T-4163 | Land FII/DII provisional cash flows | OPEN. A new source (research 120). The dashboard says it is missing |
+| T-4164 | Land upcoming results dates (board meetings) | OPEN. `nse_earnings_announcements.jsonl` holds past filings and ends 2024-12-31 |
+| T-4165 | The Dashboard page is wider than a phone screen: header, market toggle and ribbon run past 390 px | OPEN. Not caused by the new bands; they follow the page width |
 | T-4157 | Tests slept through the 5-orders-a-second governor in real time (25 of `test_paper_attribution.py`'s 27 s) | DONE. Simulated clock in tests only. Suite 153 s → 119 s |
 | T-4158 | First dashboard snapshot after a restart took 3.9 s: US panel parse 1.2 s, calendar waiting 1.3 s on B2 | DONE. 3.9 → 2.0 s (0.18 s without live quotes). The band reads the last two sessions from the file's end (12 ms); full US read 1.2 → 0.46 s; calendar uses the saved listing. Rows identical |
 | T-4159 | `/api/data` walked every landing file with three `stat` calls on each request (0.3 s) | DONE. One `stat` per file, counts reused 30 s (identical counts) |

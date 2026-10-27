@@ -19,6 +19,14 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
+import {
+  BreadthContext,
+  DeliveryContext,
+  IndexContext,
+  PositioningContext,
+  SectorContext,
+  useMarketContext,
+} from './MarketContext';
 
 const pct = (value: number, digits = 2) =>
   `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(digits)}%`;
@@ -322,6 +330,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
   // Which market the detail bands describe. India is the default because it is
   // the book being traded; the US view is context, and says so.
   const [market, setMarket] = useState<Market>('IN');
+  // Fetched beside the snapshot, not inside it: these bands need the panel
+  // and the participant history, and the session line should not wait for them.
+  const { data: ctx } = useMarketContext();
 
   useEffect(() => {
     let live = true;
@@ -501,6 +512,16 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         </p>
       )}
 
+      {/* --- band 1½: breadth and indices (research 120) ---------------------
+          What the session line cannot say: how many stocks take part over
+          weeks, and where the indices and their valuation stand. */}
+      {market === 'IN' && ctx && (
+        <>
+          <BreadthContext ctx={ctx} />
+          <IndexContext ctx={ctx} />
+        </>
+      )}
+
       {/* --- band 2: the map — India only ------------------------------------
           Gated rather than emptied. There is no US price panel here, so a US
           map would be a blank grid claiming the data exists. */}
@@ -540,6 +561,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         )}
       </section>
       )}
+
+      {/* --- band 2½: sector strength against Nifty 50 ---------------------- */}
+      {market === 'IN' && ctx && <SectorContext ctx={ctx} />}
 
       {/* --- band 1-US: the session, from our own bars ----------------------
           The US view showed a quote ribbon and sector averages because there
@@ -725,6 +749,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           />
         </div>
       </section>
+      )}
+
+      {/* --- band 3¼: who holds the index, and what was delivered ----------- */}
+      {market === 'IN' && ctx && (
+        <>
+          <PositioningContext ctx={ctx} />
+          <DeliveryContext ctx={ctx} />
+        </>
       )}
 
       {/* --- band 3½: the world --------------------------------------------

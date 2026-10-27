@@ -51,7 +51,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab import attribution, cloud_results, last_seen, reports, strategy_results, walk_run
+from eulerlab import (
+    attribution,
+    cloud_results,
+    last_seen,
+    market_context,
+    reports,
+    strategy_results,
+    walk_run,
+)
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.api import (
@@ -4182,9 +4190,156 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
                     "out of the fundamentals tree"
                 ]
             ),
-            "index levels — no NIFTY, so breadth has nothing to diverge from "
-            "and a mover cannot be read against the market",
+            "FII/DII cash flows and upcoming results — neither is landed yet (research 120)",
         ],
+    }
+
+
+# --- market context (research 120) ---------------------------------------------
+
+MARKET_CONTEXT_TTL = 60.0
+"""Seconds one answer is reused. Its inputs change once a day; the TTL only
+keeps a burst of tab switches from recomputing the breadth grid."""
+
+_MARKET_CONTEXT: dict[str, tuple[float, dict[str, Any]]] = {}
+_BREADTH: dict[tuple[date, int, tuple[int, int] | None], dict[str, Any]] = {}
+_POSITIONS = market_context.PositionHistory()
+_BREADTH_LOCK = threading.Lock()
+
+
+@app.get("/api/market-context")
+def market_context_route() -> dict[str, Any]:
+    """Indices, valuation, sectors, breadth, positioning and delivery spikes.
+
+    Separate from `/api/snapshot` so the dashboard paints its own bands at
+    once and fills these beside them. Each section answers on its own: one
+    that cannot be computed says why and the others still show.
+    """
+    held = _MARKET_CONTEXT.get("all")
+    if held is not None and time.monotonic() - held[0] < MARKET_CONTEXT_TTL:
+        return held[1]
+
+    def section(build: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+        try:
+            return build()
+        except Exception as exc:  # one broken input must not blank the others
+            return {"available": False, "reason": f"{type(exc).__name__}: {exc}"[:200]}
+
+    series = market_context.indices()
+    breadth, latest = _breadth_and_latest()
+    payload: dict[str, Any] = {
+        "ok": True,
+        "strip": section(lambda: market_context.index_strip(series)),
+        "valuation": section(lambda: market_context.valuation(series)),
+        "sectors": section(lambda: market_context.sector_strength(series)),
+        "breadth": breadth,
+        "positioning": section(_positioning),
+        "options": section(_options_context),
+        "delivery": section(
+            lambda: (
+                market_context.delivery_watch(market_context.delivery_days(), latest)
+                if latest
+                else {"available": False, "reason": "the price panel is loading"}
+            )
+        ),
+    }
+    complete = breadth.get("available") and not _POSITIONS.filling
+    if complete:
+        _MARKET_CONTEXT["all"] = (time.monotonic(), payload)
+    return payload
+
+
+def _breadth_and_latest() -> tuple[dict[str, Any], dict[str, tuple[float, float | None]]]:
+    """Breadth from the last 520 sessions, and each symbol's (median turnover,
+    day change) for the delivery list. Kept per panel and factor file."""
+    from eulerlab.backtest.vector import FAR_FUTURE
+    from eulerlab.corp_actions.build_factors import PRICE_FACTORS
+    from eulerlab.features.panel import load_price_factor_store
+
+    if not PANEL.loaded():
+        _load_panel_in_background()
+        return {"available": False, "reason": "the price panel is loading"}, {}
+    rows = PANEL.rows(520)
+    if not rows:
+        return {"available": False, "reason": "no panel rows"}, {}
+    key = (rows[-1].day, len(rows), market_context.file_stamp(PRICE_FACTORS))
+    with _BREADTH_LOCK:
+        cached = _BREADTH.get(key)
+        if cached is None:
+            actions: dict[str, list[tuple[date, float]]] = {}
+            for record in load_price_factor_store().query(as_of=FAR_FUTURE):
+                actions.setdefault(record.key, []).append((record.event_time.date(), record.value))
+            grid = market_context.price_grid(rows, actions)
+            turnover = market_context.median_turnover(grid.turnover, 20)
+            latest = {
+                symbol: (float(turnover[j]), market_context.column_change(grid.close, j))
+                for j, symbol in enumerate(grid.symbols)
+            }
+            cached = {"breadth": market_context.breadth(grid), "latest": latest}
+            _BREADTH.clear()
+            _BREADTH[key] = cached
+    return cached["breadth"], cached["latest"]
+
+
+def _positioning() -> dict[str, Any]:
+    """Participant positions, listed as the `participant_oi` tree.
+
+    NSE's files sit in the bucket at `nse/participant_oi/...`, while the
+    landing copy is `data/landing/nse/participant_oi/...`. Listed as the `nse`
+    tree, the reader asks the bucket for `nse/nse/...` and finds only the 11
+    local files (T-4162); as its own tree it resolves to the right keys, the
+    way `options_days` reads `fo`.
+    """
+    from eulerlab.ingest import landing_reader
+
+    def local(relative: str) -> Path:
+        return landing_reader.LANDING_ROOT / "nse" / relative
+
+    def read(relative: str) -> bytes:
+        path = local(relative)
+        return path.read_bytes() if path.exists() else landing_reader.read(relative, cache=False)
+
+    def listing() -> list[str]:
+        found = set(landing_reader.available("participant_oi", "**/*.csv", stale_ok=True))
+        root = landing_reader.LANDING_ROOT / "nse"
+        found |= {p.relative_to(root).as_posix() for p in (root / "participant_oi").rglob("*.csv")}
+        return sorted(found)
+
+    days = _POSITIONS.days(
+        listing=listing, read=read, is_local=lambda relative: local(relative).exists()
+    )
+    out = market_context.positioning(days)
+    out["filling"] = _POSITIONS.filling
+    return out
+
+
+def _options_context() -> dict[str, Any]:
+    """Nifty's nearest-expiry PCR, max pain and ATM IV, and their 5-session moves.
+
+    The same points the options history chart draws (`options_history`).
+    """
+    history = options_history("NIFTY", 6)
+    points = history.get("points") or []
+    if not history.get("ok") or not points:
+        return {"available": False, "reason": str(history.get("error") or "no options history")}
+    now, then = points[-1], points[0]
+    return {
+        "available": True,
+        "as_of": now.get("day"),
+        "expiry": now.get("expiry"),
+        "days_to_expiry": now.get("days_to_expiry"),
+        "spot_forward": now.get("forward"),
+        "pcr_oi": now.get("pcr_oi"),
+        "pcr_oi_before": then.get("pcr_oi"),
+        "max_pain": now.get("max_pain"),
+        "atm_iv": now.get("atm_iv"),
+        "atm_iv_before": then.get("atm_iv"),
+        "straddle": now.get("straddle"),
+        "since": then.get("day"),
+        "note": "Nearest expiry, from the F&O bhavcopy. PCR is put over call open interest; "
+        "max pain is the strike where option buyers lose most at expiry. Sensibull, which "
+        'popularised both, says they "do not have high predictive power" and mean little '
+        "in expiry week (research 120 [3]).",
     }
 
 
@@ -4336,7 +4491,12 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
         return {"ok": False, "error": f"no chain for {underlying}", "available": names}
 
     mine.sort(key=lambda c: c.expiry)
-    chain = next((c for c in mine if c.expiry.isoformat() == expiry), mine[0])
+    # With no expiry asked for, the nearest one still open after this day's
+    # close. The bhavcopy is end of day, so a chain expiring on the trade date
+    # is already settled: its straddle and IV were read off a dead contract on
+    # every expiry day (HISTORY #31).
+    still_open = next((c for c in mine if c.expiry > trade_day), mine[0])
+    chain = next((c for c in mine if c.expiry.isoformat() == expiry), still_open)
 
     # The forward is fitted from put-call parity before it is taken from the
     # future, for two reasons. Index futures are monthly and the options are
@@ -4505,9 +4665,10 @@ OPTIONS_HISTORY_CACHE = Path("data/cache/options_history.jsonl")
 changes, so neither does its point; after a restart the first chart waited
 29 s to download and parse 60 of them again (2026-10-27)."""
 
-HISTORY_POINT_VERSION = "1"
+HISTORY_POINT_VERSION = "2"
 """Bumped when `options.history.history_point` changes what it computes, so
-no point from an older calculation is served."""
+no point from an older calculation is served. 2: an expiry day reads the next
+open expiry, not the contract that settled that day (HISTORY #31)."""
 
 _HISTORY_LOCK = threading.Lock()
 _history_loaded = False

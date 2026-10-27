@@ -117,6 +117,8 @@ def _empty_request_caches() -> None:
         server._CLOUD_LISTINGS.clear()
         server._HISTORY_POINTS.clear()
         server._LANDING_COUNTS.clear()
+        server._MARKET_CONTEXT.clear()
+        server._BREADTH.clear()
 
 
 @pytest.fixture(autouse=True)
@@ -138,3 +140,21 @@ def _simulated_order_clock(monkeypatch: pytest.MonkeyPatch) -> None:
     defaults = dict(ems.Governor.__init__.__kwdefaults__ or {})
     defaults.update(clock=lambda: now[0], sleep=sleep)
     monkeypatch.setattr(ems.Governor.__init__, "__kwdefaults__", defaults)
+
+
+@pytest.fixture(autouse=True)
+def _private_positions(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or appends to the real parsed participant history."""
+    import sys
+
+    from eulerlab import market_context
+
+    folder = tmp_path_factory.mktemp("positions")
+    monkeypatch.setattr(market_context, "POSITIONS_CACHE", folder / "positions.jsonl")
+    server = sys.modules.get("eulerlab.api.server")
+    if server is not None:
+        monkeypatch.setattr(
+            server, "_POSITIONS", market_context.PositionHistory(folder / "positions.jsonl")
+        )

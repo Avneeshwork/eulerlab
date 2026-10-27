@@ -362,6 +362,8 @@ figure produced outside the result store before this date was frictionless.
 
 ## What the project has actually concluded
 
+**31. On an expiry day the option chain read a contract that had already settled.** (2026-10-27) With no expiry asked for, `_chain_payload` took the nearest expiry, and on an expiry day that is the one settling that afternoon. The bhavcopy is end of day, so the chain was dead: on 27 Oct 2026 the Nifty "straddle" was 45,499.5 with no implied vol. Found building the dashboard's options panel. Fixed: the default is the nearest expiry after the trade date (an expiry asked for by date is still served). Every options history point for an expiry day was wrong; `HISTORY_POINT_VERSION` 1 -> 2 retires the saved points so each is recomputed.
+
 **Nothing has beaten the bar.** 19 trials are logged. A candidate must clear
 **Sharpe 1.88** from noise alone. The best result ever produced here is
 **1.27**. The most recent Monte Carlo on `momentum_12_1` puts the bootstrap 5th
