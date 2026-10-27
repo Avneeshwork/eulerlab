@@ -320,8 +320,15 @@ until 2026-10-27, when Tier A got the same rules (back to 1.4e-16). The golden
 file moved by Rs 74.62 of Rs 16.7 lakh (0.0045%), all from trimmed last buys:
 with the cash rule off it reproduces the old file exactly. Any stored backtest
 that held a renamed or delisted stock, or rebalanced from a sell that fetched
-less than planned, is affected. The size of that effect on stored results was
-not measured (T-4139). The paper attribution split also paired a buy in one
+less than planned, is affected. Measured 2026-10-27 (T-4139) on the 9 equity
+strategies that ran on both engines over 3,000 days, Rs 10 lakh, Tier B
+(the run was stopped early; 44 others ran only on the new engine, or did not
+exist in the old one). Rejected orders fell everywhere (433 -> 0 for buy and
+hold). Six of nine moved by less than 0.04 Sharpe. Three moved more:
+`fifty_two_week_high` 1.52 -> 2.39 (total return 7.5x -> 41.9x),
+`illiquidity_premium` 1.04 -> 1.24, `india_contrarian_36m` 0.13 -> 0.09. Any
+stored Sharpe or return for those three from before 2026-10-18 is invalid.
+The 41.9x needs its own check before anyone trusts it. The paper attribution split also paired a buy in one
 book with a sell in the other on the same day, and stopped closing (Rs 2,875
 residual on its test). Fixed the same day.
 

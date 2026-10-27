@@ -10,7 +10,8 @@ Verify: `make verify` (8 of 8).
 
 | ID | Task | Status |
 |---|---|---|
-| T-4139 | Measure how much HISTORY #28 (delisted holdings, cash-limited buys) moved stored backtest results | OPEN. Re-run the stored strategies on both engine versions and compare |
+| T-4139 | Measure how much HISTORY #28 (delisted holdings, cash-limited buys) moved stored backtest results | DONE (partial). 9 strategies compared; 6 moved < 0.04 Sharpe; `fifty_two_week_high` 1.52 → 2.39, `illiquidity_premium` 1.04 → 1.24, `india_contrarian_36m` 0.13 → 0.09. See HISTORY #28 |
+| T-4156 | `fifty_two_week_high` returns 41.9x over 3,000 days on the fixed engine (was 7.5x) | OPEN. Check turnover, fills and the top contributors before trusting it |
 | T-4140 | Tier A without Tier B's cash and delisting rules (engines 4.5e-05 apart) | FIXED. Back to 1.4e-16. Golden file updated: −₹74.62, all from trimmed last buys |
 | T-4141 | Paper attribution paired a buy in one book with a sell in the other | FIXED. Residual ₹2,875 → 2.5e-10 |
 | T-4142 | 24 mypy errors, 7 ruff and 2 web lint findings in the uncommitted work | FIXED. No behaviour change |
@@ -25,7 +26,7 @@ Verify: `make verify` (8 of 8).
 | T-4152 | Strategy table 0.22 s (mandate.yaml parsed 52×), coverage 0.16 s (`relative_to` 3,674×) | DONE. 0.07 s and 0.07 s |
 | T-4153 | FX runs labelled "realistic" paid no spread (HISTORY #30) | FIXED. Half the recorded spread per unit in Tier A, Tier B and paper; engines agree; no stored FX result existed |
 | T-4154 | Dead code: 15 functions referenced nowhere (source, tests, tools, Makefile, UI, docs) | DONE. About 200 lines removed; kept `OrderStatus`, `underlyings` and `underlying_lot_size_at` on purpose |
-| T-4155 | The backtest panel and the company page disagree on tickers whose rows span more than one ISIN (GOLDSHARE 2021, GATECHDVR; 27 of 494 renamed) | OPEN. Decide which reading a stock page should show. The company page keeps its old reading until then |
+| T-4155 | The backtest panel and the company page disagree on tickers whose rows span more than one ISIN | CLOSED. Both are right for their job. Pages are keyed by screener.in tickers, which lag renames (HEG → HEGAM, ICICIPRULI → ICICILIFE), and the file scan follows the ISIN forward; the panel would show those pages nothing. 247 of 253 renamed tickers with a page read the same either way; the page keeps the file scan for all renamed tickers |
 | T-4144 | Slow first calls: `/api/data` 26.6 s, `/api/instruments` 8.2 s, `/api/snapshot` 5.5 s, `/api/fleet` 3.0 s; `/api/capabilities` slower on a repeat call | TODO |
 
 ## Indian data from the close (2026-10-26)

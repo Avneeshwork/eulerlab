@@ -38,7 +38,7 @@ never edit them without an explicit instruction in that session.
   recorded spread (it paid nothing, HISTORY #30). Panel: 2.6 → 1.85 GB, read about 8 s from a
   columnar copy in `data/cache/` (was 37 s). After a restart: `/api/data` 37 s → under 1 s,
   instruments 12 s → 0.15 s. Warm: dashboard 0.68 → 0.18 s, strategy table 0.22 → 0.07 s,
-  company page 2 ms for tickers no rename touched. Open: T-4139, T-4155.
+  company page 2 ms for tickers no rename touched. T-4139 measured (HISTORY #28); T-4155 closed. Open: T-4156.
 - **Indian data from the close (2026-10-26, ADR-079):** `make india-live` retries the Indian steps from 15:31
   until the bhavcopy and minute bars are in. Coverage reads **missing** from 15:31. Minute-built bars stand in until the
   bhavcopy lands. They are not used by the panel or the paper books. F&O stocks' minute bars end at 15:14 since the

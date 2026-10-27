@@ -1806,9 +1806,15 @@ metadata). For those the two readers differ: the loaded panel files each
 ISIN's rows under its latest ticker, while `read_symbol_rows` takes the rows
 stored under the ticker and then the rest of each ISIN. GOLDSHARE's 2021 ISIN
 change and GATECHDVR's merger come out differently (27 of 494 renamed tickers
-on 2026-10-27). The company page keeps the file scan for those, so what it
-shows has not changed. Which reading is right for a stock page is an open
-question (T-4155).
+on 2026-10-27). The company page keeps the file scan for those, and that
+reading is the right one for a stock page (T-4155). Company pages are keyed by
+the ticker in the screener.in files, which lags a rename: HEG became HEGAM on
+2026-09-22 and ICICIPRULI became ICICILIFE on 2026-10-23, with the same ISIN.
+The file scan follows the ISIN forward and shows those stocks up to today. The
+backtest panel files them under the new name, so it would show the HEG page
+nothing. Both readings are right for their job: one instrument under its
+current name for a backtest, the history behind a given ticker for a page. Of
+253 renamed tickers that have a company page, 247 read the same either way.
 `mandate.yaml` (52 YAML parses per strategy-table request) and the adopted
 results are read through `FileMemo` (the strategy table 0.22 s → 0.07 s). The
 coverage table slices paths instead of calling `Path.relative_to` 3,674 times
