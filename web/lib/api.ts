@@ -1330,8 +1330,19 @@ export type IndexTrend = {
   change: Record<Horizon, number | null>;
 };
 export type ValuationCell = { value: number; percentile: number | null; median: number | null; since: string } | null;
+export type PulseCard = {
+  key: 'trend' | 'participation' | 'fear' | 'money';
+  title: string;
+  word: string;
+  direction: 'up' | 'down' | 'flat';
+  tone: 'good' | 'bad' | 'neutral';
+  sentence: string;
+  rule: string;
+};
 export type MarketContext = {
   ok: boolean;
+  pulse: { available: true; cards: PulseCard[]; note: string } | Unavailable;
+  summary: { topic: string; text: string }[];
   strip:
     | {
         available: true;
@@ -1423,6 +1434,7 @@ export type MarketContext = {
         straddle: number | null;
         since: string;
         note: string;
+        expected_move?: { points: number; share: number };
       }
     | Unavailable;
   delivery:

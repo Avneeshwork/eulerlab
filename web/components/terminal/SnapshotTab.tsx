@@ -20,11 +20,12 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 import {
-  BreadthContext,
-  DeliveryContext,
   IndexContext,
   PositioningContext,
+  PulseCards,
   SectorContext,
+  TodaySummary,
+  WatchContext,
   useMarketContext,
 } from './MarketContext';
 
@@ -171,6 +172,15 @@ function SectorStrip({ rows }: { rows: { sector: string; change_pct: number }[] 
 }
 
 type Market = 'IN' | 'US' | 'CRYPTO' | 'FX';
+
+/** The India view's tabs (research 121): the verdict first, detail a click away. */
+type View = 'overview' | 'sectors' | 'money' | 'watch';
+const VIEWS: [View, string, string][] = [
+  ['overview', 'Overview', 'Market pulse, what happened today, the indices'],
+  ['sectors', 'Sectors', 'Which sectors lead and lag Nifty, and the map'],
+  ['money', 'Big money (F&O)', 'Who holds index futures, and what options price'],
+  ['watch', 'Stocks to watch', 'Movers, new highs and lows, delivery spikes'],
+];
 
 const MARKETS: [Market, string, string][] = [
   ['IN', 'India', 'NSE — full panel, breadth and constituent map'],
@@ -330,6 +340,22 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
   // Which market the detail bands describe. India is the default because it is
   // the book being traded; the US view is context, and says so.
   const [market, setMarket] = useState<Market>('IN');
+  const [view, setViewState] = useState<View>('overview');
+  // The tab is kept in the address (?view=sectors), so a tab can be
+  // bookmarked and a reload keeps it.
+  useEffect(() => {
+    const asked = new URLSearchParams(window.location.search).get('view');
+    if (asked && VIEWS.some(([key]) => key === asked)) setViewState(asked as View);
+  }, []);
+  const setView = (next: View) => {
+    setViewState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', next);
+    window.history.replaceState(null, '', url);
+  };
+  // Every band outside India's four tabs shows on the other markets as before.
+  const india = (which: View) => market === 'IN' && view === which;
+  const general = market !== 'IN' || view === 'overview';
   // Fetched beside the snapshot, not inside it: these bands need the panel
   // and the participant history, and the session line should not wait for them.
   const { data: ctx } = useMarketContext();
@@ -421,6 +447,24 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         </div>
       )}
 
+      {market === 'IN' && (
+        <nav className="mc-tabs" role="tablist" aria-label="India view">
+          {VIEWS.map(([key, label, hint]) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={view === key}
+              className={view === key ? 'on' : ''}
+              title={hint}
+              onClick={() => setView(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+
       {/* --- band 1: regime — India only -------------------------------------
           Every number here is computed from the NSE panel: the proxy return,
           the advance/decline count, the volatility. Leaving it on screen under
@@ -428,6 +472,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           which is worse than showing nothing — the reader has no way to tell
           from the numbers themselves. */}
       {market === 'IN' ? (
+      view !== 'overview' ? null : (
       <section className="regime tight">
         <div className="regime-lead">
           <div className="theyebrow">The session</div>
@@ -500,6 +545,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           <i className="dn" style={{ width: `${(r.decliners / total) * 100}%` }} />
         </div>
       </section>
+      )
       ) : (
         <p className="tfine mktgap">
           {market === 'US'
@@ -512,20 +558,25 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         </p>
       )}
 
-      {/* --- band 1½: breadth and indices (research 120) ---------------------
-          What the session line cannot say: how many stocks take part over
-          weeks, and where the indices and their valuation stand. */}
-      {market === 'IN' && ctx && (
-        <>
-          <BreadthContext ctx={ctx} />
-          <IndexContext ctx={ctx} />
-        </>
-      )}
+      {/* --- Overview: market pulse, today in words, the indices ------------
+          Research 121: a verdict first, each from a printed rule, then the
+          sentences, then the numbers they came from. */}
+      {india('overview') &&
+        (ctx ? (
+          <>
+            <PulseCards ctx={ctx} />
+            <TodaySummary ctx={ctx} />
+            <IndexContext ctx={ctx} />
+          </>
+        ) : (
+          <div className="tempty">Reading the market context…</div>
+        ))}
 
       {/* --- band 2: the map — India only ------------------------------------
           Gated rather than emptied. There is no US price panel here, so a US
           map would be a blank grid claiming the data exists. */}
-      {market === 'IN' && (
+      {india('sectors') && ctx && <SectorContext ctx={ctx} />}
+      {india('sectors') && (
       <section>
         <h3 className="report-h">The map</h3>
         {snap.map.grouped ? (
@@ -562,8 +613,6 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       </section>
       )}
 
-      {/* --- band 2½: sector strength against Nifty 50 ---------------------- */}
-      {market === 'IN' && ctx && <SectorContext ctx={ctx} />}
 
       {/* --- band 1-US: the session, from our own bars ----------------------
           The US view showed a quote ribbon and sector averages because there
@@ -699,7 +748,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       )}
 
       {/* --- band 3: movers ------------------------------------------------ */}
-      {market === 'IN' && (
+      {india('watch') && (
       <section>
         <h3 className="report-h">
           Movers
@@ -751,14 +800,15 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       </section>
       )}
 
-      {/* --- band 3¼: who holds the index, and what was delivered ----------- */}
-      {market === 'IN' && ctx && (
-        <>
-          <PositioningContext ctx={ctx} />
-          <DeliveryContext ctx={ctx} />
-        </>
-      )}
+      {/* --- Stocks to watch: highs, lows, delivery ------------------------ */}
+      {india('watch') && ctx && <WatchContext ctx={ctx} />}
 
+      {/* --- Big money: who holds the index, and what options price -------- */}
+      {india('money') &&
+        (ctx ? <PositioningContext ctx={ctx} /> : <div className="tempty">Reading positions…</div>)}
+
+      {general && (
+      <>
       {/* --- band 3½: the world --------------------------------------------
           In the India view this is overnight context: NSE opens after Wall
           Street closes and while Asia trades, so what happened there is
@@ -920,6 +970,8 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           ))}
         </ul>
       </section>
+      </>
+      )}
     </>
   );
 }

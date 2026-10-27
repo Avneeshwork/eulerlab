@@ -140,7 +140,7 @@ const TOOLS: Tool[] = [
 ];
 
 const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = {
-  dashboard: { title: 'Dashboard', sub: 'The market today: regime, breadth, movers and the map.' },
+  dashboard: { title: 'Dashboard', sub: 'The market today: the pulse, sectors, who holds the index, and stocks to watch.' },
   strategies: {
     title: 'Strategies',
     sub: 'Every strategy with its full backtest report. Select one or several and press Backtest to run them.',

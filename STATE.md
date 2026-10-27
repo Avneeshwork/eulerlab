@@ -43,6 +43,7 @@ never edit them without an explicit instruction in that session.
 - **Dashboard market context (2026-10-27, research 120, ADR-080):** breadth (% above 20/50/200-day, new highs and lows), index trend and
   valuation, sector strength against Nifty, FII/DII/Pro/Client index-futures long share, Nifty PCR/IV/max pain, delivery spikes.
   Context only; none has passed the gate. Expiry-day option chains read a settled contract (HISTORY #31, fixed).
+  Then split into four India tabs with a Market pulse (Trend, Participation, Fear, Big money) and a plain summary (ADR-081).
 - **Indian data from the close (2026-10-26, ADR-079):** `make india-live` retries the Indian steps from 15:31
   until the bhavcopy and minute bars are in. Coverage reads **missing** from 15:31. Minute-built bars stand in until the
   bhavcopy lands. They are not used by the panel or the paper books. F&O stocks' minute bars end at 15:14 since the

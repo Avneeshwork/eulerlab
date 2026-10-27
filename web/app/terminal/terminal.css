@@ -1578,8 +1578,9 @@
    other, and a third tab would imply a symmetry that does not exist. */
 .mkttoggle {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0;
+  gap: 8px 0;
   margin-bottom: 10px;
 }
 .mkttoggle button {

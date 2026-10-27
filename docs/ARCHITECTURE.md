@@ -1876,6 +1876,27 @@ each definition, and Sensibull's own statement that PCR and max pain "do not
 have high predictive power". Not shown, because neither is landed: FII/DII
 cash flows and upcoming results.
 
+### The India tabs and the market pulse (research 121, ADR-081)
+
+The India view has four tabs, kept in the address as `?view=`: Overview,
+Sectors, Big money (F&O) and Stocks to watch. The other markets keep the
+single page. `market_pulse.py` turns the figures above into words; it adds no
+data of its own.
+
+| Card | Rule | Word |
+|---|---|---|
+| Trend | Nifty 50 against its 200-day average, and its change over 63 sessions | above and up Uptrend; below and down Downtrend; else Sideways |
+| Participation | % of stocks above their 50-day average | 60+ Broad; 40-60 Mixed; under 40 Narrow |
+| Fear | India VIX percentile over the previous 251 closes | above 70 Elevated; under 30 Calm; else Normal |
+| Big money | FII index-futures long share, percentile against its own last 249 files | under 25 More bearish than usual; above 75 More bullish than usual; else Usual |
+
+The thresholds are ours. The cards are not added into one score. "What
+happened today" is up to six template sentences (today, month, sectors,
+participation, options, valuation). Each is built from one figure and dropped
+when that figure is missing. The expected move is the ATM straddle over the
+forward. The breadth series is still computed (Participation and the new-high
+lists use it), but its chart is no longer drawn.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.

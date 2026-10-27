@@ -181,3 +181,253 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* --- India tabs (research 121) ------------------------------------------- */
+.mc-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 14px 0 6px;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mc-tabs button {
+  appearance: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: var(--t-body);
+  font-weight: 500;
+  padding: 8px 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mc-tabs button:hover { color: var(--ink); }
+.mc-tabs button.on {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.mc-tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* --- Market pulse cards --------------------------------------------------- */
+.mc-pulse {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--s3);
+}
+.mc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-left-width: 4px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.mc-card.good { border-left-color: var(--clear); }
+.mc-card.bad { border-left-color: var(--fail); }
+.mc-card.neutral { border-left-color: var(--ink-3); }
+.mc-card-title {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.mc-card-word {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.mc-card.good .mc-card-word { color: var(--clear); }
+.mc-card.bad .mc-card-word { color: var(--fail); }
+.mc-card p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* --- Folds ---------------------------------------------------------------- */
+.mc-explain {
+  margin-top: var(--s3);
+}
+.mc-explain summary {
+  cursor: pointer;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  list-style: none;
+}
+.mc-explain summary::-webkit-details-marker { display: none; }
+.mc-explain summary::before {
+  content: '▸ ';
+}
+.mc-explain[open] summary::before {
+  content: '▾ ';
+}
+.mc-explain summary:hover { color: var(--ink); }
+.mc-explain > div,
+.mc-explain > p {
+  margin-top: 6px;
+}
+
+/* --- Summary -------------------------------------------------------------- */
+.mc-summary ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--t-body);
+  line-height: 1.5;
+}
+
+/* --- Moves with arrows ---------------------------------------------------- */
+.mc-move {
+  display: inline-flex;
+  gap: 3px;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+.mc-move i { font-style: normal; font-size: 0.85em; }
+.mc-move.pos { color: var(--clear); }
+.mc-move.neg { color: var(--fail); }
+.mc-scroll { overflow-x: auto; }
+
+/* --- Sector bars ---------------------------------------------------------- */
+.mc-seg {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.mc-seg button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.mc-seg button + button { border-left: 1px solid var(--rule); }
+.mc-seg button.on { background: var(--ink); color: var(--ground); font-weight: 600; }
+.mc-bars {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mc-bars li {
+  display: grid;
+  grid-template-columns: minmax(96px, 150px) minmax(80px, 1fr) 72px 104px;
+  gap: 10px;
+  align-items: center;
+  font-size: 13px;
+}
+.mc-bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-bar-track {
+  position: relative;
+  height: 14px;
+  background: linear-gradient(var(--rule), var(--rule)) center / 1px 100% no-repeat;
+}
+.mc-bar-track i {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  border-radius: 2px;
+}
+.mc-bar-track i.pos { background: var(--clear); }
+.mc-bar-track i.neg { background: var(--fail); }
+.mc-bar-value { text-align: right; }
+.mc-bar-phase { text-align: right; }
+@media (max-width: 560px) {
+  /* One sector per block: name, tag and value on a line, the bar under them. */
+  .mc-bars { gap: 10px; }
+  .mc-bars li {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 4px;
+    column-gap: 8px;
+  }
+  .mc-bar-name { grid-column: 1; grid-row: 1; }
+  .mc-bar-phase { grid-column: 2; grid-row: 1; }
+  .mc-bar-value { grid-column: 3; grid-row: 1; min-width: 60px; }
+  .mc-bar-track { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* --- Who holds index futures --------------------------------------------- */
+.mc-who {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.mc-who-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+  margin-bottom: 5px;
+}
+.mc-who-head b { font-size: 13px; font-weight: 600; }
+.mc-split {
+  display: flex;
+  height: 22px;
+  border-radius: 5px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+}
+.mc-split i {
+  display: flex;
+  align-items: center;
+  font-style: normal;
+  padding: 0 7px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.mc-split i.long { background: color-mix(in srgb, var(--clear) 70%, transparent); color: #fff; }
+.mc-split i.short {
+  background: color-mix(in srgb, var(--fail) 55%, transparent);
+  color: #fff;
+  justify-content: flex-end;
+}
+.mc-who-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 5px;
+}
+.mc-who-facts b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mc-who-facts b.pos { color: var(--clear); }
+.mc-who-facts b.neg { color: var(--fail); }
+
+/* --- Options lead line and tags ------------------------------------------- */
+.mc-lead {
+  margin: 0 0 12px;
+  font-size: var(--t-lead);
+  line-height: 1.5;
+}
+.mc-lead b { font-size: 18px; }
+.mc-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ink-3);
+  vertical-align: 1px;
+}

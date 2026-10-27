@@ -56,6 +56,7 @@ from eulerlab import (
     cloud_results,
     last_seen,
     market_context,
+    market_pulse,
     reports,
     strategy_results,
     walk_run,
@@ -4243,6 +4244,24 @@ def market_context_route() -> dict[str, Any]:
             )
         ),
     }
+    move = market_pulse.expected_move(payload["options"])
+    if move is not None:
+        payload["options"]["expected_move"] = move
+    payload["pulse"] = section(
+        lambda: market_pulse.pulse(
+            series, payload["strip"], payload["breadth"], payload["positioning"]
+        )
+    )
+    try:
+        payload["summary"] = market_pulse.summary(
+            payload["strip"],
+            payload["sectors"],
+            payload["valuation"],
+            payload["breadth"],
+            payload["options"],
+        )
+    except Exception:  # a sentence is never worth blanking the page for
+        payload["summary"] = []
     complete = breadth.get("available") and not _POSITIONS.filling
     if complete:
         _MARKET_CONTEXT["all"] = (time.monotonic(), payload)
