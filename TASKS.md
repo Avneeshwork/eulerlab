@@ -11,6 +11,7 @@ Verify: `make verify` (8 of 8).
 | ID | Task | Status |
 |---|---|---|
 | T-4139 | Measure how much HISTORY #28 (delisted holdings, cash-limited buys) moved stored backtest results | DONE (partial). 9 strategies compared; 6 moved < 0.04 Sharpe; `fifty_two_week_high` 1.52 → 2.39, `illiquidity_premium` 1.04 → 1.24, `india_contrarian_36m` 0.13 → 0.09. See HISTORY #28 |
+| T-4167 | No fixed templates on the Dashboard; every explanation behind an (i) button; charts chosen for visibility | DONE. Summary and card sentences removed; dials, year lines, range bars, rotation quadrant, options number line; tap-to-open `Info` (ADR-082) |
 | T-4166 | India dashboard hard to read: one long page, a breadth chart, numbers without words (research 121) | DONE. Four tabs, Market pulse cards in place of the Breadth band, template summary, plain names and arrows (ADR-081). 32 tests |
 | T-4161 | Dashboard lacks what trader platforms lead with: index trend and valuation, breadth depth, sector strength, F&O positioning (research 120) | DONE. `/api/market-context` and five India bands (ADR-080). 22 tests |
 | T-4162 | `landing_reader` asks the bucket for `nse/nse/...` for the `nse` tree; NSE files are at `nse/...`. Only local NSE files are seen, and `market_history._read` fails for pruned files | OPEN. The dashboard lists `participant_oi` as its own tree instead. Fix `remote_key` and the listing for the `nse` tree, then check every `nse/` reader |

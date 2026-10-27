@@ -32,6 +32,7 @@ All fetched 2026-10-27.
 - The Breadth band is replaced by **Market pulse**: four cards (Trend, Participation, Fear, Big money). Each has a word, an arrow, a colour and one plain sentence built from the figure, with the figure and its rule a click away.
 - Unlike Tickertape's mood index, there is no single combined score. Each card's rule is printed, with fixed thresholds stated as ours.
 - An auto-written "what happened today" paragraph comes from templates over the same numbers, not a language model, so every sentence traces to a figure.
+- **Withdrawn 2026-10-28 (ADR-082):** the operator asked for no templates and all text behind info buttons. The summary and the card sentences are removed; each figure is drawn instead.
 
 **Confidence.**
 - High that these are the patterns the platforms use: [1] and [2] are first-party.

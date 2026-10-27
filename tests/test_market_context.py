@@ -351,3 +351,52 @@ def test_one_broken_section_does_not_blank_the_others(monkeypatch: pytest.Monkey
     assert out["delivery"]["reason"] == "the price panel is loading"
     assert out["strip"]["available"] is False
     assert server._MARKET_CONTEXT == {}  # an incomplete answer is not kept
+
+
+# --- what the charts are sent (ADR-082) --------------------------------------------
+
+
+def test_thin_keeps_the_shape_and_the_last_value() -> None:
+    values = [float(i) for i in range(252)]
+    out = mc.thin(values, 64)
+    assert len(out) == 64
+    assert out[0] == 0.0 and out[-1] == 251.0
+    assert out == sorted(out)
+    assert mc.thin([1.0, 2.0], 64) == [1.0, 2.0]
+
+
+def test_each_index_carries_a_year_line(tmp_path: Path) -> None:
+    series = mc.indices(_index_file(tmp_path, {"Nifty 50": [100.0 + i for i in range(300)]}))
+    row = mc.index_strip(series)["indices"][0]
+    assert len(row["spark"]) == mc.SPARK_POINTS
+    assert row["spark"][-1] == 399.0
+
+
+def test_valuation_carries_the_range_for_its_bar() -> None:
+    days = [
+        mc.IndexDay(date(2021, 4, 1) + timedelta(days=i), 1.0, 20.0 + i, 3.0, 1.0)
+        for i in range(10)
+    ]
+    latest = mc.IndexDay(date(2021, 5, 1), 1.0, 25.0, 3.5, 1.0)
+    pe = mc.valuation({"Nifty 50": [*days, latest]})["indices"][0]["pe"]
+    assert (pe["low"], pe["high"], pe["median"]) == (20.0, 29.0, 24.5)
+
+
+def test_sectors_carry_their_momentum_for_the_rotation_chart() -> None:
+    days = _days(100)
+    nifty = [mc.IndexDay(d, 100.0, None, None, None) for d in days]
+    it = [
+        mc.IndexDay(d, 100.0 * (1.001**i) * (1.01 ** max(0, i - 94)), None, None, None)
+        for i, d in enumerate(days)
+    ]
+    row = mc.sector_strength({"Nifty 50": nifty, "Nifty IT": it})["sectors"][0]
+    assert row["momentum"] is not None and row["momentum"] > 0
+    assert row["phase"] == "leading"
+
+
+def test_positioning_carries_each_groups_usual_share() -> None:
+    parsed = mc.parse_positions(REPORT)
+    assert parsed is not None
+    days = {date(2026, 10, 20 + i): parsed for i in range(4)}
+    fii = next(r for r in mc.positioning(days)["participants"] if r["participant"] == "FII")
+    assert fii["usual"] == 0.25

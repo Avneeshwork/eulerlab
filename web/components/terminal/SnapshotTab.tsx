@@ -18,13 +18,13 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { Info } from './Info';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 import {
   IndexContext,
   PositioningContext,
   PulseCards,
   SectorContext,
-  TodaySummary,
   WatchContext,
   useMarketContext,
 } from './MarketContext';
@@ -398,6 +398,16 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
   if (!snap) return <div className="tempty">Reading the market…</div>;
 
   const r = snap.regime;
+  const sessionGap =
+    market === 'US'
+      ? snap.us?.available
+        ? ''
+        : `No session line for the US yet: ${snap.us?.reason ?? 'no US panel built'}. The indices and sectors are quotes, not a panel.`
+      : market === 'CRYPTO'
+        ? 'No session line for crypto: breadth needs a population to count advancers in, and six majors is not one. The 1-minute archive underneath covers 20 pairs.'
+        : market === 'FX'
+          ? 'No session line for FX: a currency pair has no advancers and decliners. The 1-minute archive underneath covers 10 pairs with bid and ask.'
+          : '';
   const total = r.advancers + r.decliners + r.unchanged || 1;
   const negative = r.breadth_ratio !== null && r.breadth_ratio < 1;
 
@@ -422,9 +432,13 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           </button>
         ))}
         <Stamp snap={snap} market={market} />
-        <span className="tfine mktnote" title={MARKETS.find(([key]) => key === market)?.[2]}>
+        <span className="tfine mktnote">
           {market === 'IN' ? 'NSE' : market === 'US' ? 'US listings' : market === 'CRYPTO' ? 'Majors' : 'Majors'}
-          <abbr className="whyq">?</abbr>
+          <Info>
+            {MARKETS.find(([key]) => key === market)?.[2]}
+            {market !== 'IN' && sessionGap ? ` ${sessionGap}` : ''}
+            {market === 'IN' && snap.gaps.length > 0 ? ` Not shown yet: ${snap.gaps.join('; ')}.` : ''}
+          </Info>
         </span>
       </div>
 
@@ -484,11 +498,13 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
                 reachable — the number is an equal-weighted proxy, not an
                 index — but three lines of it in the largest type on the page
                 pushed everything that matters below the fold. */}
-            <span
-              className="unit"
-              title={`${r.proxy_note} Computed from the panel's daily history, so it ends at the ${snap.as_of} close even when breadth above it is live.`}
-            >
-              20d equal-weighted, to {snap.as_of} <abbr className="whyq">?</abbr>
+            <span className="unit">
+              20D · {snap.as_of}
+              <Info>
+                The average stock&apos;s return over 20 sessions, every stock weighted equally.{' '}
+                {r.proxy_note} Computed from the panel&apos;s daily history, so it ends at the{' '}
+                {snap.as_of} close even when breadth beside it is live.
+              </Info>
             </span>
           </div>
         </div>
@@ -546,17 +562,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         </div>
       </section>
       )
-      ) : (
-        <p className="tfine mktgap">
-          {market === 'US'
-            ? snap.us?.available
-              ? ''
-              : `No session line for the US yet: ${snap.us?.reason ?? 'no US panel built'}. The indices and sectors above are quotes, not a panel.`
-            : market === 'CRYPTO'
-              ? 'No session line for crypto: breadth needs a population to count advancers in, and six majors is not one. The 1-minute archive underneath covers 20 pairs — enough to backtest against, not enough to call a market.'
-              : 'No session line for FX: a currency pair has no advancers and decliners, and volatility here would describe six quotes rather than a market. The 1-minute archive underneath covers 10 pairs with bid and ask.'}
-        </p>
-      )}
+      ) : null}
 
       {/* --- Overview: market pulse, today in words, the indices ------------
           Research 121: a verdict first, each from a printed rule, then the
@@ -565,7 +571,6 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         (ctx ? (
           <>
             <PulseCards ctx={ctx} />
-            <TodaySummary ctx={ctx} />
             <IndexContext ctx={ctx} />
           </>
         ) : (
@@ -578,7 +583,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       {india('sectors') && ctx && <SectorContext ctx={ctx} />}
       {india('sectors') && (
       <section>
-        <h3 className="report-h">The map</h3>
+        <h3 className="report-h">
+          The map
+          <Info>
+            {snap.map.note}
+            {!snap.map.grouped ? ` Ungrouped: no ${snap.map.missing} is connected.` : ''} Colour is
+            today&apos;s move; a tile&apos;s size is its weight.
+          </Info>
+        </h3>
         {snap.map.grouped ? (
           <div className="sectors mapscroll">
             {groupBySector(snap.map.tiles).map(([sector, tiles]) => (
@@ -605,11 +617,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             ))}
           </div>
         )}
-        {!snap.map.grouped && (
-          <p className="tfine" style={{ marginTop: 10 }}>
-            Ungrouped &mdash; no {snap.map.missing} is connected.
-          </p>
-        )}
+
       </section>
       )}
 
@@ -627,11 +635,13 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
               <b className={(snap.us.proxy_return ?? 0) >= 0 ? 'up' : 'dn'}>
                 {pct(snap.us.proxy_return ?? 0)}
               </b>
-              <span
-                className="unit"
-                title="Equal-weighted across every S&P constituent in the panel. There is no index here, so this is the average stock rather than the cap-weighted benchmark — a different number, and the more honest one for breadth."
-              >
-                equal-weighted, to {snap.us.as_of} <abbr className="whyq">?</abbr>
+              <span className="unit">
+                {snap.us.as_of}
+                <Info>
+                  Equal-weighted across every S&amp;P constituent in the panel. There is no index here,
+                  so this is the average stock rather than the cap-weighted benchmark: a different
+                  number, and the more honest one for breadth.
+                </Info>
               </span>
             </div>
           </div>
@@ -728,17 +738,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         <section>
           <h3 className="report-h">
             {market === 'CRYPTO' ? 'Majors' : 'Pairs'}
-            <span
-              className="tfine"
-              style={{ marginLeft: 10, fontWeight: 400 }}
-              title={
-                market === 'CRYPTO'
-                  ? 'Quotes are live; the archive underneath is 1-minute bars for 20 pairs, which is what a strategy backtests against.'
-                  : 'Quotes are live; the archive underneath is 1-minute bars for 10 pairs carrying bid and ask separately, so spread is measured rather than assumed.'
-              }
-            >
-              live, ranked <abbr className="whyq">?</abbr>
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              live
             </span>
+            <Info>
+              {market === 'CRYPTO'
+                ? 'Live quotes, ranked by move. The archive underneath is 1-minute bars for 20 pairs, which is what a strategy backtests against.'
+                : 'Live quotes, ranked by move. The archive underneath is 1-minute bars for 10 pairs carrying bid and ask separately, so spread is measured rather than assumed.'}
+            </Info>
           </h3>
           <QuotedMovers
             rows={(market === 'CRYPTO' ? snap.world?.crypto : snap.world?.fx) ?? []}
@@ -756,9 +763,15 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
               still have to be reachable — how many are quoted live, and how
               many carry a reason — but they are status, not prose, and stacked
               above the table they read as an apology for it. */}
-          <span
-            className="tfine hstat"
-            title={[
+          <span className="tfine hstat">
+            {snap.quotes?.available && <span className="tdot" />}
+            {snap.quotes?.available ? `${Object.keys(snap.quotes.quotes).length} live` : 'EOD'}
+            {' · '}
+            {snap.news?.covered ?? 0}/{snap.news?.asked ?? 0} news
+          </span>
+          <Info>
+            {[
+              'Gainers and losers are the day\'s biggest moves; unusual volume is turnover against the stock\'s own normal. The first figure is how many are quoted live, the second how many have a news story attached.',
               snap.quotes?.note,
               snap.quotes?.errors?.zerodha ? `Zerodha: ${snap.quotes.errors.zerodha}` : '',
               snap.quotes?.errors?.yahoo ? `Yahoo: ${snap.quotes.errors.yahoo}` : '',
@@ -767,14 +780,8 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
                 : `No news source reachable${snap.news?.reason ? ` (${snap.news.reason})` : ''}`,
             ]
               .filter(Boolean)
-              .join(' · ')}
-          >
-            {snap.quotes?.available && <span className="tdot" />}
-            {snap.quotes?.available ? `${Object.keys(snap.quotes.quotes).length} live` : 'EOD'}
-            {' · '}
-            {snap.news?.covered ?? 0}/{snap.news?.asked ?? 0} with a reason
-            <abbr className="whyq">?</abbr>
-          </span>
+              .join(' ')}
+          </Info>
         </h3>
         <div className="tgrid">
           <Movers
@@ -818,13 +825,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         <section>
           <h3 className="report-h">
             {market === 'IN' ? 'Moving elsewhere' : 'Movers'}
-            <span
-              className="tfine"
-              style={{ marginLeft: 10, fontWeight: 400 }}
-              title="Filtered to $5 and above: the raw feed's median mover was a $4.75 micro-cap. Leveraged ETFs still slip through, so one underlying can appear under several tickers."
-            >
-              US listings, above $5 <abbr className="whyq">?</abbr>
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              US · $5+
             </span>
+            <Info>
+              US listings filtered to $5 and above: the raw feed&apos;s median mover was a $4.75
+              micro-cap. Leveraged ETFs still slip through, so one underlying can appear under several
+              tickers.
+            </Info>
           </h3>
           <WorldMovers rows={snap.world.movers} />
         </section>
@@ -835,13 +843,14 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
         <section>
           <h3 className="report-h">
             The tape
-            <span
-              className="tfine"
-              style={{ marginLeft: 10, fontWeight: 400 }}
-              title="Newest first, tagged with every listed company the headline names. A headline must carry the ticker or two words of the registered name to be tagged — 'Reliance Communications' is not a Reliance Industries story."
-            >
-              last {snap.news.window ?? '1d'} <abbr className="whyq">?</abbr>
+            <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
+              {snap.news.window ?? '1d'}
             </span>
+            <Info>
+              Headlines, newest first, tagged with every listed company they name. A headline must
+              carry the ticker or two words of the registered name to be tagged: &lsquo;Reliance
+              Communications&rsquo; is not a Reliance Industries story.
+            </Info>
           </h3>
           <div className="tpanel tscroll">
             <ul className="ttape">
@@ -871,9 +880,16 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           The calendar
           {snap.catalysts.high_impact !== undefined && (
             <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
-              {snap.catalysts.high_impact} high-impact of {snap.catalysts.total}
+              {snap.catalysts.high_impact}/{snap.catalysts.total} high
             </span>
           )}
+          <Info>
+            Scheduled economic releases, with their expected impact as the calendar rates it. The
+            figure is high-impact events of all listed.
+            {!snap.catalysts.available || !snap.catalysts.events?.length
+              ? ` Not shown: ${snap.catalysts.reason}`
+              : ''}
+          </Info>
         </h3>
         {snap.catalysts.available && snap.catalysts.events?.length ? (
           <div className="tpanel tscroll">
@@ -910,14 +926,17 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             </table>
           </div>
         ) : (
-          <p className="tfine">{snap.catalysts.reason}</p>
+          <div className="tpanel mc-missing">—</div>
         )}
 
       </section>
 
       {/* --- band 4: cross-asset ------------------------------------------- */}
       <section>
-        <h3 className="report-h">Across the book of markets</h3>
+        <h3 className="report-h">
+          Across the book of markets
+          <Info>Instruments held for each asset class, and the state of each feed.</Info>
+        </h3>
         <div className="cross">
           {snap.cross_asset.map((cell) => (
             <div className="cross-cell" key={cell.asset_class}>
@@ -931,7 +950,16 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
 
       {/* --- band 5: evidence ---------------------------------------------- */}
       <section>
-        <h3 className="report-h">Is any of it evidence</h3>
+        <h3 className="report-h">
+          Is any of it evidence
+          <Info>
+            Every other terminal shows patterns. This one is built to say when a pattern is
+            indistinguishable from luck. Noise bar: the Sharpe ratio a strategy must beat, given how
+            many trials have been run. Clearing it: strategies above that bar.
+            {snap.evidence.clearing_names.length > 0 &&
+              ` Clearing today: ${snap.evidence.clearing_names.join(', ')}.`}
+          </Info>
+        </h3>
         <div className="tpanel">
           <div className="tfacts">
             <div className="tfact">
@@ -951,25 +979,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
               <b>{snap.evidence.trials}</b>
             </div>
           </div>
-          <p className="tfine" style={{ marginTop: 12 }}>
-            Every other terminal shows patterns. This one is built to say when a pattern
-            is indistinguishable from luck, which is why the bar sits on the first screen
-            rather than three clicks in.
-            {snap.evidence.clearing_names.length > 0 &&
-              ` Clearing today: ${snap.evidence.clearing_names.join(', ')}.`}
-          </p>
         </div>
       </section>
 
-      {/* --- what is missing, said out loud -------------------------------- */}
-      <section>
-        <h3 className="report-h">What this screen cannot show yet</h3>
-        <ul className="gaps">
-          {snap.gaps.map((gap) => (
-            <li key={gap}>{gap}</li>
-          ))}
-        </ul>
-      </section>
       </>
       )}
     </>

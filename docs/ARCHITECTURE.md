@@ -1890,12 +1890,25 @@ data of its own.
 | Fear | India VIX percentile over the previous 251 closes | above 70 Elevated; under 30 Calm; else Normal |
 | Big money | FII index-futures long share, percentile against its own last 249 files | under 25 More bearish than usual; above 75 More bullish than usual; else Usual |
 
-The thresholds are ours. The cards are not added into one score. "What
-happened today" is up to six template sentences (today, month, sectors,
-participation, options, valuation). Each is built from one figure and dropped
-when that figure is missing. The expected move is the ATM straddle over the
-forward. The breadth series is still computed (Participation and the new-high
-lists use it), but its chart is no longer drawn.
+The thresholds are ours. The cards are not added into one score. There is no
+generated text (ADR-082): a card is a word, its gauge and a fixed definition
+behind an info button.
+
+| Figure | Drawn as | Data sent |
+|---|---|---|
+| Trend | Year line of Nifty 50 with its 200-day average dashed | `spark`, `spark_average` (64 points each, `thin`) |
+| Participation, Fear | Half-circle dial, three zones, a needle | `value` 0-100, `zones` |
+| Big money | Long-of-100 bar with the usual (median) tick; 60-day line | `value`, `usual`, `spark` |
+| Indices | Tile: close, today, year line, five horizon blocks shaded by size | `spark` per index |
+| Valuation | Range bar: low to high since the start date, median tick, today's dot | `low`, `high`, `median` per PE/PB/yield |
+| Sectors | Ranked bars against Nifty, or a rotation quadrant: across 3-month relative return, up its `momentum` (1-month relative now minus 5 sessions ago) | `momentum` per sector |
+| Options | Number line: forward, forward ± straddle, max pain | `expected_move.low/high` |
+
+Every definition, rule and caveat on the Dashboard opens from `Info`
+(`web/components/terminal/Info.tsx`): a button that opens on tap, closes on a
+second tap, a click elsewhere or Escape. Hover tooltips remain only for values.
+The breadth series is still computed (Participation and the new-high lists use
+it), but its chart is not drawn.
 
 ## The overnight book (ADR-066)
 

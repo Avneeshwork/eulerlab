@@ -94,6 +94,9 @@ PE_CONSOLIDATED_FROM = date(2021, 4, 1)
 PE fell from about 40 to 33 overnight (research 120 [13], [14]). PE is ranked
 only against readings from this date; PB and yield use the whole history."""
 
+SPARK_POINTS = 64
+"""Points in each index's 1-year mini chart: a 70 px line cannot show 252."""
+
 LIQUID_TURNOVER = 10e7
 """₹10 crore median daily turnover over 20 sessions: the floor for a name to
 appear in a list. Below it, a new high is often one thin print."""
@@ -155,6 +158,16 @@ def indices(path: Path = INDEX_HISTORY) -> dict[str, list[IndexDay]]:
     return _INDICES(path)
 
 
+def thin(values: Sequence[float], points: int) -> list[float]:
+    """Every k-th value, always ending on the last, so a small chart draws the
+    shape without sending every day."""
+    if len(values) <= points:
+        return [round(v, 2) for v in values]
+    step = len(values) / points
+    picked = [values[int(i * step)] for i in range(points - 1)] + [values[-1]]
+    return [round(v, 2) for v in picked]
+
+
 def _change(series: Sequence[IndexDay], sessions: int) -> float | None:
     if len(series) <= sessions or series[-1 - sessions].close <= 0:
         return None
@@ -182,6 +195,7 @@ def index_strip(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any]:
                 "as_of": held[-1].day.isoformat(),
                 "close": round(held[-1].close, 2),
                 "change": {label: _rounded(_change(held, n)) for label, n in HORIZONS.items()},
+                "spark": thin([row.close for row in held[-252:]], SPARK_POINTS),
             }
         )
     vix = series.get("India VIX", ())
@@ -227,6 +241,8 @@ def valuation(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any]:
                     "value": round(value, 2),
                     "percentile": _rounded(percentile_of(value, past), 1),
                     "median": round(median(past), 2) if past else None,
+                    "low": round(min(past), 2) if past else None,
+                    "high": round(max(past), 2) if past else None,
                     "since": start.isoformat(),
                 }
                 if value is not None
@@ -287,6 +303,9 @@ def sector_strength(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any]:
                 "name": name,
                 "change_1d": _rounded(_change(held, 1)),
                 "relative": {k: _rounded(v) for k, v in rs.items()},
+                "momentum": _rounded(rs["1m"] - before)
+                if rs["1m"] is not None and before is not None
+                else None,
                 "rising": rising,
                 "phase": phase,
             }
@@ -555,6 +574,7 @@ def positioning(days: Mapping[date, Mapping[str, Mapping[str, int]]]) -> dict[st
                 "change_1d": _diff(now, share(ordered[-2], who) if len(ordered) > 1 else None),
                 "change_5d": _diff(now, share(ordered[-6], who) if len(ordered) > 5 else None),
                 "percentile": _rounded(percentile_of(now, history), 1) if now is not None else None,
+                "usual": _rounded(median(history)) if history else None,
                 "history_days": len(history),
                 "index_calls_net": cells.get("Option Index Call Long", 0)
                 - cells.get("Option Index Call Short", 0),

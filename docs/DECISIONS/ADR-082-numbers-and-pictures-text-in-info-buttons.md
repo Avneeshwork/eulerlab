@@ -1,0 +1,7 @@
+# ADR-082: Numbers and pictures on the dashboard; text only in info buttons
+
+- **Context:** after ADR-081 the operator asked for no fixed templates anywhere, all text in info buttons and nowhere else, and chart types chosen for visibility. ADR-081's template summary and card sentences are withdrawn.
+- **Options:** (a) shorten the sentences; (b) keep a summary behind a fold; (c) no generated text: each figure drawn in the shape that answers its question, every explanation behind an (i) button.
+- **Choice:** (c). Cards draw gauges (Trend: year line with its 200-day average; Participation and Fear: half-circle dials with three zones; Big money: a long-of-100 bar with a usual tick and a 60-day line). Indices are tiles with a year line and five horizon blocks; valuation is a low-median-high range bar; sectors switch between ranked bars and a rotation quadrant; options are a number line with the priced range and max pain. Every definition, rule and caveat on the Dashboard opens from one `Info` button that works by tap.
+- **Why:** a picture is read faster than a sentence and does not need re-reading when the numbers change. Text that is only a definition belongs where the reader asks for it. A hover tooltip cannot be reached on a phone, so the button opens on tap.
+- **Cost if wrong:** a reader who never taps (i) sees a word and a gauge without its rule. The rule is one tap away on every card, and the word still comes from a fixed threshold.

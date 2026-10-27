@@ -1,13 +1,12 @@
-"""The dashboard's plain-English layer: four verdict cards and a short summary.
+"""The dashboard's four verdict cards: Trend, Participation, Fear, Big money.
 
-Research 121: retail platforms lead with a word, not a number (Tickertape
-opens with "The market is in Fear zone"), explain each figure where it
-stands, and never show a fall without something to compare it to. This turns
-the figures `market_context` computes into that.
-
-Every word comes from a fixed rule over a figure, printed beside it. There is
-no combined score and no language model: each sentence traces to a number,
-and the thresholds are ours, not a standard. None of it has passed the gate.
+Research 121: platforms lead with a word, not a paragraph. Each card here is
+a word from a fixed rule over one figure, plus what its gauge needs to draw
+that figure. There is no generated text: the operator asked for numbers and
+pictures on the page and explanations only behind an info button
+(ADR-082), so `info` is a fixed definition of the rule with no numbers filled
+in. The thresholds are ours, not a standard; the four are not added into one
+score. None of it has passed the gate.
 """
 
 from __future__ import annotations
@@ -15,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from eulerlab.market_context import BENCHMARK, IndexDay
+from eulerlab.market_context import BENCHMARK, SPARK_POINTS, IndexDay, thin
 
 UP, DOWN, FLAT = "up", "down", "flat"
 """Card direction, drawn as an arrow beside the colour (research 121 [3])."""
@@ -23,69 +22,92 @@ UP, DOWN, FLAT = "up", "down", "flat"
 GOOD, BAD, NEUTRAL = "good", "bad", "neutral"
 """Card tone: how a long-only holder would feel about it, nothing more."""
 
-SIZES = (
-    ("Large", BENCHMARK),
-    ("Mid", "Nifty Midcap 150"),
-    ("Small", "Nifty Smallcap 250"),
+TREND_AVERAGE = 200
+TREND_LOOKBACK = 63
+
+PARTICIPATION_ZONES = (40.0, 60.0)
+FEAR_ZONES = (30.0, 70.0)
+MONEY_ZONES = (25.0, 75.0)
+
+INFO = {
+    "trend": "Nifty 50 against its 200-day average and against its close 3 months (63 sessions) "
+    "ago. Uptrend: above the average and higher. Downtrend: below and lower. Sideways: "
+    "anything else. The line is the past year; the dashed line is the 200-day average.",
+    "participation": "The share of NSE stocks closing above their own 50-day average, on "
+    "split-adjusted closes, funds and ETFs excluded. 60% or more: Broad. 40-60%: Mixed. "
+    "Under 40%: Narrow. StockCharts reads above 70% as stretched and below 30% as washed out.",
+    "fear": "India VIX is NSE's 30-day implied volatility of Nifty options: what traders pay "
+    "for protection. The dial ranks today's close against the previous year's closes. Above "
+    "the 70th percentile: Elevated. Under the 30th: Calm. Else Normal.",
+    "money": "Of every 100 Nifty and Bank Nifty futures contracts foreign institutions hold, "
+    "how many are bets on a rise. The tick marks their median over the past year; the line is the last 60 sessions. Ranked "
+    "against that year: under the 25th percentile More bearish than usual, above the 75th "
+    "More bullish than usual, else Usual. From NSE's end-of-day participant-wise open interest.",
+}
+
+NOTE = (
+    "Each word comes from the rule in its info button. The thresholds are ours, not a "
+    "standard, and the four are not added into one score. Context, not a signal."
 )
 
 
 def _card(
-    key: str, title: str, word: str, direction: str, tone: str, sentence: str, rule: str
-) -> dict[str, str]:
+    key: str, title: str, word: str, direction: str, tone: str, **gauge: Any
+) -> dict[str, Any]:
     return {
         "key": key,
         "title": title,
         "word": word,
         "direction": direction,
         "tone": tone,
-        "sentence": sentence,
-        "rule": rule,
+        "info": INFO[key],
+        **gauge,
     }
 
 
-def _pct(value: float, digits: int = 1) -> str:
-    return f"{abs(value) * 100:.{digits}f}%"
+def _band(value: float, zones: tuple[float, float]) -> int:
+    """0 below the low zone edge, 1 between, 2 at or above the high edge."""
+    low, high = zones
+    return 0 if value < low else 2 if value >= high else 1
 
 
-def one_in(share: float) -> str:
-    """A share of 100 as words a reader can picture: 16.2 -> "about 1 in 6",
-    55 -> "about 5 in 10", 100 -> "every"."""
-    if share >= 99.5:
-        return "every"
-    if share <= 0.5:
-        return "almost no"
-    if share < 50:
-        return f"about 1 in {round(100 / share)}"
-    return f"about {round(share / 10)} in 10"
-
-
-def trend_card(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, str] | None:
+def trend_card(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any] | None:
     """Nifty 50 against its 200-day average and its 3-month change."""
     nifty = series.get(BENCHMARK, ())
-    if len(nifty) < 200 + 1 or len(nifty) <= 63:
+    if len(nifty) < TREND_AVERAGE + 1:
         return None
-    close = nifty[-1].close
-    average = sum(row.close for row in nifty[-200:]) / 200
-    change = close / nifty[-64].close - 1.0
+    closes = [row.close for row in nifty]
+    close = closes[-1]
+    average = sum(closes[-TREND_AVERAGE:]) / TREND_AVERAGE
+    change = close / closes[-1 - TREND_LOOKBACK] - 1.0
+    # The average for each of the last year's days, so the gauge can draw it.
+    year = min(252, len(closes) - TREND_AVERAGE + 1)
+    averages = [
+        sum(closes[i - TREND_AVERAGE + 1 : i + 1]) / TREND_AVERAGE
+        for i in range(len(closes) - year, len(closes))
+    ]
     above = close > average
-    rule = (
-        "Uptrend: Nifty 50 above its 200-day average and higher than 3 months ago. "
-        "Downtrend: below and lower. Sideways: anything else."
-    )
-    where = "above" if above else "below"
-    moved = f"{'higher' if change >= 0 else 'lower'} than 3 months ago"
-    sentence = (
-        f"Nifty 50 is {_pct(change)} {moved} and {where} its 200-day average ({average:,.0f})."
-    )
     if above and change > 0:
-        return _card("trend", "Trend", "Uptrend", UP, GOOD, sentence, rule)
-    if not above and change < 0:
-        return _card("trend", "Trend", "Downtrend", DOWN, BAD, sentence, rule)
-    return _card("trend", "Trend", "Sideways", FLAT, NEUTRAL, sentence, rule)
+        word, direction, tone = "Uptrend", UP, GOOD
+    elif not above and change < 0:
+        word, direction, tone = "Downtrend", DOWN, BAD
+    else:
+        word, direction, tone = "Sideways", FLAT, NEUTRAL
+    return _card(
+        "trend",
+        "Trend",
+        word,
+        direction,
+        tone,
+        value=round(change, 4),
+        close=round(close, 2),
+        average=round(average, 2),
+        spark=thin(closes[-year:], SPARK_POINTS),
+        spark_average=thin(averages, SPARK_POINTS),
+    )
 
 
-def participation_card(breadth: Mapping[str, Any]) -> dict[str, str] | None:
+def participation_card(breadth: Mapping[str, Any]) -> dict[str, Any] | None:
     """How many stocks take part, from the share above their 50-day average."""
     if not breadth.get("available"):
         return None
@@ -93,79 +115,75 @@ def participation_card(breadth: Mapping[str, Any]) -> dict[str, str] | None:
     share = latest.get("above_50")
     if share is None:
         return None
-    highs, lows = latest.get("new_highs", 0), latest.get("new_lows", 0)
-    sentence = f"{_first_upper(one_in(share))} stocks is above its 50-day average"
-    if highs or lows:
-        more = (
-            "lows outnumber highs"
-            if lows > highs
-            else "highs outnumber lows"
-            if highs > lows
-            else "highs equal lows"
-        )
-        sentence += f"; new 52-week {more} ({highs} highs, {lows} lows)."
-    else:
-        sentence += "."
-    rule = "Share of NSE stocks above their 50-day average: 60% or more Broad, 40-60% Mixed, under 40% Narrow."
-    if share >= 60:
-        return _card("participation", "Participation", "Broad", UP, GOOD, sentence, rule)
-    if share >= 40:
-        return _card("participation", "Participation", "Mixed", FLAT, NEUTRAL, sentence, rule)
-    return _card("participation", "Participation", "Narrow", DOWN, BAD, sentence, rule)
+    word, direction, tone = (
+        ("Narrow", DOWN, BAD),
+        ("Mixed", FLAT, NEUTRAL),
+        ("Broad", UP, GOOD),
+    )[_band(float(share), PARTICIPATION_ZONES)]
+    return _card(
+        "participation",
+        "Participation",
+        word,
+        direction,
+        tone,
+        value=share,
+        zones=list(PARTICIPATION_ZONES),
+        new_highs=latest.get("new_highs", 0),
+        new_lows=latest.get("new_lows", 0),
+    )
 
 
-def fear_card(strip: Mapping[str, Any]) -> dict[str, str] | None:
+def fear_card(strip: Mapping[str, Any]) -> dict[str, Any] | None:
     """India VIX against its own past year."""
     vix = strip.get("vix") if strip.get("available") else None
     if not vix or vix.get("percentile_1y") is None:
         return None
     rank = float(vix["percentile_1y"])
-    sentence = (
-        f"India VIX at {vix['level']:.1f} is higher than on {rank:.0f}% of days in the past "
-        f"year (median {vix['median_1y']:.1f}). High VIX means options cost more."
+    word, direction, tone = (
+        ("Calm", DOWN, GOOD),
+        ("Normal", FLAT, NEUTRAL),
+        ("Elevated", UP, BAD),
+    )[0 if rank < FEAR_ZONES[0] else 2 if rank > FEAR_ZONES[1] else 1]
+    return _card(
+        "fear",
+        "Fear",
+        word,
+        direction,
+        tone,
+        value=rank,
+        zones=list(FEAR_ZONES),
+        level=vix["level"],
+        median=vix["median_1y"],
     )
-    rule = "VIX against its last year: under the 30th percentile Calm, 30th-70th Normal, above the 70th Elevated."
-    if rank > 70:
-        return _card("fear", "Fear", "Elevated", UP, BAD, sentence, rule)
-    if rank < 30:
-        return _card("fear", "Fear", "Calm", DOWN, GOOD, sentence, rule)
-    return _card("fear", "Fear", "Normal", FLAT, NEUTRAL, sentence, rule)
 
 
-def money_card(positioning: Mapping[str, Any]) -> dict[str, str] | None:
+def money_card(positioning: Mapping[str, Any]) -> dict[str, Any] | None:
     """FII index-futures long share against FII's own past year."""
     if not positioning.get("available"):
         return None
     fii = next((p for p in positioning["participants"] if p["participant"] == "FII"), None)
     if not fii or fii.get("index_futures_long_share") is None or fii.get("percentile") is None:
         return None
-    share = float(fii["index_futures_long_share"]) * 100
     rank = float(fii["percentile"])
-    if rank < 25:
-        word, direction, tone, versus = (
-            "More bearish than usual",
-            DOWN,
-            BAD,
-            "fewer than usual for them",
-        )
-    elif rank > 75:
-        word, direction, tone, versus = (
-            "More bullish than usual",
-            UP,
-            GOOD,
-            "more than usual for them",
-        )
+    if rank < MONEY_ZONES[0]:
+        word, direction, tone = "More bearish than usual", DOWN, BAD
+    elif rank > MONEY_ZONES[1]:
+        word, direction, tone = "More bullish than usual", UP, GOOD
     else:
-        word, direction, tone, versus = "Usual", FLAT, NEUTRAL, "normal for them"
-    sentence = (
-        f"Foreign institutions hold {share:.0f} of every 100 index-futures contracts as bets "
-        f"on a rise: {versus} over the past year ({rank:.0f}th percentile)."
+        word, direction, tone = "Usual", FLAT, NEUTRAL
+    return _card(
+        "money",
+        "Big money",
+        word,
+        direction,
+        tone,
+        value=fii["index_futures_long_share"],
+        usual=fii.get("usual"),
+        percentile=rank,
+        spark=[
+            round(v * 100, 2) for v in positioning.get("series", {}).get("FII", []) if v is not None
+        ],
     )
-    rule = (
-        "FII long share of index futures against its last year: under the 25th percentile "
-        "More bearish than usual, above the 75th More bullish than usual, else Usual."
-    )
-    return _card("money", "Big money", word, direction, tone, sentence, rule)
 
 
 def pulse(
@@ -185,12 +203,7 @@ def pulse(
         )
         if card is not None
     ]
-    return {
-        "available": bool(cards),
-        "cards": cards,
-        "note": "Each word comes from the rule printed on its card. The thresholds are ours, "
-        "not a standard, and the four are not added into one score. Context, not a signal.",
-    }
+    return {"available": bool(cards), "cards": cards, "note": NOTE}
 
 
 def expected_move(options: Mapping[str, Any]) -> dict[str, float] | None:
@@ -202,120 +215,6 @@ def expected_move(options: Mapping[str, Any]) -> dict[str, float] | None:
     return {
         "points": round(float(straddle), 1),
         "share": round(float(straddle) / float(forward), 4),
+        "low": round(float(forward) - float(straddle), 1),
+        "high": round(float(forward) + float(straddle), 1),
     }
-
-
-def _first_upper(text: str) -> str:
-    """Capitalise the first letter only: `str.capitalize` turned "IT" into "It"."""
-    return text[:1].upper() + text[1:]
-
-
-def _move(name: str, change: float | None) -> str | None:
-    if change is None:
-        return None
-    if abs(change) < 0.001:
-        return f"{name} was flat"
-    return f"{name} {'rose' if change > 0 else 'fell'} {_pct(change)}"
-
-
-def summary(
-    strip: Mapping[str, Any],
-    sectors: Mapping[str, Any],
-    valuation: Mapping[str, Any],
-    breadth: Mapping[str, Any],
-    options: Mapping[str, Any],
-) -> list[dict[str, str]]:
-    """ "What happened today" as a few sentences, each from one figure.
-
-    A sentence whose figure is missing is dropped rather than guessed.
-    """
-    out: list[dict[str, str]] = []
-    by_name = (
-        {row["name"]: row for row in strip.get("indices", [])} if strip.get("available") else {}
-    )
-    sizes = [(label, by_name.get(name)) for label, name in SIZES]
-
-    moves = [
-        _move(f"{label.lower()}caps" if label != "Large" else "Nifty 50", row["change"]["1d"])
-        for label, row in sizes
-        if row is not None
-    ]
-    today = [move for move in moves if move]
-    if today:
-        lead, *rest = today
-        text = _first_upper(lead)
-        if rest:
-            text += ", while " + " and ".join(rest)
-        out.append({"topic": "today", "text": text + "."})
-
-    month = [
-        (label, row["change"]["1m"])
-        for label, row in sizes
-        if row is not None and row["change"]["1m"] is not None
-    ]
-    if month:
-        parts = [
-            f"{'Nifty 50' if label == 'Large' else label.lower() + 'caps'} {'up' if v >= 0 else 'down'} {_pct(v)}"
-            for label, v in month
-        ]
-        out.append({"topic": "month", "text": "Over the past month: " + ", ".join(parts) + "."})
-
-    if sectors.get("available") and sectors.get("sectors"):
-        ranked = [s for s in sectors["sectors"] if s["relative"]["3m"] is not None]
-        leaders = [s["name"].replace("Nifty ", "") for s in ranked if s["phase"] == "leading"][:2]
-        laggards = [
-            s["name"].replace("Nifty ", "") for s in reversed(ranked) if s["phase"] == "lagging"
-        ][:2]
-        if leaders or laggards:
-            bits = []
-            if leaders:
-                bits.append(
-                    f"{' and '.join(leaders)} {'are' if len(leaders) > 1 else 'is'} beating Nifty and gaining"
-                )
-            if laggards:
-                bits.append(
-                    f"{' and '.join(laggards)} {'are' if len(laggards) > 1 else 'is'} trailing most over 3 months"
-                )
-            out.append({"topic": "sectors", "text": _first_upper("; ".join(bits)) + "."})
-
-    if breadth.get("available"):
-        latest = breadth["latest"]
-        share = latest.get("above_50")
-        if share is not None:
-            out.append(
-                {
-                    "topic": "participation",
-                    "text": f"{_first_upper(one_in(share))} stocks is above its 50-day average, with "
-                    f"{latest['new_highs']} new 52-week highs and {latest['new_lows']} new lows.",
-                }
-            )
-
-    move = expected_move(options)
-    if move is not None:
-        out.append(
-            {
-                "topic": "options",
-                "text": f"Nifty options price a move of about ±{_pct(move['share'])} "
-                f"(±{move['points']:,.0f} points) by the {options.get('expiry')} expiry.",
-            }
-        )
-
-    if valuation.get("available"):
-        nifty = next((row for row in valuation["indices"] if row["name"] == BENCHMARK), None)
-        pe = nifty.get("pe") if nifty else None
-        if pe and pe.get("percentile") is not None:
-            rank = float(pe["percentile"])
-            since = "April 2021"
-            if rank < 10:
-                where = f"near its cheapest since {since}"
-            elif rank > 90:
-                where = f"near its most expensive since {since}"
-            else:
-                where = f"higher than on {rank:.0f}% of days since {since}"
-            out.append(
-                {
-                    "topic": "valuation",
-                    "text": f"Nifty 50's PE of {pe['value']:.1f} is {where} (median {pe['median']:.1f}).",
-                }
-            )
-    return out

@@ -1328,21 +1328,42 @@ export type IndexTrend = {
   as_of: string;
   close: number;
   change: Record<Horizon, number | null>;
+  spark: number[];
 };
-export type ValuationCell = { value: number; percentile: number | null; median: number | null; since: string } | null;
+export type ValuationCell = {
+  value: number;
+  percentile: number | null;
+  median: number | null;
+  low: number | null;
+  high: number | null;
+  since: string;
+} | null;
+/** One verdict card. The gauge fields depend on `key`: Trend draws `spark`
+ *  against `spark_average`; Participation and Fear draw `value` on a 0-100
+ *  dial with `zones`; Big money draws `value` (0-1) with its `usual` tick. */
 export type PulseCard = {
   key: 'trend' | 'participation' | 'fear' | 'money';
   title: string;
   word: string;
   direction: 'up' | 'down' | 'flat';
   tone: 'good' | 'bad' | 'neutral';
-  sentence: string;
-  rule: string;
+  info: string;
+  value: number;
+  zones?: [number, number];
+  spark?: number[];
+  spark_average?: number[];
+  close?: number;
+  average?: number;
+  new_highs?: number;
+  new_lows?: number;
+  level?: number;
+  median?: number;
+  usual?: number | null;
+  percentile?: number;
 };
 export type MarketContext = {
   ok: boolean;
   pulse: { available: true; cards: PulseCard[]; note: string } | Unavailable;
-  summary: { topic: string; text: string }[];
   strip:
     | {
         available: true;
@@ -1366,6 +1387,7 @@ export type MarketContext = {
           name: string;
           change_1d: number | null;
           relative: { '1w': number | null; '1m': number | null; '3m': number | null };
+          momentum: number | null;
           rising: boolean;
           phase: 'leading' | 'weakening' | 'lagging' | 'improving' | null;
         }[];
@@ -1411,6 +1433,7 @@ export type MarketContext = {
           change_1d: number | null;
           change_5d: number | null;
           percentile: number | null;
+          usual: number | null;
           history_days: number;
           index_calls_net: number;
           index_puts_net: number;
@@ -1434,7 +1457,7 @@ export type MarketContext = {
         straddle: number | null;
         since: string;
         note: string;
-        expected_move?: { points: number; share: number };
+        expected_move?: { points: number; share: number; low: number; high: number };
       }
     | Unavailable;
   delivery:
