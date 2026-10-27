@@ -22,6 +22,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Info } from '@/components/terminal/ui';
 import { ArrowLeft, Download } from 'lucide-react';
 import { EquityChart } from '@/components/terminal/EquityChart';
 import { TuningView } from '@/components/terminal/TuningPanel';
@@ -398,11 +399,14 @@ export function BacktestReport({
           </div>
 
           <p className={`rpt-recon${report.reconciliation.exact ? '' : ' bad'}`}>
+            <span className="ui-chip">{report.reconciliation.exact ? 'Contributions reconcile' : 'Contributions do not reconcile'}</span>
+            <Info>
             {report.reconciliation.exact
               ? `Per-instrument contributions add up to the equity change of ${money(report.reconciliation.equity_change)} exactly.`
               : `Per-instrument contributions (${money(report.reconciliation.attributed)}) do not add up to the equity change (${money(report.reconciliation.equity_change)}); the residual is ${money(report.reconciliation.residual)}. Treat the attribution as incomplete.`}
             {report.reconciliation.unmarked_symbols.length > 0 &&
               ` Unpriced at the end: ${report.reconciliation.unmarked_symbols.join(', ')}.`}
+            </Info>
           </p>
         </>
       )}
@@ -601,13 +605,15 @@ function Card({
   children,
 }: {
   title: string;
-  sub?: string;
+  sub?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="tpanel rpt-card">
-      <h3>{title}</h3>
-      {sub && <p className="rpt-sub">{sub}</p>}
+      <h3 className="rpt-card-title">
+        {title}
+        {sub && <Info>{sub}</Info>}
+      </h3>
       {children}
     </section>
   );
@@ -814,7 +820,8 @@ function TradeList({
       </div>
       {shown.length > 1000 && (
         <p className="tfine" style={{ marginTop: 8 }}>
-          Showing the first 1,000 of {shown.length.toLocaleString('en-IN')}. The CSV has all of them.
+          1,000 / {shown.length.toLocaleString('en-IN')}
+          <Info>Showing the first 1,000. The CSV has all of them.</Info>
         </p>
       )}
     </Card>
@@ -882,7 +889,8 @@ function OrderList({
       </div>
       {orders.length > 500 && (
         <p className="tfine" style={{ marginTop: 8 }}>
-          Showing the first 500. Filter by symbol to narrow it.
+          500 / {orders.length.toLocaleString('en-IN')}
+          <Info>Showing the first 500. Filter by symbol to narrow it.</Info>
         </p>
       )}
     </Card>
@@ -999,7 +1007,7 @@ function AttributionTab({
           <ContributionTiles rows={holdingsBars} money={money} />
           <div className="att-chart-legend"><span><i className="att-dot gain" /> Added return</span><span><i className="att-dot loss" /> Reduced return</span><span className="att-chart-hint">Tile area shows contribution size</span></div>
         </Card>
-        <Card title="Profit concentration" sub="Share of gross gains from winning holdings. Losses do not shrink the denominator.">
+        <Card title="Profit concentration" sub="Share of gross gains from winning holdings. Losses do not shrink the denominator. Use the exclusion returns to see whether the strategy stayed profitable without its biggest contributors.">
           <div className="att-concentration">
             <div className="att-donut" style={{ background: `conic-gradient(var(--up) 0 ${Math.max(0, Math.min(100, (h.share_of_gross_profit.top_5 ?? 0) * 100))}%, var(--surface-3) 0 100%)` }}><div><b>{share(h.share_of_gross_profit.top_5)}</b><span>top five winners</span></div></div>
             <div className="att-concentration-stats">
@@ -1011,15 +1019,18 @@ function AttributionTab({
               <div><span>Winners for 50% / 80% of gains</span><b>{h.names_for_half ?? '—'} / {h.names_for_four_fifths ?? '—'}</b></div>
             </div>
           </div>
-          <p className="att-insight">Use the exclusion returns below to see whether the strategy stayed profitable without its biggest contributors.</p>
         </Card>
       </div>
 
-      <p className="tfine att-note">{a.note}</p>
+      {a.note && (
+        <p className="tfine att-note">
+          Method <Info>{a.note}</Info>
+        </p>
+      )}
       </div>
 
       <section className="att-view" hidden={view !== 'results'}>
-        <div className="att-view-heading"><div><span className="att-eyebrow">PERFORMANCE DRIVERS</span><h2>How did the strategy perform?</h2><p>Read sector and industry contribution, performance over time, and market exposure together.</p></div><span className="att-view-count">{a.years.filter((y) => (y.return ?? 0) > 0).length} positive years · {h.names} names</span></div>
+        <div className="att-view-heading"><div><span className="att-eyebrow">PERFORMANCE DRIVERS</span><h2>How did the strategy perform?<Info>Read sector and industry contribution, performance over time, and market exposure together.</Info></h2></div><span className="att-view-count">{a.years.filter((y) => (y.return ?? 0) > 0).length} positive years · {h.names} names</span></div>
         <div className="att-results-grid">
           {a.sectors && (['sector', 'industry'] as const).map((level) => <Card key={level} title={`${level === 'sector' ? 'Sector' : 'Industry'} contribution`} sub="Net contribution after costs; bar detail shows share and breadth of winners."><ContributionBars rows={a.sectors![level].map((r) => ({ label: r.name, value: r.contribution, detail: `${share(r.share)} · ${r.winners}/${r.names} positive` }))} money={money} compact /></Card>)}
           {m && <Card title={`Market comparison · ${m.index}`} sub={`${m.from} to ${m.through} · close-to-close price return, excluding distributions · ${m.days} matched sessions. The annual residual is the raw-return regression intercept; no risk-free rate is available.${m.days < 60 ? ' Cumulative comparison only; beta and residual need 60 sessions.' : ''}`}>
@@ -1032,7 +1043,7 @@ function AttributionTab({
       </section>
 
       <section className="att-view" hidden={view !== 'detail'}>
-        <div className="att-view-heading"><div><span className="att-eyebrow">MODEL DIAGNOSTICS</span><h2>Full analysis</h2><p>Rebuilt holdings, sector effects, factors, risk, drawdowns, trade behavior and capacity.</p></div><span className="att-view-count">{detail ? `Rebuilt in ${detail.seconds}s` : 'On-demand'}</span></div>
+        <div className="att-view-heading"><div><span className="att-eyebrow">MODEL DIAGNOSTICS</span><h2>Full analysis<Info>Rebuilt holdings, sector effects, factors, risk, drawdowns, trade behavior and capacity.</Info></h2></div><span className="att-view-count">{detail ? `Rebuilt in ${detail.seconds}s` : 'On-demand'}</span></div>
 
       {!detail && <Card title="Build full analysis" sub="Rebuild the trade history, then calculate sector effects, factor exposure, risk and execution diagnostics.">
         <div className="att-analysis-launch">
@@ -1119,7 +1130,7 @@ function DetailViews({ d, money }: { d: AttributionDetail; money: (value: number
       </div>
 
       <section className="att-analysis-section">
-        <div className="att-analysis-heading"><div><span className="att-eyebrow">RETURNS & DRIVERS</span><h3>What produced the return?</h3><p>Sector decisions and style exposure, with sample size and model limits alongside the estimates.</p></div><span className="att-view-count">{d.factors ? `${d.factors.months} monthly observations` : 'Coverage notes below'}</span></div>
+        <div className="att-analysis-heading"><div><span className="att-eyebrow">RETURNS & DRIVERS</span><h3>What produced the return?<Info>Sector decisions and style exposure, with sample size and model limits alongside the estimates.</Info></h3></div><span className="att-view-count">{d.factors ? `${d.factors.months} monthly observations` : 'Coverage notes below'}</span></div>
         <div className="att-analysis-grid">
           {d.brinson && <div className="att-analysis-card att-analysis-brinson">
             <Card title="Brinson–Fachler attribution" sub={`Sector effects use the ${d.brinson.benchmark} reference basket over ${d.brinson.months} months, linked with Carino and current NSE sector labels. This model is separate from the NIFTYBEES / S&P 500 market comparison in Performance drivers.`}>
@@ -1152,12 +1163,12 @@ function DetailViews({ d, money }: { d: AttributionDetail; money: (value: number
           </div>}
 
           <div className="att-analysis-card att-analysis-factors"><FactorModelCard factors={d.factors} note={d.factor_note} /></div>
-          {!d.brinson && d.brinson_note && <div className="att-analysis-card att-analysis-brinson-note"><Card title="Sector attribution coverage"><p className="att-model-note">{d.brinson_note}</p></Card></div>}
+          {!d.brinson && d.brinson_note && <div className="att-analysis-card att-analysis-brinson-note"><Card title="Sector attribution coverage" sub={d.brinson_note}><div className="ui-empty">—</div></Card></div>}
         </div>
       </section>
 
       <section className="att-analysis-section">
-        <div className="att-analysis-heading"><div><span className="att-eyebrow">PORTFOLIO & RISK</span><h3>How the book was invested</h3><p>Exposure, concentration of risk, and the periods that hurt most.</p></div></div>
+        <div className="att-analysis-heading"><div><span className="att-eyebrow">PORTFOLIO & RISK</span><h3>How the book was invested<Info>Exposure, concentration of risk, and the periods that hurt most.</Info></h3></div></div>
         <div className="att-analysis-grid">
           {e && <div className="att-analysis-card">
             <Card title="Portfolio exposure" sub={e.note}>
@@ -1166,7 +1177,7 @@ function DetailViews({ d, money }: { d: AttributionDetail; money: (value: number
               <div className="att-detail-viz"><div className="att-detail-viz-title"><b>Capital deployed by year</b><span>Average invested</span></div>
                 <div className="att-exposure-bars">{e.by_year.map((y) => <div key={y.year} className="att-exposure-row"><b>{y.year}</b><div className="att-bar-track"><div className="att-bar-fill gain" style={{ width: `${Math.max(0, Math.min(100, (y.invested ?? 0) * 100))}%` }} /></div><strong>{share(y.invested, 0)}</strong><span>{num(y.holdings, 1)} holdings · {num(y.effective_holdings, 1)} effective</span></div>)}</div>
               </div>
-              {e.frozen.length > 0 && <div className="tscroll"><p className="tfine"><b>Frozen positions</b> — held after the stock&apos;s last price in the data (renamed or delisted).</p><table className="ttable"><thead><tr><th>Symbol</th><th>Last price</th><th>Held until</th><th className="r">Value then</th></tr></thead><tbody>{e.frozen.map((f) => <tr key={f.symbol}><td>{f.symbol}</td><td>{f.last_price}</td><td>{f.held_until}</td><td className="r">{money(f.value)}</td></tr>)}</tbody></table></div>}
+              {e.frozen.length > 0 && <div className="tscroll"><p className="tfine"><b>Frozen positions</b><Info>Held after the stock&apos;s last price in the data (renamed or delisted).</Info></p><table className="ttable"><thead><tr><th>Symbol</th><th>Last price</th><th>Held until</th><th className="r">Value then</th></tr></thead><tbody>{e.frozen.map((f) => <tr key={f.symbol}><td>{f.symbol}</td><td>{f.last_price}</td><td>{f.held_until}</td><td className="r">{money(f.value)}</td></tr>)}</tbody></table></div>}
             </Card>
           </div>}
 
@@ -1196,7 +1207,7 @@ function DetailViews({ d, money }: { d: AttributionDetail; money: (value: number
       </section>
 
       <section className="att-analysis-section">
-        <div className="att-analysis-heading"><div><span className="att-eyebrow">TRADING & ROBUSTNESS</span><h3>Does the edge survive execution and time?</h3><p>Trade outcomes, capacity limits, and rolling market-adjusted results.</p></div></div>
+        <div className="att-analysis-heading"><div><span className="att-eyebrow">TRADING & ROBUSTNESS</span><h3>Does the edge survive execution and time?<Info>Trade outcomes, capacity limits, and rolling market-adjusted results.</Info></h3></div></div>
         <div className="att-analysis-grid">
           {d.trades.by_holding_period && <div className="att-analysis-card">
             <Card title="Trade outcomes by holding period" sub={`${d.trades.closed} closed trades · best 1% (${d.trades.best_1pct_trades}) generated ${share(d.trades.best_1pct_share_of_gross_profit)} of gross profit · win/loss payoff ${num(d.trades.payoff_ratio)}.`}>
@@ -1211,7 +1222,7 @@ function DetailViews({ d, money }: { d: AttributionDetail; money: (value: number
           {d.capacity && <div className="att-analysis-card">
             <Card title="Strategy capacity" sub={`${d.capacity.entries} buys measured against median daily turnover over the preceding 60 sessions, at ${share(d.capacity.participation)} participation.`}>
               <div className="att-capacity-kpis"><div><span>Typical buy, days to trade</span><b>{num(d.capacity.median_days_to_trade, 3)}</b></div><div><span>90th percentile</span><b>{num(d.capacity.p90_days_to_trade, 3)} <small>days</small></b></div><div><span>Capital for 90% same day</span><b>{money(d.capacity.capital_where_90pct_trade_in_a_day)}</b></div><div><span>Capital for half same day</span><b>{money(d.capacity.capital_where_median_trades_in_a_day)}</b></div></div>
-              {d.capacity.note && <p className="tfine">{d.capacity.note}</p>}
+              {d.capacity.note && <p className="tfine">Note <Info>{d.capacity.note}</Info></p>}
               <div className="att-tightest"><b>Most constrained buys</b>{d.capacity.tightest.map((t) => <div key={`${t.symbol}-${t.day}`}><span>{t.symbol} · {t.day}</span><b>{money(t.capital_for_one_day)}</b></div>)}</div>
             </Card>
           </div>}
@@ -1259,7 +1270,7 @@ const officialUsFactorCatalog: Record<string, { label: string; short: string; co
 };
 
 function FactorModelCard({ factors, note }: { factors: AttributionDetail['factors']; note: string | null }) {
-  if (!factors) return <Card title="Factor model unavailable"><p className="att-model-note">{note ?? 'The return history does not support a factor estimate yet.'}</p></Card>;
+  if (!factors) return <Card title="Factor model unavailable" sub={note ?? 'The return history does not support a factor estimate yet.'}><div className="ui-empty">—</div></Card>;
   const catalog = factors.model_name.startsWith('Fama/French') ? officialUsFactorCatalog : houseFactorCatalog;
   const factorLabel = (key: string) => catalog[key]?.label ?? (key === 'risk_free' ? 'Risk-free return' : key.replaceAll('_', ' '));
   const contributionRows = [
@@ -1272,7 +1283,7 @@ function FactorModelCard({ factors, note }: { factors: AttributionDetail['factor
     { label: 'Model residual', value: factors.alpha_annual ?? 0, detail: `t ${num(factors.alpha_t)}` },
   ];
   return <Card title="Factor attribution" sub={`${factors.model_name} · ${factors.period_from ?? '—'} to ${factors.period_through ?? '—'} · ${factors.months} monthly observations · ${factors.factors}.`}>
-    {note && <div className="att-factor-note"><b>Model coverage</b><p>{note}{factors.source_url && <> <a href={factors.source_url} target="_blank" rel="noreferrer">Data source</a></>}</p></div>}
+    {note && <div className="att-factor-note"><b>Model coverage<Info>{note}</Info></b>{factors.source_url && <a href={factors.source_url} target="_blank" rel="noreferrer">Data source</a>}</div>}
     <div className="att-factor-kpis">
       <div><span>Strategy average / year</span><b className={(factors.strategy_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(factors.strategy_annual, 1)}</b><small>Arithmetic monthly mean × 12</small></div>
       <div><span>Model intercept / year</span><b className={(factors.alpha_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(factors.alpha_annual, 1)}</b><small>Regression intercept × 12</small></div>
@@ -1281,9 +1292,9 @@ function FactorModelCard({ factors, note }: { factors: AttributionDetail['factor
     </div>
 
     <div className="att-detail-viz att-factor-waterfall">
-      <div className="att-detail-viz-title"><b>What the model assigns to each driver</b><span>Annualized arithmetic contribution</span></div>
+      <div className="att-detail-viz-title"><b>What the model assigns to each driver<Info>Factor contributions + model residual reconcile to the strategy&apos;s annualized arithmetic return, within rounding. This regression describes co-movement; it does not prove that a factor caused the return.</Info></b><span>Annualized arithmetic contribution</span></div>
       <ContributionBars rows={contributionRows} money={() => ''} compact formatValue={(value) => pct(value, 1)} />
-      <p className="att-factor-reconcile">Factor contributions + model residual reconcile to the strategy&apos;s annualized arithmetic return, within rounding. This regression describes co-movement; it does not prove that a factor caused the return.</p>
+
     </div>
 
     <div className="att-factor-details">
@@ -1298,21 +1309,17 @@ function FactorModelCard({ factors, note }: { factors: AttributionDetail['factor
             <div><span>Factor return / year</span><b className={(value.factor_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(value.factor_annual, 1)}</b></div>
             <div><span>Return contribution / year</span><b className={(value.contribution_annual ?? 0) < 0 ? 'neg' : 'pos'}>{pct(value.contribution_annual, 1)}</b></div>
           </div>
-          <details><summary>How this factor is built</summary><p>{construction}</p></details>
+          <span className="att-factor-how">How it is built <Info>{construction}</Info></span>
         </article>;
       })}
     </div>
 
     {factors.yearly.length > 1 && <div className="att-factor-years">
-      <div className="att-detail-viz-title"><b>Factor contribution by year</b><span>Full-period exposures held fixed</span></div>
+      <div className="att-detail-viz-title"><b>Factor contribution by year<Info>Factor pieces use full-period betas; the residual is the observed return left after those pieces in that year, so each row reconciles. Values are annualized monthly averages, not compounded annual returns. The final partial year uses only its observed months.</Info></b><span>Full-period exposures held fixed</span></div>
       <FactorYearRows periods={factors.yearly} officialUs={factors.model_name.startsWith('Fama/French')} />
-      <p className="tfine">Factor pieces use full-period betas; the residual is the observed return left after those pieces in that year, so each row reconciles. Values are annualized monthly averages, not compounded annual returns. The final partial year uses only its observed months.</p>
     </div>}
 
-    <details className="att-factor-method">
-      <summary>Model assumptions and reliability</summary>
-      <p>Monthly ordinary least squares. The model uses {factors.inference}; t-statistics are a noise check, not a pass/fail test. As a rough convention, |t| below 2 means the estimate is uncertain in this sample. {factors.risk_free_annual == null ? 'No risk-free rate is available for this model.' : 'The published risk-free rate is included for this model.'} The intercept is not proof of skill or future alpha.</p>
-    </details>
+    <p className="tfine att-factor-method">Model assumptions and reliability <Info>Monthly ordinary least squares. The model uses {factors.inference}; t-statistics are a noise check, not a pass/fail test. As a rough convention, |t| below 2 means the estimate is uncertain in this sample. {factors.risk_free_annual == null ? 'No risk-free rate is available for this model.' : 'The published risk-free rate is included for this model.'} The intercept is not proof of skill or future alpha.</Info></p>
   </Card>;
 }
 

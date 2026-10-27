@@ -14,6 +14,7 @@
 
 import { money } from '@/lib/money';
 import type { AdoptedResult } from '@/lib/api';
+import { Info } from '@/components/terminal/ui';
 
 /** The equity path, drawn large enough to read rather than as a sparkline. */
 function Curve({ curve, market }: { curve: number[]; market: string }) {
@@ -83,11 +84,14 @@ export function AdoptedReport({
         </span>
       </div>
 
-      {note && <p className="adopted-params">{note}</p>}
-
       <p className="adopted-params">
-        Running {result.adopted ? params : 'the paper’s published parameters'}
-        {result.adopted && ' — the best of the settings a recorded sweep tried.'}
+        {result.adopted ? params : 'Published parameters'}
+        <Info>
+          {result.adopted
+            ? 'Running the best of the settings a recorded sweep tried.'
+            : 'Running the paper’s published parameters.'}
+          {note ? ` ${note}` : ''}
+        </Info>
       </p>
 
       <Curve curve={result.curve} market={result.market} />
@@ -153,9 +157,11 @@ export function AdoptedReport({
       )}
 
       <p className="adopted-fine">
-        {result.sessions} sessions and {result.fills} fills. Annualised at √252 on the session
-        count, which treats sessions as independent — reasonable for a strategy flat by every
-        close, and still an assumption rather than a measurement.
+        {result.sessions} sessions · {result.fills} fills
+        <Info>
+          Annualised at √252 on the session count, which treats sessions as independent: reasonable
+          for a strategy flat by every close, and still an assumption rather than a measurement.
+        </Info>
       </p>
     </div>
   );
