@@ -19,6 +19,12 @@ LOCK="$REPO/data/cache/ui-revamp.lock"
 LOGS="$REPO/data/cache/ui-revamp-logs"
 QUIET_MINUTES=90
 
+# launchd starts with a bare PATH: uv lives in ~/.local/bin and the working
+# node in nvm (Homebrew's node 20.5 is missing its icu4c library). The first
+# unattended run (2026-10-28) could not run `make verify` without these.
+NODE_BIN=$(ls -d "$HOME"/.nvm/versions/node/v20*/bin 2>/dev/null | sort -V | tail -1)
+export PATH="$HOME/.local/bin:${NODE_BIN:+$NODE_BIN:}/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
 cd "$REPO" || exit 0
 [ -f "$FLAG" ] || exit 0
 # Quiet long enough? (find prints the file only if older than the limit.)
