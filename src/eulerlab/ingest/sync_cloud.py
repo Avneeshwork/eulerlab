@@ -68,6 +68,7 @@ def mirror_only(names: Sequence[str], args: argparse.Namespace, config: StorageC
         args.landing,
         args.landing_root,
         args.dry_run,
+        verify=args.verify,
         then_delete=bool(getattr(args, "then_delete", False)),
     )
 
@@ -80,6 +81,7 @@ def mirror_trees(
     landing_root: Path,
     dry_run: bool = False,
     *,
+    verify: bool = False,
     then_delete: bool = False,
 ) -> int:
     """The work of `mirror_only`, with the store handed in.
@@ -118,7 +120,13 @@ def mirror_trees(
                 print(f"{name}: uploaded {result.uploaded}, already there {result.skipped}")
                 problems = [*result.mismatched, *result.failed]
         else:
-            tree = sync_directory(root, store, prefix=f"{config.prefix}{name}/", dry_run=dry_run)
+            tree = sync_directory(
+                root,
+                store,
+                prefix=f"{config.prefix}{name}/",
+                dry_run=dry_run,
+                verify=verify,
+            )
             verb = "would upload" if dry_run else "uploaded"
             print(f"{name}: {verb} {tree.uploaded}, already there {tree.skipped}")
             problems = list(tree.failed)

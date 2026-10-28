@@ -363,7 +363,14 @@ def futures_cash_signals(
     min_return: float = 0.0005,
     hold_minutes: int = 5,
 ) -> list[Signal]:
-    """Generate next-minute cash trades from a completed, date-linked stock future bar."""
+    """Use front-future returns and strictly prior 60-session lead correlation.
+
+    Futures returns are calculated within contract and session, so overnight
+    gaps and expiry rolls never enter the one-minute return. At each timestamp
+    the nearest-expiry contract is selected. The correlation uses paired
+    future/cash minute returns only from the previous 60 cash sessions, never
+    from the current session.
+    """
     _require(
         bars,
         (
@@ -380,92 +387,125 @@ def futures_cash_signals(
     )
     rows = bars.copy()
     rows["event_time"] = _aware_times(rows, "event_time", "bars")
-    futures = rows.loc[rows["instrument_kind"].eq("stock_future")].sort_values(
-        ["contract_id", "event_time"], kind="stable"
+    rows["session"] = rows["event_time"].dt.date
+    rows["expiry_date"] = pd.to_datetime(rows["expiry"], errors="raise").dt.date
+    futures = rows.loc[rows["instrument_kind"].eq("stock_future")].copy()
+    cash = rows.loc[rows["instrument_kind"].eq("cash")].copy()
+    signals: list[Signal] = []
+    if futures.empty or cash.empty:
+        return signals
+
+    futures = futures.drop_duplicates(["contract_id", "event_time"], keep="last")
+    futures = futures.sort_values(["contract_id", "event_time"], kind="stable")
+    futures["previous_close"] = futures.groupby(["contract_id", "session"], sort=False)[
+        "close"
+    ].shift()
+    futures["previous_event_time"] = futures.groupby(["contract_id", "session"], sort=False)[
+        "event_time"
+    ].shift()
+    futures["future_return"] = (
+        futures["close"].astype(float).div(futures["previous_close"].astype(float)).sub(1)
     )
-    cash = rows.loc[rows["instrument_kind"].eq("cash")]
-    cash_index = {
-        str(instrument_id): group.sort_values("event_time", kind="stable")
+    futures["future_return"] = futures["future_return"].where(
+        futures["event_time"].sub(futures["previous_event_time"]).eq(pd.Timedelta(minutes=1))
+    )
+    futures = futures.loc[futures["expiry_date"].ge(futures["session"])].copy()
+    cash_groups = {
+        str(instrument_id): group.sort_values("event_time", kind="stable").copy()
         for instrument_id, group in cash.groupby("instrument_id", sort=True)
     }
-    signals: list[Signal] = []
-    for _, contract in futures.groupby("contract_id", sort=True):
-        contract = contract.sort_values("event_time", kind="stable")
-        previous_close = contract["close"].shift(1)
-        returns = contract["close"].astype(float) / previous_close.astype(float) - 1
-        underlying_id = str(contract.iloc[0]["underlying_instrument_id"])
-        underlying = cash_index.get(underlying_id)
+
+    for underlying_id, contracts in futures.groupby("underlying_instrument_id", sort=True):
+        underlying = cash_groups.get(str(underlying_id))
         if underlying is None:
             continue
-        underlying = underlying.sort_values("event_time", kind="stable").copy()
-        underlying["cash_return"] = underlying["close"].astype(float).pct_change()
-        cash_return: dict[pd.Timestamp, float] = {}
-        for stamp_value, return_value in zip(
-            underlying["event_time"].tolist(), underlying["cash_return"].tolist(), strict=True
+        underlying["previous_cash_close"] = underlying.groupby("session", sort=False)[
+            "close"
+        ].shift()
+        underlying["previous_cash_time"] = underlying.groupby("session", sort=False)[
+            "event_time"
+        ].shift()
+        underlying["cash_return"] = (
+            underlying["close"]
+            .astype(float)
+            .div(underlying["previous_cash_close"].astype(float))
+            .sub(1)
+        )
+        underlying["cash_return"] = underlying["cash_return"].where(
+            underlying["event_time"]
+            .sub(underlying["previous_cash_time"])
+            .eq(pd.Timedelta(minutes=1))
+        )
+        cash_returns: dict[pd.Timestamp, float] = {}
+        cash_times_by_session: dict[date, list[pd.Timestamp]] = defaultdict(list)
+        for stamp_value, session, return_value in zip(
+            underlying["event_time"].tolist(),
+            underlying["session"].tolist(),
+            underlying["cash_return"].tolist(),
+            strict=True,
         ):
+            stamp = pd.Timestamp(stamp_value)
+            cash_times_by_session[session].append(stamp)
             if pd.notna(return_value):
-                cash_return[pd.Timestamp(stamp_value)] = float(return_value)
-        contract_rows = cast(list[dict[str, Any]], contract.to_dict(orient="records"))
-        return_values = returns.tolist()
-        contract_returns: list[tuple[pd.Timestamp, float]] = [
-            (pd.Timestamp(row["event_time"]), float(value) if pd.notna(value) else math.nan)
-            for row, value in zip(contract_rows, return_values, strict=True)
-        ]
-        cash_times = [
-            pd.Timestamp(value).to_pydatetime() for value in underlying["event_time"].tolist()
-        ]
-        for row, future_return in zip(contract_rows, return_values, strict=True):
-            if pd.isna(future_return) or abs(float(future_return)) < min_return:
-                continue
-            if pd.Timestamp(row["event_time"]).date() > pd.Timestamp(row["expiry"]).date():
-                continue
-            stamp = pd.Timestamp(row["event_time"])
-            prior_days = sorted(
-                {
-                    pd.Timestamp(prior_time).date()
-                    for prior_time, _ in contract_returns
-                    if pd.Timestamp(prior_time) < stamp
-                }
-            )[-60:]
-            first_train_day = prior_days[0] if prior_days else None
-            paired: list[tuple[float, float]] = []
-            for prior_time, prior_return in contract_returns:
-                prior_stamp = pd.Timestamp(prior_time)
-                next_return = cash_return.get(prior_stamp + pd.Timedelta(minutes=1))
-                if (
-                    first_train_day is not None
-                    and prior_stamp < stamp
-                    and prior_stamp.date() >= first_train_day
-                    and not pd.isna(prior_return)
-                    and next_return is not None
-                    and not pd.isna(next_return)
-                    and prior_stamp + pd.Timedelta(minutes=1) < stamp
-                ):
-                    paired.append((float(prior_return), float(next_return)))
+                cash_returns[stamp] = float(return_value)
+
+        # The returns are first calculated in each dated contract. Select the
+        # nearest expiry at every minute without calculating a roll return.
+        front = contracts.sort_values(["event_time", "expiry_date"], kind="stable")
+        front = front.drop_duplicates("event_time", keep="first")
+        paired_by_session: dict[date, list[tuple[float, float]]] = defaultdict(list)
+        for stamp_value, session, future_return in zip(
+            front["event_time"].tolist(),
+            front["session"].tolist(),
+            front["future_return"].tolist(),
+            strict=True,
+        ):
+            next_cash_return = cash_returns.get(pd.Timestamp(stamp_value) + pd.Timedelta(minutes=1))
+            if pd.notna(future_return) and next_cash_return is not None:
+                paired_by_session[session].append((float(future_return), next_cash_return))
+
+        sessions = sorted(cash_times_by_session)
+        front_by_session = dict(front.groupby("session", sort=True))
+        for position in range(60, len(sessions)):
+            session = sessions[position]
+            prior_sessions = sessions[position - 60 : position]
+            paired = [
+                pair
+                for prior_session in prior_sessions
+                for pair in paired_by_session.get(prior_session, [])
+            ]
             if len(paired) < 500:
                 continue
-            x = pd.Series([pair[0] for pair in paired])
-            y = pd.Series([pair[1] for pair in paired])
-            lead_correlation = x.corr(y)
+            lead_correlation = pd.Series([pair[0] for pair in paired]).corr(
+                pd.Series([pair[1] for pair in paired])
+            )
             if pd.isna(lead_correlation) or float(lead_correlation) <= 0:
                 continue
-            # Signal is known at the completed futures bar; enter no earlier than
-            # the next minute and only while the same cash session is open.
-            signal_time = stamp.to_pydatetime() + timedelta(minutes=1)
-            exit_time = signal_time + timedelta(minutes=hold_minutes)
-            if not any(value >= signal_time for value in cash_times) or not any(
-                value >= exit_time for value in cash_times
-            ):
+
+            current = front_by_session.get(session)
+            if current is None:
                 continue
-            signals.append(
-                Signal(
-                    strategy_id="micro-05",
-                    instrument_id=str(row["underlying_instrument_id"]),
-                    signal_time=signal_time,
-                    exit_time=exit_time,
-                    side=1 if future_return > 0 else -1,
+            cash_times = cash_times_by_session[session]
+            for row in cast(list[dict[str, Any]], current.to_dict(orient="records")):
+                future_return = row["future_return"]
+                if pd.isna(future_return) or abs(float(future_return)) < min_return:
+                    continue
+                stamp = pd.Timestamp(row["event_time"])
+                signal_time = stamp.to_pydatetime() + timedelta(minutes=1)
+                exit_time = signal_time + timedelta(minutes=hold_minutes)
+                if not any(value.to_pydatetime() >= signal_time for value in cash_times) or not any(
+                    value.to_pydatetime() >= exit_time for value in cash_times
+                ):
+                    continue
+                signals.append(
+                    Signal(
+                        strategy_id="micro-05",
+                        instrument_id=str(underlying_id),
+                        signal_time=signal_time,
+                        exit_time=exit_time,
+                        side=1 if float(future_return) > 0 else -1,
+                    )
                 )
-            )
     return signals
 
 
@@ -485,7 +525,11 @@ def backtest_bar_signals(
         for instrument_id, group in rows.groupby("instrument_id", sort=True)
     }
     fills: list[BacktestFill] = []
+    available_after: dict[str, datetime] = {}
     for signal in sorted(signals, key=lambda item: (item.signal_time, item.instrument_id)):
+        last_exit = available_after.get(signal.instrument_id)
+        if last_exit is not None and signal.signal_time <= last_exit:
+            continue
         group = groups.get(signal.instrument_id)
         if group is None:
             continue
@@ -546,6 +590,7 @@ def backtest_bar_signals(
                 net_pnl=gross - fees,
             )
         )
+        available_after[signal.instrument_id] = exit_time
     return fills
 
 

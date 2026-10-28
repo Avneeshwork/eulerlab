@@ -35,6 +35,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=DERIVED)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--verify", action="store_true", help="HEAD every object's SHA-256 after upload"
+    )
     parser.add_argument("--drop", type=Path, action="append", default=[])
     args = parser.parse_args(argv)
 
@@ -44,13 +47,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     except MissingCredentials as exc:
         print(f"sync-derived: {exc}")
         return 2
-    prefix = f"{config.prefix}derived/"
+    try:
+        relative_root = args.root.resolve().relative_to(DERIVED.resolve())
+    except ValueError:
+        parser.error(f"--root must be inside {DERIVED}")
+    suffix = "" if relative_root == Path(".") else relative_root.as_posix()
+    prefix = f"{config.prefix}derived/{suffix + '/' if suffix else ''}"
     print(f"target: {config.bucket}/{prefix}")
 
     # One file at a time. The derived tree is a few very large files, and twelve
     # concurrent uploads of them saturated the uplink and dropped the machine
     # offline three times (2026-10-07). Small-file trees keep the default.
-    tree = sync_directory(args.root, store, prefix=prefix, dry_run=args.dry_run, workers=1)
+    tree = sync_directory(
+        args.root, store, prefix=prefix, dry_run=args.dry_run, verify=args.verify, workers=1
+    )
     print(f"{'would upload' if args.dry_run else 'uploaded'} : {tree.uploaded}")
     print(f"skipped  : {tree.skipped}  (already present, matching size)")
     for problem in tree.failed:

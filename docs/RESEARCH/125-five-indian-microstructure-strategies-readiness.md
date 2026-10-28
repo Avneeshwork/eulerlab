@@ -8,11 +8,13 @@ scraping NSE?
 ## Result
 
 The five fixed signal definitions and reusable event/quote backtest primitives
-are in `src/eulerlab/intraday/microstructure_five.py`. The readiness command
-ran against the local landing zone. **No P&L backtest ran:** there are zero NSE
-historical full-order/trade files, zero stock-futures minute files, and no
-normalized microstructure input. The report records all five as
-`blocked_missing_data`, with `trials_spent: 0`.
+are in `src/eulerlab/intraday/microstructure_five.py`. Strategy micro-05 now
+also has an FYERS-to-internal-ID normalization and a bounded, fixed-rule
+backtest runner in `src/eulerlab/intraday/futures_cash_backtest.py`. **No P&L
+backtest has run:** there are zero NSE historical full-order/trade files, no
+FYERS expired-futures response, and no normalized microstructure input. The
+readiness report records all five as `blocked_missing_data`, with
+`trials_spent: 0`.
 
 This is not evidence that the strategies lose. The required observations are
 absent. I did not substitute candle volume for signed order flow or depth.
@@ -62,8 +64,10 @@ The existing Kite archive supports a cash leg, but contains no stock-future
 bars. FYERS Standard exposes expired F&O minute candles with ten intraday
 requests per day and up to 100 days per call. Its API terms restrict
 using exchange data to develop tools or for paper trading and limit copying.
-This intended stored backtest requires written FYERS permission before any
-fetch. No credentials were found and no API request was made.
+The operator confirmed written permission for local storage and historical
+backtesting. The app ID and secret are present in the local ignored `.env`, but
+the daily access token is missing. The fetch/login command is now coded; no API
+request or data download has happened yet.
 
 ## Reproduction
 
@@ -73,6 +77,23 @@ scrape, open the holdout, or spend a hypothesis trial. The signal and replay
 functions accept normalized Parquet frames keyed by EulerLab `instrument_id`;
 the raw NSE files still need a point-in-time instrument-map adapter before
 they can be replayed.
+
+For the authorized futures leg, `make microstructure-five-futures` defaults to
+a RELIANCE pilot: data warmup from 2026-03-01, evaluation from 2026-06-01
+through 2026-08-03, which is the last date in the local instrument master.
+It resumes the immutable FYERS landing, reads cash candles from the existing
+Kite archive, derives a stable internal contract ID from the cash issuer ID
+and expiry, then applies the fixed strategy. The signal uses each dated
+contract's within-session return, the nearest expiry at each minute, positive
+future-to-next-cash return correlation from the strictly prior 60 cash
+sessions (at least 500 pairs), a 5 bp trigger, next-minute cash entry, and a
+five-minute exit. The result and normalized Parquet go under
+`data/derived/microstructure_five/micro-05/`. Raw FYERS responses are mirrored
+after every fetch attempt to `nse/fyers_expired_fo/`; normalized bars and the
+result are mirrored to `nse/derived/microstructure_five/micro-05/`. Both paths
+verify B2 SHA-256 metadata. `make microstructure-five-b2` retries either mirror
+without a fresh FYERS request. This flow has not run because the daily token is
+missing.
 
 ## Decision and open question
 
@@ -84,11 +105,16 @@ Candidate 5 needs an authorized source of dated stock-futures minute bars.
 
 The operator confirmed they trade **CM only** and apply as an **individual**.
 The current NSE trial policy specifies a commercial-entity applicant, so do
-not submit an individual trial request. The next actionable route is to ask
-FYERS in writing whether this individual may store its historical candle data
-and use it for internal strategy backtesting. Until written permission is
-granted, strategy 5 remains blocked along with the four event-data strategies.
-No purchase, eligibility declaration, external request, or P&L test was made.
+not submit an individual trial request. The operator also confirmed receiving
+written FYERS permission for local storage and internal historical
+backtesting. The app ID and secret are present in the ignored `.env`; the daily
+access token is not. Run `make fyers-auth` locally, then run
+`make microstructure-five-futures` to resume fetching and perform the pilot.
+The fetcher stores immutable raw responses locally, mirrors them to B2, and
+counts all expired-F&O calls against the ten-request daily budget. The operator
+reports written approval;
+its exact scope and retention wording has not been reviewed in this workspace.
+No API request, futures download, or P&L test has happened yet.
 
 ## Sources
 
@@ -97,8 +123,10 @@ No purchase, eligibility declaration, external request, or P&L test was made.
   no-scraping/data-pricing findings are in
   [123 — Free intraday microstructure data in India](123-free-intraday-microstructure-data-india.md).
 - FYERS free Standard limits, expired F&O candles, and API terms, checked
-  2026-10-29; see research 123. The free price tier does not itself authorize
-  this backtest or local data retention.
+  2026-10-29; see research 123. The operator reports written data-use approval.
+- FYERS individual login and token endpoints, checked 2026-10-29; see research
+  123. Tokens expire daily at 06:30 IST; the local auth helper does not print or
+  log the token.
 - Murphy and Thirumalai, repetitive institutional order flow,
   [Journal of Financial Research](https://onlinelibrary.wiley.com/doi/10.1111/jfir.12131),
   checked 2026-10-28.

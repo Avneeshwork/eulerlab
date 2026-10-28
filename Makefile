@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday microstructure-five nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
+.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
 
 help:
 	@echo "EulerLab — targets"
@@ -25,6 +25,12 @@ help:
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
 	@echo "  make kite-login   obtain a Kite access token (expires 6 AM daily)"
+	@echo "  make fyers-auth   log in to FYERS and save today's access token in .env"
+	@echo "  make fyers-expired-fo UNDERLYING=NSE:RELIANCE-EQ FROM=YYYY-MM-DD TO=YYYY-MM-DD"
+	@echo "                    fetch approved expired stock-futures 1-minute candles"
+	@echo "  make microstructure-five-futures [FROM=...] [EVAL_FROM=...] [TO=...]"
+	@echo "                    fetch, normalize, and backtest frozen strategy micro-05"
+	@echo "  make microstructure-five-b2  retry B2 upload of the raw and derived micro-05 data"
 	@echo "  make mcx-instruments  fetch today's MCX instrument master and mirror to B2"
 	@echo "  make mcx-gold-minute  fetch current Gold futures minutes and mirror to B2"
 	@echo "  make mcx-gold-backtest run the frozen MCX Gold rule with costs"
@@ -450,6 +456,22 @@ india-five-intraday:
 # readiness report before spending any strategy trials.
 microstructure-five:
 	@uv run python -m eulerlab.intraday.microstructure_five --output docs/RESEARCH/125-microstructure-five-readiness.json
+
+# FYERS' official individual-app login and approved expired-F&O history path.
+fyers-auth:
+	@uv run python -m eulerlab.ingest.fyers_expired_fo auth
+
+fyers-expired-fo:
+	@uv run python -m eulerlab.ingest.fyers_expired_fo fetch --underlying "$(UNDERLYING)" --from "$(FROM)" --to "$(TO)"
+
+# One fixed single-stock-future lead/cash evaluation; no parameter search.
+microstructure-five-futures:
+	@uv run python -m eulerlab.intraday.futures_cash_backtest --underlying "$(or $(UNDERLYING),NSE:RELIANCE-EQ)" --cash-symbol "$(or $(CASH_SYMBOL),RELIANCE)" --from "$(or $(FROM),2026-03-01)" --evaluation-from "$(or $(EVAL_FROM),2026-06-01)" --to "$(or $(TO),2026-08-03)"
+
+# Retry both mirrors without another FYERS login or market-data request.
+microstructure-five-b2:
+	@uv run python -m eulerlab.ingest.sync_cloud --only fyers_expired_fo --verify
+	@uv run python -m eulerlab.ingest.sync_derived --root data/derived/microstructure_five/micro-05 --verify
 
 # NSE results-filing timestamps: lands each finished quarter once, then derives.
 nse-earnings-announcements:

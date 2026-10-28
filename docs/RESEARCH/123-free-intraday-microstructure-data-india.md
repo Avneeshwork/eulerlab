@@ -14,10 +14,11 @@ available to this operator: they trade CM and apply as an individual, while the
 current policy defines trial applicants as commercial entities not trading in
 the requested segment. The FYERS Standard API exposes expired NSE F&O candles
 at no API subscription cost, but its current terms restrict use of exchange
-data for tool development or paper trading. Written permission is needed before
-using that feed for this backtest. No authorized no-cost source is ready to
-fetch. Automated scraping of NSE's website is expressly prohibited by its
-current terms.
+data for tool development or paper trading. The operator reports that FYERS
+provided written permission for local storage and historical backtesting; the
+approval was not independently reviewed in this workspace. An active daily
+access token is still missing, so no API request has been made. Automated
+scraping of NSE's website is expressly prohibited by its current terms.
 
 Kite can stream five levels of live depth and sells real-time plus historical
 candle API access, but its current terms and support guidance do not give a
@@ -33,7 +34,7 @@ not contain order-level flow or historical depth.
 | Algorithmic-trader timing | Timestamped trades, algo flag, trade side, and price path for VWAP attribution | NSE full order/trade records have algo flags, but this individual cannot use the conditional trial; the paid historical feed is not justified for an initial screen. | **Blocked for lack of accessible authorized history.** |
 | Signed order-flow imbalance | Timestamped orders/trades with price, quantity and side, plus next-price outcomes | The individual is ineligible for the NSE trial; the paid historical CM trade-only product is listed at ₹1.10 lakh/year/site, while full history is ₹12.50 lakh/year/site. | **Blocked.** Candles and daily files cannot substitute for signed flow. |
 | Multi-level limit-book pressure | Timestamped order entries, modifications, cancels and trades to reconstruct the book | The individual is ineligible for the NSE trial. Kite exposes five levels prospectively, but not historical depth; its data-retention terms need written clarification. | **Blocked pending an authorized historical feed or explicit retention permission.** |
-| Single-stock futures lead cash | Matched minute or tick prices for cash and the correct dated futures contract | FYERS Standard exposes expired NSE F&O candles, but its terms restrict the intended backtest/tool-development use. NSE's trial is unavailable to this individual applicant. | **Blocked pending written data-use permission or another licensed source.** |
+| Single-stock futures lead cash | Matched minute or tick prices for cash and the correct dated futures contract | FYERS Standard exposes expired NSE F&O candles. The operator reports written permission for this backtest and local storage. The active daily access token is missing. | **Fetch path is coded; awaiting the operator's local FYERS login.** |
 
 ## What the official sources say
 
@@ -71,7 +72,8 @@ not contain order-level flow or historical depth.
   develop charting/technical tools or for paper trading; §12 places conditions
   on creating copies of API content. Because this task is a stored strategy
   backtest, do not fetch or retain FYERS candles until FYERS confirms this
-  exact internal research use in writing.
+  exact internal research use in writing. The operator confirmed receiving
+  that approval on 2026-10-29; the letter was not independently reviewed here.
 - The public GitHub listing
   [NSE Futures Options Historical Dataset](https://github.com/djjain21/NSE-Futures-Options-F-O-Historical-Dataset-1minute-from-2015-2026)
   claims extensive data but contains no data files or license. It offers one
@@ -86,9 +88,13 @@ not contain order-level flow or historical depth.
 Do not scrape NSE pages. No data was downloaded in this check. The operator
 confirmed CM-only trading and individual status, so the commercial-entity NSE
 trial route is unavailable. Do not buy the ₹12.50 lakh product for this
-exploratory search. Ask FYERS in writing whether its individual-account data
-may be stored and used for internal historical strategy backtesting; until
-permission arrives, do not call the expired-F&O API for this project.
+exploratory search. The operator reports written FYERS approval for local
+storage and internal historical strategy backtesting. The fetcher is ready,
+but no API request has been made because an active daily access token is not
+present. Run `make fyers-auth` locally, then use `make fyers-expired-fo` for
+the chosen underlying and date range. The fetcher conservatively counts all
+expired-F&O endpoints against the ten-request daily limit and resumes from
+immutable cached responses.
 
 With the data currently available and authorized, no candidate has a valid
 P&L backtest. Existing cash minute OHLCV lacks the dated single-stock futures
@@ -114,13 +120,16 @@ are obtained under a license that permits this research and local storage.
 | FYERS Expired F&O Data API | https://fyers.in/api-docs/v3/api/market-data/expired-fo-data/get-expired-fo-data/ | 2026-10-29 | Contract candles, availability and limits |
 | FYERS Individual API App | https://fyers.in/api-docs/v3/getting-started/create-an-app/individual-app/ | 2026-10-29 | Individual account app requirements |
 | FYERS API Terms | https://fyers.in/terms-and-conditions-api | 2026-10-29 | Restrictions on data use, copying and storage |
+| FYERS individual-app login docs | https://fyers.in/api-docs/v3/api/authentication/individual-app/ | 2026-10-29 | Daily access token and user login flow |
+| FYERS auth-code endpoint | https://fyers.in/api-docs/v3/api/authentication/individual-app/generate-auth-code | 2026-10-29 | Browser login and state validation |
+| FYERS validate-auth-code endpoint | https://fyers.in/api-docs/v3/api/authentication/individual-app/validate-auth-code | 2026-10-29 | Auth-code exchange and token expiry |
 | GitHub vendor listing | https://github.com/djjain21/NSE-Futures-Options-F-O-Historical-Dataset-1minute-from-2015-2026 | 2026-10-29 | No open data files/license; full dataset by inquiry |
 | GitHub spot-candle listing | https://github.com/voletiramu/nse-fno-1min-data | 2026-10-29 | Spot underlyings, not futures contracts |
 
 ## What I could not verify
 
-- Whether FYERS will authorize this individual's internal backtesting use and
-  local retention of returned historical candles.
+- The exact text and retention/output limits in FYERS' written approval; the
+  operator confirmed it is on file, but did not attach the approval here.
 - Whether a trial package includes the full-version CM/FO fields required for
   every rule, or only a reduced schema.
 - Whether the current Kite agreement permits private, persistent storage of

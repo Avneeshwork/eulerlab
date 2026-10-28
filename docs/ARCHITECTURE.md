@@ -2139,3 +2139,30 @@ out with the reason. The pick is kept in the browser.
 **What the operator sees.** The host and model in the header, and under each
 answer the tools that were sent with their sizes. `GET /api/assistant/status`
 gives the reason when it is off and never calls the provider.
+
+
+## Five intraday microstructure rules (research 125)
+
+`intraday/microstructure_five.py` contains five fixed hypotheses. The first
+four need order, trade, or book events; candle volume is never used as a proxy
+for signed flow or displayed depth. The fifth rule is implementable from
+approved expired single-stock-futures minute candles and archived cash minute
+candles. `intraday/futures_cash_backtest.py` discovers contracts, preserves
+raw FYERS JSON immutably, maps the cash ticker through the dated instrument
+master, and uses an internal contract ID derived from issuer ID and expiry.
+Each fetch attempt mirrors the raw tree to `nse/fyers_expired_fo/`, including
+responses landed before the daily request cap stops a run. The normalized bars
+and result are mirrored to `nse/derived/microstructure_five/micro-05/`. Uploads
+verify B2's stored SHA-256 metadata; `make microstructure-five-b2` retries both
+mirrors without calling FYERS again.
+
+For each dated contract, the fifth rule calculates close-to-close returns
+within each session, then selects the nearest expiry at each minute. It
+compares each futures return with the next cash-minute return over the
+strictly prior 60 cash sessions and requires at least 500 paired observations
+and positive correlation. A futures move of at least 5 bp triggers an entry at
+the next cash-minute open; exit is the first cash close at or after five
+minutes. Positions for one share cannot overlap. The cash replay charges 2 bp
+slippage per side and the date-specific NSE intraday fee schedule. This is a
+single fixed-rule research run, not the platform's promotion gate or a live
+deployment approval.
