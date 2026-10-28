@@ -15,6 +15,7 @@ import { api } from '@/lib/api';
 import { ASSET_CLASSES, assetClassLabel } from '@/lib/assetClasses';
 import type { DataCoverage, InstrumentList } from '@/lib/api';
 import { KiteLogin } from './KiteLogin';
+import { FyersLogin } from './FyersLogin';
 
 // Labels come from `lib/assetClasses`, the single source three components used
 // to each keep a private copy of.
@@ -347,6 +348,7 @@ export function InstrumentsTab() {
       </section>
 
       <KiteLogin onLogin={() => setReloadAt(Date.now())} />
+      <FyersLogin />
 
       {coverage?.ok && (
         <section className="tpanel coverage">

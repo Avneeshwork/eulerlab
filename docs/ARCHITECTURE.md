@@ -2043,6 +2043,18 @@ returns the token, the key or the secret.
 row's own Update button. Without a token minted today it reports "skipped" and
 passes.
 
+## FYERS login from the Instruments page
+
+The Instruments page also has a FYERS login card. `GET /api/fyers/status`
+reports whether today's access token is held and creates a short-lived login
+state. The user opens FYERS' hosted sign-in page, copies its final redirect
+address, and submits it to `POST /api/fyers/login`. The route checks the
+one-time state before `exchange_auth_code` exchanges the code. `GET
+/api/fyers/callback` supports a registered local callback URL. The app secret
+and access token never go to the browser; the token is stored in the ignored
+`.env`, with expiry metadata in `data/cache/fyers_session.json`. The login card
+is in `web/components/terminal/FyersLogin.tsx` beside the Kite card.
+
 ## Backtest results and the bucket
 
 `cloud_results.mirror` pulls then pushes `data/workspaces/<id>/results/*.jsonl`.

@@ -68,6 +68,7 @@ from eulerlab.api import (
     builder_routes,
     company_routes,
     deploy_routes,
+    fyers_routes,
     kite_routes,
     research_routes,
     risk_routes,
@@ -173,6 +174,7 @@ app.include_router(deploy_routes.router)
 app.include_router(assistant_routes.router)
 app.include_router(company_routes.router)
 app.include_router(kite_routes.router)
+app.include_router(fyers_routes.router)
 app.include_router(risk_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to

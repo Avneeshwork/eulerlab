@@ -35,7 +35,7 @@ Verify: `make microstructure-five`.
 
 | ID | Task | Status |
 |---|---|---|
-| T-4185 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Run `make fyers-auth`, then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+| T-4185 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
 
 ## Quality and latency pass (2026-10-27)
 

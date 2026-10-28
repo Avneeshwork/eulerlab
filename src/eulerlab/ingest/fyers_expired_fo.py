@@ -40,6 +40,7 @@ API_BASE = "https://api-t1.fyers.in"
 EXPIRED_PREFIX = "/data/history/fno/expired/"
 DEFAULT_REDIRECT_URI = "https://trade.fyers.in/api-login/redirect-uri/index.html"
 LANDING_ROOT = Path("data/landing/fyers_expired_fo")
+SESSION_META_PATH = Path("data/cache/fyers_session.json")
 MAX_EXPIRED_REQUESTS_PER_DAY = 10
 MAX_CANDLE_DAYS = 100
 MAX_EXPIRY_QUERY_DAYS = 366
@@ -518,14 +519,14 @@ def _save_token(token: str, env_path: Path = Path(".env")) -> None:
             os.fsync(handle.fileno())
         temporary.chmod(original_mode & 0o600)
         os.replace(temporary, resolved)
+        os.environ["FYERS_ACCESS_TOKEN"] = token
     finally:
         temporary.unlink(missing_ok=True)
 
 
-def login() -> None:
-    """Run FYERS' documented auth-code flow locally; never print the token."""
+def auth_url(state: str) -> str:
+    """Build FYERS' login URL for a single-use, caller-generated state."""
     settings = _settings()
-    state = secrets.token_urlsafe(24)
     query = urllib.parse.urlencode(
         {
             "client_id": settings.app_id,
@@ -534,17 +535,90 @@ def login() -> None:
             "state": state,
         }
     )
-    url = f"{API_BASE}/api/v3/generate-authcode?{query}"
-    print("Opening FYERS login. Complete it in your browser.")
-    if not webbrowser.open(url):
-        print(f"Open this FYERS login URL manually:\n{url}")
-    callback = getpass("Paste the full final redirect URL (input is hidden): ").strip()
-    parsed = urllib.parse.urlparse(callback)
-    query_values = urllib.parse.parse_qs(parsed.query)
-    returned_state = next(iter(query_values.get("state", [])), "")
-    auth_code = next(iter(query_values.get("auth_code", [])), "")
-    if returned_state != state:
-        raise FyersAPIError("FYERS login state did not match; token was not requested.")
+    return f"{API_BASE}/api/v3/generate-authcode?{query}"
+
+
+def _token_expiry(minted_at: datetime) -> datetime:
+    local = minted_at.astimezone(IST)
+    cutoff = local.replace(hour=6, minute=30, second=0, microsecond=0)
+    if cutoff <= local:
+        cutoff += timedelta(days=1)
+    return cutoff.astimezone(UTC)
+
+
+def _save_session_metadata(*, user: str, minted_at: datetime) -> datetime:
+    expires_at = _token_expiry(minted_at)
+    payload = json.dumps(
+        {
+            "user": user,
+            "minted_at": minted_at.isoformat(),
+            "expires_at": expires_at.isoformat(),
+        },
+        sort_keys=True,
+        indent=2,
+    )
+    SESSION_META_PATH.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(dir=SESSION_META_PATH.parent, suffix=".part")
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.chmod(0o600)
+        os.replace(temporary, SESSION_META_PATH)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return expires_at
+
+
+def token_status() -> dict[str, str | bool]:
+    """Return token presence/freshness without returning the token itself."""
+    token = _setting("FYERS_ACCESS_TOKEN", "Fyer_ACCESS_TOKEN")
+    metadata: dict[str, Any] = {}
+    try:
+        raw = json.loads(SESSION_META_PATH.read_text(encoding="utf-8"))
+        if isinstance(raw, dict):
+            metadata = raw
+    except (OSError, json.JSONDecodeError):
+        pass
+    expires_at = str(metadata.get("expires_at", ""))
+    expiry_known = False
+    try:
+        expires = datetime.fromisoformat(expires_at)
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=UTC)
+        expiry_known = True
+        fresh = bool(token) and datetime.now(UTC) < expires
+    except ValueError:
+        fresh = False
+    configured = bool(
+        _setting("FYERS_APP_ID", "Fyer_APP_ID", "FYER_APP_ID", "FYERS_CLIENT_ID")
+        and _setting("FYERS_SECRET_KEY", "Fyer_Secret", "FYER_SECRET_KEY")
+    )
+    reason = (
+        ""
+        if fresh
+        else "FYERS app ID and secret are not both set in .env"
+        if not configured
+        else "no FYERS token minted today"
+        if not token
+        else "FYERS token has expired; log in again"
+        if expiry_known
+        else "token freshness is unknown; log in again"
+    )
+    return {
+        "configured": configured,
+        "fresh": fresh,
+        "user": str(metadata.get("user", "")) if fresh else "",
+        "expires_at": expires.isoformat() if fresh else "",
+        "reason": reason,
+    }
+
+
+def exchange_auth_code(auth_code: str) -> dict[str, str]:
+    """Exchange the one-time code and save the daily token locally."""
+    settings = _settings()
     if not auth_code:
         raise FyersAPIError("The redirect URL did not contain an auth_code.")
     app_hash = hashlib.sha256(f"{settings.app_id}:{settings.secret_key}".encode()).hexdigest()
@@ -578,7 +652,30 @@ def login() -> None:
         message = result.get("message", "token response did not contain an access token")
         raise FyersAPIError(f"FYERS token exchange failed, code {code}: {message}")
     _save_token(access_token)
+    minted_at = datetime.now(UTC)
+    user = str(result.get("user_id") or result.get("fy_id") or "FYERS user")
+    expires_at = _save_session_metadata(user=user, minted_at=minted_at)
+    return {"user": user, "expires_at": expires_at.isoformat()}
+
+
+def login() -> None:
+    """Run FYERS' documented auth-code flow locally; never print the token."""
+    state = secrets.token_urlsafe(24)
+    url = auth_url(state)
+    print("Opening FYERS login. Complete it in your browser.")
+    if not webbrowser.open(url):
+        print(f"Open this FYERS login URL manually:\n{url}")
+    callback = getpass("Paste the full final redirect URL (input is hidden): ").strip()
+    parsed = urllib.parse.urlparse(callback)
+    query_values = urllib.parse.parse_qs(parsed.query)
+    returned_state = next(iter(query_values.get("state", [])), "")
+    auth_code = next(iter(query_values.get("auth_code", [])), "")
+    if returned_state != state:
+        raise FyersAPIError("FYERS login state did not match; token was not requested.")
+    outcome = exchange_auth_code(auth_code)
+    expires = datetime.fromisoformat(outcome["expires_at"]).astimezone(IST)
     print("FYERS access token stored in the ignored .env file. Token not displayed.")
+    print(f"Session expires at {expires:%Y-%m-%d %H:%M} IST.")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

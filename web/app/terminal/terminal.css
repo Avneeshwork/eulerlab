@@ -2669,8 +2669,8 @@ textarea:focus-visible {
   text-decoration: underline;
 }
 
-/* Kite login on the Instruments page. globals.css gives every input full
-   width and its own colours; the box's input is restyled by name. */
+/* Broker login forms on the Instruments page. globals.css gives every input
+   full width and its own colours; these boxes restyle their redirect field. */
 .kite-box { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s4); }
 .kite-head { display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .kite-state { font-size: var(--t-small); color: var(--caveat); }

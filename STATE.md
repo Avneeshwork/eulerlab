@@ -1,7 +1,7 @@
 # STATE — where this project is right now
 
 **Status:** IN PROGRESS — five fixed microstructure rules are coded. Strategy 5 has an immutable FYERS expired-futures fetch path, ID normalization, a bounded backtest runner, and verified raw/derived B2 mirrors. App credentials are present, but today's token is missing; no futures data or P&L exists yet (T-4185). The operator reports written historical-backtest approval. NSE's commercial-entity trial is unavailable to this individual. The UI revamp remains isolated on its own branch.
-**Next:** Run `make fyers-auth`, then `make microstructure-five-futures`; keep the UI revamp isolated.
+**Next:** Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`; keep the UI revamp isolated.
 
 *Last updated: 2026-10-29. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*

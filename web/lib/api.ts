@@ -2232,3 +2232,23 @@ export const kiteLogin = (pasted: string) =>
     '/api/kite/login',
     { pasted },
   );
+
+/* ---------------- FYERS login ---------------- */
+
+/** Whether today's FYERS token is held. Never carries the token itself. */
+export type FyersStatus = {
+  configured: boolean;
+  fresh: boolean;
+  user?: string;
+  expires_at?: string;
+  login_url?: string;
+  reason: string;
+};
+
+export const fyersStatus = () => get<FyersStatus>('/api/fyers/status');
+/** The full redirect address contains the one-time auth code and state. */
+export const fyersLogin = (pasted: string) =>
+  post<{ ok: true; user: string; expires_at: string } | { ok: false; error: string }>(
+    '/api/fyers/login',
+    { pasted },
+  );
