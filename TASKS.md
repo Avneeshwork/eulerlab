@@ -17,7 +17,8 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4172 | Strategy report (BacktestReport, AdoptedReport) | DONE. Card subtitles, view introductions, reconciliation, factor-model method and paging notes behind (i): 29 paragraphs to 16 (the rest are data, warnings or actions). Fits 390 px |
 | T-4173 | Live & Risk (LiveTab, RiskBook, RiskTab, PaperDeployments, deployment report) | DONE. 31 explanation lines behind (i); diversification sentence now a stat, overnight-gap warning and data notes now chips; names no longer squeezed to "…"; tab row scrolls inside itself, so the page fits 390 px (was 478) |
 | T-4174 | Options (OptionsTab, OptionsTools, OptionsCharts, PayoffBuilder) | DONE. 14 explanation paragraphs behind (i); the no-arbitrage result is a chip. Fits 390 px |
-| T-4175 | Charts (ChartTab, MacroBand) | TODO |
+| T-4175 | Charts (ChartTab, MacroBand) | DONE. ETF, TradingView, macro-source and uncharted notes are chips with (i). Fits 390 px |
+| T-4184 | The Charts embed refuses NSE symbols ("only available on TradingView"), so the default NIFTYBEES chart is empty | TODO, not presentation: needs a data decision (own-panel chart as the default for NSE, or a licensed widget) |
 | T-4176 | Tools hub, Strategy Builder | TODO |
 | T-4177 | Research library | TODO |
 | T-4178 | Instruments, Data | TODO |
