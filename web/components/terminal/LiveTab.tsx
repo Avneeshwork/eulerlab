@@ -14,6 +14,7 @@
  * would happen somewhere else.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useEffect, useState } from 'react';
 import { PaperDeployments } from '@/components/terminal/PaperDeployments';
 import { api } from '@/lib/api';
@@ -62,14 +63,16 @@ export function LiveTab({
           <div className="theyebrow">Trading now</div>
           <div className="thnum">
             <b>{live.length}</b>
-            <span className="unit">live · {forward.length} forward-testing</span>
+            <span className="unit">
+              live · {forward.length} forward-testing
+              <Info>
+                Nothing can reach either stage yet, and that is the gate working rather than
+                failing. Stage is derived from the trial ledger; the forward-test stage is not
+                built (T-3311); and a strategy that has only been screened has no evidence
+                behind it, so it has no business sending orders.
+              </Info>
+            </span>
           </div>
-          <p className="thsub">
-            Nothing can reach either stage yet, and that is the gate working rather than
-            failing. Stage is derived from the trial ledger; the forward-test stage is not
-            built (T-3311); and a strategy that has only been screened has no evidence
-            behind it, so it has no business sending orders.
-          </p>
         </div>
         <div className="thstats">
           <div className="thstat">
@@ -129,48 +132,43 @@ export function LiveTab({
       </div>
 
       <div className="tpanel">
-        <h3>Order-path safety</h3>
-        <p className="tfine" style={{ marginBottom: 12 }}>
-          What is built, and what is not. Each line is a claim about this repository, not
-          about what a live system generally ought to have.
-        </p>
+        <h3 className="ui-heading">
+          Order-path safety
+          <Info>
+            What is built, and what is not. Each line is a claim about this repository, not
+            about what a live system generally ought to have.
+          </Info>
+        </h3>
         <ul className="checks">
           <li data-passed="true">
             <span className="ck">✓</span>
             <div>
-              <b>Deterministic client order IDs</b>
-              <p>hash(strategy_id, signal_time, instrument_id, seq) — a retry cannot double-send.</p>
+              <b>Deterministic client order IDs<Info>hash(strategy_id, signal_time, instrument_id, seq) — a retry cannot double-send.</Info></b>
             </div>
           </li>
           <li data-passed="true">
             <span className="ck">✓</span>
             <div>
-              <b>UNKNOWN is a real order state</b>
-              <p>Resolved by querying the broker, never by assuming.</p>
+              <b>UNKNOWN is a real order state<Info>Resolved by querying the broker, never by assuming.</Info></b>
             </div>
           </li>
           <li data-passed="true">
             <span className="ck">✓</span>
             <div>
-              <b>Kill switch in a separate process</b>
-              <p>Separate credentials from the strategies. Checked per workspace and globally.</p>
+              <b>Kill switch in a separate process<Info>Separate credentials from the strategies. Checked per workspace and globally.</Info></b>
             </div>
           </li>
           <li data-passed="false">
             <span className="ck">✕</span>
             <div>
-              <b>Broker adapter proven against the live API</b>
-              <p>
-                KiteBroker is covered by tests against a fake client only (T-3336). The
-                first real order would also be the first real exercise of that code.
-              </p>
+              <b>Broker adapter proven against the live API<Info>KiteBroker is covered by tests against a fake client only (T-3336). The
+                first real order would also be the first real exercise of that code.</Info></b>
             </div>
           </li>
           <li data-passed="false">
             <span className="ck">✕</span>
             <div>
-              <b>Forward-test stage</b>
-              <p>Not built (T-3311). Without it nothing can legitimately reach live.</p>
+              <b>Forward-test stage<Info>Not built (T-3311). Without it nothing can legitimately reach live.</Info></b>
             </div>
           </li>
         </ul>

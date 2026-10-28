@@ -148,3 +148,19 @@
 .rk-link:focus-visible {
   color: var(--ink-2);
 }
+
+/* UI revamp (ADR-084): explanations live in info buttons. */
+.rk .rk-h { display: flex; align-items: center; flex-wrap: wrap; }
+.rk .rk-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+.rk .rk-note { display: flex; align-items: center; gap: 4px; }
+.rk .rk-call { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+/* A deployment's name is what the row is about: never squeezed to "…". */
+.rk-table td.name { width: 260px; min-width: 220px; white-space: nowrap; }
+.rk-table td.name .rk-link {
+  display: inline-block;
+  max-width: calc(100% - 22px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}

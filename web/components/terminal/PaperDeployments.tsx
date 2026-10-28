@@ -10,6 +10,7 @@
  * the deployment's own words; nothing here clears a halt.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Spark } from '@/components/terminal/Spark';
@@ -145,12 +146,16 @@ export function PaperDeployments({
                 <b>{rupees(s.cash)}</b>
               </div>
               <div>
-                <span title="Starting capital plus deposits, less withdrawals">Put in</span>
+                <span>
+                  Put in<Info>Starting capital plus deposits, less withdrawals.</Info>
+                </span>
                 <b>{rupees(s.invested ?? d.capital)}</b>
               </div>
               {s.equity !== undefined && (
                 <div>
-                  <span title="Equity less the money put in: deposits and withdrawals are not profit">Made</span>
+                  <span>
+                    Made<Info>Equity less the money put in: deposits and withdrawals are not profit.</Info>
+                  </span>
                   <b className={s.equity - (s.invested ?? d.capital) >= 0 ? 'pos' : 'neg'}>{rupees(s.equity - (s.invested ?? d.capital))}</b>
                 </div>
               )}
@@ -183,10 +188,13 @@ export function PaperDeployments({
             ))}
             {s.intended && s.intended.wanted !== undefined && (
               <p className="tfine">
-                At the last close the strategy wanted {s.intended.wanted} names;{' '}
-                {s.intended.affordable === s.intended.wanted
-                  ? 'the capital buys all of them.'
-                  : `the capital buys the top ${s.intended.affordable}. Left out: ${(s.intended.cut ?? []).join(', ')}.`}
+                Wanted {s.intended.wanted} · buys {s.intended.affordable}
+                <Info>
+                  At the last close the strategy wanted {s.intended.wanted} names;{' '}
+                  {s.intended.affordable === s.intended.wanted
+                    ? 'the capital buys all of them.'
+                    : `the capital buys the top ${s.intended.affordable}. Left out: ${(s.intended.cut ?? []).join(', ')}.`}
+                </Info>
               </p>
             )}
 
@@ -349,7 +357,8 @@ export function PaperDeployments({
                 </table>
                 {(s.rejections ?? []).length > 0 && (
                   <p className="tfine">
-                    Rejected: {(s.rejections ?? []).map((r) => `${r.symbol} on ${r.day} (${r.reason})`).join('; ')}
+                    Rejected {(s.rejections ?? []).length}
+                    <Info>{(s.rejections ?? []).map((r) => `${r.symbol} on ${r.day} (${r.reason})`).join('; ')}</Info>
                   </p>
                 )}
               </div>
