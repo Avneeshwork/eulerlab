@@ -35,7 +35,7 @@ Verify: `make microstructure-five`.
 
 | ID | Task | Status |
 |---|---|---|
-| T-4185 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **BLOCKED (data)** — frozen rules and signal/replay primitives are in `src/eulerlab/intraday/microstructure_five.py`; the readiness run found 0 historical order/trade files, 0 stock-futures minute files, and no normalized microstructure input. No P&L run and no trial spent. NSE trial eligibility/data scope is unresolved; micro-01's stable institution ID is absent from the published schema. See research 123 and 125. |
+| T-4185 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **BLOCKED (data/use rights)** — frozen rules and signal/replay primitives are in `src/eulerlab/intraday/microstructure_five.py`; no raw flow/futures data or normalized input is present. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. FYERS Standard expired-F&O candles are free by tier, but API terms restrict this tool/backtest use; written permission is required before fetching/storing. No P&L run, API request, or trial spent. micro-01's stable institution ID is also absent from NSE's published schema. See research 123 and 125. |
 
 ## Quality and latency pass (2026-10-27)
 

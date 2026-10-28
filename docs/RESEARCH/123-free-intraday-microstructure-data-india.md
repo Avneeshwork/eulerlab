@@ -1,6 +1,6 @@
 # 123 — Can we get Indian intraday microstructure data for free?
 
-**Checked:** 2026-10-28
+**Checked:** 2026-10-29
 **Question:** Can the five new microstructure strategy leads use free data or
 permitted collection, or do they need a paid historical feed?
 
@@ -9,12 +9,15 @@ permitted collection, or do they need a paid historical feed?
 I found no open, free historical NSE dataset with the order-book and trader
 fields needed by most of these candidates. Public daily reports and the local
 minute-candle archive cannot reproduce the flow rules; the local archive also
-lacks single-stock futures minute bars. NSE does offer a **conditional trial of
-up to six months** of historical tick-by-tick order and trade data to prospective
-or new trading clients. It requires an NSE request and a declaration that the
-applicant does not currently trade in the requested market or segment; approval
-is not automatic. The normal historical products are costly. Automated
-scraping of NSE's website is expressly prohibited by its current terms.
+lacks single-stock futures minute bars. NSE's conditional trial is not
+available to this operator: they trade CM and apply as an individual, while the
+current policy defines trial applicants as commercial entities not trading in
+the requested segment. The FYERS Standard API exposes expired NSE F&O candles
+at no API subscription cost, but its current terms restrict use of exchange
+data for tool development or paper trading. Written permission is needed before
+using that feed for this backtest. No authorized no-cost source is ready to
+fetch. Automated scraping of NSE's website is expressly prohibited by its
+current terms.
 
 Kite can stream five levels of live depth and sells real-time plus historical
 candle API access, but its current terms and support guidance do not give a
@@ -26,11 +29,11 @@ not contain order-level flow or historical depth.
 
 | Candidate | Data a faithful test needs | Free or low-cost path | Verdict |
 |---|---|---|---|
-| Repetitive institutional half-hour continuation | Timestamped orders, buyer/seller category, and a stable trader key to identify repeat institutions over days | NSE trial may provide timestamped orders and category flags. The published product schema lists order numbers and custodian/proprietary/client category flags, but no stable trader identity. | **Exact paper replication remains blocked.** A custodian-flow proxy may be possible; it is a different hypothesis. |
-| Algorithmic-trader timing | Timestamped trades, algo flag, trade side, and price path for VWAP attribution | NSE full order/trade specification includes buy/sell algo-terminal flags and buy/sell client-category flags. Trial eligibility and whether the trial includes these full-version fields must be confirmed. | **Potentially testable on a short trial sample** as a clearly labeled NSE adaptation. |
-| Signed order-flow imbalance | Timestamped orders/trades with price, quantity and side, plus next-price outcomes | NSE tick-by-tick order/trade trial; paid historical CM trade-only product is listed at ₹1.10 lakh/year/site, while full historical order & trade is ₹12.50 lakh/year/site. | **Trial can support a first screen** if the relevant fields are included. Candles and daily files cannot substitute for signed flow. |
-| Multi-level limit-book pressure | Timestamped order entries, modifications, cancels and trades to reconstruct the book | NSE full order/trade trial or paid full history. Kite WebSocket exposes five levels prospectively, but not historical depth; storage terms need written clarification. | **Can start only after authorized NSE trial data or written broker retention permission.** |
-| Single-stock futures lead cash | Matched minute or tick prices for cash and the correct dated futures contract | Kite has historical candles for valid instrument tokens; the local archive has cash minute bars but no single-stock futures minute archive. NSE can provide CM and F&O data by trial if eligible, or separately paid. | **Best candidate for a low-cost price-only start** if old contract tokens/data can be obtained; currently missing history. |
+| Repetitive institutional half-hour continuation | Timestamped orders, buyer/seller category, and a stable trader key to identify repeat institutions over days | The published NSE schema has no stable trader identity, and this individual is ineligible for the conditional trial. | **Exact replication remains blocked** even if order files are later sourced; a custodian proxy is a different hypothesis. |
+| Algorithmic-trader timing | Timestamped trades, algo flag, trade side, and price path for VWAP attribution | NSE full order/trade records have algo flags, but this individual cannot use the conditional trial; the paid historical feed is not justified for an initial screen. | **Blocked for lack of accessible authorized history.** |
+| Signed order-flow imbalance | Timestamped orders/trades with price, quantity and side, plus next-price outcomes | The individual is ineligible for the NSE trial; the paid historical CM trade-only product is listed at ₹1.10 lakh/year/site, while full history is ₹12.50 lakh/year/site. | **Blocked.** Candles and daily files cannot substitute for signed flow. |
+| Multi-level limit-book pressure | Timestamped order entries, modifications, cancels and trades to reconstruct the book | The individual is ineligible for the NSE trial. Kite exposes five levels prospectively, but not historical depth; its data-retention terms need written clarification. | **Blocked pending an authorized historical feed or explicit retention permission.** |
+| Single-stock futures lead cash | Matched minute or tick prices for cash and the correct dated futures contract | FYERS Standard exposes expired NSE F&O candles, but its terms restrict the intended backtest/tool-development use. NSE's trial is unavailable to this individual applicant. | **Blocked pending written data-use permission or another licensed source.** |
 
 ## What the official sources say
 
@@ -60,26 +63,44 @@ not contain order-level flow or historical depth.
   and permanent copies unless expressly permitted; a current support response
   says personal analysis is allowed but permanent storage is restricted. Get
   written confirmation before retaining a live stream for replay/backtesting.
+- FYERS Standard is documented as a free API plan. Its expired-F&O endpoint
+  returns one-minute candles from 2018-10-10 onward for NSE, permits up to 100
+  days per candle request, and limits expired-F&O intraday history to ten API
+  requests per day. A valid FYERS account and an individual API app are
+  required. However, FYERS API Terms §11 says exchange data may not be used to
+  develop charting/technical tools or for paper trading; §12 places conditions
+  on creating copies of API content. Because this task is a stored strategy
+  backtest, do not fetch or retain FYERS candles until FYERS confirms this
+  exact internal research use in writing.
+- The public GitHub listing
+  [NSE Futures Options Historical Dataset](https://github.com/djjain21/NSE-Futures-Options-F-O-Historical-Dataset-1minute-from-2015-2026)
+  claims extensive data but contains no data files or license. It offers one
+  sample link for January 2026 options and says full access is priced by
+  inquiry. It is not an open free source. The separate
+  [nse-fno-1min-data](https://github.com/voletiramu/nse-fno-1min-data) README
+  describes spot-stock OHLCV, not futures contracts, so it cannot test the
+  futures-leads-cash strategy.
 
 ## Decision
 
-Do not scrape NSE pages. No data was downloaded in this check. First determine
-whether the operator is eligible for NSE's free trial in CM, F&O, or both. If
-eligible, request a sample explicitly asking whether it includes full CM/FO
-order and trade records, algo and client-category flags, and all required
-historical periods; verify the response before building parsers. If not
-eligible, do not buy the ₹12.50 lakh product for this exploratory search.
+Do not scrape NSE pages. No data was downloaded in this check. The operator
+confirmed CM-only trading and individual status, so the commercial-entity NSE
+trial route is unavailable. Do not buy the ₹12.50 lakh product for this
+exploratory search. Ask FYERS in writing whether its individual-account data
+may be stored and used for internal historical strategy backtesting; until
+permission arrives, do not call the expired-F&O API for this project.
 
-For a no-cost path, continue using existing minute OHLCV only for the
-futures-to-cash price-lead screen if sufficient dated contracts can be sourced
-under the applicable license. It cannot validate trader-flow, signed-flow or
-book-imbalance rules. Do not make synthetic flow from OHLCV.
+With the data currently available and authorized, no candidate has a valid
+P&L backtest. Existing cash minute OHLCV lacks the dated single-stock futures
+leg; it cannot validate trader-flow, signed-flow or book-imbalance rules. Do
+not make synthetic flow from OHLCV. Resume strategy 5 only if dated contracts
+are obtained under a license that permits this research and local storage.
 
 ## Sources
 
 | Source | URL | Fetched | Use |
 |---|---|---|---|
-| NSE Data Sharing & Usage Policy, free trial provisions | https://nsearchives.nseindia.com/web/sites/default/files/inline-files/NSE_Data_Sharing%26Usage_Policy.pdf | 2026-10-28 | Eligibility and up-to-six-month trial |
+| NSE Data Sharing & Usage Policy, free trial provisions | https://nsearchives.nseindia.com/web/sites/default/files/inline-files/NSE_Data_Sharing%26Usage_Policy.pdf | 2026-10-29 | Eligibility and up-to-six-month trial; commercial-entity applicant |
 | NSE Historical Order & Trade Specification v1.19 | https://nsearchives.nseindia.com/web/mediaattachment/2026-09/NSE_Hist_Order_Trade_Data_1.19_20260902144045.pdf | 2026-10-28 | Fields, timestamps, order references, algo/client flags |
 | NSE domestic data pricing, effective 2026-04-01 | https://nsearchives.nseindia.com/web/mediaattachment/2026-04/Download_Pricing_file_-_Domestic_clients_20260424122229.pdf | 2026-10-28 | Historical trade and order/trade tariffs |
 | NSE paid EOD/historical data page | https://www.nseindia.com/static/market-data/eod-historical-data-subscription | 2026-10-28 | Product scope and delivery route |
@@ -89,11 +110,17 @@ book-imbalance rules. Do not make synthetic flow from OHLCV.
 | Kite historical candle documentation | https://kite.trade/docs/connect/v3/historical/ | 2026-10-28 | Candle fields and expired-token caveat |
 | Kite Connect Terms | https://kite.trade/terms/ | 2026-10-28 | Data copying and retention terms |
 | Kite Connect pricing announcement | https://kite.trade/forum/discussion/15015/revising-kite-connect-fees-from-₹2000-to-₹500-per-month | 2026-10-28 | ₹500/month data API announcement; confirm current account billing |
+| FYERS API Plans and Limits | https://fyers.in/api-docs/v3/getting-started/plans-and-limits/ | 2026-10-29 | Standard plan and historical request limits |
+| FYERS Expired F&O Data API | https://fyers.in/api-docs/v3/api/market-data/expired-fo-data/get-expired-fo-data/ | 2026-10-29 | Contract candles, availability and limits |
+| FYERS Individual API App | https://fyers.in/api-docs/v3/getting-started/create-an-app/individual-app/ | 2026-10-29 | Individual account app requirements |
+| FYERS API Terms | https://fyers.in/terms-and-conditions-api | 2026-10-29 | Restrictions on data use, copying and storage |
+| GitHub vendor listing | https://github.com/djjain21/NSE-Futures-Options-F-O-Historical-Dataset-1minute-from-2015-2026 | 2026-10-29 | No open data files/license; full dataset by inquiry |
+| GitHub spot-candle listing | https://github.com/voletiramu/nse-fno-1min-data | 2026-10-29 | Spot underlyings, not futures contracts |
 
 ## What I could not verify
 
-- Whether the NSE trial will be granted to this applicant or which segments it
-  would cover.
+- Whether FYERS will authorize this individual's internal backtesting use and
+  local retention of returned historical candles.
 - Whether a trial package includes the full-version CM/FO fields required for
   every rule, or only a reduced schema.
 - Whether the current Kite agreement permits private, persistent storage of

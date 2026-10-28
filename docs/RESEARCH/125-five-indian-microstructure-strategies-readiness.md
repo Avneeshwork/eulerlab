@@ -1,6 +1,6 @@
 # 125 — Five Indian intraday microstructure strategies: code and data readiness
 
-**Checked:** 2026-10-28
+**Checked:** 2026-10-29
 **Question:** Can the five sourced NSE microstructure hypotheses be coded and
 backtested with data EulerLab can access without buying a high-cost archive or
 scraping NSE?
@@ -51,18 +51,19 @@ algorithm/client-class flags; they do not identify individual institutions.
 [NSE Historical Order and Trade Specification v1.19](https://nsearchives.nseindia.com/web/mediaattachment/2026-09/NSE_Hist_Order_Trade_Data_1.19_20260902144045.pdf)
 (checked 2026-10-28).
 
-The only potentially free historical event path found is NSE's conditional
-trial of up to six months, subject to its request and an eligibility
-declaration. **No trial request was submitted and no data was downloaded.**
-Eligibility depends on which NSE segment the operator currently trades; that
-answer is still pending. Scraping NSE is not an acceptable fallback under the
-site's terms. The trial request also needs confirmation that the requested
-segments include full order/trade fields rather than only trimmed records.
+NSE's conditional trial of up to six months is limited by its current policy to
+commercial-entity applicants who do not trade in the requested segment. The
+operator confirmed CM-only trading and individual status, so this trial route
+is unavailable. **No trial request was submitted and no data was downloaded.**
+Scraping NSE is not an acceptable fallback under the site's terms.
 
 For futures-to-cash, NSE's public daily files cannot support the 1-minute rule.
-The existing Kite archive does support a cash leg, but contains no stock-future
-bars. Fetching old futures candles from a broker would use a paid API path, so
-it was not invoked under the no-cost data constraint.
+The existing Kite archive supports a cash leg, but contains no stock-future
+bars. FYERS Standard exposes expired F&O minute candles with ten intraday
+requests per day and up to 100 calendar days per call. Its API terms restrict
+using exchange data to develop tools or for paper trading and limit copying.
+This intended stored backtest requires written FYERS permission before any
+fetch. No credentials were found and no API request was made.
 
 ## Reproduction
 
@@ -81,16 +82,23 @@ published schema appears insufficient, even under a trial. The other three
 order-flow/book rules can proceed only if the trial provides full CM events.
 Candidate 5 needs an authorized source of dated stock-futures minute bars.
 
-The outstanding operator input is which of **CM** and **F&O** are currently
-traded. It determines whether the conditional NSE trial can be requested for
-either segment. No purchase, eligibility declaration, or external request was
-made.
+The operator confirmed they trade **CM only** and apply as an **individual**.
+The current NSE trial policy specifies a commercial-entity applicant, so do
+not submit an individual trial request. The next actionable route is to ask
+FYERS in writing whether this individual may store its historical candle data
+and use it for internal strategy backtesting. Until written permission is
+granted, strategy 5 remains blocked along with the four event-data strategies.
+No purchase, eligibility declaration, external request, or P&L test was made.
 
 ## Sources
 
-- NSE Data Sharing & Usage Policy and historical-data specification, checked
-  2026-10-28; full source list and the no-scraping/data-pricing findings are in
+- NSE Data Sharing & Usage Policy (checked 2026-10-29) and historical-data
+  specification (checked 2026-10-28); full source list and the
+  no-scraping/data-pricing findings are in
   [123 — Free intraday microstructure data in India](123-free-intraday-microstructure-data-india.md).
+- FYERS free Standard limits, expired F&O candles, and API terms, checked
+  2026-10-29; see research 123. The free price tier does not itself authorize
+  this backtest or local data retention.
 - Murphy and Thirumalai, repetitive institutional order flow,
   [Journal of Financial Research](https://onlinelibrary.wiley.com/doi/10.1111/jfir.12131),
   checked 2026-10-28.
