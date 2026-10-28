@@ -20,7 +20,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4175 | Charts (ChartTab, MacroBand) | DONE. ETF, TradingView, macro-source and uncharted notes are chips with (i). Fits 390 px |
 | T-4184 | The Charts embed refuses NSE symbols ("only available on TradingView"), so the default NIFTYBEES chart is empty | TODO, not presentation: needs a data decision (own-panel chart as the default for NSE, or a licensed widget) |
 | T-4176 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4170); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
-| T-4177 | Research library | TODO |
+| T-4177 | Research library | BLOCKED. Revamped, but the unattended run could not verify it: `make verify` failed with "uv: No such file or directory" (uv not on its PATH), and Homebrew node 20.5 would not start (missing `icu4c` `libicui18n.73.dylib`), so no type-check either. Screen reverted; the unverified version and a note are in `data/cache/ui-revamp-pending/`. Fix the PATH/node for `tools/ui_revamp_resume.sh`, then copy it back and run `make verify` |
 | T-4178 | Instruments, Data | TODO |
 | T-4179 | SIP backtester | TODO |
 | T-4180 | Company page (`app/terminal/company/[symbol]`) | TODO |

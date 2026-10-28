@@ -13,6 +13,7 @@
  * here is a diff to review and commit like any other research.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { api, assistantModels, assistantStatus, tweezerJob } from '@/lib/api';
@@ -116,7 +117,7 @@ const num = (value: number | null | undefined, digits = 2, suffix = '') =>
 
 function Measured({ link }: { link: ResearchLinkView }) {
   const runs = link.measured ?? [];
-  if (runs.length === 0) return <span className="tfine">Not measured yet. Run it, or `make tweezer-report`.</span>;
+  if (runs.length === 0) return <span className="tfine">—<Info>Not measured yet. Run it, or `make tweezer-report`.</Info></span>;
   return (
     <table className="ttable rl-mini">
       <thead>
@@ -613,7 +614,7 @@ export function ResearchLibrary({
                 </div>
               )}
               {codeRun.source && <details><summary>Generated strategy source</summary><pre>{codeRun.source}</pre></details>}
-              {codeRun.result && <p className="tfine">This is a single backtest, not evidence of robustness or a forecast. The draft is not saved or linked as a maintained strategy.</p>}
+              {codeRun.result && <p className="tfine"><span className="ui-chip warn">Single backtest</span><Info>This is a single backtest, not evidence of robustness or a forecast. The draft is not saved or linked as a maintained strategy.</Info></p>}
             </section>
           )}
 
@@ -640,7 +641,7 @@ export function ResearchLibrary({
           <section className="rl-section">
             <h3>Strategies that test it</h3>
             {current.links.length === 0 && (
-              <p className="tfine">None yet. &quot;Build its rules&quot; opens the Strategy Builder; what you save there is linked here.</p>
+              <p className="tfine">—<Info>None yet. &quot;Build its rules&quot; opens the Strategy Builder; what you save there is linked here.</Info></p>
             )}
             <div className="rl-links">
               {current.links.map((link) => (
