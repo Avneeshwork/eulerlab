@@ -173,3 +173,7 @@
 .ui-bar i.up { background: var(--clear); opacity: 0.75; }
 .ui-bar i.down { background: var(--fail); opacity: 0.75; }
 .ui-bar i.accent { background: var(--accent); opacity: 0.6; }
+
+/* A panel's explanation when it has no heading to sit in: a lone info button
+   at its foot. */
+.ui-foot { display: flex; justify-content: flex-end; margin-top: 8px; }

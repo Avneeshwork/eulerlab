@@ -15,6 +15,7 @@
 
 'use client';
 
+import { Info } from '@/components/terminal/ui';
 import { useState } from 'react';
 import type React from 'react';
 
@@ -125,14 +126,12 @@ export function SmileChart({
           <span className="tfine">Hover the curve to read a strike.</span>
         )}
       </div>
-      <p className="tfine">
-        <b style={{ color: 'var(--neon)' }}>calls</b> and{' '}
+      <div className="ui-foot"><Info><b style={{ color: 'var(--neon)' }}>calls</b> and{' '}
         <b style={{ color: 'var(--caveat)' }}>puts</b> plotted separately, not blended. Under
         parity they should agree at the same strike, so the gap between the two curves is a
         data-quality reading — averaging them throws away the one diagnostic the pair gives
         you. Vol ranges {(lo * 100).toFixed(1)}% to {(hi * 100).toFixed(1)}%
-        {atm !== null && `, at-the-money strike ${atm.toLocaleString('en-IN')}`}.
-      </p>
+        {atm !== null && `, at-the-money strike ${atm.toLocaleString('en-IN')}`}.</Info></div>
     </div>
   );
 }
@@ -154,8 +153,7 @@ export function MaxPainChart({
       <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', minWidth: 520, height: H }}>
         <path d={path(points, W, H)} fill="none" stroke="var(--ink-3)" strokeWidth="1.5" />
       </svg>
-      <p className="tfine">
-        Minimum at <b>{pain.strike.toLocaleString('en-IN')}</b>
+      <div className="ui-foot"><Info>Minimum at <b>{pain.strike.toLocaleString('en-IN')}</b>
         {forward !== null && ` against a forward of ${forward.toLocaleString('en-IN', {
           maximumFractionDigits: 0,
         })}`}
@@ -164,8 +162,7 @@ export function MaxPainChart({
         open interest is their final position, and neither is established here. The whole curve
         is drawn because the minimum alone hides how sharp it is — the trough here is{' '}
         {(flatness * 100).toFixed(0)}% of the peak, and a flat curve makes the single number
-        close to meaningless.
-      </p>
+        close to meaningless.</Info></div>
     </div>
   );
 }
@@ -226,8 +223,7 @@ export function GammaChart({
           <span className="tfine">Hover a bar to read its exposure.</span>
         )}
       </div>
-      <p className="tfine">
-        Gamma times open interest per strike. <b>The sign rests on an assumption</b>: the usual
+      <div className="ui-foot"><Info>Gamma times open interest per strike. <b>The sign rests on an assumption</b>: the usual
         construction takes dealers to be long calls and short puts, and whether that held on any
         given day is a claim about who is on the other side of the open interest — which the
         bhavcopy does not say. It is named rather than folded in silently, because a profile
@@ -239,8 +235,7 @@ export function GammaChart({
             <b>{gamma.flip.toLocaleString('en-IN')}</b>
             {atm !== null && `, with the money at ${atm.toLocaleString('en-IN')}`}.
           </>
-        )}
-      </p>
+        )}</Info></div>
     </div>
   );
 }
@@ -278,12 +273,10 @@ export function PositioningPanel({
           </i>
         </div>
       </div>
-      <p className="tfine" style={{ marginTop: 12 }}>
-        Kept apart rather than averaged. Open interest is positions held and volume is positions
+      <div className="ui-foot"><Info>Kept apart rather than averaged. Open interest is positions held and volume is positions
         traded today; quoting one as &ldquo;the PCR&rdquo; is how a quiet session with heavy
         existing positioning reads as a busy one. A ratio with no calls to divide by is shown as
-        &mdash;, because a division nobody can perform is not a very large number.
-      </p>
+        &mdash;, because a division nobody can perform is not a very large number.</Info></div>
     </>
   );
 }
