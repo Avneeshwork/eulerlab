@@ -9,6 +9,7 @@
  * defect as one offered without data, pointing the other way.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { ASSET_CLASSES, assetClassLabel } from '@/lib/assetClasses';
@@ -244,9 +245,14 @@ export function InstrumentsTab() {
               US and FX were landed, panelled and invisible. Prose that
               enumerates a list is a fourth copy of that list. */}
           <p className="thsub">
-            Search across {ASSET_CLASSES.map((c) => c.label).join(', ')}. NSE batches are
-            liquidity-ranked from our own turnover history rather than index membership, because a
-            published constituent list only exists as it stands today.
+            {ASSET_CLASSES.length} asset classes
+            <Info>
+              Search across {ASSET_CLASSES.map((c) => c.label).join(', ')}. NSE batches are
+              liquidity-ranked from our own turnover history rather than index membership, because a
+              published constituent list only exists as it stands today. Mirror to cloud uploads to B2
+              every landed file the cloud does not hold yet and fetches nothing. Delete local copies
+              removes files B2 holds at the same size, and asks first.
+            </Info>
           </p>
         </div>
         <div className="tsyncbox">
@@ -305,13 +311,22 @@ export function InstrumentsTab() {
             </button>
           )}
           <div className="tfine" data-state={sync.state}>
-            {busy && sync.state !== 'running'
-              ? `Another data run is going (${busy.what ?? 'make daily'}, since ${busy.since ?? '?'}). Wait for it to finish.`
-              : sync.state === 'idle'
-                ? plan
+            {busy && sync.state !== 'running' ? (
+              <>
+                <span className="ui-chip warn">Another data run is going</span>
+                <Info>
+                  {busy.what ?? 'make daily'}, since {busy.since ?? '?'}. Wait for it to finish.
+                </Info>
+              </>
+            ) : sync.state === 'idle' ? (
+              <Info align="right">
+                {plan
                   ? `Update downloads only what is missing from ${plan.sources.length} sources, rebuilds every table and the paper books, then uploads what the cloud lacks. Mirror only uploads. Delete removes local files B2 already holds, after asking.`
-                  : 'Downloads only what is missing, rebuilds every table, then uploads what the cloud lacks.'
-                : sync.note}
+                  : 'Downloads only what is missing, rebuilds every table, then uploads what the cloud lacks.'}
+              </Info>
+            ) : (
+              sync.note
+            )}
           </div>
           {syncLog && (
             <pre className="tsync-log" aria-label="Cloud mirror log">
@@ -337,11 +352,13 @@ export function InstrumentsTab() {
         <section className="tpanel coverage">
           <div className="coverage-head">
             <div>
-              <b>Data coverage</b>
-              <div className="tfine">
-                Each dataset&apos;s last day against the day it should reach. Update one row, one group,
-                or everything above.
-              </div>
+              <b>
+                Data coverage
+                <Info>
+                  Each dataset&apos;s last day against the day it should reach. Update one row, one group,
+                  or everything above.
+                </Info>
+              </b>
             </div>
             <div className="cov-badges">
               {(['ok', 'behind', 'stale', 'missing'] as const)

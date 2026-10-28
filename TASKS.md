@@ -21,7 +21,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4184 | The Charts embed refuses NSE symbols ("only available on TradingView"), so the default NIFTYBEES chart is empty | TODO, not presentation: needs a data decision (own-panel chart as the default for NSE, or a licensed widget) |
 | T-4176 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4170); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
 | T-4177 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
-| T-4178 | Instruments, Data | TODO |
+| T-4178 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
 | T-4179 | SIP backtester | TODO |
 | T-4180 | Company page (`app/terminal/company/[symbol]`) | TODO |
 | T-4181 | Dialogs (Backtest, Deploy, Explain) | TODO |

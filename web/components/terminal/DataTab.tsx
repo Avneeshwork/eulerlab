@@ -9,6 +9,7 @@
  * the size it was supposed to be.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { CloudStatus, DataStatus } from '@/lib/api';
@@ -73,10 +74,14 @@ export function DataTab({ workspace }: { workspace: string }) {
           </div>
           <p className="thsub">
             {data?.panel.first && data.panel.last
-              ? `${data.panel.symbols?.toLocaleString('en-IN')} symbols across ${data.panel.days?.toLocaleString('en-IN')} trading days, ${data.panel.first} to ${data.panel.last}. Counted from the panel itself, not from a configured expectation.`
+              ? `${data.panel.symbols?.toLocaleString('en-IN')} symbols · ${data.panel.days?.toLocaleString('en-IN')} days · ${data.panel.first} → ${data.panel.last}`
               : data && !data.panel.loaded && !data.panel.error
-                ? 'The server is reading the panel into memory; the counts appear here when it is done.'
+                ? 'Loading…'
                 : 'Reading the panel…'}
+            <Info>
+              Counted from the panel itself, not from a configured expectation. After a restart the
+              server reads the panel into memory first; the counts appear when it is done.
+            </Info>
           </p>
         </div>
         <div className="thstats">
@@ -148,7 +153,11 @@ export function DataTab({ workspace }: { workspace: string }) {
               ))}
             </tbody>
           </table>
-          {data && <p className="tfine">{data.universe_caveat}</p>}
+          {data && (
+            <div className="ui-foot">
+              <Info>{data.universe_caveat}</Info>
+            </div>
+          )}
         </div>
       </div>
 
@@ -183,7 +192,8 @@ export function DataTab({ workspace }: { workspace: string }) {
             </div>
             {!cloud.configured && (
               <p className="tfine" style={{ marginTop: 16 }}>
-                Not configured: {cloud.reason}
+                <span className="ui-chip down">Not configured</span>
+                <Info>{cloud.reason}</Info>
               </p>
             )}
             <div className="tacts" style={{ marginTop: 16 }}>
@@ -207,11 +217,13 @@ export function DataTab({ workspace }: { workspace: string }) {
               </button>
               {note && <span className="tfine">{note}</span>}
             </div>
-            <p className="tfine" style={{ marginTop: 12 }}>
-              Results mirror automatically after every backtest. This button forces a pass
-              — it pulls the bucket&rsquo;s copy and merges before pushing, so a run made
-              on another machine is never overwritten (ADR-042).
-            </p>
+            <div className="ui-foot">
+              <Info>
+                Results mirror automatically after every backtest. This button forces a pass: it pulls
+                the bucket&rsquo;s copy and merges before pushing, so a run made on another machine is
+                never overwritten (ADR-042).
+              </Info>
+            </div>
           </>
         ) : (
           <div className="tempty">Checking the bucket…</div>
