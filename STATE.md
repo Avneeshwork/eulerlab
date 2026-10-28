@@ -1,9 +1,9 @@
 # STATE — where this project is right now
 
-**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
-**Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
+**Status:** IN PROGRESS — five Indian microstructure rules and replay primitives are coded; P&L is blocked on licensed data (T-4185). The UI revamp remains active on its separate branch.
+**Next:** Resolve NSE trial eligibility and data scope; keep the UI revamp isolated.
 
-*Last updated: 2026-10-27. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-28. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---

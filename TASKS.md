@@ -28,6 +28,15 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4182 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
 | T-4183 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | TODO |
 
+## Five Indian microstructure strategies (2026-10-28)
+
+Operator: "code and backtest all" after the five paper-based NSE microstructure candidates and the free-data check.
+Verify: `make microstructure-five`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4185 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **BLOCKED (data)** — frozen rules and signal/replay primitives are in `src/eulerlab/intraday/microstructure_five.py`; the readiness run found 0 historical order/trade files, 0 stock-futures minute files, and no normalized microstructure input. No P&L run and no trial spent. NSE trial eligibility/data scope is unresolved; micro-01's stable institution ID is absent from the published schema. See research 123 and 125. |
+
 ## Quality and latency pass (2026-10-27)
 
 Operator: "commit all changes and look to improve code quality and latency on all features and pages we have", then "B and approved" (fix the red checks before committing).
