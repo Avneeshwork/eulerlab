@@ -65,7 +65,7 @@ not contain order-level flow or historical depth.
   written confirmation before retaining a live stream for replay/backtesting.
 - FYERS Standard is documented as a free API plan. Its expired-F&O endpoint
   returns one-minute candles from 2018-10-10 onward for NSE, permits up to 100
-  days per candle request, and limits expired-F&O intraday history to ten API
+  days per request, and limits expired-F&O intraday history to ten API
   requests per day. A valid FYERS account and an individual API app are
   required. However, FYERS API Terms §11 says exchange data may not be used to
   develop charting/technical tools or for paper trading; §12 places conditions

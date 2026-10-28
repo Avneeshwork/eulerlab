@@ -60,7 +60,7 @@ Scraping NSE is not an acceptable fallback under the site's terms.
 For futures-to-cash, NSE's public daily files cannot support the 1-minute rule.
 The existing Kite archive supports a cash leg, but contains no stock-future
 bars. FYERS Standard exposes expired F&O minute candles with ten intraday
-requests per day and up to 100 calendar days per call. Its API terms restrict
+requests per day and up to 100 days per call. Its API terms restrict
 using exchange data to develop tools or for paper trading and limit copying.
 This intended stored backtest requires written FYERS permission before any
 fetch. No credentials were found and no API request was made.
