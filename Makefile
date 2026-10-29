@@ -59,6 +59,8 @@ help:
 	@echo "                    data quality report; ROWS=n also checks price rows"
 	@echo "  make research [CRITIC=H-0002]  the loop: cards, critic, gate verdicts"
 	@echo "  make scout [PROPOSE=n]   what would searching cost? then draft cards"
+	@echo "  make paper-agent TOPIC='...' [LIMIT=5]  find papers, draft cards, stop for approval"
+	@echo "  make paper-agent-approve DRAFT=<folder>  move one draft to hypotheses/ and the library"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
 	@echo "  make validate H=H-0001  overfitting battery: CPCV, DSR, PBO, MinBTL"
@@ -219,6 +221,16 @@ research:
 
 scout:
 	@uv run python -m eulerlab.research.scout $(if $(PROPOSE),--propose $(PROPOSE),) $(if $(DRAFT),--draft "$(DRAFT)",) $(if $(SOURCE),--source $(SOURCE),)
+
+paper-agent:
+	@uv run python -m eulerlab.research.paper_agent --topic "$(TOPIC)" $(if $(LIMIT),--limit $(LIMIT),) $(if $(SOURCES),--sources $(SOURCES),) $(if $(MODEL),--model $(MODEL),)
+
+paper-agent-approve:
+	@test -n "$(DRAFT)" || (echo "usage: make paper-agent-approve DRAFT=research/agent_drafts/<run>/<paper>"; exit 2)
+	@uv run python -m eulerlab.research.paper_agent --approve "$(DRAFT)"
+
+paper-agent-list:
+	@uv run python -m eulerlab.research.paper_agent --list
 
 gate-acceptance:
 	@uv run python -m eulerlab.validation.gate_acceptance $(if $(SYMBOLS),--symbols $(SYMBOLS),)

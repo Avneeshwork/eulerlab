@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-27. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-29. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,10 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
+  library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
+  `research/agent_drafts/`. `make paper-agent-approve DRAFT=...` moves one into `hypotheses/` as a draft. It never
+  backtests or logs a trial. Not yet run live (T-4171). Dead and weak models removed from `config/llm.yaml` (HISTORY #33).
 - **Quality and speed pass (2026-10-27):** all uncommitted work committed; `make verify` 8 of 8.
   Engines agree again (Tier A got Tier B's cash and delisting rules, HISTORY #28). FX now pays its
   recorded spread (it paid nothing, HISTORY #30). Panel: 2.6 → 1.85 GB, read about 8 s from a

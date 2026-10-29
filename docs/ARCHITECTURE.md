@@ -1253,6 +1253,56 @@ which symbols are fund units from the rows (`vector.fund_symbols`) and pass it
 to the one cost path; until 2026-10-07 they charged ETFs the share rate
 (HISTORY #18).
 
+## 7.1b The paper agent (ADR-084)
+
+`make paper-agent TOPIC="..." [LIMIT=5]` (`research/paper_agent.py`,
+`research/paper_search.py`) goes from a topic to drafts the operator reads. It
+stops there.
+
+    price the search -> arXiv (q-fin) + OpenAlex -> drop papers already known
+      -> read arXiv HTML (first 16,000 chars) or the abstract
+      -> research_agent model -> JSON reply -> library.Paper + Card
+      -> card.validate + critic.review
+      -> research/agent_drafts/<run>/<paper>/{paper,card}.yaml, review.txt, draft.json
+
+**Order matters.** The search is priced before anything is fetched. An
+unaffordable search (`budget.price_search`) reads nothing. Known papers
+(matched on title or link, in `research/papers/` or an earlier run) are never
+sent to the model again.
+
+**What the model writes, and what it doesn't.** It writes the summary, trade
+idea, implementation, red flags, claim, rationale and configurations. Code
+sets the title, authors, year, link and fetch date from the search result. Code
+also sets the holdout date (`scout.HOLDOUT_START`) and the card id. A staged
+card has id `PENDING`; the next free `H-NNNN` is taken only at approval. A URL
+in the reply is dropped. Each draft gets one more red flag naming the model and
+how much was read. The reply must parse into `paper_agent.Reply`, or that paper
+fails and the run goes on.
+
+**Where text goes.** The prompt goes to the provider named `research_agent` in
+`config/llm.yaml` (Groq `openai/gpt-oss-120b`, research 123) through
+`assistant.chat.complete_any`. It passes the same host, zero-retention and
+redaction locks as the assistant, and falls back to other models the same way.
+If Groq's key or ZDR confirmation is missing, the run says so and uses the
+`assistant` provider. Paper text is not stored. Drafts are spaced 60 s apart
+(Groq allows 8,000 tokens a minute), and arXiv requests 3 s apart (its terms).
+
+**Approval.** `make paper-agent-approve DRAFT=<folder>` checks the card again
+with `card.validate` and refuses an incomplete one. It writes
+`hypotheses/H-NNNN.yaml` as `status: draft` through `card.write`, which never
+overwrites, and saves the paper to the library linked to that id with status
+`specified`. It marks the draft `approved.json` so it cannot be approved twice.
+The new card is not registered, so the gate ignores it. Whether to spend a
+trial on it is still the operator's separate decision (`make research
+CRITIC=H-NNNN`, then registration). `make paper-agent-list` shows drafts not
+yet approved.
+
+**What it cannot do.** It does not backtest, register, validate or write to the
+trial ledger. `tests/test_paper_agent.py` reads the two modules' imports and
+fails on any import of `backtest`, `validation`, `gates`, `gate_run`, `batch`,
+`optimize`, `oms`, `deploy`, `paper` or `features.trials`. It also runs a full
+draft and approval with the ledger's `append` set to raise an error.
+
 ## 7.2 The sandbox: how "paste code" stays safe
 
 Executing arbitrary Python would discard the lookahead firewall, because
@@ -1290,6 +1340,9 @@ into a run.
 - **The operator sees it before it runs.** Drafting starts no backtest.
 - **Provider-agnostic.** Any OpenAI-compatible endpoint; the default is local
   Ollama, which is free, has no quota and sends nothing anywhere.
+  Three roles in `config/llm.yaml`: `default` (Ollama, for the translator and
+  the audit), `assistant` (OpenRouter ZDR) and `research_agent` (Groq
+  `openai/gpt-oss-120b`, the paper agent). Research 123 has their free limits.
 
 Neither mode can produce lookahead — not because the prompt says so, but
 because the `MarketView` contains no future rows to reach.
@@ -2105,7 +2158,7 @@ A floating button on every screen (`web/components/Assistant.tsx`, mounted in
 
 **Path of one question.** Browser → `POST /api/assistant/chat` →
 `assistant/chat.ask` → the provider named `assistant` in `config/llm.yaml`
-(OpenRouter's free `apodex/apodex-1.1-mini:free`). The model is sent the conversation and a list of tools. It replies
+(OpenRouter; the model is picked from its live free zero-retention list, ADR-080). The model is sent the conversation and a list of tools. It replies
 either with an answer or with tool calls; `assistant/tools.call` runs each and
 the text goes back. At most `MAX_ROUNDS` (6) requests per question; the last
 has no tools, so it must answer.

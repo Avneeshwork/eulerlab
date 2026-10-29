@@ -85,6 +85,12 @@ class LLMConfig(BaseModel):
     Named apart from `default` because the assistant sends the operator's own
     numbers, so its host must be one whose data terms were read."""
 
+    research_agent: str | None = None
+    """The provider the paper agent drafts with (`research/paper_agent.py`,
+    ADR-084). It goes through the assistant's locks, so it must also name an
+    approved host. Kept apart from `assistant` so the strongest free model can
+    serve the long, structured drafting task without changing the chat panel."""
+
     def get(self, name: str | None = None) -> Provider:
         wanted = name or self.default
         for provider in self.providers:
