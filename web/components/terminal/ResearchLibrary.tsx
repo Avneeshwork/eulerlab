@@ -49,20 +49,27 @@ function useResearchModel() {
     assistantStatus(provider, model).then((next) => current && setStatus(next)).catch(() => current && setStatus(null));
     return () => { current = false; };
   }, [provider, model]);
-  // One model is offered: the assistant entry in config/llm.yaml. A pick kept
-  // from when the list had more (an OpenRouter model, Ollama) falls back to it.
+  // The list is `offered` in config/llm.yaml. A pick kept from when it held
+  // other models (an OpenRouter model, Ollama) falls back to the default.
   useEffect(() => {
-    if (selection) choose('');
-  }, [selection]);
-  return { selection, provider, model, status };
+    if (selection && status && !status.choices.some((choice) => choice.name === selection)) choose('');
+  }, [selection, status]);
+  return { selection, provider, model, status, choose };
 }
 
-function ModelPicker({ status }: ReturnType<typeof useResearchModel>) {
+function ModelPicker({ selection, status, choose }: ReturnType<typeof useResearchModel>) {
   if (!status || status.choices.length === 0) return <span className="tfine">Checking AI models…</span>;
-  const chosen = status.choices.find((choice) => choice.is_default);
   return (
     <label className="rl-model">
-      AI model <strong>{chosen ? `${chosen.name} · ${chosen.model}` : 'configured assistant'}</strong>
+      AI model
+      <select value={selection} onChange={(event) => choose(event.target.value)}>
+        <option value="">Default · {status.choices.find((choice) => choice.is_default)?.model ?? 'configured assistant'}</option>
+        {status.choices.map((choice) => (
+          <option key={choice.name} value={choice.name} disabled={!choice.ready} title={choice.reason}>
+            {choice.name} · {choice.model}{choice.ready ? (choice.free ? '' : ' · paid') : ` — ${choice.blocked}`}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

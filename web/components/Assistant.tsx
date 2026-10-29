@@ -98,11 +98,11 @@ export default function Assistant() {
     input.current?.focus();
   }, [open, pick]);
 
-  // One model is offered: the assistant entry in config/llm.yaml. A pick kept
-  // from when the list had more (an OpenRouter model, Ollama) falls back to it.
+  // The list is `offered` in config/llm.yaml. A pick kept from when it held
+  // other models (an OpenRouter model, Ollama) falls back to the default.
   useEffect(() => {
-    if (pick) choose('');
-  }, [pick]);
+    if (pick && status && !status.choices.some((c) => c.name === pick)) choose('');
+  }, [pick, status]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -203,10 +203,25 @@ export default function Assistant() {
           {status && status.choices.length > 0 && (
             <label className="asst-model">
               <span>Model</span>
-              <strong>
-                {status.choices.find((c) => c.is_default)?.name} ·{' '}
-                {status.choices.find((c) => c.is_default)?.model}
-              </strong>
+              <select value={pick} onChange={(event) => choose(event.target.value)}>
+                <option value="">
+                  Default
+                  {status.choices.find((c) => c.is_default)
+                    ? ` · ${status.choices.find((c) => c.is_default)?.model}`
+                    : ''}
+                </option>
+                {status.choices.map((choice) => (
+                  <option
+                    key={choice.name}
+                    value={choice.name}
+                    disabled={!choice.ready}
+                    title={choice.reason}
+                  >
+                    {choice.name} · {choice.model}
+                    {choice.ready ? (choice.free ? '' : ' · paid') : ` — ${choice.blocked}`}
+                  </option>
+                ))}
+              </select>
             </label>
           )}
 

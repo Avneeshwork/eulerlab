@@ -19,8 +19,16 @@ default: ollama
 # accepts hosts whose data terms were read: openrouter.ai, api.groq.com, or a
 # local model. On OpenRouter the code adds "zero retention, no data collection"
 # to every request. Set to Groq's gpt-oss-120b on 2026-10-29 at the operator's
-# request; the assistant and Research Library now offer only this model.
+# request.
 assistant: groq
+
+# What the assistant panel and Research Library list, in this order. Operator,
+# 2026-10-29: Groq plus every current Claude model. The Claude entries are
+# PAID, per use, and only ever used when picked; they are never a fallback.
+# Anthropic keeps API data up to 30 days and does not train on it (research
+# 129, ADR-088). The other providers stay below for the translator, the audit
+# and the paper agent, but are not offered in the pickers.
+offered: [groq, claude-opus, claude-sonnet, claude-haiku, claude-fable]
 
 # The paper agent (`make paper-agent`, ADR-084). Same locks as the assistant.
 # Groq's `openai/gpt-oss-120b` is the strongest free model with a usable daily
@@ -58,3 +66,47 @@ providers:
     free: true
     note: "Hosted, free, used by the assistant. The model is picked from OpenRouter's live zero-retention free list (ADR-080). 50 requests a day; 1,000 a day after a one-time $10 credit purchase (research 123)."
     temperature: 0.1
+
+  # Claude, through Anthropic's own SDK (`api: anthropic`). Paid: create a key
+  # at console.anthropic.com, load credit, set ANTHROPIC_API_KEY in .env.
+  # Prices per million tokens, input / output, as listed 2026-10-29 (research
+  # 129). # ASSUMPTION: A-070, prices and model IDs change; recheck 2027-01-29.
+  # No temperature is sent: Anthropic rejects sampling parameters.
+  - name: claude-opus
+    base_url: https://api.anthropic.com
+    api: anthropic
+    model: claude-opus-5-5
+    api_key_var: ANTHROPIC_API_KEY
+    free: false
+    max_tokens: 16000
+    refusal_fallback: true
+    note: "Paid: $4 / $20 per million tokens. Anthropic's strongest general model. Kept up to 30 days, not trained on."
+
+  - name: claude-sonnet
+    base_url: https://api.anthropic.com
+    api: anthropic
+    model: claude-sonnet-5-5
+    api_key_var: ANTHROPIC_API_KEY
+    free: false
+    max_tokens: 16000
+    refusal_fallback: true
+    note: "Paid: $2 / $10 per million tokens. Kept up to 30 days, not trained on."
+
+  - name: claude-haiku
+    base_url: https://api.anthropic.com
+    api: anthropic
+    model: claude-haiku-5-5
+    api_key_var: ANTHROPIC_API_KEY
+    free: false
+    max_tokens: 16000
+    note: "Paid: $0.10 / $0.50 per million tokens. Fast and cheap. No server-side refusal fallback exists for it."
+
+  - name: claude-fable
+    base_url: https://api.anthropic.com
+    api: anthropic
+    model: claude-fable-5-1
+    api_key_var: ANTHROPIC_API_KEY
+    free: false
+    max_tokens: 16000
+    refusal_fallback: true
+    note: "Paid: $10 / $50 per million tokens, the most expensive. Anthropic's most capable model. Always kept 30 days (a Covered Model)."
