@@ -152,6 +152,10 @@ function Agents({ data, onChange }: { data: AgentsResponse; onChange: () => void
     <div className="tpanel" style={{ padding: 16 }}>
       <h3>Agents</h3>
       {error && <p className="tnote bad">{error}</p>}
+      <p className="tfine">
+        Agent trials this week: <b>{data.trials.spent}</b> of {data.trials.per_week}. Each one is logged in the trial
+        ledger and raises the noise bar for every strategy (config/agent_trials.yaml).
+      </p>
       <BriefBox name="all" initial={data.brief_all} label="Brief for every agent" />
       <table className="ttable" style={{ marginTop: 12 }}>
         <thead>

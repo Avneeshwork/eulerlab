@@ -18,6 +18,8 @@ Verify: `uv run pytest -q tests/test_agent_grounding.py`; `make agent-eval ONLY=
 | T-4190 | Research critic votes three times; a draft passes on 2 of 3 | TODO |
 | T-4191 | Split the knowledge index into chunks with a context note each; measure recall before adding embeddings | TODO |
 | T-4192 | Approve/dismiss counts per agent on the AI tab | TODO |
+| T-4193 | Idea lab: test drafts within 5 trials a week (IC screen, then backtest), skeptic, inbox | DONE. ADR-089; `make agent NAME=lab`; `tests/test_agent_trials.py`. Runs Sundays after research |
+| T-4194 | First real lab run on the operator's machine, after a live research run | TODO. Needs research drafts (T-4171) |
 
 ## The AI agent network (2026-10-29)
 

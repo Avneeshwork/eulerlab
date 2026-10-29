@@ -274,6 +274,7 @@ agents-weekly:
 	-@uv run python -m eulerlab.research.quantpedia
 	-@uv run python -m eulerlab.agents.runtime knowledge
 	-@uv run python -m eulerlab.agents.runtime research
+	-@uv run python -m eulerlab.agents.runtime lab
 	-@uv run python -m eulerlab.agents.runtime engineering
 
 agent-eval:
