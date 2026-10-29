@@ -3,6 +3,18 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## FII/DII cash flows (2026-10-29)
+
+Operator: "make a scrapper to scrape all the data https://scanx.trade/insight/fii-dii-data which we don't have and include in dashboard". scanx could not be read and its terms are unread, so NSE's own figure is captured instead (research 126, ADR-088).
+Verify: `uv run pytest -q tests/test_fii_dii_cash.py`; `make fii-dii` on a trading evening; `make data-quality`; Dashboard → India → Big money.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4163 | Capture NSE's FII/DII provisional cash flows daily; table with event and knowledge time; `/api/fii-dii`; panel on Big money | DONE. `ingest/fii_dii_cash.py`, `api/fii_dii_routes.py`, `FiiDiiFlows.tsx`. In `make daily`, `make india-live` and the coverage button. 18 tests. Not yet run against NSE (no network to it from the build session) |
+| T-4185 | First live `make fii-dii` on the Mac; replace the hand-written test payload with the landed file | TODO. Settles A-070, retires S-047 |
+| T-4186 | Backfill FII/DII history from NSDL's FPI daily archive | TODO. Read NSDL's terms and report format first (research 004, 065) |
+| T-4187 | Open scanx.trade's FII/DII page and its terms; list anything it shows that EulerLab does not hold | TODO. Blocked from the build session (research 126) |
+
 ## The AI agent network (2026-10-29)
 
 Operator: an AI agent network for research, building, backtesting, optimisation, risk, scenarios, a trade panel, code quality and latency; one data quality reference for every ingest; security; a way to instruct agents; a knowledge agent, a daily market brief and a data maintenance agent; Quantpedia as a source; an AI tab. "Build everything in one go." ADR-085, ADR-086, ADR-087; research 125.
@@ -48,7 +60,7 @@ Verify: `make verify` (8 of 8).
 | T-4166 | India dashboard hard to read: one long page, a breadth chart, numbers without words (research 121) | DONE. Four tabs, Market pulse cards in place of the Breadth band, template summary, plain names and arrows (ADR-081). 32 tests |
 | T-4161 | Dashboard lacks what trader platforms lead with: index trend and valuation, breadth depth, sector strength, F&O positioning (research 120) | DONE. `/api/market-context` and five India bands (ADR-080). 22 tests |
 | T-4162 | `landing_reader` asks the bucket for `nse/nse/...` for the `nse` tree; NSE files are at `nse/...`. Only local NSE files are seen, and `market_history._read` fails for pruned files | OPEN. The dashboard lists `participant_oi` as its own tree instead. Fix `remote_key` and the listing for the `nse` tree, then check every `nse/` reader |
-| T-4163 | Land FII/DII provisional cash flows | OPEN. A new source (research 120). The dashboard says it is missing |
+| T-4163 | Land FII/DII provisional cash flows | DONE (2026-10-29). `make fii-dii`, ADR-088; see the FII/DII section above |
 | T-4164 | Land upcoming results dates (board meetings) | OPEN. `nse_earnings_announcements.jsonl` holds past filings and ends 2024-12-31 |
 | T-4165 | The Dashboard page is wider than a phone screen: header, market toggle and ribbon run past 390 px | FIXED. The market toggle row did not wrap (scroll width 431 at 390); now every tab measures 390 |
 | T-4157 | Tests slept through the 5-orders-a-second governor in real time (25 of `test_paper_attribution.py`'s 27 s) | DONE. Simulated clock in tests only. Suite 153 s → 119 s |

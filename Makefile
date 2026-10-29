@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync
+.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily fii-dii market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync
 
 help:
 	@echo "EulerLab — targets"
@@ -63,6 +63,7 @@ help:
 	@echo "  make paper-agent-approve DRAFT=<folder>  move one draft to hypotheses/ and the library"
 	@echo "  make quantpedia-sync [LIMIT=50]  land Quantpedia's strategy catalogue (needs a key in .env)"
 	@echo "  make data-quality       grade every dataset against the data quality contract"
+	@echo "  make fii-dii            capture today's FII/DII cash flows from NSE"
 	@echo "  make agents             list the agents, on or off"
 	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
 	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
@@ -347,6 +348,12 @@ acceptance:
 tweezer:
 	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
 
+# FII/DII provisional cash flows. NSE serves the latest day only, so this is
+# capture-only: run it every trading evening (`make daily` does). ADR-088.
+# REBUILD=1 rewrites data/derived/fii_dii_cash.jsonl from the landed files.
+fii-dii:
+	@uv run python -m eulerlab.ingest.fii_dii_cash $(if $(REBUILD),--rebuild,)
+
 ingest-nse-daily:
 	@test -n "$(FROM)" || (echo "usage: make ingest-nse-daily FROM=2015-01-01 [TO=...]"; exit 2)
 	uv run python -m eulerlab.ingest.nse_daily_files --from $(FROM) $(if $(TO),--to $(TO),)
@@ -604,6 +611,9 @@ daily-run:
 	@echo "== NSE index closes (incl. India VIX) and delivery =="
 	-uv run python -m eulerlab.ingest.nse_daily_files --from $$(date -v-7d +%Y-%m-%d)
 	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
+	@echo "== FII/DII cash flows (NSE serves today only) =="
+	-uv run python -m eulerlab.ingest.fii_dii_cash
+	-@$(MAKE) --no-print-directory upload-tree TREES="fii_dii" DELETE=1
 	-uv run python -m eulerlab.market_history --skip-expiries
 	@# The panel and the paper books come straight after the bhavcopy, from the
 	@# local landed file, so a slow or failed network step below cannot leave

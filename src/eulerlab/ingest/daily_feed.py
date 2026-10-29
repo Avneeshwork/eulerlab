@@ -322,6 +322,14 @@ def _nse_daily_files() -> str:
     return fetch_counts(text) or "last 7 days"
 
 
+def _fii_dii() -> str:
+    """NSE serves the latest day only, so this is one request a run (ADR-088)."""
+    from eulerlab.ingest import fii_dii_cash
+
+    text = _captured(lambda: fii_dii_cash.main([]))
+    return fetch_counts(text) or "latest day"
+
+
 def _market_history() -> str:
     from eulerlab import market_history
 
@@ -403,6 +411,7 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("NSE end-of-day", _nse_eod),
     ("participant OI", _participant_oi),
     ("NSE index closes and delivery", _nse_daily_files),
+    ("FII/DII cash flows", _fii_dii),
     ("market history", _market_history),
     ("price panel", _price_panel),
     ("Nifty options", _nifty_options),
@@ -434,6 +443,7 @@ STEP_MODULES: dict[str, str] = {
     "NSE end-of-day": "eulerlab.ingest.nse_eod",
     "participant OI": "eulerlab.ingest.backfill_oi",
     "NSE index closes and delivery": "eulerlab.ingest.nse_daily_files",
+    "FII/DII cash flows": "eulerlab.ingest.fii_dii_cash",
     "market history": "eulerlab.market_history",
     "price panel": "build-panel",
     "Nifty options": "nifty-options",

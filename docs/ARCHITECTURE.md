@@ -1926,13 +1926,38 @@ for `nse/nse/...` and finds only the local files (T-4162).
 
 None of these figures has passed the gate. They are context. The page carries
 each definition, and Sensibull's own statement that PCR and max pain "do not
-have high predictive power". Not shown, because neither is landed: FII/DII
-cash flows and upcoming results.
+have high predictive power". Not shown, because it is not landed: upcoming
+results.
+
+### FII/DII cash flows (ADR-088, research 126)
+
+NSE publishes each evening what FII/FPI and DII bought and sold in the cash
+market that day, in Rs crore, at `www.nseindia.com/api/fiidiiTradeReact`. It
+serves the latest day only and ignores `?date=` (research 004), so the dataset
+is capture-only: `make fii-dii` makes one request, lands the JSON under
+`data/landing/fii_dii/cash/` dated by the payload's own date, and appends one
+row to `data/derived/fii_dii_cash.jsonl` with `event_time` (15:30 IST on the
+trade date) and `knowledge_time` (when the file landed). A day already in the
+manifest is skipped, whether or not its file is still local. A payload without
+both groups, with two dates, with net not equal to buy - sell (0.05 crore
+tolerance), or dated after today is refused.
+
+It runs in `make daily` (19:30), in every `make india-live` pass, and from the
+Data coverage table's own button. `fii_dii_cash.rows(as_of=...)` drops rows
+known after `as_of`. `/api/fii-dii` (`api/fii_dii_routes.py`) answers the
+dashboard: today's buy, sell and net per group, net over the last 5 sessions
+held and the month to date, the run of same-sign sessions, the last 60 nets and
+up to 12 monthly sums with the days each covers.
+
+The panel is `web/components/terminal/FiiDiiFlows.tsx` with its own
+`fiidii.css`; every colour is a `--fd-*` token. It sits at the top of the
+Big money tab. History starts on the first evening it runs. There is no free
+official archive of these figures (research 004, 126).
 
 ### The India tabs and the market pulse (research 121, ADR-081)
 
 The India view has four tabs, kept in the address as `?view=`: Overview,
-Sectors, Big money (F&O) and Stocks to watch. The other markets keep the
+Sectors, Big money and Stocks to watch. The other markets keep the
 single page. `market_pulse.py` turns the figures above into words; it adds no
 data of its own.
 

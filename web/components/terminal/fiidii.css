@@ -1,0 +1,67 @@
+/* FII/DII cash flows (ADR-088). Every colour and radius is a token declared
+   here, on top of the shell's, so the panel can be restyled in one place. */
+
+.terminal {
+  --fd-fii: var(--mc-a, #2a78d6);
+  --fd-dii: var(--mc-b, #eb6834);
+  --fd-buy: var(--clear, #15803d);
+  --fd-sell: var(--fail, #dc2626);
+  --fd-line: var(--rule, #e4e4e7);
+  --fd-muted: var(--ink-3, #8c8a80);
+  --fd-radius: 10px;
+}
+
+.fd-h { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.fd-sub { font-weight: 400; }
+.fd-empty { color: var(--fd-muted); }
+.fd-body { display: grid; gap: 14px; }
+
+.fd-buy { color: var(--fd-buy); }
+.fd-sell { color: var(--fd-sell); }
+
+/* --- the two tiles --------------------------------------------------------- */
+.fd-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.fd-tile {
+  border: 1px solid var(--fd-line);
+  border-radius: var(--fd-radius);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.fd-tile-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.fd-verb { margin-left: auto; font-size: var(--t-small, 12.5px); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+.fd-big { font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fd-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; background: currentColor; }
+.fd-tile.fd-fii .fd-dot, .fd-dot.fd-fii { color: var(--fd-fii); }
+.fd-tile.fd-dii .fd-dot, .fd-dot.fd-dii { color: var(--fd-dii); }
+
+.fd-split { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--fd-sell); opacity: 0.85; }
+.fd-split-buy { background: var(--fd-buy); }
+.fd-split-sell { flex: 1; }
+
+.fd-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); gap: 6px 12px; margin: 0; }
+.fd-facts div { min-width: 0; }
+.fd-facts dt { font-size: var(--t-micro, 11px); color: var(--fd-muted); }
+.fd-facts dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* --- daily bars ------------------------------------------------------------ */
+.fd-chart { margin: 0; }
+.fd-chart svg { width: 100%; height: 120px; display: block; }
+.fd-chart rect.fd-fii { fill: var(--fd-fii); }
+.fd-chart rect.fd-dii { fill: var(--fd-dii); }
+.fd-zero { stroke: var(--fd-line); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.fd-axis { display: flex; justify-content: space-between; font-size: var(--t-micro, 11px); color: var(--fd-muted); }
+.fd-key { display: flex; gap: 14px; font-size: var(--t-small, 12.5px); color: var(--fd-muted); }
+.fd-key span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* --- months ---------------------------------------------------------------- */
+.fd-months { width: 100%; border-collapse: collapse; font-size: var(--t-small, 12.5px); font-variant-numeric: tabular-nums; }
+.fd-months th { text-align: left; font-weight: 500; color: var(--fd-muted); padding: 4px 6px; }
+.fd-months td { padding: 5px 6px; border-top: 1px solid var(--fd-line); }
+.fd-months .fd-num { text-align: right; width: 3em; }
+.fd-mbar { position: relative; display: block; height: 6px; border-radius: 999px; background: var(--fd-line); margin-bottom: 3px; }
+.fd-mbar span { position: absolute; top: 0; bottom: 0; border-radius: 999px; }
+.fd-mbar .fd-fii { background: var(--fd-fii); }
+.fd-mbar .fd-dii { background: var(--fd-dii); }
+.fd-mval { white-space: nowrap; }

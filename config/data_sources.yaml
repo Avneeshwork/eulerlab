@@ -71,6 +71,26 @@ datasets:
     critical: false
     min_grade: C
 
+  - name: FII/DII cash flows
+    tree: fii_dii
+    segment: cash
+    publisher: NSE
+    url: https://www.nseindia.com/api/fiidiiTradeReact
+    licence: unreviewed
+    knowledge_time: provisional, published the evening of the trade date; NSE serves the latest day only (ADR-088)
+    critical: false
+    min_grade: C
+
+  - name: FII/DII cash table
+    derived: data/derived/fii_dii_cash.jsonl
+    built_from: [FII/DII cash flows]
+    publisher: built here (ingest/fii_dii_cash.py)
+    url: ""
+    licence: inherits from FII/DII cash flows
+    knowledge_time: each row carries the time its file was landed
+    critical: false
+    min_grade: C
+
   - name: Price panel
     derived: data/derived/price_panel.jsonl
     built_from: [Cash bhavcopy]

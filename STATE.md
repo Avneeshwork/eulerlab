@@ -33,6 +33,10 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **FII/DII cash flows (2026-10-29, ADR-088):** `make fii-dii` captures NSE's evening figure (latest day only; history starts
+  on the first run) in `make daily` and `make india-live`; shown at the top of Dashboard → Big money. Not yet run live (T-4185).
+  scanx.trade was not scraped: unreachable and terms unread (research 126).
+
 - **AI agent network (2026-10-29, ADR-085 to 087):** eight agents on one runtime with budgets, briefs, an inbox
   and a hash-chained log; none can import the order path, gate, ledger writer, env or a shell. Workbench **AI** tab and
   Telegram `instruct`/`outlook`/`inbox`. One data quality contract grades 18 datasets (`make data-quality`); backtests refuse a
