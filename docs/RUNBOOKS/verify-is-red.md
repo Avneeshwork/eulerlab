@@ -78,6 +78,21 @@ hooks. If `uv` itself is missing, reinstall it:
 
 ---
 
+## `types` red only on `angel_mcx_gold.py` (logzero, pyotp, SmartApi)
+
+**Symptom.** mypy reports `import-not-found` and `unused-ignore` at
+`src/eulerlab/ingest/angel_mcx_gold.py:178-180`. CI was red on `main` for this
+from 2026-10-27 to 2026-10-29.
+
+**Diagnosis.** Those three packages are in the optional `angel` extra, which
+CI and `make install` do not install. The old `# type: ignore[import-untyped]`
+covered only the case where they are installed.
+
+**Fix.** They are listed under `ignore_missing_imports` in `pyproject.toml`,
+like `ccxt` and `kiteconnect`. mypy now passes with or without the extra.
+
+---
+
 ## Prevention
 
 `make install` wires up pre-commit hooks that run ruff on every commit, so lint

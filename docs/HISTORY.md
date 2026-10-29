@@ -358,13 +358,15 @@ half the spread recorded on the fill day per unit (`spread`, from
 No FX result was stored in any workspace, so no stored number changes. Any FX
 figure produced outside the result store before this date was frictionless.
 
----
-
-## What the project has actually concluded
-
 **31. On an expiry day the option chain read a contract that had already settled.** (2026-10-27) With no expiry asked for, `_chain_payload` took the nearest expiry, and on an expiry day that is the one settling that afternoon. The bhavcopy is end of day, so the chain was dead: on 27 Oct 2026 the Nifty "straddle" was 45,499.5 with no implied vol. Found building the dashboard's options panel. Fixed: the default is the nearest expiry after the trade date (an expiry asked for by date is still served). Every options history point for an expiry day was wrong; `HISTORY_POINT_VERSION` 1 -> 2 retires the saved points so each is recomputed.
 
 **32. The dashboard's Trend and Participation words had no source.** (2026-10-28) ADR-081 called Trend from Nifty against its 200-day average plus its 3-month change, and Participation from 60/40% of stocks above their 50-day average. Both sets of numbers were chosen without a source. On 2016-2026 data they changed word 16 and 22.6 times a year, and the breadth rule called 10% of the 2021 rally Narrow. Replaced by published rules (research 122, ADR-083): Faber's 10-month rule (2 changes a year) and the 200-day share confirmed by the High-Low Index (10.5). Both still read Downtrend and Narrow on 27 Oct 2026. "Sideways" no longer exists: Faber's rule has two states.
+
+**33. The configured Groq model had been shut down for ten weeks.** (2026-10-29) `config/llm.yaml` pointed `groq` at `llama-3.3-70b-versatile`. Groq shut that model down on 2026-08-16 and named `openai/gpt-oss-120b` as its replacement (research 123). Nothing noticed, because no code used Groq by default and `health()` deliberately sends no request. The fixed OpenRouter `:free` llama id and the 3B local model were also unused and are removed. No stored result depended on any of them. A model id in config is a claim about a vendor's catalog, and it has a recheck date like any other (A-019).
+
+---
+
+## What the project has actually concluded
 
 **Nothing has beaten the bar.** 19 trials are logged. A candidate must clear
 **Sharpe 1.88** from noise alone. The best result ever produced here is

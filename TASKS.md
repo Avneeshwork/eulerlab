@@ -3,6 +3,18 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Paper-reading research agent (2026-10-29)
+
+Operator: build a research agent that finds market papers, drafts strategy cards in the repo's format, and stops for approval before any backtest or trial-ledger entry. Then: "use better model for ai agent network which is free ... scrape all useless models". Research 123, 124; ADR-084.
+Verify: `uv run pytest -q tests/test_paper_agent.py`; `make paper-agent TOPIC="overnight returns India" LIMIT=2`; read the drafts; `make paper-agent-approve DRAFT=<folder>`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4170 | **Paper agent: search, read, draft, validate, stage; approval moves files only** | DONE. `research/paper_agent.py`, `paper_search.py`, `make paper-agent`, `paper-agent-approve`, `paper-agent-list`. 20 tests, none touch the network. Not yet run against the live services (S-040) |
+| T-4171 | First live `make paper-agent` run on the operator's machine; record real arXiv and OpenAlex responses as test fixtures | TODO. Settles A-064 and A-065 and retires S-040. Needs `GROQ_API_KEY` and `EULERLAB_ASSISTANT_ZDR=1` in `.env`, or it runs on OpenRouter's 50 a day |
+| T-4172 | Stronger free model; remove dead and weak ones | DONE. `research_agent: groq` with `openai/gpt-oss-120b` (1,000 requests a day). Removed `ollama-small`, `openrouter-free`, `openai`, and Groq's `llama-3.3-70b-versatile`, shut down on 2026-08-16 (HISTORY #33) |
+| T-4173 | Show staged paper-agent drafts in Tools → Research Library | TODO. Today drafts are files to read; the library shows them only after approval |
+
 ## Quality and latency pass (2026-10-27)
 
 Operator: "commit all changes and look to improve code quality and latency on all features and pages we have", then "B and approved" (fix the red checks before committing).

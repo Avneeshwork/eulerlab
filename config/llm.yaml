@@ -23,46 +23,39 @@ default: ollama
 # a fixed model ID; this entry supplies the approved host and key setting.
 assistant: openrouter-private
 
+# The paper agent (`make paper-agent`, ADR-084). Same locks as the assistant.
+# Groq's `openai/gpt-oss-120b` is the strongest free model with a usable daily
+# allowance whose data terms were read: 1,000 requests and 200,000 tokens a
+# day, 8,000 tokens a minute (research 123, fetched 2026-10-29). If GROQ_API_KEY
+# or the ZDR confirmation is missing, the agent says so and uses `assistant`.
+research_agent: groq
+
+# Pruned 2026-10-29 (research 123): `ollama-small` (a 3B model, too weak to
+# draft a card), `openrouter-free` (a fixed llama-3.3 `:free` id with no ZDR
+# lock), `openai` (paid, never used), and Groq's `llama-3.3-70b-versatile`,
+# which Groq shut down on 2026-08-16.
+
 providers:
   - name: ollama
     base_url: http://localhost:11434/v1
     model: qwen2.5-coder:7b
     free: true
-    note: "Local. No key, no quota, nothing leaves the machine. Install from ollama.com, then `ollama pull qwen2.5-coder:7b`."
+    note: "Local. No key, no quota, nothing leaves the machine. Install from ollama.com, then `ollama pull qwen2.5-coder:7b`. The default for the strategy translator and the code audit when no provider is picked."
     temperature: 0.1
 
-  - name: ollama-small
-    base_url: http://localhost:11434/v1
-    model: llama3.2:3b
+  - name: groq
+    base_url: https://api.groq.com/openai/v1
+    model: openai/gpt-oss-120b
+    api_key_var: GROQ_API_KEY
     free: true
-    note: "Local and smaller. Use if the 7b model is slow on this machine."
+    max_tokens: 4096
+    note: "Hosted, free: 1,000 requests and 200,000 tokens a day, 8,000 tokens a minute (research 123). Turn on Zero Data Retention in its console and set EULERLAB_ASSISTANT_ZDR=1. Paid Developer plan raises the limits."
     temperature: 0.1
-
-  - name: openrouter-free
-    base_url: https://openrouter.ai/api/v1
-    model: meta-llama/llama-3.3-70b-instruct:free
-    api_key_var: OPENROUTER_API_KEY
-    free: true
-    note: "Hosted. Models with a `:free` suffix are rate-limited, not unlimited. Sends your prompt to a third party."
 
   - name: openrouter-private
     base_url: https://openrouter.ai/api/v1
     model: apodex/apodex-1.1-mini:free
     api_key_var: OPENROUTER_API_KEY
     free: true
-    note: "Hosted, free, used by the assistant. Every request is restricted to zero-retention endpoints (ADR-064). 50 requests a day without credits."
+    note: "Hosted, free, used by the assistant. The model is picked from OpenRouter's live zero-retention free list (ADR-080). 50 requests a day; 1,000 a day after a one-time $10 credit purchase (research 123)."
     temperature: 0.1
-
-  - name: groq
-    base_url: https://api.groq.com/openai/v1
-    model: llama-3.3-70b-versatile
-    api_key_var: GROQ_API_KEY
-    free: true
-    note: "Hosted, free tier with per-minute limits. Sends your prompt to a third party. Keeps nothing by default; turn on Zero Data Retention in its console (research 073)."
-
-  - name: openai
-    base_url: https://api.openai.com/v1
-    model: gpt-4o-mini
-    api_key_var: OPENAI_API_KEY
-    free: false
-    note: "Paid. Listed so the interface is complete, not because anything needs it."

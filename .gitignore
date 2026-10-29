@@ -39,3 +39,6 @@ config/contract_notes.json
 # the large-file guard is right to refuse it. `docs/RESEARCH/papers/fetch.sh`
 # is the artifact; the PDFs are its output.
 docs/RESEARCH/papers/*.pdf
+# Paper-agent drafts wait here for the operator (ADR-084). Approved drafts
+# move to hypotheses/ and research/papers/, which are committed.
+research/agent_drafts/
