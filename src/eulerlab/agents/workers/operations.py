@@ -100,9 +100,11 @@ def run(ctx: Context) -> WorkerResult:
 
     deadlines = {str(k): float(v) for k, v in (ctx.options.get("deadlines") or {}).items()}
     warn_share = float(ctx.options.get("warn_share", 0.8))
+    ctx.step("Reading 60 days of job timings against their deadlines")
     rows = timings.read(since=ctx.now - timedelta(days=60))
     report, items = step_report(rows, deadlines, warn_share)
 
+    ctx.step("Checking the cost model against contract notes, then each deployment")
     notes = cost_check.check_contract_notes()
     items.append(
         Item(

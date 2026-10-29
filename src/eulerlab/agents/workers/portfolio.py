@@ -95,6 +95,7 @@ def run(ctx: Context) -> WorkerResult:
     from eulerlab.validation import verdicts
 
     items: list[Item] = []
+    ctx.step("Reading the gate's verdicts")
     promoted = verdicts.promoted()
     sized: dict[str, float] = {}
     if not promoted:
@@ -131,6 +132,7 @@ def run(ctx: Context) -> WorkerResult:
                 )
             )
 
+    ctx.step("Comparing each active book with its backtest")
     drift: list[dict[str, Any]] = []
     for d in deployments.all_deployments():
         if d.status != "active":

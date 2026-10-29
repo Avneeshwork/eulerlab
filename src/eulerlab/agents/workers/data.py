@@ -49,9 +49,11 @@ def _jobs_text() -> str:
 
 def run(ctx: Context) -> WorkerResult:
     items: list[Item] = []
+    ctx.step("Reading data coverage and grading every dataset")
     rows = _coverage_rows()
     grades = contract.grade_all(coverage=lambda: rows)
     contract.save(grades)
+    ctx.step(f"Graded {len(grades)} datasets; checking freshness and last night's jobs")
 
     for g in grades:
         if g.usable and g.grade in "AB":

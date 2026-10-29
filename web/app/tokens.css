@@ -1,88 +1,91 @@
-/* Design tokens for the terminal.
+/* Design tokens for the terminal (ADR-090).
  *
- * The look follows OpenAlgo (github.com/marketcalls/openalgo, frontend/src/
- * index.css): shadcn/ui's zinc neutrals, a near-black primary, white cards on
- * a white page separated by hairline borders, an 8px radius and the system
- * font. The earlier Robinhood-derived palette (docs/RESEARCH/018) is retired.
+ * Four solid colours and nothing else, on slate neutrals:
  *
- * One rule is kept from it: green never means "performed well". Green means
- * "cleared the noise bar", so --clear is spent only on evidence.
+ *   blue   --brand   actions, the page you are on, links, "your" series
+ *   green  --up      a rise, and "cleared the noise bar" (--clear)
+ *   red    --down    a fall, a refusal, a failure (--fail)
+ *   amber  --caveat  a warning: assumed, unrecorded, stale
  *
- * Scoped to .terminal, not :root.
+ * Every chart series, heatmap band and chip takes one of these four, or a tint
+ * of one. A fifth hue anywhere is a bug. Green still never means "performed
+ * well" on its own; on a result it means "cleared the noise bar".
+ *
+ * Shapes are rounded: 10px on controls, 14px on cards, 18px on large
+ * surfaces, pills for toggles. Scoped to .terminal, not :root.
  */
 
 .terminal {
-  /* --- ground and ink ---------------------------------------------------
-     Not pure white and not pure grey. Both neutrals carry a faint yellow-green
-     cast pulled from the accent, which is what makes a neutral read as chosen
-     rather than inherited. */
-  --ground: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --surface-3: #e4e4e7;
-  --sunken: #fafafa;
+  /* --- the four colours ------------------------------------------------- */
+  --brand: #2563eb;
+  --brand-2: #1d4ed8;     /* hover / pressed */
+  --brand-wash: #e8efff;
+  --brand-ink: #ffffff;   /* text on a brand fill */
 
-  --ink: #09090b;
-  --ink-2: #3f3f46;
-  --ink-3: #71717a;
-  --ink-4: #a1a1aa;
-
-  --rule: #e4e4e7;
-  --rule-2: #d4d4d8;
-  --rule-strong: #09090b;
-
-  /* --- the rationed accent ---------------------------------------------
-     One electric yellow-green, in the family of Robinhood's Robin Neon but not
-     its value (theirs is not published; the circulating #CCFF00 is a
-     third-party reconstruction). Reserved for one meaning. */
-  --neon: #18181b;
-  --neon-deep: #15803d;   /* the accent at text contrast on light ground */
-  --neon-wash: #dcfce7;
-
-  /* --- semantic, and deliberately separate from the accent --------------- */
-  --clear: var(--neon-deep);      /* cleared the noise bar */
-  --clear-wash: var(--neon-wash);
-  --caveat: #a16207;              /* assumed constant, unrecorded search */
-  --caveat-wash: #fef9c3;
-  --fail: #dc2626;                /* below the bar, rejected, negative */
-  --fail-wash: #fee2e2;
-
-  /* Profit and loss, OpenAlgo's --profit and --loss. Used for the sign of a
-     number only; evidence keeps --clear. */
   --up: #16a34a;
+  --up-wash: #e3f6ea;
   --down: #dc2626;
+  --down-wash: #fde8e8;
+  --caveat: #d97706;
+  --caveat-wash: #fdf1dc;
 
-  /* Names later components used without ever defining. Each fell back to
-     nothing — --muted strokes and text were invisible, --line borders absent —
-     so they are aliases now rather than a second palette. */
+  /* --- neutrals (slate) ------------------------------------------------- */
+  --ground: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --surface-3: #e2e7ef;
+  --sunken: #f8fafc;
+
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --ink-3: #64748b;
+  --ink-4: #94a3b8;
+
+  --rule: #e2e8f0;
+  --rule-2: #cbd5e1;
+  --rule-strong: #0f172a;
+
+  /* --- meanings, spelled in the four colours ----------------------------- */
+  --clear: var(--up);
+  --clear-wash: var(--up-wash);
+  --fail: var(--down);
+  --fail-wash: var(--down-wash);
+  /* The old accent names now point at the brand, so every component that
+     used them picks up blue without being edited. */
+  --neon: var(--brand);
+  --neon-deep: var(--up);
+  --neon-wash: var(--up-wash);
+
+  /* Categorical series: the four colours, then tints of them. */
+  --series-1: var(--brand);
+  --series-2: var(--caveat);
+  --series-3: var(--up);
+  --series-4: var(--down);
+  --series-5: #93b4f5;    /* brand, light */
+  --series-6: #f3c57f;    /* amber, light */
+  --series-7: #86d3a2;    /* green, light */
+  --series-8: var(--ink-4);
+
+  /* Aliases older components used. */
   --muted: var(--ink-3);
   --fg: var(--ink);
   --line: var(--rule);
   --line-faint: var(--rule);
 
-  /* --- type -------------------------------------------------------------
-     Robinhood pairs one precise sans with one warm serif (Phonic + Martina
-     Plantijn today, Capsule + Nib before). Neither is licensable, so:
-     Newsreader for the serif — a Dutch old-style with real ink traps, the
-     nearest free relative of Plantijn — and Archivo for the sans. Mono is a
-     functional need in a column of numbers, not a stylistic one. */
-  --serif: var(--ui);
+  /* --- type ------------------------------------------------------------- */
   --ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --serif: var(--ui);
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* Type scale, 1.25 from a 14px base, with a hero step that breaks the ramp
-     because the hero number is supposed to break it. */
-  --t-micro: 11px;
-  --t-small: 12.5px;
+  --t-micro: 11.5px;
+  --t-small: 13px;
   --t-body: 14px;
   --t-lead: 15px;
   --t-head: 18px;
   --t-title: 26px;
   --t-hero: 36px;
 
-  /* --- space and shape --------------------------------------------------
-     "Intentional modular". One ramp, used everywhere, so spacing is a decision
-     made once rather than per-element. */
+  /* --- space and shape -------------------------------------------------- */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -92,106 +95,97 @@
   --s7: 48px;
   --s8: 72px;
 
-  --r-sm: 6px;
-  --r-md: 8px;
-  --r-lg: 12px;
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
   --r-pill: 999px;
 
-  /* Control geometry.
-     ----------------
-     One height, so a filter row lines up. Measured before this existed, a
-     single row held five: a 34px select beside a 37px chip beside a 38px
-     button beside a 47px search field beside a 32px icon. Nothing was broken
-     and every edge was a few pixels off every other edge, which is most of
-     what reads as unfinished.
-
-     Radius is chosen by what a control *does*, not by which component wrote
-     it. A pill is a toggle — press it and it stays pressed. A rounded rect
-     is an action or a field. Two shapes, one rule, so shape carries meaning
-     instead of recording who styled it last. */
-  --control-h: 36px;
+  /* One control height, so a filter row lines up. A pill is a toggle; a
+     rounded rectangle is an action or a field. */
+  --control-h: 38px;
   --control-h-sm: 30px;
   --control-pad-x: var(--s3);
   --control-radius: var(--r-sm);
-  --control-radius-toggle: var(--r-sm);
+  --control-radius-toggle: var(--r-pill);
 
-  --shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow-lift: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+  --shadow-lift: 0 12px 28px -10px rgb(15 23 42 / 0.18), 0 4px 10px -4px rgb(15 23 42 / 0.08);
 
-  --measure: 68ch;      /* running text never wider than this */
+  --measure: 68ch;
   --page: 1400px;
 }
 
-/* Dark. Guarded so an explicit light choice beats a dark OS. Only tokens are
-   redefined here — no component ever declares a colour inside this block, which
-   is the bug that renders one theme's text on the other theme's ground. */
+/* Dark. Only tokens are redefined here — no component declares a colour
+   inside this block. Guarded so an explicit light choice beats a dark OS. */
 @media (prefers-color-scheme: dark) {
   .terminal:not([data-theme='light']) {
-    --ground: #09090b;
-    --surface: #09090b;
-    --surface-2: #18181b;
-    --surface-3: #27272a;
-    --sunken: #0c0c0e;
+    --brand: #5b8cff;
+    --brand-2: #7aa2ff;
+    --brand-wash: #17254a;
+    --brand-ink: #0b1020;
+    --up: #34c76f;
+    --up-wash: #0f2a1b;
+    --down: #f26464;
+    --down-wash: #321417;
+    --caveat: #f5a524;
+    --caveat-wash: #33240b;
 
-    --ink: #fafafa;
-    --ink-2: #d4d4d8;
-    --ink-3: #a1a1aa;
-    --ink-4: #71717a;
+    --ground: #0b1020;
+    --surface: #121a2e;
+    --surface-2: #1a2440;
+    --surface-3: #24304f;
+    --sunken: #0e1527;
 
-    --rule: #27272a;
-    --rule-2: #3f3f46;
-    --rule-strong: #fafafa;
+    --ink: #eef2fa;
+    --ink-2: #c5cee0;
+    --ink-3: #8c97b0;
+    --ink-4: #5d6884;
 
-    /* The accent is unchanged: an electric yellow-green is legible on both
-       grounds, which is most of why the reference chose one. */
-    --neon-deep: #4ade80;
-    --neon-wash: #052e16;
+    --rule: #222d48;
+    --rule-2: #2f3c5e;
+    --rule-strong: #eef2fa;
 
-    --clear: var(--neon-deep);
-    --clear-wash: var(--neon-wash);
-    --caveat: #facc15;
-    --caveat-wash: #2a2205;
-    --fail: #f87171;
-    --fail-wash: #2a0f0f;
-    --up: #4ade80;
-    --down: #f87171;
-    --neon: #fafafa;
+    --series-5: #3b5fae;
+    --series-6: #9c6c1f;
+    --series-7: #23824b;
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
-    --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 44px -18px rgba(0, 0, 0, 0.8);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-lift: 0 16px 40px -16px rgb(0 0 0 / 0.75);
   }
 }
 
-/* The explicit toggle, so it wins in the other direction too. */
 .terminal[data-theme='dark'] {
-  --ground: #09090b;
-  --surface: #09090b;
-  --surface-2: #18181b;
-  --surface-3: #27272a;
-  --sunken: #0c0c0e;
+  --brand: #5b8cff;
+  --brand-2: #7aa2ff;
+  --brand-wash: #17254a;
+  --brand-ink: #0b1020;
+  --up: #34c76f;
+  --up-wash: #0f2a1b;
+  --down: #f26464;
+  --down-wash: #321417;
+  --caveat: #f5a524;
+  --caveat-wash: #33240b;
 
-  --ink: #fafafa;
-  --ink-2: #d4d4d8;
-  --ink-3: #a1a1aa;
-  --ink-4: #71717a;
+  --ground: #0b1020;
+  --surface: #121a2e;
+  --surface-2: #1a2440;
+  --surface-3: #24304f;
+  --sunken: #0e1527;
 
-  --rule: #27272a;
-  --rule-2: #3f3f46;
-  --rule-strong: #fafafa;
+  --ink: #eef2fa;
+  --ink-2: #c5cee0;
+  --ink-3: #8c97b0;
+  --ink-4: #5d6884;
 
-  --neon-deep: #4ade80;
-  --neon-wash: #052e16;
+  --rule: #222d48;
+  --rule-2: #2f3c5e;
+  --rule-strong: #eef2fa;
 
-  --clear: var(--neon-deep);
-  --clear-wash: var(--neon-wash);
-  --caveat: #facc15;
-  --caveat-wash: #2a2205;
-  --fail: #f87171;
-  --fail-wash: #2a0f0f;
-  --up: #4ade80;
-  --down: #f87171;
-  --neon: #fafafa;
+  --series-5: #3b5fae;
+  --series-6: #9c6c1f;
+  --series-7: #23824b;
 
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.7);
-  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 44px -18px rgba(0, 0, 0, 0.8);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 16px 40px -16px rgb(0 0 0 / 0.75);
 }

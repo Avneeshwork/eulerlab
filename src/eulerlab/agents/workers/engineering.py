@@ -91,6 +91,7 @@ def _branch() -> tuple[list[str], bool]:
 
 
 def run(ctx: Context) -> WorkerResult:
+    ctx.step("Reviewing the files changed on this branch")
     try:
         files, docs_ok = _branch()
     except Exception as exc:  # not a git checkout, or git missing

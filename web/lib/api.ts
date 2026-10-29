@@ -2327,8 +2327,34 @@ export type DeskTicket = {
   blocked: boolean;
 };
 
+export type AgentStep = { at: string; kind: string; text: string };
+
+/** One agent's newest run as it stands: `/api/agents/activity` (ADR-091). */
+export type AgentActivity = {
+  name: string;
+  title: string;
+  job: string;
+  enabled: boolean;
+  uses_model: boolean;
+  cli_only: boolean;
+  state: 'idle' | 'running' | 'stopped' | 'ok' | 'skipped' | 'over_budget' | 'refused' | 'failed';
+  run_id: string;
+  started: string;
+  summary: string;
+  now: string;
+  steps: AgentStep[];
+};
+
+export type ActivityResponse = {
+  ok: boolean;
+  running: number;
+  agents: AgentActivity[];
+  feed: (AgentStep & { agent: string; title: string })[];
+};
+
 export const agentsApi = {
   list: () => get<AgentsResponse>('/api/agents'),
+  activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
   inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
   decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
     post<{ ok: boolean; error?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, { decision, note }),

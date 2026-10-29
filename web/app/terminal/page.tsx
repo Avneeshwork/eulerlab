@@ -75,7 +75,7 @@ import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
-import { api } from '@/lib/api';
+import { agentsApi, api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
 type PageId =
@@ -217,6 +217,8 @@ export default function TerminalPage() {
   const [reportId, setReportId] = useState('');
   const [configuring, setConfiguring] = useState<FleetStrategy[] | null>(null);
   const [pendingRun, setPendingRun] = useState<string[]>([]);
+  // How many agents are working, for the dot on the AI link (ADR-091).
+  const [agentsBusy, setAgentsBusy] = useState(0);
 
   const workspace = '';
 
@@ -262,6 +264,17 @@ export default function TerminalPage() {
 
   useEffect(refresh, [refresh]);
 
+  useEffect(() => {
+    const read = () =>
+      agentsApi
+        .activity(1)
+        .then((r) => setAgentsBusy(r.running))
+        .catch(() => setAgentsBusy(0));
+    read();
+    const timer = window.setInterval(read, 20000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   // Null means "follow the OS". Only an explicit choice stamps the attribute.
   useEffect(() => {
     const root = document.querySelector('.terminal');
@@ -302,6 +315,7 @@ export default function TerminalPage() {
     <>
       <header className="tbar">
         <button className="tbrand" type="button" onClick={() => setPage('dashboard')}>
+          <span className="tbrand-mark" aria-hidden="true">E</span>
           <span className="tbrand-name">EulerLab</span>
         </button>
         <nav className="tnav" aria-label="Sections">
@@ -317,6 +331,9 @@ export default function TerminalPage() {
               >
                 <Icon size={16} strokeWidth={2} aria-hidden="true" />
                 <span className="tnav-label">{item.label}</span>
+                {item.id === 'agents' && agentsBusy > 0 && (
+                  <span className="tnav-dot" title={`${agentsBusy} agent${agentsBusy === 1 ? '' : 's'} working`} />
+                )}
               </button>
             );
           })}

@@ -71,6 +71,7 @@ def run(ctx: Context) -> WorkerResult:
             msg = f"knowledge has used its {ctx.agent.daily_requests} requests for today"
             raise BudgetSpent(msg)
         ctx.requests += 1
+        ctx.step(f"Asking {ctx.model} (request {ctx.requests})", "model")
         return chat._post(provider, payload)
 
     history = ctx.args.get("history") or []
@@ -81,6 +82,7 @@ def run(ctx: Context) -> WorkerResult:
     answer = chat.ask(asked, post=counted, chosen=chosen, system=system)
     evidence = list(answer.evidence)
     used = list(answer.used)
+    ctx.step(f"Checking every figure in the answer against what {len(used)} tool calls returned")
     found = grounding.check(answer.text, evidence, question)
     first = answer.text
     retried = False

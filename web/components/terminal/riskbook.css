@@ -2,51 +2,24 @@
    declared here once, for light and dark, and used by role. */
 
 .rk {
-  --rk-1: #2a78d6;
-  --rk-2: #eb6834;
-  --rk-3: #1baf7a;
-  --rk-4: #eda100;
-  --rk-5: #e87ba4;
-  --rk-loss: #e34948;
-  --rk-quiet: #898781;
-  --rk-warn: #fab219;
-  --rk-crit: #d03b3b;
-  --rk-heat-1: #cde2fb;
-  --rk-heat-2: #86b6ef;
-  --rk-heat-3: #3987e5;
-  --rk-heat-4: #184f95;
-  --rk-heat-ink-hi: #ffffff;
+  /* Chart roles in the four colours and their tints (ADR-090). */
+  --rk-1: var(--series-1);
+  --rk-2: var(--series-2);
+  --rk-3: var(--series-3);
+  --rk-4: var(--series-5);
+  --rk-5: var(--series-6);
+  --rk-loss: var(--down);
+  --rk-quiet: var(--ink-4);
+  --rk-warn: var(--caveat);
+  --rk-crit: var(--down);
+  --rk-heat-1: color-mix(in srgb, var(--brand) 14%, var(--surface));
+  --rk-heat-2: color-mix(in srgb, var(--brand) 38%, var(--surface));
+  --rk-heat-3: color-mix(in srgb, var(--brand) 70%, var(--surface));
+  --rk-heat-4: var(--brand);
+  --rk-heat-ink-hi: var(--brand-ink);
   display: flex;
   flex-direction: column;
   gap: var(--s4);
-}
-@media (prefers-color-scheme: dark) {
-  .terminal:not([data-theme='light']) .rk {
-    --rk-1: #3987e5;
-    --rk-2: #d95926;
-    --rk-3: #199e70;
-    --rk-4: #c98500;
-    --rk-5: #d55181;
-    --rk-loss: #e66767;
-    --rk-heat-1: #0d366b;
-    --rk-heat-2: #1c5cab;
-    --rk-heat-3: #2a78d6;
-    --rk-heat-4: #5598e7;
-    --rk-heat-ink-hi: #09090b;
-  }
-}
-.terminal[data-theme='dark'] .rk {
-  --rk-1: #3987e5;
-  --rk-2: #d95926;
-  --rk-3: #199e70;
-  --rk-4: #c98500;
-  --rk-5: #d55181;
-  --rk-loss: #e66767;
-  --rk-heat-1: #0d366b;
-  --rk-heat-2: #1c5cab;
-  --rk-heat-3: #2a78d6;
-  --rk-heat-4: #5598e7;
-  --rk-heat-ink-hi: #09090b;
 }
 
 .rk-note { font-size: 13px; line-height: 1.5; color: var(--ink-2); padding: 10px 14px; border: 1px dashed var(--rule-2); border-radius: var(--r-md); }
@@ -85,7 +58,7 @@
 .rk-pair > div { display: flex; align-items: center; gap: 8px; }
 .rk-pair span { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
-.rk-stack { display: flex; gap: 2px; height: 18px; border-radius: 4px; overflow: hidden; }
+.rk-stack { display: flex; gap: 2px; height: 18px; border-radius: var(--r-xs); overflow: hidden; }
 .rk-list { display: flex; flex-direction: column; gap: 8px; margin-top: var(--s4); font-size: 13px; }
 .rk-list > div { display: flex; align-items: center; gap: 8px; }
 .rk-list .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -103,7 +76,7 @@
 .rk-table tr.pick:hover td, .rk-table tr[aria-selected='true'] td { background: var(--surface-2); }
 .rk-table td.name { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 
-.rk-meter { height: 8px; min-width: 120px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.rk-meter { height: 8px; min-width: 120px; border-radius: var(--r-xs); background: var(--surface-2); overflow: hidden; }
 .rk-meter > div { height: 8px; background: var(--rk-quiet); }
 .rk-meter[data-state='near'] > div { background: var(--rk-warn); }
 .rk-meter[data-state='over'] > div { background: var(--rk-crit); }
@@ -118,10 +91,10 @@
 .rk-heat { display: grid; gap: 2px; align-items: stretch; }
 .rk-heat .axis-label { display: flex; align-items: center; font-size: 12px; color: var(--ink-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rk-heat .axis-label.top { justify-content: center; }
-.rk-cell { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: 4px; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--surface-2); }
+.rk-cell { display: flex; align-items: center; justify-content: center; height: 44px; border-radius: var(--r-xs); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); background: var(--surface-2); }
 .rk-cell[data-band='1'] { background: var(--rk-heat-1); }
 .rk-cell[data-band='2'] { background: var(--rk-heat-2); }
-.rk-cell[data-band='3'] { background: var(--rk-heat-3); color: #ffffff; }
+.rk-cell[data-band='3'] { background: var(--rk-heat-3); color: var(--rk-heat-ink-hi); }
 .rk-cell[data-band='4'] { background: var(--rk-heat-4); color: var(--rk-heat-ink-hi); font-weight: 600; }
 .rk-cell[data-band='0'] { color: var(--ink-3); }
 

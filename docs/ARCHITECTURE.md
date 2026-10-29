@@ -1110,6 +1110,23 @@ study, MCX gold and the option structures (each a different engine).
 
 # Part V — The workbench
 
+## 7.0 The look (ADR-090)
+
+Four colours on slate neutrals, defined once in `web/app/tokens.css`:
+
+| Colour | Token | Means |
+|---|---|---|
+| Blue | `--brand` | an action, the page you are on, the selected thing |
+| Green | `--up`, `--clear` | a rise; on a result, cleared the noise bar |
+| Red | `--down`, `--fail` | a fall, a refusal, a failure |
+| Amber | `--caveat` | a warning: assumed, unrecorded, stale |
+
+Charts that need more series use `--series-1..8` (the four, then a light tint
+of three, then grey). Corners: `--r-sm` 10px on controls, `--r-md` 14px on
+panels, `--r-lg` 18px on cards, pills on toggles. `web/app/terminal/theme.css`
+loads after `terminal.css` and `shell.css` and holds the whole look. Dark mode
+redefines tokens only.
+
 ## 7.1 The strategy builder
 
 Tools → Strategy Builder (`web/components/terminal/StrategyBuilder.tsx`,
@@ -2227,9 +2244,27 @@ day's runs; a run that reaches the budget stops with `over_budget`.
 **Memory.** The market brief reads market context over HTTP from the running
 API rather than loading a second copy of the 1.85 GB panel.
 
-**Workbench.** The AI tab: inbox and agents (switch, budget, brief, run),
-ask the knowledge agent, research and skeptic runs, the trade desk, the
-market brief, data quality and the agents' log.
+**Workbench.** The AI tab opens on **Live**: a card per agent with its state
+(working, done, failed, stopped, never run), the step it is on, its last few
+steps and today's model requests, beside a feed of every agent's steps. Then
+the inbox, agents and briefs (switch, budget, brief, run), ask the knowledge
+agent, research and skeptic runs, the market brief, data quality and the
+agents' log. The trade desk is on Live & Risk only.
+
+### What an agent is doing now (ADR-091)
+
+```
+runtime.run ── step("Started …") ─┐
+worker ── ctx.step(…) / ctx.notes.append(…) ─┤──► data/agents/<agent>/<run>/progress.jsonl
+ctx.ask ── "Asking …" / "The model answered" ─┤        {at, kind: start|step|note|model|end, text}
+runtime.run ── step("Finished: status · summary") ─┘
+                                   │
+         GET /api/agents/activity ─┴─► newest run per agent + all steps newest first
+```
+
+A run with no `output.json` is *running* while its last step is under 15
+minutes old (or the web server started it), and *stopped* after that. Steps
+carry no model text, only what the code chose to say.
 
 ### When a model makes something up (ADR-088)
 

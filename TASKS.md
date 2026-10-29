@@ -3,6 +3,20 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Workbench redesign and live agent activity (2026-10-29)
+
+Operator: "rewamp whole ui to make it simple easy to understand visually appealing with simple design … better solid 3-4 colours max and round corners … for ai agents shows what agent is actually doing." ADR-090, ADR-091.
+Verify: `uv run pytest -q tests/test_agent_activity.py`; `make workbench` → every page; AI → Live while `make agent NAME=data` runs.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4195 | Four colours (blue, green, red, amber) and rounded corners across the terminal; every chart palette mapped onto them | DONE. ADR-090; `web/app/tokens.css`, `web/app/terminal/theme.css` |
+| T-4196 | AI tab shows what each agent is doing now: step trail, live cards, activity feed, dot on the AI link | DONE. ADR-091; `/api/agents/activity` |
+| T-4197 | `make agent` crashed for any agent that returned an item | DONE. HISTORY #34 |
+| T-4198 | API failed to start on a clean install: numpy undeclared | DONE. HISTORY #35 |
+| T-4199 | A slot on Dashboard → Big money for the FII/DII cash flows panel | DONE. `#fii-dii-flows`; filled by the flows work (T-4163) |
+| T-4200 | Merge with the operator's unpushed `ui-revamp` branch | TODO. Not visible from here; may overlap `tokens.css` and `shell.css` |
+
 ## Agent accuracy: the grounding check and agent-eval (2026-10-29)
 
 Operator: "what will be done if model start hallucinating?" then "yes build". Research 126; ADR-088.

@@ -251,6 +251,7 @@ def run(ctx: Context) -> WorkerResult:
     notes: list[str] = []
     from eulerlab.quality import contract
 
+    ctx.step(f"Gathering market context, world markets, events and books for the {mode} brief")
     inputs: dict[str, Any] = {
         "mode": mode,
         "day": day,
@@ -279,6 +280,7 @@ def run(ctx: Context) -> WorkerResult:
             data={"fingerprint": stamp, "mode": mode},
         )
 
+    ctx.step("Writing the brief from the numbers gathered")
     sections = compose(mode, inputs)
     commentary = ""
     if ctx.can_ask():

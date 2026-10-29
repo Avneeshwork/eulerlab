@@ -92,6 +92,9 @@ def run(ctx: Context) -> WorkerResult:
                 f"{card_path.parent.name}: not buildable from the library: {str(exc)[:160]}"
             )
             continue
+        ctx.step(
+            f"Testing {card_path.parent.name}: IC screen first, then a backtest only if it passes"
+        )
         try:
             found = agent_trials.test_card(card_path, allowance=allowance, now=ctx.now)
         except agent_trials.OverAllowance as exc:
