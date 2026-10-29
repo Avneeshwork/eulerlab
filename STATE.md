@@ -33,6 +33,11 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **AI agent network (2026-10-29, ADR-085 to 087):** eight agents on one runtime with budgets, briefs, an inbox
+  and a hash-chained log; none can import the order path, gate, ledger writer, env or a shell. Workbench **AI** tab and
+  Telegram `instruct`/`outlook`/`inbox`. One data quality contract grades 18 datasets (`make data-quality`); backtests refuse a
+  low-grade panel. Trade desk tickets and a version lock on every deployment. Quantpedia sync needs a key (T-4182).
+  No agent has run live with a model yet; launchd jobs not loaded (T-4179).
 - **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
   library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
   `research/agent_drafts/`. `make paper-agent-approve DRAFT=...` moves one into `hypotheses/` as a draft. It never

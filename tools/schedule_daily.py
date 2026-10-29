@@ -140,6 +140,48 @@ JOBS = {
             "of the 19:30 daily run and of market hours. It can also be run by hand."
         ),
     ),
+    "agents-preopen": Job(
+        name="agents-preopen",
+        label="com.eulerlab.agentspreopen",
+        command="cd {repo} && make agents-preopen",
+        hour=8,
+        minute=45,
+        weekdays=WEEKDAYS,
+        log="agents_preopen",
+        what="make agents-preopen, Monday to Friday",
+        why_then=(
+            "08:45 IST is 15 minutes before the pre-open session: the data and operations\n"
+            "agents check last night's run and the market brief goes out before 09:00 (ADR-085)."
+        ),
+    ),
+    "agents-close": Job(
+        name="agents-close",
+        label="com.eulerlab.agentsclose",
+        command="cd {repo} && make agents-close",
+        hour=16,
+        minute=15,
+        weekdays=WEEKDAYS,
+        log="agents_close",
+        what="make agents-close, Monday to Friday",
+        why_then=(
+            "16:15 IST is 45 minutes after the close, once india-live has its first pass:\n"
+            "the after-close brief, book drift and step timings for the day."
+        ),
+    ),
+    "agents-weekly": Job(
+        name="agents-weekly",
+        label="com.eulerlab.agentsweekly",
+        command="cd {repo} && make agents-weekly",
+        hour=7,
+        minute=0,
+        weekdays=(SUNDAY,),
+        log="agents_weekly",
+        what="make agents-weekly, every Sunday",
+        why_then=(
+            "Sunday 07:00 IST, before the 10:00 fundamentals job: the Quantpedia sync, the\n"
+            "knowledge index, a research run on the standing brief and the code review."
+        ),
+    ),
 }
 
 LABEL = JOBS["daily"].label

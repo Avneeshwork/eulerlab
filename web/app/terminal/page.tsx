@@ -17,6 +17,8 @@
  *   Options     the option chain, its analytics and the payoff builder
  *   Live        deployment readiness and the risk limits that stop trading
  *               (was two tabs, Live and Risk, describing one question)
+ *   AI          the agent network: inbox, agents and briefs, ask, market brief,
+ *               data quality, the agents' log (ADR-085)
  *   Tools       the strategy builder, the instrument catalog, the SIP
  *               backtester, data status
  *
@@ -50,9 +52,12 @@ import {
   Hammer,
   PiggyBank,
   BookOpen,
+  Bot,
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
+import { AgentsTab } from '@/components/terminal/AgentsTab';
+import { DeskTab } from '@/components/terminal/DeskTab';
 import { ResearchLibrary } from '@/components/terminal/ResearchLibrary';
 import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
@@ -86,7 +91,8 @@ type PageId =
   | 'sip'
   | 'research'
   | 'report'
-  | 'deployment';
+  | 'deployment'
+  | 'agents';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
 
@@ -96,6 +102,7 @@ const NAV: NavItem[] = [
   { id: 'charts', label: 'Charts', icon: CandlestickChart },
   { id: 'options', label: 'Options', icon: Sigma },
   { id: 'live', label: 'Live & Risk', icon: ShieldCheck },
+  { id: 'agents', label: 'AI', icon: Bot },
   { id: 'tools', label: 'Tools', icon: Wrench },
 ];
 
@@ -163,6 +170,10 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   research: { title: 'Research Library', sub: 'Every paper behind a strategy, and how its strategies did.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
   deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
+  agents: {
+    title: 'AI',
+    sub: 'The agents: what they found, what waits on you, how to steer them, and a box to ask. Nothing here trades.',
+  },
 };
 
 /** The strategy in a deployment id, `{mode}-{strategy}-{YYYY-MM-DD}-{hash}` (deploy/deployments.py). */
@@ -172,7 +183,7 @@ function strategyOfDeployment(id: string): string {
 
 const PAGE_IDS = Object.keys(TITLES) as PageId[];
 
-const LIVE_VIEWS = ['overview', 'performance', 'stress', 'deploy', 'risk'] as const;
+const LIVE_VIEWS = ['overview', 'performance', 'stress', 'deploy', 'desk', 'risk'] as const;
 type LiveView = (typeof LIVE_VIEWS)[number];
 
 /** `#strategies`, or `#report/<strategy id>` for one strategy's report. */
@@ -438,6 +449,7 @@ export default function TerminalPage() {
             </div>
           ))}
 
+        {page === 'agents' && <AgentsTab />}
         {page === 'charts' && <ChartTab />}
         {page === 'options' && <OptionsTab />}
 
@@ -461,6 +473,9 @@ export default function TerminalPage() {
               >
                 Deployment
               </button>
+              <button type="button" role="tab" aria-selected={liveView === 'desk'} onClick={() => setLiveView('desk')}>
+                Trade desk
+              </button>
               <button
                 type="button"
                 role="tab"
@@ -479,6 +494,8 @@ export default function TerminalPage() {
                 onDeploy={setDeploying}
                 onReport={(id) => setPage('deployment', id)}
               />
+            ) : liveView === 'desk' ? (
+              <DeskTab />
             ) : (
               <RiskTab />
             )}

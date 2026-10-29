@@ -2232,3 +2232,138 @@ export const kiteLogin = (pasted: string) =>
     '/api/kite/login',
     { pasted },
   );
+
+/* ---------------- agent network (ADR-085) ---------------- */
+
+export type AgentRow = {
+  name: string;
+  title: string;
+  job: string;
+  enabled: boolean;
+  switched: 'definition' | 'operator';
+  schedule: string;
+  uses_model: boolean;
+  daily_requests: number;
+  ceiling: number;
+  used_today: number;
+  never: string[];
+  running: boolean;
+  brief: string;
+  latest: {
+    run_id: string;
+    status: string;
+    summary: string;
+    started: string;
+    items: number;
+    model: string;
+  } | null;
+};
+
+export type AgentsResponse = {
+  ok: boolean;
+  agents: AgentRow[];
+  brief_all: string;
+  inbox: number;
+  log_ok: boolean;
+  log_problem: string;
+};
+
+export type AgentItem = {
+  id: string;
+  agent: string;
+  run: string;
+  at: string;
+  kind: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'warn' | 'critical';
+  needs_approval: boolean;
+  ref: string;
+  data: Record<string, unknown>;
+};
+
+export type AgentOutput = {
+  agent: string;
+  run_id: string;
+  started: string;
+  finished: string;
+  status: string;
+  summary: string;
+  items: AgentItem[];
+  briefs: string[];
+  model: string;
+  requests: number;
+  notes: string[];
+  data: Record<string, unknown>;
+};
+
+export type QualityCheck = { name: string; state: 'pass' | 'warn' | 'fail' | 'info'; detail: string };
+export type DatasetGrade = {
+  name: string;
+  grade: 'A' | 'B' | 'C' | 'D';
+  freshness: string;
+  critical: boolean;
+  min_grade: string;
+  usable: boolean;
+  point_in_time: boolean;
+  checks: QualityCheck[];
+};
+
+export type DeskTicket = {
+  id: string;
+  deployment: string;
+  strategy: string;
+  mode: string;
+  rebalance: string;
+  equity: number;
+  sells: { symbol: string; quantity: number; value: number }[];
+  buys: { symbol: string; target_value: number }[];
+  holds: string[];
+  est_cost: number;
+  checks: { name: string; ok: boolean; detail: string }[];
+  reason: string;
+  decision: string;
+  blocked: boolean;
+};
+
+export const agentsApi = {
+  list: () => get<AgentsResponse>('/api/agents'),
+  inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
+  decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, { decision, note }),
+  setting: (name: string, change: { enabled?: boolean; daily_requests?: number }) =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/settings`, change),
+  brief: (name: string, text: string) =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/brief`, { text }),
+  run: (name: string, args: Record<string, string> = {}) =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/run`, { args }),
+  outputs: (name: string, limit = 5) =>
+    get<{ ok: boolean; running: boolean; outputs: AgentOutput[] }>(
+      `/api/agents/${encodeURIComponent(name)}/outputs?limit=${limit}`,
+    ),
+  log: (limit = 60) =>
+    get<{
+      ok: boolean;
+      verified: boolean;
+      problem: string;
+      entries: { seq: number; at: string; kind: string; agent: string; detail: Record<string, unknown> }[];
+    }>(`/api/agents/log?limit=${limit}`),
+  ask: (question: string, history: { role: string; content: string }[] = []) =>
+    post<{ ok: boolean; answer?: string; error?: string; model?: string; requests?: number; notes?: string[] }>(
+      '/api/agents/knowledge/ask',
+      { question, history },
+    ),
+  marketBrief: () =>
+    get<{ ok: boolean; text?: string; mode?: string; at?: string; error?: string }>(
+      '/api/agents/market_brief/latest',
+    ),
+  quality: () =>
+    get<{
+      ok: boolean;
+      grades: DatasetGrade[];
+      held: { dataset: string; path: string; reason: string; at: string; by: string }[];
+    }>('/api/quality'),
+  tickets: () => get<{ ok: boolean; tickets: DeskTicket[]; error?: string }>('/api/desk/tickets'),
+  decideTicket: (id: string, decision: 'approved' | 'rejected', note = '') =>
+    post<{ ok: boolean; error?: string }>(`/api/desk/tickets/${encodeURIComponent(id)}`, { decision, note }),
+};

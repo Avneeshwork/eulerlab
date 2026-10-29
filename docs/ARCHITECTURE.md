@@ -2067,6 +2067,9 @@ strategy at a stated capital, sized as equal amounts of today's names (A-060).
 | `com.eulerlab.daily` | 19:30 every day | `tools/daily_guard.sh` (`make daily`, and a message if it fails) |
 | `com.eulerlab.fundamentals` | 10:00 on Sunday | `make fundamentals-update` |
 | `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
+| `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
+| `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, after-close brief) |
+| `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge index, research, code review) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
@@ -2183,3 +2186,90 @@ out with the reason. The pick is kept in the browser.
 **What the operator sees.** The host and model in the header, and under each
 answer the tools that were sent with their sizes. `GET /api/assistant/status`
 gives the reason when it is off and never calls the provider.
+
+## The agent network (ADR-085)
+
+Eight agents on one runtime, `src/eulerlab/agents/`. Each is a YAML file in
+`config/agents/` (job, worker module, schedule, daily model budget, what it
+may never do) and a worker with one `run(ctx)` function.
+
+```
+brief (AI page, make agent-brief, Telegram instruct) ─┐
+definition + operator switches (narrow only) ─────┤
+                                                  ▼
+                       runtime.run ── counted model (assistant locks: approved hosts, ZDR)
+                                  │
+            data/agents/<agent>/<run>/output.json  +  one line in the hash-chained log
+                                  │
+                 items that need you ──► inbox ──► approve / dismiss (a record only)
+```
+
+| Agent | Reads | Hands on |
+|---|---|---|
+| data | data quality grades, coverage, feed timings, launchd results | alerts, rerun proposals, answers to data requests |
+| knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia) | answers with sources |
+| market_brief | the running API's market context, world prices, the day's events, the books | a pre-open or after-close brief; Telegram |
+| research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads |
+| skeptic | a stored backtest's equity curve | attacks: best year, best days, stress windows (A-067), t-stat, costs |
+| engineering | the branch's changed files | review findings: operator-owned files, missing docs or tests, boundary breaks |
+| portfolio | promoted strategies, deployed books | inverse-volatility weights (capped), drift, retirement proposals |
+| operations | step timings against deadlines, contract notes, deployment halts | latency and failure alerts |
+
+**What no agent can do.** `agents/boundaries.py` reads every agent module's
+imports and a test fails on the order path, the gate, the trial ledger's
+writer, the validation battery, `env`, the deployment runners or `subprocess`.
+Reruns go through `agents/jobs.py`, an allowlist of the feed's own idempotent
+steps. A brief is text; it cannot raise a budget or switch off a check.
+
+**Budgets.** `log.requests_on(agent, IST day)` sums the model requests of the
+day's runs; a run that reaches the budget stops with `over_budget`.
+
+**Memory.** The market brief reads market context over HTTP from the running
+API rather than loading a second copy of the 1.85 GB panel.
+
+**Workbench.** The AI tab: inbox and agents (switch, budget, brief, run),
+ask the knowledge agent, research and skeptic runs, the trade desk, the
+market brief, data quality and the agents' log.
+
+## The data quality contract (ADR-086)
+
+`config/data_sources.yaml` registers every dataset. `make data-quality` grades
+each one:
+
+| Check | Fails when |
+|---|---|
+| registered | the dataset is not in the register |
+| provenance | publisher, address or licence is missing; `unreviewed` licence warns |
+| fingerprint | a landed file has no SHA-256 or no knowledge time |
+| sense | duplicates, empty files, calendar gaps (`quality/manifest_checks.py`) |
+| quarantine | one of its files is held |
+| freshness | reported beside the grade, not in it |
+
+A = all pass; B = warnings only; C = one failure; D = more, or nothing landed.
+A derived table takes the worst grade of what it is built from, and a source
+that cannot date its values (`point_in_time: false`) is B at best.
+Quarantine is an append-only list (`data/quality/quarantine.jsonl`); the raw
+file is never moved. The panel build skips held files and holds any file whose
+SHA-256 no longer matches its manifest. `make backtest` refuses a price panel
+below its minimum grade unless `ALLOW_LOW=1`. Optimisation sweeps are refused
+outside the grid written on their card (`research/grid_rule.py`).
+
+## The trade desk and the version lock (ADR-087)
+
+One ticket per active deployment (`desk.py`): sells and buys at the next
+rebalance, estimated cost at 0.25% a round trip (A-068), the reason, and
+pre-trade checks (kill switch, data grade, version lock, position size, order
+rate). A blocked ticket cannot be approved. `deploy/version_lock.py`
+fingerprints a strategy's own source on its first run. Paper books whose code
+changed trade on with a warning; a live book stops, and also stops unless
+that day's ticket is approved. `make relock DEPLOYMENT=... NOTE=...` accepts
+reviewed code.
+
+## Quantpedia (research 125)
+
+`make quantpedia-sync` lands Quantpedia's strategy list and up to 50 new
+strategy details a run under `data/landing/quantpedia/<day>/`, with a SHA-256
+manifest; nothing landed is fetched again. Needs `QUANTPEDIA_USERNAME` and
+`QUANTPEDIA_API_KEY` in `.env`. Their Sharpe ratios are their own, shown as
+prior evidence only.
+
