@@ -570,6 +570,16 @@ export type DeploymentState = {
   next_rebalance?: string;
   intended?: { wanted?: number; affordable?: number; names?: string[]; cut?: string[]; error?: string };
   warnings?: string[];
+  refused_reducing?: number;
+  /** The loss limits as the last run saw them (ADR-092). Shares, not percent. */
+  loss_limit?: {
+    drawdown: number;
+    worst: number;
+    reduce_at: number | null;
+    halt_at: number | null;
+    reducing: boolean;
+    action: '' | 'reducing' | 'halted';
+  };
 };
 
 /** One strategy trading forward with its own money (paper only for now). */
@@ -585,6 +595,9 @@ export type Deployment = {
   slippage_bps: number;
   running: string;
   state: DeploymentState;
+  reducing: { from: string; to: string | null; why: string; by: string }[];
+  reducing_now: boolean;
+  limits: { reduce_at: number | null; halt_at: number | null };
 };
 
 export type DeployPreview = {
@@ -1850,6 +1863,13 @@ export const api = {
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/run`, {}),
   stopDeployment: (id: string) =>
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/stop`, {}),
+  reduceOnly: (id: string, on: boolean) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/reduce`, { on }),
+  deploymentLimits: (id: string, reduce_at: number | null, halt_at: number | null) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/limits`, {
+      reduce_at,
+      halt_at,
+    }),
   deploymentFlow: (id: string, action: 'add' | 'withdraw', amount: number) =>
     post<{ ok: boolean; error?: string; flow?: { amount: number; last_decided: string; entered_at: string } }>(
       `/api/deployments/${encodeURIComponent(id)}/flow`,

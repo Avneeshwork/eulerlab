@@ -33,6 +33,8 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Loss limits that act (2026-10-29, ADR-092):** a paper book goes reduce-only (sells only) at a 10% drawdown and halts at 20%
+  (`config/loss_limits.yaml`, defaults not yet chosen by you); Reduce only / Resume buying on each card.
 - **Workbench redesign (2026-10-29, ADR-090, 091):** four colours (blue, green, red, amber), rounded corners, one look file
   (`web/app/terminal/theme.css`). AI tab opens on Live: what each agent is doing now, step by step. `make agent` works again (HISTORY #34).
 - **AI agent network (2026-10-29, ADR-085 to 087):** eight agents on one runtime with budgets, briefs, an inbox

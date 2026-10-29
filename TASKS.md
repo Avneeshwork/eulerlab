@@ -3,6 +3,19 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Loss limits that act (2026-10-29)
+
+Operator: "finally implement new thing which a trader need." Chosen from research 079's gaps that matter now: a reduce-only state and a drawdown rule that acts. ADR-092.
+Verify: `uv run pytest -q tests/test_loss_limits.py`; Live & Risk → Deployment → a paper card's Loss limits row.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4201 | Reduce-only windows on a deployment; buys refused inside them on every replay | DONE. `deploy/loss_limits.py`, `ForwardExecutor` |
+| T-4202 | Drawdown levels that act: reduce-only at one, halt at the other; defaults in `config/loss_limits.yaml` | DONE. A-071 |
+| T-4203 | Reduce only / Resume buying and the levels on each paper card; Telegram line when a book goes reduce-only | DONE |
+| T-4204 | Reduce-only on the overnight, intraday and study books | TODO (S-050) |
+| T-4205 | Set the levels you would act on in `config/loss_limits.yaml` | TODO. Operator |
+
 ## Workbench redesign and live agent activity (2026-10-29)
 
 Operator: "rewamp whole ui to make it simple easy to understand visually appealing with simple design … better solid 3-4 colours max and round corners … for ai agents shows what agent is actually doing." ADR-090, ADR-091.
@@ -213,7 +226,7 @@ Verify: read `docs/RESEARCH/079-what-other-platforms-have-and-a-risk-screen.md`;
 | T-4118 | The what-if sizes a new strategy in equal amounts | OPEN — A-060. The preview gives names, not sizes |
 | T-4114 | The rounding bug in the first VaR | NOTED — `(1 - 0.95) * 100` is 5.000000000000004 in floating point, and its ceiling put a sixth day in a five-day tail. Caught by the hand-worked test before any figure was shown |
 | T-4110 | **Limits with headroom** | DONE as warnings 2026-10-14 — the kill switch's daily loss (₹10,000, which already existed) and rupees-in-one-name limits are shown with how much is used. Four new levels in `config/risk_watch.yaml` (book VaR 2%, book drawdown 10%, deployment drawdown 8%, largest sector 35%) **warn and do nothing else**. Their values came from the mockup, not from the operator: change them. Orders-a-day and unresolved-order limits are not shown: the screen has no count of today's live orders |
-| T-4111 | A reduce-only state for a deployment | TODO — between trading and stopped; needs a decision record |
+| T-4111 | A reduce-only state for a deployment | DONE 2026-10-29 — ADR-092 (T-4201) |
 
 ---
 

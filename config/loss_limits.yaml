@@ -1,0 +1,21 @@
+# Loss limits that act on a deployment (ADR-092). OPERATOR-OWNED.
+#
+# Unlike risk_watch.yaml, these do something. After every run each deployment's
+# fall from its own highest point (time-weighted, so deposits and withdrawals
+# do not count) is compared with two levels:
+#
+#   reduce_at  the deployment goes REDUCE-ONLY from the next session: sells
+#              still go through, every buy is refused. It stays reduce-only
+#              until you resume it on Live & Risk.
+#   halt_at    the deployment's own kill switch trips and it stops, as any
+#              other halt. Clearing it is your action (`make kill-reset`).
+#
+# A deployment can carry its own levels (`reduce_at`, `halt_at` in its
+# deployment.json); these are the defaults for the rest.
+#
+# ASSUMPTION: A-071. Proposed with the feature on 2026-10-29, not measured
+# against anything. Change them to what you would actually act on. Set a level
+# to null to switch it off.
+
+reduce_at: 0.10
+halt_at: 0.20

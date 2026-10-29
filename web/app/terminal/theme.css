@@ -468,3 +468,21 @@
 @media (max-width: 720px) {
   .terminal .asst-fab { bottom: 84px; right: var(--s4); width: 48px; height: 48px; }
 }
+
+/* ============================ loss limits (ADR-092) ============================ */
+
+.ll { display: grid; gap: var(--s2); padding: var(--s3) var(--s4); background: var(--sunken); border-radius: var(--r-md); }
+.ll-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.ll-acts { display: flex; gap: var(--s2); }
+.ll-bar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-3); }
+.ll-bar i { position: absolute; inset: 0 auto 0 0; border-radius: var(--r-pill); background: var(--brand); }
+.ll-bar[data-tone='caveat'] i { background: var(--caveat); }
+.ll-bar[data-tone='down'] i { background: var(--down); }
+.ll-bar u { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px; }
+.ll-reduce { background: var(--caveat); }
+.ll-halt { background: var(--down); }
+.ll-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); font-size: 13px; }
+.ll-form label { display: inline-flex; align-items: center; gap: 6px; }
+.ll-form input { width: 64px; height: 30px; padding: 0 8px; }
+.terminal .paper-card header > div:first-child { flex: 1; }
+.terminal .paper-actions .tinput { flex: 0 0 140px; width: 140px; height: 30px; padding: 0 10px; }

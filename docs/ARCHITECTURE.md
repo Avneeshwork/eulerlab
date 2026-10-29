@@ -2075,6 +2075,27 @@ others keep theirs. Each row carries the book's VaR without it, and
 `POST /api/risk/what-if` gives the book's VaR before and after adding a
 strategy at a stated capital, sized as equal amounts of today's names (A-060).
 
+
+### Loss limits that act (ADR-092)
+
+After every run, `deploy/loss_limits.apply` reads the deployment's drawdown
+from its own high on the time-weighted curve (`risk.book.growth`, so moving
+money is not a loss) and compares it with two levels:
+
+| Level | Default | What happens |
+|---|---|---|
+| `reduce_at` | 10% | a reduce-only window opens from the next session: sells fill, buys are refused |
+| `halt_at` | 20% | the deployment's kill switch trips; status halted; `make kill-reset` to clear |
+
+Defaults are in `config/loss_limits.yaml` (operator-owned, A-071); a
+deployment's own `reduce_at`/`halt_at` win. A window is stored on the
+deployment as `{from, to, why, by}`. The runner replays the deployment from its
+start every day, so `ForwardExecutor` refuses a buy whose fill day is inside a
+window before the OMS sees it, on every replay alike; the book and the broker
+never differ. Live & Risk shows the drawdown against both levels on each paper
+card, with **Reduce only** / **Resume buying** and **Change** for the levels.
+Only the daily rebalancing book enforces reduce-only (S-050).
+
 ## Scheduled jobs
 
 `tools/schedule_daily.py` writes launchd jobs; `make schedule JOB=...`.

@@ -1,0 +1,7 @@
+# ADR-092: Loss limits that act: reduce-only, then halt
+
+- **Context:** Research 079 found two gaps that matter before live capital: no state between trading and stopped, and no rule that stops a strategy on a loss (T-4111). Risk watch levels (ADR-071) only colour a row.
+- **Options:** (a) more watch levels; (b) a drawdown rule that halts only; (c) two levels per deployment: reduce-only (sells go through, buys refused), then a halt through the deployment's own kill switch, plus a manual Reduce-only switch.
+- **Choice:** (c). `deploy/loss_limits.py` reads the time-weighted drawdown from the book's own high after every run. Defaults in `config/loss_limits.yaml` (operator-owned, 10% and 20%, A-071); each deployment can carry its own. Reduce-only is a dated window on the deployment, so the daily replay refuses exactly the same buys every time and never sees a "changed history". Resuming closes the window at the last traded day. Telegram says when a book goes reduce-only; a halt is announced as every halt is.
+- **Why:** A halt alone forces all-or-nothing. Reduce-only lets a book in trouble shrink without new risk, the state NautilusTrader calls REDUCING. Dated windows keep the replay deterministic.
+- **Cost if wrong:** Default levels are guesses until the operator sets them; a halt on a paper book costs a `make kill-reset`. The overnight, intraday and study books get the halt but not reduce-only (S-050). Reduce-only refuses a buy that only rebalances an existing holding too.
