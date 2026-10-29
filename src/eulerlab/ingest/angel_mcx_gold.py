@@ -175,9 +175,9 @@ def fetch_history(
 def _make_client() -> HistoricalClient:
     """Log in without persisting the JWT or TOTP code to disk."""
     try:
-        import logzero  # type: ignore[import-untyped]
+        import logzero
         import pyotp
-        from SmartApi import SmartConnect  # type: ignore[import-untyped]
+        from SmartApi import SmartConnect
     except ImportError as exc:
         raise RuntimeError("Install the Angel One extras with `uv sync --extra angel`.") from exc
 
