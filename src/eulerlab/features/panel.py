@@ -35,6 +35,7 @@ from __future__ import annotations
 import concurrent.futures as cf
 import contextlib
 import gc
+import hashlib
 import json
 import mmap
 import os
@@ -198,6 +199,24 @@ def _cash_files(manifest: Path, *, start: str, end: str) -> list[tuple[str, str]
         if row.get("segment") == "cm" and start <= str(row["trade_date"]) <= end:
             seen[str(row["trade_date"])] = str(row["path"])
     return sorted(seen.items())
+
+
+PANEL_SOURCE = "Cash bhavcopy"
+"""The register name (`config/data_sources.yaml`) of the files the panel is built from."""
+
+
+def _cash_shas(manifest: Path) -> dict[str, str]:
+    """Landed path -> the SHA-256 recorded when it landed, for cash bhavcopies."""
+    if not manifest.exists():
+        return {}
+    out: dict[str, str] = {}
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if row.get("segment") == "cm" and row.get("sha256"):
+            out[str(row["path"])] = str(row["sha256"])
+    return out
 
 
 def canonical_symbols(rows: list[PanelRow]) -> list[PanelRow]:
@@ -735,8 +754,18 @@ def _build(
 ) -> tuple[int, str]:
     already = cached_days(path)
     wanted = [(d, p) for d, p in _cash_files(manifest, start=start, end=end) if d not in already]
+    # The data quality contract (ADR-086): a held file is left out, and a file
+    # whose bytes no longer match the SHA-256 the manifest recorded at landing
+    # is held and left out. Raw data is never edited, so leaving it out is the
+    # only fix there is; the operator sees why on `make data-quality`.
+    from eulerlab.quality import quarantine
+
+    held = {p for (dataset, p) in quarantine.held() if dataset == PANEL_SOURCE}
+    left_out = [d for d, p in wanted if p in held]
+    wanted = [(d, p) for d, p in wanted if p not in held]
+    shas = _cash_shas(manifest)
     if not wanted:
-        return 0, ""
+        return 0, (f"{len(left_out)} quarantined day(s) left out" if left_out else "")
 
     # A day still in the local landing zone (today's, before `prune-local`) is
     # read from disk, so the panel does not wait on the cloud sync. Only pruned
@@ -764,6 +793,7 @@ def _build(
         return trade_date, client.get_object(Bucket="eulerdata", Key=f"nse/{key}")["Body"].read()
 
     path.parent.mkdir(parents=True, exist_ok=True)
+    paths = dict(wanted)
     written = 0
     note = ""
 
@@ -772,6 +802,17 @@ def _build(
             with cf.ThreadPoolExecutor(max_workers=max_workers) as pool:
                 for trade_date, payload in pool.map(fetch, wanted):
                     day = date.fromisoformat(trade_date)
+                    key = paths[trade_date]
+                    expected = shas.get(key, "")
+                    if expected and hashlib.sha256(payload).hexdigest() != expected:
+                        quarantine.hold(
+                            PANEL_SOURCE,
+                            key,
+                            "bytes do not match the SHA-256 recorded when the file landed",
+                            by="panel build",
+                        )
+                        left_out.append(trade_date)
+                        continue
                     for bar in bars_from_bhavcopy(payload, day):
                         handle.write(
                             json.dumps(
@@ -801,6 +842,9 @@ def _build(
                 f"stopped after {written} of {len(wanted)} days: B2 daily cap reached. "
                 f"Re-run to resume; nothing already written is lost."
             )
+    if left_out:
+        extra = f"{len(left_out)} quarantined day(s) left out: {', '.join(sorted(left_out)[:5])}"
+        note = f"{note}; {extra}" if note else extra
     return written, note
 
 

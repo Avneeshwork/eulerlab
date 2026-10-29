@@ -1,0 +1,198 @@
+# The data quality contract's source register (ADR-086).
+#
+# Every dataset the platform uses has one entry here. `make data-quality`
+# grades each one against the same six checks, whatever the source:
+#   1 registered   - it has an entry here
+#   2 provenance   - publisher, address and licence status are written down
+#   3 fingerprint  - every landed file carries a SHA-256 and a knowledge time
+#   4 sense        - duplicates, empty files, calendar gaps (quality/manifest_checks.py)
+#   5 freshness    - up to the day it should reach (ingest/coverage.py)
+#   6 quarantine   - none of its files is held (quality/quarantine.py)
+#
+# `name` is the dataset's row name in the Data coverage table, so the two
+# pages agree. `tree` is its folder under data/landing/ when it has one.
+# `min_grade` is the lowest integrity grade a backtest will run on.
+#
+# `licence: unreviewed` means nobody has read the source's terms for this use.
+# It grades the dataset B at best until someone does and writes what they read.
+#
+# The addresses are the ones the ingest code fetches from (src/eulerlab/ingest/).
+
+datasets:
+  - name: Cash bhavcopy
+    tree: nse
+    segment: cm
+    publisher: NSE
+    url: https://nsearchives.nseindia.com
+    licence: unreviewed
+    knowledge_time: published after the close; usable from the next session's decision
+    critical: true
+    min_grade: C
+    cross_check: make reconcile (bhavcopy against Kite minute bars)
+
+  - name: F&O bhavcopy
+    tree: nse
+    segment: fo
+    publisher: NSE
+    url: https://nsearchives.nseindia.com
+    licence: unreviewed
+    knowledge_time: published after the close
+    critical: true
+    min_grade: C
+    cross_check: make quality-options (no-arbitrage checks on the chain)
+
+  - name: Participant OI
+    tree: nse
+    segment: participant_oi
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/content/nsccl/fao_participant_oi_
+    licence: unreviewed
+    knowledge_time: published in the evening after the close
+    critical: false
+    min_grade: C
+
+  - name: Index closes (incl. VIX)
+    tree: nse
+    segment: indices
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/content/indices/ind_close_all_
+    licence: unreviewed
+    knowledge_time: published after the close
+    critical: false
+    min_grade: C
+
+  - name: Delivery positions
+    tree: nse
+    segment: delivery
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/archives/equities/mto/MTO_
+    licence: unreviewed
+    knowledge_time: published after the close
+    critical: false
+    min_grade: C
+
+  - name: Price panel
+    derived: data/derived/price_panel.jsonl
+    built_from: [Cash bhavcopy]
+    publisher: built here (features/panel.py)
+    url: ""
+    licence: inherits from Cash bhavcopy
+    knowledge_time: the day after the bhavcopy's trade date
+    critical: true
+    min_grade: C
+
+  - name: Index history
+    derived: data/derived/index_history.jsonl
+    built_from: [Index closes (incl. VIX)]
+    publisher: built here (market_history.py)
+    url: ""
+    licence: inherits from Index closes (incl. VIX)
+    knowledge_time: the day after the trade date
+    critical: false
+    min_grade: C
+
+  - name: Delivery table
+    derived: data/derived/delivery.jsonl
+    built_from: [Delivery positions]
+    publisher: built here (market_history.py)
+    url: ""
+    licence: inherits from Delivery positions
+    knowledge_time: the day after the trade date
+    critical: false
+    min_grade: C
+
+  - name: Nifty futures
+    derived: data/derived/nifty_futures.jsonl
+    built_from: [F&O bhavcopy]
+    publisher: built here (market_history.py)
+    url: ""
+    licence: inherits from F&O bhavcopy
+    knowledge_time: the day after the trade date
+    critical: false
+    min_grade: C
+
+  - name: Nifty options
+    derived: data/derived/nifty_options.jsonl
+    built_from: [F&O bhavcopy]
+    publisher: built here (options/)
+    url: ""
+    licence: inherits from F&O bhavcopy
+    knowledge_time: the day after the trade date
+    critical: false
+    min_grade: C
+
+  - name: US daily panel
+    derived: data/derived/us_panel.jsonl
+    publisher: Alpaca
+    url: https://data.alpaca.markets
+    licence: unreviewed
+    knowledge_time: after the New York close
+    critical: false
+    min_grade: C
+
+  - name: Crypto 1-minute
+    tree: crypto
+    publisher: Binance public data
+    url: https://data.binance.vision/data/spot
+    licence: unreviewed
+    knowledge_time: the UTC day after
+    critical: false
+    min_grade: C
+
+  - name: FX 1-minute
+    tree: fx
+    publisher: Dukascopy
+    url: https://datafeed.dukascopy.com/datafeed
+    licence: unreviewed
+    knowledge_time: weekly files
+    critical: false
+    min_grade: C
+
+  - name: Mutual fund NAVs
+    tree: mf
+    publisher: AMFI
+    url: https://portal.amfiindia.com/spages/NAVAll.txt
+    licence: unreviewed
+    knowledge_time: published late on the same evening
+    critical: false
+    min_grade: C
+
+  - name: India minute bars (Kite)
+    tree: kite_minute
+    publisher: Zerodha Kite
+    url: https://api.kite.trade/instruments/historical/
+    licence: unreviewed
+    knowledge_time: during the session, final after the close
+    critical: false
+    min_grade: C
+
+  - name: MCX iCOMDEX minute bars (Kite)
+    tree: mcx_indices
+    publisher: Zerodha Kite
+    url: https://api.kite.trade/instruments/historical/
+    licence: unreviewed
+    knowledge_time: during the session
+    critical: false
+    min_grade: C
+
+  - name: Fundamentals
+    tree: fundamentals
+    publisher: screener.in
+    url: https://www.screener.in/company/
+    licence: unreviewed
+    # ASSUMPTION: A-066 - screener.in pages carry no filing date per figure, so
+    # nothing here can say when a number became known. Any card that uses them
+    # is told so by the data agent.
+    knowledge_time: not recorded per figure; only the fetch date is known
+    critical: false
+    min_grade: C
+    point_in_time: false
+
+  - name: Option chain snapshots
+    tree: option_chain
+    publisher: NSE
+    url: https://www.nseindia.com
+    licence: unreviewed
+    knowledge_time: the snapshot time
+    critical: false
+    min_grade: C

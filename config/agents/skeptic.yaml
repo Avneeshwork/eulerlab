@@ -1,0 +1,13 @@
+# The skeptic agent (ADR-085). Tries to prove a good result is fake.
+name: skeptic
+title: Skeptic agent
+job: Attacks a stored result before the gate sees it - one lucky year, a few lucky days, costs, Indian stress windows - and writes the five ways it could be fake.
+worker: eulerlab.agents.workers.skeptic
+schedule: "on demand, for a result you name"
+uses_model: true
+daily_requests: 20
+never:
+  - change a number in the evidence
+  - read the holdout
+  - touch the gate or the mandate
+needs_approval: false

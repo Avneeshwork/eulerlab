@@ -56,6 +56,8 @@ from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 from typing import Any
 
+from eulerlab import timings
+
 
 @dataclass
 class StepResult:
@@ -605,6 +607,10 @@ def _refresh(
             run.steps.append(
                 StepResult(name=name, ok=True, detail=detail, seconds=time.monotonic() - started)
             )
+        # For the data and operations agents (ADR-085): which step failed, and
+        # which is getting slower. Writing it cannot fail the step.
+        last = run.steps[-1]
+        timings.record(f"feed: {name}", last.seconds, ok=last.ok, detail=last.detail)
 
     if sync:
         total = len(steps)

@@ -145,6 +145,23 @@ def _worktree_files(repo: Path) -> list[str]:
     return files
 
 
+def branch_files(repo: Path = REPO_ROOT) -> list[str]:
+    """Every path this branch changes against its base, plus the working tree.
+
+    Read by the engineering agent (ADR-085) to review a branch against the
+    house rules without running git itself."""
+    base = _base_ref(repo)
+    files: list[str] = []
+    if base:
+        files += [
+            line
+            for line in _git(repo, "diff", "--name-only", f"{base}...HEAD").splitlines()
+            if line
+        ]
+    files += _worktree_files(repo)
+    return sorted(set(files))
+
+
 def collect_violations(repo: Path = REPO_ROOT) -> list[Violation]:
     violations: list[Violation] = []
 

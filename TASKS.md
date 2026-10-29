@@ -3,6 +3,25 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## The AI agent network (2026-10-29)
+
+Operator: an AI agent network for research, building, backtesting, optimisation, risk, scenarios, a trade panel, code quality and latency; one data quality reference for every ingest; security; a way to instruct agents; a knowledge agent, a daily market brief and a data maintenance agent; Quantpedia as a source; an AI tab. "Build everything in one go." ADR-085, ADR-086, ADR-087; research 125.
+Verify: `make verify`; `make agents`; `make data-quality`; `make agent NAME=market_brief`; open the workbench's AI tab.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4174 | Agent runtime: definitions, budgets, briefs, inbox, hash-chained log, import boundaries | DONE. `src/eulerlab/agents/`, `config/agents/`, `tests/test_agents_runtime.py` |
+| T-4175 | Eight agents: data, knowledge, market brief, research, skeptic, engineering, portfolio, operations | DONE. `tests/test_agent_workers.py`. None run live with a model yet (needs `GROQ_API_KEY`) |
+| T-4176 | Data quality contract, quarantine, panel SHA check, backtest guard, restore check | DONE. `make data-quality`; `tests/test_data_quality_contract.py` |
+| T-4177 | Trade desk tickets and strategy version lock | DONE. Live & Risk → Trade desk and AI → Trade desk; `make relock`; `tests/test_desk_and_version_lock.py` |
+| T-4178 | AI tab in the workbench, API routes, Telegram `agents`, `instruct`, `outlook`, `inbox` | DONE. `web/components/terminal/AgentsTab.tsx`, `api/agent_routes.py` |
+| T-4179 | Load the three agent launchd jobs on the Mac | TODO. `make schedule JOB=agents-preopen`, `agents-close`, `agents-weekly` |
+| T-4180 | Every reader of `data/landing/` skips quarantined files, not only the panel build | TODO (S-043) |
+| T-4181 | Read each registered source's licence and record it | TODO (S-044) |
+| T-4182 | First `make quantpedia-sync` with the operator's key; record real responses as fixtures | TODO (S-045, A-069). Put `QUANTPEDIA_USERNAME` and `QUANTPEDIA_API_KEY` in `.env`, never in chat |
+| T-4183 | VaR and futures lot checks on desk tickets | TODO (S-041, S-042) |
+| T-4184 | Time the order path, signal to fill | TODO (S-046), after T-4022 |
+
 ## Paper-reading research agent (2026-10-29)
 
 Operator: build a research agent that finds market papers, drafts strategy cards in the repo's format, and stops for approval before any backtest or trial-ledger entry. Then: "use better model for ai agent network which is free ... scrape all useless models". Research 123, 124; ADR-084.

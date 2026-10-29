@@ -423,6 +423,75 @@ def brief(_: str = "") -> str:
     return "\n\n".join(out)
 
 
+# --- the agent network (ADR-085) ------------------------------------------------------
+#
+# `instruct` is the one word that writes anything: it saves a brief, which steers what
+# an agent looks at and nothing else (agents/briefs.py). It cannot start a run,
+# change a budget, approve an item or trade.
+
+
+def agents(_: str = "") -> str:
+    from eulerlab.agents import inbox, log, runtime
+    from eulerlab.agents.spec import all_effective
+
+    lines = []
+    for name, agent in sorted(all_effective().items()):
+        latest = runtime.latest_output(name, status=None)
+        state = "on" if agent.enabled else "off"
+        last = (
+            f"{latest.status} {latest.started[5:16].replace('T', ' ')}" if latest else "never run"
+        )
+        lines.append(f"{name} ({state}): {last}")
+    ok, problem = log.verify()
+    waiting = len(inbox.pending())
+    return (
+        "AGENTS\n"
+        + "\n".join(lines)
+        + f"\n\nInbox: {waiting} waiting for you"
+        + ("" if ok else f"\nAGENT LOG BROKEN: {problem}")
+    )
+
+
+def instruct(arg: str = "") -> str:
+    from eulerlab.agents import briefs
+    from eulerlab.agents.spec import load_specs
+
+    parts = arg.strip().split(maxsplit=1)
+    names = sorted(load_specs())
+    if len(parts) < 2:
+        return "instruct <agent or all> <what to focus on>. Agents: " + ", ".join(names)
+    who, text = parts[0].lower(), parts[1]
+    if who != briefs.ALL and who not in names:
+        return f"No agent '{who}'. Agents: {', '.join(names)}, or all."
+    saved = briefs.write(who, text, by="telegram")
+    return f"Brief saved for {who} ({saved.id}). Its next run reads it. A brief steers; it cannot change limits."
+
+
+def outlook(_: str = "") -> str:
+    from eulerlab.agents import runtime
+
+    latest = runtime.latest_output("market_brief")
+    if latest is None:
+        return "No market brief yet. It runs at 08:45 and after the close."
+    return str(latest.data.get("text") or latest.summary)
+
+
+def inbox_word(_: str = "") -> str:
+    from eulerlab.agents import inbox
+
+    waiting = inbox.pending()
+    if not waiting:
+        return "Nothing is waiting for you."
+    lines = [f"- {row['agent']}: {row['title']}" for row in waiting[:12]]
+    more = f"\n…and {len(waiting) - 12} more" if len(waiting) > 12 else ""
+    return (
+        f"INBOX · {len(waiting)} waiting\n"
+        + "\n".join(lines)
+        + more
+        + "\nDecide on the AI page of the workbench."
+    )
+
+
 # --- plain sentences ------------------------------------------------------------------
 
 

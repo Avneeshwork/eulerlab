@@ -1,0 +1,13 @@
+# The engineering agent (ADR-085). Reviews changes; drafts code you merge.
+name: engineering
+title: Engineering agent
+job: Reviews the branch against the house rules (operator-owned files, docs with code, agent boundaries) and drafts new primitives as proposals for you to turn into a pull request.
+worker: eulerlab.agents.workers.engineering
+schedule: "on demand, and Sunday 07:30"
+uses_model: true
+daily_requests: 20
+never:
+  - merge or push
+  - edit gates.py or mandate.yaml
+  - run code it drafted
+needs_approval: true

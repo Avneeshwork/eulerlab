@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
+.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync
 
 help:
 	@echo "EulerLab — targets"
@@ -61,6 +61,13 @@ help:
 	@echo "  make scout [PROPOSE=n]   what would searching cost? then draft cards"
 	@echo "  make paper-agent TOPIC='...' [LIMIT=5]  find papers, draft cards, stop for approval"
 	@echo "  make paper-agent-approve DRAFT=<folder>  move one draft to hypotheses/ and the library"
+	@echo "  make quantpedia-sync [LIMIT=50]  land Quantpedia's strategy catalogue (needs a key in .env)"
+	@echo "  make data-quality       grade every dataset against the data quality contract"
+	@echo "  make agents             list the agents, on or off"
+	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
+	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
+	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
+	@echo "  make relock DEPLOYMENT=<id> NOTE='...'  accept a strategy's changed code after review"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
 	@echo "  make validate H=H-0001  overfitting battery: CPCV, DSR, PBO, MinBTL"
@@ -232,6 +239,45 @@ paper-agent-approve:
 paper-agent-list:
 	@uv run python -m eulerlab.research.paper_agent --list
 
+quantpedia-sync:
+	@uv run python -m eulerlab.research.quantpedia $(if $(LIMIT),--limit $(LIMIT),)
+
+# --- the agent network (ADR-085) and the data quality contract (ADR-086) ---
+data-quality:
+	@uv run python -m eulerlab.quality.contract
+
+agents:
+	@uv run python -m eulerlab.agents.runtime
+
+agent:
+	@test -n "$(NAME)" || (echo "usage: make agent NAME=<agent> [ARGS='key=value ...']"; exit 2)
+	@uv run python -m eulerlab.agents.runtime $(NAME) $(foreach a,$(ARGS),--arg $(a))
+
+agent-brief:
+	@test -n "$(NAME)" -a -n "$(TEXT)" || (echo "usage: make agent-brief NAME=<agent|all> TEXT='...'"; exit 2)
+	@uv run python -m eulerlab.agents.briefs $(NAME) "$(TEXT)"
+
+agents-preopen:
+	-@uv run python -m eulerlab.agents.runtime data
+	-@uv run python -m eulerlab.agents.runtime operations
+	-@uv run python -m eulerlab.agents.runtime market_brief
+
+agents-close:
+	-@uv run python -m eulerlab.agents.runtime data
+	-@uv run python -m eulerlab.agents.runtime operations
+	-@uv run python -m eulerlab.agents.runtime portfolio
+	-@uv run python -m eulerlab.agents.runtime market_brief
+
+agents-weekly:
+	-@uv run python -m eulerlab.research.quantpedia
+	-@uv run python -m eulerlab.agents.runtime knowledge
+	-@uv run python -m eulerlab.agents.runtime research
+	-@uv run python -m eulerlab.agents.runtime engineering
+
+relock:
+	@test -n "$(DEPLOYMENT)" -a -n "$(NOTE)" || (echo "usage: make relock DEPLOYMENT=<id> NOTE='why the new code is accepted'"; exit 2)
+	@uv run python -m eulerlab.deploy.version_lock $(DEPLOYMENT) --note "$(NOTE)"
+
 gate-acceptance:
 	@uv run python -m eulerlab.validation.gate_acceptance $(if $(SYMBOLS),--symbols $(SYMBOLS),)
 
@@ -245,10 +291,10 @@ test-engine:
 	@uv run python -m eulerlab.backtest.selftest $(if $(UPDATE),--update-golden,)
 
 backtest:
-	@uv run python -m eulerlab.backtest.compare $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),)
+	@uv run python -m eulerlab.backtest.compare $(if $(ALLOW_LOW),--allow-low-grade,) $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),)
 
 backtest-fast:
-	@uv run python -m eulerlab.backtest.report $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),) $(if $(COMPARE),--compare,)
+	@uv run python -m eulerlab.backtest.report $(if $(ALLOW_LOW),--allow-low-grade,) $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),) $(if $(COMPARE),--compare,)
 
 ic:
 	@uv run python -m eulerlab.features.tearsheet $(if $(FEATURE),--feature $(FEATURE),) $(if $(HORIZON),--horizon $(HORIZON),) $(if $(ALL),--all,)

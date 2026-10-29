@@ -219,9 +219,23 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     route to a run comes through here — `make paper-daily`, the auto-updater
     and the Run now button — so none of them can act silently.
     """
-    from eulerlab.deploy import overnight, signals
+    from eulerlab import desk
+    from eulerlab.deploy import overnight, signals, version_lock
 
     previous = store.read_state(deployment) or {}
+    # The version lock (ADR-087): a deployment trades the code it was deployed
+    # with. A change warns on paper and stops a live book before it sends.
+    lock = version_lock.check(deployment.folder, deployment.strategy_id)
+    if deployment.mode == "live":
+        held_back = ""
+        if lock.changed:
+            held_back = lock.detail
+        elif not desk.approved_today(deployment.id):
+            held_back = "waiting for today's ticket to be approved on the trade desk"
+        if held_back:
+            state = {**previous, "status": "waiting", "reason": held_back}
+            store.write_state(deployment, state)
+            return state
     # The overnight future has its own book (ADR-066): the equity engine fills
     # once a day at the close and cannot hold from one close to the next open.
     # Same OMS, journal, kill switch and state file either way.
@@ -236,6 +250,9 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
         state = study_book.run(deployment)
     else:
         state = _run(deployment, rows)
+    if lock.changed:
+        state.setdefault("warnings", []).append(lock.detail)
+        store.write_state(deployment, state)
     signals.announce(deployment, previous, state)
     return state
 
