@@ -29,15 +29,17 @@ import {
   useMarketContext,
 } from './MarketContext';
 
-const pct = (value: number, digits = 2) =>
-  `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(digits)}%`;
+/** A sign only when the rounded number has one: -0.0004 read "−0.0%". */
+const signed = (shown: string, value: number) =>
+  Number(shown) === 0 ? `${shown}%` : `${value >= 0 ? '+' : '−'}${shown}%`;
+
+const pct = (value: number, digits = 2) => signed(Math.abs(value * 100).toFixed(digits), value);
 
 /** Already-percent values. `pct` takes a fraction and multiplies by 100, which
  *  is right for the panel's returns and wrong for anything a quote API hands
  *  over — those arrive as percent already, and running them through `pct`
  *  rendered NIFTY's +0.20% as "+20.00%" and INDIA VIX's -3.30% as "-330.00%". */
-const pctRaw = (value: number, digits = 2) =>
-  `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(digits)}%`;
+const pctRaw = (value: number, digits = 2) => signed(Math.abs(value).toFixed(digits), value);
 
 const crore = (value: number) =>
   value >= 1e7 ? `₹${(value / 1e7).toFixed(1)}Cr` : `₹${(value / 1e5).toFixed(1)}L`;

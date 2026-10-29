@@ -29,6 +29,9 @@ Verify: `uv run pytest -q tests/test_agent_activity.py`; `make workbench` → ev
 | T-4198 | API failed to start on a clean install: numpy undeclared | DONE. HISTORY #35 |
 | T-4199 | A place on Dashboard → Big money for the FII/DII cash flows panel | DONE by the flows work itself (PR #32 puts `FiiDiiFlows` there); its colours already read the four-colour tokens through `--mc-a`/`--mc-b` |
 | T-4200 | Merge with the operator's unpushed `ui-revamp` branch | TODO. Not visible from here; may overlap `tokens.css` and `shell.css` |
+| T-4206 | End-to-end walk-through of every page (synthetic panel): fix what broke | DONE. Coloured dashes for missing returns; "−0.0%"; the old orange accent on Dashboard tabs; the (i) button by "NSE" drawn as a segment; unreadable text in a selected chip; Deploy/Explain dialogs following you to other pages; a refused paper action's error vanishing; negative rupees shown as "₹-31161" |
+| T-4207 | Company page shows only a notice when fundamentals are missing; first snapshot is slow when outside fetches time out; "Open Live & Risk" wraps in the deploy dialog | TODO. Seen in the walk-through, not fixed |
+| T-4208 | Repeat the walk-through on the operator's real data | TODO. Needs the Mac online |
 
 ## Agent accuracy: the grounding check and agent-eval (2026-10-29)
 

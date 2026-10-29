@@ -222,7 +222,17 @@ export default function TerminalPage() {
 
   const workspace = '';
 
+  // A dialog belongs to the page it was opened on. Left open, the Deploy and
+  // explain dialogs followed the operator to every other page (2026-10-29).
+  const closeDialogs = useCallback(() => {
+    setDeploying(null);
+    setExplaining(null);
+    setConfiguring(null);
+    setPaletteOpen(false);
+  }, []);
+
   const setPage = useCallback((next: PageId, strategy = '') => {
+    closeDialogs();
     setPageState(next);
     setReportId(strategy);
     const hash = strategy ? `#${next}/${encodeURIComponent(strategy)}` : `#${next}`;
@@ -230,10 +240,11 @@ export default function TerminalPage() {
       window.history.pushState(null, '', hash);
     }
     window.scrollTo({ top: 0 });
-  }, []);
+  }, [closeDialogs]);
 
   useEffect(() => {
     const apply = () => {
+      closeDialogs();
       const { page: next, strategy } = readHash();
       setPageState(next);
       setReportId(strategy);
@@ -250,7 +261,7 @@ export default function TerminalPage() {
       window.removeEventListener('popstate', onHash);
       window.removeEventListener('hashchange', onHash);
     };
-  }, []);
+  }, [closeDialogs]);
 
   const refresh = useCallback(() => {
     api

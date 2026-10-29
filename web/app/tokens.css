@@ -66,7 +66,11 @@
   --series-7: #86d3a2;    /* green, light */
   --series-8: var(--ink-4);
 
-  /* Aliases older components used. */
+  /* Aliases older components used. --accent and --warn are the old
+     workbench's names (globals.css): undefined here, they fell through to its
+     orange, which is why the dashboard's tab underline was orange. */
+  --accent: var(--brand);
+  --warn: var(--caveat);
   --muted: var(--ink-3);
   --fg: var(--ink);
   --line: var(--rule);

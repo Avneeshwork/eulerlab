@@ -425,15 +425,27 @@
 
 .terminal .chip.on,
 .terminal .chosen-chip,
-.terminal .mkttoggle button.on,
+.terminal .mkttoggle > button.on,
 .terminal .mc-seg button.on,
 .terminal .sb-n {
   background: var(--brand);
   border-color: var(--brand);
   color: var(--brand-ink);
 }
-.terminal .mkttoggle button:first-of-type { border-radius: var(--r-pill) 0 0 var(--r-pill); }
-.terminal .mkttoggle button:last-of-type { border-radius: 0 var(--r-pill) var(--r-pill) 0; }
+.terminal .mkttoggle > button:first-of-type { border-radius: var(--r-pill) 0 0 var(--r-pill); }
+.terminal .mkttoggle > button:last-of-type { border-radius: 0 var(--r-pill) var(--r-pill) 0; }
+/* `.mkttoggle button` in terminal.css also styled the (i) button inside the
+   market note as a segment: a white box with the i at its foot. */
+.terminal .mkttoggle .info-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  font-weight: 600;
+}
 .terminal .asst-fab,
 .terminal .asst-form button,
 .terminal .asst-msg.is-user {
@@ -486,3 +498,7 @@
 .ll-form input { width: 64px; height: 30px; padding: 0 8px; }
 .terminal .paper-card header > div:first-child { flex: 1; }
 .terminal .paper-actions .tinput { flex: 0 0 140px; width: 140px; height: 30px; padding: 0 10px; }
+
+/* Muted text inside a pressed (blue) chip: grey on blue could not be read. */
+.terminal .tchip[aria-pressed='true'] em,
+.terminal .tchip[aria-pressed='true'] .tfine { color: inherit; opacity: 0.8; }

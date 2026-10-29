@@ -62,6 +62,13 @@ const SOURCE_LABEL: Record<Exclude<Source, ''>, string> = {
   coded: 'Coded',
 };
 
+/** Green or red for a signed number; nothing for a dash. A strategy never run
+ *  showed a green "—" for its return and a red one for its drawdown. */
+function tone(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '';
+  return value >= 0 ? 'pos' : 'neg';
+}
+
 function pct(value: number | null | undefined, digits = 1): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return '—';
   return `${value >= 0 ? '+' : ''}${(value * 100).toFixed(digits)}%`;
@@ -543,9 +550,9 @@ export function Library({
                         />
                       )}
                     </td>
-                    <td className={`num ${(annualOf(strategy) ?? 0) >= 0 ? 'pos' : 'neg'}`}>{pct(annualOf(strategy))}</td>
+                    <td className={`num ${tone(annualOf(strategy))}`}>{pct(annualOf(strategy))}</td>
                     <td className="num tdim">{pct(t?.nifty_return ?? null, 0)}</td>
-                    <td className="num neg">{pct(strategy.result.max_drawdown ?? null, 0)}</td>
+                    <td className={`num ${strategy.result.max_drawdown ? 'neg' : ''}`}>{pct(strategy.result.max_drawdown ?? null, 0)}</td>
                     <td className="num">{strategy.sharpe === null ? '—' : strategy.sharpe.toFixed(2)}</td>
                     <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
                     <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
