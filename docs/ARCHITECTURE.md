@@ -2231,6 +2231,23 @@ API rather than loading a second copy of the 1.85 GB panel.
 ask the knowledge agent, research and skeptic runs, the trade desk, the
 market brief, data quality and the agents' log.
 
+### When a model makes something up (ADR-088)
+
+`agents/grounding.py` checks every number (two digits or more, or with a
+point, comma or %), id and file path in an answer against the text the model
+was given. A number counts as supported when the evidence holds the same
+value at the answer's precision, or the same share as a fraction (12% for 0.12).
+
+| Where | On an unsupported figure |
+|---|---|
+| Knowledge answer | One retry that names the figures; then "Not held", listing them. The first answer is kept in the output |
+| Market brief commentary | Dropped; the brief goes out with data only, and a note says why |
+| `make agent-eval` | A figure the operator would have seen switches the agent off until the operator switches it on |
+
+Each output records a fingerprint of the prompts it ran under, so a changed
+score can be traced to a prompt change. `make agent-eval` runs weekly in
+`agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
+
 ## The data quality contract (ADR-086)
 
 `config/data_sources.yaml` registers every dataset. `make data-quality` grades

@@ -37,6 +37,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict, Field
 
 from eulerlab.agents import briefs, log
+from eulerlab.agents.grounding import prompt_version
 from eulerlab.agents.spec import ROOT, Effective, all_effective, home
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -89,6 +90,8 @@ class Output(BaseModel):
     requests: int = 0
     notes: list[str] = Field(default_factory=list)
     """Fallbacks used, budget reached, anything the operator should know."""
+    prompts: list[str] = Field(default_factory=list)
+    """Fingerprints of the instructions each model request ran under (ADR-088)."""
     data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -151,6 +154,7 @@ class Context:
     budget_left: int = 0
     model: str = ""
     notes: list[str] = field(default_factory=list)
+    prompts: list[str] = field(default_factory=list)
     args: dict[str, Any] = field(default_factory=dict)
     """Arguments from the command line or the control room (a question, a topic)."""
 
@@ -181,6 +185,9 @@ class Context:
         rules = SHARED_RULES
         if self.brief:
             rules += "\n\nThe operator's brief:\n" + self.brief
+        version = prompt_version(system, SHARED_RULES)
+        if version not in self.prompts:
+            self.prompts.append(version)
         return self.asker(f"{system}\n\n{rules}", user, accept)
 
     def write(self, name: str, payload: Any) -> Path:
@@ -273,6 +280,7 @@ def run(
         model=ctx.model,
         requests=ctx.requests,
         notes=ctx.notes,
+        prompts=sorted(set(ctx.prompts)),
         data=result.data,
     )
     ctx.write("output.json", output.model_dump())
@@ -285,6 +293,7 @@ def run(
             "items": len(output.items),
             "requests": output.requests,
             "model": output.model,
+            "prompts": output.prompts,
             "briefs": brief_ids,
             "ist_day": day,
         },
