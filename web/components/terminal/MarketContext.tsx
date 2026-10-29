@@ -776,28 +776,11 @@ function MoveLine({
 }
 
 /** Who holds index futures, and what options price. */
-/**
- * Where the FII/DII cash flows go (T-4163). The scraper and its panel are
- * built separately; until they land this says what will be here. Replace
- * this component, keep the section id: links and the tour point at it.
- */
-function FlowsSlot() {
-  return (
-    <section id="fii-dii-flows">
-      <div className="tslot">
-        <b>FII / DII cash flows</b> · daily buy, sell and net in the cash market, with the month so far.
-        Coming with the flows data (T-4163).
-      </div>
-    </section>
-  );
-}
-
 export function PositioningContext({ ctx }: { ctx: MarketContext }) {
   const p = ctx.positioning;
   const o = ctx.options;
   return (
     <>
-      <FlowsSlot />
       <section>
         <Heading
           title="Index futures: long of 100"

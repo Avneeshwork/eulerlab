@@ -258,20 +258,6 @@
   .tdot[data-live='true'], .tnav-dot { animation: none; }
 }
 
-/* ============================ slots ============================ */
-
-/* A panel another piece of work fills (the FII/DII flows). Says what will be
-   there instead of showing an empty box. */
-.tslot {
-  border: 1.5px dashed var(--rule-2);
-  border-radius: var(--r-lg);
-  padding: var(--s4) var(--s5);
-  color: var(--ink-3);
-  font-size: var(--t-small);
-  background: var(--sunken);
-}
-.tslot b { color: var(--ink); }
-
 /* ============================ stat cards ============================ */
 
 .terminal .tstat-card b.brand { color: var(--brand); }

@@ -14,7 +14,7 @@ Verify: `uv run pytest -q tests/test_agent_activity.py`; `make workbench` → ev
 | T-4196 | AI tab shows what each agent is doing now: step trail, live cards, activity feed, dot on the AI link | DONE. ADR-091; `/api/agents/activity` |
 | T-4197 | `make agent` crashed for any agent that returned an item | DONE. HISTORY #34 |
 | T-4198 | API failed to start on a clean install: numpy undeclared | DONE. HISTORY #35 |
-| T-4199 | A slot on Dashboard → Big money for the FII/DII cash flows panel | DONE. `#fii-dii-flows`; filled by the flows work (T-4163) |
+| T-4199 | A place on Dashboard → Big money for the FII/DII cash flows panel | DONE by the flows work itself (PR #32 puts `FiiDiiFlows` there); its colours already read the four-colour tokens through `--mc-a`/`--mc-b` |
 | T-4200 | Merge with the operator's unpushed `ui-revamp` branch | TODO. Not visible from here; may overlap `tokens.css` and `shell.css` |
 
 ## Agent accuracy: the grounding check and agent-eval (2026-10-29)
