@@ -12,9 +12,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   assistantChat,
-  assistantModels,
   assistantStatus,
-  type AssistantLiveModel,
   type AssistantStatus,
   type AssistantTurn,
   type AssistantUse,
@@ -52,8 +50,6 @@ function modelChoice(value: string): { provider: string; model: string } {
 export default function Assistant() {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<AssistantStatus | null>(null);
-  const [zdrModels, setZdrModels] = useState<AssistantLiveModel[]>([]);
-  const [modelListError, setModelListError] = useState('');
   const [thread, setThread] = useState<Entry[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -102,24 +98,11 @@ export default function Assistant() {
     input.current?.focus();
   }, [open, pick]);
 
+  // One model is offered: the assistant entry in config/llm.yaml. A pick kept
+  // from when the list had more (an OpenRouter model, Ollama) falls back to it.
   useEffect(() => {
-    if (!open) return;
-    assistantModels().then((response) => {
-      if (response.ok) {
-        setZdrModels(response.models);
-        setModelListError('');
-      } else {
-        setZdrModels([]);
-        setModelListError(response.error ?? 'Could not load current OpenRouter ZDR models.');
-      }
-    }).catch((error) => setModelListError(String(error)));
-  }, [open]);
-
-  useEffect(() => {
-    if (open && status?.host === 'openrouter.ai' && zdrModels.length > 0 && !pick.includes('::')) {
-      choose(`openrouter-private::${zdrModels[0].id}`);
-    }
-  }, [open, status, zdrModels, pick]);
+    if (pick) choose('');
+  }, [pick]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -220,35 +203,10 @@ export default function Assistant() {
           {status && status.choices.length > 0 && (
             <label className="asst-model">
               <span>Model</span>
-              <select value={pick} onChange={(event) => choose(event.target.value)}>
-                <option value="">
-                  Default
-                  {status.choices.find((c) => c.is_default)
-                    ? ` · ${status.choices.find((c) => c.is_default)?.model}`
-                    : ''}
-                </option>
-                {status.choices.filter((choice) => choice.host !== 'openrouter.ai').map((choice) => (
-                  <option
-                    key={choice.name}
-                    value={choice.name}
-                    disabled={!choice.ready}
-                    title={choice.reason}
-                  >
-                    {choice.name} · {choice.model}
-                    {choice.ready ? (choice.free ? '' : ' · paid') : ` — ${choice.blocked}`}
-                  </option>
-                ))}
-                {zdrModels.length > 0 && (
-                  <optgroup label="Current OpenRouter free models with ZDR">
-                    {zdrModels.map((choice) => (
-                      <option key={choice.id} value={`openrouter-private::${choice.id}`}>
-                        {choice.name} · {choice.id}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-              {modelListError && <small>{modelListError}</small>}
+              <strong>
+                {status.choices.find((c) => c.is_default)?.name} ·{' '}
+                {status.choices.find((c) => c.is_default)?.model}
+              </strong>
             </label>
           )}
 

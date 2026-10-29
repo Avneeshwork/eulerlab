@@ -18,10 +18,9 @@ default: ollama
 # The in-app assistant (ADR-064). It sends your own numbers, so the code only
 # accepts hosts whose data terms were read: openrouter.ai, api.groq.com, or a
 # local model. On OpenRouter the code adds "zero retention, no data collection"
-# to every request. The assistant and Research Library pick current free,
-# tool-capable models with ZDR from OpenRouter's catalog instead of relying on
-# a fixed model ID; this entry supplies the approved host and key setting.
-assistant: openrouter-private
+# to every request. Set to Groq's gpt-oss-120b on 2026-10-29 at the operator's
+# request; the assistant and Research Library now offer only this model.
+assistant: groq
 
 # The paper agent (`make paper-agent`, ADR-084). Same locks as the assistant.
 # Groq's `openai/gpt-oss-120b` is the strongest free model with a usable daily
