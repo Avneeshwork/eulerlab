@@ -251,6 +251,61 @@ def _read_document(args: Mapping[str, Any]) -> str:
     )
 
 
+# --- the agent network (ADR-085) ---------------------------------------------------------------
+
+
+def _search_knowledge(args: Mapping[str, Any]) -> str:
+    from eulerlab.agents import knowledge_index
+
+    query = str(args.get("query") or "").strip()
+    if not query:
+        return "Give words to search for."
+    hits = knowledge_index.search(query, knowledge_index.load())
+    if not hits:
+        return "Nothing in the papers, cards, decisions, runbooks or data grades matches."
+    return "\n".join(
+        f"{h['kind']} · {h['path']} — {h['title']}\n  {h['snippet'][:220]}" for h in hits
+    )
+
+
+def _data_quality(args: Mapping[str, Any]) -> str:
+    from eulerlab.quality import contract
+
+    grades = contract.saved()
+    if not grades:
+        return "No grades saved yet. `make data-quality` or the data agent writes them."
+    name = str(args.get("dataset") or "").strip().lower()
+    rows = [g for g in grades if not name or name in str(g.get("name", "")).lower()]
+    if not rows:
+        return f"No dataset named like '{name}'. Datasets: " + ", ".join(
+            str(g.get("name")) for g in grades
+        )
+    lines = []
+    for g in rows:
+        bad = [c for c in g.get("checks", []) if c.get("state") in ("fail", "warn")]
+        first = f" — {bad[0]['name']}: {bad[0]['detail']}" if bad else ""
+        lines.append(
+            f"{g.get('name')}: grade {g.get('grade')}, freshness {g.get('freshness')}{first}"
+        )
+    return "Source: data/quality/grades.json\n" + "\n".join(lines)
+
+
+def _agent_outputs(args: Mapping[str, Any]) -> str:
+    from eulerlab.agents import runtime
+
+    name = str(args.get("agent") or "").strip()
+    if not name:
+        return "Name an agent: data, knowledge, market_brief, research, skeptic, engineering, portfolio, operations."
+    latest = runtime.latest_output(name, status=None)
+    if latest is None:
+        return f"{name} has not run yet."
+    items = "\n".join(f"- {i.severity} {i.kind}: {i.title}" for i in latest.items[:15])
+    return (
+        f"Source: data/agents/{name}/{latest.run_id}/output.json\n"
+        f"{latest.started} · {latest.status} · {latest.summary}\n{items}"
+    )
+
+
 # --- one company ------------------------------------------------------------------------------
 
 COMPANY_ROWS = {
@@ -482,6 +537,22 @@ TOOLS: dict[str, Tool] = {
             "required": ["path"],
         },
         _read_document,
+    ),
+    "search_knowledge": Tool(
+        "Search everything the platform knows at once: papers, idea cards (hypotheses), research "
+        "notes, decisions, runbooks, history and the data quality grades. Returns paths to read.",
+        _text("query", "Words to search for.", True),
+        _search_knowledge,
+    ),
+    "data_quality": Tool(
+        "Each dataset's quality grade (A clean to D unusable), its freshness and its first problem.",
+        _text("dataset", "Part of a dataset name. Empty lists every dataset."),
+        _data_quality,
+    ),
+    "agent_outputs": Tool(
+        "The latest run of one agent: when, its status, its summary and its items.",
+        _text("agent", "An agent name, for example data or market_brief.", True),
+        _agent_outputs,
     ),
     "company": Tool(
         "One NSE company's fundamentals: sector, market cap, P/E, ROCE, ROE, margins, growth, "

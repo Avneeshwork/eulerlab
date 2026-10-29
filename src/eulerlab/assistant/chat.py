@@ -544,13 +544,18 @@ def ask(
     *,
     post: Post = _post,
     chosen: client.Provider | None = None,
+    system: str = SYSTEM,
 ) -> Answer:
-    """Answer the last user message, calling tools as the model asks for them."""
+    """Answer the last user message, calling tools as the model asks for them.
+
+    `system` replaces the assistant's own instructions; the knowledge agent
+    (ADR-085) passes stricter ones that demand a source for every number.
+    The tools, the host locks and the redaction are the same either way."""
     chosen = chosen or provider()
     turns = _history(messages)
     if not turns or turns[-1]["role"] != "user":
         raise Refused("Ask a question.")
-    thread: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM}, *turns]
+    thread: list[dict[str, Any]] = [{"role": "system", "content": system}, *turns]
     used: list[dict[str, Any]] = []
     for round_number in range(MAX_ROUNDS):
         payload: dict[str, Any] = {
