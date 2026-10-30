@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.agents import grounding
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output, untrusted
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -291,6 +292,14 @@ def run(ctx: Context) -> WorkerResult:
             )
         except Exception as exc:
             notes.append(f"no commentary: {type(exc).__name__}: {str(exc)[:120]}")
+        if commentary:
+            found = grounding.check(commentary, [plain])
+            if not found.ok:
+                notes.append(
+                    "commentary dropped: it used figures not in the brief "
+                    f"({', '.join(found.unsupported)}) (ADR-088)"
+                )
+                commentary = ""
     text = render(mode, day, sections, commentary)
     ctx.notes.extend(notes)
     ctx.write("brief.txt", text)

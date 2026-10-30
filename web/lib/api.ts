@@ -2262,6 +2262,7 @@ export type AgentRow = {
 export type AgentsResponse = {
   ok: boolean;
   agents: AgentRow[];
+  trials: { per_week: number; spent: number };
   brief_all: string;
   inbox: number;
   log_ok: boolean;

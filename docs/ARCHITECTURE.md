@@ -2231,6 +2231,46 @@ API rather than loading a second copy of the 1.85 GB panel.
 ask the knowledge agent, research and skeptic runs, the trade desk, the
 market brief, data quality and the agents' log.
 
+### When a model makes something up (ADR-088)
+
+`agents/grounding.py` checks every number (two digits or more, or with a
+point, comma or %), id and file path in an answer against the text the model
+was given. A number counts as supported when the evidence holds the same
+value at the answer's precision, or the same share as a fraction (12% for 0.12).
+
+| Where | On an unsupported figure |
+|---|---|
+| Knowledge answer | One retry that names the figures; then "Not held", listing them. The first answer is kept in the output |
+| Market brief commentary | Dropped; the brief goes out with data only, and a note says why |
+| `make agent-eval` | A figure the operator would have seen switches the agent off until the operator switches it on |
+
+Each output records a fingerprint of the prompts it ran under, so a changed
+score can be traced to a prompt change. `make agent-eval` runs weekly in
+`agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
+
+### The idea lab and the agents' trial allowance (ADR-089)
+
+```
+research drafts ──► lab: skip repeats, waiting-for-data, unbuildable
+                     │  fits this week's allowance (config/agent_trials.yaml, 5)?  no ─► wait
+                     ▼
+        panel cut at the card's holdout
+                     │
+     IC screen per feature (1 trial each) ── fails ─► stop, report
+                     │ every feature passes (IC >= 0.02, t >= 2)
+                     ▼
+     Tier A backtest per configuration (1 trial each)
+                     │
+     skeptic attacks ──► survivors to the inbox ──► operator: approve, register, make gate
+```
+
+Every trial is written to `data/derived/trials.jsonl` as `agent|<card>|...`
+before its result is read, so `budget.searches_run` and the noise bar count it.
+`research/agent_trials.py` is the only trial path an agent may import, and only
+`workers/lab.py` imports it (test-enforced). The lab reads the whole panel, so
+the web page refuses to start it; it runs from `make agent NAME=lab` and the
+Sunday batch.
+
 ## The data quality contract (ADR-086)
 
 `config/data_sources.yaml` registers every dataset. `make data-quality` grades

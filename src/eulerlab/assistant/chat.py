@@ -115,6 +115,8 @@ class Answer:
     host: str
     used: list[dict[str, Any]] = field(default_factory=list)
     """Each tool called: its name, arguments, and how many characters it sent."""
+    evidence: list[str] = field(default_factory=list)
+    """What each tool sent back, redacted, so a caller can check the answer against it (ADR-088)."""
 
 
 def host_of(provider: client.Provider) -> str:
@@ -557,6 +559,7 @@ def ask(
         raise Refused("Ask a question.")
     thread: list[dict[str, Any]] = [{"role": "system", "content": system}, *turns]
     used: list[dict[str, Any]] = []
+    evidence: list[str] = []
     for round_number in range(MAX_ROUNDS):
         payload: dict[str, Any] = {
             "model": chosen.model,
@@ -581,6 +584,7 @@ def ask(
                 chosen.model,
                 host_of(chosen),
                 used,
+                evidence,
             )
         thread.append(
             {"role": "assistant", "content": message.get("content") or "", "tool_calls": calls}
@@ -591,6 +595,7 @@ def ask(
             arguments = str(function.get("arguments") or "")
             result = redact.scrub(tools.call(name, arguments))
             used.append({"tool": name, "arguments": arguments[:200], "characters": len(result)})
+            evidence.append(result)
             thread.append(
                 {
                     "role": "tool",

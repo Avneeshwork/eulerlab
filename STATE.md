@@ -38,6 +38,9 @@ never edit them without an explicit instruction in that session.
   Telegram `instruct`/`outlook`/`inbox`. One data quality contract grades 18 datasets (`make data-quality`); backtests refuse a
   low-grade panel. Trade desk tickets and a version lock on every deployment. Quantpedia sync needs a key (T-4182).
   No agent has run live with a model yet; launchd jobs not loaded (T-4179).
+  Code checks every figure in a knowledge answer or brief commentary against what the model was given; `make agent-eval`
+  switches off an agent that shows a made-up figure (ADR-088). The idea lab may spend up to **5 trials a week** testing
+  the research agent's drafts (IC screen, then backtest, before the holdout), each logged and raising the bar (ADR-089).
 - **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
   library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
   `research/agent_drafts/`. `make paper-agent-approve DRAFT=...` moves one into `hypotheses/` as a draft. It never

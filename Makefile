@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync
+.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval
 
 help:
 	@echo "EulerLab — targets"
@@ -67,6 +67,7 @@ help:
 	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
 	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
 	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
+	@echo "  make agent-eval [ONLY=skeptic|knowledge]  score agents; one that makes up a figure is switched off"
 	@echo "  make relock DEPLOYMENT=<id> NOTE='...'  accept a strategy's changed code after review"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
@@ -269,10 +270,15 @@ agents-close:
 	-@uv run python -m eulerlab.agents.runtime market_brief
 
 agents-weekly:
+	-@uv run python -m eulerlab.agents.evaluate
 	-@uv run python -m eulerlab.research.quantpedia
 	-@uv run python -m eulerlab.agents.runtime knowledge
 	-@uv run python -m eulerlab.agents.runtime research
+	-@uv run python -m eulerlab.agents.runtime lab
 	-@uv run python -m eulerlab.agents.runtime engineering
+
+agent-eval:
+	@uv run python -m eulerlab.agents.evaluate $(if $(ONLY),--only $(ONLY),)
 
 relock:
 	@test -n "$(DEPLOYMENT)" -a -n "$(NOTE)" || (echo "usage: make relock DEPLOYMENT=<id> NOTE='why the new code is accepted'"; exit 2)

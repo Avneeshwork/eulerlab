@@ -110,8 +110,17 @@ def agents() -> dict[str, Any]:
         )
     every = briefs.current(briefs.ALL)
     ok, problem = log.verify()
+    from eulerlab.research import agent_trials
+
+    try:
+        allowance = agent_trials.load_allowance()
+        spent = agent_trials.spent_this_week()
+        trials = {"per_week": allowance.per_week, "spent": spent}
+    except (OSError, ValueError):
+        trials = {"per_week": 0, "spent": 0}
     return {
         "ok": True,
+        "trials": trials,
         "agents": rows,
         "brief_all": every.text if every else "",
         "inbox": len(inbox.pending()),
@@ -201,8 +210,12 @@ def agent_brief(name: str, request: BriefRequest) -> dict[str, Any]:
 
 @router.post("/api/agents/{name}/run")
 def agent_run(name: str, request: RunRequest) -> dict[str, Any]:
-    if name not in all_effective():
+    known = all_effective()
+    if name not in known:
         return {"ok": False, "error": f"no agent named {name!r}"}
+    if known[name].spec.options.get("cli_only"):
+        # It reads the whole price panel; from here that would be a second copy in the API's memory.
+        return {"ok": False, "error": f"{name} runs from the command line: make agent NAME={name}"}
     with _LOCK:
         if name in _RUNNING:
             return {"ok": False, "error": f"{name} is already running"}

@@ -3,6 +3,24 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Agent accuracy: the grounding check and agent-eval (2026-10-29)
+
+Operator: "what will be done if model start hallucinating?" then "yes build". Research 126; ADR-088.
+Verify: `uv run pytest -q tests/test_agent_grounding.py`; `make agent-eval ONLY=skeptic`; `make agent-eval` (uses the knowledge agent's budget).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4185 | Grounding check on knowledge answers and brief commentary; prompt fingerprints; `make agent-eval` with switch-off | DONE. 12 knowledge cases and 10 skeptic fakes. Knowledge cases not yet run live (S-047) |
+| T-4186 | Grow the knowledge test set to 50 cases, 10 with no answer on disk | TODO |
+| T-4187 | Record each model's training cutoff in `config/llm.yaml`; refuse to backtest a model-derived signal before it | TODO (research 126, finding 7) |
+| T-4188 | Name-swap and scrambled-input cases in agent-eval | TODO |
+| T-4189 | Verification questions on research drafts answered from the paper's text only | TODO |
+| T-4190 | Research critic votes three times; a draft passes on 2 of 3 | TODO |
+| T-4191 | Split the knowledge index into chunks with a context note each; measure recall before adding embeddings | TODO |
+| T-4192 | Approve/dismiss counts per agent on the AI tab | TODO |
+| T-4193 | Idea lab: test drafts within 5 trials a week (IC screen, then backtest), skeptic, inbox | DONE. ADR-089; `make agent NAME=lab`; `tests/test_agent_trials.py`. Runs Sundays after research |
+| T-4194 | First real lab run on the operator's machine, after a live research run | TODO. Needs research drafts (T-4171) |
+
 ## The AI agent network (2026-10-29)
 
 Operator: an AI agent network for research, building, backtesting, optimisation, risk, scenarios, a trade panel, code quality and latency; one data quality reference for every ingest; security; a way to instruct agents; a knowledge agent, a daily market brief and a data maintenance agent; Quantpedia as a source; an AI tab. "Build everything in one go." ADR-085, ADR-086, ADR-087; research 125.

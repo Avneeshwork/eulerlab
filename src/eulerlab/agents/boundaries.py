@@ -41,6 +41,12 @@ own idempotent steps in-process, from an allowlist."""
 ALLOWED_EXCEPTIONS: dict[str, tuple[str, ...]] = {}
 """Per-module exceptions, by file name. Empty, and should stay so."""
 
+TRIAL_PATH = "eulerlab.research.agent_trials"
+"""The one way an agent spends a trial (ADR-089): within the operator's weekly
+allowance, at a card's own configurations, before its holdout. Only the idea
+lab may import it; `trial_spenders` lists who does, and a test holds it to that."""
+TRIAL_SPENDERS = ("lab.py",)
+
 
 def imports_of(path: Path) -> list[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -67,3 +73,14 @@ def violations(path: Path) -> list[str]:
 def agent_modules(package: Path | None = None) -> list[Path]:
     base = package or Path(__file__).resolve().parent
     return sorted([*base.glob("*.py"), *(base / "workers").glob("*.py")])
+
+
+def trial_spenders(modules: list[Path] | None = None) -> list[str]:
+    """Agent modules that import the trial path."""
+    found = []
+    for path in modules if modules is not None else agent_modules():
+        if any(
+            name == TRIAL_PATH or name.startswith(TRIAL_PATH + ".") for name in imports_of(path)
+        ):
+            found.append(path.name)
+    return sorted(found)
