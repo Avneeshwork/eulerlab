@@ -57,6 +57,13 @@ platform lacks. Which can be had for free, how far back, and from where?
 9. **Snapshots only:** `corporate-pledgedata`, `ipo-current-issue`,
    `public-past-issues`, `ind_nifty50list.csv`. None takes a date.
 
+10. **Found while building the tab (2026-10-30):** NSE's bulk list repeats a
+    block trade that also passes 0.5% (Swiggy, 30 Oct: Tencent's sale is in
+    both). The API answered short selling for 30 Oct with an empty 200 the
+    next day: an unpublished day looks the same as a day with nothing. The
+    PIT list names the filing and rule, not the size; the size is in each
+    filing's XBRL.
+
 ## What could not be found
 
 - A free source of past NSE order book data. None exists that we found.

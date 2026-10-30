@@ -164,6 +164,16 @@ exchange timestamp) and `knowledge_time` (when the Mac received it). This is a
 snapshot per change, not NSE's order feed (S-052), and starts from the first
 day it ran: no free source has past order books.
 
+`make market-reports` (`market_reports.py`, ADR-096) turns the latest landed
+reports into `data/derived/market_reports.json` for Dashboard → India → Deals &
+filings: 30 trading days of bulk and block deals (a block trade NSE repeats in
+the bulk list counted once), net buyers and sellers, the F&O ban against the
+day before, MTF funding against five sessions back, short selling and SLBM
+lending, ten days of SAST and PIT filings, promoter pledges from the last two
+quarters, and IPOs. It runs between the download and the upload, so it reads
+local files. An empty API answer within three days of its date is not landed:
+NSE answers a day it has not published yet with an empty 200.
+
 All three upload with `make upload-verified`, which deletes a local file only
 when B2 holds it at the same size and the SHA-256 recorded at upload equals
 the hash of the local bytes, computed again. A file that fails either check is

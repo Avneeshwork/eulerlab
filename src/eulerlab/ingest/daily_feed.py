@@ -324,9 +324,11 @@ def _nse_daily_files() -> str:
 
 def _nse_reports() -> str:
     """Deals, ban list, SLBM, MTF, insider and SAST filings, and snapshots (ADR-095)."""
+    from eulerlab import market_reports
     from eulerlab.ingest import nse_reports
 
     text = _captured(lambda: nse_reports.main(["--from", _days_ago(7)]))
+    _captured(lambda: market_reports.main([]))  # the Deals & filings tab (ADR-096)
     return fetch_counts(text) or "last 7 days"
 
 

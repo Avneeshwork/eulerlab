@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: nse-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval
+.PHONY: nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval
 
 help:
 	@echo "EulerLab — targets"
@@ -572,7 +572,13 @@ daily-minute:
 # snapshots. Research 130, ADR-095. FROM defaults to a week back.
 nse-reports:
 	-uv run python -m eulerlab.ingest.nse_reports --from $(if $(FROM),$(FROM),$$(date -v-7d +%Y-%m-%d))
+	-@$(MAKE) --no-print-directory market-reports
 	@$(MAKE) --no-print-directory upload-verified TREES="nse_reports"
+
+# Dashboard → India → Deals & filings, from the landed reports (ADR-096).
+# Runs inside nse-reports, before the upload deletes the local copies.
+market-reports:
+	uv run python -m eulerlab.market_reports
 
 # Kite 1-minute candles for NIFTY 50, NIFTY BANK and INDIA VIX. YEARS=1 default.
 index-minute:

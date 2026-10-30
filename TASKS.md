@@ -65,7 +65,9 @@ Verify: `uv run pytest -q tests/test_market_microdata.py`; `make nse-reports`; a
 | T-4222 | Record five-level depth for the Nifty 50, the index and the near future during market hours | DONE (S-052). One-minute live test on 2026-10-30 after the close: 52 instruments, five levels. First full session is the first trading day after it is loaded. `make schedule ACTION=install JOB=depth` loads the 09:10 job; needs a Kite login each morning |
 | T-4223 | Price NSE's historical order and trade data (the only source of past order books) | TODO, operator. Email marketdata@nse.co.in |
 | T-4224 | Mutual fund holdings by stock | TODO. Each fund house publishes its own monthly workbook; no consolidated free file found (research 130) |
-| T-4225 | Readers for the new reports (deals, ban list, MTF, SLBM, insider) on the dashboard or as features | TODO (S-053) |
+| T-4225 | Readers for the new reports (deals, ban list, MTF, SLBM, insider) on the dashboard or as features | DONE for the dashboard: Dashboard → India → Deals & filings (ADR-096, `make market-reports`, `tests/test_market_reports.py`). Not yet used as features (S-053) |
+| T-4228 | NSE's API answered a day it had not published with an empty file, which then locked in | DONE. Empty API answers within 3 days are retried, not landed; an early empty file is re-landed beside itself as `_recheck` (HISTORY #37) |
+| T-4229 | NSE's bulk list repeats block trades over 0.5% | DONE. Counted once, as the block (`market_reports.drop_repeats`) |
 | T-4227 | NSE served an empty MTF file for 2026-04-08 | OPEN. Refused as malformed, so the day is missing; `make nse-reports FROM=2026-04-08` retries it |
 | T-4226 | Upload-and-delete only after B2's size and SHA-256 match | DONE. `make upload-verified TREES=...`; used by the three new jobs |
 

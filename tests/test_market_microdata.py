@@ -255,3 +255,44 @@ def test_verified_prune_deletes_only_exact_copies(tmp_path: Path) -> None:
     assert {p for p, _ in result.kept} == {wrong_hash, missing}
     assert not exact.exists() and wrong_hash.exists() and missing.exists()
     assert (tmp_path / "nse_reports" / "manifest.jsonl").exists()
+
+
+def test_an_early_empty_api_answer_is_retried_not_locked_in(tmp_path: Path) -> None:
+    report = nse_reports.REPORTS["short_selling"]
+    day = date(2026, 10, 30)
+    empty = b'\xef\xbb\xbf"Date ","Symbol ","Security Name ","Quantity "\n'
+    transport = FakeTransport({report.url(day): (200, empty)})
+    fetcher = Fetcher(transport, FetchPolicy(min_interval_s=0), sleep=lambda _s: None)
+    landing = Landing(tmp_path)
+
+    assert nse_reports.fetch_one(fetcher, landing, report, day, date(2026, 10, 31)) == "not-yet"
+    assert landing.entries() == {}
+    # Old enough: an empty day is a real answer and lands.
+    assert nse_reports.fetch_one(fetcher, landing, report, day, date(2026, 11, 5)) == "downloaded"
+
+
+def test_an_empty_file_landed_early_is_fetched_again_beside_it(tmp_path: Path) -> None:
+    report = nse_reports.REPORTS["short_selling"]
+    day = date(2026, 10, 30)
+    landing = Landing(tmp_path)
+    landing.write(
+        trade_date=day,
+        segment="short_selling",
+        file_format="raw",
+        url=report.url(day),
+        payload=b"x",
+        rows=0,
+        inner_name="x",
+        suffix="csv",
+    )
+    assert not nse_reports.landed(landing, day, "short_selling")
+    full = b'"Date ","Symbol ","Security Name ","Quantity "\n"30-OCT-2026","SBIN","SBI","5"\n'
+    transport = FakeTransport({report.url(day): (200, full)})
+    fetcher = Fetcher(transport, FetchPolicy(min_interval_s=0), sleep=lambda _s: None)
+    assert (
+        nse_reports.fetch_one(fetcher, Landing(tmp_path), report, day, date(2026, 10, 31))
+        == "downloaded"
+    )
+    entry = Landing(tmp_path).entries()[(day.isoformat(), "short_selling")]
+    assert entry.rows == 1 and entry.path.endswith("_recheck.csv")
+    assert nse_reports.landed(Landing(tmp_path), day, "short_selling")

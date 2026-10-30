@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Thirty-six times this project was wrong
+## Thirty-seven times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -369,6 +369,8 @@ figure produced outside the result store before this date was frictionless.
 **35. The API could not start on a clean install.** (2026-10-29) `market_context.py` and `attribution_detail.py` import numpy at server start, but numpy was not a dependency; it was present on the Mac only through another extra. `uv run --extra web uvicorn ...` failed with `ModuleNotFoundError`. numpy is now declared.
 
 **36. The SIP calculator counted a bonus issue as a loss.** (2026-10-30) It read raw closes from `/api/history`, the chart's endpoint, with no adjustment for splits or bonuses. Reliance's 1:1 bonus of 28 Oct 2024 halved the close, so a 3-year Reliance SIP showed XIRR −19.6% and a value of ₹3.42 L on ₹5.40 L put in. Adjusted, it is −5.5% and ₹4.76 L. Found walking the workbench on the operator's data. Fixed: `/api/history?adjusted=true` back-adjusts equity bars with the same factors a backtest uses, and the SIP asks for it. Every SIP figure for a stock that split or issued bonuses inside its window was wrong. None was stored; the calculator records nothing.
+
+**37. An NSE day that was not published yet landed as a day with nothing in it.** (2026-10-30) `nse_reports` landed any well-formed answer and never fetched that day again. NSE's API answers a day it has not published with an empty 200, so short selling for 30 Oct, fetched at 23:26 IST that night, landed with 0 rows and would have stayed empty. Found reading the Deals & filings tab, whose short-selling panel showed 29 Oct. Fixed: an empty API answer within 3 days of its date is not landed; an empty file landed early is fetched again and the new copy lands beside it (`_recheck`), so nothing is overwritten. The one-year backfill landed holidays and this day; the holidays are right, and the 30 Oct file is replaced on the next run. No study read these files yet.
 
 ---
 

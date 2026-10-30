@@ -1386,6 +1386,98 @@ export type PulseCard = {
   above_50?: number | null;
   tag?: string | null;
 };
+/** `/api/market-reports`: the Deals & filings tab (ADR-096). Each section
+ *  either carries its data or says why it is missing. */
+type Section<T> = ({ available: true } & T) | { available: false; reason: string };
+export type Deal = {
+  date: string;
+  kind: 'bulk' | 'block';
+  symbol: string;
+  client: string;
+  side: string;
+  qty: number;
+  price: number;
+  value_cr: number;
+};
+export type DealClient = { client: string; buy_cr: number; sell_cr: number; net_cr: number };
+export type MtfRow = { symbol: string; cr: number; change: number | null };
+export type SastFiling = {
+  time: string;
+  symbol: string;
+  company: string;
+  who: string;
+  promoter: boolean;
+  side: string;
+  shares: number;
+  pct: number;
+  after_pct: number;
+  mode: string;
+};
+export type InsiderFiling = {
+  time: string;
+  symbol: string;
+  company: string;
+  regulation: string;
+  type: string;
+  link: string;
+};
+export type MarketReports = {
+  ok: boolean;
+  reason?: string;
+  built_at?: string;
+  deals?: Section<{
+    as_of: string;
+    since: string;
+    today: Deal[];
+    today_count: number;
+    largest: Deal[];
+    buyers: DealClient[];
+    sellers: DealClient[];
+    count: number;
+  }>;
+  ban?: Section<{ as_of: string; symbols: string[]; added: string[]; removed: string[] }>;
+  mtf?: Section<{
+    as_of: string;
+    compared_with: string;
+    totals_cr: Record<string, number>;
+    largest: MtfRow[];
+    rising: MtfRow[];
+    falling: MtfRow[];
+  }>;
+  shorts?: Section<{
+    as_of: string;
+    short_sold: { symbol: string; qty: number }[];
+    short_count: number;
+    slbm_as_of: string | null;
+    lent: { symbol: string; qty: number; fee: number }[];
+  }>;
+  filings?: Section<{ days: number; sast: SastFiling[]; insider: InsiderFiling[]; insider_count: number }>;
+  pledges?: Section<{
+    as_of: string;
+    count: number;
+    top: {
+      company: string;
+      of_promoter_pct: number;
+      of_company_pct: number;
+      promoter_pct: number;
+      quarter: string;
+    }[];
+  }>;
+  ipos?: Section<{
+    as_of: string;
+    open: {
+      symbol: string;
+      company: string;
+      opens: string;
+      closes: string;
+      price: string;
+      subscribed: number;
+      series: string;
+    }[];
+    listed: { symbol: string; company: string; listed: string; price: string; series: string }[];
+  }>;
+};
+
 export type MarketContext = {
   ok: boolean;
   pulse: { available: true; cards: PulseCard[]; note: string } | Unavailable;
@@ -1906,6 +1998,7 @@ export const api = {
     post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
   /** `live` false answers from held data alone, without waiting on a broker. */
   marketContext: () => get<MarketContext>('/api/market-context'),
+  marketReports: () => get<MarketReports>('/api/market-reports'),
   snapshot: (workspace = '', live = true) =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}&live=${live}`),
   tweezer: (input: {

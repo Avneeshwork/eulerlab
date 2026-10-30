@@ -42,7 +42,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
-from eulerlab.ingest.landing import Landing
+from eulerlab.ingest.landing import Landing, ManifestEntry
 from eulerlab.ingest.nse_eod import IST, business_days
 
 DEFAULT_LANDING = Path("data/landing/nse_reports")
@@ -224,18 +224,34 @@ def last_complete_day(report: Report, now: datetime) -> date:
     return ist.date()
 
 
+PROVISIONAL_DAYS = 3
+"""An empty answer this soon after the day may only mean NSE has not published
+yet: short selling for 2026-10-30 was still empty a day later. Such an answer
+is not landed; one older than this is a day with nothing to report."""
+
+
+def _provisional(entry: ManifestEntry) -> bool:
+    known = datetime.fromisoformat(entry.knowledge_time).astimezone(IST).date()
+    young = (known - date.fromisoformat(entry.trade_date)).days < PROVISIONAL_DAYS
+    return entry.rows == 0 and entry.url.startswith(API) and young
+
+
 def landed(landing: Landing, day: date, name: str) -> bool:
     """In the manifest, whether or not the local copy has been pruned.
 
     `Landing.has` also wants the file on disk, which turns every pruned day
     into a re-download. These reports are pruned the same night they land,
-    so the manifest is the record (ADR-095).
+    so the manifest is the record (ADR-095). An empty file landed within
+    `PROVISIONAL_DAYS` of its day (before this rule existed) does not count.
     """
-    return (day.isoformat(), name) in landing.entries()
+    entry = landing.entries().get((day.isoformat(), name))
+    return entry is not None and not _provisional(entry)
 
 
-def fetch_one(fetcher: Fetcher, landing: Landing, report: Report, day: date) -> str:
-    """Returns one of: downloaded, skipped, absent, failed, malformed."""
+def fetch_one(
+    fetcher: Fetcher, landing: Landing, report: Report, day: date, today: date | None = None
+) -> str:
+    """Returns one of: downloaded, skipped, absent, failed, malformed, not-yet."""
     if landed(landing, day, report.name):
         return "skipped"
     url = report.url(day)
@@ -247,10 +263,17 @@ def fetch_one(fetcher: Fetcher, landing: Landing, report: Report, day: date) -> 
     rows = report.check(result.payload)
     if rows is None:
         return "malformed"
+    today = today or datetime.now(IST).date()
+    # Only NSE's API answers an unpublished day with an empty 200; the archive 404s.
+    early = url.startswith(API) and not report.snapshot
+    if rows == 0 and early and (today - day).days < PROVISIONAL_DAYS:
+        return "not-yet"
+    # A second file beside an early empty one, never over it: landed files are immutable.
+    replaced = (day.isoformat(), report.name) in landing.entries()
     landing.write(
         trade_date=day,
         segment=report.name,
-        file_format="raw",
+        file_format="recheck" if replaced else "raw",
         url=url,
         payload=result.payload,
         rows=rows,
@@ -287,11 +310,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         counts: dict[str, int] = {}
         print(f"{name}: {len(days)} day(s) to {days[-1] if days else '-'}", flush=True)
         for index, day in enumerate(days, start=1):
-            outcome = fetch_one(fetcher, landing, report, day)
+            outcome = fetch_one(fetcher, landing, report, day, now.date())
             counts[outcome] = counts.get(outcome, 0) + 1
             if index % 50 == 0:
                 print(f"  {index}/{len(days)}  {counts}", flush=True)
-        print(f"  done: {counts}  ('absent' is expected on holidays)", flush=True)
+        print(
+            f"  done: {counts}  ('absent' is a holiday; 'not-yet' is retried next run)", flush=True
+        )
         failed += counts.get("failed", 0) + counts.get("malformed", 0)
     return 1 if failed else 0
 
