@@ -234,3 +234,121 @@
 @media (prefers-reduced-transparency: reduce) {
   .terminal { --surface: var(--surface-solid); --glass-strong: var(--surface-solid); }
 }
+
+/* ============================ agents on each page (ADR-094) ============================ */
+
+.agent-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--s3);
+}
+.agent-chip {
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.agent-chip[data-state='running'] {
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+  box-shadow: var(--shadow), 0 0 0 4px color-mix(in srgb, var(--brand) 10%, transparent);
+}
+.agent-chip-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+.agent-chip-body p { margin: 0; }
+.agent-chip-body header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.agent-chip-body header b { font-size: 14.5px; font-weight: 650; }
+.agent-chip-role { font-size: 13px; color: var(--ink-3); line-height: 1.45; }
+.agent-chip-said {
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.agent-chip-said span {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  margin-right: 4px;
+}
+.agent-chip[data-state='running'] .agent-chip-said { background: var(--brand-wash); }
+.agent-chip[data-state='running'] .agent-chip-said span { color: var(--brand); }
+.agent-chip-body footer { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin-top: 2px; }
+.agent-next { font-size: 12.5px; color: var(--ink-2); flex: 1; min-width: 160px; }
+.agent-chip-body footer .tbtn { height: 30px; padding: 0 14px; font-size: 13px; }
+.agent-link {
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.agent-brief {
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.agent-brief p { white-space: pre-line; overflow-wrap: anywhere; }
+.agent-brief[data-open='false'] p {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The orb: a ring, a core and a spark. It spins and twinkles while the agent
+   works, breathes when it finished, and turns red when it failed. */
+.agent-orb { flex: none; width: 32px; height: 32px; margin-top: 2px; }
+.agent-orb svg { display: block; overflow: visible; }
+.agent-orb-ring { fill: none; stroke: var(--rule-2); stroke-width: 2; }
+.agent-orb-core { fill: var(--surface-2); }
+.agent-orb-spark { fill: var(--ink-4); transform-origin: 16px 16px; }
+
+.agent-orb[data-state='ok'] .agent-orb-ring { stroke: color-mix(in srgb, var(--up) 55%, transparent); }
+.agent-orb[data-state='ok'] .agent-orb-core { fill: var(--up-wash); animation: agent-breathe 3.2s ease-in-out infinite; transform-origin: 16px 16px; }
+.agent-orb[data-state='ok'] .agent-orb-spark { fill: var(--up); }
+
+.agent-orb[data-state='running'] .agent-orb-ring {
+  stroke: var(--brand);
+  stroke-dasharray: 22 66;
+  stroke-linecap: round;
+  transform-origin: 16px 16px;
+  animation: agent-spin 1.1s linear infinite;
+}
+.agent-orb[data-state='running'] .agent-orb-core { fill: var(--brand-wash); }
+.agent-orb[data-state='running'] .agent-orb-spark { fill: var(--brand); animation: agent-twinkle 1.4s ease-in-out infinite; }
+
+.agent-orb[data-state='failed'] .agent-orb-ring,
+.agent-orb[data-state='stopped'] .agent-orb-ring,
+.agent-orb[data-state='refused'] .agent-orb-ring { stroke: color-mix(in srgb, var(--down) 60%, transparent); }
+.agent-orb[data-state='failed'] .agent-orb-spark,
+.agent-orb[data-state='stopped'] .agent-orb-spark,
+.agent-orb[data-state='refused'] .agent-orb-spark { fill: var(--down); }
+.agent-orb[data-state='over_budget'] .agent-orb-spark,
+.agent-orb[data-state='skipped'] .agent-orb-spark { fill: var(--caveat); }
+
+@keyframes agent-spin { to { transform: rotate(360deg); } }
+@keyframes agent-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.25) rotate(45deg); }
+}
+@keyframes agent-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-orb * { animation: none !important; }
+}

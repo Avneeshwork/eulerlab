@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AgentsTab } from '@/components/terminal/AgentsTab';
+import AgentStrip from '@/components/terminal/AgentStrip';
 import { DeskTab } from '@/components/terminal/DeskTab';
 import { ResearchLibrary } from '@/components/terminal/ResearchLibrary';
 import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
@@ -172,7 +173,7 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
   agents: {
     title: 'AI',
-    sub: 'The agents: what they found, what waits on you, how to steer them, and a box to ask. Nothing here trades.',
+    sub: 'The control room: what waits on your decision, every agent at work, and a box to ask. Each agent also shows on the page it works for. Nothing here trades.',
   },
 };
 
@@ -403,6 +404,8 @@ export default function TerminalPage() {
             <p>{heading.sub}</p>
           </div>
         )}
+
+        <AgentStrip page={page} onOpenAI={() => setPage('agents')} />
 
         {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 

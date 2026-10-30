@@ -2280,6 +2280,24 @@ the inbox, agents and briefs (switch, budget, brief, run), ask the knowledge
 agent, research and skeptic runs, the market brief, data quality and the
 agents' log. The trade desk is on Live & Risk only.
 
+### Agents on the page they serve (ADR-094)
+
+Each page shows its own agents in a strip under the heading
+(`AgentStrip.tsx`, `PAGE_AGENTS`):
+
+| Page | Agents |
+|---|---|
+| Dashboard | market brief, with the latest brief shown in the strip |
+| Strategies | idea lab, skeptic, portfolio |
+| Live & Risk | operations, portfolio |
+| Data, Instruments | data |
+| Research | research, knowledge |
+
+The strip reads `/api/agents/activity` and `/api/agents/inbox`. It polls every
+30 s, or every 3 s while one of its agents runs. Run now posts to
+`/api/agents/{name}/run`. The AI tab stays the control room: the inbox, every
+agent live, Ask, settings and the log. Engineering shows only there.
+
 ### What an agent is doing now (ADR-091)
 
 ```
