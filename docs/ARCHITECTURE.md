@@ -2298,6 +2298,28 @@ The strip reads `/api/agents/activity` and `/api/agents/inbox`. It polls every
 `/api/agents/{name}/run`. The AI tab stays the control room: the inbox, every
 agent live, Ask, settings and the log. Engineering shows only there.
 
+Each card says what the last run found, not only how many (T-4212). The
+activity route carries `findings`: up to 12 of the run's items, critical first,
+then warnings, alerts before findings, each with its explanation and the
+command that fixes it; `findings_total` is the full count. The card shows the
+worst three and expands to the rest.
+
+- **Skeptic.** A picker lists every strategy with a stored report
+  (`GET /api/agents/skeptic/targets`). Run with a strategy, it gives that
+  result's full review. Run with "all", or with nothing named, it runs the
+  numbers-only attacks on every stored result and lists them worst first. That
+  spends no model request and no trial, because it only reads reports already
+  stored.
+- **Idea lab.** It runs from the terminal (`cli_only`) because it loads the
+  whole price panel. The card says so, gives its schedule, and has the command
+  with a copy button.
+- **Data.** The summary reads "N clean (A or B), N usable with a failed check
+  (C), N not usable (D)" and names the critical datasets that block backtests.
+  Each failed check is said as the problem it is (`CHECK_WORDS`), and the card
+  carries the key to the grades.
+- **Operations.** The summary names each alert, and a halted book's alert says
+  why it halted and that it places no trades while halted.
+
 ### What an agent is doing now (ADR-091)
 
 ```

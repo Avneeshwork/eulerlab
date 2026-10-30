@@ -25,7 +25,7 @@ import json
 import math
 import statistics
 from collections import defaultdict
-from datetime import date
+from datetime import UTC, date, datetime
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
@@ -60,6 +60,26 @@ def find_report(ctx: Context) -> Path | None:
         return None
     found = sorted(WORKSPACES.glob(f"*/reports/{strategy}/*.json"), key=lambda p: p.stat().st_mtime)
     return found[-1] if found else None
+
+
+def targets(root: Path | None = None) -> list[dict[str, str]]:
+    """Every strategy with a stored report, newest report each, sorted by name.
+
+    This is the list the page offers to attack. Reading it spends no trial.
+    """
+    newest: dict[str, Path] = {}
+    for path in (root or WORKSPACES).glob("*/reports/*/*.json"):
+        name = path.parent.name
+        if name not in newest or path.stat().st_mtime > newest[name].stat().st_mtime:
+            newest[name] = path
+    return [
+        {
+            "strategy": name,
+            "report": str(path),
+            "at": datetime.fromtimestamp(path.stat().st_mtime, UTC).isoformat(timespec="seconds"),
+        }
+        for name, path in sorted(newest.items())
+    ]
 
 
 def curve(report: dict[str, Any]) -> tuple[list[date], list[float]]:
@@ -205,11 +225,66 @@ def verdicts(found: dict[str, Any]) -> list[Item]:
     return items
 
 
+def attack_all(ctx: Context) -> WorkerResult:
+    """Numbers-only attacks on every stored result, worst first. No model request is spent."""
+    rows = targets()
+    if not rows:
+        return WorkerResult(
+            "No stored backtest results to attack yet. Run a backtest from the Strategies page first.",
+            status="refused",
+        )
+    ctx.step(f"Attacking all {len(rows)} stored results, numbers only, no model")
+    scored: list[tuple[int, int, str, list[Item]]] = []
+    unread = 0
+    for row in rows:
+        try:
+            report = json.loads(Path(row["report"]).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            unread += 1
+            continue
+        days, values = curve(report)
+        found = attacks(days, values, report)
+        if "error" in found:
+            unread += 1
+            continue
+        found_items = verdicts(found)
+        critical = sum(1 for i in found_items if i.severity == "critical")
+        warn = sum(1 for i in found_items if i.severity == "warn")
+        scored.append((critical, warn, row["strategy"], found_items))
+    scored.sort(key=lambda r: (-r[0], -r[1], r[2]))
+    items = [
+        Item(
+            kind="finding",
+            title=(
+                f"{name}: {critical} critical, {warn} warning{'s' if warn != 1 else ''}"
+                if critical or warn
+                else f"{name}: survived every attack"
+            ),
+            body="; ".join(i.title for i in found) or "no attack found a weakness in the numbers",
+            severity="critical" if critical else "warn" if warn else "info",
+            ref=f"strategy={name}",
+        )
+        for critical, warn, name, found in scored
+    ]
+    bad = sum(1 for r in scored if r[0])
+    shaky = sum(1 for r in scored if not r[0] and r[1])
+    summary = (
+        f"Checked {len(scored)} stored results: {bad} have a problem that could make the result fake, "
+        f"{shaky} have warnings, {len(scored) - bad - shaky} survived every attack"
+        + (f"; {unread} too short or unreadable" if unread else "")
+        + ". Pick one to get its full review."
+    )
+    return WorkerResult(summary, items, data={"checked": len(scored), "unread": unread})
+
+
 def run(ctx: Context) -> WorkerResult:
+    named = str(ctx.args.get("strategy") or "").strip()
+    if not str(ctx.args.get("report") or "").strip() and named in ("", "all"):
+        return attack_all(ctx)
     path = find_report(ctx)
     if path is None:
         return WorkerResult(
-            "name a stored result: strategy=<id> or report=<path to a report .json>",
+            f"No stored result for {named or 'that report'}. Pick one from the list on the card.",
             status="refused",
         )
     ctx.step(
@@ -236,7 +311,8 @@ def run(ctx: Context) -> WorkerResult:
     ctx.write("attacks.json", found)
     base = found.get("sharpe")
     return WorkerResult(
-        f"{path.parent.name}: Sharpe {base:.2f}, {len([i for i in items if i.severity == 'critical'])} critical attacks"
+        f"{path.parent.name}: Sharpe {base:.2f}; "
+        f"{len([i for i in items if i.severity == 'critical'])} attacks found a problem that could make it fake"
         if isinstance(base, float)
         else f"{path.parent.name}: attacked",
         items,
