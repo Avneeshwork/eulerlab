@@ -1,0 +1,504 @@
+/* The look (ADR-090), loaded last.
+ *
+ * terminal.css owns layout and shell.css the OpenAlgo structure; this file
+ * owns how things look, so the redesign reads in one place. Four solid
+ * colours from tokens.css, slate neutrals, rounded shapes:
+ *
+ *   - the page is a soft grey ground; everything you read sits on a white card
+ *   - one blue for "do this / you are here", green and red only for a sign,
+ *     amber only for a caution
+ *   - cards 18px, controls 10px, toggles pills
+ *   - one heading size per card, one muted line under it
+ */
+
+/* ============================ base ============================ */
+
+.terminal {
+  background: var(--ground);
+  letter-spacing: -0.003em;
+}
+.terminal a { color: var(--brand); }
+.terminal :focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.terminal ::selection { background: var(--brand-wash); }
+
+/* globals.css gives every textarea a 300px floor for the old code editor.
+   In the terminal a textarea's rows decide its height. */
+.terminal textarea {
+  min-height: 0;
+  font-family: var(--ui);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  resize: vertical;
+}
+.terminal input,
+.terminal select,
+.terminal textarea {
+  border-radius: var(--r-sm);
+  border: 1px solid var(--rule-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+.terminal input:focus,
+.terminal select:focus,
+.terminal textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent);
+}
+.terminal input[type='checkbox'],
+.terminal input[type='radio'] { accent-color: var(--brand); box-shadow: none; }
+
+/* ============================ top bar ============================ */
+
+.terminal .tbar {
+  height: 64px;
+  padding: 0 var(--s5);
+  background: var(--surface);
+  backdrop-filter: none;
+  border-bottom: 1px solid var(--rule);
+  box-shadow: 0 1px 0 rgb(15 23 42 / 0.02);
+}
+.terminal .tbrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.tbrand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  display: grid;
+  place-items: center;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 16px;
+  font-weight: 800;
+}
+.terminal .tnav { gap: 4px; }
+.terminal .tnav button {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--r-pill);
+  font-weight: 500;
+  color: var(--ink-3);
+  position: relative;
+}
+.terminal .tnav button:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.terminal .tnav button[aria-current='page'] {
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 600;
+}
+.tnav-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--up);
+  box-shadow: 0 0 0 2px var(--surface);
+  animation: tpulse 1.4s ease-in-out infinite;
+}
+.terminal .tcmd,
+.terminal .ticon {
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border-color: transparent;
+}
+.terminal .tcmd:hover,
+.terminal .ticon:hover { background: var(--surface-3); color: var(--ink); }
+.terminal .tcmd kbd {
+  border-radius: var(--r-xs);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+.terminal .tmode { border-radius: var(--r-pill); }
+
+@media (max-width: 720px) {
+  .terminal .tnav button { border-radius: var(--r-md); }
+  .terminal .tnav button[aria-current='page'] { background: var(--brand-wash); color: var(--brand); }
+}
+
+/* ============================ page ============================ */
+
+.terminal .tpage { padding: var(--s6) var(--s5) var(--s8); gap: var(--s5); }
+.tpage-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.tpage-head p { font-size: 14.5px; color: var(--ink-3); max-width: 80ch; }
+
+/* ============================ surfaces ============================ */
+
+.terminal .tpanel,
+.terminal .rk-card,
+.terminal .thero,
+.terminal .tstat-card,
+.terminal .ttool-card,
+.terminal .mc-card,
+.terminal .co-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+.terminal h2.thero { background: none; border: 0; box-shadow: none; }
+.terminal .tpanel h3 { font-size: 16px; font-weight: 650; color: var(--ink); margin-bottom: var(--s2); }
+.terminal .trow { border-radius: var(--r-md); background: var(--surface); }
+.terminal .trow[data-open='true'] { border-color: var(--brand); }
+.terminal .tnote { border-radius: var(--r-md); }
+.terminal .tempty { font-size: 14.5px; color: var(--ink-3); }
+.ttool-icon { background: var(--brand) !important; color: var(--brand-ink) !important; border-radius: var(--r-md) !important; }
+.terminal .ttool-card:hover { border-color: var(--brand); }
+
+/* ============================ controls ============================ */
+
+.terminal .tbtn {
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  border: 1px solid var(--rule-2);
+  background: var(--surface);
+  color: var(--ink);
+}
+.terminal .tbtn:hover:not(:disabled) { border-color: var(--brand); color: var(--brand); }
+.terminal .tbtn.go,
+.terminal .tbtn.primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.terminal .tbtn.go:hover:not(:disabled),
+.terminal .tbtn.primary:hover:not(:disabled) { background: var(--brand-2); border-color: var(--brand-2); color: var(--brand-ink); }
+.terminal .tbtn.danger { background: var(--down); border-color: var(--down); color: #fff; }
+.terminal .tbtn.danger:hover:not(:disabled) { filter: brightness(1.06); color: #fff; }
+.terminal .tbtn.ok { background: var(--up); border-color: var(--up); color: #fff; }
+.terminal .tbtn.ok:hover:not(:disabled) { filter: brightness(1.06); color: #fff; }
+
+.terminal .tchip { border-radius: var(--r-pill); }
+.terminal .tchip[aria-pressed='true'] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.terminal .tsearch { border-radius: var(--r-pill); background: var(--surface); }
+.terminal .tsearch:focus { border-color: var(--brand); }
+
+.terminal .tseg {
+  padding: 4px;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow);
+  flex-wrap: wrap;
+}
+.terminal .tseg button { border-radius: var(--r-pill); height: 32px; padding: 0 14px; }
+.terminal .tseg button:hover { color: var(--ink); background: var(--surface-2); }
+.terminal .tseg button[aria-selected='true'] { background: var(--brand); color: var(--brand-ink); box-shadow: none; }
+
+.terminal .tsel { background: var(--ink); }
+
+/* ============================ tables ============================ */
+
+.terminal .ttable th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--sunken);
+  padding: var(--s2) var(--s3);
+}
+.terminal .ttable th:first-child { border-top-left-radius: var(--r-sm); }
+.terminal .ttable th:last-child { border-top-right-radius: var(--r-sm); }
+.terminal .ttable tbody tr:hover td { background: color-mix(in srgb, var(--brand) 4%, transparent); }
+.terminal .ttable .pos,
+.terminal .pos { color: var(--up); }
+.terminal .ttable .neg,
+.terminal .neg { color: var(--down); }
+
+/* ============================ status words ============================ */
+
+/* One small rounded label, coloured only by meaning. */
+.tbadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.tbadge[data-tone='brand'] { background: var(--brand-wash); color: var(--brand); }
+.tbadge[data-tone='up'] { background: var(--up-wash); color: var(--up); }
+.tbadge[data-tone='down'] { background: var(--down-wash); color: var(--down); }
+.tbadge[data-tone='caveat'] { background: var(--caveat-wash); color: var(--caveat); }
+
+.tdot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--ink-4);
+}
+.tdot[data-tone='brand'] { background: var(--brand); }
+.tdot[data-tone='up'] { background: var(--up); }
+.tdot[data-tone='down'] { background: var(--down); }
+.tdot[data-tone='caveat'] { background: var(--caveat); }
+.tdot[data-live='true'] { animation: tpulse 1.4s ease-in-out infinite; }
+
+@keyframes tpulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 0%, transparent); opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tdot[data-live='true'], .tnav-dot { animation: none; }
+}
+
+/* ============================ stat cards ============================ */
+
+.terminal .tstat-card b.brand { color: var(--brand); }
+.terminal .tstat-card b.caveat { color: var(--caveat); }
+.terminal .tstat-card b small { font-size: 15px; font-weight: 500; color: var(--ink-3); }
+.ai-stat-link { font: inherit; text-align: left; cursor: pointer; color: inherit; }
+.ai-stat-link:hover { border-color: var(--brand) !important; }
+
+/* ============================ AI tab (ADR-091) ============================ */
+
+.ai-section { display: grid; gap: var(--s4); }
+.ai-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--caveat);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.ai-live {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--s4);
+  align-items: start;
+}
+@media (max-width: 1100px) { .ai-live { grid-template-columns: minmax(0, 1fr); } }
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--s4);
+  align-items: start;
+}
+.ai-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s4) var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+.ai-card[data-state='running'] { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 14%, transparent); }
+.ai-card[data-state='failed'],
+.ai-card[data-state='stopped'] { border-color: color-mix(in srgb, var(--down) 45%, var(--rule)); }
+.ai-card > header { display: flex; align-items: flex-start; gap: var(--s3); }
+.ai-card > header .tdot { margin-top: 6px; }
+.ai-card-title { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ai-card-title b { font-size: 15px; font-weight: 650; }
+.ai-card-title span { font-size: 12.5px; color: var(--ink-3); line-height: 1.4; }
+.ai-now {
+  background: var(--sunken);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+  display: grid;
+  gap: 2px;
+}
+.ai-card[data-state='running'] .ai-now { background: var(--brand-wash); }
+.ai-now > span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.ai-card[data-state='running'] .ai-now > span { color: var(--brand); }
+.ai-now p { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.ai-now time { font-size: 11.5px; color: var(--ink-3); }
+
+.ai-steps { list-style: none; margin: 0; padding: 0 0 0 var(--s2); display: grid; gap: 0; }
+.ai-steps li {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: 4px 0 4px var(--s4);
+  font-size: 12.5px;
+  color: var(--ink-2);
+  border-left: 2px solid var(--rule);
+}
+.ai-steps li::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 9px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--rule-2);
+}
+.ai-steps li[data-kind='model']::before { border-color: var(--brand); }
+.ai-steps li[data-kind='note'] { color: var(--ink-3); }
+.ai-steps li[data-kind='end']::before { border-color: var(--up); background: var(--up); }
+.ai-steps li[data-last='true']::before { border-color: var(--brand); background: var(--brand); }
+.ai-step-text { min-width: 0; overflow-wrap: anywhere; }
+.ai-steps time { flex: none; font-size: 11.5px; color: var(--ink-4); white-space: nowrap; }
+
+.ai-card > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin-top: auto; }
+.ai-card > footer input { flex: 1; min-width: 0; height: 30px; padding: 0 10px; font-size: 13px; }
+.ai-card-acts { display: flex; gap: var(--s2); }
+.ai-meter { position: relative; flex: 1; max-width: 170px; height: 22px; display: flex; align-items: center; }
+.ai-meter::before { content: ''; position: absolute; inset: auto 0 0; height: 4px; border-radius: 4px; background: var(--surface-3); }
+.ai-meter i { position: absolute; left: 0; bottom: 0; height: 4px; border-radius: 4px; background: var(--brand); }
+.ai-meter em { font-style: normal; font-size: 11.5px; color: var(--ink-3); position: relative; top: -5px; }
+.ai-meter-none { font-size: 11.5px; color: var(--ink-4); }
+.ai-switch { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+
+.ai-feed { position: sticky; top: 80px; max-height: calc(100vh - 100px); display: flex; flex-direction: column; }
+.ai-feed h3 { display: flex; align-items: center; gap: var(--s2); }
+.ai-feed-list { list-style: none; margin: var(--s2) 0 0; padding: 0; overflow-y: auto; display: grid; gap: 2px; }
+.ai-feed-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--r-sm);
+  font-size: 12.5px;
+}
+.ai-feed-list li:nth-child(odd) { background: var(--sunken); }
+.ai-feed-list li b { font-weight: 650; font-size: 12px; color: var(--brand); }
+.ai-feed-list li span { grid-column: 1 / -1; color: var(--ink-2); overflow-wrap: anywhere; }
+.ai-feed-list li time { grid-row: 1; grid-column: 2; font-size: 11px; color: var(--ink-4); white-space: nowrap; }
+.ai-feed-list li[data-kind='end'] span { color: var(--up); font-weight: 600; }
+
+.ai-inbox { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.ai-inbox li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.ai-inbox li > div { display: grid; gap: 4px; min-width: 0; }
+.ai-inbox-meta { display: flex; align-items: center; gap: var(--s2); font-size: 12px; color: var(--ink-3); }
+.ai-inbox li p { margin: 0; font-size: 13px; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.ai-inbox-acts { display: flex; gap: var(--s2); align-items: flex-start; flex: none; }
+.ai-brief { display: grid; gap: 6px; }
+.ai-brief textarea { width: 100%; padding: var(--s2) var(--s3); }
+.ai-brief-acts { display: flex; align-items: center; gap: var(--s2); }
+.ai-inline { display: flex; gap: var(--s2); }
+.ai-inline input { flex: 1; min-width: 0; height: var(--control-h); padding: 0 var(--s3); }
+.terminal .ai-section textarea { width: 100%; padding: var(--s2) var(--s3); }
+.ai-pre {
+  white-space: pre-wrap;
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin: var(--s3) 0 0;
+  padding: var(--s4);
+  background: var(--sunken);
+  border-radius: var(--r-md);
+}
+@media (max-width: 720px) {
+  .ai-inbox li { flex-direction: column; }
+  .ai-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.ai-cli { font-family: var(--mono); font-size: 11.5px; padding: 4px 8px; border-radius: var(--r-xs); background: var(--surface-2); color: var(--ink-2); }
+
+/* ============================ selected = blue ============================
+   Older components filled a pressed toggle with ink. Pressed, chosen and
+   "this one" are the brand's job now. */
+
+.terminal .chip.on,
+.terminal .chosen-chip,
+.terminal .mkttoggle > button.on,
+.terminal .mc-seg button.on,
+.terminal .sb-n {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+.terminal .mkttoggle > button:first-of-type { border-radius: var(--r-pill) 0 0 var(--r-pill); }
+.terminal .mkttoggle > button:last-of-type { border-radius: 0 var(--r-pill) var(--r-pill) 0; }
+/* `.mkttoggle button` in terminal.css also styled the (i) button inside the
+   market note as a segment: a white box with the i at its foot. */
+.terminal .mkttoggle .info-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--rule-2);
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.terminal .asst-fab,
+.terminal .asst-form button,
+.terminal .asst-msg.is-user {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+
+/* ============================ phones ============================ */
+
+@media (max-width: 720px) {
+  .terminal .tbar { padding: 0 var(--s4); gap: var(--s2); }
+  .terminal .tbrand-name { display: none; }
+  .terminal .tright { gap: 6px; min-width: 0; }
+  .terminal .tmode b { display: none; }
+  /* Seven sections do not fit a phone's width: the bar scrolls sideways. */
+  .terminal .tnav { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+  .terminal .tnav::-webkit-scrollbar { display: none; }
+  .terminal .tnav button { flex: 0 0 auto; min-width: 68px; }
+  .terminal .tseg {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    border-radius: var(--r-lg);
+    scrollbar-width: none;
+  }
+  .terminal .tseg button { flex: none; white-space: nowrap; }
+  .terminal .tpage { padding: var(--s5) var(--s4) 110px; }
+  .terminal .tstat-card b { font-size: 22px; }
+  .ai-feed { position: static; max-height: none; }
+}
+@media (max-width: 720px) {
+  .terminal .asst-fab { bottom: 84px; right: var(--s4); width: 48px; height: 48px; }
+}
+
+/* ============================ loss limits (ADR-092) ============================ */
+
+.ll { display: grid; gap: var(--s2); padding: var(--s3) var(--s4); background: var(--sunken); border-radius: var(--r-md); }
+.ll-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.ll-acts { display: flex; gap: var(--s2); }
+.ll-bar { position: relative; height: 8px; border-radius: var(--r-pill); background: var(--surface-3); }
+.ll-bar i { position: absolute; inset: 0 auto 0 0; border-radius: var(--r-pill); background: var(--brand); }
+.ll-bar[data-tone='caveat'] i { background: var(--caveat); }
+.ll-bar[data-tone='down'] i { background: var(--down); }
+.ll-bar u { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px; }
+.ll-reduce { background: var(--caveat); }
+.ll-halt { background: var(--down); }
+.ll-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); font-size: 13px; }
+.ll-form label { display: inline-flex; align-items: center; gap: 6px; }
+.ll-form input { width: 64px; height: 30px; padding: 0 8px; }
+.terminal .paper-card header > div:first-child { flex: 1; }
+.terminal .paper-actions .tinput { flex: 0 0 140px; width: 140px; height: 30px; padding: 0 10px; }
+
+/* Muted text inside a pressed (blue) chip: grey on blue could not be read. */
+.terminal .tchip[aria-pressed='true'] em,
+.terminal .tchip[aria-pressed='true'] .tfine { color: inherit; opacity: 0.8; }

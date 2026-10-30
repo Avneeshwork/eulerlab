@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
 import { AgentsTab } from '@/components/terminal/AgentsTab';
+import AgentStrip from '@/components/terminal/AgentStrip';
 import { DeskTab } from '@/components/terminal/DeskTab';
 import { ResearchLibrary } from '@/components/terminal/ResearchLibrary';
 import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
@@ -75,7 +76,7 @@ import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
-import { api } from '@/lib/api';
+import { agentsApi, api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
 type PageId =
@@ -172,7 +173,7 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
   agents: {
     title: 'AI',
-    sub: 'The agents: what they found, what waits on you, how to steer them, and a box to ask. Nothing here trades.',
+    sub: 'The control room: what waits on your decision, every agent at work, and a box to ask. Each agent also shows on the page it works for. Nothing here trades.',
   },
 };
 
@@ -217,10 +218,22 @@ export default function TerminalPage() {
   const [reportId, setReportId] = useState('');
   const [configuring, setConfiguring] = useState<FleetStrategy[] | null>(null);
   const [pendingRun, setPendingRun] = useState<string[]>([]);
+  // How many agents are working, for the dot on the AI link (ADR-091).
+  const [agentsBusy, setAgentsBusy] = useState(0);
 
   const workspace = '';
 
+  // A dialog belongs to the page it was opened on. Left open, the Deploy and
+  // explain dialogs followed the operator to every other page (2026-10-29).
+  const closeDialogs = useCallback(() => {
+    setDeploying(null);
+    setExplaining(null);
+    setConfiguring(null);
+    setPaletteOpen(false);
+  }, []);
+
   const setPage = useCallback((next: PageId, strategy = '') => {
+    closeDialogs();
     setPageState(next);
     setReportId(strategy);
     const hash = strategy ? `#${next}/${encodeURIComponent(strategy)}` : `#${next}`;
@@ -228,10 +241,11 @@ export default function TerminalPage() {
       window.history.pushState(null, '', hash);
     }
     window.scrollTo({ top: 0 });
-  }, []);
+  }, [closeDialogs]);
 
   useEffect(() => {
     const apply = () => {
+      closeDialogs();
       const { page: next, strategy } = readHash();
       setPageState(next);
       setReportId(strategy);
@@ -248,7 +262,7 @@ export default function TerminalPage() {
       window.removeEventListener('popstate', onHash);
       window.removeEventListener('hashchange', onHash);
     };
-  }, []);
+  }, [closeDialogs]);
 
   const refresh = useCallback(() => {
     api
@@ -261,6 +275,17 @@ export default function TerminalPage() {
   }, []);
 
   useEffect(refresh, [refresh]);
+
+  useEffect(() => {
+    const read = () =>
+      agentsApi
+        .activity(1)
+        .then((r) => setAgentsBusy(r.running))
+        .catch(() => setAgentsBusy(0));
+    read();
+    const timer = window.setInterval(read, 20000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Null means "follow the OS". Only an explicit choice stamps the attribute.
   useEffect(() => {
@@ -302,6 +327,7 @@ export default function TerminalPage() {
     <>
       <header className="tbar">
         <button className="tbrand" type="button" onClick={() => setPage('dashboard')}>
+          <span className="tbrand-mark" aria-hidden="true">E</span>
           <span className="tbrand-name">EulerLab</span>
         </button>
         <nav className="tnav" aria-label="Sections">
@@ -317,6 +343,9 @@ export default function TerminalPage() {
               >
                 <Icon size={16} strokeWidth={2} aria-hidden="true" />
                 <span className="tnav-label">{item.label}</span>
+                {item.id === 'agents' && agentsBusy > 0 && (
+                  <span className="tnav-dot" title={`${agentsBusy} agent${agentsBusy === 1 ? '' : 's'} working`} />
+                )}
               </button>
             );
           })}
@@ -375,6 +404,8 @@ export default function TerminalPage() {
             <p>{heading.sub}</p>
           </div>
         )}
+
+        <AgentStrip page={page} onOpenAI={() => setPage('agents')} />
 
         {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 

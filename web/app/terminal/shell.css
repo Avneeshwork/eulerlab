@@ -496,7 +496,7 @@
 .att-summary-copy p { margin: 0; max-width: 48ch; color: var(--ink-3); font-size: 13px; line-height: 1.6; }
 .att-summary-copy p strong,.att-summary-copy p b { color: var(--ink); }
 .att-nav { display: flex; gap: 3px; align-items: center; margin: var(--s4) 0 0; padding: 4px; overflow-x: auto; border: 1px solid var(--rule); border-radius: var(--r-md); background: var(--surface-2); }
-.att-nav button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px; border: 0; border-radius: 5px; background: transparent; color: var(--ink-3); font: inherit; font-size: 12px; font-weight: 550; white-space: nowrap; cursor: pointer; }
+.att-nav button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 13px; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--ink-3); font: inherit; font-size: 12px; font-weight: 550; white-space: nowrap; cursor: pointer; }
 .att-nav button[aria-pressed='true'] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
 .att-nav button:disabled { opacity: .38; cursor: not-allowed; }
 .att-nav-ready { padding: 2px 5px; border-radius: 3px; background: var(--clear-wash); color: var(--clear); font-size: 9px; }
@@ -520,7 +520,7 @@
 .att-view-heading p { margin: 0; color: var(--ink-3); font-size: 12px; }
 .att-view-count { flex: none; padding: 6px 9px; border: 1px solid var(--rule); border-radius: var(--r-pill); color: var(--ink-3); font-size: 10px; white-space: nowrap; }
 .att-tiles { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); grid-auto-rows: 52px; gap: 5px; padding: var(--s4) 0; }
-.att-tile { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; padding: 7px 9px; border: 1px solid transparent; border-radius: 5px; }
+.att-tile { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: 2px; overflow: hidden; padding: 7px 9px; border: 1px solid transparent; border-radius: var(--r-xs); }
 .att-tile.gain { border-color: color-mix(in srgb, var(--up) 24%, var(--rule)); background: color-mix(in srgb, var(--up) 8%, var(--surface)); }
 .att-tile.loss { border-color: color-mix(in srgb, var(--down) 24%, var(--rule)); background: color-mix(in srgb, var(--down) 7%, var(--surface)); }
 .att-tile > span { overflow: hidden; color: var(--ink-2); font-size: 10px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
@@ -594,7 +594,7 @@
 .att-drawdown-list { display: flex; flex-direction: column; }
 .att-drawdown-row { display: grid; grid-template-columns: 95px 1fr; gap: 7px 14px; padding: 11px 0; border-bottom: 1px solid var(--rule); }
 .att-drawdown-row:last-child { border-bottom: 0; }.att-dd-depth,.att-dd-timeline { display: flex; flex-direction: column; gap: 2px; }.att-dd-depth > b { color: var(--down); font-size: 16px; }.att-dd-depth span,.att-dd-timeline span { color: var(--ink-3); font-size: 10px; }.att-dd-timeline > b { font-size: 11px; }
-.att-dd-drivers { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }.att-dd-drivers span { padding: 3px 6px; border-radius: 4px; background: var(--surface-2); color: var(--ink-2); font-size: 9px; }.att-dd-drivers b { color: var(--down); }
+.att-dd-drivers { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; }.att-dd-drivers span { padding: 3px 6px; border-radius: var(--r-xs); background: var(--surface-2); color: var(--ink-2); font-size: 9px; }.att-dd-drivers b { color: var(--down); }
 .att-month-list { display: flex; flex-direction: column; gap: 8px; padding-top: var(--s3); }.att-month-row { display: grid; grid-template-columns: 70px minmax(50px, 1fr) 52px; gap: 7px; align-items: center; }.att-month-row > b { font-size: 10px; }.att-month-row > strong { text-align: right; font-size: 10px; }.att-month-track { height: 8px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }.att-month-track > div { height: 100%; border-radius: inherit; }.att-month-track .gain { background: var(--up); }.att-month-track .loss { background: var(--down); }.att-month-row > span { grid-column: 2 / 4; color: var(--ink-3); font-size: 9px; }
 .att-capacity-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: var(--s3) 0 var(--s4); }.att-capacity-kpis > div { display: flex; flex-direction: column; gap: 2px; padding: 9px; border: 1px solid var(--rule); border-radius: var(--r-sm); }.att-capacity-kpis span { color: var(--ink-3); font-size: 9px; }.att-capacity-kpis b { font-size: 13px; font-variant-numeric: tabular-nums; }.att-capacity-kpis small { color: var(--ink-3); font-size: 9px; font-weight: 400; }
 .att-tightest { display: flex; flex-direction: column; gap: 6px; margin-top: var(--s3); font-size: 10px; }.att-tightest > b { margin-bottom: 2px; }.att-tightest > div { display: flex; justify-content: space-between; gap: var(--s3); color: var(--ink-3); }.att-tightest > div b { color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -622,7 +622,7 @@
 .att-factor-detail-top > div { display: flex; flex-direction: column; gap: 2px; }
 .att-factor-detail-top b { font-size: 12px; }.att-factor-detail-top span { color: var(--ink-3); font-size: 10px; }
 .att-factor-detail-top > i { flex: none; padding: 3px 6px; border-radius: 99px; background: var(--surface-2); color: var(--ink-3); font-size: 9px; font-style: normal; font-variant-numeric: tabular-nums; }
-.att-factor-detail-top > i.evidence { color: #415f96; background: #eef3fc; }
+.att-factor-detail-top > i.evidence { color: var(--brand); background: var(--brand-wash); }
 .att-factor-detail-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 12px 0 10px; }
 .att-factor-detail-metrics > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .att-factor-detail-metrics span { color: var(--ink-3); font-size: 9px; }.att-factor-detail-metrics b { overflow: hidden; font-size: 13px; font-variant-numeric: tabular-nums; text-overflow: ellipsis; }
@@ -637,15 +637,15 @@
 .att-factor-year-legend > span { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-3); font-size: 9px; }
 .att-factor-year-legend i,.att-factor-year-track i { display: inline-block; border-radius: 2px; }
 .att-factor-year-legend i { width: 8px; height: 8px; }
-.att-factor-year-legend i.market,.att-factor-year-track i.market,.att-factor-year-values i.market { background: #4776c4; }
-.att-factor-year-legend i.size,.att-factor-year-track i.size,.att-factor-year-values i.size { background: #8558bd; }
-.att-factor-year-legend i.momentum,.att-factor-year-track i.momentum,.att-factor-year-values i.momentum { background: #168a78; }
-.att-factor-year-legend i.value,.att-factor-year-track i.value,.att-factor-year-values i.value { background: #bd922e; }
-.att-factor-year-legend i.profitability,.att-factor-year-track i.profitability,.att-factor-year-values i.profitability { background: #94566b; }
-.att-factor-year-legend i.investment,.att-factor-year-track i.investment,.att-factor-year-values i.investment { background: #4d8f9b; }
-.att-factor-year-legend i.lowvol,.att-factor-year-track i.lowvol,.att-factor-year-values i.lowvol { background: #cc7934; }
-.att-factor-year-legend i.riskfree,.att-factor-year-track i.riskfree,.att-factor-year-values i.riskfree { background: #626f82; }
-.att-factor-year-legend i.residual,.att-factor-year-track i.residual,.att-factor-year-values i.residual { background: #8b97a9; }
+.att-factor-year-legend i.market,.att-factor-year-track i.market,.att-factor-year-values i.market { background: var(--series-1); }
+.att-factor-year-legend i.size,.att-factor-year-track i.size,.att-factor-year-values i.size { background: var(--series-5); }
+.att-factor-year-legend i.momentum,.att-factor-year-track i.momentum,.att-factor-year-values i.momentum { background: var(--series-3); }
+.att-factor-year-legend i.value,.att-factor-year-track i.value,.att-factor-year-values i.value { background: var(--series-2); }
+.att-factor-year-legend i.profitability,.att-factor-year-track i.profitability,.att-factor-year-values i.profitability { background: var(--series-4); }
+.att-factor-year-legend i.investment,.att-factor-year-track i.investment,.att-factor-year-values i.investment { background: var(--series-7); }
+.att-factor-year-legend i.lowvol,.att-factor-year-track i.lowvol,.att-factor-year-values i.lowvol { background: var(--series-6); }
+.att-factor-year-legend i.riskfree,.att-factor-year-track i.riskfree,.att-factor-year-values i.riskfree { background: var(--ink-4); }
+.att-factor-year-legend i.residual,.att-factor-year-track i.residual,.att-factor-year-values i.residual { background: var(--ink-3); }
 .att-factor-year-row { display: grid; grid-template-columns: 76px minmax(120px,1fr) 82px; gap: 10px; align-items: center; }
 .att-factor-year-row > b { display: flex; flex-direction: column; font-size: 11px; }.att-factor-year-row > b small { color: var(--ink-3); font-size: 9px; font-weight: 400; }
 .att-factor-year-row > strong { text-align: right; font-size: 11px; font-variant-numeric: tabular-nums; }

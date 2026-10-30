@@ -72,7 +72,7 @@ function Curve({ rows, spread }: { rows: MacroReading[]; spread?: number | null 
         <polyline
           points={points.join(' ')}
           fill="none"
-          stroke={inverted ? '#c9524a' : 'var(--neon-deep)'}
+          stroke={inverted ? 'var(--down)' : 'var(--neon-deep)'}
           strokeWidth="1.6"
           vectorEffect="non-scaling-stroke"
         />

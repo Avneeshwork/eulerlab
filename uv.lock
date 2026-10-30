@@ -645,6 +645,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "kiteconnect" },
+    { name = "numpy" },
     { name = "orjson" },
     { name = "pyarrow" },
     { name = "pydantic" },
@@ -690,6 +691,7 @@ requires-dist = [
     { name = "kiteconnect", specifier = ">=5.2.1" },
     { name = "logzero", marker = "extra == 'angel'", specifier = ">=1.7" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
+    { name = "numpy", specifier = ">=2.0" },
     { name = "orjson", specifier = ">=3.10" },
     { name = "pandas", marker = "extra == 'research-ml'", specifier = ">=2.2" },
     { name = "pandas-stubs", marker = "extra == 'dev'", specifier = ">=2.2" },

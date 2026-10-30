@@ -1110,6 +1110,28 @@ study, MCX gold and the option structures (each a different engine).
 
 # Part V — The workbench
 
+## 7.0 The look (ADR-090, ADR-093)
+
+Four colours (Apple's system blue, green, red and orange) on frosted glass,
+defined once in `web/app/tokens.css`:
+
+| Colour | Token | Means |
+|---|---|---|
+| Blue | `--brand` | an action, the page you are on, the selected thing |
+| Green | `--up`, `--clear` | a rise; on a result, cleared the noise bar |
+| Red | `--down`, `--fail` | a fall, a refusal, a failure |
+| Amber | `--caveat` | a warning: assumed, unrecorded, stale |
+
+Charts that need more series use `--series-1..8` (the four, then a light tint
+of three, then grey). Corners: `--r-sm` 12px on controls, `--r-md` 16px on
+panels, `--r-lg` 22px on cards, pills on toggles and buttons.
+`web/app/terminal/theme.css` loads after `terminal.css` and `shell.css`, and
+`glass.css` after it. `--surface` is translucent: three soft glows sit behind
+the page and each card blurs them (`--glass-blur`), with a white hairline edge.
+The selected page or view is a raised white thumb on a grey track, as in iOS.
+`--surface-solid` is for what must hide the page; dialogs use heavier glass.
+Dark mode redefines tokens only, apart from three hover tints.
+
 ## 7.1 The strategy builder
 
 Tools → Strategy Builder (`web/components/terminal/StrategyBuilder.tsx`,
@@ -2058,6 +2080,30 @@ others keep theirs. Each row carries the book's VaR without it, and
 `POST /api/risk/what-if` gives the book's VaR before and after adding a
 strategy at a stated capital, sized as equal amounts of today's names (A-060).
 
+
+### Loss limits that act (ADR-092)
+
+After every run, `deploy/loss_limits.apply` reads the deployment's drawdown
+from its own high on the time-weighted curve (`risk.book.growth`, so moving
+money is not a loss) and compares it with two levels:
+
+| Level | Default | What happens |
+|---|---|---|
+| `reduce_at` | 10% | a reduce-only window opens from the next session: sells fill, buys are refused |
+| `halt_at` | 20% | the deployment's kill switch trips; status halted; `make kill-reset` to clear |
+
+Defaults are in `config/loss_limits.yaml` (operator-owned, A-071); a
+deployment's own `reduce_at`/`halt_at` win. A window is stored on the
+deployment as `{from, to, why, by}`. The runner replays the deployment from its
+start every day, so `ForwardExecutor` refuses a buy whose fill day is inside a
+window before the OMS sees it, on every replay alike; the book and the broker
+never differ. Live & Risk shows the drawdown against both levels on each paper
+card, with **Reduce only** / **Resume buying** and **Change** for the levels.
+Only the daily rebalancing book enforces reduce-only (S-050). A book not yet
+run since loss limits existed has no measurement in its state; the API makes
+the same calculation for its card, with no action attached, so the card never
+waits a day to show the drawdown.
+
 ## Scheduled jobs
 
 `tools/schedule_daily.py` writes launchd jobs; `make schedule JOB=...`.
@@ -2227,9 +2273,45 @@ day's runs; a run that reaches the budget stops with `over_budget`.
 **Memory.** The market brief reads market context over HTTP from the running
 API rather than loading a second copy of the 1.85 GB panel.
 
-**Workbench.** The AI tab: inbox and agents (switch, budget, brief, run),
-ask the knowledge agent, research and skeptic runs, the trade desk, the
-market brief, data quality and the agents' log.
+**Workbench.** The AI tab opens on **Live**: a card per agent with its state
+(working, done, failed, stopped, never run), the step it is on, its last few
+steps and today's model requests, beside a feed of every agent's steps. Then
+the inbox, agents and briefs (switch, budget, brief, run), ask the knowledge
+agent, research and skeptic runs, the market brief, data quality and the
+agents' log. The trade desk is on Live & Risk only.
+
+### Agents on the page they serve (ADR-094)
+
+Each page shows its own agents in a strip under the heading
+(`AgentStrip.tsx`, `PAGE_AGENTS`):
+
+| Page | Agents |
+|---|---|
+| Dashboard | market brief, with the latest brief shown in the strip |
+| Strategies | idea lab, skeptic, portfolio |
+| Live & Risk | operations, portfolio |
+| Data, Instruments | data |
+| Research | research, knowledge |
+
+The strip reads `/api/agents/activity` and `/api/agents/inbox`. It polls every
+30 s, or every 3 s while one of its agents runs. Run now posts to
+`/api/agents/{name}/run`. The AI tab stays the control room: the inbox, every
+agent live, Ask, settings and the log. Engineering shows only there.
+
+### What an agent is doing now (ADR-091)
+
+```
+runtime.run ── step("Started …") ─┐
+worker ── ctx.step(…) / ctx.notes.append(…) ─┤──► data/agents/<agent>/<run>/progress.jsonl
+ctx.ask ── "Asking …" / "The model answered" ─┤        {at, kind: start|step|note|model|end, text}
+runtime.run ── step("Finished: status · summary") ─┘
+                                   │
+         GET /api/agents/activity ─┴─► newest run per agent + all steps newest first
+```
+
+A run with no `output.json` is *running* while its last step is under 15
+minutes old (or the web server started it), and *stopped* after that. Steps
+carry no model text, only what the code chose to say.
 
 ### When a model makes something up (ADR-088)
 

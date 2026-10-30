@@ -210,6 +210,31 @@ def approved_today(
     )
 
 
+def data_check(panel: dict[str, Any] | None) -> tuple[bool, str]:
+    """The ticket's data row, from the price panel's saved grade.
+
+    A blocked row used to read "price panel grade D, ok", which looks like a
+    contradiction: "ok" is the freshness. It now says what the grade needs and
+    the first check that failed.
+    """
+    if panel is None:
+        return True, "no grade saved yet; run make data-quality"
+    fresh = str(panel.get("freshness"))
+    ok = bool(panel.get("usable")) and fresh in ("ok", "behind", "unknown")
+    if ok:
+        return True, f"price panel grade {panel.get('grade')}, {fresh}"
+    failed = [
+        str(c.get("detail"))
+        for c in panel.get("checks") or []
+        if isinstance(c, dict) and c.get("state") == "fail"
+    ]
+    reason = f": {failed[0]}" if failed else ""
+    return False, (
+        f"price panel grade {panel.get('grade')}, needs {panel.get('min_grade')}{reason}"
+        f" (freshness {fresh})"
+    )
+
+
 def tickets() -> list[Ticket]:
     """A ticket for every active deployment, with every check filled in."""
     from eulerlab.config import load_execution
@@ -221,13 +246,7 @@ def tickets() -> list[Ticket]:
     per_second = load_execution().max_orders_per_second
     global_switch = KillSwitch()
     grades = {str(g.get("name")): g for g in contract.saved()}
-    panel = grades.get("Price panel")
-    if panel is None:
-        data_ok = (True, "no grade saved yet; run make data-quality")
-    else:
-        fresh = str(panel.get("freshness"))
-        ok = bool(panel.get("usable")) and fresh in ("ok", "behind", "unknown")
-        data_ok = (ok, f"price panel grade {panel.get('grade')}, {fresh}")
+    data_ok = data_check(grades.get("Price panel"))
     out: list[Ticket] = []
     decided = decisions()
     for d in deployments.all_deployments():

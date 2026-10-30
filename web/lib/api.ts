@@ -570,6 +570,16 @@ export type DeploymentState = {
   next_rebalance?: string;
   intended?: { wanted?: number; affordable?: number; names?: string[]; cut?: string[]; error?: string };
   warnings?: string[];
+  refused_reducing?: number;
+  /** The loss limits as the last run saw them (ADR-092). Shares, not percent. */
+  loss_limit?: {
+    drawdown: number;
+    worst: number;
+    reduce_at: number | null;
+    halt_at: number | null;
+    reducing: boolean;
+    action: '' | 'reducing' | 'halted';
+  };
 };
 
 /** One strategy trading forward with its own money (paper only for now). */
@@ -585,6 +595,9 @@ export type Deployment = {
   slippage_bps: number;
   running: string;
   state: DeploymentState;
+  reducing: { from: string; to: string | null; why: string; by: string }[];
+  reducing_now: boolean;
+  limits: { reduce_at: number | null; halt_at: number | null };
 };
 
 export type DeployPreview = {
@@ -1084,6 +1097,8 @@ export type History = {
   source?: string;
   first?: string;
   last?: string;
+  /** Equity bars back-adjusted for splits and bonuses. */
+  adjusted?: boolean;
 };
 
 export type MacroReading = {
@@ -1850,15 +1865,23 @@ export const api = {
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/run`, {}),
   stopDeployment: (id: string) =>
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/stop`, {}),
+  reduceOnly: (id: string, on: boolean) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/reduce`, { on }),
+  deploymentLimits: (id: string, reduce_at: number | null, halt_at: number | null) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/limits`, {
+      reduce_at,
+      halt_at,
+    }),
   deploymentFlow: (id: string, action: 'add' | 'withdraw', amount: number) =>
     post<{ ok: boolean; error?: string; flow?: { amount: number; last_decided: string; entered_at: string } }>(
       `/api/deployments/${encodeURIComponent(id)}/flow`,
       { action, amount },
     ),
   data: () => get<DataStatus>('/api/data'),
-  history: (symbol: string, assetClass = 'equity', days = 400) =>
+  /** `adjusted` back-adjusts equity bars for splits and bonuses (the SIP needs it). */
+  history: (symbol: string, assetClass = 'equity', days = 400, adjusted = false) =>
     get<History>(
-      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}`,
+      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}${adjusted ? '&adjusted=true' : ''}`,
     ),
   syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
   /** Fetch today's data from every source, then mirror it. Different from
@@ -2327,8 +2350,34 @@ export type DeskTicket = {
   blocked: boolean;
 };
 
+export type AgentStep = { at: string; kind: string; text: string };
+
+/** One agent's newest run as it stands: `/api/agents/activity` (ADR-091). */
+export type AgentActivity = {
+  name: string;
+  title: string;
+  job: string;
+  enabled: boolean;
+  uses_model: boolean;
+  cli_only: boolean;
+  state: 'idle' | 'running' | 'stopped' | 'ok' | 'skipped' | 'over_budget' | 'refused' | 'failed';
+  run_id: string;
+  started: string;
+  summary: string;
+  now: string;
+  steps: AgentStep[];
+};
+
+export type ActivityResponse = {
+  ok: boolean;
+  running: number;
+  agents: AgentActivity[];
+  feed: (AgentStep & { agent: string; title: string })[];
+};
+
 export const agentsApi = {
   list: () => get<AgentsResponse>('/api/agents'),
+  activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
   inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
   decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
     post<{ ok: boolean; error?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, { decision, note }),

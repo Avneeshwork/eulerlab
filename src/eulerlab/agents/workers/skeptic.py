@@ -212,6 +212,9 @@ def run(ctx: Context) -> WorkerResult:
             "name a stored result: strategy=<id> or report=<path to a report .json>",
             status="refused",
         )
+    ctx.step(
+        f"Attacking {path.parent.name}: best year and days removed, stress windows, t-stat, twice the costs"
+    )
     report = json.loads(path.read_text(encoding="utf-8"))
     days, values = curve(report)
     found = attacks(days, values, report)

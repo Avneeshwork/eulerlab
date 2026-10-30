@@ -17,7 +17,9 @@ import { api } from '@/lib/api';
 import type { Deployment, DeploymentState, FleetStrategy } from '@/lib/api';
 
 const rupees = (value: number | undefined) =>
-  value === undefined ? '—' : `₹${Math.round(value).toLocaleString('en-IN')}`;
+  value === undefined
+    ? '—'
+    : `${value < 0 ? '−' : ''}₹${Math.abs(Math.round(value)).toLocaleString('en-IN')}`;
 const pct = (value: number | undefined, digits = 1) =>
   value === undefined || !Number.isFinite(value)
     ? '—'
@@ -48,6 +50,107 @@ const STATUS_LABEL: Record<string, string> = {
   error: 'Run failed',
 };
 
+const share = (value: number | null | undefined) =>
+  value === null || value === undefined ? 'off' : `${(value * 100).toFixed(0)}%`;
+
+/**
+ * The loss limits that act (ADR-092): how far the book is below its high, where
+ * it goes reduce-only and where it halts, and the switch to go reduce-only now.
+ */
+function LossLimits({
+  d,
+  onAct,
+}: {
+  d: Deployment;
+  onAct: (call: Promise<{ ok: boolean; error?: string }>) => void;
+}) {
+  const seen = d.state?.loss_limit;
+  const limits = d.limits ?? { reduce_at: null, halt_at: null };
+  const [editing, setEditing] = useState(false);
+  const [reduce, setReduce] = useState('');
+  const [halt, setHalt] = useState('');
+  const down = seen?.drawdown ?? 0;
+  // The bar runs to a little past the halt level, so both marks always show.
+  const scale = Math.max(limits.halt_at ?? 0, limits.reduce_at ?? 0, down, 0.05) * 1.15;
+  const at = (value: number) => `${Math.min(100, (value / scale) * 100)}%`;
+  const tone =
+    limits.halt_at !== null && down >= limits.halt_at
+      ? 'down'
+      : limits.reduce_at !== null && down >= limits.reduce_at
+        ? 'caveat'
+        : 'brand';
+  const parse = (text: string) => (text.trim() === '' ? null : Number(text) / 100);
+  return (
+    <div className="ll">
+      <div className="ll-head">
+        <span>
+          <b>Loss limits</b>{' '}
+          <span className="tfine">
+            {seen ? `down ${(down * 100).toFixed(1)}% from its high (worst ${(seen.worst * 100).toFixed(1)}%)` : 'not measured yet'}
+            {' · '}reduce-only at {share(limits.reduce_at)} · halt at {share(limits.halt_at)}
+          </span>
+        </span>
+        <span className="ll-acts">
+          {d.status === 'active' && (
+            <button
+              type="button"
+              className={`tbtn sm${d.reducing_now ? ' ok' : ''}`}
+              disabled={!!d.running}
+              title={
+                d.reducing_now
+                  ? 'Let the strategy buy again from the next session'
+                  : 'From the next session: sells go through, buys are refused'
+              }
+              onClick={() => onAct(api.reduceOnly(d.id, !d.reducing_now))}
+            >
+              {d.reducing_now ? 'Resume buying' : 'Reduce only'}
+            </button>
+          )}
+          <button
+            type="button"
+            className="tbtn sm"
+            onClick={() => {
+              setReduce(limits.reduce_at === null ? '' : String(Math.round(limits.reduce_at * 100)));
+              setHalt(limits.halt_at === null ? '' : String(Math.round(limits.halt_at * 100)));
+              setEditing((v) => !v);
+            }}
+          >
+            {editing ? 'Cancel' : 'Change'}
+          </button>
+        </span>
+      </div>
+      <div className="ll-bar" data-tone={tone} role="img" aria-label={`Down ${(down * 100).toFixed(1)}% from its high`}>
+        <i style={{ width: at(down) }} />
+        {limits.reduce_at !== null && <u className="ll-reduce" style={{ left: at(limits.reduce_at) }} title="reduce-only" />}
+        {limits.halt_at !== null && <u className="ll-halt" style={{ left: at(limits.halt_at) }} title="halt" />}
+      </div>
+      {editing && (
+        <form
+          className="ll-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onAct(api.deploymentLimits(d.id, parse(reduce), parse(halt)));
+            setEditing(false);
+          }}
+        >
+          <label>
+            Reduce-only at
+            <input type="number" min="1" max="99" value={reduce} placeholder="off" onChange={(e) => setReduce(e.target.value)} />%
+          </label>
+          <label>
+            Halt at
+            <input type="number" min="1" max="99" value={halt} placeholder="off" onChange={(e) => setHalt(e.target.value)} />%
+          </label>
+          <button type="submit" className="tbtn sm go">
+            Save
+          </button>
+          <span className="tfine">Empty means off. A drawdown is measured from the book&apos;s own high, deposits and withdrawals taken out.</span>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export function PaperDeployments({
   fleet,
   onReport,
@@ -64,10 +167,7 @@ export function PaperDeployments({
   const load = useCallback(() => {
     api
       .deployments()
-      .then((answer) => {
-        setItems(answer.deployments);
-        setProblem('');
-      })
+      .then((answer) => setItems(answer.deployments))
       .catch((error) => setProblem(error instanceof Error ? error.message : String(error)));
   }, []);
 
@@ -84,10 +184,12 @@ export function PaperDeployments({
   }, [busy, load]);
 
   const title = (id: string) => fleet.find((s) => s.id === id)?.title ?? id;
+  // A refused action's reason stays on screen: the reload after it used to
+  // clear it at once, so a refusal looked like nothing happening.
   const act = (call: Promise<{ ok: boolean; error?: string }>) =>
     call
       .then((answer) => {
-        if (!answer.ok) setProblem(answer.error ?? 'failed');
+        setProblem(answer.ok ? '' : (answer.error ?? 'failed'));
         load();
       })
       .catch((error) => setProblem(error instanceof Error ? error.message : String(error)));
@@ -120,6 +222,11 @@ export function PaperDeployments({
                   {d.mode === 'live' ? 'Live' : 'Paper'} · {rupees(d.capital)} · started {d.start}
                 </span>
               </div>
+              {d.reducing_now && d.status === 'active' && (
+                <span className="tbadge" data-tone="caveat" title="Sells go through; buys are refused">
+                  Reduce-only
+                </span>
+              )}
               <span className={`paper-badge s-${status}`}>
                 {d.running
                   ? d.running === 'queued'
@@ -172,6 +279,8 @@ export function PaperDeployments({
                 </div>
               )}
             </div>
+
+            <LossLimits d={d} onAct={act} />
 
             {(d.status_reason || s.reason) && status !== 'ok' && (
               <div className="tnote bad">{d.status_reason || s.reason}</div>

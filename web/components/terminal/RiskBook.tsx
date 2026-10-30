@@ -524,14 +524,14 @@ function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymen
                     {d.today < 0 && <div className="rk-bar" style={{ width: `${(Math.abs(d.today) / biggest) * 100}%`, background: 'var(--rk-loss)', borderRadius: '4px 0 0 4px' }} />}
                   </div>
                   <div style={{ width: 1, background: 'var(--rule-2)' }} />
-                  <div style={{ flex: 1 }}>{d.today > 0 && <div className="rk-bar" style={{ width: `${(d.today / biggest) * 100}%`, background: 'var(--rk-1)' }} />}</div>
+                  <div style={{ flex: 1 }}>{d.today > 0 && <div className="rk-bar" style={{ width: `${(d.today / biggest) * 100}%`, background: 'var(--rk-gain)' }} />}</div>
                 </div>
                 <div className="rk-bar-value" style={{ flexBasis: 80 }}>{signedInr(d.today)}</div>
               </div>
             ))}
           </div>
           <div className="rk-legend" style={{ marginTop: 16 }}>
-            <span className="rk-key"><span className="rk-dot" style={{ background: 'var(--rk-1)' }} />Gain</span>
+            <span className="rk-key"><span className="rk-dot" style={{ background: 'var(--rk-gain)' }} />Gain</span>
             <span className="rk-key"><span className="rk-dot" style={{ background: 'var(--rk-loss)' }} />Loss</span>
           </div>
         </section>
@@ -573,8 +573,11 @@ function Band({ deployment, colour }: { deployment: RiskDeployment; colour: stri
         )}
         <polyline points={live.map((p) => `${x(p.day)},${y(p.value)}`).join(' ')} fill="none" stroke={colour} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"><title>Live equity, start = 100</title></polyline>
         <circle cx={x(end.day)} cy={y(end.value)} r={5} fill={colour} stroke="var(--surface)" strokeWidth={2}><title>{`Day ${end.day}: ${end.value.toFixed(2)}`}</title></circle>
-        <text className="strong" x={x(end.day) - 8} y={Math.max(14, y(end.value) - 10)} textAnchor="end">Live {end.value.toFixed(1)}</text>
-        {mid && band.length > 1 && <text x={x(mid.day) - 8} y={Math.min(186, y(mid.mid) + 16)} textAnchor="end">Backtest middle {mid.mid.toFixed(1)}</text>}
+        {/* Each label goes on the side away from the other line: with live
+            just under the middle path, "above live" and "below middle" were
+            the same pixels. */}
+        <text className="strong" x={x(end.day) - 8} y={!mid || end.value >= mid.mid ? Math.max(14, y(end.value) - 10) : Math.min(186, y(end.value) + 16)} textAnchor="end">Live {end.value.toFixed(1)}</text>
+        {mid && band.length > 1 && <text x={x(mid.day) - 8} y={end.value >= mid.mid ? Math.min(186, y(mid.mid) + 16) : Math.max(14, y(mid.mid) - 10)} textAnchor="end">Backtest middle {mid.mid.toFixed(1)}</text>}
         <text x={44} y={208} textAnchor="middle">Day 0</text>
         <text x={540} y={208} textAnchor="middle">Day {last}</text>
       </svg>

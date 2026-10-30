@@ -3,6 +3,39 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Loss limits that act (2026-10-29)
+
+Operator: "finally implement new thing which a trader need." Chosen from research 079's gaps that matter now: a reduce-only state and a drawdown rule that acts. ADR-092.
+Verify: `uv run pytest -q tests/test_loss_limits.py`; Live & Risk → Deployment → a paper card's Loss limits row.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4201 | Reduce-only windows on a deployment; buys refused inside them on every replay | DONE. `deploy/loss_limits.py`, `ForwardExecutor` |
+| T-4202 | Drawdown levels that act: reduce-only at one, halt at the other; defaults in `config/loss_limits.yaml` | DONE. A-071 |
+| T-4203 | Reduce only / Resume buying and the levels on each paper card; Telegram line when a book goes reduce-only | DONE |
+| T-4204 | Reduce-only on the overnight, intraday and study books | TODO (S-050) |
+| T-4205 | Set the levels you would act on in `config/loss_limits.yaml` | TODO. Operator |
+
+## Workbench redesign and live agent activity (2026-10-29)
+
+Operator: "rewamp whole ui to make it simple easy to understand visually appealing with simple design … better solid 3-4 colours max and round corners … for ai agents shows what agent is actually doing." ADR-090, ADR-091.
+Verify: `uv run pytest -q tests/test_agent_activity.py`; `make workbench` → every page; AI → Live while `make agent NAME=data` runs.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4195 | Four colours (blue, green, red, amber) and rounded corners across the terminal; every chart palette mapped onto them | DONE. ADR-090; `web/app/tokens.css`, `web/app/terminal/theme.css` |
+| T-4196 | AI tab shows what each agent is doing now: step trail, live cards, activity feed, dot on the AI link | DONE. ADR-091; `/api/agents/activity` |
+| T-4197 | `make agent` crashed for any agent that returned an item | DONE. HISTORY #34 |
+| T-4198 | API failed to start on a clean install: numpy undeclared | DONE. HISTORY #35 |
+| T-4199 | A place on Dashboard → Big money for the FII/DII cash flows panel | DONE by the flows work itself (PR #32 puts `FiiDiiFlows` there); its colours already read the four-colour tokens through `--mc-a`/`--mc-b` |
+| T-4200 | Merge with the operator's unpushed `ui-revamp` branch | TODO. Not visible from here; may overlap `tokens.css` and `shell.css` |
+| T-4206 | End-to-end walk-through of every page (synthetic panel): fix what broke | DONE. Coloured dashes for missing returns; "−0.0%"; the old orange accent on Dashboard tabs; the (i) button by "NSE" drawn as a segment; unreadable text in a selected chip; Deploy/Explain dialogs following you to other pages; a refused paper action's error vanishing; negative rupees shown as "₹-31161" |
+| T-4207 | Company page shows only a notice when fundamentals are missing; first snapshot is slow when outside fetches time out; "Open Live & Risk" wraps in the deploy dialog | TODO. Seen in the walk-through, not fixed |
+| T-4208 | Repeat the walk-through on the operator's real data | DONE 2026-10-30. Fixed: SIP ignored splits and bonuses (HISTORY #36); one unreachable asset class turned the whole instrument search into a 500; "The session −5.26%" was a 20-day average; deployment names in Performance showed as "…"; the live and backtest labels overlapped; gains drawn in blue; paper cards read "not measured yet" until the next run; a blocked ticket's data row read "grade D, ok"; the calendar showed a bare dash; the AI feed said no agent had run when two had |
+| T-4211 | Each agent on the page it works for, with an animated icon, its last result and Run now; a guide to what each agent does (operator, 2026-10-30) | DONE. ADR-094; `AgentStrip.tsx` |
+| T-4210 | Apple-style frosted glass look across the terminal (operator, 2026-10-30) | DONE. ADR-093; `web/app/terminal/glass.css` |
+| T-4209 | Deployment titles on Live & Risk → Deployment show the strategy id until the strategy list loads | TODO. Seen on a cold start |
+
 ## Agent accuracy: the grounding check and agent-eval (2026-10-29)
 
 Operator: "what will be done if model start hallucinating?" then "yes build". Research 126; ADR-088.
@@ -199,7 +232,7 @@ Verify: read `docs/RESEARCH/079-what-other-platforms-have-and-a-risk-screen.md`;
 | T-4118 | The what-if sizes a new strategy in equal amounts | OPEN — A-060. The preview gives names, not sizes |
 | T-4114 | The rounding bug in the first VaR | NOTED — `(1 - 0.95) * 100` is 5.000000000000004 in floating point, and its ceiling put a sixth day in a five-day tail. Caught by the hand-worked test before any figure was shown |
 | T-4110 | **Limits with headroom** | DONE as warnings 2026-10-14 — the kill switch's daily loss (₹10,000, which already existed) and rupees-in-one-name limits are shown with how much is used. Four new levels in `config/risk_watch.yaml` (book VaR 2%, book drawdown 10%, deployment drawdown 8%, largest sector 35%) **warn and do nothing else**. Their values came from the mockup, not from the operator: change them. Orders-a-day and unresolved-order limits are not shown: the screen has no count of today's live orders |
-| T-4111 | A reduce-only state for a deployment | TODO — between trading and stopped; needs a decision record |
+| T-4111 | A reduce-only state for a deployment | DONE 2026-10-29 — ADR-092 (T-4201) |
 
 ---
 

@@ -129,6 +129,74 @@ def agents() -> dict[str, Any]:
     }
 
 
+# A run with no output whose last step is older than this has stopped without
+# finishing (the process died, or the Mac slept through it). Longer than any
+# single model request the runtime allows (10 minutes, `chat.complete_any`).
+STALE_AFTER_S = 15 * 60
+
+
+@router.get("/api/agents/activity")
+def agents_activity(steps: int = 40) -> dict[str, Any]:
+    """What each agent is doing now, from its newest run's `progress.jsonl` (ADR-091).
+
+    `state` is running, or the finished run's status, or `stopped` for a run
+    that went quiet without writing its output.
+    """
+    known = all_effective()
+    now = datetime.now(UTC)
+    limit = max(1, min(steps, 200))
+    rows: list[dict[str, Any]] = []
+    feed: list[dict[str, str]] = []
+    for name, agent in sorted(known.items()):
+        run_dir = runtime.latest_run_dir(name)
+        trail = runtime.progress(run_dir, limit) if run_dir else []
+        state, summary, started = "idle", "", ""
+        if run_dir is not None:
+            output_path = run_dir / "output.json"
+            if output_path.exists():
+                try:
+                    done = runtime.Output.model_validate_json(
+                        output_path.read_text(encoding="utf-8")
+                    )
+                    state, summary, started = done.status, done.summary, done.started
+                except ValueError:
+                    state = "failed"
+            else:
+                last = trail[-1]["at"] if trail else ""
+                try:
+                    quiet = (now - datetime.fromisoformat(last)).total_seconds() if last else 0.0
+                except ValueError:
+                    quiet = 0.0
+                state = "running" if name in _RUNNING or quiet < STALE_AFTER_S else "stopped"
+                started = trail[0]["at"] if trail else ""
+        if name in _RUNNING:
+            state = "running"
+        rows.append(
+            {
+                "name": name,
+                "title": agent.spec.title,
+                "job": agent.spec.job,
+                "enabled": agent.enabled,
+                "uses_model": agent.spec.uses_model,
+                "cli_only": bool(agent.spec.options.get("cli_only")),
+                "state": state,
+                "run_id": run_dir.name if run_dir else "",
+                "started": started,
+                "summary": summary,
+                "now": trail[-1]["text"] if trail else "",
+                "steps": trail,
+            }
+        )
+        feed.extend({"agent": name, "title": agent.spec.title, **step} for step in trail)
+    feed.sort(key=lambda row: row["at"], reverse=True)
+    return {
+        "ok": True,
+        "running": sum(1 for row in rows if row["state"] == "running"),
+        "agents": rows,
+        "feed": feed[:limit],
+    }
+
+
 @router.get("/api/agents/inbox")
 def agents_inbox() -> dict[str, Any]:
     return {"ok": True, "items": inbox.pending()}
