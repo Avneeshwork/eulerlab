@@ -52,7 +52,8 @@ platform lacks. Which can be had for free, how far back, and from where?
 7. **SAST reg 29** (`/api/corporate-sast-reg29`) has rows in November 2025.
 8. **Dated archive files present a year back:** `fo_secban_DDMMYYYY.csv`,
    `SLBM_BC_DDMMYYYY.DAT`, `mrg_trading_DDMMYY.zip` (30 Oct 2025 all 200).
-   The MTF file for a day can appear only the next day.
+   The MTF file for a day can appear only the next day. For 2026-04-08 NSE
+   served it as a 0-byte file (200), so that day is missing.
 9. **Snapshots only:** `corporate-pledgedata`, `ipo-current-issue`,
    `public-past-issues`, `ind_nifty50list.csv`. None takes a date.
 

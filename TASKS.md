@@ -60,12 +60,13 @@ Verify: `uv run pytest -q tests/test_market_microdata.py`; `make nse-reports`; a
 
 | ID | Task | Status |
 |---|---|---|
-| T-4220 | Land NSE bulk/block deals, short selling, F&O ban, SLBM, MTF, insider (PIT), SAST daily and a year back; pledges, IPOs and the Nifty 50 list as daily snapshots | DONE. `make nse-reports`, in `make daily`; one-year backfill from 2025-10-30 (insider from 2026-05-01, the earliest NSE serves) |
-| T-4221 | NIFTY 50, NIFTY BANK, INDIA VIX 1-minute bars from Kite | BLOCKED on a Kite login (token expired 2026-10-29). Code and tests done; `make index-minute` after `make kite-login`; in `make daily` |
-| T-4222 | Record five-level depth for the Nifty 50, the index and the near future during market hours | DONE in code (S-050). Not yet run live. `make schedule ACTION=install JOB=depth` loads the 09:10 job; needs a Kite login each morning |
+| T-4220 | Land NSE bulk/block deals, short selling, F&O ban, SLBM, MTF, insider (PIT), SAST daily and a year back; pledges, IPOs and the Nifty 50 list as daily snapshots | DONE. `make nse-reports`, in `make daily`; one-year backfill from 2025-10-30 (insider from 2026-05-01, the earliest NSE serves): 1,925 files, about 633,000 rows, in B2 under `nse_reports/` with SHA-256 checked; local copies deleted |
+| T-4221 | NIFTY 50, NIFTY BANK, INDIA VIX 1-minute bars from Kite | DONE. Five years (2021-11-01 to 2026-10-30), 1,388,541 candles, in B2 under `kite_index_minute/` with SHA-256 checked; local copies deleted. In `make daily` |
+| T-4222 | Record five-level depth for the Nifty 50, the index and the near future during market hours | DONE (S-050). One-minute live test on 2026-10-30 after the close: 52 instruments, five levels. First full session is the first trading day after it is loaded. `make schedule ACTION=install JOB=depth` loads the 09:10 job; needs a Kite login each morning |
 | T-4223 | Price NSE's historical order and trade data (the only source of past order books) | TODO, operator. Email marketdata@nse.co.in |
 | T-4224 | Mutual fund holdings by stock | TODO. Each fund house publishes its own monthly workbook; no consolidated free file found (research 130) |
 | T-4225 | Readers for the new reports (deals, ban list, MTF, SLBM, insider) on the dashboard or as features | TODO (S-051) |
+| T-4227 | NSE served an empty MTF file for 2026-04-08 | OPEN. Refused as malformed, so the day is missing; `make nse-reports FROM=2026-04-08` retries it |
 | T-4226 | Upload-and-delete only after B2's size and SHA-256 match | DONE. `make upload-verified TREES=...`; used by the three new jobs |
 
 ## The AI agent network (2026-10-29)
