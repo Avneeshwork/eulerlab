@@ -1190,10 +1190,16 @@ the paper and moves an `idea` to `specified`.
 
 ADR-059.
 
-New papers can be drafted from operator-pasted source text with a selectable
-assistant provider. OpenRouter choices come from its live free-model catalog
-filtered for ZDR endpoints and tool support, refreshed every ten minutes; the
-selected model is checked against that catalog before use. Inference still
+New papers can be drafted from operator-pasted source text with the
+assistant provider. The assistant panel and the Research Library list the
+`offered` providers in `config/llm.yaml`: Groq `openai/gpt-oss-120b` (the
+default) and every current Claude model, which are paid, used only when picked,
+and never a fallback (ADR-095). Claude goes through Anthropic's SDK
+(`assistant/anthropic_api.py`), which translates the chat shape, passes thinking
+blocks back, and turns a refusal into a model failure; Anthropic keeps API data
+up to 30 days and does not train on it (research 129). When `assistant` is OpenRouter, the API
+can still list its live free-model catalog filtered for ZDR endpoints and tool
+support, refreshed every ten minutes, and checks a requested model against it. Inference still
 enforces ZDR and collection denial. The endpoint uses the assistant's approved-host, retention
 and `.env` redaction checks; it returns a draft and never saves it. Source text
 is not persisted, and a link alone is not fetched. Neither draft depends on
@@ -1363,7 +1369,7 @@ into a run.
 - **Provider-agnostic.** Any OpenAI-compatible endpoint; the default is local
   Ollama, which is free, has no quota and sends nothing anywhere.
   Three roles in `config/llm.yaml`: `default` (Ollama, for the translator and
-  the audit), `assistant` (OpenRouter ZDR) and `research_agent` (Groq
+  the audit), `assistant` (Groq `openai/gpt-oss-120b`, the chat panel's default; `offered` adds the paid Claude models) and `research_agent` (Groq
   `openai/gpt-oss-120b`, the paper agent). Research 123 has their free limits.
 
 Neither mode can produce lookahead — not because the prompt says so, but
