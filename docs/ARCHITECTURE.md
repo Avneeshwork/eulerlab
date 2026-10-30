@@ -1110,9 +1110,10 @@ study, MCX gold and the option structures (each a different engine).
 
 # Part V — The workbench
 
-## 7.0 The look (ADR-090)
+## 7.0 The look (ADR-090, ADR-093)
 
-Four colours on slate neutrals, defined once in `web/app/tokens.css`:
+Four colours (Apple's system blue, green, red and orange) on frosted glass,
+defined once in `web/app/tokens.css`:
 
 | Colour | Token | Means |
 |---|---|---|
@@ -1122,10 +1123,14 @@ Four colours on slate neutrals, defined once in `web/app/tokens.css`:
 | Amber | `--caveat` | a warning: assumed, unrecorded, stale |
 
 Charts that need more series use `--series-1..8` (the four, then a light tint
-of three, then grey). Corners: `--r-sm` 10px on controls, `--r-md` 14px on
-panels, `--r-lg` 18px on cards, pills on toggles. `web/app/terminal/theme.css`
-loads after `terminal.css` and `shell.css` and holds the whole look. Dark mode
-redefines tokens only.
+of three, then grey). Corners: `--r-sm` 12px on controls, `--r-md` 16px on
+panels, `--r-lg` 22px on cards, pills on toggles and buttons.
+`web/app/terminal/theme.css` loads after `terminal.css` and `shell.css`, and
+`glass.css` after it. `--surface` is translucent: three soft glows sit behind
+the page and each card blurs them (`--glass-blur`), with a white hairline edge.
+The selected page or view is a raised white thumb on a grey track, as in iOS.
+`--surface-solid` is for what must hide the page; dialogs use heavier glass.
+Dark mode redefines tokens only, apart from three hover tints.
 
 ## 7.1 The strategy builder
 

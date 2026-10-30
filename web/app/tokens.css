@@ -1,6 +1,6 @@
-/* Design tokens for the terminal (ADR-090).
+/* Design tokens for the terminal (ADR-090, glass look ADR-093).
  *
- * Four solid colours and nothing else, on slate neutrals:
+ * Four solid colours, Apple's system colours, on frosted glass:
  *
  *   blue   --brand   actions, the page you are on, links, "your" series
  *   green  --up      a rise, and "cleared the noise bar" (--clear)
@@ -11,39 +11,52 @@
  * of one. A fifth hue anywhere is a bug. Green still never means "performed
  * well" on its own; on a result it means "cleared the noise bar".
  *
- * Shapes are rounded: 10px on controls, 14px on cards, 18px on large
- * surfaces, pills for toggles. Scoped to .terminal, not :root.
+ * Surfaces are translucent (--surface is glass, not white): the page has a
+ * soft light behind it and every card frosts it (glass.css). --surface-solid
+ * is for the few places that must hide what is behind them.
+ * Scoped to .terminal, not :root.
  */
 
 .terminal {
   /* --- the four colours ------------------------------------------------- */
-  --brand: #2563eb;
-  --brand-2: #1d4ed8;     /* hover / pressed */
-  --brand-wash: #e8efff;
+  --brand: #007aff;
+  --brand-2: #0062cc;     /* hover / pressed */
+  --brand-wash: rgb(0 122 255 / 0.12);
   --brand-ink: #ffffff;   /* text on a brand fill */
 
-  --up: #16a34a;
-  --up-wash: #e3f6ea;
-  --down: #dc2626;
-  --down-wash: #fde8e8;
-  --caveat: #d97706;
-  --caveat-wash: #fdf1dc;
+  /* Apple's accessible variants on light: the plain system green and
+     orange are too pale to read as text on white. */
+  --up: #248a3d;
+  --up-wash: rgb(52 199 89 / 0.16);
+  --down: #e0352b;
+  --down-wash: rgb(255 59 48 / 0.12);
+  --caveat: #c26a00;
+  --caveat-wash: rgb(255 149 0 / 0.16);
 
   /* --- neutrals (slate) ------------------------------------------------- */
-  --ground: #f4f6fa;
-  --surface: #ffffff;
-  --surface-2: #eef1f6;
-  --surface-3: #e2e7ef;
-  --sunken: #f8fafc;
+  --ground: #eef1f7;
+  --surface: rgb(255 255 255 / 0.52);
+  --surface-solid: #fbfbfd;
+  --surface-2: rgb(118 118 128 / 0.10);
+  --surface-3: rgb(118 118 128 / 0.18);
+  --sunken: rgb(255 255 255 / 0.45);
 
-  --ink: #0f172a;
-  --ink-2: #334155;
-  --ink-3: #64748b;
-  --ink-4: #94a3b8;
+  --ink: #1d1d1f;
+  --ink-2: #3a3a3c;
+  --ink-3: #6e6e73;
+  --ink-4: #a1a1a6;
 
-  --rule: #e2e8f0;
-  --rule-2: #cbd5e1;
-  --rule-strong: #0f172a;
+  --rule: rgb(0 0 0 / 0.07);
+  --rule-2: rgb(0 0 0 / 0.13);
+  --rule-strong: #1d1d1f;
+
+  /* Glass: the light behind the page, the frost, the edge highlight. */
+  --glass-blur: blur(24px) saturate(180%);
+  --glass-edge: rgb(255 255 255 / 0.75);
+  --glass-strong: rgb(255 255 255 / 0.82);
+  --glow-1: rgb(0 122 255 / 0.30);
+  --glow-2: rgb(52 199 89 / 0.20);
+  --glow-3: rgb(255 149 0 / 0.20);
 
   /* --- meanings, spelled in the four colours ----------------------------- */
   --clear: var(--up);
@@ -61,9 +74,9 @@
   --series-2: var(--caveat);
   --series-3: var(--up);
   --series-4: var(--down);
-  --series-5: #93b4f5;    /* brand, light */
-  --series-6: #f3c57f;    /* amber, light */
-  --series-7: #86d3a2;    /* green, light */
+  --series-5: #8fbcff;    /* brand, light */
+  --series-6: #ffc978;    /* amber, light */
+  --series-7: #8ee0a5;    /* green, light */
   --series-8: var(--ink-4);
 
   /* Aliases older components used. --accent and --warn are the old
@@ -77,7 +90,7 @@
   --line-faint: var(--rule);
 
   /* --- type ------------------------------------------------------------- */
-  --ui: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --serif: var(--ui);
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
@@ -99,10 +112,10 @@
   --s7: 48px;
   --s8: 72px;
 
-  --r-xs: 6px;
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 18px;
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 22px;
   --r-pill: 999px;
 
   /* One control height, so a filter row lines up. A pill is a toggle; a
@@ -113,8 +126,8 @@
   --control-radius: var(--r-sm);
   --control-radius-toggle: var(--r-pill);
 
-  --shadow: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
-  --shadow-lift: 0 12px 28px -10px rgb(15 23 42 / 0.18), 0 4px 10px -4px rgb(15 23 42 / 0.08);
+  --shadow: inset 0 1px 0 var(--glass-edge), 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.12);
+  --shadow-lift: inset 0 1px 0 var(--glass-edge), 0 20px 50px -18px rgb(0 0 0 / 0.28), 0 4px 12px -4px rgb(0 0 0 / 0.08);
 
   --measure: 68ch;
   --page: 1400px;
@@ -124,72 +137,86 @@
    inside this block. Guarded so an explicit light choice beats a dark OS. */
 @media (prefers-color-scheme: dark) {
   .terminal:not([data-theme='light']) {
-    --brand: #5b8cff;
-    --brand-2: #7aa2ff;
-    --brand-wash: #17254a;
-    --brand-ink: #0b1020;
-    --up: #34c76f;
-    --up-wash: #0f2a1b;
-    --down: #f26464;
-    --down-wash: #321417;
-    --caveat: #f5a524;
-    --caveat-wash: #33240b;
+    --brand: #0a84ff;
+    --brand-2: #409cff;
+    --brand-wash: rgb(10 132 255 / 0.20);
+    --brand-ink: #ffffff;
+    --up: #30d158;
+    --up-wash: rgb(48 209 88 / 0.16);
+    --down: #ff453a;
+    --down-wash: rgb(255 69 58 / 0.16);
+    --caveat: #ff9f0a;
+    --caveat-wash: rgb(255 159 10 / 0.16);
 
-    --ground: #0b1020;
-    --surface: #121a2e;
-    --surface-2: #1a2440;
-    --surface-3: #24304f;
-    --sunken: #0e1527;
+    --ground: #07080d;
+    --surface: rgb(36 38 48 / 0.55);
+    --surface-solid: #1c1d24;
+    --surface-2: rgb(118 118 128 / 0.20);
+    --surface-3: rgb(118 118 128 / 0.30);
+    --sunken: rgb(0 0 0 / 0.20);
 
-    --ink: #eef2fa;
-    --ink-2: #c5cee0;
-    --ink-3: #8c97b0;
-    --ink-4: #5d6884;
+    --ink: #f5f5f7;
+    --ink-2: #d1d1d6;
+    --ink-3: #98989d;
+    --ink-4: #636366;
 
-    --rule: #222d48;
-    --rule-2: #2f3c5e;
-    --rule-strong: #eef2fa;
+    --rule: rgb(255 255 255 / 0.08);
+    --rule-2: rgb(255 255 255 / 0.14);
+    --rule-strong: #f5f5f7;
 
-    --series-5: #3b5fae;
-    --series-6: #9c6c1f;
-    --series-7: #23824b;
+    --glass-edge: rgb(255 255 255 / 0.10);
+    --glass-strong: rgb(30 31 40 / 0.86);
+    --glow-1: rgb(10 132 255 / 0.28);
+    --glow-2: rgb(48 209 88 / 0.14);
+    --glow-3: rgb(255 159 10 / 0.12);
 
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-lift: 0 16px 40px -16px rgb(0 0 0 / 0.75);
+    --series-5: #3a6fb8;
+    --series-6: #a5701f;
+    --series-7: #24864a;
+
+    --shadow: inset 0 1px 0 var(--glass-edge), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+    --shadow-lift: inset 0 1px 0 var(--glass-edge), 0 24px 60px -20px rgb(0 0 0 / 0.8);
   }
 }
 
 .terminal[data-theme='dark'] {
-  --brand: #5b8cff;
-  --brand-2: #7aa2ff;
-  --brand-wash: #17254a;
-  --brand-ink: #0b1020;
-  --up: #34c76f;
-  --up-wash: #0f2a1b;
-  --down: #f26464;
-  --down-wash: #321417;
-  --caveat: #f5a524;
-  --caveat-wash: #33240b;
+  --brand: #0a84ff;
+  --brand-2: #409cff;
+  --brand-wash: rgb(10 132 255 / 0.20);
+  --brand-ink: #ffffff;
+  --up: #30d158;
+  --up-wash: rgb(48 209 88 / 0.16);
+  --down: #ff453a;
+  --down-wash: rgb(255 69 58 / 0.16);
+  --caveat: #ff9f0a;
+  --caveat-wash: rgb(255 159 10 / 0.16);
 
-  --ground: #0b1020;
-  --surface: #121a2e;
-  --surface-2: #1a2440;
-  --surface-3: #24304f;
-  --sunken: #0e1527;
+  --ground: #07080d;
+  --surface: rgb(36 38 48 / 0.55);
+  --surface-solid: #1c1d24;
+  --surface-2: rgb(118 118 128 / 0.20);
+  --surface-3: rgb(118 118 128 / 0.30);
+  --sunken: rgb(0 0 0 / 0.20);
 
-  --ink: #eef2fa;
-  --ink-2: #c5cee0;
-  --ink-3: #8c97b0;
-  --ink-4: #5d6884;
+  --ink: #f5f5f7;
+  --ink-2: #d1d1d6;
+  --ink-3: #98989d;
+  --ink-4: #636366;
 
-  --rule: #222d48;
-  --rule-2: #2f3c5e;
-  --rule-strong: #eef2fa;
+  --rule: rgb(255 255 255 / 0.08);
+  --rule-2: rgb(255 255 255 / 0.14);
+  --rule-strong: #f5f5f7;
 
-  --series-5: #3b5fae;
-  --series-6: #9c6c1f;
-  --series-7: #23824b;
+  --glass-edge: rgb(255 255 255 / 0.10);
+  --glass-strong: rgb(30 31 40 / 0.86);
+  --glow-1: rgb(10 132 255 / 0.28);
+  --glow-2: rgb(48 209 88 / 0.14);
+  --glow-3: rgb(255 159 10 / 0.12);
 
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-lift: 0 16px 40px -16px rgb(0 0 0 / 0.75);
+  --series-5: #3a6fb8;
+  --series-6: #a5701f;
+  --series-7: #24864a;
+
+  --shadow: inset 0 1px 0 var(--glass-edge), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --shadow-lift: inset 0 1px 0 var(--glass-edge), 0 24px 60px -20px rgb(0 0 0 / 0.8);
 }

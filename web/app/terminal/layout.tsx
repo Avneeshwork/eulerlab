@@ -3,6 +3,7 @@ import '../tokens.css';
 import './terminal.css';
 import './shell.css';
 import './theme.css';
+import './glass.css';
 import Assistant from '@/components/Assistant';
 
 export const metadata: Metadata = {
