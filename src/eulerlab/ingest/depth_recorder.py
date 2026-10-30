@@ -10,7 +10,7 @@ volume, total buy and sell quantity, open interest for the future, and the
 **best five bid and ask levels** (price, quantity, number of orders). It is
 not NSE's tick-by-tick order feed: Kite sends a snapshot when something
 changes, at most about once a second per instrument, and never individual
-orders. docs/STUBS.md S-050.
+orders. docs/STUBS.md S-052.
 
 Instruments: the 50 Nifty stocks (from NSE's own constituent file, read at
 start), the NIFTY 50 index (last price only; an index has no book) and the

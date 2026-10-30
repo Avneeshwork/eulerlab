@@ -161,7 +161,7 @@ index does not trade). `make depth-day`, run by the `depth` launchd job at
 09:10 IST, records Kite's five-level depth for the 50 Nifty stocks, the index
 and the nearest Nifty future until 15:31. Each row has `event_time` (the
 exchange timestamp) and `knowledge_time` (when the Mac received it). This is a
-snapshot per change, not NSE's order feed (S-050), and starts from the first
+snapshot per change, not NSE's order feed (S-052), and starts from the first
 day it ran: no free source has past order books.
 
 All three upload with `make upload-verified`, which deletes a local file only

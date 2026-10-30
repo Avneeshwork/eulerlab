@@ -310,7 +310,7 @@ datasets:
     publisher: Zerodha Kite
     url: wss://ws.kite.trade
     licence: unreviewed
-    # Snapshots of the best five levels, not NSE's order feed (STUBS S-050).
+    # Snapshots of the best five levels, not NSE's order feed (STUBS S-052).
     knowledge_time: each row's receive time on this machine
     critical: false
     min_grade: C
