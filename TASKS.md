@@ -31,7 +31,8 @@ Verify: `uv run pytest -q tests/test_agent_activity.py`; `make workbench` → ev
 | T-4200 | Merge with the operator's unpushed `ui-revamp` branch | TODO. Not visible from here; may overlap `tokens.css` and `shell.css` |
 | T-4206 | End-to-end walk-through of every page (synthetic panel): fix what broke | DONE. Coloured dashes for missing returns; "−0.0%"; the old orange accent on Dashboard tabs; the (i) button by "NSE" drawn as a segment; unreadable text in a selected chip; Deploy/Explain dialogs following you to other pages; a refused paper action's error vanishing; negative rupees shown as "₹-31161" |
 | T-4207 | Company page shows only a notice when fundamentals are missing; first snapshot is slow when outside fetches time out; "Open Live & Risk" wraps in the deploy dialog | TODO. Seen in the walk-through, not fixed |
-| T-4208 | Repeat the walk-through on the operator's real data | TODO. Needs the Mac online |
+| T-4208 | Repeat the walk-through on the operator's real data | DONE 2026-10-30. Fixed: SIP ignored splits and bonuses (HISTORY #36); one unreachable asset class turned the whole instrument search into a 500; "The session −5.26%" was a 20-day average; deployment names in Performance showed as "…"; the live and backtest labels overlapped; gains drawn in blue; paper cards read "not measured yet" until the next run; a blocked ticket's data row read "grade D, ok"; the calendar showed a bare dash; the AI feed said no agent had run when two had |
+| T-4209 | Deployment titles on Live & Risk → Deployment show the strategy id until the strategy list loads | TODO. Seen on a cold start |
 
 ## Agent accuracy: the grounding check and agent-eval (2026-10-29)
 

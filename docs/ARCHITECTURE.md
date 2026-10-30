@@ -2094,7 +2094,10 @@ start every day, so `ForwardExecutor` refuses a buy whose fill day is inside a
 window before the OMS sees it, on every replay alike; the book and the broker
 never differ. Live & Risk shows the drawdown against both levels on each paper
 card, with **Reduce only** / **Resume buying** and **Change** for the levels.
-Only the daily rebalancing book enforces reduce-only (S-050).
+Only the daily rebalancing book enforces reduce-only (S-050). A book not yet
+run since loss limits existed has no measurement in its state; the API makes
+the same calculation for its card, with no action attached, so the card never
+waits a day to show the drawdown.
 
 ## Scheduled jobs
 

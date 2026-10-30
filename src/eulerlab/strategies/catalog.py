@@ -716,6 +716,8 @@ def search(
         AssetClass.US.value: lambda n: us_instruments(query, n),
         AssetClass.MUTUAL_FUND.value: lambda n: fund_instruments(query, n),
     }
+    from eulerlab.ingest import landing_reader
+
     usable = _supported_classes()
     supported = [name for name in builders if name in usable]
     if not supported:
@@ -727,7 +729,13 @@ def search(
         # The last class takes the remainder, so the limit is spent rather than
         # rounded away.
         take = limit - share * (len(supported) - 1) if index == len(supported) - 1 else share
-        mixed.extend(builders[name](max(1, take)))
+        # A class whose files are pruned locally and whose bucket cannot be
+        # reached is left out, not allowed to fail the whole search: on
+        # 2026-10-30 a missing fund snapshot turned every picker into a 500.
+        try:
+            mixed.extend(builders[name](max(1, take)))
+        except (landing_reader.CloudUnavailable, FileNotFoundError):
+            continue
     return mixed[:limit]
 
 

@@ -276,7 +276,13 @@ function Live({
           </h3>
           <p className="tfine">Every step every agent reports, newest first. Updates by itself.</p>
           {activity && activity.feed.length === 0 ? (
-            <div className="tempty">No agent has run yet.</div>
+            // Runs from before the step trail existed have a result but no
+            // steps, so "no agent has run" was false on real data.
+            <div className="tempty">
+              {activity.agents.some((agent) => agent.run_id)
+                ? 'No steps recorded yet. Runs from before this view kept none; the next run will show its steps here.'
+                : 'No agent has run yet.'}
+            </div>
           ) : (
             <ol className="ai-feed-list">
               {(activity?.feed ?? []).map((step, i) => (

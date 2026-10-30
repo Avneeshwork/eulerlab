@@ -193,3 +193,20 @@ def test_going_reduce_only_is_announced(deployment: store.Deployment) -> None:
     text = signals.message(deployment, {}, state)
     assert text is not None and "REDUCE-ONLY" in text and "11.2%" in text
     assert signals.message(deployment, {}, {"status": "ok", "fills": []}) is None
+
+
+def test_a_book_not_run_since_limits_existed_still_shows_its_drawdown(
+    deployment: store.Deployment,
+) -> None:
+    from eulerlab.api import deploy_routes as r
+
+    runner.run(_with(deployment, reduce_at=None), _falling_panel(30))
+    state = store.read_state(deployment) or {}
+    expected = state["loss_limit"]["drawdown"]
+    # As a book's state looked before this change: no measurement in it.
+    store.write_state(deployment, {k: v for k, v in state.items() if k != "loss_limit"})
+
+    shown = r._summary(store.load(deployment.id))["state"]["loss_limit"]
+
+    assert shown["drawdown"] == pytest.approx(expected, abs=1e-4)
+    assert shown["action"] is None

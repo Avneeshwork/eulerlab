@@ -84,3 +84,24 @@ def test_a_real_overnight_strategy_has_a_fingerprint() -> None:
 
     some = next(iter(overnight.STRATEGIES))
     assert len(version_lock.fingerprint(some)) == 64
+
+
+def test_a_blocked_data_row_says_what_failed() -> None:
+    panel = {
+        "grade": "D",
+        "min_grade": "C",
+        "freshness": "ok",
+        "usable": False,
+        "checks": [
+            {"name": "registered", "state": "pass", "detail": "in config"},
+            {"name": "built from", "state": "fail", "detail": "Cash bhavcopy: grade D"},
+        ],
+    }
+    ok, why = desk.data_check(panel)
+    assert ok is False
+    assert why == "price panel grade D, needs C: Cash bhavcopy: grade D (freshness ok)"
+    assert desk.data_check({**panel, "usable": True, "grade": "B"}) == (
+        True,
+        "price panel grade B, ok",
+    )
+    assert desk.data_check(None)[0] is True

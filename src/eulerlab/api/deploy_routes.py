@@ -77,6 +77,22 @@ def _summary(deployment: store.Deployment) -> dict[str, Any]:
 
     state = store.read_state(deployment) or {}
     limits = loss_limits.for_deployment(deployment)
+    if "loss_limit" not in state and state.get("curve"):
+        # A book not run since loss limits existed has no measurement in its
+        # state, and every card read "not measured yet" for a day. The same
+        # calculation, made here, with no action attached: only a run acts.
+        now, worst = loss_limits.drawdown(state, deployment.capital)
+        state = {
+            **state,
+            "loss_limit": {
+                "drawdown": now,
+                "worst": worst,
+                "reduce_at": limits.reduce_at,
+                "halt_at": limits.halt_at,
+                "reducing": loss_limits.is_reducing(deployment),
+                "action": None,
+            },
+        }
     return {
         **deployment.model_dump(mode="json"),
         "running": RUNNING.get(deployment.id, ""),

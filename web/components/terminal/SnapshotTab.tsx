@@ -491,7 +491,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       view !== 'overview' ? null : (
       <section className="regime tight">
         <div className="regime-lead">
-          <div className="theyebrow">The session</div>
+          {/* Not "the session": this is a 20-day number, and on 2026-10-29 it
+              read −5.26% in red under that label on a day the indices rose. */}
+          <div className="theyebrow">Average stock, last 20 sessions</div>
           <div className="thnum">
             <b className={r.proxy_return_20d >= 0 ? 'up' : 'dn'}>
               {pct(r.proxy_return_20d)}
@@ -928,7 +930,10 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             </table>
           </div>
         ) : (
-          <div className="tpanel mc-missing">—</div>
+          // A bare dash gave no hint why; the reason was only in the (i).
+          <div className="tpanel mc-missing">
+            No releases to show{snap.catalysts.reason ? `: ${snap.catalysts.reason}` : '.'}
+          </div>
         )}
 
       </section>

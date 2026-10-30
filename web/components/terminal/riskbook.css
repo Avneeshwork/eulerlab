@@ -9,6 +9,7 @@
   --rk-4: var(--series-5);
   --rk-5: var(--series-6);
   --rk-loss: var(--down);
+  --rk-gain: var(--up);
   --rk-quiet: var(--ink-4);
   --rk-warn: var(--caveat);
   --rk-crit: var(--down);
@@ -116,6 +117,15 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
+}
+/* Inside the clipped name cell a button is an atomic box, so a long name
+   ellipsised to a bare "…". The button clips its own text instead. */
+.rk-table td.name .rk-link {
+  max-width: 210px; /* the 260px cell, less its padding and the dot */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 .rk-link:hover,
 .rk-link:focus-visible {

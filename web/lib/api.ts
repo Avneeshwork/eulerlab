@@ -1097,6 +1097,8 @@ export type History = {
   source?: string;
   first?: string;
   last?: string;
+  /** Equity bars back-adjusted for splits and bonuses. */
+  adjusted?: boolean;
 };
 
 export type MacroReading = {
@@ -1876,9 +1878,10 @@ export const api = {
       { action, amount },
     ),
   data: () => get<DataStatus>('/api/data'),
-  history: (symbol: string, assetClass = 'equity', days = 400) =>
+  /** `adjusted` back-adjusts equity bars for splits and bonuses (the SIP needs it). */
+  history: (symbol: string, assetClass = 'equity', days = 400, adjusted = false) =>
     get<History>(
-      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}`,
+      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}${adjusted ? '&adjusted=true' : ''}`,
     ),
   syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
   /** Fetch today's data from every source, then mirror it. Different from
