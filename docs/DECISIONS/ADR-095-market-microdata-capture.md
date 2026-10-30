@@ -1,0 +1,7 @@
+# ADR-095: NSE daily reports, index minutes and Kite depth, pruned only after a SHA-256 match
+
+- **Context:** The operator asked for a year of Nifty minute data, order book data and the datasets ScanX has that we lack, with a copy in B2 and the local copy deleted (research 130).
+- **Options:** (a) add each report to `nse_daily_files` and prune by size as today; (b) one `nse_reports` module with its own tree, a manifest-only "already landed" check, and a stricter prune; (c) buy order data.
+- **Choice:** (b). `nse_reports` lands 12 reports under `data/landing/nse_reports/`; a report in the manifest is never fetched again even when its local copy is gone. `kite_index_minute` lands NIFTY 50, NIFTY BANK and INDIA VIX minutes. `depth_recorder` records Kite's five-level depth for the Nifty 50, the index and the near future, 09:10 to 15:31 (launchd job `depth`). `upload-verified` deletes a local file only when the bucket holds it at the same size and with the same SHA-256 as the local bytes.
+- **Why:** The bhavcopy tree's `Landing.has` wants the file on disk, so a pruned day would be fetched again every night. Size alone was the operator's minimum; they asked for "size/checksum", and the hash costs one HEAD per file.
+- **Cost if wrong:** Holiday dates on the API-backed reports land as empty files (NSE answers 200 with no rows). Depth is snapshots, not NSE's order feed (S-050). A report NSE revises after we land it is not refetched.

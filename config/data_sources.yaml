@@ -175,6 +175,146 @@ datasets:
     critical: false
     min_grade: C
 
+  # NSE daily reports and snapshots (research 130, ADR-095).
+  - name: Bulk deals
+    tree: nse_reports
+    segment: bulk_deals
+    publisher: NSE
+    url: https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=bulk_deals
+    licence: unreviewed
+    knowledge_time: published in the evening after the close
+    critical: false
+    min_grade: C
+
+  - name: Block deals
+    tree: nse_reports
+    segment: block_deals
+    publisher: NSE
+    url: https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=block_deals
+    licence: unreviewed
+    knowledge_time: published in the evening after the close
+    critical: false
+    min_grade: C
+
+  - name: Short selling
+    tree: nse_reports
+    segment: short_selling
+    publisher: NSE
+    url: https://www.nseindia.com/api/historicalOR/bulk-block-short-deals?optionType=short_selling
+    licence: unreviewed
+    knowledge_time: published in the evening after the close
+    critical: false
+    min_grade: C
+
+  - name: F&O ban list
+    tree: nse_reports
+    segment: fo_ban
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/archives/fo/sec_ban/fo_secban_
+    licence: unreviewed
+    knowledge_time: published the evening before the trade date it names
+    critical: false
+    min_grade: C
+
+  - name: SLBM bhavcopy
+    tree: nse_reports
+    segment: slbm
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/archives/slbs/bhavcopy/SLBM_BC_
+    licence: unreviewed
+    knowledge_time: published after the close
+    critical: false
+    min_grade: C
+
+  - name: Margin trading (MTF)
+    tree: nse_reports
+    segment: mtf
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/content/equities/mrg_trading_
+    licence: unreviewed
+    knowledge_time: published after the close, sometimes the next day
+    critical: false
+    min_grade: C
+
+  - name: Insider trades (PIT)
+    tree: nse_reports
+    segment: insider
+    publisher: NSE
+    url: https://www.nseindia.com/api/corporates-pit-gg
+    licence: unreviewed
+    knowledge_time: each filing's broadcast time; nothing served before about May 2026
+    critical: false
+    min_grade: C
+
+  - name: SAST reg 29 filings
+    tree: nse_reports
+    segment: sast
+    publisher: NSE
+    url: https://www.nseindia.com/api/corporate-sast-reg29
+    licence: unreviewed
+    knowledge_time: each filing's broadcast time
+    critical: false
+    min_grade: C
+
+  - name: Promoter pledges
+    tree: nse_reports
+    segment: pledges
+    publisher: NSE
+    url: https://www.nseindia.com/api/corporate-pledgedata
+    licence: unreviewed
+    knowledge_time: snapshot; knowledge time is the fetch time
+    critical: false
+    min_grade: C
+
+  - name: IPOs open
+    tree: nse_reports
+    segment: ipo_current
+    publisher: NSE
+    url: https://www.nseindia.com/api/ipo-current-issue
+    licence: unreviewed
+    knowledge_time: snapshot; knowledge time is the fetch time
+    critical: false
+    min_grade: C
+
+  - name: IPOs past
+    tree: nse_reports
+    segment: ipo_past
+    publisher: NSE
+    url: https://www.nseindia.com/api/public-past-issues
+    licence: unreviewed
+    knowledge_time: snapshot; knowledge time is the fetch time
+    critical: false
+    min_grade: C
+
+  - name: Nifty 50 constituents
+    tree: nse_reports
+    segment: nifty50_list
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv
+    licence: unreviewed
+    knowledge_time: snapshot; knowledge time is the fetch time
+    critical: false
+    min_grade: C
+
+  - name: Index minute bars
+    tree: kite_index_minute
+    publisher: Zerodha Kite
+    url: https://api.kite.trade/instruments/historical/
+    licence: unreviewed
+    knowledge_time: during the session
+    critical: false
+    min_grade: C
+
+  - name: Nifty 50 market depth
+    tree: kite_depth
+    publisher: Zerodha Kite
+    url: wss://ws.kite.trade
+    licence: unreviewed
+    # Snapshots of the best five levels, not NSE's order feed (STUBS S-050).
+    knowledge_time: each row's receive time on this machine
+    critical: false
+    min_grade: C
+
   - name: Fundamentals
     tree: fundamentals
     publisher: screener.in
