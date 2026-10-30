@@ -6,14 +6,17 @@ Every task, its status, and the command that proves it. Statuses:
 ## FII/DII cash flows (2026-10-29)
 
 Operator: "make a scrapper to scrape all the data https://scanx.trade/insight/fii-dii-data which we don't have and include in dashboard". scanx could not be read and its terms are unread, so NSE's own figure is captured instead (research 126, ADR-088).
-Verify: `uv run pytest -q tests/test_fii_dii_cash.py`; `make fii-dii` on a trading evening; `make data-quality`; Dashboard → India → Big money.
+Verify: `uv run pytest -q tests/test_fii_dii_cash.py tests/test_fii_dii_history.py`; `make fii-dii` on a trading evening; `make fii-dii-history`; `make data-quality`; Dashboard → India → Big money.
+Then, 2026-10-30: "get fii - dii historical data from other place then like money control or other website by scrappping them atleast last 1 year data" (ADR-089, research 127).
 
 | ID | Task | Status |
 |---|---|---|
 | T-4163 | Capture NSE's FII/DII provisional cash flows daily; table with event and knowledge time; `/api/fii-dii`; panel on Big money | DONE. `ingest/fii_dii_cash.py`, `api/fii_dii_routes.py`, `FiiDiiFlows.tsx`. In `make daily`, `make india-live` and the coverage button. 18 tests. Not yet run against NSE (no network to it from the build session) |
-| T-4185 | First live `make fii-dii` on the Mac; replace the hand-written test payload with the landed file | TODO. Settles A-070, retires S-047 |
-| T-4186 | Backfill FII/DII history from NSDL's FPI daily archive | TODO. Read NSDL's terms and report format first (research 004, 065) |
-| T-4187 | Open scanx.trade's FII/DII page and its terms; list anything it shows that EulerLab does not hold | TODO. Blocked from the build session (research 126) |
+| T-4185 | First live `make fii-dii` on the Mac; replace the hand-written test payload with the landed file | DONE (2026-10-30). 29 Oct landed; real response is `tests/fixtures/fii_dii/nse_fiidiiTradeReact_2026-10-29.json`. A-070 confirmed, S-047 resolved |
+| T-4186 | Backfill FII/DII history | DONE (2026-10-30) from Trendlyne, not NSDL, by operator decision (ADR-089, research 127). `make fii-dii-history MONTHS=12`: 264 days, 2025-10-01 to 2026-10-28, plus NSE's 29 Oct. Cross-checked against NSE, Groww and stockezee: largest gap 0.05 crore. NSDL's official FPI series is still unread (T-4188) |
+| T-4187 | Open scanx.trade's FII/DII page and its terms; list anything it shows that EulerLab does not hold | TODO. Not tried on 2026-10-30: the history came from Trendlyne instead. Still the only open question about scanx |
+| T-4188 | Read NSDL's FPI daily report format and terms; compare its official FPI figure with the provisional one | TODO. Official, FPI only, a different figure (research 004, 065, 127) |
+| T-4189 | Did NSE hold a session on Sunday 1 Feb 2026 (Budget day)? Trendlyne and stockezee show FII/DII flows for it; EulerLab has no bhavcopy for it | TODO. If it did, land that bhavcopy and re-run `make fii-dii-history`, which admits the day once the bhavcopy is in the manifest |
 
 ## The AI agent network (2026-10-29)
 

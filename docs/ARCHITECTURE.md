@@ -1951,8 +1951,34 @@ up to 12 monthly sums with the days each covers.
 
 The panel is `web/components/terminal/FiiDiiFlows.tsx` with its own
 `fiidii.css`; every colour is a `--fd-*` token. It sits at the top of the
-Big money tab. History starts on the first evening it runs. There is no free
-official archive of these figures (research 004, 126).
+Big money tab. There is no free official archive of these figures (research
+004, 126).
+
+**History (ADR-089, research 127).** `make fii-dii-history MONTHS=12`
+(`ingest/fii_dii_history.py`) fills the days before capture began. It fetches
+one Trendlyne page per month (`.../cash-pastmonth/DD-Mon-YYYY/`, the month ends
+of the last N months, then today). Each page carries about 20 days in the
+`data-jsondata` attribute of the table `cash-table-main-pastmonth`. It also
+fetches one page each from Groww and stockezee to cross-check. Every page lands
+unedited under `data/landing/fii_dii/<source>/`, keyed in the manifest by its
+date. A page already there is not fetched again, so re-runs only ask for
+today's pages.
+
+Requests are one at a time, at least 2.5 s apart, with one try each. A 403 or
+429 stops the run. A Trendlyne row is refused when net is not buy - sell within
+0.15 crore (each figure is rounded to 0.1). It is also refused when the date is
+in the future, or falls inside the NSE cash bhavcopy manifest's range without
+a bhavcopy. Past the manifest's last day, a weekday is enough.
+
+Only Trendlyne rows are written, with `source: "trendlyne"` and the page's
+scrape time as `knowledge_time`. So `rows(as_of=...)` never shows a backfilled
+day before it was scraped. NSE rows carry `source: "nse"`; a row without
+`source` is NSE's. A day already in the table is never overwritten, and
+`make fii-dii REBUILD=1` puts NSE's days first and fills the rest from the
+landed Trendlyne pages.
+
+Each run compares Trendlyne with NSE and Groww on every figure, and with
+stockezee on the nets. It lists any gap over 1 crore.
 
 ### The India tabs and the market pulse (research 121, ADR-081)
 
@@ -2297,4 +2323,3 @@ strategy details a run under `data/landing/quantpedia/<day>/`, with a SHA-256
 manifest; nothing landed is fetched again. Needs `QUANTPEDIA_USERNAME` and
 `QUANTPEDIA_API_KEY` in `.env`. Their Sharpe ratios are their own, shown as
 prior evidence only.
-

@@ -99,10 +99,9 @@ def _group(category: str) -> str | None:
 def parse(payload: bytes) -> FlowDay | None:
     """NSE's JSON, or None when it is not one day's FII and DII rows.
 
-    # ASSUMPTION: the response is a list of objects with `category`, `date`
-    # (DD-Mon-YYYY), `buyValue`, `sellValue` and `netValue` (A-070). Research
-    # 004 read the figures on 2026-08-17; the field names are as published by
-    # nsepython and other public clients, not read here (S-047).
+    The response is a list of objects with `category`, `date` (DD-Mon-YYYY),
+    `buyValue`, `sellValue` and `netValue`, confirmed by the first live run on
+    2026-10-30 (A-070, tests/fixtures/fii_dii).
     """
     try:
         raw = json.loads(payload.decode("utf-8", errors="replace"))
@@ -135,9 +134,12 @@ def parse(payload: bytes) -> FlowDay | None:
 # --- the derived table -------------------------------------------------------------
 
 
-def to_row(day: FlowDay, knowledge_time: str) -> dict[str, Any]:
+def to_row(day: FlowDay, knowledge_time: str, *, source: str = "nse") -> dict[str, Any]:
+    """`source` is `nse` for this module's capture, or the aggregator a backfilled
+    row came from (`fii_dii_history`). A row without it is NSE's."""
     return {
         "day": day.trade_date.isoformat(),
+        "source": source,
         "event_time": datetime.combine(day.trade_date, time(15, 30), IST).isoformat(),
         "knowledge_time": knowledge_time,
         "fii_buy": day.fii.buy,
@@ -198,7 +200,8 @@ def rebuild(
     """Write the table again from every landed file. Returns the days written.
 
     `read` takes a landing-relative path (`fii_dii/cash/...`), so a file pruned
-    to B2 is read from there. The output is sorted, so a rebuild of the same
+    to B2 is read from there. NSE's days come first; landed aggregator pages
+    fill the days NSE never served. The output is sorted, so a rebuild of the same
     files is byte-identical.
     """
     out: dict[str, dict[str, Any]] = {}
@@ -208,6 +211,13 @@ def rebuild(
         parsed = parse(read(f"{TREE}/{entry.path}"))
         if parsed is not None:
             out[day] = to_row(parsed, entry.knowledge_time)
+    # Backfilled days fill only what NSE's own capture does not hold (ADR-089).
+    from eulerlab.ingest import fii_dii_history
+
+    for day, row in fii_dii_history.history_rows(
+        landing, read, today=datetime.now(IST).date(), known=fii_dii_history.trading_days()
+    ).items():
+        out.setdefault(day, row)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".part")
     tmp.write_text(
@@ -270,6 +280,15 @@ def streak(nets: Sequence[float]) -> int:
     return sign * count
 
 
+def _sources(held: Sequence[Mapping[str, Any]]) -> dict[str, int]:
+    """Days held per source: `nse` for the capture, an aggregator for a backfill."""
+    out: dict[str, int] = {}
+    for row in held:
+        name = str(row.get("source", "nse"))
+        out[name] = out.get(name, 0) + 1
+    return dict(sorted(out.items()))
+
+
 def summary(held: Sequence[Mapping[str, Any]], *, window: int = 60) -> dict[str, Any]:
     """The dashboard's FII/DII cash-flow section, from `rows()`."""
     if not held:
@@ -320,9 +339,11 @@ def summary(held: Sequence[Mapping[str, Any]], *, window: int = 60) -> dict[str,
             }
             for m, v in sorted(months.items())[-12:]
         ],
+        "sources": _sources(held),
         "note": "NSE's provisional figures for the cash market, ₹ crore, published each evening "
-        "for that day only. FII includes FPI. They are revised later by NSDL and are context, "
-        "not a signal: nothing built on them has passed the gate.",
+        "for that day only. Days before NSE capture began are backfilled from Trendlyne's "
+        "republication (0.1 crore precision, ADR-089). FII includes FPI. They are revised later "
+        "by NSDL and are context, not a signal: nothing built on them has passed the gate.",
     }
 
 

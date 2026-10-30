@@ -18,8 +18,9 @@ def _payload(
     fii: tuple[str, str, str] = ("11546.16", "14081.26", "-2535.10"),
     dii: tuple[str, str, str] = ("16654.08", "11552.62", "5101.46"),
 ) -> bytes:
-    # The figures research 004 read from NSE for 17 Aug 2026. The field names
-    # are the published shape (A-070), not read here (S-047).
+    # The figures research 004 read from NSE for 17 Aug 2026, in NSE's real
+    # shape (A-070). The real response is in tests/fixtures/fii_dii; this one
+    # stays because the refusal tests need payloads NSE would not send.
     rows = [
         {
             "category": "DII **",

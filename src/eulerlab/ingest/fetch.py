@@ -158,6 +158,7 @@ class Fetcher:
 
     def get(self, url: str) -> FetchResult:
         last_detail = ""
+        last_status: int | None = None
         for attempt in range(1, self.policy.max_attempts + 1):
             self._wait_for_slot()
             try:
@@ -172,6 +173,7 @@ class Fetcher:
                 if 200 <= status < 300:
                     return FetchResult(Outcome.OK, url, payload=payload, status=status)
                 last_detail = f"HTTP {status}"
+                last_status = status
                 if status not in RETRYABLE_STATUS:
                     return FetchResult(Outcome.FAILED, url, status=status, detail=last_detail)
             if attempt < self.policy.max_attempts:
@@ -180,6 +182,6 @@ class Fetcher:
         return FetchResult(
             Outcome.FAILED,
             url,
-            status=None,
+            status=last_status,
             detail=f"{last_detail} after {self.policy.max_attempts} attempts",
         )

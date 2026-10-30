@@ -33,9 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
-- **FII/DII cash flows (2026-10-29, ADR-088):** `make fii-dii` captures NSE's evening figure (latest day only; history starts
-  on the first run) in `make daily` and `make india-live`; shown at the top of Dashboard → Big money. Not yet run live (T-4185).
-  scanx.trade was not scraped: unreachable and terms unread (research 126).
+- **FII/DII cash flows (2026-10-29/30, ADR-088, ADR-089):** `make fii-dii` captures NSE's evening figure in `make daily` and
+  `make india-live`; first live run 2026-10-30. `make fii-dii-history` backfilled 265 days (2025-10-01 to 2026-10-29) from Trendlyne
+  against its terms, by operator decision; agrees with NSE, Groww and stockezee within 0.05 crore. Shown on Dashboard → Big money.
 
 - **AI agent network (2026-10-29, ADR-085 to 087):** eight agents on one runtime with budgets, briefs, an inbox
   and a hash-chained log; none can import the order path, gate, ledger writer, env or a shell. Workbench **AI** tab and

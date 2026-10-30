@@ -81,10 +81,47 @@ datasets:
     critical: false
     min_grade: C
 
+  - name: FII/DII history (Trendlyne)
+    tree: fii_dii
+    segment: trendlyne
+    publisher: Trendlyne (republishing NSE's provisional figures)
+    url: https://trendlyne.com/macro-data/fii-dii/latest/cash-pastmonth/
+    # Terms read 2026-10-30: no use "in a searchable, machine-readable database"
+    # without written authorisation. Collected anyway by operator decision
+    # (ADR-009, ADR-089); never redistributed.
+    licence: "restricted: Trendlyne terms bar machine-readable database use without written authorisation; operator decision ADR-089"
+    knowledge_time: the scrape time; a backfilled day was not known here before it
+    critical: false
+    min_grade: C
+    cross_check: make fii-dii-history (compares against NSE, Groww and stockezee)
+    point_in_time: false
+
+  - name: FII/DII cross-check (Groww)
+    tree: fii_dii
+    segment: groww
+    publisher: Groww (republishing NSE's provisional figures)
+    url: https://groww.in/fii-dii-data
+    licence: "restricted: Groww terms bar copying or entering content into a database; personal, non-commercial use only; operator decision ADR-089"
+    knowledge_time: the scrape time; used to compare, never written to the table
+    critical: false
+    min_grade: C
+    point_in_time: false
+
+  - name: FII/DII cross-check (stockezee)
+    tree: fii_dii
+    segment: stockezee
+    publisher: StockeZee (republishing NSE's provisional figures, net only)
+    url: https://stockezee.com/fii-dii-historical-data
+    licence: "restricted: StockeZee terms allow personal use only and bar copying and commercial use; operator decision ADR-089"
+    knowledge_time: the scrape time; used to compare, never written to the table
+    critical: false
+    min_grade: C
+    point_in_time: false
+
   - name: FII/DII cash table
     derived: data/derived/fii_dii_cash.jsonl
-    built_from: [FII/DII cash flows]
-    publisher: built here (ingest/fii_dii_cash.py)
+    built_from: [FII/DII cash flows, FII/DII history (Trendlyne)]
+    publisher: built here (ingest/fii_dii_cash.py, ingest/fii_dii_history.py)
     url: ""
     licence: inherits from FII/DII cash flows
     knowledge_time: each row carries the time its file was landed
