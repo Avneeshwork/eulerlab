@@ -142,6 +142,43 @@ re-reads every panel day's cash bhavcopy from NSE's archive (not B2, whose
 uses, and `SWAP=1` replaces the panel only if every stored close is reproduced
 exactly; the close-only panel is kept beside it.
 
+### NSE daily reports, index minutes and market depth (ADR-095)
+
+`make nse-reports` (`ingest/nse_reports`, research 130) lands twelve NSE
+reports raw under `data/landing/nse_reports/<report>/YYYY/MM/`. Eight are
+dated, one file per trading day: bulk deals, block deals, short selling (all
+from the archive API's CSV form, because its JSON form stops at 70 rows), the
+F&O ban list, the SLBM bhavcopy, MTF, SEBI PIT insider filings and SAST
+regulation 29 filings. Four are snapshots of today, since NSE keeps no history
+of them: promoter pledges, open IPOs, past IPOs and the Nifty 50 constituent
+list. A day is fetched once it is over: from 21:00 IST that day for the
+end-of-day files, the next day for the filings NSE broadcasts late. A report in
+the manifest is never fetched again, even after its local copy is pruned.
+
+`make index-minute` lands Kite 1-minute candles for NIFTY 50, NIFTY BANK and
+INDIA VIX under `data/landing/kite_index_minute/` (volume is always 0: an
+index does not trade). `make depth-day`, run by the `depth` launchd job at
+09:10 IST, records Kite's five-level depth for the 50 Nifty stocks, the index
+and the nearest Nifty future until 15:31. Each row has `event_time` (the
+exchange timestamp) and `knowledge_time` (when the Mac received it). This is a
+snapshot per change, not NSE's order feed (S-052), and starts from the first
+day it ran: no free source has past order books.
+
+`make market-reports` (`market_reports.py`, ADR-096) turns the latest landed
+reports into `data/derived/market_reports.json` for Dashboard → India → Deals &
+filings: 30 trading days of bulk and block deals (a block trade NSE repeats in
+the bulk list counted once), net buyers and sellers, the F&O ban against the
+day before, MTF funding against five sessions back, short selling and SLBM
+lending, ten days of SAST and PIT filings, promoter pledges from the last two
+quarters, and IPOs. It runs between the download and the upload, so it reads
+local files. An empty API answer within three days of its date is not landed:
+NSE answers a day it has not published yet with an empty 200.
+
+All three upload with `make upload-verified`, which deletes a local file only
+when B2 holds it at the same size and the SHA-256 recorded at upload equals
+the hash of the local bytes, computed again. A file that fails either check is
+kept and named.
+
 ## 3.2 The bitemporal model: two clocks, not one
 
 This is the most important data concept in the system, and the one most
@@ -336,7 +373,7 @@ around **0.02–0.05** — small, and that is normal. What matters is consistenc
 > numbers were computed on *raw, unadjusted* prices over a 3-year panel and
 > have not been recomputed (ticket T-1317). They should not be relied on.
 
-## 4.1a The formula language (ADR-096)
+## 4.1a The formula language (ADR-097)
 
 A feature can also be written as a formula, so the research agent can compose
 new ones without writing Python. `features/formula.py` parses the text into a
@@ -368,7 +405,7 @@ most of a window is missing, because the hand-written features have their own mi
 
 **Originality** is the size of the largest subtree a candidate shares exactly with another
 formula, over the candidate's size. Wrapping a zoo formula in one more operator scores 0.75;
-an unrelated formula that shares only `volume` scores 1/3. Research 130 plans to use it to
+an unrelated formula that shares only `volume` scores 1/3. Research 131 plans to use it to
 refuse ideas that copy the zoo or the graveyard.
 
 **What it cannot do:** compare stocks with each other inside a formula (ranking stays in the
@@ -2460,4 +2497,3 @@ strategy details a run under `data/landing/quantpedia/<day>/`, with a SHA-256
 manifest; nothing landed is fetched again. Needs `QUANTPEDIA_USERNAME` and
 `QUANTPEDIA_API_KEY` in `.env`. Their Sharpe ratios are their own, shown as
 prior evidence only.
-

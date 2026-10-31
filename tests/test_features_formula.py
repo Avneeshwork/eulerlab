@@ -1,5 +1,5 @@
 """The formula language: it parses what it should, refuses what it should, never looks
-forward, and reproduces the ten library features exactly (ADR-096)."""
+forward, and reproduces the ten library features exactly (ADR-097)."""
 
 from __future__ import annotations
 

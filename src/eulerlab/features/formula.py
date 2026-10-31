@@ -7,7 +7,7 @@
 `research/codegen.py` explains why generated source is refused: it would break
 the lookahead firewall and have no tests behind it. A formula is a tree of
 operators that are each written and tested here, so it keeps both guarantees
-and is still reviewable and diffable (ADR-096).
+and is still reviewable and diffable (ADR-097).
 
 **Every operator looks back, never forward.** A formula is a pure function of
 one symbol's history ending at the evaluation date, exactly like a library
@@ -435,7 +435,7 @@ def similarity(candidate: Node, other: Node) -> float:
     """Size of the largest subtree the two share exactly, over the candidate's size.
 
     1.0 means the candidate is wholly contained in `other`; a lone `close`
-    shared by everything scores 1 / size. AlphaAgent (research 130) uses the
+    shared by everything scores 1 / size. AlphaAgent (research 131) uses the
     largest common subtree; this is the exact-match version of it.
     """
     mine = _subtrees(candidate)

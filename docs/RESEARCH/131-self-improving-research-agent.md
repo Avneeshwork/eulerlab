@@ -1,4 +1,4 @@
-# 130 — How does the research agent get smarter, and improve itself, without spending the trial bar?
+# 131 — How does the research agent get smarter, and improve itself, without spending the trial bar?
 
 **Date:** 2026-10-31 · **Confidence:** high on what each paper reports; low that any LLM-found signal survives this gate on Indian data (no paper tests a gate this strict)
 
@@ -50,7 +50,7 @@ The operator sent TradingAgents (arXiv 2412.20138) and asked how the research ag
 
 ## Decision
 
-Proposed, not built. The constraint is our own trial bar (research 015): 1.88 at 19 trials, 2.84 at 250. The idea lab's 5 a week is about 260 a year. So the agent must improve its pass rate per trial, not its trial count. Plan: a typed formula language interpreted over `MarketView` (no generated Python); a discovery window (proposed 2015-2020) searched freely and logged in a separate exploration log; one real trial per candidate on a confirmation window (2021 to the card's holdout) that returns pass or fail only; AlphaAgent's three penalties; weakest-score refinement and a bandit; an ExpeL-style lessons list whose entries must cite stored experiences; a graveyard; a zero-trial test bench of synthetic planted-signal panels for judging new prompts or models. Whether discovery searches count against the gate is operator-owned (`gates.py`, `mandate.yaml`) and is put to the operator; see TASKS T-4214.
+Proposed, not built. The constraint is our own trial bar (research 015): 1.88 at 19 trials, 2.84 at 250. The idea lab's 5 a week is about 260 a year. So the agent must improve its pass rate per trial, not its trial count. Plan: a typed formula language interpreted over `MarketView` (no generated Python); a discovery window (proposed 2015-2020) searched freely and logged in a separate exploration log; one real trial per candidate on a confirmation window (2021 to the card's holdout) that returns pass or fail only; AlphaAgent's three penalties; weakest-score refinement and a bandit; an ExpeL-style lessons list whose entries must cite stored experiences; a graveyard; a zero-trial test bench of synthetic planted-signal panels for judging new prompts or models. Whether discovery searches count against the gate is operator-owned (`gates.py`, `mandate.yaml`) and is put to the operator; see TASKS T-4230.
 
 ## Open questions
 

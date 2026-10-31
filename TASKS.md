@@ -5,19 +5,19 @@ Every task, its status, and the command that proves it. Statuses:
 
 ## Self-improving research agent (proposed 2026-10-31)
 
-Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 130. Phase 1 built (ADR-096); the trial-counting decision (T-4214) is still open.
-Verify: read `docs/RESEARCH/130-self-improving-research-agent.md`; `uv run pytest -q tests/test_features_formula.py`.
+Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 131. Phase 1 built (ADR-097); the trial-counting decision (T-4230) is still open.
+Verify: read `docs/RESEARCH/131-self-improving-research-agent.md`; `uv run pytest -q tests/test_features_formula.py`.
 
 | ID | Task | Status |
 |---|---|---|
-| T-4214 | Operator decides: do discovery-window searches count against the gate's trial bar; window dates; paid model for proposals; trial allowance | TODO. Operator |
-| T-4215 | Phase 1: formula language, the 10 features rewritten as the alpha zoo, originality score | DONE 2026-10-31. ADR-096; `uv run pytest -q tests/test_features_formula.py` |
-| T-4221 | Phase 1b: more portfolio shapes (quantile long-only, sector-neutral) and a liquidity floor as cards can name them | TODO |
-| T-4216 | Phase 2: discovery-only view, exploration log, pass-or-fail confirmation call | TODO. Blocked by T-4214 |
-| T-4217 | Phase 3: hypothesis-first generator, originality/alignment/complexity checks, weakest-score refinement and bandit; measure cost | TODO |
-| T-4218 | Phase 4: zero-trial test bench (planted signals, noise panels, known anomalies), `make agent-bench` | TODO |
-| T-4219 | Phase 5: experience store, cited lessons list, graveyard | TODO |
-| T-4220 | Phase 6: confirmation trials within the allowance, equal-weight composite, forward results back to memory | TODO |
+| T-4230 | Operator decides: do discovery-window searches count against the gate's trial bar; window dates; paid model for proposals; trial allowance | TODO. Operator |
+| T-4231 | Phase 1: formula language, the 10 features rewritten as the alpha zoo, originality score | DONE 2026-10-31. ADR-097; `uv run pytest -q tests/test_features_formula.py` |
+| T-4237 | Phase 1b: more portfolio shapes (quantile long-only, sector-neutral) and a liquidity floor as cards can name them | TODO |
+| T-4232 | Phase 2: discovery-only view, exploration log, pass-or-fail confirmation call | TODO. Blocked by T-4230 |
+| T-4233 | Phase 3: hypothesis-first generator, originality/alignment/complexity checks, weakest-score refinement and bandit; measure cost | TODO |
+| T-4234 | Phase 4: zero-trial test bench (planted signals, noise panels, known anomalies), `make agent-bench` | TODO |
+| T-4235 | Phase 5: experience store, cited lessons list, graveyard | TODO |
+| T-4236 | Phase 6: confirmation trials within the allowance, equal-weight composite, forward results back to memory | TODO |
 
 ## Loss limits that act (2026-10-29)
 
@@ -71,6 +71,23 @@ Verify: `uv run pytest -q tests/test_agent_grounding.py`; `make agent-eval ONLY=
 | T-4192 | Approve/dismiss counts per agent on the AI tab | TODO |
 | T-4193 | Idea lab: test drafts within 5 trials a week (IC screen, then backtest), skeptic, inbox | DONE. ADR-089; `make agent NAME=lab`; `tests/test_agent_trials.py`. Runs Sundays after research |
 | T-4194 | First real lab run on the operator's machine, after a live research run | TODO. Needs research drafts (T-4171) |
+## Market microdata: NSE reports, Nifty minutes, order book (2026-10-30)
+
+Operator: "look for all other data, scrap and store, look for orderbook data also if we can get historical data of last 1 year nifty 50 minute level, ensure uploading copy on b2 and delete from local"; then "I am asking for market order data"; then, on the ScanX comparison, "yes lets have all these data". Research 130, ADR-095.
+Verify: `uv run pytest -q tests/test_market_microdata.py`; `make nse-reports`; after `make kite-login`, `make index-minute` and `make depth-day`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4220 | Land NSE bulk/block deals, short selling, F&O ban, SLBM, MTF, insider (PIT), SAST daily and a year back; pledges, IPOs and the Nifty 50 list as daily snapshots | DONE. `make nse-reports`, in `make daily`; one-year backfill from 2025-10-30 (insider from 2026-05-01, the earliest NSE serves): 1,925 files, about 633,000 rows, in B2 under `nse_reports/` with SHA-256 checked; local copies deleted |
+| T-4221 | NIFTY 50, NIFTY BANK, INDIA VIX 1-minute bars from Kite | DONE. Five years (2021-11-01 to 2026-10-30), 1,388,541 candles, in B2 under `kite_index_minute/` with SHA-256 checked; local copies deleted. In `make daily` |
+| T-4222 | Record five-level depth for the Nifty 50, the index and the near future during market hours | DONE (S-052). One-minute live test on 2026-10-30 after the close: 52 instruments, five levels. First full session is the first trading day after it is loaded. `make schedule ACTION=install JOB=depth` loads the 09:10 job; needs a Kite login each morning |
+| T-4223 | Price NSE's historical order and trade data (the only source of past order books) | TODO, operator. Email marketdata@nse.co.in |
+| T-4224 | Mutual fund holdings by stock | TODO. Each fund house publishes its own monthly workbook; no consolidated free file found (research 130) |
+| T-4225 | Readers for the new reports (deals, ban list, MTF, SLBM, insider) on the dashboard or as features | DONE for the dashboard: Dashboard → India → Deals & filings (ADR-096, `make market-reports`, `tests/test_market_reports.py`). Not yet used as features (S-053) |
+| T-4228 | NSE's API answered a day it had not published with an empty file, which then locked in | DONE. Empty API answers within 3 days are retried, not landed; an early empty file is re-landed beside itself as `_recheck` (HISTORY #37) |
+| T-4229 | NSE's bulk list repeats block trades over 0.5% | DONE. Counted once, as the block (`market_reports.drop_repeats`) |
+| T-4227 | NSE served an empty MTF file for 2026-04-08 | OPEN. Refused as malformed, so the day is missing; `make nse-reports FROM=2026-04-08` retries it |
+| T-4226 | Upload-and-delete only after B2's size and SHA-256 match | DONE. `make upload-verified TREES=...`; used by the three new jobs |
 
 ## The AI agent network (2026-10-29)
 

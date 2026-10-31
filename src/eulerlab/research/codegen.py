@@ -27,7 +27,7 @@ a card can reference it. That is a deliberate brake on the loop's throughput,
 and given what Sprint 15 measured about the cost of searching, throughput is
 not the constraint worth relaxing.
 
-Since ADR-096 a card's `feature:` may also be `formula:<expression>` in the
+Since ADR-097 a card's `feature:` may also be `formula:<expression>` in the
 formula language (`features/formula.py`). That is still composition, not code:
 the expression is parsed into a tree of tested, past-only operators and
 interpreted. It widens what a feature can be; it does not widen the shapes.
@@ -87,7 +87,7 @@ def _one(config: dict[str, Any]) -> Built:
     if not is_known(name):
         msg = (
             f"unknown feature {name!r}. The library provides {sorted(BY_NAME)}, or write "
-            f"`formula:<expression>` in the formula language (features/formula.py, ADR-096). "
+            f"`formula:<expression>` in the formula language (features/formula.py, ADR-097). "
             f"Generated Python is never accepted — it would have no tests behind it."
         )
         raise UnknownPrimitive(msg)
