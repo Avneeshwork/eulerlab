@@ -23,7 +23,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4177 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
 | T-4178 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
 | T-4179 | SIP backtester | DONE. Headline on kit Stat tiles with arrows; lump-sum comparison a chip; XIRR, day-of-month, step-up, chart key and the costs caveat behind (i) ("Upper bound" chip). 390 px screenshot not taken: the unattended run could not reach the dev server |
-| T-4180 | Company page (`app/terminal/company/[symbol]`) | TODO |
+| T-4180 | Company page (`app/terminal/company/[symbol]`) | DONE. Main column split into Overview / Financials / Peers / News tabs kept in `?view=`; kit Stat tiles with arrows on moves and growth; the price-source, provisional-close, chart, bar, statement, peer, news, not-held and fair-value assumption notes behind (i); confidence and provisional close are chips; "Not held" is a chip list. 390 px screenshot not taken: the unattended run could not reach the dev server |
 | T-4181 | Dialogs (Backtest, Deploy, Explain) | TODO |
 | T-4182 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
 | T-4183 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | TODO |

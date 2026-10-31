@@ -20,6 +20,7 @@ import {
   type CompanyTable,
   type FairValue,
 } from '@/lib/api';
+import { Chip, Empty, Heading, Info, Move, Seg, Stat, Stats } from '@/components/terminal/ui';
 import './company.css';
 
 /* ---------- numbers ---------- */
@@ -59,20 +60,9 @@ const longDate = (iso: string) => {
   return `${Number(day)} ${MONTHS[Number(month) - 1]} ${year}`;
 };
 
-/* ---------- small pieces ---------- */
-
-function Stat({ label, value, note }: { label: string; value: string; note?: string }) {
-  return (
-    <div className="co-stat">
-      <span>{label}</span>
-      <b>{value}</b>
-      {note && <small>{note}</small>}
-    </div>
-  );
-}
+/* ---------- fair value ---------- */
 
 function FairValuePanel({ value, series }: { value: FairValue; series: [string, number][] }) {
-  const coe = value.cost_of_equity;
   const assumptions = value.assumptions;
   const models = value.models ?? {};
   const upperCase = assumptions?.valuation_scenarios?.high;
@@ -88,22 +78,23 @@ function FairValuePanel({ value, series }: { value: FairValue; series: [string, 
   if (value.status !== 'available' || value.fair_value_per_share == null) {
     return (
       <section className="tpanel co-fair-value">
-        <div className="co-fv-heading">
-          <div>
-            <p className="co-kicker">Valuation estimate</p>
-            <h3>Fair value</h3>
-          </div>
-          <span className="co-fv-badge is-low">Unavailable</span>
-        </div>
-        <p className="tfine">{value.reason || 'Required inputs are not held for this company.'}</p>
-        {(value.warnings ?? []).length > 0 && (
-          <details className="co-fv-details">
-            <summary>Data notes ({value.warnings?.length})</summary>
-            <ul className="co-fv-warnings">
-              {(value.warnings ?? []).map((warning) => <li key={warning}>{warning}</li>)}
-            </ul>
-          </details>
-        )}
+        <Heading
+          title="Fair value"
+          info={
+            <>
+              A valuation estimate.{' '}
+              {value.reason || 'Required inputs are not held for this company.'}
+              {(value.warnings ?? []).map((warning) => (
+                <span key={warning} className="co-info-line">
+                  {warning}
+                </span>
+              ))}
+            </>
+          }
+        >
+          <Chip tone="down">Unavailable</Chip>
+        </Heading>
+        <Empty />
       </section>
     );
   }
@@ -124,33 +115,46 @@ function FairValuePanel({ value, series }: { value: FairValue; series: [string, 
   const modelRows = Object.entries(models).filter(
     ([key, amount]) => key !== 'composite' && amount != null,
   );
-  const coePercent = (amount?: number) => (amount == null ? DASH : `${fixed(amount * 100, 1)}%`);
 
   return (
     <section className="tpanel co-fair-value">
-      <div className="co-fv-heading">
-        <div>
-          <h3>Fair value</h3>
-        </div>
-        <span className="co-fv-badge is-low">Low confidence</span>
-      </div>
-      {value.confidence_reason && <p className="tfine">{value.confidence_reason}</p>}
+      <Heading
+        title="Fair value"
+        info={
+          <>
+            A model estimate for research, not investment advice.
+            {value.confidence_reason && (
+              <span className="co-info-line">{value.confidence_reason}</span>
+            )}
+          </>
+        }
+      >
+        <Chip tone="warn">Low confidence</Chip>
+      </Heading>
       <div className="co-fv-summary">
-        <Stat label="Current price" value={price(value.current_price)} />
-        <Stat label="Central scenario" value={price(value.fair_value_per_share)} />
-        <Stat
-          label={value.model_range ? 'Price vs scenarios' : 'Gap vs central case'}
-          value={pricePosition}
-          note={value.model_range ? centralGapNote : undefined}
-        />
-        <Stat
-          label={value.range_type === 'roe_persistence_scenarios' ? 'ROE scenario range' : 'Scenario range'}
-          value={
-            value.model_range
-              ? `${price(value.model_range.low)} – ${price(value.model_range.high)}`
-              : DASH
-          }
-        />
+        <Stats>
+          <Stat label="Current price" value={price(value.current_price)} />
+          <Stat label="Central scenario" value={price(value.fair_value_per_share)} />
+          <Stat
+            label={value.model_range ? 'Price vs scenarios' : 'Gap vs central case'}
+            value={
+              value.model_range || upside == null ? (
+                pricePosition
+              ) : (
+                <Move value={upside} />
+              )
+            }
+            sub={value.model_range && upside != null ? <Move value={upside} text={centralGapNote} /> : undefined}
+          />
+          <Stat
+            label={value.range_type === 'roe_persistence_scenarios' ? 'ROE scenario range' : 'Scenario range'}
+            value={
+              value.model_range
+                ? `${price(value.model_range.low)} – ${price(value.model_range.high)}`
+                : DASH
+            }
+          />
+        </Stats>
       </div>
       <PriceChart series={series} fairValue={value} />
       {modelRows.length > 0 && (
@@ -163,57 +167,76 @@ function FairValuePanel({ value, series }: { value: FairValue; series: [string, 
           ))}
         </div>
       )}
-      <details className="co-fv-details">
-        <summary>Assumptions &amp; data notes</summary>
-        <div className="co-fv-assumptions">
-          <p>
-            Cost of equity {coePercent(coe?.rate)} · India 10Y {coePercent(coe?.risk_free_rate)} ·
-            {' '}betas M/S/H {plain(coe?.betas.MF)} / {plain(coe?.betas.SMB)} /{' '}
-            {plain(coe?.betas.HML)} ({coe?.beta_observations ?? 0} observations).
-          </p>
-          <p>
-            {coe?.method || 'Cost of equity method'} · India ERP{' '}
-            {coe?.premia ? percent(coe.premia.market * 100) : DASH}
-            {coe?.market_erp_as_of ? ` as of ${coe.market_erp_as_of}` : ''} ·{' '}
-            {coe?.factor_release || 'Factor data'}
-            {coe?.factor_through ? ` through ${coe.factor_through}` : ''}
-            {coe?.premia ? ` · SMB/HML premia ${percent(coe.premia.size * 100)} / ${percent(coe.premia.value * 100)}` : ''}.
-          </p>
-          {assumptions && (
-            <p>
-              {assumptions.forecast_method} Payout {percent(assumptions.payout_ratio * 100)}
-              {assumptions.payout_assumed ? ' (assumed)' : ''}.
-            </p>
-          )}
-          {assumptions && (
-            <p>
-              TTM ROE proxy {percent((assumptions.current_roe ?? 0) * 100)} · year 5 ROE anchor{' '}
-              {percent((assumptions.valuation_scenarios?.base?.year_5_roe_anchor ?? 0) * 100)} ·{' '}
-              year 10 ROE converges to cost of equity {percent((assumptions.valuation_scenarios?.base?.long_run_roe ?? 0) * 100)}.
-            </p>
-          )}
-          {assumptions?.terminal_roe_source && (
-            <p>ROE anchor: {assumptions.terminal_roe_source}.</p>
-          )}
-          {assumptions && (
-            <div className="co-fv-sensitivity">
-              {Object.entries(assumptions.sensitivity).map(([key, amount]) => (
-                <div key={key}>
-                  <span>{key.replaceAll('_', ' ')}</span>
-                  <b>{price(amount)}</b>
-                </div>
-              ))}
-            </div>
-          )}
-          {(value.warnings ?? []).map((warning) => <p key={warning}>{warning}</p>)}
-          <p className="co-fv-provenance">
-            Fundamentals {value.fundamentals_as_of || DASH} · price {value.price_as_of || DASH} ·{' '}
-            {value.model_version}
-          </p>
-          <p className="tfine">Model estimate for research, not investment advice.</p>
+      {assumptions ? (
+        <>
+          <Heading
+            title="Sensitivity"
+            sub="fair value per share"
+            info={<AssumptionNotes value={value} />}
+          />
+          <div className="co-fv-sensitivity">
+            {Object.entries(assumptions.sensitivity).map(([key, amount]) => (
+              <div key={key}>
+                <span>{key.replaceAll('_', ' ')}</span>
+                <b>{price(amount)}</b>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="ui-foot">
+          <Info align="right" label="Assumptions and data notes">
+            <AssumptionNotes value={value} />
+          </Info>
         </div>
-      </details>
+      )}
     </section>
+  );
+}
+
+/** The cost of equity, forecast and data notes behind the fair value: the
+ *  explanation, so it opens from an info button (ADR-084). Spans, not
+ *  paragraphs, because the button can sit inside a heading. */
+function AssumptionNotes({ value }: { value: FairValue }) {
+  const coe = value.cost_of_equity;
+  const assumptions = value.assumptions;
+  const coePercent = (amount?: number) => (amount == null ? DASH : `${fixed(amount * 100, 1)}%`);
+  return (
+    <span className="co-fv-assumptions">
+      <span>
+        Cost of equity {coePercent(coe?.rate)} · India 10Y {coePercent(coe?.risk_free_rate)} ·
+        {' '}betas M/S/H {plain(coe?.betas.MF)} / {plain(coe?.betas.SMB)} /{' '}
+        {plain(coe?.betas.HML)} ({coe?.beta_observations ?? 0} observations).
+      </span>
+      <span>
+        {coe?.method || 'Cost of equity method'} · India ERP{' '}
+        {coe?.premia ? percent(coe.premia.market * 100) : DASH}
+        {coe?.market_erp_as_of ? ` as of ${coe.market_erp_as_of}` : ''} ·{' '}
+        {coe?.factor_release || 'Factor data'}
+        {coe?.factor_through ? ` through ${coe.factor_through}` : ''}
+        {coe?.premia ? ` · SMB/HML premia ${percent(coe.premia.size * 100)} / ${percent(coe.premia.value * 100)}` : ''}.
+      </span>
+      {assumptions && (
+        <span>
+          {assumptions.forecast_method} Payout {percent(assumptions.payout_ratio * 100)}
+          {assumptions.payout_assumed ? ' (assumed)' : ''}.
+        </span>
+      )}
+      {assumptions && (
+        <span>
+          TTM ROE proxy {percent((assumptions.current_roe ?? 0) * 100)} · year 5 ROE anchor{' '}
+          {percent((assumptions.valuation_scenarios?.base?.year_5_roe_anchor ?? 0) * 100)} ·{' '}
+          year 10 ROE converges to cost of equity {percent((assumptions.valuation_scenarios?.base?.long_run_roe ?? 0) * 100)}.
+        </span>
+      )}
+      {assumptions?.terminal_roe_source && <span>ROE anchor: {assumptions.terminal_roe_source}.</span>}
+      {(value.warnings ?? []).map((warning) => <span key={warning}>{warning}</span>)}
+      <span className="co-fv-provenance">
+        Fundamentals {value.fundamentals_as_of || DASH} · price {value.price_as_of || DASH} ·{' '}
+        {value.model_version}
+      </span>
+      <span>Model estimate for research, not investment advice.</span>
+    </span>
   );
 }
 
@@ -284,7 +307,7 @@ function PriceChart({ series, fairValue }: { series: [string, number][]; fairVal
     return series.slice(-days);
   }, [series, range]);
 
-  if (shown.length < 2) return <p className="tfine">No price history is held for this company.</p>;
+  if (shown.length < 2) return <Empty reason="No price history is held for this company." />;
 
   const values = shown.map(([, close]) => close);
   const modelRange = fairValue?.model_range;
@@ -325,12 +348,21 @@ function PriceChart({ series, fairValue }: { series: [string, number][]; fairVal
             </>
           ) : (
             <>
-              <b className={change >= 0 ? 'is-up' : 'is-down'}>{share(change)}</b>{' '}
+              <b>
+                <Move value={change} />
+              </b>{' '}
               <span>
-                over {range}, {longDate(shown[0][0])} to {longDate(shown[shown.length - 1][0])}
+                {range} · {longDate(shown[0][0])} – {longDate(shown[shown.length - 1][0])}
               </span>
             </>
           )}
+          <Info>
+            Closing prices adjusted for splits and bonuses
+            {overlay && hasRoeScenarios
+              ? `. The range reflects historical ROE levels${upperCasePersists ? ' and a persistent-return upper case' : ' with both cases fading to cost of equity'}`
+              : ''}
+            . Move the pointer over the chart for a day&apos;s close.
+          </Info>
         </p>
         <div className="co-ranges" role="group" aria-label="Chart range">
           {RANGES.map(([name, days]) => (
@@ -437,12 +469,6 @@ function PriceChart({ series, fairValue }: { series: [string, number][]; fairVal
           <span><i className="is-range" /> {hasRoeScenarios ? 'ROE scenario range' : 'Value range'}</span>
         </div>
       )}
-      <p className="tfine">
-        Closing prices adjusted for splits and bonuses
-        {overlay && hasRoeScenarios
-          ? ` · range reflects historical ROE levels${upperCasePersists ? ' and a persistent-return upper case' : ' with both cases fading to cost of equity'}`
-          : ''}.
-      </p>
     </div>
   );
 }
@@ -461,9 +487,19 @@ function Bars({ title, table, label }: { title: string; table: CompanyTable; lab
   const span = top - bottom || 1;
   const BH = 150;
   const zero = (top / span) * BH;
+  const last = points[points.length - 1];
   return (
     <figure className="co-bars">
-      <figcaption>{title}</figcaption>
+      <figcaption>
+        {title}
+        <span className="ui-sub">
+          {crore(last.value)}, {period(last.when)}
+        </span>
+        <Info>
+          The last {points.length} periods held, in ₹ crore; a negative figure is drawn below
+          the line in red. Hover or tap a bar for its figure.
+        </Info>
+      </figcaption>
       <div className="co-bars-plot" style={{ height: BH }}>
         <i className="co-zero" style={{ top: zero }} />
         {points.map((p) => {
@@ -487,17 +523,13 @@ function Bars({ title, table, label }: { title: string; table: CompanyTable; lab
           <span key={p.when}>{period(p.when)}</span>
         ))}
       </div>
-      <p className="tfine">
-        Latest {crore(points[points.length - 1].value)}, {period(points[points.length - 1].when)}.
-        Hover a bar for its figure.
-      </p>
     </figure>
   );
 }
 
 /* ---------- statements ---------- */
 
-const STATEMENTS: [string, string][] = [
+const STATEMENTS: [Statement, string][] = [
   ['quarters', 'Quarterly results'],
   ['profit-loss', 'Profit and loss'],
   ['balance-sheet', 'Balance sheet'],
@@ -506,30 +538,26 @@ const STATEMENTS: [string, string][] = [
   ['shareholding', 'Shareholding'],
 ];
 
+type Statement = 'quarters' | 'profit-loss' | 'balance-sheet' | 'cash-flow' | 'ratios' | 'shareholding';
+
 function Statements({ tables }: { tables: Record<string, CompanyTable> }) {
-  const [which, setWhich] = useState('quarters');
+  const [which, setWhich] = useState<Statement>('quarters');
   const table = tables[which];
   const periods = table?.periods.slice(-8) ?? [];
   const skip = (table?.periods.length ?? 0) - periods.length;
   const isShare = which === 'shareholding';
   return (
     <section className="tpanel">
-      <div className="co-tabs" role="tablist" aria-label="Statement">
-        {STATEMENTS.map(([id, name]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={id === which}
-            className={id === which ? 'is-on' : ''}
-            onClick={() => setWhich(id)}
-          >
-            {name}
-          </button>
-        ))}
+      <Heading
+        title="Statements"
+        sub={isShare ? '% of shares' : '₹ crore'}
+        info="The last eight periods in the screener.in file. Swipe the table sideways on a phone; the first column stays put."
+      />
+      <div className="co-tabs">
+        <Seg value={which} options={STATEMENTS} onChange={setWhich} label="Statement" />
       </div>
       {!table || table.rows.length === 0 ? (
-        <p className="tfine">This statement is not in the file for this company.</p>
+        <Empty reason="This statement is not in the file for this company." />
       ) : (
         <div className="co-table-wrap">
           <table className="co-table">
@@ -566,10 +594,31 @@ function Statements({ tables }: { tables: Record<string, CompanyTable> }) {
 
 /* ---------- the page ---------- */
 
+type View = 'overview' | 'financials' | 'peers' | 'news';
+const VIEWS: [View, string][] = [
+  ['overview', 'Overview'],
+  ['financials', 'Financials'],
+  ['peers', 'Peers'],
+  ['news', 'News'],
+];
+
 export default function CompanyPageView({ params }: { params: { symbol: string } }) {
   const symbol = decodeURIComponent(params.symbol).toUpperCase();
   const [page, setPage] = useState<CompanyPage | null>(null);
   const [error, setError] = useState('');
+  const [view, setViewState] = useState<View>('overview');
+  // The tab is kept in the address (?view=peers), so a reload or a shared
+  // link opens the same tab.
+  useEffect(() => {
+    const asked = new URLSearchParams(window.location.search).get('view');
+    if (asked && VIEWS.some(([key]) => key === asked)) setViewState(asked as View);
+  }, []);
+  const setView = (next: View) => {
+    setViewState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', next);
+    window.history.replaceState(null, '', url);
+  };
 
   useEffect(() => {
     let live = true;
@@ -631,54 +680,57 @@ export default function CompanyPageView({ params }: { params: { symbol: string }
             </p>
             <div className="co-price">
               <b>{price(px.close ?? profile.price)}</b>
-              {move != null && (
-                <span className={move >= 0 ? 'is-up' : 'is-down'}>
-                  {move >= 0 ? '▲' : '▼'} {share(move)}
-                </span>
-              )}
+              {move != null && <Move value={move} />}
+              <Info>
+                {px.day ? `Close on ${longDate(px.day)}` : 'Price from the fundamentals file'}
+                {px.previous_close != null && `, previous close ${price(px.previous_close)}`}. The
+                move is against the previous close.
+              </Info>
             </div>
-            <p className="tfine">
-              {px.day ? `Close on ${longDate(px.day)}` : 'Price from the fundamentals file'}
-              {px.previous_close != null && `, previous ${price(px.previous_close)}`}
-            </p>
+            <p className="co-sym">{px.day ? longDate(px.day) : 'Fundamentals file'}</p>
             {px.provisional && (
-              <p className="tfine co-provisional">
-                {longDate(px.provisional.d)}: {price(px.provisional.close)} at 15:29 from minute
-                bars ({share(px.close ? px.provisional.close / px.close - 1 : 0)}). NSE&apos;s
-                bhavcopy for that day is missing; this is replaced when it lands.
+              <p className="co-provisional">
+                <Chip tone="warn">
+                  Provisional {price(px.provisional.close)} on {longDate(px.provisional.d)}
+                </Chip>
+                <Info>
+                  {longDate(px.provisional.d)}: {price(px.provisional.close)} at 15:29 from minute
+                  bars ({share(px.close ? px.provisional.close / px.close - 1 : 0)}). NSE&apos;s
+                  bhavcopy for that day is missing; this is replaced when it lands.
+                </Info>
               </p>
             )}
-            <div className="co-stats two">
+            <Stats>
               <Stat label="Market cap" value={bigRupees(profile.market_cap)} />
               <Stat label="Volume" value={volume(px.volume)} />
-            </div>
+            </Stats>
           </section>
 
           <section className="tpanel">
-            <h3>Vitals</h3>
-            <div className="co-stats two">
+            <Heading title="Vitals" />
+            <Stats>
               <Stat label="P/E" value={plain(profile.pe, 1)} />
               <Stat
                 label="Industry median P/E"
                 value={plain(peers.median_pe, 1)}
-                note={
+                info={
                   peers.median_pe != null
-                    ? `${peers.pe_count} companies with earnings`
-                    : 'too few companies'
+                    ? `The median P/E of the ${peers.pe_count} companies in ${peers.industry || 'the industry'} with positive earnings.`
+                    : 'Too few companies in the industry have earnings to give a median.'
                 }
               />
               <Stat label="ROCE" value={percent(profile.roce)} />
               <Stat label="ROE" value={percent(profile.roe)} />
               <Stat label="Debt to equity" value={plain(metrics.debt_to_equity)} />
               <Stat label="Dividend yield" value={percent(profile.dividend_yield, 2)} />
-              <Stat label="Book value per share" value={price(profile.book_value)} />
+              <Stat label="Book value / share" value={price(profile.book_value)} />
               <Stat label="Promoter holding" value={percent(metrics.promoter_holding, 2)} />
-            </div>
+            </Stats>
           </section>
 
           {profile.sector_levels.length > 0 && (
             <section className="tpanel">
-              <h3>Classification</h3>
+              <Heading title="Classification" />
               <p className="co-crumbs">{profile.sector_levels.join(' › ')}</p>
               {profile.indices.length > 0 && (
                 <ul className="co-chips">
@@ -690,103 +742,134 @@ export default function CompanyPageView({ params }: { params: { symbol: string }
             </section>
           )}
 
-          <section className="tpanel co-missing">
-            <h3>Not held</h3>
-            <p className="tfine">
-              A stock page often shows these. No file on this platform holds them, so they are not
-              shown:
-            </p>
-            <ul>
-              {page.not_held.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          </section>
+          {page.not_held.length > 0 && (
+            <section className="tpanel co-missing">
+              <Heading
+                title="Not held"
+                sub={`${page.not_held.length} panels`}
+                info="A broker's stock page often shows these. No file on this platform holds them, so they are listed rather than drawn empty or filled with a guess."
+              />
+              <ul className="co-chips">
+                {page.not_held.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </section>
+          )}
 
-          <p className="tfine">
-            Fundamentals from screener.in, file of {longDate(page.as_of)}
-            {page.consolidated === true && ', consolidated'}
-            {page.consolidated === false && ', standalone'}. Not investment advice.
+          <p className="co-source">
+            screener.in · {longDate(page.as_of)}
+            <Info>
+              Fundamentals from screener.in, file of {longDate(page.as_of)}
+              {page.consolidated === true && ', consolidated'}
+              {page.consolidated === false && ', standalone'}. Not investment advice.
+            </Info>
           </p>
         </aside>
 
         <div className="co-main">
-          {page.fair_value ? (
-            <FairValuePanel value={page.fair_value} series={px.series} />
-          ) : (
-            <section className="tpanel">
-              <h3>Performance</h3>
-              <PriceChart series={px.series} />
-            </section>
+          <div className="co-views">
+            <Seg value={view} options={VIEWS} onChange={setView} label="Company view" />
+          </div>
+
+          {view === 'overview' && (
+            <>
+              {page.fair_value ? (
+                <FairValuePanel value={page.fair_value} series={px.series} />
+              ) : (
+                <section className="tpanel">
+                  <Heading title="Performance" />
+                  <PriceChart series={px.series} />
+                </section>
+              )}
+
+              <section className="tpanel">
+                <Heading title="Key metrics" />
+                <Stats>
+                  <Stat
+                    label="Operating margin"
+                    value={share(metrics.operating_margin).replace('+', '')}
+                  />
+                  <Stat
+                    label="Net profit margin"
+                    value={share(metrics.net_margin).replace('+', '')}
+                  />
+                  <Stat
+                    label="EPS, last 4 quarters"
+                    value={price(metrics.eps_ttm)}
+                    sub={metrics.eps != null ? `Annual ${price(metrics.eps)}` : undefined}
+                  />
+                  <Stat
+                    label="Sales growth, year"
+                    value={<Move value={metrics.sales_growth} />}
+                    sub={metrics.annual_period ? `to ${period(metrics.annual_period)}` : undefined}
+                  />
+                  <Stat label="Profit growth, year" value={<Move value={metrics.profit_growth} />} />
+                  <Stat
+                    label="Last reported quarter"
+                    value={metrics.quarter_period ? period(metrics.quarter_period) : DASH}
+                    sub={
+                      metrics.quarter_profit_growth != null ? (
+                        <>
+                          Profit <Move value={metrics.quarter_profit_growth} /> y/y
+                        </>
+                      ) : undefined
+                    }
+                  />
+                </Stats>
+                <Heading
+                  title="52-week range"
+                  sub="closing prices"
+                  info="Where the last close sits between the lowest and highest close of the last 52 weeks."
+                />
+                {position != null ? (
+                  <div className="co-range">
+                    <span>{price(px.low_52w)}</span>
+                    <div className="co-range-track">
+                      <i style={{ left: `${position * 100}%` }} />
+                    </div>
+                    <span>{price(px.high_52w)}</span>
+                  </div>
+                ) : (
+                  <Stats>
+                    <Stat label="52-week low" value={price(px.low_52w)} />
+                    <Stat label="52-week high" value={price(px.high_52w)} />
+                  </Stats>
+                )}
+              </section>
+
+              <section className="tpanel">
+                <Heading title="Earnings and revenue" />
+                <div className="co-bars-row">
+                  <Bars title="Sales, by quarter" table={page.tables.quarters} label="Sales" />
+                  <Bars
+                    title="Net profit, by quarter"
+                    table={page.tables.quarters}
+                    label="Net Profit"
+                  />
+                  <Bars title="Sales, by year" table={page.tables['profit-loss']} label="Sales" />
+                  <Bars
+                    title="Free cash flow, by year"
+                    table={page.tables['cash-flow']}
+                    label="Free Cash Flow"
+                  />
+                </div>
+              </section>
+            </>
           )}
 
-          <section className="tpanel">
-            <h3>Key metrics</h3>
-            <div className="co-stats four">
-              <Stat label="52-week high (close)" value={price(px.high_52w)} />
-              <Stat label="52-week low (close)" value={price(px.low_52w)} />
-              <Stat
-                label="Operating margin"
-                value={share(metrics.operating_margin).replace('+', '')}
-              />
-              <Stat label="Net profit margin" value={share(metrics.net_margin).replace('+', '')} />
-              <Stat
-                label="EPS, last four quarters"
-                value={price(metrics.eps_ttm)}
-                note={metrics.eps != null ? `Annual ${price(metrics.eps)}` : undefined}
-              />
-              <Stat
-                label="Sales growth, year"
-                value={share(metrics.sales_growth)}
-                note={metrics.annual_period ? `to ${period(metrics.annual_period)}` : undefined}
-              />
-              <Stat label="Profit growth, year" value={share(metrics.profit_growth)} />
-              <Stat
-                label="Last reported quarter"
-                value={metrics.quarter_period ? period(metrics.quarter_period) : DASH}
-                note={
-                  metrics.quarter_profit_growth != null
-                    ? `Profit ${share(metrics.quarter_profit_growth)} on a year earlier`
-                    : undefined
-                }
-              />
-            </div>
-            {position != null && (
-              <div className="co-range">
-                <span>{price(px.low_52w)}</span>
-                <div className="co-range-track">
-                  <i style={{ left: `${position * 100}%` }} />
-                </div>
-                <span>{price(px.high_52w)}</span>
-              </div>
-            )}
-          </section>
+          {view === 'financials' && <Statements tables={page.tables} />}
 
-          <section className="tpanel">
-            <h3>Earnings and revenue</h3>
-            <div className="co-bars-row">
-              <Bars title="Sales, by quarter" table={page.tables.quarters} label="Sales" />
-              <Bars
-                title="Net profit, by quarter"
-                table={page.tables.quarters}
-                label="Net Profit"
-              />
-              <Bars title="Sales, by year" table={page.tables['profit-loss']} label="Sales" />
-              <Bars
-                title="Free cash flow, by year"
-                table={page.tables['cash-flow']}
-                label="Free Cash Flow"
-              />
-            </div>
-          </section>
-
-          <Statements tables={page.tables} />
-
-          {peers.rows.length > 0 && (
+          {view === 'peers' && (
             <section className="tpanel">
-              <h3>
-                Peers in {peers.industry} ({peers.count} companies)
-              </h3>
+              <Heading
+                title={`Peers in ${peers.industry || 'the industry'}`}
+                sub={`${peers.count} companies`}
+                info="The largest companies in the same industry by market cap; this company is the bold first row. Swipe the table sideways on a phone."
+              />
+              {peers.rows.length === 0 ? (
+                <Empty reason="No other company in the file shares this industry." />
+              ) : (
               <div className="co-table-wrap">
                 <table className="co-table">
                   <thead>
@@ -822,29 +905,36 @@ export default function CompanyPageView({ params }: { params: { symbol: string }
                   </tbody>
                 </table>
               </div>
+              )}
             </section>
           )}
 
-          <section className="tpanel">
-            <h3>News</h3>
-            {page.news.length === 0 ? (
-              <p className="tfine">No headline in the last three months is tagged {symbol}.</p>
-            ) : (
-              <ul className="co-news">
-                {page.news.map((item) => (
-                  <li key={item.link}>
-                    <a href={item.link} target="_blank" rel="noreferrer noopener">
-                      {item.title}
-                    </a>
-                    <small>
-                      {item.publisher}
-                      {item.time && ` · ${longDate(item.time)}`}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {view === 'news' && (
+            <section className="tpanel">
+              <Heading
+                title="News"
+                sub={`${page.news.length} headlines`}
+                info={`Headlines from the news archive tagged ${symbol} in the last three months. Links open the publisher's page.`}
+              />
+              {page.news.length === 0 ? (
+                <Empty reason={`No headline in the last three months is tagged ${symbol}.`} />
+              ) : (
+                <ul className="co-news">
+                  {page.news.map((item) => (
+                    <li key={item.link}>
+                      <a href={item.link} target="_blank" rel="noreferrer noopener">
+                        {item.title}
+                      </a>
+                      <small>
+                        {item.publisher}
+                        {item.time && ` · ${longDate(item.time)}`}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
         </div>
       </div>
     </main>
