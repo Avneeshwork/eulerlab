@@ -58,8 +58,9 @@ recheck dates), [`docs/DECISIONS/`](docs/DECISIONS) (why each choice was made),
 
 ## Where it actually stands
 
-19 trials logged. A candidate must clear **Sharpe 1.88** from noise alone; the
-best result this project has produced is **1.27**. The gate has killed
+A candidate must clear the bar set by the 27 idea families tested so far,
+**Sharpe 0.98** (ADR-108; it was 1.88 under the old ledger count), and beat Nifty
+under a Romano-Wolf test. The gate has killed
 everything it has ever seen. **No capital has been traded.**
 
 That is not a failure state — it is the apparatus working. But nothing here

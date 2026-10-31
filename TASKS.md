@@ -97,7 +97,8 @@ Verify: `make strategy-map`; `uv run pytest -q tests/test_strategy_map.py`.
 | T-4297 | Phase 6: quarterly book rebuild, member drop rules, forward against backtest per member | TODO. After T-4294 |
 | T-4298 | Strategy map on the workbench: families and the correlation heat map on the Strategies page | TODO |
 | T-4299 | No weekly limit on agent trials (operator, 2026-10-31) | DONE. ADR-107; `uv run pytest -q tests/test_agent_trials.py` |
-| T-4300 | Operator decides the Sharpe bar: N = families of everything tested with measured σ_SR, plus Romano-Wolf StepM over Nifty, instead of ledger rows and σ = 1.0 (research 138). Changes `gates.py` and `mandate.yaml` | TODO. Operator |
+| T-4300 | The gate's Sharpe bar: N = families of everything tested with measured σ_SR, plus Romano-Wolf StepM over Nifty, instead of ledger rows and σ = 1.0 (research 138) | DONE 2026-10-31 by operator decision. ADR-108; `uv run pytest -q tests/test_search_bar.py tests/test_gates.py` |
+| T-4303 | ONC clustering and minimum-variance family weights as in López de Prado and Lewis, compared with average linkage (S-057) | TODO |
 | T-4301 | Store every configuration's daily returns, including optimiser and walk-forward sweeps, so the bar can see the whole search | TODO. Needed by T-4300 |
 | T-4302 | `india_sharpe_momentum_opt` is the only strategy that passes StepM over Nifty, but its tuning runs are not in the test; re-test once T-4301 stores them | TODO |
 

@@ -136,7 +136,9 @@ def deflated_sharpe(
     return _norm_cdf(z)
 
 
-def min_backtest_length(n_trials: int, *, target_sharpe: float = 1.0) -> float:
+def min_backtest_length(
+    n_trials: int, *, target_sharpe: float = 1.0, variance_of_sharpes: float = 1.0
+) -> float:
     """Years of history needed before `target_sharpe` is distinguishable from luck.
 
     The blunt version of the same idea: if the answer exceeds the history you
@@ -145,7 +147,7 @@ def min_backtest_length(n_trials: int, *, target_sharpe: float = 1.0) -> float:
     """
     if n_trials <= 1 or target_sharpe <= 0:
         return 0.0
-    expected = expected_max_sharpe(n_trials)
+    expected = expected_max_sharpe(n_trials, variance_of_sharpes=variance_of_sharpes)
     return (expected / target_sharpe) ** 2
 
 

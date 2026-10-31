@@ -43,7 +43,7 @@ StepM (stationary block bootstrap, mean block 20 days, 2,000 draws, 5% level, 54
 
 ## Decision
 
-Proposed, not built; `gates.py` and `mandate.yaml` are operator-owned. Replace "N = ledger rows, σ = 1.0" with: (a) N = families of everything ever tested and σ_SR measured across those families, and (b) a StepM test on excess returns over Nifty across everything tested. Both stop punishing repeats of one idea and both still catch luck. Every configuration's daily returns must be stored for this to be honest, including optimiser sweeps. The weekly trial limit is lifted (ADR-107); the ledger keeps recording.
+**Built 2026-10-31 by operator decision (ADR-108; the card "Families plus Romano-Wolf").** Replace "N = ledger rows, σ = 1.0" with: (a) N = families of everything ever tested and σ_SR measured across those families, and (b) a StepM test on excess returns over Nifty across everything tested. Both stop punishing repeats of one idea and both still catch luck. Every configuration's daily returns must be stored for this to be honest, including optimiser sweeps. The weekly trial limit is lifted (ADR-107); the ledger keeps recording.
 
 ## Open questions
 
