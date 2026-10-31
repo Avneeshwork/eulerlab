@@ -354,12 +354,13 @@ def run(ctx: Context) -> WorkerResult:
 
     force = str(ctx.args.get("force", "")).lower() in ("1", "true", "yes")
     closed_days = holidays.load_holidays(holidays.REFERENCE)
-    if not force and not holidays.is_session(now_ist.date(), closed_days):
-        # No session, no brief: a weekend brief only repeats Friday's numbers.
-        why = "weekend" if now_ist.weekday() >= 5 else "NSE holiday"
-        return WorkerResult(
-            f"no brief: {day} is not a trading day ({why})", status="skipped", data={"mode": mode}
-        )
+    closed_why = ""
+    if not holidays.is_session(now_ist.date(), closed_days):
+        # No session: a closed-market note instead of a brief that would repeat
+        # the last session's numbers under today's date (ADR-105).
+        closed_why = "weekend" if now_ist.weekday() >= 5 else "NSE holiday"
+        if not ctx.args.get("mode"):
+            mode = "weekend"
     if not closed_days:
         notes.append("NSE holiday list not held (`make holidays`): only weekends are skipped")
 
@@ -382,6 +383,19 @@ def run(ctx: Context) -> WorkerResult:
     }
     stamp = fingerprint(inputs)
     last = latest_output(ctx.name, ctx.root)
+    if mode == "weekend" and not force and last is not None:
+        before = last.data.get("brief") or {}
+        as_of = next(
+            (r.get("as_of") for r in (inputs["context"].get("strip") or {}).get("indices") or []),
+            None,
+        )
+        if before.get("mode") == "weekend" and before.get("as_of") == as_of:
+            # One note per break: Sunday does not repeat Saturday's.
+            return WorkerResult(
+                f"no note: the closed-market note for data to {as_of} is already written",
+                status="skipped",
+                data={"fingerprint": stamp, "mode": mode},
+            )
     if (
         not force
         and last is not None
@@ -407,7 +421,13 @@ def run(ctx: Context) -> WorkerResult:
     )
     read_text = trader_read.render(read)
     brief = build_brief(
-        mode, day, inputs, read, levels, _morning(ctx, day) if mode == "after-close" else None
+        mode,
+        day,
+        inputs,
+        read,
+        levels,
+        _morning(ctx, day) if mode == "after-close" else None,
+        closed_why,
     )
     sections = compose(mode, inputs)
     detail = render(mode, day, sections, "")
@@ -505,6 +525,7 @@ def build_brief(
     read: trader_read.Read,
     levels: trader_read.ReadLevels,
     morning: dict[str, Any] | None,
+    closed_why: str = "",
 ) -> dict[str, Any]:
     """The brief as data, in the order it is read (research 134). The page and Telegram draw it."""
     ctx = inputs["context"]
@@ -532,7 +553,12 @@ def build_brief(
         "mode": mode,
         "day": day,
         "as_of": nifty.get("as_of"),
-        "headline": read.bottom_line,
+        "headline": (
+            f"Markets closed today ({closed_why}); last session {nifty.get('as_of')}. "
+            if mode == "weekend"
+            else ""
+        )
+        + read.bottom_line,
         "tone": _tone(read.bottom_line),
         "missing": trader_read.missing(read.rows),
         "matters": brief_content.matters(
@@ -549,6 +575,7 @@ def build_brief(
             held=held,
             results=(inputs.get("results") or {}).get("upcoming") or [],
             results_since=(inputs.get("results") or {}).get("since") or "",
+            horizon=6 if mode == "weekend" else 1,
         ),
         "attention": brief_content.attention(inputs.get("books") or [], ban),
         "books": read.books,
@@ -556,21 +583,26 @@ def build_brief(
         "underneath": brief_content.underneath(ctx, reports, flows),
         "review": brief_content.review(morning, read, close, str(nifty.get("as_of") or ""), day)
         if mode == "after-close"
+        else brief_content.week(ctx, fii_nets)
+        if mode == "weekend"
         else [],
+        "review_title": "The week in review" if mode == "weekend" else "This morning vs the close",
         "left_out": read.gaps,
     }
 
 
 def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
     """Plain text in the same order as the page: the answer first, detail last."""
-    title = "PRE-OPEN BRIEF" if brief["mode"] == "pre-open" else "AFTER-CLOSE NOTE"
+    title = {"pre-open": "PRE-OPEN BRIEF", "after-close": "AFTER-CLOSE NOTE"}.get(
+        brief["mode"], "MARKETS CLOSED"
+    )
     lines = [
         f"{title} · {brief['day']} (data to {brief.get('as_of') or '?'})",
         "",
         brief["headline"],
     ]
     if brief.get("review"):
-        lines += ["", "THIS MORNING VS THE CLOSE", *[f"- {r}" for r in brief["review"]]]
+        lines += ["", brief["review_title"].upper(), *[f"- {r}" for r in brief["review"]]]
     lines += ["", "WHAT MATTERS TODAY"]
     for i, m in enumerate(brief["matters"], 1):
         lines += [f"{i}. {m['title']}. {m['fact']}", f"   What it means: {m['meaning']}"]

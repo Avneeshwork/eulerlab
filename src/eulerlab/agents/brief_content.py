@@ -320,6 +320,7 @@ def coming_up(
     held: set[str],
     results: Sequence[Mapping[str, Any]] = (),
     results_since: str = "",
+    horizon: int = 1,
 ) -> dict[str, Any]:
     """What is scheduled, from what is held, and what is not covered."""
     items: list[dict[str, str]] = []
@@ -339,7 +340,7 @@ def coming_up(
             pass
     for e in sorted(events, key=lambda e: str(e.get("time"))):
         at = _ist(str(e.get("time")))
-        if at is None or not 0 <= (at.date() - today).days <= 1:
+        if at is None or not 0 <= (at.date() - today).days <= horizon:
             continue
         items.append(
             {
@@ -395,9 +396,9 @@ def coming_up(
         not_covered.append(
             f"Results announced before {results_since}, when capture of NSE's board-meeting intimations began"
         )
-    if not events:
+    if not any(i["why"].endswith("economic calendar.") for i in items):
         not_covered.append(
-            "Economic releases (the calendar held has nothing in the next two days, or is stale)"
+            f"Economic releases (the calendar held lists nothing in the next {horizon + 1} days, or is stale)"
         )
     return {"items": items, "not_covered": not_covered}
 
@@ -511,12 +512,39 @@ def review(
     return lines
 
 
+# --- weekends and holidays ---------------------------------------------------------------------
+
+
+def week(ctx: Mapping[str, Any], fii_nets: Sequence[float]) -> list[str]:
+    """The last five sessions in a few lines, for a note written when the market is closed."""
+    lines: list[str] = []
+    for row in (ctx.get("strip") or {}).get("indices") or []:
+        name = str(row.get("name"))
+        if name in ("Nifty 50", "Nifty Bank", "Nifty Smallcap 250", "India VIX"):
+            w = _num((row.get("change") or {}).get("1w"))
+            if w is not None:
+                lines.append(
+                    f"{name}: {w * 100:+.1f}% over the week, to {row.get('close'):,} ({row.get('as_of')})."
+                )
+    series = (ctx.get("breadth") or {}).get("series") or {}
+    above = series.get("above_50") or []
+    if len(above) >= 6:
+        lines.append(
+            f"Stocks above their 50-day average: {above[-6]:.0f}% a week ago, {above[-1]:.0f}% now."
+        )
+    if len(fii_nets) >= 5:
+        lines.append(f"FII cash over the last 5 sessions: {_crore(sum(fii_nets[-5:]))}.")
+    return lines
+
+
 # --- telegram -----------------------------------------------------------------------------------
 
 
 def telegram(brief: Mapping[str, Any]) -> str:
     """At most eight lines."""
-    title = "PRE-OPEN" if brief.get("mode") == "pre-open" else "AFTER-CLOSE"
+    title = {"pre-open": "PRE-OPEN", "after-close": "AFTER-CLOSE"}.get(
+        str(brief.get("mode")), "MARKETS CLOSED"
+    )
     lines = [f"{title} · {brief.get('day')}", str(brief.get("headline"))]
     for m in (brief.get("matters") or [])[:3]:
         lines.append(f"• {m['title']}: {m['fact']}")

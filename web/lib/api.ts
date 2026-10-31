@@ -2513,7 +2513,7 @@ export type AgentActivity = {
 
 /** The market brief as data (ADR-105): `agents/workers/market_brief.build_brief`. */
 export type MarketBrief = {
-  mode: 'pre-open' | 'after-close';
+  mode: 'pre-open' | 'after-close' | 'weekend';
   day: string;
   as_of: string | null;
   headline: string;
@@ -2538,6 +2538,7 @@ export type MarketBrief = {
     flows?: string;
   };
   review: string[];
+  review_title?: string;
   left_out: string[];
   note?: string;
   detail: [string, string[]][];

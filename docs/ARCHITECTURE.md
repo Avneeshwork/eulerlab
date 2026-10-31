@@ -2264,6 +2264,7 @@ waits a day to show the drawdown.
 | `com.eulerlab.fundamentals` | 10:00 on Sunday | `make fundamentals-update` |
 | `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
 | `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
+| `com.eulerlab.briefweekend` | 09:30 Saturday and Sunday | `make agent NAME=market_brief`: the markets-closed note, once per break (ADR-105) |
 | `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, knowledge keeper, handbook). The after-close note runs in `make daily` once the day's data is in (ADR-105) |
 | `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, research, code review) |
 
@@ -2483,8 +2484,11 @@ the brief as `data.brief` in the order research 134 found traders read:
 
 `/api/agents/market_brief/latest` returns it, and `MarketBriefView.tsx` draws it.
 `brief_content.telegram` sends at most eight lines. Pre-open runs before
-15:30 IST, after-close from 15:30. No brief runs on a weekend or a day in
-NSE's holiday list (`make holidays`, `ingest/holidays.is_session`) unless forced.
+15:30 IST, after-close from 15:30. On a weekend or a day in NSE's holiday
+list (`make holidays`, `ingest/holidays.is_session`) it is a markets-closed note
+(mode `weekend`): the last session's read under a "Markets closed today" headline,
+the week in review (`brief_content.week`) and a seven-day look-ahead. One note
+per break: a closed day whose data date matches the last note's is skipped.
 
 **The Trader's read (ADR-100).** The brief opens with an answer, not a list.
 `agents/trader_read.py` turns the gathered inputs into, in this order: a bottom

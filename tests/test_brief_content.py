@@ -201,16 +201,28 @@ def test_the_brief_reads_answer_first_and_telegram_fits_eight_lines() -> None:
     assert len(message.splitlines()) <= 8 and message.endswith("Market brief")
 
 
-def test_no_brief_on_a_weekend_or_an_nse_holiday(tmp_path: Any, monkeypatch: Any) -> None:
+def test_a_closed_day_gets_one_markets_closed_note_per_break(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
     from datetime import UTC, datetime
 
     from eulerlab.agents import runtime
     from eulerlab.agents.spec import AgentSpec, effective
     from eulerlab.ingest import holidays
 
+    ctx = _ctx()
+    ctx["strip"]["indices"][0]["change"]["1w"] = 0.02
     monkeypatch.setattr(
         holidays, "load_holidays", lambda cache_dir: frozenset({date(2026, 11, 10)})
     )
+    monkeypatch.setattr(market_brief, "_context", lambda notes: ctx)
+    monkeypatch.setattr(market_brief, "_world", lambda notes, fetch: [])
+    monkeypatch.setattr(market_brief, "_events", lambda day: [])
+    monkeypatch.setattr(market_brief, "_books", list)
+    monkeypatch.setattr(market_brief, "_flows", lambda: {"available": False})
+    monkeypatch.setattr(market_brief, "_closes", lambda: CLOSES)
+    monkeypatch.setattr(market_brief, "_reports", dict)
+    monkeypatch.setattr(market_brief, "_results", lambda day: {"upcoming": [], "since": ""})
     spec = AgentSpec(
         name="market_brief",
         title="brief",
@@ -218,14 +230,24 @@ def test_no_brief_on_a_weekend_or_an_nse_holiday(tmp_path: Any, monkeypatch: Any
         worker="eulerlab.agents.workers.market_brief",
     )
     agents = {"market_brief": effective(spec, None)}
-    saturday = runtime.run(
-        "market_brief", root=tmp_path, agents=agents, now=datetime(2026, 10, 31, 3, 0, tzinfo=UTC)
-    )
-    assert saturday.status == "skipped" and "weekend" in saturday.summary
-    holiday = runtime.run(
-        "market_brief", root=tmp_path, agents=agents, now=datetime(2026, 11, 10, 3, 0, tzinfo=UTC)
-    )
-    assert holiday.status == "skipped" and "NSE holiday" in holiday.summary
+
+    def run(when: datetime) -> Any:
+        return runtime.run("market_brief", root=tmp_path, agents=agents, now=when)
+
+    saturday = run(datetime(2026, 10, 31, 4, 0, tzinfo=UTC))
+    brief = saturday.data["brief"]
+    assert saturday.status == "ok" and brief["mode"] == "weekend"
+    assert brief["headline"].startswith("Markets closed today (weekend); last session 2026-10-30.")
+    assert brief["review_title"] == "The week in review"
+    assert brief["review"][0] == "Nifty 50: +2.0% over the week, to 23,053.1 (2026-10-30)."
+    assert brief_content.telegram(brief).startswith("MARKETS CLOSED · 2026-10-31")
+    sunday = run(datetime(2026, 11, 1, 4, 0, tzinfo=UTC))
+    assert sunday.status == "skipped" and "already written" in sunday.summary
+    holiday = run(datetime(2026, 11, 10, 4, 0, tzinfo=UTC))
+    assert holiday.status == "skipped"  # same data date as Saturday's note: one note per break
     assert holidays.is_session(date(2026, 11, 9), frozenset()) and not holidays.is_session(
         date(2026, 11, 8), frozenset()
+    )
+    assert holidays.is_session(date(2026, 11, 9), frozenset()) and not holidays.is_session(
+        date(2026, 11, 10), frozenset({date(2026, 11, 10)})
     )

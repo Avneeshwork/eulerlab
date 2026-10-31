@@ -53,7 +53,8 @@ export function BriefCard({ brief, onOpen }: { brief: MarketBrief; onOpen: () =>
 }
 
 export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?: string }) {
-  const title = brief.mode === 'pre-open' ? 'Pre-open brief' : 'After-close note';
+  const title =
+    brief.mode === 'pre-open' ? 'Pre-open brief' : brief.mode === 'after-close' ? 'After-close note' : 'Markets closed';
   const u = brief.underneath;
   const under: [string, string[]][] = [
     ['Leading sectors', u.leading],
@@ -78,7 +79,7 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
       </header>
 
       {brief.review.length > 0 && (
-        <Section title="This morning vs the close">
+        <Section title={brief.review_title ?? 'This morning vs the close'}>
           <ul className="mb-list">
             {brief.review.map((r) => (
               <li key={r}>{r}</li>
