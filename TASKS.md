@@ -12,7 +12,28 @@ Verify: `uv run pytest -q tests/test_trader_read.py`; `make agent NAME=market_br
 |---|---|---|
 | T-4243 | Trader's read at the top of the brief: bottom line, scorecard with normal levels, today's map, what would change the read, books; detail cleaned; Telegram gets the read only; assistant `market_read` tool | DONE 2026-10-31. `agents/trader_read.py`, `config/trader_read.yaml`, 8 tests |
 | T-4244 | Operator sets the read's thresholds (A-082) | TODO. Operator |
+| T-4246 | An incomplete read says so in its first words, marks missing rows, and is held back from Telegram with one line (ADR-101) | DONE 2026-10-31. 4 tests in `tests/test_trader_read.py` |
+| T-4247 | Research how a brief and agent notes should read (research 134): pre-open brief, after-close note, agent notes, Telegram, rendering | DONE 2026-10-31. Proposal only; the operator decides the four open questions before building |
 | T-4245 | Show the read as its own card on the Dashboard strip and the AI tab, not only inside the brief text | TODO |
+
+## Metrics library: how to answer (2026-10-31)
+
+Operator: "gather all possible documents related to metrics we have train model that how to answer", "do for what all possible and before building brief". ADR-103, research 135.
+Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open any page, for example `docs/METRICS/market/india-vix.md`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4248 | `docs/METRICS/`: 116 pages in 14 families (platform metrics plus Indian and global economy, policy and regulators, institutions and flows, events, market structure), normal ranges from our data, answer rules | DONE 2026-10-31 |
+| T-4254 | Hold the macro data the new pages say we lack: RBI policy rate and liquidity, CPI/WPI/IIP/GDP/PMI values, AMFI monthly flows, GIFT Nifty, forex reserves; find free official sources first (research) | TODO |
+| T-4249 | Operator decides: subtract a risk-free rate in Sharpe (and so DSR and the noise bar), or keep raw returns and say so (A-083) | TODO. Operator. Touches the gate's inputs |
+| T-4250 | Operator decides: enforce `min_t_statistic` in `gates.py`, or remove it from `mandate.yaml` (HISTORY #42) | TODO. Operator. Both files operator-owned |
+| T-4251 | Decide whether Sortino's downside deviation should average over all days, as Sortino & Price define it (A-084) | TODO |
+| T-4252 | Wire the library in: knowledge agent sources (`docs/METRICS`, `docs/GLOSSARY.md`), an `explain_metric` assistant tool; scored questions | DONE 2026-10-31. 10 cases added to `config/agent_eval/knowledge.yaml` (k-13 to k-22), not yet run live. The brief's analyst note waits for the brief rebuild |
+| T-4255 | Knowledge keeper agent: daily normals and SEBI/RBI/NSE feed watch, weekly gaps and drafted page updates, `make metrics-accept` | DONE 2026-10-31. ADR-104, research 136, `tests/test_metrics_library.py` (18 tests). First run in a scratch copy recorded 94 feed items as baseline |
+| T-4258 | Market Handbook: the library as one searchable page (`make handbook`, workbench `/handbook.html`), rebuilt by `make ui` and the daily agent batch | DONE 2026-10-31. `tools/render_metrics_handbook.py`, 2 tests |
+| T-4256 | Watch MoSPI and AMFI: no RSS; find a readable official source (PIB RSS?) | TODO |
+| T-4257 | Recheck the seven assumptions the keeper found overdue on its first weekly pass (A-000, A-002, A-004, A-005, A-008, A-010, A-019) | TODO. Operator |
+| T-4253 | Review the Trader's read cash-flow thresholds: ±₹5,000 cr sits near this year's median FII 5-day net (−₹6,110 cr), so "weak" is the usual reading (A-082) | TODO. Operator |
 
 ## Self-improving research agent (proposed 2026-10-31)
 

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Thirty-seven times this project was wrong
+## Forty times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -373,6 +373,12 @@ figure produced outside the result store before this date was frictionless.
 **37. An NSE day that was not published yet landed as a day with nothing in it.** (2026-10-30) `nse_reports` landed any well-formed answer and never fetched that day again. NSE's API answers a day it has not published with an empty 200, so short selling for 30 Oct, fetched at 23:26 IST that night, landed with 0 rows and would have stayed empty. Found reading the Deals & filings tab, whose short-selling panel showed 29 Oct. Fixed: an empty API answer within 3 days of its date is not landed; an empty file landed early is fetched again and the new copy lands beside it (`_recheck`), so nothing is overwritten. The one-year backfill landed holidays and this day; the holidays are right, and the 30 Oct file is replaced on the next run. No study read these files yet.
 
 **38. A refused request looked like a timeout once retries ran out.** (2026-10-30) After its last attempt, `Fetcher.get` returned `status=None`, which dropped the HTTP status it had just seen. So a caller could not tell a 429 from a dead connection, and a scraper meant to stop on 429 kept going. The FII/DII backfill test caught it. The status is now kept. No stored data depended on it: every earlier caller looked only at `outcome`.
+
+**39. A brief missing three of its signals went to Telegram looking complete.** (2026-10-31) The first brief in the Trader's read format (ADR-100) ran at 12:17 IST while the workbench API was down. Breadth, FII futures and options were missing; the bottom line read "Mixed, leaning weak ... 2 of 4 signals weak", not the full read's "Risk-off ... 3 of 7", and only a small note said why. It was sent to Telegram. A rerun with the API up was sent 41 seconds later. Fixed (ADR-101): an incomplete read starts "Incomplete: N of 7 signals missing", marks the rows, and Telegram gets one line instead. The 12:17 brief in `data/agents/market_brief/20261031T064745Z-a268d7` is the partial one.
+
+**40. A paper book's drawdown counted a withdrawal as a loss.** (2026-10-31) The first draft of the Trader's read measured drawdown from the raw equity curve, so the ₹20,000 taken out of one `india_sharpe_momentum_opt` book on 16 Oct showed as 23.1% below its peak. The loss limit's time-weighted figure is 3.7%. Caught on real data before the read was merged; the merged code uses the loss limit's figure. No stored number depended on it.
+
+**42. The mandate's t-statistic bar is not checked by the gate.** (2026-10-31) `mandate.yaml` has carried `min_t_statistic: 3.0` since it was written. `gates.py` never reads it: its statistical checks are deflated Sharpe, PBO and backtest length only, and no code anywhere reads the key. Found writing `docs/METRICS/validation/t-statistic.md`. No strategy was promoted on the strength of it: every one evaluated was killed on other checks. Both files are operator-owned, so nothing was changed; T-4250 asks the operator to decide.
 
 ---
 

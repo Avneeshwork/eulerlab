@@ -1,0 +1,78 @@
+# Official feeds the knowledge keeper reads each day (ADR-104, research 136).
+#
+# Each feed is landed unedited under data/landing/regwatch/<name>/ once a day
+# and its items are compared with every item seen before. A new item becomes an
+# inbox note naming the metric pages it may affect, matched by the topics below.
+#
+# Only RSS feeds the Mac could fetch on 2026-10-31 are listed. MoSPI and AMFI
+# serve JavaScript pages with no feed, so they are not watched (T-4256).
+
+feeds:
+  - name: sebi
+    title: SEBI press releases, circulars and orders
+    url: https://www.sebi.gov.in/sebirss.xml
+  - name: rbi_press
+    title: RBI press releases
+    url: https://rbi.org.in/pressreleases_rss.xml
+  - name: rbi_notifications
+    title: RBI notifications
+    url: https://rbi.org.in/notifications_rss.xml
+  - name: nse_circulars
+    title: NSE circulars
+    url: https://nsearchives.nseindia.com/content/RSS/Circulars.xml
+
+# An item whose title contains any keyword (case ignored, whole words) is
+# linked to the pages listed. Only titles are matched: descriptions carry
+# boilerplate that matched almost everything on the first run (2026-10-31).
+# Words are deliberately specific: routine single-stock F&O circulars
+# (dividend adjustments, contract updates) are not rule changes.
+topics:
+  - keywords: ["lot size", "contract size", "index derivatives", "equity derivatives framework", "weekly expiry", "expiry day"]
+    pages: [sebi-fno-rules, lot-size-and-tick, expiry-day]
+  - keywords: ["margin requirement", "peak margin", span, "extreme loss margin"]
+    pages: [margins]
+  - keywords: ["market wide position", mwpl, "ban period"]
+    pages: [fno-ban]
+  - keywords: [circuit, "price band", "pre-open", "closing auction", "trading hours"]
+    pages: [circuit-breakers, trading-sessions]
+  - keywords: ["settlement cycle", "t+1", "t+0", "settlement price"]
+    pages: [settlement]
+  - keywords: ["foreign portfolio", fpi]
+    pages: [fpi-rules, fii-fpi]
+  - keywords: ["repo rate", "monetary policy", "policy rate", "standing deposit", "marginal standing", "liquidity adjustment"]
+    pages: [rbi-policy-rate, rbi-liquidity]
+  - keywords: ["cash reserve ratio", crr, "statutory liquidity", slr]
+    pages: [rbi-liquidity, big-banks]
+  - keywords: [inflation, "consumer price"]
+    pages: [cpi-inflation]
+  - keywords: ["foreign exchange reserves", "forex reserves"]
+    pages: [rupee]
+  - keywords: ["mutual fund regulations", "mutual funds regulations", "systematic investment"]
+    pages: [dii-mutual-funds-insurers, sip-flows]
+  - keywords: ["securities transaction tax", stt, "capital gains"]
+    pages: [capital-gains-and-stt]
+  - keywords: ["bulk deal", "block deal", "insider trading", sast, pledge, encumbrance]
+    pages: [block-and-bulk-deals]
+  - keywords: ["margin trading", mtf, slb, "securities lending"]
+    pages: [mtf-and-slbm]
+  - keywords: ["offer for sale", "initial public offer", "(ipo)", "qualified institutions placement"]
+    pages: [supply-ipos-ofs-qip]
+  - keywords: ["index rebalancing", "index review", "replacement of scrips", "constituents"]
+    pages: [index-rebalancing]
+
+# Titles starting with these are enforcement or routine notices (one company's
+# listing, one dividend adjustment), not rule changes. They are recorded but
+# never linked, because no page would change.
+skip_titles:
+  - "Final Order"
+  - "Settlement Order"
+  - "Adjudication Order"
+  - "Order in the matter"
+  - "Notice of Attachment"
+  - "Notices of Attachment"
+  - "General Remittance"
+  - "Recovery"
+  - "Corrigendum"
+  - "Listing of"
+  - "DIVIDEND:"
+  - "Revised List of Securities"
