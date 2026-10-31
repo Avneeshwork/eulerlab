@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-29. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-31. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Formula language (2026-10-31, ADR-096, research 130):** a card can name `feature: "formula:<text>"`, e.g. `neg(ts_mad(ret(1), 62))`;
+  parsed and interpreted, never executed. The 10 library features rewritten as formulas match exactly. Phase 1 of the
+  self-improving agent plan; whether discovery-window searches count as trials is your call (T-4214).
 - **Loss limits that act (2026-10-29, ADR-092):** a paper book goes reduce-only (sells only) at a 10% drawdown and halts at 20%
   (`config/loss_limits.yaml`, defaults not yet chosen by you); Reduce only / Resume buying on each card.
 - **Workbench redesign (2026-10-29, ADR-090, 091):** four colours (blue, green, red, amber), rounded corners, one look file

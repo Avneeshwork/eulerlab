@@ -336,6 +336,44 @@ around **0.02–0.05** — small, and that is normal. What matters is consistenc
 > numbers were computed on *raw, unadjusted* prices over a 3-year panel and
 > have not been recomputed (ticket T-1317). They should not be relied on.
 
+## 4.1a The formula language (ADR-096)
+
+A feature can also be written as a formula, so the research agent can compose
+new ones without writing Python. `features/formula.py` parses the text into a
+tree and interprets it; nothing is ever passed to `exec`.
+
+```
+    low_volatility     =  neg(ts_mad(ret(1), 62))
+    price_to_52w_high  =  div(close, ts_max(close, 252))
+    momentum_12_1      =  delay(ret(231), 21)
+```
+
+- **Inputs:** `close`, `volume`, `turnover` for one stock. Zero or negative reads as missing.
+- **Operators:** `ret`, `delay`, `delta`, `neg`, `abs`, `log`, `sign`, `add`, `sub`, `mul`, `div`,
+  and window operators `ts_mean`, `ts_std`, `ts_sum`, `ts_min`, `ts_max`, `ts_median`, `ts_mad`,
+  `ts_rank`, `ts_drawdown`. Every one looks back only.
+- **Limits:** depth 6, 24 operators, windows 1 to 504 sessions.
+- **Missing data:** a window needs at least half its values. Division by zero and the log of a
+  non-positive number are missing, not errors.
+- **Lookback** is computed from the tree: `ts_op(x, n)` needs `lookback(x) + n − 1` rows,
+  `delay(x, n)` needs `lookback(x) + n`, `ret(n)` needs `n + 1`.
+
+A formula compiles into the same `Feature` as the library, so the IC screen, `RankAndHold`,
+codegen, the critic and the idea lab's trial path take `feature: "formula:<text>"` on a card
+through one resolver, `formula.resolve`. Every evaluation still spends a trial as before.
+
+**The alpha zoo** is the ten library features rewritten as formulas. On full histories each
+gives exactly the library's value (tested every 7 rows over 400). They can differ only when
+most of a window is missing, because the hand-written features have their own minimum counts.
+
+**Originality** is the size of the largest subtree a candidate shares exactly with another
+formula, over the candidate's size. Wrapping a zoo formula in one more operator scores 0.75;
+an unrelated formula that shares only `volume` scores 1/3. Research 130 plans to use it to
+refuse ideas that copy the zoo or the graveyard.
+
+**What it cannot do:** compare stocks with each other inside a formula (ranking stays in the
+strategy), or read fundamentals, delivery or participant data. Each needs a new, tested input.
+
 ## 4.2 The cost model: itemised, not blended
 
 Trading costs in India are not one number. They are a stack of separate
