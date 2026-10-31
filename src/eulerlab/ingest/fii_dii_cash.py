@@ -9,7 +9,7 @@ the next session, is gone from NSE for good.
 
 The operator asked for the data shown on scanx.trade's FII/DII page. That page
 could not be read from here and its terms were not read, so this lands NSE's
-own figures, which aggregators such as scanx republish (research 126, ADR-088).
+own figures, which aggregators such as scanx republish (research 128, ADR-098).
 
 Three rules, from what this endpoint has already taught us:
 
@@ -101,7 +101,7 @@ def parse(payload: bytes) -> FlowDay | None:
 
     The response is a list of objects with `category`, `date` (DD-Mon-YYYY),
     `buyValue`, `sellValue` and `netValue`, confirmed by the first live run on
-    2026-10-30 (A-070, tests/fixtures/fii_dii).
+    2026-10-30 (A-079, tests/fixtures/fii_dii).
     """
     try:
         raw = json.loads(payload.decode("utf-8", errors="replace"))
@@ -211,7 +211,7 @@ def rebuild(
         parsed = parse(read(f"{TREE}/{entry.path}"))
         if parsed is not None:
             out[day] = to_row(parsed, entry.knowledge_time)
-    # Backfilled days fill only what NSE's own capture does not hold (ADR-089).
+    # Backfilled days fill only what NSE's own capture does not hold (ADR-099).
     from eulerlab.ingest import fii_dii_history
 
     for day, row in fii_dii_history.history_rows(
@@ -342,7 +342,7 @@ def summary(held: Sequence[Mapping[str, Any]], *, window: int = 60) -> dict[str,
         "sources": _sources(held),
         "note": "NSE's provisional figures for the cash market, ₹ crore, published each evening "
         "for that day only. Days before NSE capture began are backfilled from Trendlyne's "
-        "republication (0.1 crore precision, ADR-089). FII includes FPI. They are revised later "
+        "republication (0.1 crore precision, ADR-099). FII includes FPI. They are revised later "
         "by NSDL and are context, not a signal: nothing built on them has passed the gate.",
     }
 

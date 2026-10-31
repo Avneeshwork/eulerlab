@@ -77,7 +77,7 @@ datasets:
     publisher: NSE
     url: https://www.nseindia.com/api/fiidiiTradeReact
     licence: unreviewed
-    knowledge_time: provisional, published the evening of the trade date; NSE serves the latest day only (ADR-088)
+    knowledge_time: provisional, published the evening of the trade date; NSE serves the latest day only (ADR-098)
     critical: false
     min_grade: C
 
@@ -88,8 +88,8 @@ datasets:
     url: https://trendlyne.com/macro-data/fii-dii/latest/cash-pastmonth/
     # Terms read 2026-10-30: no use "in a searchable, machine-readable database"
     # without written authorisation. Collected anyway by operator decision
-    # (ADR-009, ADR-089); never redistributed.
-    licence: "restricted: Trendlyne terms bar machine-readable database use without written authorisation; operator decision ADR-089"
+    # (ADR-009, ADR-099); never redistributed.
+    licence: "restricted: Trendlyne terms bar machine-readable database use without written authorisation; operator decision ADR-099"
     knowledge_time: the scrape time; a backfilled day was not known here before it
     critical: false
     min_grade: C
@@ -101,7 +101,7 @@ datasets:
     segment: groww
     publisher: Groww (republishing NSE's provisional figures)
     url: https://groww.in/fii-dii-data
-    licence: "restricted: Groww terms bar copying or entering content into a database; personal, non-commercial use only; operator decision ADR-089"
+    licence: "restricted: Groww terms bar copying or entering content into a database; personal, non-commercial use only; operator decision ADR-099"
     knowledge_time: the scrape time; used to compare, never written to the table
     critical: false
     min_grade: C
@@ -112,7 +112,7 @@ datasets:
     segment: stockezee
     publisher: StockeZee (republishing NSE's provisional figures, net only)
     url: https://stockezee.com/fii-dii-historical-data
-    licence: "restricted: StockeZee terms allow personal use only and bar copying and commercial use; operator decision ADR-089"
+    licence: "restricted: StockeZee terms allow personal use only and bar copying and commercial use; operator decision ADR-099"
     knowledge_time: the scrape time; used to compare, never written to the table
     critical: false
     min_grade: C

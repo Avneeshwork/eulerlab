@@ -1490,7 +1490,7 @@ export type MarketContext = {
 };
 export type BreadthName = { symbol: string; close: number; change_1d: number | null; turnover_cr: number };
 
-/** `/api/fii-dii` (ADR-088): NSE's provisional cash flows, ₹ crore. */
+/** `/api/fii-dii` (ADR-098): NSE's provisional cash flows, ₹ crore. */
 export type FiiDiiGroup = {
   buy: number;
   sell: number;

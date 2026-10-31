@@ -2,7 +2,7 @@
 
 NSE serves the latest FII/DII day only (research 004), so `fii_dii_cash`
 captures forward from its first run and has no past. The operator decided on
-2026-10-30 to fill the past from public aggregator pages (ADR-089), the same
+2026-10-30 to fill the past from public aggregator pages (ADR-099), the same
 decision ADR-009 made for Trendlyne, with the same limits: one thread, a gap of
 at least 2 s between requests, a normal browser User-Agent, stop on 403 or 429
 rather than push, no evasion, no redistribution.
@@ -120,7 +120,7 @@ def parse_trendlyne(payload: bytes) -> Parsed | None:
 
     # ASSUMPTION: the cash table is `<table id="cash-table-main-pastmonth">`
     # with its rows in a `data-jsondata` attribute and the columns in
-    # TRENDLYNE_HEADERS (A-071). Read from live pages on 2026-10-30.
+    # TRENDLYNE_HEADERS (A-080). Read from live pages on 2026-10-30.
     """
     text = payload.decode("utf-8", errors="replace")
     tag = re.search(r"<table[^>]*\bid=\"cash-table-main-pastmonth\"[^>]*>", text, re.DOTALL)
@@ -174,7 +174,7 @@ def _initial_data(payload: bytes) -> list[Any] | None:
 def parse_groww(payload: bytes) -> Parsed | None:
     """Groww's page: `initialData` rows with fii/dii grossBuy, grossSell, netBuySell.
 
-    # ASSUMPTION: field names as read from the live page on 2026-10-30 (A-071).
+    # ASSUMPTION: field names as read from the live page on 2026-10-30 (A-080).
     """
     rows = _initial_data(payload)
     if rows is None:
@@ -202,7 +202,7 @@ def parse_groww(payload: bytes) -> Parsed | None:
 def parse_stockezee(payload: bytes) -> Parsed | None:
     """stockezee's page: `initialData` rows with `fii_cash` nets per category.
 
-    # ASSUMPTION: field names as read from the live page on 2026-10-30 (A-071).
+    # ASSUMPTION: field names as read from the live page on 2026-10-30 (A-080).
     """
     rows = _initial_data(payload)
     if rows is None:
@@ -518,7 +518,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--min-interval", type=float, default=2.5)
     args = parser.parse_args(argv)
     if args.min_interval < 2.0:
-        parser.error("--min-interval may not be under 2 seconds (ADR-089)")
+        parser.error("--min-interval may not be under 2 seconds (ADR-099)")
 
     from eulerlab.ingest import landing_reader
 

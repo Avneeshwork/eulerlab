@@ -1,6 +1,6 @@
-# 126 — Where should FII/DII cash flows come from: scanx.trade or NSE?
+# 128 — Where should FII/DII cash flows come from: scanx.trade or NSE?
 
-**Date:** 2026-10-29 · **Confidence:** high that NSE is the publisher (research 004); low on scanx's contents and terms (not read); medium on NSE's field names (A-070)
+**Date:** 2026-10-29 · **Confidence:** high that NSE is the publisher (research 004); low on scanx's contents and terms (not read); medium on NSE's field names (A-079)
 
 ## Question
 
@@ -39,16 +39,16 @@ a better source for the same figures?
   permission**; ADR-009 records the same lesson from Trendlyne.
 - Whether scanx shows anything NSE does not publish (for example FII
   derivatives turnover by instrument, NSE's `fii_stats` report). Not checked.
-- NSE's exact field names, from NSE itself, in this session (A-070).
+- NSE's exact field names, from NSE itself, in this session (A-079).
 - The time NSE publishes the figure each evening. `make daily` (19:30) and
   every `make india-live` pass until 21:00 both try.
 
 ## Decision
 
-Capture NSE's figure directly, forward only (ADR-088). Do not scrape scanx.
+Capture NSE's figure directly, forward only (ADR-098). Do not scrape scanx.
 Backfill from NSDL is a separate task once its terms and format are read
-(T-4186). Compare scanx's page with what EulerLab holds when it can be opened
-(T-4187).
+(T-4239). Compare scanx's page with what EulerLab holds when it can be opened
+(T-4240).
 
 ## Open questions
 

@@ -4199,7 +4199,7 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
             *(
                 []
                 if fii_dii_cash.DERIVED.exists()
-                else ["FII/DII cash flows — none captured yet: `make fii-dii` (ADR-088)"]
+                else ["FII/DII cash flows — none captured yet: `make fii-dii` (ADR-098)"]
             ),
             "upcoming results — not landed yet (research 120)",
         ],

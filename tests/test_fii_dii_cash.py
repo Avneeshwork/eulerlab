@@ -19,7 +19,7 @@ def _payload(
     dii: tuple[str, str, str] = ("16654.08", "11552.62", "5101.46"),
 ) -> bytes:
     # The figures research 004 read from NSE for 17 Aug 2026, in NSE's real
-    # shape (A-070). The real response is in tests/fixtures/fii_dii; this one
+    # shape (A-079). The real response is in tests/fixtures/fii_dii; this one
     # stays because the refusal tests need payloads NSE would not send.
     rows = [
         {

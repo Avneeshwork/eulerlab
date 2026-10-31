@@ -2,7 +2,7 @@
 
 /**
  * FII/DII cash flows: what foreign and domestic institutions bought and sold
- * in the cash market, from NSE's provisional evening figures (ADR-088).
+ * in the cash market, from NSE's provisional evening figures (ADR-098).
  *
  * Self-contained on purpose: it fetches its own route (`/api/fii-dii`), owns
  * its stylesheet (`fiidii.css`), and takes every colour from the `--fd-*`

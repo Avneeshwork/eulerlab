@@ -23,24 +23,24 @@ Everything was fetched from the operator's Mac on 2026-10-30 with a normal brows
 | stockezee | https://stockezee.com/fii-dii-historical-data | 200. `__NEXT_DATA__` `initialData` holds 245 days (2025-11-03 to 2026-10-29) of FII and DII cash **net only**, plus derivatives figures. |
 | stockezee robots.txt | https://stockezee.com/robots.txt | `Allow: /`, `Disallow: /api/`, for all bots including ClaudeBot. |
 | stockezee terms | https://stockezee.com/terms | "You may access this from StockeZee for your own personal use". You must not "Reproduce, duplicate or copy material", and must not use the content "for commercial purposes without written permission". |
-| Moneycontrol FII/DII page and robots.txt | https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php | **403** for both. Not tried again (ADR-089: stop on 403). Its terms were not read. |
+| Moneycontrol FII/DII page and robots.txt | https://www.moneycontrol.com/stocks/marketstats/fii_dii_activity/index.php | **403** for both. Not tried again (ADR-099: stop on 403). Its terms were not read. |
 | niftytrader | https://www.niftytrader.in/fii-dii-data | 200, with dates back to 2020. Not parsed and its terms not read: Trendlyne already covered the year. |
-| NSE | https://www.nseindia.com/api/fiidiiTradeReact | 200 for the API. The home page answered 403, but the API did not need its cookie. Returns 29-Oct-2026, categories `DII` and `FII/FPI`, numbers as strings. This settles A-070. |
+| NSE | https://www.nseindia.com/api/fiidiiTradeReact | 200 for the API. The home page answered 403, but the API did not need its cookie. Returns 29-Oct-2026, categories `DII` and `FII/FPI`, numbers as strings. This settles A-079. |
 
 ## Findings
 
 1. Trendlyne serves the history: 13 pages (Oct 2025 to today) gave 264 days, 2025-10-01 to 2026-10-29. With NSE's own 29 Oct that is 265 days. Every one of the 265 days in that span with a landed NSE cash bhavcopy has a row, and there are no others.
 2. The three aggregators agree with each other and with NSE. The largest gap was 0.05 crore: Trendlyne against NSE on 1 day, against Groww on 20 days, and against stockezee's nets on 244 days. No figure differed by more than 1 crore.
 3. Trendlyne rounds each figure to 0.1 crore, so net can differ from buy minus sell by up to 0.15 (for example 15-Sep-2026). NSE's 0.05 tolerance would refuse correct rows, so Trendlyne rows use 0.15.
-4. Trendlyne and stockezee both show a session on **Sunday 1 Feb 2026** (Union Budget day). Trendlyne gives FII buy 598.3, sell 1186.6; DII buy 14390.8, sell 15073.5. EulerLab has no cash bhavcopy for that day, so the row was refused. Either NSE held a special session and the bhavcopy backfill missed it, or both sites are wrong (T-4189).
+4. Trendlyne and stockezee both show a session on **Sunday 1 Feb 2026** (Union Budget day). Trendlyne gives FII buy 598.3, sell 1186.6; DII buy 14390.8, sell 15073.5. EulerLab has no cash bhavcopy for that day, so the row was refused. Either NSE held a special session and the bhavcopy backfill missed it, or both sites are wrong (T-4242).
 5. Every site that worked forbids storing its data in a database, unless it is for personal use or the site agrees in writing. None of their robots.txt files blocks the pages, which is not permission.
 
 ## Not found
 
-- No site states which NSE release its figures come from. Trendlyne's page does not say "provisional"; the match with NSE is the only evidence (A-072).
+- No site states which NSE release its figures come from. Trendlyne's page does not say "provisional"; the match with NSE is the only evidence (A-081).
 - Moneycontrol could not be read (403), and its terms are unread.
-- Nothing here gives the FII/DII figures for BSE alone, or NSDL's final FPI figures (T-4186).
+- Nothing here gives the FII/DII figures for BSE alone, or NSDL's final FPI figures (T-4239).
 
 ## Decision
 
-Backfill from Trendlyne, and cross-check against Groww and stockezee, by operator decision (ADR-089). `make fii-dii-history MONTHS=12`.
+Backfill from Trendlyne, and cross-check against Groww and stockezee, by operator decision (ADR-099). `make fii-dii-history MONTHS=12`.

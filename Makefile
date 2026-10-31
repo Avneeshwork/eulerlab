@@ -350,13 +350,13 @@ tweezer:
 	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
 
 # FII/DII provisional cash flows. NSE serves the latest day only, so this is
-# capture-only: run it every trading evening (`make daily` does). ADR-088.
+# capture-only: run it every trading evening (`make daily` does). ADR-098.
 # REBUILD=1 rewrites data/derived/fii_dii_cash.jsonl from the landed files.
 fii-dii:
 	@uv run python -m eulerlab.ingest.fii_dii_cash $(if $(REBUILD),--rebuild,)
 
 # Backfill FII/DII days NSE no longer serves, from Trendlyne, cross-checked
-# against Groww and stockezee (ADR-089). One page per month, 2.5 s apart.
+# against Groww and stockezee (ADR-099). One page per month, 2.5 s apart.
 MONTHS ?= 12
 fii-dii-history:
 	@uv run python -m eulerlab.ingest.fii_dii_history --months $(MONTHS)

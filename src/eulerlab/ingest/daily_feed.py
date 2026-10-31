@@ -323,7 +323,7 @@ def _nse_daily_files() -> str:
 
 
 def _fii_dii() -> str:
-    """NSE serves the latest day only, so this is one request a run (ADR-088)."""
+    """NSE serves the latest day only, so this is one request a run (ADR-098)."""
     from eulerlab.ingest import fii_dii_cash
 
     text = _captured(lambda: fii_dii_cash.main([]))

@@ -33,7 +33,7 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
-- **FII/DII cash flows (2026-10-29/30, ADR-088, ADR-089):** `make fii-dii` captures NSE's evening figure in `make daily` and
+- **FII/DII cash flows (2026-10-29/30, ADR-098, ADR-099):** `make fii-dii` captures NSE's evening figure in `make daily` and
   `make india-live`; first live run 2026-10-30. `make fii-dii-history` backfilled 265 days (2025-10-01 to 2026-10-29) from Trendlyne
   against its terms, by operator decision; agrees with NSE, Groww and stockezee within 0.05 crore. Shown on Dashboard → Big money.
 

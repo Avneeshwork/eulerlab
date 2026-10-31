@@ -1,4 +1,4 @@
-"""`/api/fii-dii`: FII/DII provisional cash flows for the dashboard (ADR-088).
+"""`/api/fii-dii`: FII/DII provisional cash flows for the dashboard (ADR-098).
 
 Read-only. It reads `data/derived/fii_dii_cash.jsonl`, which `make fii-dii`
 appends to, through `fii_dii_cash.rows`, so nothing landed after the request

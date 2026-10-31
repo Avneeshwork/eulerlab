@@ -1929,7 +1929,7 @@ each definition, and Sensibull's own statement that PCR and max pain "do not
 have high predictive power". Not shown, because it is not landed: upcoming
 results.
 
-### FII/DII cash flows (ADR-088, research 126)
+### FII/DII cash flows (ADR-098, research 128)
 
 NSE publishes each evening what FII/FPI and DII bought and sold in the cash
 market that day, in Rs crore, at `www.nseindia.com/api/fiidiiTradeReact`. It
@@ -1954,7 +1954,7 @@ The panel is `web/components/terminal/FiiDiiFlows.tsx` with its own
 Big money tab. There is no free official archive of these figures (research
 004, 126).
 
-**History (ADR-089, research 127).** `make fii-dii-history MONTHS=12`
+**History (ADR-099, research 127).** `make fii-dii-history MONTHS=12`
 (`ingest/fii_dii_history.py`) fills the days before capture began. It fetches
 one Trendlyne page per month (`.../cash-pastmonth/DD-Mon-YYYY/`, the month ends
 of the last N months, then today). Each page carries about 20 days in the
