@@ -11,7 +11,9 @@ const nextConfig = {
   // ever talks to one origin, so there is no CORS surface and no API URL baked
   // into the client bundle.
   async rewrites() {
-    return [{ source: '/api/:path*', destination: 'http://127.0.0.1:8000/api/:path*' }];
+    // EULERLAB_API points a second UI at a second API (a review copy beside the running one).
+    const api = process.env.EULERLAB_API || 'http://127.0.0.1:8000';
+    return [{ source: '/api/:path*', destination: `${api}/api/:path*` }];
   },
 };
 export default nextConfig;

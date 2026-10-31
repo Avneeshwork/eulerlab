@@ -127,6 +127,19 @@ def _calendar() -> str:
     return "economic calendar"
 
 
+def _holidays() -> str:
+    from eulerlab.ingest import holidays
+
+    holidays.main()
+    return "NSE trading holidays"
+
+
+def _board_meetings() -> str:
+    from eulerlab.ingest import board_meetings
+
+    return board_meetings.capture()
+
+
 def _crypto_gap() -> str:
     from eulerlab.ingest import crypto_fill
 
@@ -441,6 +454,8 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("paper books", _paper_books),
     ("mutual fund NAVs", _mutual_funds),
     ("economic calendar", _calendar),
+    ("NSE holidays", _holidays),
+    ("board meetings", _board_meetings),
     ("crypto gap", _crypto_gap),
     ("FX", _fx),
     ("news", _news),
@@ -475,6 +490,8 @@ STEP_MODULES: dict[str, str] = {
     "paper books": "paper-daily",
     "mutual fund NAVs": "eulerlab.ingest.mf_backfill",
     "economic calendar": "eulerlab.ingest.forexfactory",
+    "NSE holidays": "eulerlab.ingest.holidays",
+    "board meetings": "eulerlab.ingest.board_meetings",
     "crypto gap": "eulerlab.ingest.crypto_fill",
     "FX": "eulerlab.ingest.fx_bulk_backfill",
     "news": "eulerlab.ingest.news",
@@ -526,6 +543,7 @@ TERMINAL_ONLY: dict[str, str] = {
     "upload-tree": "uploads and removes one folder after its download; the button mirrors once at the end",
     "prune-local": "deleting files is not a side effect of a refresh button",
     "manifest": "the button recounts after its mirror",
+    "eulerlab.agents.runtime": "the after-close note is an agent's run, not a data refresh; the AI tab runs agents",
 }
 """What `make daily` runs that the button deliberately does not, and why."""
 

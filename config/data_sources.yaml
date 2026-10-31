@@ -393,3 +393,53 @@ datasets:
     knowledge_time: the snapshot time
     critical: false
     min_grade: C
+
+  - name: NSE board-meeting intimations
+    tree: nse_board_meetings
+    segment: board_meetings
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/content/RSS/Board_Meetings.xml
+    licence: unreviewed
+    knowledge_time: "the day the feed was landed; the feed lists only that day's intimations, so the calendar is built forward from 2026-10-31 (ADR-105)"
+    critical: false
+    min_grade: C
+
+  - name: "Regulator watch (sebi)"
+    tree: regwatch
+    segment: sebi
+    publisher: SEBI
+    url: https://www.sebi.gov.in/sebirss.xml
+    licence: unreviewed
+    knowledge_time: the day the feed was landed by the knowledge keeper (ADR-104)
+    critical: false
+    min_grade: C
+
+  - name: "Regulator watch (rbi_press)"
+    tree: regwatch
+    segment: rbi_press
+    publisher: RBI
+    url: https://rbi.org.in/pressreleases_rss.xml
+    licence: unreviewed
+    knowledge_time: the day the feed was landed by the knowledge keeper (ADR-104)
+    critical: false
+    min_grade: C
+
+  - name: "Regulator watch (rbi_notifications)"
+    tree: regwatch
+    segment: rbi_notifications
+    publisher: RBI
+    url: https://rbi.org.in/notifications_rss.xml
+    licence: unreviewed
+    knowledge_time: the day the feed was landed by the knowledge keeper (ADR-104)
+    critical: false
+    min_grade: C
+
+  - name: "Regulator watch (nse_circulars)"
+    tree: regwatch
+    segment: nse_circulars
+    publisher: NSE
+    url: https://nsearchives.nseindia.com/content/RSS/Circulars.xml
+    licence: unreviewed
+    knowledge_time: the day the feed was landed by the knowledge keeper (ADR-104)
+    critical: false
+    min_grade: C

@@ -2264,7 +2264,8 @@ waits a day to show the drawdown.
 | `com.eulerlab.fundamentals` | 10:00 on Sunday | `make fundamentals-update` |
 | `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
 | `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
-| `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, after-close brief, knowledge keeper) |
+| `com.eulerlab.briefweekend` | 09:30 Saturday and Sunday | `make agent NAME=market_brief`: the markets-closed note, once per break (ADR-105) |
+| `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, knowledge keeper, handbook). The after-close note runs in `make daily` once the day's data is in (ADR-105) |
 | `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, research, code review) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
@@ -2443,7 +2444,7 @@ definition + operator switches (narrow only) ─────┤
 | data | data quality grades, coverage, feed timings, launchd results | alerts, rerun proposals, answers to data requests |
 | knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia, the metrics library, the glossary) | answers with sources |
 | knowledge_keeper | held data for normals; SEBI, RBI and NSE circular feeds; the metrics library; `docs/ASSUMPTIONS.md` | refreshed normals; notices linked to pages; gaps; drafted page updates for approval |
-| market_brief | the running API's market context, world prices, the day's events, the books | a pre-open or after-close brief; Telegram |
+| market_brief | the running API's market context, world prices, the economic calendar, NSE reports (ban list, deals, IPOs), board-meeting intimations, the books | a pre-open brief or after-close note as data (ADR-105); Telegram in eight lines |
 | research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads |
 | skeptic | a stored backtest's equity curve | attacks: best year, best days, stress windows (A-067), t-stat, costs |
 | engineering | the branch's changed files | review findings: operator-owned files, missing docs or tests, boundary breaks |
@@ -2461,6 +2462,33 @@ day's runs; a run that reaches the budget stops with `over_budget`.
 
 **Memory.** The market brief reads market context over HTTP from the running
 API rather than loading a second copy of the 1.85 GB panel.
+
+**A morning note, built as data (ADR-105).** `market_brief.build_brief` saves
+the brief as `data.brief` in the order research 134 found traders read:
+- headline and tone;
+- after the close, this morning's read against the close (`brief_content.review`);
+- the three things that matter, from `brief_content.matters` (A-086). Each
+  candidate signal is scored by how far its percentile sits from 50 against
+  its own history: VIX, breadth, FII futures, FII 5-day cash, valuation (halved),
+  the put-call ratio change, the large/small-cap gap, and the trend. Items
+  under 25 are dropped. Each carries a fact with its number against normal,
+  a rule-written meaning and its metrics page;
+- levels and if-then conditions;
+- coming up: expiry, the F&O ban list marked for held names, IPOs open, results due
+  from `ingest/board_meetings` (NSE's daily intimations, built forward from
+  2026-10-31), and economic releases within two days, each with its time;
+- what in the books needs the operator: within 75% of the reduce-only level,
+  a holding in the ban, a rebalance due, warnings;
+- underneath: sectors, highs and lows by name, delivery, deals, FII/DII runs;
+- the scorecard, the analyst note and the detail.
+
+`/api/agents/market_brief/latest` returns it, and `MarketBriefView.tsx` draws it.
+`brief_content.telegram` sends at most eight lines. Pre-open runs before
+15:30 IST, after-close from 15:30. On a weekend or a day in NSE's holiday
+list (`make holidays`, `ingest/holidays.is_session`) it is a markets-closed note
+(mode `weekend`): the last session's read under a "Markets closed today" headline,
+the week in review (`brief_content.week`) and a seven-day look-ahead. One note
+per break: a closed day whose data date matches the last note's is skipped.
 
 **The Trader's read (ADR-100).** The brief opens with an answer, not a list.
 `agents/trader_read.py` turns the gathered inputs into, in this order: a bottom

@@ -33,6 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Market brief as a morning note (2026-10-31, ADR-105):** the brief is saved as data and drawn in the AI tab: headline, the three things
+  that matter ranked by how unusual they are (each with what it means), levels and if-then, coming up (expiry, ban list, results due), books
+  needing you, then the detail folded. Telegram gets 8 lines. Weekends and NSE holidays get a markets-closed note (week in review, week ahead); the after-close note runs in `make daily`.
 - **Metrics library (2026-10-31, ADR-103):** `docs/METRICS/`, 116 pages: every platform metric plus macro, policy, institutions, events and market structure,
   traps and example answers, plus `HOW_TO_ANSWER.md`. Wired into the knowledge agent and the assistant (`explain_metric`); kept current by the knowledge keeper agent (ADR-104), which recomputes normals daily, watches SEBI/RBI/NSE circulars and drafts page updates for approval. Found: Sharpe has no
   risk-free rate (A-083, T-4249) and the gate never checks `min_t_statistic` (HISTORY #42, T-4250).

@@ -381,6 +381,8 @@ figure produced outside the result store before this date was frictionless.
 
 **42. The mandate's t-statistic bar is not checked by the gate.** (2026-10-31) `mandate.yaml` has carried `min_t_statistic: 3.0` since it was written. `gates.py` never reads it: its statistical checks are deflated Sharpe, PBO and backtest length only, and no code anywhere reads the key. Found writing `docs/METRICS/validation/t-statistic.md`. No strategy was promoted on the strength of it: every one evaluated was killed on other checks. Both files are operator-owned, so nothing was changed; T-4250 asks the operator to decide.
 
+**43. The after-close brief described the day before, and briefs ran on non-trading days.** (2026-10-31) `make agents-close` ran the after-close brief at 16:15, but index closes, participant OI and FII/DII flows arrive in `make daily` at 19:30, so the 16:15 note reported the previous session. And nothing checked the calendar: the brief forced on Saturday 31 October repeated Friday's numbers under Saturday's date. Fixed (ADR-105): the after-close note runs inside `make daily` after the data; a weekend or NSE holiday gets a markets-closed note that says so and shows the last session's date, once per break; every brief states its data date. No stored number depended on it.
+
 ---
 
 ## What the project has actually concluded

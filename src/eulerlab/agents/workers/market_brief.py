@@ -1,6 +1,15 @@
 """The market brief agent: what happened, what is on today, and what it means for the books.
 
-**Answer first** (ADR-100). The brief opens with the Trader's read
+**Read like a morning note** (ADR-105, research 134). The brief is built as
+data (`build_brief`) in the order a trader reads: the headline, the three
+things that matter today with what each means (`agents/brief_content.py`),
+levels and what would change the read, what is coming up, what in the books
+needs the operator, then what is moving underneath, the scorecard and the
+detail. After the close (15:30 IST) it is a note that also checks this
+morning's read against what happened. The workbench draws it from the data;
+Telegram gets eight lines.
+
+**Answer first** (ADR-100). The scorecard is the Trader's read
 (`agents/trader_read.py`): a bottom line, a scorecard with what is normal for
 each signal, today's levels, what would change the read, and the books. The
 detail sections follow. Telegram gets the Trader's read only, and only when
@@ -27,13 +36,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import urllib.error
 import urllib.request
-from datetime import datetime, timedelta
+from dataclasses import asdict
+from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from eulerlab.agents import grounding, trader_read
+from eulerlab.agents import brief_content, grounding, trader_read
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output, untrusted
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -97,11 +108,31 @@ def _events(now_ist_day: str) -> list[dict[str, Any]]:
         return []
     out = []
     for e in events:
-        if e.event_time[:10] == now_ist_day and e.impact.lower() in ("high", "medium"):
+        if e.event_time[:10] >= now_ist_day and e.impact.lower() in ("high", "medium"):
             out.append(
                 {"title": e.title, "country": e.country, "time": e.event_time, "impact": e.impact}
             )
-    return out[:12]
+    return sorted(out, key=lambda e: e["time"])[:12]
+
+
+def _reports() -> dict[str, Any]:
+    """NSE's evening reports (ban list, deals, IPOs), as the Deals & filings tab reads them."""
+    from eulerlab import market_reports
+
+    try:
+        loaded = json.loads(market_reports.OUT.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _results(day: str) -> dict[str, Any]:
+    """Results meetings in the next week, from the captured board-meeting intimations."""
+    from eulerlab.ingest import board_meetings
+
+    rows = board_meetings.held()
+    first = min((str(r.get("knowledge_time", ""))[:10] for r in rows), default="")
+    return {"upcoming": board_meetings.upcoming(date.fromisoformat(day), rows=rows), "since": first}
 
 
 def _books() -> list[dict[str, Any]]:
@@ -119,6 +150,7 @@ def _books() -> list[dict[str, Any]]:
             {
                 "id": d.id,
                 "strategy": d.strategy_id,
+                "label": f"{d.strategy_id} (₹{d.capital:,.0f})",
                 "mode": d.mode,
                 "status": d.status,
                 "traded_through": state.get("traded_through"),
@@ -134,6 +166,10 @@ def _books() -> list[dict[str, Any]]:
                 "invested": 1 - float(cash) / float(equity)
                 if isinstance(equity, int | float) and isinstance(cash, int | float) and equity
                 else None,
+                "symbols": sorted(
+                    {str(h.get("symbol")) for h in state.get("book") or [] if isinstance(h, dict)}
+                ),
+                "next_rebalance": state.get("next_rebalance"),
             }
         )
     return out
@@ -309,10 +345,24 @@ def fingerprint(inputs: dict[str, Any]) -> str:
 
 def run(ctx: Context) -> WorkerResult:
     now_ist = ctx.now.astimezone(IST)
-    mode = str(ctx.args.get("mode") or ("pre-open" if now_ist.hour < 12 else "after-close"))
+    closed = (now_ist.hour, now_ist.minute) >= (15, 30)
+    mode = str(ctx.args.get("mode") or ("after-close" if closed else "pre-open"))
     day = now_ist.date().isoformat()
     notes: list[str] = []
+    from eulerlab.ingest import holidays
     from eulerlab.quality import contract
+
+    force = str(ctx.args.get("force", "")).lower() in ("1", "true", "yes")
+    closed_days = holidays.load_holidays(holidays.REFERENCE)
+    closed_why = ""
+    if not holidays.is_session(now_ist.date(), closed_days):
+        # No session: a closed-market note instead of a brief that would repeat
+        # the last session's numbers under today's date (ADR-105).
+        closed_why = "weekend" if now_ist.weekday() >= 5 else "NSE holiday"
+        if not ctx.args.get("mode"):
+            mode = "weekend"
+    if not closed_days:
+        notes.append("NSE holiday list not held (`make holidays`): only weekends are skipped")
 
     ctx.step(f"Gathering market context, world markets, events and books for the {mode} brief")
     inputs: dict[str, Any] = {
@@ -322,6 +372,8 @@ def run(ctx: Context) -> WorkerResult:
         "world": _world(notes, fetch=bool(ctx.options.get("world", True))),
         "events": _events(day),
         "books": _books(),
+        "reports": _reports(),
+        "results": _results(day),
         "flows": _flows(),
         "closes": _closes(),
         "data": [
@@ -331,7 +383,19 @@ def run(ctx: Context) -> WorkerResult:
     }
     stamp = fingerprint(inputs)
     last = latest_output(ctx.name, ctx.root)
-    force = str(ctx.args.get("force", "")).lower() in ("1", "true", "yes")
+    if mode == "weekend" and not force and last is not None:
+        before = last.data.get("brief") or {}
+        as_of = next(
+            (r.get("as_of") for r in (inputs["context"].get("strip") or {}).get("indices") or []),
+            None,
+        )
+        if before.get("mode") == "weekend" and before.get("as_of") == as_of:
+            # One note per break: Sunday does not repeat Saturday's.
+            return WorkerResult(
+                f"no note: the closed-market note for data to {as_of} is already written",
+                status="skipped",
+                data={"fingerprint": stamp, "mode": mode},
+            )
     if (
         not force
         and last is not None
@@ -346,32 +410,45 @@ def run(ctx: Context) -> WorkerResult:
         )
 
     ctx.step("Writing the Trader's read and the brief from the numbers gathered")
+    levels = trader_read.levels()
     read = trader_read.build(
         inputs["context"],
         closes=inputs["closes"],
         flows=inputs["flows"],
         books=inputs["books"],
         day=day,
-        lv=trader_read.levels(),
+        lv=levels,
     )
     read_text = trader_read.render(read)
+    brief = build_brief(
+        mode,
+        day,
+        inputs,
+        read,
+        levels,
+        _morning(ctx, day) if mode == "after-close" else None,
+        closed_why,
+    )
     sections = compose(mode, inputs)
+    detail = render(mode, day, sections, "")
     commentary = ""
     if ctx.can_ask():
-        plain = render(mode, day, sections, "", read_text)
+        plain = brief_text(brief, read_text, "")
         try:
-            commentary = ctx.ask(QUESTIONS, untrusted("read", read_text))
+            commentary = ctx.ask(QUESTIONS, untrusted("brief", plain))
         except Exception as exc:
             notes.append(f"no commentary: {type(exc).__name__}: {str(exc)[:120]}")
         if commentary:
-            found = grounding.check(commentary, [plain])
+            found = grounding.check(commentary, [plain, detail])
             if not found.ok:
                 notes.append(
                     "commentary dropped: it used figures not in the brief "
                     f"({', '.join(found.unsupported)}) (ADR-088)"
                 )
                 commentary = ""
-    text = render(mode, day, sections, commentary, read_text)
+    brief["note"] = commentary.strip()
+    brief["detail"] = sections
+    text = brief_text(brief, read_text, detail)
     ctx.notes.extend(notes)
     ctx.write("brief.txt", text)
     sent = ""
@@ -386,10 +463,7 @@ def run(ctx: Context) -> WorkerResult:
                     f"Brief held back: {', '.join(gone)} missing. Full brief in the workbench."
                 )
             else:
-                title = "PRE-OPEN" if mode == "pre-open" else "AFTER-CLOSE"
-                message = (
-                    f"{title} · {day}\n\n{read_text}\n\nFull brief: workbench → AI → market_brief"
-                )
+                message = brief_content.telegram(brief)
             delivery = notify.send(message[:3900])
             if not delivery.sent:
                 sent = f"Telegram: {delivery.reason}"
@@ -397,19 +471,175 @@ def run(ctx: Context) -> WorkerResult:
                 sent = "held back on Telegram (incomplete)" if gone else "sent to Telegram"
         else:
             sent = "Telegram not configured"
+    card = "\n".join([brief["headline"], *[f"- {m['title']}" for m in brief["matters"]]])
     return WorkerResult(
         f"{mode} brief for {day}" + (f"; {sent}" if sent else ""),
-        [Item(kind="brief", title=f"{mode} brief · {day}", body=text)],
+        [
+            Item(
+                kind="brief",
+                title=f"{mode} brief · {day}",
+                body=card,
+                ref="market_brief",
+                data={"headline": brief["headline"], "tone": brief["tone"]},
+            )
+        ],
         data={
             "fingerprint": stamp,
             "mode": mode,
             "text": text,
+            "brief": brief,
             "read": read.as_dict(),
             "read_text": read_text,
             "sections": sections,
             "notes": notes,
         },
     )
+
+
+def _morning(ctx: Context, day: str) -> dict[str, Any] | None:
+    """Today's pre-open brief, for the after-close review."""
+    from eulerlab.agents.runtime import outputs
+
+    for out in outputs(ctx.name, ctx.root, limit=10):
+        brief = out.data.get("brief") or {}
+        if out.status == "ok" and brief.get("mode") == "pre-open" and brief.get("day") == day:
+            return dict(brief)
+    return None
+
+
+def _tone(headline: str) -> str:
+    lowered = headline.lower()
+    if lowered.startswith("incomplete"):
+        return "incomplete"
+    if lowered.startswith("risk-off") or "leaning weak" in lowered:
+        return "weak"
+    if lowered.startswith("risk-on") or "leaning supportive" in lowered:
+        return "supportive"
+    return "mixed"
+
+
+def build_brief(
+    mode: str,
+    day: str,
+    inputs: dict[str, Any],
+    read: trader_read.Read,
+    levels: trader_read.ReadLevels,
+    morning: dict[str, Any] | None,
+    closed_why: str = "",
+) -> dict[str, Any]:
+    """The brief as data, in the order it is read (research 134). The page and Telegram draw it."""
+    ctx = inputs["context"]
+    strip = ctx.get("strip") or {}
+    nifty: dict[str, Any] = next(
+        (r for r in strip.get("indices") or [] if r.get("name") == "Nifty 50"), {}
+    )
+    close = nifty.get("close") if isinstance(nifty.get("close"), int | float) else None
+    vix = (strip.get("vix") or {}).get("level")
+    rng: dict[str, Any] = {}
+    if isinstance(close, int | float) and isinstance(vix, int | float):
+        move = close * vix / 100 / math.sqrt(252)
+        rng = {
+            "close": close,
+            "low": round(close - move),
+            "high": round(close + move),
+            "move": round(move),
+        }
+    reports = inputs.get("reports") or {}
+    held = {s for b in inputs.get("books") or [] for s in b.get("symbols") or []}
+    ban = set((reports.get("ban") or {}).get("symbols") or [])
+    flows = inputs.get("flows") or {}
+    fii_nets = [float(x) for x in ((flows.get("series") or {}).get("fii") or [])]
+    return {
+        "mode": mode,
+        "day": day,
+        "as_of": nifty.get("as_of"),
+        "headline": (
+            f"Markets closed today ({closed_why}); last session {nifty.get('as_of')}. "
+            if mode == "weekend"
+            else ""
+        )
+        + read.bottom_line,
+        "tone": _tone(read.bottom_line),
+        "missing": trader_read.missing(read.rows),
+        "matters": brief_content.matters(
+            ctx, fii_nets=fii_nets, closes=inputs.get("closes") or [], lv=levels
+        ),
+        "range": rng,
+        "levels": read.map,
+        "scenarios": read.triggers,
+        "coming_up": brief_content.coming_up(
+            today=date.fromisoformat(day),
+            ctx=ctx,
+            events=inputs.get("events") or [],
+            reports=reports,
+            held=held,
+            results=(inputs.get("results") or {}).get("upcoming") or [],
+            results_since=(inputs.get("results") or {}).get("since") or "",
+            horizon=6 if mode == "weekend" else 1,
+        ),
+        "attention": brief_content.attention(inputs.get("books") or [], ban),
+        "books": read.books,
+        "rows": [asdict(r) for r in read.rows],
+        "underneath": brief_content.underneath(ctx, reports, flows),
+        "review": brief_content.review(morning, read, close, str(nifty.get("as_of") or ""), day)
+        if mode == "after-close"
+        else brief_content.week(ctx, fii_nets)
+        if mode == "weekend"
+        else [],
+        "review_title": "The week in review" if mode == "weekend" else "This morning vs the close",
+        "left_out": read.gaps,
+    }
+
+
+def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
+    """Plain text in the same order as the page: the answer first, detail last."""
+    title = {"pre-open": "PRE-OPEN BRIEF", "after-close": "AFTER-CLOSE NOTE"}.get(
+        brief["mode"], "MARKETS CLOSED"
+    )
+    lines = [
+        f"{title} · {brief['day']} (data to {brief.get('as_of') or '?'})",
+        "",
+        brief["headline"],
+    ]
+    if brief.get("review"):
+        lines += ["", brief["review_title"].upper(), *[f"- {r}" for r in brief["review"]]]
+    lines += ["", "WHAT MATTERS TODAY"]
+    for i, m in enumerate(brief["matters"], 1):
+        lines += [f"{i}. {m['title']}. {m['fact']}", f"   What it means: {m['meaning']}"]
+    if not brief["matters"]:
+        lines.append("- Nothing is far from normal today.")
+    lines += ["", "LEVELS AND WHAT WOULD CHANGE THE READ", *[f"- {x}" for x in brief["levels"]]]
+    lines += [f"- If: {x}" for x in brief["scenarios"]]
+    coming = brief["coming_up"]
+    lines += [
+        "",
+        "COMING UP",
+        *[f"- {c['when']}: {c['what']}. {c['why']}" for c in coming["items"]],
+    ]
+    lines += [f"- Not covered: {n}" for n in coming["not_covered"]]
+    lines += ["", "YOUR BOOKS"]
+    lines += [f"- Needs you: {a['book']} {a['why']}" for a in brief["attention"]]
+    lines += [f"- {b}" for b in brief["books"]]
+    u = brief["underneath"]
+    lines += ["", "UNDERNEATH"]
+    for label, key in (
+        ("Leading sectors", "leading"),
+        ("Lagging sectors", "lagging"),
+        ("New 52-week highs", "new_highs"),
+        ("New 52-week lows", "new_lows"),
+        ("Delivery spikes", "delivery"),
+        ("Largest deals", "deals"),
+    ):
+        if u.get(key):
+            lines.append(f"- {label}: {'; '.join(u[key])}")
+    if u.get("flows"):
+        lines.append(f"- Flows: {u['flows']}")
+    if brief.get("note"):
+        lines += ["", "ANALYST NOTE (model, not data)", brief["note"]]
+    lines += ["", read_text]
+    if detail:
+        lines += ["", "— DETAIL —", detail.split("\n", 1)[1] if "\n" in detail else detail]
+    return "\n".join(lines)
 
 
 def _parse(stamp: str, ctx: Context) -> datetime:

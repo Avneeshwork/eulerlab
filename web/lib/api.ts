@@ -2511,6 +2511,39 @@ export type AgentActivity = {
   findings_total?: number;
 };
 
+/** The market brief as data (ADR-105): `agents/workers/market_brief.build_brief`. */
+export type MarketBrief = {
+  mode: 'pre-open' | 'after-close' | 'weekend';
+  day: string;
+  as_of: string | null;
+  headline: string;
+  tone: 'weak' | 'supportive' | 'mixed' | 'incomplete';
+  missing: string[];
+  matters: { key: string; score: number; title: string; fact: string; meaning: string; page: string }[];
+  range: { close?: number; low?: number; high?: number; move?: number };
+  levels: string[];
+  scenarios: string[];
+  coming_up: { items: { when: string; what: string; why: string }[]; not_covered: string[] };
+  attention: { book: string; why: string }[];
+  books: string[];
+  rows: { signal: string; value: string; normal: string; word: string; why: string }[];
+  underneath: {
+    leading: string[];
+    lagging: string[];
+    new_highs: string[];
+    new_lows: string[];
+    delivery: string[];
+    deals: string[];
+    deals_as_of?: string | null;
+    flows?: string;
+  };
+  review: string[];
+  review_title?: string;
+  left_out: string[];
+  note?: string;
+  detail: [string, string[]][];
+};
+
 export type AgentFinding = {
   kind: string;
   severity: 'info' | 'warn' | 'critical';
@@ -2558,7 +2591,7 @@ export const agentsApi = {
       { question, history },
     ),
   marketBrief: () =>
-    get<{ ok: boolean; text?: string; mode?: string; at?: string; error?: string }>(
+    get<{ ok: boolean; text?: string; brief?: MarketBrief | null; mode?: string; at?: string; error?: string }>(
       '/api/agents/market_brief/latest',
     ),
   quality: () =>

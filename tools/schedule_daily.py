@@ -170,6 +170,21 @@ JOBS = {
             "agents check last night's run and the market brief goes out before 09:00 (ADR-085)."
         ),
     ),
+    "brief-weekend": Job(
+        name="brief-weekend",
+        label="com.eulerlab.briefweekend",
+        command="cd {repo} && make agent NAME=market_brief",
+        hour=9,
+        minute=30,
+        weekdays=(6, SUNDAY),
+        log="brief_weekend",
+        what="the market brief agent, Saturday and Sunday",
+        why_then=(
+            "On a closed day the brief is a markets-closed note: the last session's read,\n"
+            "the week in review and the week ahead (ADR-105). One per break: Sunday's run\n"
+            "finds Saturday's note and stops. Weekday holidays get theirs from the 08:45 run."
+        ),
+    ),
     "agents-close": Job(
         name="agents-close",
         label="com.eulerlab.agentsclose",

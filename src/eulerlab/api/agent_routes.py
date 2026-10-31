@@ -282,6 +282,7 @@ def latest_brief() -> dict[str, Any]:
     return {
         "ok": True,
         "text": latest.data.get("text", ""),
+        "brief": latest.data.get("brief"),
         "mode": latest.data.get("mode"),
         "at": latest.started,
     }
