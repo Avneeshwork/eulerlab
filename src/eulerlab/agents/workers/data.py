@@ -32,6 +32,17 @@ from eulerlab.agents import jobs
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output
 from eulerlab.quality import contract
 
+CHECK_WORDS = {
+    "registered": "Not in the list of known sources",
+    "provenance": "Where it comes from is not written down",
+    "fingerprint": "No downloaded files on record to check",
+    "sense": "The numbers failed a sanity check (duplicates, empty or missing days)",
+    "quarantine": "A file is held back as suspect",
+    "built from": "It is built from a dataset that is not good enough",
+    "point in time": "The source cannot say when each value became known",
+}
+"""Each quality check, said as the problem a trader would see."""
+
 FORMAT_HINTS = ("KeyError", "column", "parse", "Unexpected", "JSONDecodeError", "header")
 
 
@@ -58,7 +69,14 @@ def run(ctx: Context) -> WorkerResult:
     for g in grades:
         if g.usable and g.grade in "AB":
             continue
-        problem = next((f"{c.name}: {c.detail}" for c in g.checks if c.state == "fail"), "")
+        problem = next(
+            (
+                f"{CHECK_WORDS.get(c.name, c.name)} ({c.detail})."
+                for c in g.checks
+                if c.state == "fail"
+            ),
+            "",
+        )
         items.append(
             Item(
                 kind="finding",
@@ -163,9 +181,16 @@ def run(ctx: Context) -> WorkerResult:
             )
 
     counts = {k: sum(1 for g in grades if g.grade == k) for k in "ABCD"}
+    blocked = [g.name for g in grades if g.critical and not g.usable]
     summary = (
-        f"{len(grades)} datasets graded (A {counts['A']}, B {counts['B']}, C {counts['C']}, D {counts['D']}); "
-        f"{len(stale)} behind; {sum(1 for i in items if i.severity == 'critical')} critical"
+        f"{len(grades)} datasets graded: {counts['A'] + counts['B']} clean (A or B), "
+        f"{counts['C']} usable with a failed check (C), {counts['D']} not usable (D). "
+        f"{len(stale)} behind schedule. "
+        + (
+            f"Blocking backtests and the trade desk: {', '.join(blocked)}."
+            if blocked
+            else "Nothing critical is blocked."
+        )
     )
     return WorkerResult(
         summary,

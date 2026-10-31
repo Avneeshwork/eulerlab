@@ -9,6 +9,8 @@ prints the same. Nothing is sent to anyone while it is off.
 | Reason shown | Fix |
 |---|---|
 | No `GROQ_API_KEY` in `.env` | Sign in at console.groq.com, create an API key, and put it in `.env` as `GROQ_API_KEY`. Never put it in `.env.example` |
+| A Claude model shows "no key" | Claude is paid. Sign in at console.anthropic.com, load credit, create an API key and put it in `.env` as `ANTHROPIC_API_KEY`. Restart `make api`. Claude needs no ZDR line: Anthropic keeps API data up to 30 days (ADR-095) |
+| Claude says "no API credit left" or "the key was refused" | Add credit or replace the key in the Anthropic console. Pick Groq meanwhile |
 | Turn on Zero Data Retention | In the Groq console open Settings, then Data Controls, and turn on Zero Data Retention. Then add `EULERLAB_ASSISTANT_ZDR=1` to `.env`. The code cannot see the Groq setting; this line is your statement that you turned it on |
 | Not an approved host | `config/llm.yaml` points `assistant` at a host whose data terms were not read. Point it back at `groq`, or read ADR-064 before adding a host to `chat.ALLOWED_HOSTS` |
 | The free quota is used up | Wait a minute. OpenRouter's free models allow 20 requests a minute and 50 a day (1,000 a day once 10 credits have ever been bought). One question uses one to six requests |

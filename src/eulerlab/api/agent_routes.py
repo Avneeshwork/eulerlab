@@ -135,6 +135,32 @@ def agents() -> dict[str, Any]:
 STALE_AFTER_S = 15 * 60
 
 
+FINDINGS_SHOWN = 12
+"""How many of a run's items the activity carries: enough for a card, not a whole report."""
+
+_SEVERITY_ORDER = {"critical": 0, "warn": 1, "info": 2}
+
+
+def _findings(items: list[runtime.Item]) -> list[dict[str, str]]:
+    """A run's items, worst first and alerts before findings, as the page shows them."""
+    ordered = sorted(
+        items,
+        key=lambda i: (_SEVERITY_ORDER.get(i.severity, 3), 0 if i.kind == "alert" else 1),
+    )
+    return [
+        {"kind": i.kind, "severity": i.severity, "title": i.title, "body": i.body, "ref": i.ref}
+        for i in ordered
+    ]
+
+
+@router.get("/api/agents/skeptic/targets")
+def skeptic_targets() -> dict[str, Any]:
+    """The stored results the skeptic can attack, for the picker on its card."""
+    from eulerlab.agents.workers import skeptic
+
+    return {"ok": True, "targets": skeptic.targets()}
+
+
 @router.get("/api/agents/activity")
 def agents_activity(steps: int = 40) -> dict[str, Any]:
     """What each agent is doing now, from its newest run's `progress.jsonl` (ADR-091).
@@ -151,6 +177,7 @@ def agents_activity(steps: int = 40) -> dict[str, Any]:
         run_dir = runtime.latest_run_dir(name)
         trail = runtime.progress(run_dir, limit) if run_dir else []
         state, summary, started = "idle", "", ""
+        found: list[dict[str, str]] = []
         if run_dir is not None:
             output_path = run_dir / "output.json"
             if output_path.exists():
@@ -159,6 +186,7 @@ def agents_activity(steps: int = 40) -> dict[str, Any]:
                         output_path.read_text(encoding="utf-8")
                     )
                     state, summary, started = done.status, done.summary, done.started
+                    found = _findings(done.items)
                 except ValueError:
                     state = "failed"
             else:
@@ -179,12 +207,15 @@ def agents_activity(steps: int = 40) -> dict[str, Any]:
                 "enabled": agent.enabled,
                 "uses_model": agent.spec.uses_model,
                 "cli_only": bool(agent.spec.options.get("cli_only")),
+                "schedule": agent.spec.schedule,
                 "state": state,
                 "run_id": run_dir.name if run_dir else "",
                 "started": started,
                 "summary": summary,
                 "now": trail[-1]["text"] if trail else "",
                 "steps": trail,
+                "findings": found[:FINDINGS_SHOWN],
+                "findings_total": len(found),
             }
         )
         feed.extend({"agent": name, "title": agent.spec.title, **step} for step in trail)
@@ -283,7 +314,10 @@ def agent_run(name: str, request: RunRequest) -> dict[str, Any]:
         return {"ok": False, "error": f"no agent named {name!r}"}
     if known[name].spec.options.get("cli_only"):
         # It reads the whole price panel; from here that would be a second copy in the API's memory.
-        return {"ok": False, "error": f"{name} runs from the command line: make agent NAME={name}"}
+        return {
+            "ok": False,
+            "error": f"{name} runs from your terminal, not this page: make agent NAME={name}",
+        }
     with _LOCK:
         if name in _RUNNING:
             return {"ok": False, "error": f"{name} is already running"}

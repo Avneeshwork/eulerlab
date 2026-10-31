@@ -1,0 +1,7 @@
+# ADR-095: Claude models in the assistant, paid and picked only by hand
+
+- **Context:** The operator asked for every Claude model as an option in the assistant panel and Research Library (2026-10-29), next to Groq, and for the other models to leave the pickers. Claude is paid per use and is not zero-retention by default (research 129).
+- **Options:** (a) Anthropic's OpenAI-compatible endpoint through the existing `_post`; (b) Claude through OpenRouter; (c) Anthropic's official SDK behind a small translator, `assistant/anthropic_api.py`.
+- **Choice:** (c). `Provider.api: anthropic` routes a request through the SDK; the chat payload is scrubbed and translated, thinking blocks are passed back unchanged, a refusal becomes a model failure, and Opus, Sonnet and Fable use Anthropic's server-side refusal fallback. A new `offered` list in `config/llm.yaml` decides what the pickers show. Paid providers are skipped by the fallback walk, so money is spent only on a model the operator picked.
+- **Why:** The SDK is Anthropic's supported path and handles thinking, refusals and fallbacks that a compatibility shim does not. `offered` keeps Ollama and OpenRouter in the file for the translator, the audit and the paper agent while hiding them from the panel.
+- **Cost if wrong:** A new dependency (`anthropic`, free, MIT). Questions sent to Claude are kept by Anthropic up to 30 days; the panel says so beside each Claude model. If prices rise or a model ID is retired, the entry fails with a plain error and Groq still answers (A-070).

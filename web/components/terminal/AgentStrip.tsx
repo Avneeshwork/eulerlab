@@ -14,7 +14,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { agentsApi } from '@/lib/api';
-import type { AgentActivity, AgentItem } from '@/lib/api';
+import type { AgentActivity, AgentFinding, AgentItem, SkepticTarget } from '@/lib/api';
+
+const GRADE_KEY =
+  'Grades: A every check passed. B passed with a warning. C one check failed, still usable. D missing or not usable. Backtests and the trade desk need C or better.';
+
+/** Why an agent runs from the terminal and not from the page, in a trader's words. */
+const CLI_WHY: Record<string, string> = {
+  lab: 'It loads the whole price panel, and running it from this page would hold a second copy in the server’s memory.',
+};
 
 export type PageAgent = {
   name: string;
@@ -22,6 +30,8 @@ export type PageAgent = {
   role: string;
   /** What to do with its note. */
   next: string;
+  /** How to read its numbers, when they need a key. */
+  key?: string;
 };
 
 /** Which agents show on which page. Engineering stays on the AI tab: it reviews code, not trades. */
@@ -42,7 +52,7 @@ export const PAGE_AGENTS: Record<string, PageAgent[]> = {
     {
       name: 'skeptic',
       role: 'Attacks a stored result before the gate sees it: a lucky year, a few lucky days, costs, Indian stress windows.',
-      next: 'Read its five objections before you deploy anything.',
+      next: 'Pick a strategy for its full review, or check all of them and start with the worst.',
     },
     {
       name: 'portfolio',
@@ -67,6 +77,7 @@ export const PAGE_AGENTS: Record<string, PageAgent[]> = {
       name: 'data',
       role: 'Grades every dataset against the quality rules and says what is behind, failed or changed format.',
       next: 'Trust a backtest only on data graded C or better.',
+      key: GRADE_KEY,
     },
   ],
   instruments: [
@@ -74,6 +85,7 @@ export const PAGE_AGENTS: Record<string, PageAgent[]> = {
       name: 'data',
       role: 'Grades the price panel and the instrument master each morning and evening.',
       next: 'A grade below C blocks the trade desk.',
+      key: GRADE_KEY,
     },
   ],
   research: [
@@ -135,6 +147,73 @@ export function AgentOrb({ state }: { state: AgentActivity['state'] }) {
   );
 }
 
+const SHOWN = 3;
+
+/** What the agent's last run found, worst first, each with what to do about it. */
+function Findings({ list, total }: { list: AgentFinding[]; total: number }) {
+  const [all, setAll] = useState(false);
+  if (!list.length) return null;
+  const shown = all ? list : list.slice(0, SHOWN);
+  return (
+    <div className="agent-findings">
+      <ul>
+        {shown.map((f, i) => (
+          <li key={`${f.title}-${i}`} data-severity={f.severity}>
+            <span className="agent-sev" data-severity={f.severity}>
+              {f.kind === 'alert' ? 'Alert' : f.severity === 'critical' ? 'Critical' : f.severity === 'warn' ? 'Warning' : 'Note'}
+            </span>
+            <div>
+              <b>{f.title}</b>
+              {f.body &&
+                (f.ref.startsWith('strategy=') ? (
+                  <ul className="agent-reasons">
+                    {f.body.split('; ').map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>{f.body}</p>
+                ))}
+              {f.ref && f.ref.startsWith('make ') && (
+                <p className="agent-fix">
+                  To fix or recheck, run <code>{f.ref}</code>
+                </p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {list.length > SHOWN && (
+        <button type="button" className="agent-link" onClick={() => setAll(!all)}>
+          {all
+            ? 'Show fewer'
+            : total > list.length
+              ? `Show the ${list.length} worst of ${total}`
+              : `Show all ${list.length}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function CopyCommand({ command }: { command: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <span className="agent-cmd">
+      <code>{command}</code>
+      <button
+        type="button"
+        className="agent-link"
+        onClick={() => {
+          void navigator.clipboard?.writeText(command).then(() => setDone(true));
+        }}
+      >
+        {done ? 'Copied' : 'Copy'}
+      </button>
+    </span>
+  );
+}
+
 export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI: () => void }) {
   const wanted = PAGE_AGENTS[page];
   const [agents, setAgents] = useState<AgentActivity[]>([]);
@@ -143,6 +222,8 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
   const [open, setOpen] = useState(false);
   const [asked, setAsked] = useState('');
   const [problem, setProblem] = useState('');
+  const [targets, setTargets] = useState<SkepticTarget[]>([]);
+  const [target, setTarget] = useState('all');
 
   const load = useCallback(async () => {
     try {
@@ -172,13 +253,21 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
       .catch(() => setBrief(''));
   }, [wanted]);
 
+  useEffect(() => {
+    if (!wanted?.some((w) => w.name === 'skeptic')) return;
+    agentsApi
+      .skepticTargets()
+      .then((r) => setTargets(r.targets ?? []))
+      .catch(() => setTargets([]));
+  }, [wanted]);
+
   if (!wanted) return null;
 
   const run = async (name: string) => {
     setProblem('');
     setAsked(name);
     try {
-      const result = await agentsApi.run(name);
+      const result = await agentsApi.run(name, name === 'skeptic' ? { strategy: target } : {});
       if (!result.ok) setProblem(result.error ?? 'The agent did not start.');
       await load();
     } catch (error) {
@@ -217,9 +306,21 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
               ) : (
                 said && (
                   <p className="agent-chip-said">
-                    <span>{state === 'running' ? 'Now' : 'Last'}</span> {said}
+                    <span>{state === 'running' ? 'Now' : state === 'refused' ? 'Why' : 'Found'}</span> {said}
                   </p>
                 )
+              )}
+              {state !== 'running' && <Findings list={a?.findings ?? []} total={a?.findings_total ?? 0} />}
+              {w.key && <p className="agent-key">{w.key}</p>}
+              {a?.cli_only && (
+                <div className="agent-cli">
+                  <p>
+                    <b>Runs from your terminal, not this page.</b> {CLI_WHY[w.name] ?? ''}
+                    {a.schedule ? ` It runs on its own: ${a.schedule}.` : ''} To run it now, open a terminal in
+                    your EulerLab folder and type:
+                  </p>
+                  <CopyCommand command={`make agent NAME=${w.name}`} />
+                </div>
               )}
               <footer>
                 <span className="agent-next">{w.next}</span>
@@ -228,9 +329,22 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
                     {waiting} waiting on you
                   </button>
                 )}
-                {a?.cli_only ? (
-                  <code className="ai-cli">make agent NAME={w.name}</code>
-                ) : (
+                {w.name === 'skeptic' && (
+                  <select
+                    className="tinput agent-pick"
+                    aria-label="Result to attack"
+                    value={target}
+                    onChange={(e) => setTarget(e.target.value)}
+                  >
+                    <option value="all">All {targets.length || ''} stored results, worst first</option>
+                    {targets.map((t) => (
+                      <option key={t.strategy} value={t.strategy}>
+                        {t.strategy}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {!a?.cli_only && (
                   <button
                     type="button"
                     className="tbtn"
