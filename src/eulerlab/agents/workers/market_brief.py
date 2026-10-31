@@ -44,7 +44,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from eulerlab.agents import brief_content, grounding, trader_read
+from eulerlab.agents import brief_content, grounding, history_says, trader_read
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output, untrusted
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -133,6 +133,46 @@ def _results(day: str) -> dict[str, Any]:
     rows = board_meetings.held()
     first = min((str(r.get("knowledge_time", ""))[:10] for r in rows), default="")
     return {"upcoming": board_meetings.upcoming(date.fromisoformat(day), rows=rows), "since": first}
+
+
+def _history(books: list[dict[str, Any]]) -> dict[str, Any]:
+    """What history says and each book's backtest in this kind of market (ADR-106)."""
+    from eulerlab import market_context, workspace
+
+    try:
+        series = market_context.indices()
+    except (OSError, ValueError):
+        return {"rates": {"available": False, "reason": "index history not readable"}, "books": []}
+    s = history_says.setup()
+
+    def closes(name: str) -> dict[date, float]:
+        return {r.day: r.close for r in series.get(name, [])}
+
+    days = history_says.align(
+        closes("Nifty 50"),
+        closes("India VIX"),
+        closes("Nifty Smallcap 250"),
+        date.fromisoformat(s.start),
+    )
+    rates = history_says.base_rates(days, s)
+    folder = workspace.resolve(None).root / "reports"
+    backtests = {
+        str(b.get("strategy")): history_says.longest_backtest(folder / str(b.get("strategy")))
+        for b in books
+        if b.get("status") == "active"
+    }
+    lines = history_says.books_in_this_market(
+        books,
+        rates.get("match_days") or [],
+        [d.day.isoformat() for d in days],
+        backtests,
+        s.min_matches,
+    )
+    return {
+        "rates": {k: v for k, v in rates.items() if k != "match_days"},
+        "lines": history_says.describe(rates, s.min_matches),
+        "books": lines,
+    }
 
 
 def _books() -> list[dict[str, Any]]:
@@ -409,6 +449,8 @@ def run(ctx: Context) -> WorkerResult:
             data={"fingerprint": stamp, "mode": mode},
         )
 
+    ctx.step("Finding past days like today and what followed (history, not a forecast)")
+    history = _history(inputs["books"])
     ctx.step("Writing the Trader's read and the brief from the numbers gathered")
     levels = trader_read.levels()
     read = trader_read.build(
@@ -429,6 +471,9 @@ def run(ctx: Context) -> WorkerResult:
         _morning(ctx, day) if mode == "after-close" else None,
         closed_why,
     )
+    brief["history"] = history.get("lines") or []
+    brief["history_rates"] = history.get("rates") or {}
+    brief["books_history"] = history.get("books") or []
     sections = compose(mode, inputs)
     detail = render(mode, day, sections, "")
     commentary = ""
@@ -608,6 +653,12 @@ def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
         lines += [f"{i}. {m['title']}. {m['fact']}", f"   What it means: {m['meaning']}"]
     if not brief["matters"]:
         lines.append("- Nothing is far from normal today.")
+    if brief.get("history"):
+        lines += [
+            "",
+            "WHAT HISTORY SAYS (history, not a forecast)",
+            *[f"- {x}" for x in brief["history"]],
+        ]
     lines += ["", "LEVELS AND WHAT WOULD CHANGE THE READ", *[f"- {x}" for x in brief["levels"]]]
     lines += [f"- If: {x}" for x in brief["scenarios"]]
     coming = brief["coming_up"]
@@ -620,6 +671,12 @@ def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
     lines += ["", "YOUR BOOKS"]
     lines += [f"- Needs you: {a['book']} {a['why']}" for a in brief["attention"]]
     lines += [f"- {b}" for b in brief["books"]]
+    if brief.get("books_history"):
+        lines += [
+            "",
+            "YOUR BOOKS IN THIS KIND OF MARKET",
+            *[f"- {x}" for x in brief["books_history"]],
+        ]
     u = brief["underneath"]
     lines += ["", "UNDERNEATH"]
     for label, key in (

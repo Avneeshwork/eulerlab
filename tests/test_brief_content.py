@@ -223,6 +223,7 @@ def test_a_closed_day_gets_one_markets_closed_note_per_break(
     monkeypatch.setattr(market_brief, "_closes", lambda: CLOSES)
     monkeypatch.setattr(market_brief, "_reports", dict)
     monkeypatch.setattr(market_brief, "_results", lambda day: {"upcoming": [], "since": ""})
+    monkeypatch.setattr(market_brief, "_history", lambda books: {})
     spec = AgentSpec(
         name="market_brief",
         title="brief",

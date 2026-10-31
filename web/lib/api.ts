@@ -2539,6 +2539,8 @@ export type MarketBrief = {
   };
   review: string[];
   review_title?: string;
+  history?: string[];
+  books_history?: string[];
   left_out: string[];
   note?: string;
   detail: [string, string[]][];

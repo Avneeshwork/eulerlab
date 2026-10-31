@@ -33,6 +33,7 @@ percentile a payload carries (for example `percentile_1y`) is always the live an
 | [Fear card](market/pulse-fear.md) | Elevated, Normal or Calm from India VIX's one-year percentile. |
 | [Big money card](market/pulse-big-money.md) | FII index-futures long share against its own year: more bearish, usual or more bullish than usual. |
 | [World markets: crude, gold, dollar, yields, rupee](market/world-markets.md) | Overnight moves in the global prices that feed Indian markets. |
+| [What history says (base rates for today's setup)](market/history-base-rates.md) | Past days that looked like today on three fixed conditions, and what Nifty did over the next 1, 5 and 20 sessions. |
 
 ## Options
 
@@ -66,6 +67,7 @@ percentile a payload carries (for example `percentile_1y`) is always the live an
 | [Skew and excess kurtosis](performance/skew-and-kurtosis.md) | Whether returns lean to big losses or big gains, and how fat the tails are. |
 | [Benchmark comparison (Nifty return over the same window)](performance/benchmark-return.md) | What Nifty did over exactly the strategy's test window. |
 | [Sharpe without the best year, and best 1% of days](performance/sharpe-without-best-year.md) | Whether the result depends on one lucky year or a handful of days. |
+| [Your books in this kind of market](performance/books-in-this-market.md) | How each running book's own backtest did on the session after past days that looked like today. |
 
 ## Validation and the gate
 

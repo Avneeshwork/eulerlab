@@ -59,7 +59,8 @@ Verify: `uv run pytest -q tests/test_brief_content.py tests/test_board_meetings.
 | T-4286 | Brief as data in reading order: what matters (ranked), levels and if-then, coming up, books needing you, underneath, after-close review; AI-tab view and agent card; Telegram in 8 lines | DONE 2026-10-31 |
 | T-4287 | Results calendar from NSE board-meeting intimations (`make board-meetings`, in `make daily`) | DONE 2026-10-31. Built forward from 2026-10-31 |
 | T-4288 | Closed days get a markets-closed note (last session, week in review, week ahead), once per break; `make holidays`; `brief-weekend` launchd job; after-close note moved into `make daily` | DONE 2026-10-31. HISTORY #43 |
-| T-4289 | PR 2: what history says (base rates for today's conditions, with case counts) and each book's backtest in this kind of market | TODO |
+| T-4289 | PR 2: what history says (base rates for today's conditions, with case counts) and each book's backtest in this kind of market | DONE 2026-10-31. ADR-106, `agents/history_says.py`, 5 tests; 2 metrics pages |
+| T-4291 | Operator reviews the history conditions (A-087) | TODO. Operator |
 | T-4290 | Operator reviews the brief's ranking weights (A-086) | TODO. Operator |
 
 ## Metrics library: how to answer (2026-10-31)

@@ -2473,6 +2473,12 @@ the brief as `data.brief` in the order research 134 found traders read:
   the put-call ratio change, the large/small-cap gap, and the trend. Items
   under 25 are dropped. Each carries a fact with its number against normal,
   a rule-written meaning and its metrics page;
+- what history says (ADR-106, `agents/history_says.py`): past days since 2015
+  whose three fixed conditions in `config/history_setup.yaml` match today's,
+  and Nifty's median, share up and worst 10% over the next 1, 5 and 20
+  sessions, with matching days and episodes; under 30 days, no numbers.
+  Conditions use closes up to the day only. Each running book then gets its
+  stored backtest's return on the session after each matching day;
 - levels and if-then conditions;
 - coming up: expiry, the F&O ban list marked for held names, IPOs open, results due
   from `ingest/board_meetings` (NSE's daily intimations, built forward from

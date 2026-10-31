@@ -1,0 +1,26 @@
+# "What history says" in the market brief (ADR-106). OPERATOR-EDITABLE.
+#
+# A past day matches today when all three conditions read the same as today.
+# They are few and fixed on purpose: adding or tuning conditions until the
+# history "looks right" is a search, and a search needs a trial count. These
+# were chosen on 2026-10-31 before any result was looked at, and are not to be
+# tuned to results (A-087). Nothing here logs a trial or touches the gate.
+
+start: "2015-01-01"
+
+# 1. Trend: Nifty 50's close above or below its 200-day simple average.
+trend_window: 200
+
+# 2. Volatility: India VIX's percentile against its previous 251 closes.
+vix_window: 251
+vix_low_below: 30
+vix_high_from: 70
+
+# 3. Who leads: Nifty 50's 21-session return minus Nifty Smallcap 250's, in
+#    percentage points. Above +gap: large caps lead; below -gap: small caps lead.
+gap_sessions: 21
+gap_points: 3.0
+
+# What is reported.
+horizons: [1, 5, 20]   # sessions after the matching day
+min_matches: 30        # fewer matching days than this: say so, give no numbers
