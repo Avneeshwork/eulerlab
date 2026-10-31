@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Info } from './Info';
+import { DealsFilings } from './DealsFilings';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 import {
   IndexContext,
@@ -176,11 +177,12 @@ function SectorStrip({ rows }: { rows: { sector: string; change_pct: number }[] 
 type Market = 'IN' | 'US' | 'CRYPTO' | 'FX';
 
 /** The India view's tabs (research 121): the verdict first, detail a click away. */
-type View = 'overview' | 'sectors' | 'money' | 'watch';
+type View = 'overview' | 'sectors' | 'money' | 'deals' | 'watch';
 const VIEWS: [View, string, string][] = [
   ['overview', 'Overview', 'Market pulse, what happened today, the indices'],
   ['sectors', 'Sectors', 'Which sectors lead and lag Nifty, and the map'],
   ['money', 'Big money (F&O)', 'Who holds index futures, and what options price'],
+  ['deals', 'Deals & filings', 'Bulk and block deals, F&O ban, margin funding, shorts, promoter filings, pledges, IPOs'],
   ['watch', 'Stocks to watch', 'Movers, new highs and lows, delivery spikes'],
 ];
 
@@ -817,6 +819,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       {/* --- Big money: who holds the index, and what options price -------- */}
       {india('money') &&
         (ctx ? <PositioningContext ctx={ctx} /> : <div className="tempty">Reading positions…</div>)}
+
+      {/* --- Deals & filings: NSE's evening reports (ADR-096) --------------- */}
+      {india('deals') && <DealsFilings />}
 
       {general && (
       <>

@@ -57,6 +57,7 @@ from eulerlab import (
     last_seen,
     market_context,
     market_pulse,
+    market_reports,
     reports,
     strategy_results,
     walk_run,
@@ -4225,6 +4226,16 @@ _MARKET_CONTEXT: dict[str, tuple[float, dict[str, Any]]] = {}
 _BREADTH: dict[tuple[date, int, tuple[int, int] | None], dict[str, Any]] = {}
 _POSITIONS = market_context.PositionHistory()
 _BREADTH_LOCK = threading.Lock()
+
+
+@app.get("/api/market-reports")
+def market_reports_route() -> dict[str, Any]:
+    """The Deals & filings tab: the summary `make market-reports` wrote (ADR-096)."""
+    path = market_reports.OUT
+    if not path.exists():
+        return {"ok": False, "reason": "no summary yet: run make nse-reports"}
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
 
 
 @app.get("/api/market-context")

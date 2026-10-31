@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-29. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-30. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,11 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Market microdata (2026-10-30, ADR-095, research 130):** `make nse-reports` lands bulk/block deals, short selling, F&O ban,
+  SLBM, MTF, insider and SAST filings, and pledge/IPO/Nifty 50 list snapshots; a year back (insider from May 2026). `make
+  index-minute`: 5 years of NIFTY 50, BANK and VIX minutes. `make depth-day` records Kite five-level depth (snapshots, not every
+  order; S-052), launchd job `depth` not loaded. All in B2, SHA-256 checked, local deleted. Past order books are paid only (T-4223).
+  Dashboard → India → **Deals & filings** shows them (ADR-096, `make market-reports`, run inside `make nse-reports`).
 - **Loss limits that act (2026-10-29, ADR-092):** a paper book goes reduce-only (sells only) at a 10% drawdown and halts at 20%
   (`config/loss_limits.yaml`, defaults not yet chosen by you); Reduce only / Resume buying on each card.
 - **Workbench redesign (2026-10-29, ADR-090, 091):** four colours (blue, green, red, amber), rounded corners, one look file
