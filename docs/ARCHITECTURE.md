@@ -2405,6 +2405,22 @@ day's runs; a run that reaches the budget stops with `over_budget`.
 **Memory.** The market brief reads market context over HTTP from the running
 API rather than loading a second copy of the 1.85 GB panel.
 
+**The Trader's read (ADR-100).** The brief opens with an answer, not a list.
+`agents/trader_read.py` turns the gathered inputs into, in this order: a bottom
+line; a scorecard of seven rows (trend, breadth, volatility, FII futures, cash
+flows, valuation, options), each with its value, what is normal and a word
+(supportive, neutral, weak, not held) from `config/trader_read.yaml`; today's
+map (last Nifty close, its 20/50/200-day averages, a one-day range of
+close × VIX / 100 / √252, the straddle range and max pain when the option data
+is no more than three days old); what would change the read, as the numbers at
+which a word flips; and each paper book's day, drawdown from its peak and
+share invested. The bottom line counts the words (Risk-off when weak exceeds
+supportive by two or more, Mixed otherwise) and names a large/small-cap gap
+over three points. The model, when it has budget, answers three fixed
+questions under the read and passes the grounding check. Telegram gets the
+read only; the assistant's `market_read` tool returns it, and its prompt tells
+it to answer market questions in the same order.
+
 **Workbench.** The AI tab opens on **Live**: a card per agent with its state
 (working, done, failed, stopped, never run), the step it is on, its last few
 steps and today's model requests, beside a feed of every agent's steps. Then
