@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Chip, Heading, Info, Move, Stat, Stats } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import { ASSET_CLASSES } from '@/lib/assetClasses';
 import { sip } from '@/lib/backtestStats';
@@ -79,7 +80,10 @@ export function SipTab() {
   return (
     <>
       <div className="tpanel" style={{ padding: 16 }}>
-        <h3>Plan</h3>
+        <Heading
+          title="Plan"
+          info="A fixed amount bought every month at that day's close, against putting the same total in once at the first instalment's close."
+        />
         <div className="sip-form">
           <label>
             Market
@@ -115,9 +119,14 @@ export function SipTab() {
               onChange={(event) => setAmount(Math.max(0, Number(event.target.value)))}
             />
           </label>
-          <label>
-            Day of month
+          {/* htmlFor: the Info button inside would otherwise become the label's control. */}
+          <label htmlFor="sip-day">
+            <span>
+              Day of month
+              <Info>The first trading day on or after this day each month. A month with no close on or after it is skipped.</Info>
+            </span>
             <input
+              id="sip-day"
               type="number"
               min={1}
               max={28}
@@ -125,9 +134,13 @@ export function SipTab() {
               onChange={(event) => setDayOfMonth(Math.min(28, Math.max(1, Number(event.target.value))))}
             />
           </label>
-          <label>
-            Yearly step-up %
+          <label htmlFor="sip-step">
+            <span>
+              Yearly step-up %
+              <Info>After every 12 instalments the monthly amount rises by this percent, compounding.</Info>
+            </span>
             <input
+              id="sip-step"
               type="number"
               min={0}
               max={100}
@@ -177,42 +190,54 @@ export function SipTab() {
 
       {symbol && !loading && result && history?.ok && (
         <>
-          <div className="rpt-grid">
-            <div className="tstat-card">
-              <span>Invested</span>
-              <b>{money(result.invested)}</b>
-              <i>{result.instalments.length} instalments</i>
-            </div>
-            <div className="tstat-card">
-              <span>Value now</span>
-              <b className={result.value >= result.invested ? 'pos' : 'neg'}>{money(result.value)}</b>
-              <i>
-                {money(result.value - result.invested)} (
-                {pct(result.value / result.invested - 1)})
-              </i>
-            </div>
-            <div className="tstat-card">
-              <span>XIRR</span>
-              <b className={(result.xirr ?? 0) >= 0 ? 'pos' : 'neg'}>{pct(result.xirr)}</b>
-              <i>annual, money-weighted</i>
-            </div>
-            <div className="tstat-card">
-              <span>Same total, invested once</span>
-              <b>{money(result.lumpSum)}</b>
-              <i>
-                on {result.instalments[0].day}:{' '}
-                {result.lumpSum >= result.value ? 'beat the SIP' : 'trailed the SIP'}
-              </i>
-            </div>
-          </div>
+          <Stats>
+            <Stat label="Invested" value={money(result.invested)} sub={`${result.instalments.length} instalments`} />
+            <Stat
+              label="Value now"
+              value={money(result.value)}
+              tone={result.value >= result.invested ? 'up' : 'down'}
+              sub={
+                <Move
+                  value={result.value / result.invested - 1}
+                  text={`${money(result.value - result.invested)} (${pct(result.value / result.invested - 1)})`}
+                />
+              }
+            />
+            <Stat
+              label="XIRR"
+              value={<Move value={result.xirr} text={pct(result.xirr)} />}
+              info="Annual and money-weighted: the rate at which every instalment and the final value net to zero."
+            />
+            <Stat
+              label="Same total, invested once"
+              value={money(result.lumpSum)}
+              sub={
+                <Chip tone={result.lumpSum >= result.value ? 'down' : 'up'}>
+                  {result.lumpSum >= result.value ? '↓ SIP trailed' : '↑ SIP beat it'}
+                </Chip>
+              }
+              info={`The whole ${money(result.invested)} bought at the close on ${result.instalments[0].day} and held to the end.`}
+            />
+          </Stats>
 
           <div className="tpanel" style={{ padding: 16 }}>
-            <h3>Value against money put in</h3>
+            <Heading
+              title="Value against money put in"
+              sub={`${history.first} → ${history.last}`}
+              info="Solid line and fill: what the units bought so far were worth at each close. Dashed: the running total put in."
+            />
             <SipChart path={result.path} money={money} />
           </div>
 
           <div className="tpanel" style={{ padding: 16 }}>
-            <h3>Instalments</h3>
+            <Heading title="Instalments" sub={history.source ?? 'landed data'}>
+              <Chip tone="warn">Upper bound</Chip>
+              <Info align="right">
+                Closes from the {history.source ?? 'landed data'}, {history.first} to {history.last}. No brokerage,
+                taxes or stamp duty, and fractional units, so this is an upper bound on what the plan returned. It is
+                not recorded in the trial ledger.
+              </Info>
+            </Heading>
             <div className="tscroll" style={{ maxHeight: '45vh' }}>
               <table className="ttable">
                 <thead>
@@ -237,11 +262,6 @@ export function SipTab() {
                 </tbody>
               </table>
             </div>
-            <p className="tfine" style={{ marginTop: 10 }}>
-              Closes from the {history.source ?? 'landed data'}, {history.first} to {history.last}.
-              No brokerage, taxes or stamp duty, and fractional units, so this is an upper bound
-              on what the plan returned. It is not recorded in the trial ledger.
-            </p>
           </div>
         </>
       )}
@@ -276,8 +296,8 @@ function SipChart({
         <span>
           {path[0].day} → {last.day}
         </span>
-        <span className="pos">value {money(last.value)}</span>
-        <span className="tdim">dashed: {money(last.invested)} put in</span>
+        <span className={last.value >= last.invested ? 'pos' : 'neg'}>value {money(last.value)}</span>
+        <span className="tdim">- - {money(last.invested)} put in</span>
       </figcaption>
     </figure>
   );
