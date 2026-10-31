@@ -19,6 +19,20 @@ Verify: read `docs/RESEARCH/131-self-improving-research-agent.md`; `uv run pytes
 | T-4235 | Phase 5: experience store, cited lessons list, graveyard | TODO |
 | T-4236 | Phase 6: confirmation trials within the allowance, equal-weight composite, forward results back to memory | TODO |
 
+## FII/DII cash flows (2026-10-29)
+
+Operator: "make a scrapper to scrape all the data https://scanx.trade/insight/fii-dii-data which we don't have and include in dashboard". scanx could not be read and its terms are unread, so NSE's own figure is captured instead (research 128, ADR-098).
+Verify: `uv run pytest -q tests/test_fii_dii_cash.py tests/test_fii_dii_history.py`; `make fii-dii` on a trading evening; `make fii-dii-history`; `make data-quality`; Dashboard → India → Big money.
+Then, 2026-10-30: "get fii - dii historical data from other place then like money control or other website by scrappping them atleast last 1 year data" (ADR-099, research 127).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4163 | Capture NSE's FII/DII provisional cash flows daily; table with event and knowledge time; `/api/fii-dii`; panel on Big money | DONE. `ingest/fii_dii_cash.py`, `api/fii_dii_routes.py`, `FiiDiiFlows.tsx`. In `make daily`, `make india-live` and the coverage button. 18 tests. Not yet run against NSE (no network to it from the build session) |
+| T-4238 | First live `make fii-dii` on the Mac; replace the hand-written test payload with the landed file | DONE (2026-10-30). 29 Oct landed; real response is `tests/fixtures/fii_dii/nse_fiidiiTradeReact_2026-10-29.json`. A-079 confirmed, S-054 resolved |
+| T-4239 | Backfill FII/DII history | DONE (2026-10-30) from Trendlyne, not NSDL, by operator decision (ADR-099, research 127). `make fii-dii-history MONTHS=12`: 264 days, 2025-10-01 to 2026-10-28, plus NSE's 29 Oct. Cross-checked against NSE, Groww and stockezee: largest gap 0.05 crore. NSDL's official FPI series is still unread (T-4241) |
+| T-4240 | Open scanx.trade's FII/DII page and its terms; list anything it shows that EulerLab does not hold | TODO. Not tried on 2026-10-30: the history came from Trendlyne instead. Still the only open question about scanx |
+| T-4241 | Read NSDL's FPI daily report format and terms; compare its official FPI figure with the provisional one | TODO. Official, FPI only, a different figure (research 004, 065, 127) |
+| T-4242 | Did NSE hold a session on Sunday 1 Feb 2026 (Budget day)? Trendlyne and stockezee show FII/DII flows for it; EulerLab has no bhavcopy for it | TODO. If it did, land that bhavcopy and re-run `make fii-dii-history`, which admits the day once the bhavcopy is in the manifest |
 ## Loss limits that act (2026-10-29)
 
 Operator: "finally implement new thing which a trader need." Chosen from research 079's gaps that matter now: a reduce-only state and a drawdown rule that acts. ADR-092.
@@ -134,7 +148,7 @@ Verify: `make verify` (8 of 8).
 | T-4166 | India dashboard hard to read: one long page, a breadth chart, numbers without words (research 121) | DONE. Four tabs, Market pulse cards in place of the Breadth band, template summary, plain names and arrows (ADR-081). 32 tests |
 | T-4161 | Dashboard lacks what trader platforms lead with: index trend and valuation, breadth depth, sector strength, F&O positioning (research 120) | DONE. `/api/market-context` and five India bands (ADR-080). 22 tests |
 | T-4162 | `landing_reader` asks the bucket for `nse/nse/...` for the `nse` tree; NSE files are at `nse/...`. Only local NSE files are seen, and `market_history._read` fails for pruned files | OPEN. The dashboard lists `participant_oi` as its own tree instead. Fix `remote_key` and the listing for the `nse` tree, then check every `nse/` reader |
-| T-4163 | Land FII/DII provisional cash flows | OPEN. A new source (research 120). The dashboard says it is missing |
+| T-4163 | Land FII/DII provisional cash flows | DONE (2026-10-29). `make fii-dii`, ADR-098; see the FII/DII section above |
 | T-4164 | Land upcoming results dates (board meetings) | OPEN. `nse_earnings_announcements.jsonl` holds past filings and ends 2024-12-31 |
 | T-4165 | The Dashboard page is wider than a phone screen: header, market toggle and ribbon run past 390 px | FIXED. The market toggle row did not wrap (scroll width 431 at 390); now every tab measures 390 |
 | T-4157 | Tests slept through the 5-orders-a-second governor in real time (25 of `test_paper_attribution.py`'s 27 s) | DONE. Simulated clock in tests only. Suite 153 s → 119 s |

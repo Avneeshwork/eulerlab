@@ -1597,6 +1597,32 @@ export type MarketContext = {
 };
 export type BreadthName = { symbol: string; close: number; change_1d: number | null; turnover_cr: number };
 
+/** `/api/fii-dii` (ADR-098): NSE's provisional cash flows, ₹ crore. */
+export type FiiDiiGroup = {
+  buy: number;
+  sell: number;
+  net: number;
+  net_5d: number;
+  net_month: number;
+  /** Sessions in a row on the latest side: +3 buying, −2 selling. */
+  streak: number;
+};
+export type FiiDiiMonth = { month: string; fii: number; dii: number; days: number };
+export type FiiDiiFlows =
+  | {
+      available: true;
+      as_of: string;
+      known_at: string;
+      days_held: number;
+      first_day: string;
+      fii: FiiDiiGroup;
+      dii: FiiDiiGroup;
+      series: { days: string[]; fii: number[]; dii: number[] };
+      months: FiiDiiMonth[];
+      note: string;
+    }
+  | { available: false; reason: string };
+
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: 'no-store' });
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -1998,6 +2024,7 @@ export const api = {
     post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
   /** `live` false answers from held data alone, without waiting on a broker. */
   marketContext: () => get<MarketContext>('/api/market-context'),
+  fiiDii: () => get<FiiDiiFlows>('/api/fii-dii'),
   marketReports: () => get<MarketReports>('/api/market-reports'),
   snapshot: (workspace = '', live = true) =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}&live=${live}`),

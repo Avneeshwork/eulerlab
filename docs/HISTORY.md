@@ -372,6 +372,8 @@ figure produced outside the result store before this date was frictionless.
 
 **37. An NSE day that was not published yet landed as a day with nothing in it.** (2026-10-30) `nse_reports` landed any well-formed answer and never fetched that day again. NSE's API answers a day it has not published with an empty 200, so short selling for 30 Oct, fetched at 23:26 IST that night, landed with 0 rows and would have stayed empty. Found reading the Deals & filings tab, whose short-selling panel showed 29 Oct. Fixed: an empty API answer within 3 days of its date is not landed; an empty file landed early is fetched again and the new copy lands beside it (`_recheck`), so nothing is overwritten. The one-year backfill landed holidays and this day; the holidays are right, and the 30 Oct file is replaced on the next run. No study read these files yet.
 
+**38. A refused request looked like a timeout once retries ran out.** (2026-10-30) After its last attempt, `Fetcher.get` returned `status=None`, which dropped the HTTP status it had just seen. So a caller could not tell a 429 from a dead connection, and a scraper meant to stop on 429 kept going. The FII/DII backfill test caught it. The status is now kept. No stored data depended on it: every earlier caller looked only at `outcome`.
+
 ---
 
 ## What the project has actually concluded

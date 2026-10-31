@@ -70,6 +70,7 @@ from eulerlab.api import (
     builder_routes,
     company_routes,
     deploy_routes,
+    fii_dii_routes,
     kite_routes,
     research_routes,
     risk_routes,
@@ -89,6 +90,7 @@ from eulerlab.builder.spec import is_builder_id, summarise
 from eulerlab.features import company as company_digest
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, trading_days
+from eulerlab.ingest import fii_dii_cash
 from eulerlab.ingest.cloud import load_storage_config
 from eulerlab.intraday import adopted as adopted_mod
 from eulerlab.intraday import scan as tweezer_scan
@@ -177,6 +179,7 @@ app.include_router(company_routes.router)
 app.include_router(kite_routes.router)
 app.include_router(risk_routes.router)
 app.include_router(agent_routes.router)
+app.include_router(fii_dii_routes.router)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,
@@ -4211,7 +4214,12 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
                     "out of the fundamentals tree"
                 ]
             ),
-            "FII/DII cash flows and upcoming results — neither is landed yet (research 120)",
+            *(
+                []
+                if fii_dii_cash.DERIVED.exists()
+                else ["FII/DII cash flows — none captured yet: `make fii-dii` (ADR-098)"]
+            ),
+            "upcoming results — not landed yet (research 120)",
         ],
     }
 

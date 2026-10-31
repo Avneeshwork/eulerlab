@@ -2029,13 +2029,64 @@ for `nse/nse/...` and finds only the local files (T-4162).
 
 None of these figures has passed the gate. They are context. The page carries
 each definition, and Sensibull's own statement that PCR and max pain "do not
-have high predictive power". Not shown, because neither is landed: FII/DII
-cash flows and upcoming results.
+have high predictive power". Not shown, because it is not landed: upcoming
+results.
+
+### FII/DII cash flows (ADR-098, research 128)
+
+NSE publishes each evening what FII/FPI and DII bought and sold in the cash
+market that day, in Rs crore, at `www.nseindia.com/api/fiidiiTradeReact`. It
+serves the latest day only and ignores `?date=` (research 004), so the dataset
+is capture-only: `make fii-dii` makes one request, lands the JSON under
+`data/landing/fii_dii/cash/` dated by the payload's own date, and appends one
+row to `data/derived/fii_dii_cash.jsonl` with `event_time` (15:30 IST on the
+trade date) and `knowledge_time` (when the file landed). A day already in the
+manifest is skipped, whether or not its file is still local. A payload without
+both groups, with two dates, with net not equal to buy - sell (0.05 crore
+tolerance), or dated after today is refused.
+
+It runs in `make daily` (19:30), in every `make india-live` pass, and from the
+Data coverage table's own button. `fii_dii_cash.rows(as_of=...)` drops rows
+known after `as_of`. `/api/fii-dii` (`api/fii_dii_routes.py`) answers the
+dashboard: today's buy, sell and net per group, net over the last 5 sessions
+held and the month to date, the run of same-sign sessions, the last 60 nets and
+up to 12 monthly sums with the days each covers.
+
+The panel is `web/components/terminal/FiiDiiFlows.tsx` with its own
+`fiidii.css`; every colour is a `--fd-*` token. It sits at the top of the
+Big money tab. There is no free official archive of these figures (research
+004, 126).
+
+**History (ADR-099, research 127).** `make fii-dii-history MONTHS=12`
+(`ingest/fii_dii_history.py`) fills the days before capture began. It fetches
+one Trendlyne page per month (`.../cash-pastmonth/DD-Mon-YYYY/`, the month ends
+of the last N months, then today). Each page carries about 20 days in the
+`data-jsondata` attribute of the table `cash-table-main-pastmonth`. It also
+fetches one page each from Groww and stockezee to cross-check. Every page lands
+unedited under `data/landing/fii_dii/<source>/`, keyed in the manifest by its
+date. A page already there is not fetched again, so re-runs only ask for
+today's pages.
+
+Requests are one at a time, at least 2.5 s apart, with one try each. A 403 or
+429 stops the run. A Trendlyne row is refused when net is not buy - sell within
+0.15 crore (each figure is rounded to 0.1). It is also refused when the date is
+in the future, or falls inside the NSE cash bhavcopy manifest's range without
+a bhavcopy. Past the manifest's last day, a weekday is enough.
+
+Only Trendlyne rows are written, with `source: "trendlyne"` and the page's
+scrape time as `knowledge_time`. So `rows(as_of=...)` never shows a backfilled
+day before it was scraped. NSE rows carry `source: "nse"`; a row without
+`source` is NSE's. A day already in the table is never overwritten, and
+`make fii-dii REBUILD=1` puts NSE's days first and fills the rest from the
+landed Trendlyne pages.
+
+Each run compares Trendlyne with NSE and Groww on every figure, and with
+stockezee on the nets. It lists any gap over 1 crore.
 
 ### The India tabs and the market pulse (research 121, ADR-081)
 
 The India view has four tabs, kept in the address as `?view=`: Overview,
-Sectors, Big money (F&O) and Stocks to watch. The other markets keep the
+Sectors, Big money and Stocks to watch. The other markets keep the
 single page. `market_pulse.py` turns the figures above into words; it adds no
 data of its own.
 

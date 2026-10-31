@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Info } from './Info';
+import { FiiDiiFlows } from './FiiDiiFlows';
 import { DealsFilings } from './DealsFilings';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 import {
@@ -181,7 +182,7 @@ type View = 'overview' | 'sectors' | 'money' | 'deals' | 'watch';
 const VIEWS: [View, string, string][] = [
   ['overview', 'Overview', 'Market pulse, what happened today, the indices'],
   ['sectors', 'Sectors', 'Which sectors lead and lag Nifty, and the map'],
-  ['money', 'Big money (F&O)', 'Who holds index futures, and what options price'],
+  ['money', 'Big money', 'FII/DII cash flows, who holds index futures, and what options price'],
   ['deals', 'Deals & filings', 'Bulk and block deals, F&O ban, margin funding, shorts, promoter filings, pledges, IPOs'],
   ['watch', 'Stocks to watch', 'Movers, new highs and lows, delivery spikes'],
 ];
@@ -817,6 +818,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       {india('watch') && ctx && <WatchContext ctx={ctx} />}
 
       {/* --- Big money: who holds the index, and what options price -------- */}
+      {india('money') && <FiiDiiFlows />}
       {india('money') &&
         (ctx ? <PositioningContext ctx={ctx} /> : <div className="tempty">Reading positions…</div>)}
 
