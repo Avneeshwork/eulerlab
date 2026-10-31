@@ -26,7 +26,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4260 | Company page (`app/terminal/company/[symbol]`) | TODO |
 | T-4261 | Dialogs (Backtest, Deploy, Explain) | TODO |
 | T-4262 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
-| T-4263 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | TODO |
+| T-4263 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | IN PROGRESS. main merged into `ui-revamp` on 2026-10-31 and ids renumbered (ADR-102, research 132/133, HISTORY #41, T-4250..T-4265); PR #38 open. Left: merge it, then delete the flag file and unload the launchd job on the Mac |
 
 ## Five Indian microstructure strategies (2026-10-28)
 
