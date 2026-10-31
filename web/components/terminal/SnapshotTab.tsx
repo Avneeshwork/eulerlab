@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { Info } from './Info';
+import { Info } from './ui';
 import { FiiDiiFlows } from './FiiDiiFlows';
 import { DealsFilings } from './DealsFilings';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';

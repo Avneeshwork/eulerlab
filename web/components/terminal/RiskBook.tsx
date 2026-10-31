@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { api } from '@/lib/api';
 import type { RiskBook, RiskBookResponse, RiskDeployment, RiskLimit } from '@/lib/api';
+import { Info, Stat } from '@/components/terminal/ui';
 import './riskbook.css';
 
 type View = 'overview' | 'performance' | 'stress';
@@ -126,9 +127,16 @@ function Caveats({ risk }: { risk: RiskBook }) {
   if (lines.length === 0) return null;
   return (
     <div className="rk-note" role="note">
-      {lines.map((line) => (
-        <div key={line}>{line}</div>
-      ))}
+      <span className="ui-chip warn">
+        {lines.length} data {lines.length === 1 ? 'note' : 'notes'}
+      </span>
+      <Info>
+        {lines.map((line) => (
+          <span key={line} style={{ display: 'block', marginBottom: 4 }}>
+            {line}
+          </span>
+        ))}
+      </Info>
     </div>
   );
 }
@@ -174,10 +182,7 @@ function Overview({ risk }: { risk: RiskBook }) {
       {risk.enough_history && historical && (
         <div className="rk-row">
           <section className="rk-card wide">
-            <h3>Value at risk</h3>
-            <p className="rk-sub">
-              Today&rsquo;s holdings run through the last {risk.history_days} trading days. Each bar is how many of those days would have ended in that range.
-            </p>
+            <h3 className="rk-h">Value at risk<Info>Today&rsquo;s holdings run through the last {risk.history_days} trading days. Each bar is how many of those days would have ended in that range.</Info></h3>
             <Histogram risk={risk} />
             <div className="rk-legend">
               <span className="rk-key"><span className="rk-dot" style={{ background: 'var(--rk-1)' }} />Days inside the 95% range</span>
@@ -189,8 +194,7 @@ function Overview({ risk }: { risk: RiskBook }) {
           </section>
 
           <section className="rk-card narrow">
-            <h3>The same question, three ways</h3>
-            <p className="rk-sub">When the methods disagree, the largest is the one to plan around.</p>
+            <h3 className="rk-h">The same question, three ways<Info>When the methods disagree, the largest is the one to plan around.</Info></h3>
             <div className="rk-scroll">
               <table className="rk-table">
                 <thead>
@@ -205,12 +209,16 @@ function Overview({ risk }: { risk: RiskBook }) {
             </div>
             {b.deployments > 1 && (
               <div className="rk-call">
-                <b>Holding them together saves {inr(Math.max(0, b.diversification))}.</b> The deployments&rsquo; own VaRs add up to {inr(b.standalone_sum)}; as one book it is {inr(b.var95)}, because they do not all lose on the same days.
+                <Stat
+                  label="Saved by holding them together"
+                  value={inr(Math.max(0, b.diversification))}
+                  tone="up"
+                  sub={`${inr(b.standalone_sum)} apart → ${inr(b.var95)} as one book`}
+                  info="The deployments' own VaRs added up, against the VaR of the book as one. The book's is smaller because they do not all lose on the same days."
+                />
               </div>
             )}
-            <p className="rk-fine" style={{ marginTop: 12 }}>
-              VaR is the loss to expect to exceed on one day in twenty. It says nothing about how bad that day gets; the shortfall column does.
-            </p>
+            <div className="rk-foot"><Info>VaR is the loss to expect to exceed on one day in twenty. It says nothing about how bad that day gets; the shortfall column does.</Info></div>
           </section>
         </div>
       )}
@@ -221,10 +229,7 @@ function Overview({ risk }: { risk: RiskBook }) {
 
       <div className="rk-row">
         <section className="rk-card wide">
-          <h3>Where the risk is</h3>
-          <p className="rk-sub">
-            Each deployment&rsquo;s share of the money beside its share of the VaR. A risk bar much longer than its money bar means it carries more than its size suggests.
-          </p>
+          <h3 className="rk-h">Where the risk is<Info>Each deployment&rsquo;s share of the money beside its share of the VaR. A risk bar much longer than its money bar means it carries more than its size suggests.</Info></h3>
           <div className="rk-legend" style={{ marginTop: 0, marginBottom: 12 }}>
             <span className="rk-key"><span className="rk-dot" style={{ background: 'var(--rk-quiet)' }} />Share of the money</span>
             <span className="rk-key"><span className="rk-dot" style={{ background: 'var(--rk-1)' }} />Share of the VaR</span>
@@ -241,12 +246,11 @@ function Overview({ risk }: { risk: RiskBook }) {
               </div>
             ))}
           </div>
-          <p className="rk-fine" style={{ marginTop: 14 }}>Right column: the rupees each deployment adds to the book&rsquo;s VaR. They sum to the total.</p>
+          <div className="rk-foot"><Info>Right column: the rupees each deployment adds to the book&rsquo;s VaR. They sum to the total.</Info></div>
         </section>
 
         <section className="rk-card narrow">
-          <h3>Allocation</h3>
-          <p className="rk-sub">Where the {lakh(b.equity)} is right now.</p>
+          <h3 className="rk-h">Allocation<Info>Where the {lakh(b.equity)} is right now.</Info></h3>
           <div className="rk-stack" role="img" aria-label={risk.deployments.map((d) => `${d.title} ${pct(d.capital_share, 0)}`).join(', ')}>
             {risk.deployments.map((d) => (
               <div key={d.id} style={{ flex: Math.max(d.capital_share, 0.004), background: colourOf(d.slot) }} title={`${d.title}: ${pct(d.capital_share, 1)}`} />
@@ -271,8 +275,7 @@ function Overview({ risk }: { risk: RiskBook }) {
       </div>
 
       <section className="rk-card">
-        <h3>Limits and headroom</h3>
-        <p className="rk-sub">Every limit, how much of it is used, and what happens when it is reached. {risk.watch_note}</p>
+        <h3 className="rk-h">Limits and headroom<Info>Every limit, how much of it is used, and what happens when it is reached. {risk.watch_note}</Info></h3>
         <div className="rk-scroll">
           <table className="rk-table" style={{ minWidth: 760 }}>
             <thead>
@@ -304,10 +307,7 @@ function GapCard({ deployment, risk }: { deployment: RiskDeployment; risk: RiskB
   const over = dailyLoss && g.enough && g.var95_when_held > dailyLoss.limit;
   return (
     <section className="rk-card">
-      <h3>Gap risk: the overnight future</h3>
-      <p className="rk-sub">
-        {deployment.title}. It buys {g.lots} lot{g.lots === 1 ? '' : 's'} of {g.contract} ({g.lot_size} units a lot, {lakh(g.notional)}) at the close on a signal day and sells at the next open. Whatever the market does in between, it takes in full.
-      </p>
+      <h3 className="rk-h">Gap risk: the overnight future<Info>{deployment.title}. It buys {g.lots} lot{g.lots === 1 ? '' : 's'} of {g.contract} ({g.lot_size} units a lot, {lakh(g.notional)}) at the close on a signal day and sells at the next open. Whatever the market does in between, it takes in full.</Info></h3>
       <div className="rk-tiles">
         <div className="rk-tile">
           <span>Tonight</span>
@@ -342,12 +342,14 @@ function GapCard({ deployment, risk }: { deployment: RiskDeployment; risk: RiskB
       </div>
       {over && dailyLoss && (
         <div className="rk-call">
-          <b>One bad night is more than the kill switch&rsquo;s daily loss limit.</b> A 1-in-20 gap costs {inr(g.var95_when_held)}; the limit is {inr(dailyLoss.limit)}. The switch would trip after the open, with the loss already taken.
+          <span className="ui-chip down">Gap beyond the daily loss limit</span>
+          <Info>
+            A 1-in-20 overnight gap costs {inr(g.var95_when_held)}; the kill switch&rsquo;s daily loss limit
+            is {inr(dailyLoss.limit)}. The switch would trip after the open, with the loss already taken.
+          </Info>
         </div>
       )}
-      <p className="rk-fine" style={{ marginTop: 12 }}>
-        The book&rsquo;s VaR above counts this deployment as it is run, so a quiet night and a signal night are averaged. On a signal night, read the &ldquo;night it holds&rdquo; figure. A gap cannot be stopped out: there is no trading between the close and the open.
-      </p>
+      <div className="rk-foot"><Info>The book&rsquo;s VaR above counts this deployment as it is run, so a quiet night and a signal night are averaged. On a signal night, read the &ldquo;night it holds&rdquo; figure. A gap cannot be stopped out: there is no trading between the close and the open.</Info></div>
     </section>
   );
 }
@@ -412,14 +414,13 @@ function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymen
   return (
     <>
       <section className="rk-card">
-        <h3>Every deployment</h3>
-        <p className="rk-sub">One row each. Click a row to draw it in the chart below{onReport ? '; its name opens the full report' : ''}.</p>
+        <h3 className="rk-h">Every deployment<Info>One row each. Click a row to draw it in the chart below{onReport ? '; its name opens the full report' : ''}. Put in: Starting capital plus deposits, less withdrawals. Since start: Rupees made, and the time-weighted return: adding or withdrawing money changes neither. Book VaR without it: The book&apos;s VaR if this deployment were stopped.</Info></h3>
         <div className="rk-scroll">
           <table className="rk-table" style={{ minWidth: 1240 }}>
             <thead>
               <tr>
-                <th scope="col">Deployment</th><th scope="col" title="Starting capital plus deposits, less withdrawals">Put in</th><th scope="col">Equity</th><th scope="col" title="Rupees made, and the time-weighted return: adding or withdrawing money changes neither">Since start</th><th scope="col">Last session</th>
-                <th scope="col">Volatility, a year</th><th scope="col">VaR 95%, 1 day</th><th scope="col" title="The book's VaR if this deployment were stopped">Book VaR without it</th><th scope="col">Beta to Nifty</th><th scope="col">Drawdown now</th><th scope="col">Worst in backtest</th><th scope="col">Days live</th><th scope="col">Positions</th>
+                <th scope="col">Deployment</th><th scope="col">Put in</th><th scope="col">Equity</th><th scope="col">Since start</th><th scope="col">Last session</th>
+                <th scope="col">Volatility, a year</th><th scope="col">VaR 95%, 1 day</th><th scope="col">Book VaR without it</th><th scope="col">Beta to Nifty</th><th scope="col">Drawdown now</th><th scope="col">Worst in backtest</th><th scope="col">Days live</th><th scope="col">Positions</th>
               </tr>
             </thead>
             <tbody className="rk-num">
@@ -455,7 +456,7 @@ function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymen
         {risk.stopped.length > 0 && (
           <>
             <h3 style={{ marginTop: 20 }}>Stopped</h3>
-            <p className="rk-sub">No longer trading, so in none of the figures on these pages. Kept here with what each made.</p>
+            <div className="rk-foot"><Info>No longer trading, so in none of the figures on these pages. Kept here with what each made.</Info></div>
             <div className="rk-scroll">
               <table className="rk-table">
                 <thead><tr><th scope="col">Deployment</th><th scope="col">Put in</th><th scope="col">Ended at</th><th scope="col">Made</th><th scope="col">Days live</th><th scope="col">Last day</th></tr></thead>
@@ -471,21 +472,18 @@ function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymen
             </div>
           </>
         )}
-        <p className="rk-fine" style={{ marginTop: 12 }}>&ldquo;Book VaR without it&rdquo; is the whole book&rsquo;s VaR if that deployment were stopped today: lower than the book&rsquo;s means it adds risk, higher means it offsets some. The book&rsquo;s VaR is less than the sum of the rows when the deployments do not all lose on the same days. Volatility and VaR come from today&rsquo;s holdings over the last {risk.history_days} days, not from the deployment&rsquo;s own short record.</p>
+        <div className="rk-foot"><Info>&ldquo;Book VaR without it&rdquo; is the whole book&rsquo;s VaR if that deployment were stopped today: lower than the book&rsquo;s means it adds risk, higher means it offsets some. The book&rsquo;s VaR is less than the sum of the rows when the deployments do not all lose on the same days. Volatility and VaR come from today&rsquo;s holdings over the last {risk.history_days} days, not from the deployment&rsquo;s own short record.</Info></div>
       </section>
 
       <div className="rk-row">
         <section className="rk-card wide">
-          <h3>Live against its backtest</h3>
-          <p className="rk-sub" title={chosen?.title}>
-            {chosen?.title}. The shaded band is where its backtest says equity should be after this many days, nine times in ten. A line that leaves the band is not behaving as tested. Deposits and withdrawals are taken out of the line, as the backtest has none.
-          </p>
+          <h3 className="rk-h">Live against its backtest<Info>{chosen?.title}</Info></h3>
+          <div className="rk-foot"><Info>The shaded band is where its backtest says equity should be after this many days, nine times in ten. A line that leaves the band is not behaving as tested. Deposits and withdrawals are taken out of the line, as the backtest has none.</Info></div>
           {chosen && <Band deployment={chosen} colour={colourOf(chosen.slot)} />}
         </section>
 
         <section className="rk-card narrow">
-          <h3>Is each one behaving as tested?</h3>
-          <p className="rk-sub">Return since it started, beside what its backtest expected over the same number of days.</p>
+          <h3 className="rk-h">Is each one behaving as tested?<Info>Return since it started, beside what its backtest expected over the same number of days.</Info></h3>
           <div className="rk-scroll">
             <table className="rk-table">
               <thead><tr><th scope="col">Deployment</th><th scope="col">Expected</th><th scope="col">Got</th><th scope="col" className="l">Verdict</th></tr></thead>
@@ -501,20 +499,18 @@ function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymen
               </tbody>
             </table>
           </div>
-          <p className="rk-fine" style={{ marginTop: 12 }}>A deployment is judged only after 20 days live. Before that, almost any path is inside the band.</p>
+          <div className="rk-foot"><Info>A deployment is judged only after 20 days live. Before that, almost any path is inside the band.</Info></div>
         </section>
       </div>
 
       <div className="rk-row">
         <section className="rk-card wide">
-          <h3>Drawdown of the book</h3>
-          <p className="rk-sub">How far the whole book&rsquo;s return sits below its best so far, with deposits and withdrawals taken out. Zero means a new high.</p>
+          <h3 className="rk-h">Drawdown of the book<Info>How far the whole book&rsquo;s return sits below its best so far, with deposits and withdrawals taken out. Zero means a new high.</Info></h3>
           <Underwater risk={risk} />
         </section>
 
         <section className="rk-card narrow">
-          <h3>Who made and lost money in the last session</h3>
-          <p className="rk-sub">Each deployment&rsquo;s profit or loss{risk.as_of ? ` on ${risk.as_of}` : ''}, not counting money added or withdrawn. They sum to {signedInr(b.today)}.</p>
+          <h3 className="rk-h">Who made and lost money in the last session<Info>Each deployment&rsquo;s profit or loss{risk.as_of ? ` on ${risk.as_of}` : ''}, not counting money added or withdrawn. They sum to {signedInr(b.today)}.</Info></h3>
           <div className="rk-bars">
             {risk.deployments.map((d) => (
               <div className="rk-bar-row" key={d.id}>
@@ -646,11 +642,8 @@ function Stress({ risk }: { risk: RiskBook }) {
   return (
     <>
       <section className="rk-card">
-        <h3>If it happened tomorrow</h3>
-        <p className="rk-sub">
-          Today&rsquo;s holdings put through bad days. VaR describes an ordinary bad day; these are the days it does not cover.
-          {limitShare !== null && ` The marker is the ${watchDrawdown?.limit}% drawdown watch level for the book.`}
-        </p>
+        <h3 className="rk-h">If it happened tomorrow<Info>Today&rsquo;s holdings put through bad days. VaR describes an ordinary bad day; these are the days it does not cover.
+          {limitShare !== null && ` The marker is the ${watchDrawdown?.limit}% drawdown watch level for the book.`}</Info></h3>
         <div className="rk-bars">
           {risk.stress.map((row) => (
             <div className="rk-bar-row" key={row.key}>
@@ -668,13 +661,12 @@ function Stress({ risk }: { risk: RiskBook }) {
           {limitShare !== null && <span className="rk-key"><span style={{ width: 2, height: 14, background: 'var(--ink)' }} />Book drawdown watch level</span>}
           {limitShare !== null && <span>{crossing.length === 0 ? 'No scenario reaches the watch level.' : `${crossing.length} scenario${crossing.length === 1 ? '' : 's'} would pass the watch level.`}</span>}
         </div>
-        <p className="rk-fine" style={{ marginTop: 12 }}>A market fall reaches each holding through its own beta to the Nifty, measured over the last {risk.history_days} days; a holding with no measured beta is taken to fall with the market.</p>
+        <div className="rk-foot"><Info>A market fall reaches each holding through its own beta to the Nifty, measured over the last {risk.history_days} days; a holding with no measured beta is taken to fall with the market.</Info></div>
       </section>
 
       <div className="rk-row">
         <section className="rk-card">
-          <h3>By sector</h3>
-          <p className="rk-sub">Share of the {lakh(b.invested)} invested.{sectorLimit ? ` The marker is the ${sectorLimit.limit}% watch level for any one sector.` : ''}</p>
+          <h3 className="rk-h">By sector<Info>Share of the {lakh(b.invested)} invested.{sectorLimit ? ` The marker is the ${sectorLimit.limit}% watch level for any one sector.` : ''}</Info></h3>
           <div className="rk-bars">
             {risk.sectors.map((row) => (
               <div className="rk-bar-row" key={row.sector}>
@@ -691,8 +683,7 @@ function Stress({ risk }: { risk: RiskBook }) {
         </section>
 
         <section className="rk-card">
-          <h3>Largest names</h3>
-          <p className="rk-sub">Added up across every deployment that holds them. A name held by two deployments is one bet, not two.</p>
+          <h3 className="rk-h">Largest names<Info>Added up across every deployment that holds them. A name held by two deployments is one bet, not two.</Info></h3>
           <div className="rk-scroll">
             <table className="rk-table">
               <thead><tr><th scope="col">Name</th><th scope="col">Value</th><th scope="col">Of the book</th><th scope="col">Held by</th><th scope="col" className="l">Sector</th></tr></thead>
@@ -715,10 +706,7 @@ function Stress({ risk }: { risk: RiskBook }) {
 
       <div className="rk-row">
         <section className="rk-card wide">
-          <h3>Do the deployments lose together?</h3>
-          <p className="rk-sub">
-            How closely each pair&rsquo;s daily results have moved together over {risk.history_days} days. 1.0 means identical; near zero means unrelated. A pair above 0.8 is close to being one strategy. A dash means that deployment holds nothing.
-          </p>
+          <h3 className="rk-h">Do the deployments lose together?<Info>How closely each pair&rsquo;s daily results have moved together over {risk.history_days} days. 1.0 means identical; near zero means unrelated. A pair above 0.8 is close to being one strategy. A dash means that deployment holds nothing.</Info></h3>
           {shown ? (
             <>
               <div className="rk-heat" role="img" aria-label={`Correlation between ${risk.correlation.titles.length} deployments.`} style={{ gridTemplateColumns: `minmax(120px, 220px) repeat(${risk.correlation.titles.length}, minmax(0, 1fr))` }}>
@@ -746,13 +734,12 @@ function Stress({ risk }: { risk: RiskBook }) {
               </div>
             </>
           ) : (
-            <p className="rk-fine">More than six deployments: the pairs that move most alike are listed on the right.</p>
+            <div className="rk-foot"><Info>More than six deployments: the pairs that move most alike are listed on the right.</Info></div>
           )}
         </section>
 
         <section className="rk-card narrow">
-          <h3>What this page is telling you</h3>
-          <p className="rk-sub">Read from the numbers on this page, in plain words.</p>
+          <h3 className="rk-h">What this page is telling you<Info>Read from the numbers on this page, in plain words.</Info></h3>
           <Findings risk={risk} crossing={crossing.length} />
           <div className="rk-facts">
             <div><span>Beta of the book to the Nifty</span><b className="rk-num">{b.beta === null ? '—' : b.beta.toFixed(2)}</b></div>

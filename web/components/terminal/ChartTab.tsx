@@ -24,6 +24,7 @@
  * banner says which way it went.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import type { MacroReading } from '@/lib/api';
@@ -234,11 +235,11 @@ export function ChartTab() {
           </div>
         </div>
         <div className="tsyncbox">
-          <span className="tfine" style={{ textAlign: 'right' }}>
-            Data, drawing tools and indicators are TradingView&rsquo;s. A close here can
-            differ from the panel&rsquo;s &mdash; never reconcile a backtest against this
-            chart.
-          </span>
+          <span className="ui-chip">TradingView data</span>
+          <Info align="right">
+            Data, drawing tools and indicators are TradingView&rsquo;s. A close here can differ from
+            the panel&rsquo;s: never reconcile a backtest against this chart.
+          </Info>
         </div>
       </section>
 
@@ -295,12 +296,15 @@ export function ChartTab() {
 
       {market === 'NSE' && (
         <p className="tfine mktgap" style={{ marginBottom: 10 }}>
-          NIFTYBEES, BANKBEES and JUNIORBEES are <b>ETFs</b>, named for the funds they
-          are rather than the indices they track &mdash; Nippon India&rsquo;s Nifty 50,
-          Nifty Bank and Nifty Next 50 funds. The embed refuses `NSE:NIFTY` itself because
-          index data is licensed separately, and an ETF is close to its index but not the
-          same instrument: it carries tracking error and trades at its own premium. The
-          chart below each one is the real index series from our own panel.
+          <span className="ui-chip">ETFs, not indices</span>
+          <Info>
+            NIFTYBEES, BANKBEES and JUNIORBEES are ETFs, named for the funds they are rather than
+            the indices they track: Nippon India&rsquo;s Nifty 50, Nifty Bank and Nifty Next 50
+            funds. The embed refuses `NSE:NIFTY` itself because index data is licensed separately,
+            and an ETF is close to its index but not the same instrument: it carries tracking error
+            and trades at its own premium. The chart below each one is the real index series from
+            our own panel.
+          </Info>
         </p>
       )}
 

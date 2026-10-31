@@ -9,6 +9,7 @@
  * to that page, and a box for the address Zerodha sends the browser to after.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useState } from 'react';
 import { kiteLogin, kiteStatus, type KiteStatus } from '@/lib/api';
 
@@ -114,7 +115,8 @@ export function KiteLogin({ onLogin }: { onLogin: () => void }) {
       )}
       {status.fresh && (
         <p className="tfine">
-          The India minute bars row below can now be updated with its own button.
+          <span className="ui-chip up">Minute bars ready to update</span>
+          <Info>The India minute bars row below can now be updated with its own button.</Info>
         </p>
       )}
     </section>

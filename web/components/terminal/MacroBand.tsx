@@ -13,6 +13,7 @@
  * four numbers in a row do not answer that at a glance.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useState } from 'react';
 import type { MacroReading } from '@/lib/api';
 import { MiniChart } from '@/components/terminal/MiniChart';
@@ -144,13 +145,11 @@ export function MacroBand({
     <section>
       <h3 className="report-h">
         Macro
-        <span
-          className="tfine hstat"
-          title="TradingView's public scanner — one request, no key. FMP's free plan answers 402 for WTI, natural gas and the dollar index, and serves no sovereign yields at all."
-        >
-          {stale ? 'from the last sweep' : 'live'} · 17 series
-          <abbr className="whyq">?</abbr>
-        </span>
+        <span className="tfine hstat">{stale ? 'last sweep' : 'live'} · 17 series</span>
+        <Info>
+          From TradingView&apos;s public scanner: one request, no key. FMP&apos;s free plan answers 402
+          for WTI, natural gas and the dollar index, and serves no sovereign yields at all.
+        </Info>
       </h3>
 
       <div className="mkttoggle" style={{ marginBottom: 12 }}>
@@ -214,10 +213,12 @@ export function MacroBand({
               )}
               {uncharted.length > 0 && (
                 <p className="tfine mktgap" style={{ marginTop: kept.length ? 10 : 0 }}>
-                  No chart for {uncharted.map((r) => r.name).join(', ')} — the embed
-                  refuses these symbols even though the quote feed serves them. Their
-                  levels are in the Numbers view, and a history is being accumulated from
-                  each sweep.
+                  <span className="ui-chip">{uncharted.length} without a chart</span>
+                  <Info>
+                    No chart for {uncharted.map((r) => r.name).join(', ')}: the embed refuses these
+                    symbols even though the quote feed serves them. Their levels are in the Numbers
+                    view, and a history is being accumulated from each sweep.
+                  </Info>
                 </p>
               )}
             </div>

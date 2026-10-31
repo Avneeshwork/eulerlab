@@ -16,6 +16,7 @@
  * other strategy.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '@/lib/api';
@@ -228,7 +229,10 @@ function RuleGroupEditor({
   return (
     <div className="sb-rules">
       <div className="sb-rules-head">
-        <span className="tfine">{hint}</span>
+        <span className="tfine">
+          {title}
+          <Info>{hint}</Info>
+        </span>
         {group.rules.length > 1 && (
           <span className="sb-match" role="group" aria-label={`${title} matching`}>
             {(['all', 'any'] as const).map((m) => (
@@ -632,8 +636,11 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
             </div>
             {u.asset_class === 'equity' && u.universe === 'all' && (
               <p className="tfine">
-                The whole panel is several thousand names, including thinly traded ones the cost model understates. Expect a long run; nifty100 or nifty250 is
-                faster and more honest.
+                <span className="ui-chip warn">Slow, and costs understated</span>
+                <Info>
+                  The whole panel is several thousand names, including thinly traded ones the cost model
+                  understates. Expect a long run; nifty100 or nifty250 is faster and more honest.
+                </Info>
               </p>
             )}
           </Step>
@@ -700,7 +707,8 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
               )}
             </div>
             <p className="tfine">
-              Each slot is {(100 / Math.max(1, spec.sizing.max_positions)).toFixed(1)}% of equity. Unused slots stay in cash.
+              {(100 / Math.max(1, spec.sizing.max_positions)).toFixed(1)}% of equity a slot
+              <Info>Each slot is an equal share of equity. Unused slots stay in cash.</Info>
             </p>
             <div className="sb-rank">
               <label className="sb-check">
@@ -779,7 +787,9 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
                 />
               </label>
             </div>
-            <p className="tfine">0 turns a setting off. Stops are judged on closes, measured from the close the entry signalled on.</p>
+            <div className="ui-foot">
+              <Info>0 turns a setting off. Stops are judged on closes, measured from the close the entry signalled on.</Info>
+            </div>
           </Step>
         </div>
 
@@ -829,7 +839,11 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
             </div>
             {check && check.ok && check.warmup >= days * 0.6 && (
               <p className="tfine">
-                It needs {check.warmup} trading days before its first decision, which uses most of this window. Choose a longer one.
+                <span className="ui-chip warn">{check.warmup}-day warm-up</span>
+                <Info>
+                  It needs {check.warmup} trading days before its first decision, which uses most of this
+                  window. Choose a longer one.
+                </Info>
               </p>
             )}
             <div className="sb-actions">
@@ -871,18 +885,23 @@ export function StrategyBuilder({ onRefresh }: { onRefresh: () => void }) {
                   Open the full report
                 </a>
                 <p className="tfine">
-                  A screening run: it is recorded with this strategy but spends no trial, so the noise bar does not know about it. Every edit you test is
-                  another attempt.
+                  <span className="ui-chip">Screening run · no trial spent</span>
+                  <Info>
+                    Recorded with this strategy but spends no trial, so the noise bar does not know about it.
+                    Every edit you test is another attempt.
+                  </Info>
                 </p>
               </div>
             )}
-            <ul className="sb-caveats">
-              {catalog.caveats.map((c) => (
-                <li key={c} className="tfine">
-                  {c}
-                </li>
-              ))}
-            </ul>
+            <div className="ui-foot">
+              <Info label="How the backtest is run">
+                {catalog.caveats.map((c) => (
+                  <span key={c} style={{ display: 'block', marginBottom: 4 }}>
+                    {c}
+                  </span>
+                ))}
+              </Info>
+            </div>
           </div>
         </aside>
       </div>

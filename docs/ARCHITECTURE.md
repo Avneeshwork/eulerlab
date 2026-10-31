@@ -2127,6 +2127,15 @@ second tap, a click elsewhere or Escape. Hover tooltips remain only for values.
 The breadth series is still computed (Participation and the new-high lists use
 it), but its chart is not drawn.
 
+### One visual language for every screen (ADR-102)
+
+Every terminal screen is built from `web/components/terminal/ui/`: `Info` (the
+only place explanation lives, a tap-to-open button), `Heading`, `Stat`/`Stats`,
+`Chip`, `Seg`, `Empty`, `Move` (signed change with an arrow), `Sparkline` and
+`Bar` (a bar inside a table cell). A page's title carries its description in
+an info button; the Tools cards do the same. Screens move onto the kit one per
+commit on the `ui-revamp` branch (TASKS, UI revamp).
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.
@@ -2277,6 +2286,18 @@ returns the token, the key or the secret.
 row's own Update button. Without a token minted today it reports "skipped" and
 passes.
 
+## FYERS login from the Instruments page
+
+The Instruments page also has a FYERS login card. `GET /api/fyers/status`
+reports whether today's access token is held and creates a short-lived login
+state. The user opens FYERS' hosted sign-in page, copies its final redirect
+address, and submits it to `POST /api/fyers/login`. The route checks the
+one-time state before `exchange_auth_code` exchanges the code. `GET
+/api/fyers/callback` supports a registered local callback URL. The app secret
+and access token never go to the browser; the token is stored in the ignored
+`.env`, with expiry metadata in `data/cache/fyers_session.json`. The login card
+is in `web/components/terminal/FyersLogin.tsx` beside the Kite card.
+
 ## Backtest results and the bucket
 
 `cloud_results.mirror` pulls then pushes `data/workspaces/<id>/results/*.jsonl`.
@@ -2374,6 +2395,32 @@ out with the reason. The pick is kept in the browser.
 answer the tools that were sent with their sizes. `GET /api/assistant/status`
 gives the reason when it is off and never calls the provider.
 
+
+## Five intraday microstructure rules (research 133)
+
+`intraday/microstructure_five.py` contains five fixed hypotheses. The first
+four need order, trade, or book events; candle volume is never used as a proxy
+for signed flow or displayed depth. The fifth rule is implementable from
+approved expired single-stock-futures minute candles and archived cash minute
+candles. `intraday/futures_cash_backtest.py` discovers contracts, preserves
+raw FYERS JSON immutably, maps the cash ticker through the dated instrument
+master, and uses an internal contract ID derived from issuer ID and expiry.
+Each fetch attempt mirrors the raw tree to `nse/fyers_expired_fo/`, including
+responses landed before the daily request cap stops a run. The normalized bars
+and result are mirrored to `nse/derived/microstructure_five/micro-05/`. Uploads
+verify B2's stored SHA-256 metadata; `make microstructure-five-b2` retries both
+mirrors without calling FYERS again.
+
+For each dated contract, the fifth rule calculates close-to-close returns
+within each session, then selects the nearest expiry at each minute. It
+compares each futures return with the next cash-minute return over the
+strictly prior 60 cash sessions and requires at least 500 paired observations
+and positive correlation. A futures move of at least 5 bp triggers an entry at
+the next cash-minute open; exit is the first cash close at or after five
+minutes. Positions for one share cannot overlap. The cash replay charges 2 bp
+slippage per side and the date-specific NSE intraday fee schedule. This is a
+single fixed-rule research run, not the platform's promotion gate or a live
+deployment approval.
 ## The agent network (ADR-085)
 
 Eight agents on one runtime, `src/eulerlab/agents/`. Each is a YAML file in

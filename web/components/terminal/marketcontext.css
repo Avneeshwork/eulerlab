@@ -10,55 +10,6 @@
   --mc-mid: var(--caveat);
 }
 
-/* --- Info button: the only place explanation lives (ADR-082) --------------- */
-.info {
-  position: relative;
-  display: inline-flex;
-  vertical-align: middle;
-  margin-left: 6px;
-}
-.info-btn {
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid var(--rule-2, var(--rule));
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--ink-3);
-  font: italic 600 11px/1 Georgia, 'Times New Roman', serif;
-  cursor: pointer;
-}
-.info-btn:hover,
-.info-btn[aria-expanded='true'] {
-  color: var(--ink);
-  border-color: var(--ink-3);
-}
-.info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.info-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  z-index: 30;
-  width: max-content;
-  max-width: min(340px, 80vw);
-  padding: 10px 12px;
-  border: 1px solid var(--rule);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  color: var(--ink-2);
-  font-size: 12px;
-  font-weight: 400;
-  font-style: normal;
-  line-height: 1.5;
-  letter-spacing: 0;
-  text-transform: none;
-  white-space: normal;
-  text-align: left;
-}
-.info-pop.left { left: -8px; }
-.info-pop.right { right: -8px; }
-
 /* --- Shared ----------------------------------------------------------------- */
 .mc-h {
   display: flex;

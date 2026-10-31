@@ -590,10 +590,11 @@ def sync_directory(
     prefix: str,
     pattern: str = "**/*",
     dry_run: bool = False,
+    verify: bool = False,
     remote_sizes: dict[str, int] | None = None,
     workers: int = UPLOAD_WORKERS,
 ) -> TreeSyncResult:
-    """Mirror an arbitrary directory tree, comparing by size.
+    """Mirror an arbitrary directory tree, comparing by size and optionally SHA.
 
     The bhavcopy landing zone records a SHA-256 per file in its manifest, so
     `sync()` can verify against it. Other trees — the Kite minute bars, written
@@ -602,7 +603,8 @@ def sync_directory(
     something exact to verify against, it just cannot verify retrospectively.
 
     Comparison for *what to upload* is by size, which is one LIST call for the
-    whole tree rather than one HEAD per file.
+    whole tree rather than one HEAD per file. ``verify=True`` HEADs each key
+    after sync and checks the recorded SHA-256 metadata against the local bytes.
     """
     # A caller holding a listing of the whole bucket can hand it over rather
     # than make this tree ask again; the slice it needs is already in there.
@@ -654,6 +656,20 @@ def sync_directory(
     # shared state; each upload is otherwise independent.
     with ThreadPoolExecutor(max_workers=workers) as pool:
         list(pool.map(send, pending))
+
+    if verify and not dry_run:
+        for path in local:
+            key = f"{prefix}{path.relative_to(root).as_posix()}"
+            try:
+                payload = path.read_bytes()
+                expected = sha256_of(payload)
+                actual = store.head_sha256(key)
+                if actual != expected:
+                    failed.append(f"{path.relative_to(root)}: B2 SHA-256 verification failed")
+            except Exception as exc:
+                failed.append(
+                    f"{path.relative_to(root)}: SHA-256 verification failed ({type(exc).__name__})"
+                )
 
     return TreeSyncResult(
         uploaded=uploaded, skipped=skipped, failed=failed, uploaded_keys=sorted(landed)

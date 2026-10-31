@@ -82,3 +82,30 @@
 /* The line that confirms an archive or a restore, with its Undo. */
 .st-undo { display: flex; align-items: center; gap: var(--s3); }
 .st-undo span { flex: 1; }
+
+/* --- UI revamp (ADR-102) --------------------------------------------------- */
+.st-headline {
+  margin: 0 0 var(--s4);
+  padding: 12px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.st-sharpe {
+  min-width: 84px;
+}
+.st-sharpe b {
+  display: block;
+  font-weight: 600;
+}
+.st-sharpe .ui-bar {
+  display: block;
+  height: 6px;
+  margin-top: 3px;
+}
+.st-drawer-head h2 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.st-filters .info { align-self: center; }

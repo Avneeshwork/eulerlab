@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { Deal, DealClient, MarketReports, MtfRow } from '@/lib/api';
-import { Info } from './Info';
+import { Info } from './ui';
 import './dealsfilings.css';
 
 const crore = (value: number) =>

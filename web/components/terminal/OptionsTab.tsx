@@ -16,6 +16,7 @@
 
 'use client';
 
+import { Info } from '@/components/terminal/ui';
 import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
@@ -396,10 +397,8 @@ export function OptionsTab() {
           <div className="tpanel" style={{ padding: 16, marginBottom: 20 }}>
             <h3>No-arbitrage checks</h3>
             {chain.findings.length === 0 ? (
-              <p className="tfine">
-                Nothing violated: parity, strike monotonicity, butterfly convexity, intrinsic
-                bounds and calendar monotonicity all hold on the traded contracts.
-              </p>
+              <p className="tfine"><span className="ui-chip up">All checks pass</span><Info>Nothing violated: parity, strike monotonicity, butterfly convexity, intrinsic
+                bounds and calendar monotonicity all hold on the traded contracts.</Info></p>
             ) : (
               <table className="ttable">
                 <thead>
@@ -420,9 +419,7 @@ export function OptionsTab() {
                 </tbody>
               </table>
             )}
-            <p className="tfine" style={{ marginTop: 10 }}>
-              {chain.findings_note}
-            </p>
+            <div className="ui-foot"><Info>{chain.findings_note}</Info></div>
           </div>
           )}
 
@@ -535,11 +532,9 @@ export function OptionsTab() {
                 })}
               </tbody>
             </table>
-            <p className="tfine" style={{ marginTop: 10 }}>
-              Dimmed cells never traded today. Their price is NSE&rsquo;s settlement model
+            <div className="ui-foot"><Info>Dimmed cells never traded today. Their price is NSE&rsquo;s settlement model
               output rather than a transaction, so it means something different from the
-              number beside it.
-            </p>
+              number beside it.</Info></div>
           </div>
           )}
         </>

@@ -15,6 +15,7 @@
 
 'use client';
 
+import { Info } from '@/components/terminal/ui';
 import { useMemo, useState } from 'react';
 
 export type Leg = {
@@ -165,11 +166,9 @@ export function PayoffBuilder({
       </div>
 
       {legs.length === 0 ? (
-        <p className="tfine">
-          Add legs to price a spread. Premiums are taken from the chain on screen, so the
+        <div className="ui-foot"><Info>Add legs to price a spread. Premiums are taken from the chain on screen, so the
           payoff is priced on the day and expiry selected above — a spread that works on
-          today&rsquo;s board is a different trade on last month&rsquo;s.
-        </p>
+          today&rsquo;s board is a different trade on last month&rsquo;s.</Info></div>
       ) : (
         <>
           <table className="ttable" style={{ marginBottom: 16 }}>
@@ -339,14 +338,12 @@ export function PayoffBuilder({
             </div>
           )}
 
-          <p className="tfine" style={{ marginTop: 12 }}>
-            Payoff at <b>expiry</b>, which is arithmetic on the strike and the premium and
+          <div className="ui-foot"><Info>Payoff at <b>expiry</b>, which is arithmetic on the strike and the premium and
             needs no view on volatility. It is not a current-value curve: that would need a
             vol surface forward in time and a model for how it moves, and would be a set of
             assumptions wearing the same shape. Costs are not applied — brokerage, STT and
             the bid-ask spread all land against this, and the spread alone can be several
-            percent on a contract whose settlement price looks tradable.
-          </p>
+            percent on a contract whose settlement price looks tradable.</Info></div>
         </>
       )}
     </>

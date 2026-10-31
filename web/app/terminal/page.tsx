@@ -76,6 +76,7 @@ import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
+import { Info as InfoButton, Move, Stat, Stats } from '@/components/terminal/ui';
 import { agentsApi, api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
@@ -400,8 +401,12 @@ export default function TerminalPage() {
                 <span>{heading.title}</span>
               </nav>
             )}
-            <h1>{heading.title}</h1>
-            <p>{heading.sub}</p>
+            {/* The title alone; what the page is for opens from its info
+                button (ADR-102). */}
+            <h1 className="tpage-title">
+              {heading.title}
+              <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>
+            </h1>
           </div>
         )}
 
@@ -411,21 +416,25 @@ export default function TerminalPage() {
 
         {page === 'strategies' && (
           <>
-            <p className="st-headline" title={fleet?.bar_note}>
-              <b>{fleet?.strategies.length ?? '—'}</b> strategies · <b>{fleet ? clearing : '—'}</b> beat the noise bar
-              (Sharpe {fleet ? fleet.bar.toFixed(2) : '—'}, from {fleet?.bar_trials ?? 0} trials) · {fleet ? measured : '—'}{' '}
-              backtested
-              {fleet?.market?.total_return !== null && fleet?.market?.total_return !== undefined && (
-                <>
-                  {' '}
-                  · Nifty held since {fleet.market.since.slice(0, 4)}:{' '}
-                  <b>
-                    {fleet.market.total_return >= 0 ? '+' : ''}
-                    {(fleet.market.total_return * 100).toFixed(0)}%
-                  </b>
-                </>
-              )}
-            </p>
+            <div className="st-headline">
+              <Stats>
+                <Stat label="Strategies" value={fleet?.strategies.length ?? '—'} />
+                <Stat
+                  label="Beat the noise bar"
+                  value={fleet ? clearing : '—'}
+                  tone={fleet && clearing > 0 ? 'up' : ''}
+                  sub={fleet ? `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_trials ?? 0} trials` : undefined}
+                  info={fleet?.bar_note}
+                />
+                <Stat label="Backtested" value={fleet ? measured : '—'} />
+                {fleet?.market?.total_return !== null && fleet?.market?.total_return !== undefined && (
+                  <Stat
+                    label={`Nifty held since ${fleet.market.since.slice(0, 4)}`}
+                    value={<Move value={fleet.market.total_return} digits={0} />}
+                  />
+                )}
+              </Stats>
+            </div>
 
             <Library
               fleet={fleet}
@@ -538,21 +547,22 @@ export default function TerminalPage() {
             {TOOLS.map((tool) => {
               const Icon = tool.icon;
               return (
-                <button
-                  key={tool.id}
-                  type="button"
-                  className="ttool-card"
-                  onClick={() => setPage(tool.id)}
-                >
-                  <span className="ttool-icon" aria-hidden="true">
-                    <Icon size={20} />
+                <div key={tool.id} className="ttool-card">
+                  <button type="button" className="ttool-open" onClick={() => setPage(tool.id)}>
+                    <span className="ttool-icon" aria-hidden="true">
+                      <Icon size={20} />
+                    </span>
+                    <b>
+                      {tool.title}
+                      <ChevronRight size={16} aria-hidden="true" />
+                    </b>
+                  </button>
+                  <span className="ttool-info">
+                    <InfoButton align="right" label={`About ${tool.title}`}>
+                      {tool.description}
+                    </InfoButton>
                   </span>
-                  <b>
-                    {tool.title}
-                    <ChevronRight size={16} aria-hidden="true" />
-                  </b>
-                  <span>{tool.description}</span>
-                </button>
+                </div>
               );
             })}
           </div>

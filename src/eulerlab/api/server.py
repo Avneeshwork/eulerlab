@@ -71,6 +71,7 @@ from eulerlab.api import (
     company_routes,
     deploy_routes,
     fii_dii_routes,
+    fyers_routes,
     kite_routes,
     research_routes,
     risk_routes,
@@ -177,6 +178,7 @@ app.include_router(deploy_routes.router)
 app.include_router(assistant_routes.router)
 app.include_router(company_routes.router)
 app.include_router(kite_routes.router)
+app.include_router(fyers_routes.router)
 app.include_router(risk_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(fii_dii_routes.router)

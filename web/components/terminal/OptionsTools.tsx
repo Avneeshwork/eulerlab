@@ -10,6 +10,7 @@
  * reads `/api/options/history`, which is that endpoint run once per day.
  */
 
+import { Info } from '@/components/terminal/ui';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import type { OptionChain, OptionHistoryPoint } from '@/lib/api';
@@ -129,11 +130,9 @@ export function OiTracker({
 
       <div className="tpanel" style={{ padding: 16, marginTop: 16 }}>
         <h3>Open interest by strike</h3>
-        <p className="tfine" style={{ margin: '0 0 12px' }}>
-          Calls to the left, puts to the right; the figure under each bar is the change since{' '}
+        <div className="ui-foot"><Info>Calls to the left, puts to the right; the figure under each bar is the change since{' '}
           {previous ? previousDay : 'the previous day (not landed for this expiry)'}. The
-          at-the-money strike is highlighted.
-        </p>
+          at-the-money strike is highlighted.</Info></div>
         <div className="oi-rows">
           <div className="oi-row oi-head">
             <span>Call OI</span>
@@ -239,12 +238,10 @@ export function VolSurface({ chain }: { chain: OptionChain }) {
   return (
     <div className="tpanel" style={{ padding: 16 }}>
       <h3>Implied volatility surface</h3>
-      <p className="tfine" style={{ margin: '0 0 12px' }}>
-        Rows are expiries, columns are distance from each expiry&rsquo;s forward. Puts below the
+      <div className="ui-foot"><Info>Rows are expiries, columns are distance from each expiry&rsquo;s forward. Puts below the
         forward, calls above, so every cell is the out-of-the-money contract. Darker is higher
         vol. A blank cell is a strike the solver could not price, never zero.
-        {loading && ` Reading ${chains.length + 1} of ${expiries.length} expiries…`}
-      </p>
+        {loading && ` Reading ${chains.length + 1} of ${expiries.length} expiries…`}</Info></div>
       <div className="tscroll">
         <table className="ttable heat">
           <thead>
@@ -387,9 +384,7 @@ export function StraddleHistory({ underlying }: { underlying: string }) {
         <>
           <div className="tpanel" style={{ padding: 16, marginBottom: 16 }}>
             <h3>At-the-money straddle premium</h3>
-            <p className="tfine" style={{ margin: '0 0 12px' }}>
-              Call plus put at the strike nearest the forward, nearest expiry, each day.
-            </p>
+            <div className="ui-foot"><Info>Call plus put at the strike nearest the forward, nearest expiry, each day.</Info></div>
             <Line
               points={points}
               value={(p) => p.straddle}
@@ -399,9 +394,7 @@ export function StraddleHistory({ underlying }: { underlying: string }) {
           </div>
           <div className="tpanel" style={{ padding: 16, marginBottom: 16 }}>
             <h3>At-the-money implied volatility</h3>
-            <p className="tfine" style={{ margin: '0 0 12px' }}>
-              Mean of the call and put IV at that strike, Black-76 on the fitted forward.
-            </p>
+            <div className="ui-foot"><Info>Mean of the call and put IV at that strike, Black-76 on the fitted forward.</Info></div>
             <Line points={points} value={(p) => p.atm_iv} format={(v) => pct(v)} label="ATM IV" />
           </div>
           <div className="tpanel" style={{ padding: 16 }}>
@@ -444,12 +437,10 @@ export function StraddleHistory({ underlying }: { underlying: string }) {
                 </tbody>
               </table>
             </div>
-            <p className="tfine" style={{ marginTop: 10 }}>
-              Dimmed rows had an untraded leg, so that day&rsquo;s price is NSE&rsquo;s settlement
+            <div className="ui-foot"><Info>Dimmed rows had an untraded leg, so that day&rsquo;s price is NSE&rsquo;s settlement
               model rather than a transaction.
               {skipped.length > 0 &&
-                ` ${skipped.length} day${skipped.length === 1 ? '' : 's'} had no priced at-the-money pair and are left out: ${skipped.slice(0, 5).join(', ')}${skipped.length > 5 ? '…' : ''}.`}
-            </p>
+                ` ${skipped.length} day${skipped.length === 1 ? '' : 's'} had no priced at-the-money pair and are left out: ${skipped.slice(0, 5).join(', ')}${skipped.length > 5 ? '…' : ''}.`}</Info></div>
           </div>
         </>
       )}

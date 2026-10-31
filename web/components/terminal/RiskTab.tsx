@@ -13,6 +13,7 @@
 
 'use client';
 
+import { Info } from '@/components/terminal/ui';
 import { useEffect, useState } from 'react';
 
 import { api } from '@/lib/api';
@@ -59,14 +60,14 @@ export function RiskTab() {
   if (!risk.ok) {
     return (
       <section className="tsection">
-        <h2>Limits could not be read</h2>
+        <h2 className="ui-heading">
+          Limits could not be read
+          <Info>
+            The limits the order path enforces are unchanged by this: it reads the same file
+            directly. What is broken is this screen&rsquo;s view of them.
+          </Info>
+        </h2>
         <p className="tdesc">{risk.error}</p>
-        <p className="tfine">
-          The limits the order path enforces are unchanged by this — it reads the same file
-          directly. What is broken is this screen&rsquo;s view of them, which is its own
-          problem: a risk screen that cannot show the limits should say so rather than show
-          nothing.
-        </p>
       </section>
     );
   }
@@ -75,19 +76,19 @@ export function RiskTab() {
     <section className="tsection">
       <h2 className="thero">
         {risk.tripped ? 'Tripped' : 'Armed'} <i>kill switch</i>
+        <Info>
+          {risk.tripped
+            ? 'Trading is stopped.'
+            : 'No limit has been breached. Each one below is a count or a rupee amount a human can check by hand against the day’s activity: a limit whose breach cannot be confirmed independently is a limit nobody trusts at the moment it fires.'}{' '}
+          {risk.reset_note}
+        </Info>
       </h2>
 
       {risk.tripped ? (
         <p className="tdesc">
           Trading is stopped. Reason: <b>{risk.reason || 'not recorded'}</b>
         </p>
-      ) : (
-        <p className="tdesc">
-          No limit has been breached. Each one below is a count or a rupee amount a human can
-          check by hand against the day&rsquo;s activity — a limit whose breach cannot be
-          confirmed independently is a limit nobody trusts at the moment it fires.
-        </p>
-      )}
+      ) : null}
 
       <div className="tpanel" style={{ padding: 16, marginTop: 24 }}>
         <h3>What stops trading</h3>
@@ -113,9 +114,6 @@ export function RiskTab() {
         </table>
       </div>
 
-      <p className="tfine" style={{ marginTop: 16 }}>
-        {risk.reset_note}
-      </p>
     </section>
   );
 }

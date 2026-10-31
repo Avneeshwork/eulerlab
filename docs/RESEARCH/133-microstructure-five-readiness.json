@@ -1,0 +1,95 @@
+{
+  "as_of": "2026-10-28T23:46:39+05:30",
+  "data_root": "data/landing",
+  "market_data_downloaded": false,
+  "pnl_backtests_run": false,
+  "inventory": {
+    "nse_historical_order_trade_files": 0,
+    "kite_minute_files": 843,
+    "kite_minute_futures_named_files": 0,
+    "normalized_microstructure_files": []
+  },
+  "strategies": [
+    {
+      "id": "micro-01",
+      "name": "Repeated institutional half-hour flow",
+      "source_url": "https://onlinelibrary.wiley.com/doi/10.1111/jfir.12131",
+      "rule": "For each instrument and half-hour, follow the same stable institution's net order-submission direction when it repeats on at least two of the previous three sessions; enter at the next session's first executable quote in that half-hour and exit at its end.",
+      "input_files": [
+        "orders.parquet",
+        "quotes.parquet",
+        "instrument_map.parquet"
+      ],
+      "adaptation": false,
+      "status": "blocked_missing_data",
+      "trials_spent": 0,
+      "backtest": null,
+      "blocker": "no NSE full order/trade files landed; additionally the published NSE schema has client-category fields but no stable institution/trader identifier"
+    },
+    {
+      "id": "micro-02",
+      "name": "Algorithm-side timing proxy",
+      "source_url": "https://doi.org/10.1016/j.ribaf.2020.101283",
+      "rule": "For trailing 1- and 5-minute windows, compute algorithm-tagged buyer notional minus algorithm-tagged seller notional divided by total notional; trade the sign above 0.20 at the next quote and exit after the matching 1- or 5-minute horizon.",
+      "input_files": [
+        "trades.parquet",
+        "quotes.parquet",
+        "instrument_map.parquet"
+      ],
+      "adaptation": true,
+      "status": "blocked_missing_data",
+      "trials_spent": 0,
+      "backtest": null,
+      "blocker": "no NSE full CM order/trade event files or replayable book snapshots are landed"
+    },
+    {
+      "id": "micro-03",
+      "name": "Aggressor-signed order-flow imbalance",
+      "source_url": "https://www.sciencedirect.com/science/article/pii/S1544612320316779",
+      "rule": "Over the trailing five minutes, compute signed aggressor volume divided by total volume; trade in its direction when absolute imbalance is at least 0.20, enter at the next quote, and exit one minute later.",
+      "input_files": [
+        "orders.parquet",
+        "trades.parquet",
+        "quotes.parquet",
+        "instrument_map.parquet"
+      ],
+      "adaptation": true,
+      "status": "blocked_missing_data",
+      "trials_spent": 0,
+      "backtest": null,
+      "blocker": "no NSE full CM order/trade event files or replayable book snapshots are landed"
+    },
+    {
+      "id": "micro-04",
+      "name": "Five-level limit-book pressure",
+      "source_url": "https://doaj.org/article/f889de21e919474daf8c846021452ece",
+      "rule": "Compute top-five-level size imbalance with level weights 1/k; trade when its absolute value is at least 0.20, cross the next observed best quote, and exit one minute later.",
+      "input_files": [
+        "orders.parquet",
+        "quotes.parquet",
+        "instrument_map.parquet"
+      ],
+      "adaptation": true,
+      "status": "blocked_missing_data",
+      "trials_spent": 0,
+      "backtest": null,
+      "blocker": "no NSE full CM order/trade event files or replayable book snapshots are landed"
+    },
+    {
+      "id": "micro-05",
+      "name": "Single-stock futures lead cash",
+      "source_url": "https://irgu.unigoa.ac.in/drs/handle/unigoa/6287",
+      "rule": "When the front contract's completed one-minute return is at least 5 bp in absolute value and its strictly prior 60-session one-minute lead correlation with the cash share is positive, enter cash at the next minute open and exit five minutes later; use date-valid contract-to-underlying IDs and do not stitch expiries.",
+      "input_files": [
+        "bars.parquet",
+        "instrument_map.parquet"
+      ],
+      "adaptation": true,
+      "status": "blocked_missing_data",
+      "trials_spent": 0,
+      "backtest": null,
+      "blocker": "cash minute bars exist in the archive, but no dated single-stock futures minute bars or date-valid contract-to-underlying map are landed"
+    }
+  ],
+  "note": "No performance result is reported without the required licensed event or futures data. The signals are fixed; do not replace missing signed flow or book depth with OHLCV."
+}

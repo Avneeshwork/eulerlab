@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty times this project was wrong
+## Forty-two times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -362,6 +362,7 @@ figure produced outside the result store before this date was frictionless.
 
 **32. The dashboard's Trend and Participation words had no source.** (2026-10-28) ADR-081 called Trend from Nifty against its 200-day average plus its 3-month change, and Participation from 60/40% of stocks above their 50-day average. Both sets of numbers were chosen without a source. On 2016-2026 data they changed word 16 and 22.6 times a year, and the breadth rule called 10% of the 2021 rally Narrow. Replaced by published rules (research 122, ADR-083): Faber's 10-month rule (2 changes a year) and the 200-day share confirmed by the High-Low Index (10.5). Both still read Downtrend and Narrow on 27 Oct 2026. "Sideways" no longer exists: Faber's rule has two states.
 
+**41. The first futures-to-cash prototype did not implement its frozen rule.** (2026-10-29) The draft calculated a within-contract lookback instead of a front-contract series with correlation from the strictly prior 60 cash sessions. Its one-minute percentage changes also crossed session boundaries, and its bar backtest could hold overlapping positions in the same share. Corrected it to calculate returns within contract and session, select the nearest-expiry contract per minute, pair each futures return with the next cash-minute return using only prior sessions, and block overlapping holds. The draft produced no P&L, so no reported performance numbers need revision.
 **33. The configured Groq model had been shut down for ten weeks.** (2026-10-29) `config/llm.yaml` pointed `groq` at `llama-3.3-70b-versatile`. Groq shut that model down on 2026-08-16 and named `openai/gpt-oss-120b` as its replacement (research 123). Nothing noticed, because no code used Groq by default and `health()` deliberately sends no request. The fixed OpenRouter `:free` llama id and the 3B local model were also unused and are removed. No stored result depended on any of them. A model id in config is a claim about a vendor's catalog, and it has a recheck date like any other (A-019).
 
 **34. `make agent` crashed for any agent that found something.** (2026-10-29) `python -m eulerlab.agents.runtime` runs the file as `__main__`, a second copy of the module with its own `Item` class. Workers build items from `eulerlab.agents.runtime.Item`, so the output failed validation and the run ended in a traceback with nothing written. Unit tests call `runtime.run` directly and never saw it; the three launchd agent jobs (T-4179) would have failed every night. Fixed: `__main__` hands over to the imported module's `main()`, and a test runs the module the way `make agent` does.

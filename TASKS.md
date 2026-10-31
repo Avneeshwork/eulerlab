@@ -3,6 +3,39 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## UI revamp (2026-10-28, ADR-102)
+
+Operator: "now i want you to revamp all screen ui don't ask for permission and setup auto start if session credit used".
+Rules for every screen (ADR-102): numbers and pictures on the page; every explanation, definition and caveat behind an `Info` (i) button, none inline; the chart type chosen for the question it answers; arrows beside red/green; the shared kit in `web/components/terminal/ui/`; fits a 390 px phone (no horizontal page scroll); a long screen split into tabs kept in the URL.
+Work on branch `ui-revamp`; one screen per commit; do not push. Verify: `make verify`, then a desktop and a 390 px screenshot of the screen.
+Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourly) continues from the first TODO below when `data/cache/ui-revamp.active` exists and has not been touched for 90 minutes. Delete that file to stop it.
+
+| ID | Screen | Status |
+|---|---|---|
+| T-4270 | Shared UI kit: `ui/` (Info, Heading, Stat, Seg, Tabs, Sparkline, Bar, Chip) used by every screen | DONE. `web/components/terminal/ui/` (Info, Heading, Stat/Stats, Chip, Seg, Empty, Move/signed, Sparkline, Bar) and `ui.css`; page subtitles and Tools card descriptions moved behind (i) |
+| T-4271 | Strategies (Library) | DONE. Headline as stat tiles; Sharpe drawn as a bar against the noise bar; returns with arrows; verdict, class and column notes behind (i); drawer summary behind (i). Fits 390 px |
+| T-4272 | Strategy report (BacktestReport, AdoptedReport) | DONE. Card subtitles, view introductions, reconciliation, factor-model method and paging notes behind (i): 29 paragraphs to 16 (the rest are data, warnings or actions). Fits 390 px |
+| T-4273 | Live & Risk (LiveTab, RiskBook, RiskTab, PaperDeployments, deployment report) | DONE. 31 explanation lines behind (i); diversification sentence now a stat, overnight-gap warning and data notes now chips; names no longer squeezed to "…"; tab row scrolls inside itself, so the page fits 390 px (was 478) |
+| T-4274 | Options (OptionsTab, OptionsTools, OptionsCharts, PayoffBuilder) | DONE. 14 explanation paragraphs behind (i); the no-arbitrage result is a chip. Fits 390 px |
+| T-4275 | Charts (ChartTab, MacroBand) | DONE. ETF, TradingView, macro-source and uncharted notes are chips with (i). Fits 390 px |
+| T-4284 | The Charts embed refuses NSE symbols ("only available on TradingView"), so the default NIFTYBEES chart is empty | TODO, not presentation: needs a data decision (own-panel chart as the default for NSE, or a licensed widget) |
+| T-4276 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4270); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
+| T-4277 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
+| T-4278 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
+| T-4279 | SIP backtester | TODO |
+| T-4280 | Company page (`app/terminal/company/[symbol]`) | TODO |
+| T-4281 | Dialogs (Backtest, Deploy, Explain) | TODO |
+| T-4282 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
+| T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | IN PROGRESS. main merged into `ui-revamp` on 2026-10-31 and ids renumbered (ADR-102, research 132/133, HISTORY #41, T-4270..T-4285); PR #38 open. Left: merge it, then delete the flag file and unload the launchd job on the Mac |
+
+## Five Indian microstructure strategies (2026-10-28)
+
+Operator: "code and backtest all" after the five paper-based NSE microstructure candidates and the free-data check.
+Verify: `make microstructure-five`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
 ## Market brief: the Trader's read (2026-10-31)
 
 Operator: "current market brief is joke and it doesn't make any sense and not helping a trade at all ... add one more component how to answer which give better clarity to trader". ADR-100.

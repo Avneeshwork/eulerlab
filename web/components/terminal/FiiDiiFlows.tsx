@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { FiiDiiFlows as Flows, FiiDiiGroup, FiiDiiMonth } from '@/lib/api';
-import { Info } from './Info';
+import { Info } from './ui';
 import './fiidii.css';
 
 /** ₹ crore with a sign, Indian grouping: +2,535 Cr. */

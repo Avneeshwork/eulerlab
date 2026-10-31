@@ -1,0 +1,179 @@
+/* The shared terminal kit (ADR-102). Shell tokens only. */
+
+/* --- Info button: the only place explanation lives (ADR-082, ADR-102) --------------- */
+.info {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.info-btn {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--rule-2, var(--rule));
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-3);
+  font: italic 600 11px/1 Georgia, 'Times New Roman', serif;
+  cursor: pointer;
+}
+.info-btn:hover,
+.info-btn[aria-expanded='true'] {
+  color: var(--ink);
+  border-color: var(--ink-3);
+}
+.info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.info-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 30;
+  width: max-content;
+  max-width: min(340px, 80vw);
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: normal;
+  text-align: left;
+}
+.info-pop.left { left: -8px; }
+.info-pop.right { right: -8px; }
+
+
+/* --- Headings -------------------------------------------------------------- */
+.ui-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 0;
+}
+.ui-sub {
+  margin-left: 10px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.ui-heading-end { margin-left: auto; display: inline-flex; gap: 8px; align-items: center; }
+
+/* --- Stats ----------------------------------------------------------------- */
+.ui-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr));
+  gap: 12px 18px;
+}
+.ui-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ui-stat-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.ui-stat-value {
+  font-size: var(--t-lead);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.015em;
+}
+.ui-stat-value.up { color: var(--clear); }
+.ui-stat-value.down { color: var(--fail); }
+.ui-stat-sub { font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* --- Chips, switches, empties ------------------------------------------------ */
+.ui-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.ui-chip.up { color: var(--clear); border-color: currentColor; }
+.ui-chip.down { color: var(--fail); border-color: currentColor; }
+.ui-chip.warn { color: var(--mc-mid, #c9a227); border-color: currentColor; }
+.ui-seg {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.ui-seg button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ui-seg button + button { border-left: 1px solid var(--rule); }
+.ui-seg button.on { background: var(--ink); color: var(--ground); font-weight: 600; }
+.ui-empty { color: var(--ink-3); text-align: center; padding: 12px; }
+
+/* --- Moves -------------------------------------------------------------------- */
+.ui-move {
+  display: inline-flex;
+  gap: 3px;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+.ui-move i { font-style: normal; font-size: 0.85em; }
+.ui-move.up { color: var(--clear); }
+.ui-move.down { color: var(--fail); }
+
+/* --- Sparkline ------------------------------------------------------------------ */
+.ui-spark { display: block; width: 100%; }
+.ui-spark-line {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.ui-spark-area { fill: var(--ink-3); opacity: 0.08; }
+.ui-spark.up .ui-spark-line { stroke: var(--clear); }
+.ui-spark.up .ui-spark-area { fill: var(--clear); opacity: 0.12; }
+.ui-spark.down .ui-spark-line { stroke: var(--fail); }
+.ui-spark.down .ui-spark-area { fill: var(--fail); opacity: 0.12; }
+.ui-spark-avg {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* --- Bars in cells -------------------------------------------------------------- */
+.ui-bar {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  min-width: 48px;
+  height: 10px;
+  vertical-align: middle;
+}
+.ui-bar.centred { background: linear-gradient(var(--rule), var(--rule)) center / 1px 100% no-repeat; }
+.ui-bar i { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; }
+.ui-bar i.up { background: var(--clear); opacity: 0.75; }
+.ui-bar i.down { background: var(--fail); opacity: 0.75; }
+.ui-bar i.accent { background: var(--accent); opacity: 0.6; }
+
+/* A panel's explanation when it has no heading to sit in: a lone info button
+   at its foot. */
+.ui-foot { display: flex; justify-content: flex-end; margin-top: 8px; }

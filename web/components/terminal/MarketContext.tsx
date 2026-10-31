@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { BreadthName, Horizon, MarketContext, PulseCard, ValuationCell } from '@/lib/api';
-import { Info } from './Info';
+import { Info } from './ui';
 import './marketcontext.css';
 
 const signed = (fraction: number | null | undefined, digits = 1) => {
