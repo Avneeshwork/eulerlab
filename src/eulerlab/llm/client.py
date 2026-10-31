@@ -37,7 +37,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
@@ -72,7 +72,20 @@ class Provider(BaseModel):
     max_tokens: int = Field(default=2048, gt=0)
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
     """Low by default. The model is drafting a specification that has to
-    parse, not writing prose, and creativity here shows up as invalid output."""
+    parse, not writing prose, and creativity here shows up as invalid output.
+    Not sent to Anthropic, which rejects sampling parameters."""
+
+    api: Literal["openai", "anthropic"] = "openai"
+    """The request shape. `anthropic` is Claude's Messages API through the
+    official SDK (`assistant/anthropic_api.py`, ADR-095); only the assistant's
+    path speaks it, so the strategy translator cannot be pointed at Claude."""
+
+    effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None
+    """Claude only: how hard the model thinks. Unset is the model's default."""
+
+    refusal_fallback: bool = False
+    """Claude only: re-run a declined request on Anthropic's recommended
+    fallback model. Must stay off for Claude Haiku 5.5, which has none."""
 
 
 class LLMConfig(BaseModel):
@@ -90,6 +103,12 @@ class LLMConfig(BaseModel):
     ADR-084). It goes through the assistant's locks, so it must also name an
     approved host. Kept apart from `assistant` so the strongest free model can
     serve the long, structured drafting task without changing the chat panel."""
+
+    offered: list[str] | None = None
+    """The providers the assistant panel and Research Library list, in order.
+    Unset lists every provider. Set 2026-10-29 at the operator's request, so
+    the pickers show only the models they asked for; others stay in the file
+    for the translator, the audit and the paper agent."""
 
     def get(self, name: str | None = None) -> Provider:
         wanted = name or self.default
@@ -150,6 +169,9 @@ def complete(
     shown when it produced a given answer.
     """
     chosen = provider or (config or load_config()).get(provider_name)
+    if chosen.api != "openai":
+        msg = f"{chosen.name} speaks the {chosen.api} API, which only the assistant supports."
+        raise LLMUnavailable(msg)
     key = _api_key(chosen)
 
     payload = json.dumps(

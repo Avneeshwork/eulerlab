@@ -2360,13 +2360,27 @@ export type AgentActivity = {
   enabled: boolean;
   uses_model: boolean;
   cli_only: boolean;
+  schedule?: string;
   state: 'idle' | 'running' | 'stopped' | 'ok' | 'skipped' | 'over_budget' | 'refused' | 'failed';
   run_id: string;
   started: string;
   summary: string;
   now: string;
   steps: AgentStep[];
+  /** The last run's items, worst first. */
+  findings?: AgentFinding[];
+  findings_total?: number;
 };
+
+export type AgentFinding = {
+  kind: string;
+  severity: 'info' | 'warn' | 'critical';
+  title: string;
+  body: string;
+  ref: string;
+};
+
+export type SkepticTarget = { strategy: string; report: string; at: string };
 
 export type ActivityResponse = {
   ok: boolean;
@@ -2379,6 +2393,7 @@ export const agentsApi = {
   list: () => get<AgentsResponse>('/api/agents'),
   activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
   inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
+  skepticTargets: () => get<{ ok: boolean; targets: SkepticTarget[] }>('/api/agents/skeptic/targets'),
   decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
     post<{ ok: boolean; error?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, { decision, note }),
   setting: (name: string, change: { enabled?: boolean; daily_requests?: number }) =>

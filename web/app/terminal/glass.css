@@ -281,6 +281,61 @@
 }
 .agent-chip[data-state='running'] .agent-chip-said { background: var(--brand-wash); }
 .agent-chip[data-state='running'] .agent-chip-said span { color: var(--brand); }
+.agent-findings ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.agent-findings li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.agent-findings li[data-severity='critical'] { background: var(--down-wash); }
+.agent-findings li[data-severity='warn'] { background: var(--caveat-wash); }
+.agent-findings li b { font-weight: 600; }
+.agent-findings li p { color: var(--ink-2); margin-top: 2px; }
+.agent-findings > .agent-link { margin-top: 6px; }
+.agent-sev {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--ink-3);
+  background: var(--surface);
+  margin-top: 1px;
+}
+.agent-sev[data-severity='critical'] { color: var(--down); }
+.agent-sev[data-severity='warn'] { color: var(--caveat); }
+.agent-fix { font-size: 12px; }
+.agent-findings li ul.agent-reasons { display: block; margin: 4px 0 0; padding-left: 16px; list-style: disc; color: var(--ink-2); }
+.agent-findings li ul.agent-reasons li { display: list-item; padding: 0; background: none; font-size: 12.5px; }
+.agent-fix code, .agent-cmd code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--surface);
+}
+.agent-key { font-size: 12px; color: var(--ink-3); line-height: 1.45; }
+.agent-cli {
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--brand-wash);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.agent-cmd { display: inline-flex; align-items: center; gap: 10px; }
+.agent-cmd code { font-size: 13px; padding: 3px 8px; }
+.agent-pick { height: 30px; max-width: 240px; font-size: 13px; }
 .agent-chip-body footer { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; margin-top: 2px; }
 .agent-next { font-size: 12.5px; color: var(--ink-2); flex: 1; min-width: 160px; }
 .agent-chip-body footer .tbtn { height: 30px; padding: 0 14px; font-size: 13px; }

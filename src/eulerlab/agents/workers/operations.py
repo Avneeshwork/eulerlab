@@ -123,7 +123,10 @@ def run(ctx: Context) -> WorkerResult:
                 Item(
                     kind="alert",
                     title=f"{d.strategy_id} ({d.mode}) is {d.status}",
-                    body=d.status_reason,
+                    body=(
+                        f"Why: {d.status_reason or 'no reason recorded'}. While {d.status} it places no "
+                        "trades; open Live & Risk to see the book."
+                    ),
                     severity="warn",
                 )
             )
@@ -134,9 +137,21 @@ def run(ctx: Context) -> WorkerResult:
                 )
             )
 
-    slow = sum(1 for i in items if i.kind == "alert")
+    alerts = [i for i in items if i.kind == "alert"]
+    timed = (
+        f"{len(report)} scheduled steps checked against their deadlines over 60 days"
+        if report
+        else "No scheduled step has recorded a timing in 60 days"
+    )
+    said = (
+        f"{len(alerts)} alert{'s' if len(alerts) != 1 else ''}: "
+        + "; ".join(i.title for i in alerts[:2])
+        + (f" and {len(alerts) - 2} more" if len(alerts) > 2 else "")
+        if alerts
+        else "no alerts"
+    )
     return WorkerResult(
-        f"{len(report)} timed steps over 60 days; {slow} alerts",
+        f"{timed}. {said}.",
         items,
         data={"steps": report},
     )
