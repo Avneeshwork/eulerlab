@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Continue the UI revamp in a headless Claude Code run when the interactive
 # session has stopped, e.g. because its usage credit ran out (TASKS "UI revamp",
-# ADR-084). Run hourly by launchd (com.eulerlab.uirevamp).
+# ADR-102). Run hourly by launchd (com.eulerlab.uirevamp).
 #
 # It does nothing unless:
 #   - data/cache/ui-revamp.active exists (delete it to stop for good);
@@ -40,7 +40,7 @@ CLAUDE=$(ls -d "$HOME"/.vscode/extensions/anthropic.claude-code-*-darwin-arm64 2
 touch "$FLAG"
 git checkout -q ui-revamp 2>/dev/null || exit 0
 
-PROMPT='You are continuing the EulerLab UI revamp unattended; the operator approved it and asked not to be asked for permission. Read CLAUDE.md, then the "UI revamp" section of TASKS.md and docs/DECISIONS/ADR-084-ui-revamp.md. If a row is DOING, an earlier run or session was cut off: finish that screen, building on the uncommitted changes in the working tree. Otherwise take the first row whose status is TODO, set it to DOING, and revamp that screen following the rules in that section. Keep behaviour and data the same; change presentation only. Touch data/cache/ui-revamp.active every few steps. Then run `make verify`; if it is green, set the row to DONE with one line of what changed, update docs/ARCHITECTURE.md if behaviour changed, and commit on the ui-revamp branch with a conventional message ending "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". If it is red and you cannot fix it, revert your changes to that screen, mark the row BLOCKED with the reason, and commit that. Never push, never run make gate or make validate, never edit gates.py or mandate.yaml. If no TODO rows remain except T-4183, stop and leave T-4183 for the operator.'
+PROMPT='You are continuing the EulerLab UI revamp unattended; the operator approved it and asked not to be asked for permission. Read CLAUDE.md, then the "UI revamp" section of TASKS.md and docs/DECISIONS/ADR-102-ui-revamp.md. If a row is DOING, an earlier run or session was cut off: finish that screen, building on the uncommitted changes in the working tree. Otherwise take the first row whose status is TODO, set it to DOING, and revamp that screen following the rules in that section. Keep behaviour and data the same; change presentation only. Touch data/cache/ui-revamp.active every few steps. Then run `make verify`; if it is green, set the row to DONE with one line of what changed, update docs/ARCHITECTURE.md if behaviour changed, and commit on the ui-revamp branch with a conventional message ending "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>". If it is red and you cannot fix it, revert your changes to that screen, mark the row BLOCKED with the reason, and commit that. Never push, never run make gate or make validate, never edit gates.py or mandate.yaml. If no TODO rows remain except T-4283, stop and leave T-4283 for the operator.'
 
 "$CLAUDE" -p "$PROMPT" \
   --permission-mode acceptEdits \

@@ -110,6 +110,22 @@ JOBS = {
             "provisional daily bars meanwhile (ADR-079). It exits at once on an NSE holiday."
         ),
     ),
+    "depth": Job(
+        name="depth",
+        label="com.eulerlab.depth",
+        command="cd {repo} && make depth-day",
+        hour=9,
+        minute=10,
+        weekdays=WEEKDAYS,
+        log="depth",
+        what="make depth-day, Monday to Friday",
+        why_then=(
+            "09:10 IST is five minutes before the open. It records Kite's five-level depth\n"
+            "for the Nifty 50 until 15:31, then uploads the day to B2 and deletes the local\n"
+            "copy only after the size and SHA-256 match (ADR-095). It needs a Kite token\n"
+            "made that morning; without one it says so and exits."
+        ),
+    ),
     "gap-signal": Job(
         name="gap-signal",
         label="com.eulerlab.gapsignal",
@@ -138,6 +154,63 @@ JOBS = {
             "Company fundamentals change quarterly and the fetch walks every company for\n"
             "hours, so it left the nightly job on 2026-10-13. Sunday morning keeps it clear\n"
             "of the 19:30 daily run and of market hours. It can also be run by hand."
+        ),
+    ),
+    "agents-preopen": Job(
+        name="agents-preopen",
+        label="com.eulerlab.agentspreopen",
+        command="cd {repo} && make agents-preopen",
+        hour=8,
+        minute=45,
+        weekdays=WEEKDAYS,
+        log="agents_preopen",
+        what="make agents-preopen, Monday to Friday",
+        why_then=(
+            "08:45 IST is 15 minutes before the pre-open session: the data and operations\n"
+            "agents check last night's run and the market brief goes out before 09:00 (ADR-085)."
+        ),
+    ),
+    "brief-weekend": Job(
+        name="brief-weekend",
+        label="com.eulerlab.briefweekend",
+        command="cd {repo} && make agent NAME=market_brief",
+        hour=9,
+        minute=30,
+        weekdays=(6, SUNDAY),
+        log="brief_weekend",
+        what="the market brief agent, Saturday and Sunday",
+        why_then=(
+            "On a closed day the brief is a markets-closed note: the last session's read,\n"
+            "the week in review and the week ahead (ADR-105). One per break: Sunday's run\n"
+            "finds Saturday's note and stops. Weekday holidays get theirs from the 08:45 run."
+        ),
+    ),
+    "agents-close": Job(
+        name="agents-close",
+        label="com.eulerlab.agentsclose",
+        command="cd {repo} && make agents-close",
+        hour=16,
+        minute=15,
+        weekdays=WEEKDAYS,
+        log="agents_close",
+        what="make agents-close, Monday to Friday",
+        why_then=(
+            "16:15 IST is 45 minutes after the close, once india-live has its first pass:\n"
+            "the after-close brief, book drift and step timings for the day."
+        ),
+    ),
+    "agents-weekly": Job(
+        name="agents-weekly",
+        label="com.eulerlab.agentsweekly",
+        command="cd {repo} && make agents-weekly",
+        hour=7,
+        minute=0,
+        weekdays=(SUNDAY,),
+        log="agents_weekly",
+        what="make agents-weekly, every Sunday",
+        why_then=(
+            "Sunday 07:00 IST, before the 10:00 fundamentals job: the Quantpedia sync, the\n"
+            "knowledge index, a research run on the standing brief and the code review."
         ),
     ),
 }

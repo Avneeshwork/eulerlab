@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute
+.PHONY: strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -31,6 +31,9 @@ help:
 	@echo "  make microstructure-five-futures [FROM=...] [EVAL_FROM=...] [TO=...]"
 	@echo "                    fetch, normalize, and backtest frozen strategy micro-05"
 	@echo "  make microstructure-five-b2  retry B2 upload of the raw and derived micro-05 data"
+	@echo "  make nse-reports [FROM=date]  NSE deals, ban list, SLBM, MTF, insider, SAST; to B2"
+	@echo "  make index-minute [YEARS=1]   NIFTY 50 / BANK / VIX minute bars; to B2"
+	@echo "  make depth-day                record Nifty 50 five-level depth until 15:31; to B2"
 	@echo "  make mcx-instruments  fetch today's MCX instrument master and mirror to B2"
 	@echo "  make mcx-gold-minute  fetch current Gold futures minutes and mirror to B2"
 	@echo "  make mcx-gold-backtest run the frozen MCX Gold rule with costs"
@@ -65,6 +68,24 @@ help:
 	@echo "                    data quality report; ROWS=n also checks price rows"
 	@echo "  make research [CRITIC=H-0002]  the loop: cards, critic, gate verdicts"
 	@echo "  make scout [PROPOSE=n]   what would searching cost? then draft cards"
+	@echo "  make paper-agent TOPIC='...' [LIMIT=5]  find papers, draft cards, stop for approval"
+	@echo "  make paper-agent-approve DRAFT=<folder>  move one draft to hypotheses/ and the library"
+	@echo "  make quantpedia-sync [LIMIT=50]  land Quantpedia's strategy catalogue (needs a key in .env)"
+	@echo "  make data-quality       grade every dataset against the data quality contract"
+	@echo "  make fii-dii            capture today's FII/DII cash flows from NSE"
+	@echo "  make fii-dii-history    backfill FII/DII history from aggregators (MONTHS=12)"
+	@echo "  make agents             list the agents, on or off"
+	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
+	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
+	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
+	@echo "  make knowledge-keeper [MODE=weekly]  refresh metric normals, watch SEBI/RBI/NSE, draft page updates"
+	@echo "  make metrics-normals          recompute what is normal for each metric"
+	@echo "  make board-meetings           capture today's NSE board-meeting intimations (results calendar)"
+	@echo "  make holidays                 fetch this year's NSE trading holidays (the brief skips them)"
+	@echo "  make handbook                 rebuild the Market Handbook (workbench /handbook.html)"
+	@echo "  make metrics-accept DRAFT=... apply an approved draft page to docs/METRICS"
+	@echo "  make agent-eval [ONLY=skeptic|knowledge]  score agents; one that makes up a figure is switched off"
+	@echo "  make relock DEPLOYMENT=<id> NOTE='...'  accept a strategy's changed code after review"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
 	@echo "  make validate H=H-0001  overfitting battery: CPCV, DSR, PBO, MinBTL"
@@ -226,6 +247,80 @@ research:
 scout:
 	@uv run python -m eulerlab.research.scout $(if $(PROPOSE),--propose $(PROPOSE),) $(if $(DRAFT),--draft "$(DRAFT)",) $(if $(SOURCE),--source $(SOURCE),)
 
+paper-agent:
+	@uv run python -m eulerlab.research.paper_agent --topic "$(TOPIC)" $(if $(LIMIT),--limit $(LIMIT),) $(if $(SOURCES),--sources $(SOURCES),) $(if $(MODEL),--model $(MODEL),)
+
+paper-agent-approve:
+	@test -n "$(DRAFT)" || (echo "usage: make paper-agent-approve DRAFT=research/agent_drafts/<run>/<paper>"; exit 2)
+	@uv run python -m eulerlab.research.paper_agent --approve "$(DRAFT)"
+
+paper-agent-list:
+	@uv run python -m eulerlab.research.paper_agent --list
+
+quantpedia-sync:
+	@uv run python -m eulerlab.research.quantpedia $(if $(LIMIT),--limit $(LIMIT),)
+
+# --- the agent network (ADR-085) and the data quality contract (ADR-086) ---
+data-quality:
+	@uv run python -m eulerlab.quality.contract
+
+agents:
+	@uv run python -m eulerlab.agents.runtime
+
+agent:
+	@test -n "$(NAME)" || (echo "usage: make agent NAME=<agent> [ARGS='key=value ...']"; exit 2)
+	@uv run python -m eulerlab.agents.runtime $(NAME) $(foreach a,$(ARGS),--arg $(a))
+
+agent-brief:
+	@test -n "$(NAME)" -a -n "$(TEXT)" || (echo "usage: make agent-brief NAME=<agent|all> TEXT='...'"; exit 2)
+	@uv run python -m eulerlab.agents.briefs $(NAME) "$(TEXT)"
+
+agents-preopen:
+	-@uv run python -m eulerlab.agents.runtime data
+	-@uv run python -m eulerlab.agents.runtime operations
+	-@uv run python -m eulerlab.agents.runtime market_brief
+
+knowledge-keeper:
+	@uv run python -m eulerlab.agents.runtime knowledge_keeper $(if $(MODE),--arg mode=$(MODE),)
+
+board-meetings:
+	@uv run python -m eulerlab.ingest.board_meetings
+
+holidays:
+	@uv run python -m eulerlab.ingest.holidays
+
+handbook:
+	@uv run python tools/render_metrics_handbook.py
+
+metrics-normals:
+	@uv run python -m eulerlab.metrics_library.normals
+
+metrics-accept:
+	@uv run python -m eulerlab.agents.workers.knowledge_keeper $(DRAFT)
+
+agents-close:
+	-@uv run python -m eulerlab.agents.runtime data
+	-@uv run python -m eulerlab.agents.runtime operations
+	-@uv run python -m eulerlab.agents.runtime portfolio
+	-@uv run python -m eulerlab.agents.runtime knowledge_keeper
+	-@uv run python tools/render_metrics_handbook.py
+
+agents-weekly:
+	-@uv run python -m eulerlab.agents.evaluate
+	-@uv run python -m eulerlab.research.quantpedia
+	-@uv run python -m eulerlab.agents.runtime knowledge_keeper --arg mode=weekly
+	-@uv run python -m eulerlab.agents.runtime knowledge
+	-@uv run python -m eulerlab.agents.runtime research
+	-@uv run python -m eulerlab.agents.runtime lab
+	-@uv run python -m eulerlab.agents.runtime engineering
+
+agent-eval:
+	@uv run python -m eulerlab.agents.evaluate $(if $(ONLY),--only $(ONLY),)
+
+relock:
+	@test -n "$(DEPLOYMENT)" -a -n "$(NOTE)" || (echo "usage: make relock DEPLOYMENT=<id> NOTE='why the new code is accepted'"; exit 2)
+	@uv run python -m eulerlab.deploy.version_lock $(DEPLOYMENT) --note "$(NOTE)"
+
 gate-acceptance:
 	@uv run python -m eulerlab.validation.gate_acceptance $(if $(SYMBOLS),--symbols $(SYMBOLS),)
 
@@ -239,10 +334,10 @@ test-engine:
 	@uv run python -m eulerlab.backtest.selftest $(if $(UPDATE),--update-golden,)
 
 backtest:
-	@uv run python -m eulerlab.backtest.compare $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),)
+	@uv run python -m eulerlab.backtest.compare $(if $(ALLOW_LOW),--allow-low-grade,) $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),)
 
 backtest-fast:
-	@uv run python -m eulerlab.backtest.report $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),) $(if $(COMPARE),--compare,)
+	@uv run python -m eulerlab.backtest.report $(if $(ALLOW_LOW),--allow-low-grade,) $(if $(STRAT),--strategy $(STRAT),) $(if $(FEATURE),--feature $(FEATURE),) $(if $(REBALANCE),--rebalance $(REBALANCE),) $(if $(MIN_TURNOVER),--min-turnover $(MIN_TURNOVER),) $(if $(COMPARE),--compare,)
 
 ic:
 	@uv run python -m eulerlab.features.tearsheet $(if $(FEATURE),--feature $(FEATURE),) $(if $(HORIZON),--horizon $(HORIZON),) $(if $(ALL),--all,)
@@ -263,6 +358,7 @@ api:
 	uv run --extra web uvicorn eulerlab.api.server:app --port 8000 --reload --reload-dir src
 
 ui:
+	-@uv run python tools/render_metrics_handbook.py
 	cd web && npm install --silent && npm run dev
 
 # Download and merge every backtest result from the bucket, whatever its size.
@@ -295,6 +391,18 @@ acceptance:
 tweezer:
 	@uv run python -m eulerlab.intraday.scan $(if $(UNIVERSE),--universe $(UNIVERSE),$(if $(SYMBOLS),,--universe nifty50)) $(if $(SYMBOLS),--symbols $(SYMBOLS),) $(if $(DAY),--day $(DAY),) $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),) $(if $(WORKERS),--workers $(WORKERS),) $(if $(QUIET),--quiet,) $(if $(PRUNE),--prune,)
 
+# FII/DII provisional cash flows. NSE serves the latest day only, so this is
+# capture-only: run it every trading evening (`make daily` does). ADR-098.
+# REBUILD=1 rewrites data/derived/fii_dii_cash.jsonl from the landed files.
+fii-dii:
+	@uv run python -m eulerlab.ingest.fii_dii_cash $(if $(REBUILD),--rebuild,)
+
+# Backfill FII/DII days NSE no longer serves, from Trendlyne, cross-checked
+# against Groww and stockezee (ADR-099). One page per month, 2.5 s apart.
+MONTHS ?= 12
+fii-dii-history:
+	@uv run python -m eulerlab.ingest.fii_dii_history --months $(MONTHS)
+
 ingest-nse-daily:
 	@test -n "$(FROM)" || (echo "usage: make ingest-nse-daily FROM=2015-01-01 [TO=...]"; exit 2)
 	uv run python -m eulerlab.ingest.nse_daily_files --from $(FROM) $(if $(TO),--to $(TO),)
@@ -322,6 +430,10 @@ telegram-bot:
 
 rebuild-ohlc:
 	uv run python -m eulerlab.features.rebuild_ohlc $(if $(SWAP),--swap,)
+
+# ADR-106: how alike are the stored daily strategies? Reads stored reports only; spends no trial.
+strategy-map:
+	@uv run python -m eulerlab.research.strategy_map
 
 india-papers:
 	@uv run --extra web python -m eulerlab.research.run_india $(if $(ONLY),--only $(ONLY),)
@@ -455,7 +567,7 @@ india-five-intraday:
 # Five paper-driven microstructure rules: inspect the required data and save a
 # readiness report before spending any strategy trials.
 microstructure-five:
-	@uv run python -m eulerlab.intraday.microstructure_five --output docs/RESEARCH/125-microstructure-five-readiness.json
+	@uv run python -m eulerlab.intraday.microstructure_five --output docs/RESEARCH/133-microstructure-five-readiness.json
 
 # FYERS' official individual-app login and approved expired-F&O history path.
 fyers-auth:
@@ -527,6 +639,38 @@ daily-minute:
 	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
 
 # Five-year MCX iCOMDEX minute history; the manifest makes repeats incremental.
+# NSE daily reports: bulk/block deals, short selling, F&O ban, SLBM, MTF,
+# insider (PIT) and SAST filings, plus today's pledge, IPO and Nifty 50 list
+# snapshots. Research 130, ADR-095. FROM defaults to a week back.
+nse-reports:
+	-uv run python -m eulerlab.ingest.nse_reports --from $(if $(FROM),$(FROM),$$(date -v-7d +%Y-%m-%d))
+	-@$(MAKE) --no-print-directory market-reports
+	@$(MAKE) --no-print-directory upload-verified TREES="nse_reports"
+
+# Dashboard → India → Deals & filings, from the landed reports (ADR-096).
+# Runs inside nse-reports, before the upload deletes the local copies.
+market-reports:
+	uv run python -m eulerlab.market_reports
+
+# Kite 1-minute candles for NIFTY 50, NIFTY BANK and INDIA VIX. YEARS=1 default.
+index-minute:
+	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_index_minute $(if $(YEARS),--years $(YEARS),)
+	@$(MAKE) --no-print-directory upload-verified TREES="kite_index_minute"
+
+# Kite five-level depth for the Nifty 50, the index and the near future, until
+# 15:31 IST. depth-day records, then uploads and deletes after verification.
+depth-record:
+	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.depth_recorder $(if $(RUN_SECONDS),--seconds $(RUN_SECONDS),)
+
+depth-day:
+	-@$(MAKE) --no-print-directory depth-record
+	@$(MAKE) --no-print-directory upload-verified TREES="kite_depth"
+
+# Upload trees to B2 and delete a local file only when the bucket's size and
+# SHA-256 match it. KEEP=1 verifies without deleting.
+upload-verified:
+	@uv run python -m eulerlab.ingest.verified_prune $(TREES) $(if $(KEEP),--keep,)
+
 mcx-index-minute:
 	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_mcx_indices --years 5
 
@@ -570,9 +714,14 @@ daily-run:
 	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
 	@echo "== participant OI =="
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
+	@echo "== NSE reports (deals, ban list, SLBM, MTF, insider, SAST, snapshots) =="
+	-$(MAKE) --no-print-directory nse-reports
 	@echo "== NSE index closes (incl. India VIX) and delivery =="
 	-uv run python -m eulerlab.ingest.nse_daily_files --from $$(date -v-7d +%Y-%m-%d)
 	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
+	@echo "== FII/DII cash flows (NSE serves today only) =="
+	-uv run python -m eulerlab.ingest.fii_dii_cash
+	-@$(MAKE) --no-print-directory upload-tree TREES="fii_dii" DELETE=1
 	-uv run python -m eulerlab.market_history --skip-expiries
 	@# The panel and the paper books come straight after the bhavcopy, from the
 	@# local landed file, so a slow or failed network step below cannot leave
@@ -591,11 +740,17 @@ daily-run:
 	@echo "== economic calendar =="
 	-uv run python -m eulerlab.ingest.forexfactory
 	-@$(MAKE) --no-print-directory upload-tree TREES="calendar" DELETE=1
+	@echo "== NSE holidays, then the after-close note (now the day's closes, flows and calendar are in) =="
+	-uv run python -m eulerlab.ingest.holidays
+	-uv run python -m eulerlab.ingest.board_meetings
+	-uv run python -m eulerlab.agents.runtime market_brief --arg mode=after-close
 	@echo "== minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory daily-minute
 	@echo "== provisional daily bars (minute bars while the bhavcopy is missing) =="
 	-uv run python -m eulerlab.ingest.provisional_daily
 	-@$(MAKE) --no-print-directory upload-tree TREES="kite_minute" DELETE=1
+	@echo "== index minute bars: NIFTY 50, NIFTY BANK, INDIA VIX (needs a token minted today) =="
+	-$(MAKE) --no-print-directory index-minute
 	@echo "== MCX iCOMDEX minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory mcx-index-minute
 	-@$(MAKE) --no-print-directory upload-tree TREES="mcx_indices" DELETE=1

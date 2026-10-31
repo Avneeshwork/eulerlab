@@ -104,6 +104,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--rebalance", type=int, default=21)
     parser.add_argument("--cost-mode", default="realistic", choices=("realistic", "replication"))
     parser.add_argument("--compare", action="store_true", help="run both cost modes")
+    parser.add_argument(
+        "--allow-low-grade",
+        action="store_true",
+        help="run even if the price panel is below its data quality grade (ADR-086)",
+    )
     args = parser.parse_args(argv)
 
     if not args.strategy:
@@ -112,6 +117,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         for feature in LIBRARY:
             print(f"  {feature.name:<22} {feature.description}")
         return 0
+
+    from eulerlab.quality import contract
+
+    try:
+        contract.guard(["Price panel"], allow_low=args.allow_low_grade)
+    except contract.LowGrade as exc:
+        print(exc)
+        return 3
 
     rows = read_panel()
     if not rows:

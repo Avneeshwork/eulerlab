@@ -1,0 +1,18 @@
+# The operations agent (ADR-085). No model.
+name: operations
+title: Operations agent
+job: Times every scheduled step against its deadline, says which is getting slower, and measures each paper book's gap to its backtest.
+worker: eulerlab.agents.workers.operations
+schedule: "16:15 and 20:30 on weekdays"
+uses_model: false
+daily_requests: 0
+never:
+  - place an order
+  - restart or kill a job
+needs_approval: false
+options:
+  deadlines:
+    "feed: NSE end-of-day": 1800
+    "feed: price panel": 900
+    "feed: paper books": 600
+  warn_share: 0.8

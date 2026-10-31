@@ -356,6 +356,20 @@ COMMANDS: dict[str, Command] = {
     "kill": Command(
         "whether the kill switch is tripped, and its limits", telegram_words.kill, "Machine"
     ),
+    "agents": Command(
+        "each agent, on or off, and how its last run ended", telegram_words.agents, "Agents"
+    ),
+    "instruct": Command(
+        "save a brief that steers an agent (it cannot change limits)",
+        telegram_words.instruct,
+        "Agents",
+        (),
+        "instruct research overnight returns in midcaps",
+    ),
+    "outlook": Command("the latest market brief", telegram_words.outlook, "Agents"),
+    "inbox": Command(
+        "what the agents are waiting for you to decide", telegram_words.inbox_word, "Agents"
+    ),
     "ask": Command(
         "a question in plain words, answered by the assistant",
         telegram_words.ask,
@@ -368,7 +382,8 @@ COMMANDS: dict[str, Command] = {
     ),
     "help": Command("this list", help_text, "Help", ("h", "?"), "help price"),
 }
-"""Every word the bot answers. All read-only; see the module docstring."""
+"""Every word the bot answers. All read-only except `instruct`, which saves an agent brief
+(ADR-085); see the module docstring."""
 
 SENTENCE_WORDS = 3
 """Words in a message before it is read as a question and not a mistyped word."""

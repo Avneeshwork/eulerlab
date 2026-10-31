@@ -276,6 +276,7 @@ STEPS_FOR: dict[str, tuple[str, ...]] = {
     "Participant OI": ("participant OI",),
     "Index closes (incl. VIX)": (_FILES,),
     "Delivery positions": (_FILES,),
+    "FII/DII cash flows": ("FII/DII cash flows",),
     "Price panel": (_EOD, "price panel"),
     "Index history": (_FILES, "market history"),
     "Delivery table": (_FILES, "market history"),
@@ -362,6 +363,14 @@ def table(now: datetime | None = None) -> list[Row]:
     add(landed, "Participant OI", nse.get("participant_oi", ""), "nse")
     add(landed, "Index closes (incl. VIX)", nse.get("indices", ""), "nse")
     add(landed, "Delivery positions", nse.get("delivery", ""), "nse")
+    flows = _max_by(LANDING / "fii_dii" / "manifest.jsonl", "segment", "trade_date")
+    add(
+        landed,
+        "FII/DII cash flows",
+        flows.get("cash", ""),
+        "nse",
+        detail="NSE serves the latest day only: a day not captured that evening is lost",
+    )
 
     built = "Built for research and trading"
     add(

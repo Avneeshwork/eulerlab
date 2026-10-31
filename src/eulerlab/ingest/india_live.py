@@ -45,6 +45,7 @@ INDIA_STEPS = (
     "NSE end-of-day",
     "participant OI",
     "NSE index closes and delivery",
+    "FII/DII cash flows",
     "India minute bars",
 )
 """The fetches. `daily_feed.with_dependents` adds what they feed."""

@@ -56,6 +56,8 @@ from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 from typing import Any
 
+from eulerlab import timings
+
 
 @dataclass
 class StepResult:
@@ -123,6 +125,19 @@ def _calendar() -> str:
 
     forexfactory.main()
     return "economic calendar"
+
+
+def _holidays() -> str:
+    from eulerlab.ingest import holidays
+
+    holidays.main()
+    return "NSE trading holidays"
+
+
+def _board_meetings() -> str:
+    from eulerlab.ingest import board_meetings
+
+    return board_meetings.capture()
 
 
 def _crypto_gap() -> str:
@@ -320,6 +335,36 @@ def _nse_daily_files() -> str:
     return fetch_counts(text) or "last 7 days"
 
 
+def _fii_dii() -> str:
+    """NSE serves the latest day only, so this is one request a run (ADR-098)."""
+    from eulerlab.ingest import fii_dii_cash
+
+    text = _captured(lambda: fii_dii_cash.main([]))
+    return fetch_counts(text) or "latest day"
+
+
+def _nse_reports() -> str:
+    """Deals, ban list, SLBM, MTF, insider and SAST filings, and snapshots (ADR-095)."""
+    from eulerlab import market_reports
+    from eulerlab.ingest import nse_reports
+
+    text = _captured(lambda: nse_reports.main(["--from", _days_ago(7)]))
+    _captured(lambda: market_reports.main([]))  # the Deals & filings tab (ADR-096)
+    return fetch_counts(text) or "last 7 days"
+
+
+def _index_minute() -> str:
+    """NIFTY 50, NIFTY BANK and INDIA VIX minute bars (`make index-minute`)."""
+    from eulerlab.broker import kite_session
+    from eulerlab.ingest import kite_index_minute
+
+    if not kite_session.is_fresh(kite_session.load()):
+        return "skipped: no Kite token minted today. Log in to Kite on this page first"
+    text = _captured(lambda: kite_index_minute.main(["--years", "1"]))
+    last = next((ln.strip() for ln in reversed(text.splitlines()) if ln.strip()), "")
+    return last[:160] or "index minute bars up to date"
+
+
 def _market_history() -> str:
     from eulerlab import market_history
 
@@ -400,13 +445,17 @@ def _provisional_daily() -> str:
 STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("NSE end-of-day", _nse_eod),
     ("participant OI", _participant_oi),
+    ("NSE reports", _nse_reports),
     ("NSE index closes and delivery", _nse_daily_files),
+    ("FII/DII cash flows", _fii_dii),
     ("market history", _market_history),
     ("price panel", _price_panel),
     ("Nifty options", _nifty_options),
     ("paper books", _paper_books),
     ("mutual fund NAVs", _mutual_funds),
     ("economic calendar", _calendar),
+    ("NSE holidays", _holidays),
+    ("board meetings", _board_meetings),
     ("crypto gap", _crypto_gap),
     ("FX", _fx),
     ("news", _news),
@@ -416,6 +465,7 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("US panel", _us_panel),
     ("India minute bars", _india_minute),
     ("provisional daily bars", _provisional_daily),
+    ("index minute bars", _index_minute),
     ("MCX index minute bars", _mcx_index_minute),
 )
 """The sources a daily refresh touches, in the order `make daily` runs them.
@@ -431,13 +481,17 @@ is here; with no fresh token it reports "skipped" and passes."""
 STEP_MODULES: dict[str, str] = {
     "NSE end-of-day": "eulerlab.ingest.nse_eod",
     "participant OI": "eulerlab.ingest.backfill_oi",
+    "NSE reports": "nse-reports",
     "NSE index closes and delivery": "eulerlab.ingest.nse_daily_files",
+    "FII/DII cash flows": "eulerlab.ingest.fii_dii_cash",
     "market history": "eulerlab.market_history",
     "price panel": "build-panel",
     "Nifty options": "nifty-options",
     "paper books": "paper-daily",
     "mutual fund NAVs": "eulerlab.ingest.mf_backfill",
     "economic calendar": "eulerlab.ingest.forexfactory",
+    "NSE holidays": "eulerlab.ingest.holidays",
+    "board meetings": "eulerlab.ingest.board_meetings",
     "crypto gap": "eulerlab.ingest.crypto_fill",
     "FX": "eulerlab.ingest.fx_bulk_backfill",
     "news": "eulerlab.ingest.news",
@@ -447,6 +501,7 @@ STEP_MODULES: dict[str, str] = {
     "US panel": "build-us-panel",
     "India minute bars": "daily-minute",
     "provisional daily bars": "eulerlab.ingest.provisional_daily",
+    "index minute bars": "index-minute",
     "MCX index minute bars": "mcx-index-minute",
 }
 """What each step runs, as `make daily` names it (a module or a make target).
@@ -488,6 +543,7 @@ TERMINAL_ONLY: dict[str, str] = {
     "upload-tree": "uploads and removes one folder after its download; the button mirrors once at the end",
     "prune-local": "deleting files is not a side effect of a refresh button",
     "manifest": "the button recounts after its mirror",
+    "eulerlab.agents.runtime": "the after-close note is an agent's run, not a data refresh; the AI tab runs agents",
 }
 """What `make daily` runs that the button deliberately does not, and why."""
 
@@ -605,6 +661,10 @@ def _refresh(
             run.steps.append(
                 StepResult(name=name, ok=True, detail=detail, seconds=time.monotonic() - started)
             )
+        # For the data and operations agents (ADR-085): which step failed, and
+        # which is getting slower. Writing it cannot fail the step.
+        last = run.steps[-1]
+        timings.record(f"feed: {name}", last.seconds, ok=last.ok, detail=last.detail)
 
     if sync:
         total = len(steps)

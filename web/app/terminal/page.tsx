@@ -17,6 +17,8 @@
  *   Options     the option chain, its analytics and the payoff builder
  *   Live        deployment readiness and the risk limits that stop trading
  *               (was two tabs, Live and Risk, describing one question)
+ *   AI          the agent network: inbox, agents and briefs, ask, market brief,
+ *               data quality, the agents' log (ADR-085)
  *   Tools       the strategy builder, the instrument catalog, the SIP
  *               backtester, data status
  *
@@ -50,9 +52,13 @@ import {
   Hammer,
   PiggyBank,
   BookOpen,
+  Bot,
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
+import { AgentsTab } from '@/components/terminal/AgentsTab';
+import AgentStrip from '@/components/terminal/AgentStrip';
+import { DeskTab } from '@/components/terminal/DeskTab';
 import { ResearchLibrary } from '@/components/terminal/ResearchLibrary';
 import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
@@ -71,7 +77,7 @@ import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
 import { Info as InfoButton, Move, Stat, Stats } from '@/components/terminal/ui';
-import { api } from '@/lib/api';
+import { agentsApi, api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
 
 type PageId =
@@ -87,7 +93,8 @@ type PageId =
   | 'sip'
   | 'research'
   | 'report'
-  | 'deployment';
+  | 'deployment'
+  | 'agents';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
 
@@ -97,6 +104,7 @@ const NAV: NavItem[] = [
   { id: 'charts', label: 'Charts', icon: CandlestickChart },
   { id: 'options', label: 'Options', icon: Sigma },
   { id: 'live', label: 'Live & Risk', icon: ShieldCheck },
+  { id: 'agents', label: 'AI', icon: Bot },
   { id: 'tools', label: 'Tools', icon: Wrench },
 ];
 
@@ -164,6 +172,10 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   research: { title: 'Research Library', sub: 'Every paper behind a strategy, and how its strategies did.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
   deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
+  agents: {
+    title: 'AI',
+    sub: 'The control room: what waits on your decision, every agent at work, and a box to ask. Each agent also shows on the page it works for. Nothing here trades.',
+  },
 };
 
 /** The strategy in a deployment id, `{mode}-{strategy}-{YYYY-MM-DD}-{hash}` (deploy/deployments.py). */
@@ -173,7 +185,7 @@ function strategyOfDeployment(id: string): string {
 
 const PAGE_IDS = Object.keys(TITLES) as PageId[];
 
-const LIVE_VIEWS = ['overview', 'performance', 'stress', 'deploy', 'risk'] as const;
+const LIVE_VIEWS = ['overview', 'performance', 'stress', 'deploy', 'desk', 'risk'] as const;
 type LiveView = (typeof LIVE_VIEWS)[number];
 
 /** `#strategies`, or `#report/<strategy id>` for one strategy's report. */
@@ -207,10 +219,22 @@ export default function TerminalPage() {
   const [reportId, setReportId] = useState('');
   const [configuring, setConfiguring] = useState<FleetStrategy[] | null>(null);
   const [pendingRun, setPendingRun] = useState<string[]>([]);
+  // How many agents are working, for the dot on the AI link (ADR-091).
+  const [agentsBusy, setAgentsBusy] = useState(0);
 
   const workspace = '';
 
+  // A dialog belongs to the page it was opened on. Left open, the Deploy and
+  // explain dialogs followed the operator to every other page (2026-10-29).
+  const closeDialogs = useCallback(() => {
+    setDeploying(null);
+    setExplaining(null);
+    setConfiguring(null);
+    setPaletteOpen(false);
+  }, []);
+
   const setPage = useCallback((next: PageId, strategy = '') => {
+    closeDialogs();
     setPageState(next);
     setReportId(strategy);
     const hash = strategy ? `#${next}/${encodeURIComponent(strategy)}` : `#${next}`;
@@ -218,10 +242,11 @@ export default function TerminalPage() {
       window.history.pushState(null, '', hash);
     }
     window.scrollTo({ top: 0 });
-  }, []);
+  }, [closeDialogs]);
 
   useEffect(() => {
     const apply = () => {
+      closeDialogs();
       const { page: next, strategy } = readHash();
       setPageState(next);
       setReportId(strategy);
@@ -238,7 +263,7 @@ export default function TerminalPage() {
       window.removeEventListener('popstate', onHash);
       window.removeEventListener('hashchange', onHash);
     };
-  }, []);
+  }, [closeDialogs]);
 
   const refresh = useCallback(() => {
     api
@@ -251,6 +276,17 @@ export default function TerminalPage() {
   }, []);
 
   useEffect(refresh, [refresh]);
+
+  useEffect(() => {
+    const read = () =>
+      agentsApi
+        .activity(1)
+        .then((r) => setAgentsBusy(r.running))
+        .catch(() => setAgentsBusy(0));
+    read();
+    const timer = window.setInterval(read, 20000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // Null means "follow the OS". Only an explicit choice stamps the attribute.
   useEffect(() => {
@@ -292,6 +328,7 @@ export default function TerminalPage() {
     <>
       <header className="tbar">
         <button className="tbrand" type="button" onClick={() => setPage('dashboard')}>
+          <span className="tbrand-mark" aria-hidden="true">E</span>
           <span className="tbrand-name">EulerLab</span>
         </button>
         <nav className="tnav" aria-label="Sections">
@@ -307,6 +344,9 @@ export default function TerminalPage() {
               >
                 <Icon size={16} strokeWidth={2} aria-hidden="true" />
                 <span className="tnav-label">{item.label}</span>
+                {item.id === 'agents' && agentsBusy > 0 && (
+                  <span className="tnav-dot" title={`${agentsBusy} agent${agentsBusy === 1 ? '' : 's'} working`} />
+                )}
               </button>
             );
           })}
@@ -362,13 +402,15 @@ export default function TerminalPage() {
               </nav>
             )}
             {/* The title alone; what the page is for opens from its info
-                button (ADR-084). */}
+                button (ADR-102). */}
             <h1 className="tpage-title">
               {heading.title}
               <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>
             </h1>
           </div>
         )}
+
+        <AgentStrip page={page} onOpenAI={() => setPage('agents')} />
 
         {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 
@@ -447,6 +489,7 @@ export default function TerminalPage() {
             </div>
           ))}
 
+        {page === 'agents' && <AgentsTab />}
         {page === 'charts' && <ChartTab />}
         {page === 'options' && <OptionsTab />}
 
@@ -470,6 +513,9 @@ export default function TerminalPage() {
               >
                 Deployment
               </button>
+              <button type="button" role="tab" aria-selected={liveView === 'desk'} onClick={() => setLiveView('desk')}>
+                Trade desk
+              </button>
               <button
                 type="button"
                 role="tab"
@@ -488,6 +534,8 @@ export default function TerminalPage() {
                 onDeploy={setDeploying}
                 onReport={(id) => setPage('deployment', id)}
               />
+            ) : liveView === 'desk' ? (
+              <DeskTab />
             ) : (
               <RiskTab />
             )}

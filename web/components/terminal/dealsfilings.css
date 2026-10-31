@@ -1,0 +1,26 @@
+/* Dashboard → India → Deals & filings (ADR-096). Reuses the market-context
+   tables and bars; only the chips and the value-over-bar layer are new. */
+.dfl-v {
+  position: relative;
+}
+.dfl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+.dfl-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--ink);
+  text-decoration: none;
+}
+a.dfl-chip:hover {
+  border-color: var(--accent);
+}
+.dfl-chip.new {
+  border-color: var(--fail);
+  color: var(--fail);
+}

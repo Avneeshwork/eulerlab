@@ -23,6 +23,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import type { Bar } from '@/lib/api';
+import { token } from '@/lib/tokens';
 
 export function OwnChart({
   symbol,
@@ -72,35 +73,35 @@ export function OwnChart({
     import('lightweight-charts')
       .then(({ createChart, CandlestickSeries, ColorType }) => {
         if (disposed || !holder.current) return;
-        const dark =
-          document.documentElement.dataset.theme === 'dark' ||
-          (!document.documentElement.dataset.theme &&
-            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const up = token('--up', '#16a34a');
+        const down = token('--down', '#dc2626');
+        const grid = token('--rule', '#e2e8f0');
+        const edge = token('--rule-2', '#cbd5e1');
 
         const made = createChart(holder.current, {
           layout: {
             background: { type: ColorType.Solid, color: 'transparent' },
-            textColor: dark ? '#868b7b' : '#7b8071',
+            textColor: token('--ink-3', '#64748b'),
             attributionLogo: false,
           },
           grid: {
-            vertLines: { color: dark ? '#23261d' : '#e4e4d9' },
-            horzLines: { color: dark ? '#23261d' : '#e4e4d9' },
+            vertLines: { color: grid },
+            horzLines: { color: grid },
           },
-          rightPriceScale: { borderColor: dark ? '#33372b' : '#d2d2c4' },
-          timeScale: { borderColor: dark ? '#33372b' : '#d2d2c4', rightOffset: 4 },
+          rightPriceScale: { borderColor: edge },
+          timeScale: { borderColor: edge, rightOffset: 4 },
           height: 320,
           autoSize: true,
         });
         chart = made;
 
         const series = made.addSeries(CandlestickSeries, {
-          upColor: '#6f8f10',
-          downColor: '#c9524a',
-          borderUpColor: '#6f8f10',
-          borderDownColor: '#c9524a',
-          wickUpColor: '#6f8f10',
-          wickDownColor: '#c9524a',
+          upColor: up,
+          downColor: down,
+          borderUpColor: up,
+          borderDownColor: down,
+          wickUpColor: up,
+          wickDownColor: down,
         });
         series.setData(
           bars.map((bar) => ({

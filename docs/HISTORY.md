@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Thirty times this project was wrong
+## Forty-four times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -358,15 +358,36 @@ half the spread recorded on the fill day per unit (`spread`, from
 No FX result was stored in any workspace, so no stored number changes. Any FX
 figure produced outside the result store before this date was frictionless.
 
----
-
-## What the project has actually concluded
-
 **31. On an expiry day the option chain read a contract that had already settled.** (2026-10-27) With no expiry asked for, `_chain_payload` took the nearest expiry, and on an expiry day that is the one settling that afternoon. The bhavcopy is end of day, so the chain was dead: on 27 Oct 2026 the Nifty "straddle" was 45,499.5 with no implied vol. Found building the dashboard's options panel. Fixed: the default is the nearest expiry after the trade date (an expiry asked for by date is still served). Every options history point for an expiry day was wrong; `HISTORY_POINT_VERSION` 1 -> 2 retires the saved points so each is recomputed.
 
 **32. The dashboard's Trend and Participation words had no source.** (2026-10-28) ADR-081 called Trend from Nifty against its 200-day average plus its 3-month change, and Participation from 60/40% of stocks above their 50-day average. Both sets of numbers were chosen without a source. On 2016-2026 data they changed word 16 and 22.6 times a year, and the breadth rule called 10% of the 2021 rally Narrow. Replaced by published rules (research 122, ADR-083): Faber's 10-month rule (2 changes a year) and the 200-day share confirmed by the High-Low Index (10.5). Both still read Downtrend and Narrow on 27 Oct 2026. "Sideways" no longer exists: Faber's rule has two states.
 
-**33. The first futures-to-cash prototype did not implement its frozen rule.** (2026-10-29) The draft calculated a within-contract lookback instead of a front-contract series with correlation from the strictly prior 60 cash sessions. Its one-minute percentage changes also crossed session boundaries, and its bar backtest could hold overlapping positions in the same share. Corrected it to calculate returns within contract and session, select the nearest-expiry contract per minute, pair each futures return with the next cash-minute return using only prior sessions, and block overlapping holds. The draft produced no P&L, so no reported performance numbers need revision.
+**41. The first futures-to-cash prototype did not implement its frozen rule.** (2026-10-29) The draft calculated a within-contract lookback instead of a front-contract series with correlation from the strictly prior 60 cash sessions. Its one-minute percentage changes also crossed session boundaries, and its bar backtest could hold overlapping positions in the same share. Corrected it to calculate returns within contract and session, select the nearest-expiry contract per minute, pair each futures return with the next cash-minute return using only prior sessions, and block overlapping holds. The draft produced no P&L, so no reported performance numbers need revision.
+**33. The configured Groq model had been shut down for ten weeks.** (2026-10-29) `config/llm.yaml` pointed `groq` at `llama-3.3-70b-versatile`. Groq shut that model down on 2026-08-16 and named `openai/gpt-oss-120b` as its replacement (research 123). Nothing noticed, because no code used Groq by default and `health()` deliberately sends no request. The fixed OpenRouter `:free` llama id and the 3B local model were also unused and are removed. No stored result depended on any of them. A model id in config is a claim about a vendor's catalog, and it has a recheck date like any other (A-019).
+
+**34. `make agent` crashed for any agent that found something.** (2026-10-29) `python -m eulerlab.agents.runtime` runs the file as `__main__`, a second copy of the module with its own `Item` class. Workers build items from `eulerlab.agents.runtime.Item`, so the output failed validation and the run ended in a traceback with nothing written. Unit tests call `runtime.run` directly and never saw it; the three launchd agent jobs (T-4179) would have failed every night. Fixed: `__main__` hands over to the imported module's `main()`, and a test runs the module the way `make agent` does.
+
+**35. The API could not start on a clean install.** (2026-10-29) `market_context.py` and `attribution_detail.py` import numpy at server start, but numpy was not a dependency; it was present on the Mac only through another extra. `uv run --extra web uvicorn ...` failed with `ModuleNotFoundError`. numpy is now declared.
+
+**36. The SIP calculator counted a bonus issue as a loss.** (2026-10-30) It read raw closes from `/api/history`, the chart's endpoint, with no adjustment for splits or bonuses. Reliance's 1:1 bonus of 28 Oct 2024 halved the close, so a 3-year Reliance SIP showed XIRR −19.6% and a value of ₹3.42 L on ₹5.40 L put in. Adjusted, it is −5.5% and ₹4.76 L. Found walking the workbench on the operator's data. Fixed: `/api/history?adjusted=true` back-adjusts equity bars with the same factors a backtest uses, and the SIP asks for it. Every SIP figure for a stock that split or issued bonuses inside its window was wrong. None was stored; the calculator records nothing.
+
+**37. An NSE day that was not published yet landed as a day with nothing in it.** (2026-10-30) `nse_reports` landed any well-formed answer and never fetched that day again. NSE's API answers a day it has not published with an empty 200, so short selling for 30 Oct, fetched at 23:26 IST that night, landed with 0 rows and would have stayed empty. Found reading the Deals & filings tab, whose short-selling panel showed 29 Oct. Fixed: an empty API answer within 3 days of its date is not landed; an empty file landed early is fetched again and the new copy lands beside it (`_recheck`), so nothing is overwritten. The one-year backfill landed holidays and this day; the holidays are right, and the 30 Oct file is replaced on the next run. No study read these files yet.
+
+**38. A refused request looked like a timeout once retries ran out.** (2026-10-30) After its last attempt, `Fetcher.get` returned `status=None`, which dropped the HTTP status it had just seen. So a caller could not tell a 429 from a dead connection, and a scraper meant to stop on 429 kept going. The FII/DII backfill test caught it. The status is now kept. No stored data depended on it: every earlier caller looked only at `outcome`.
+
+**39. A brief missing three of its signals went to Telegram looking complete.** (2026-10-31) The first brief in the Trader's read format (ADR-100) ran at 12:17 IST while the workbench API was down. Breadth, FII futures and options were missing; the bottom line read "Mixed, leaning weak ... 2 of 4 signals weak", not the full read's "Risk-off ... 3 of 7", and only a small note said why. It was sent to Telegram. A rerun with the API up was sent 41 seconds later. Fixed (ADR-101): an incomplete read starts "Incomplete: N of 7 signals missing", marks the rows, and Telegram gets one line instead. The 12:17 brief in `data/agents/market_brief/20261031T064745Z-a268d7` is the partial one.
+
+**40. A paper book's drawdown counted a withdrawal as a loss.** (2026-10-31) The first draft of the Trader's read measured drawdown from the raw equity curve, so the ₹20,000 taken out of one `india_sharpe_momentum_opt` book on 16 Oct showed as 23.1% below its peak. The loss limit's time-weighted figure is 3.7%. Caught on real data before the read was merged; the merged code uses the loss limit's figure. No stored number depended on it.
+
+**42. The mandate's t-statistic bar is not checked by the gate.** (2026-10-31) `mandate.yaml` has carried `min_t_statistic: 3.0` since it was written. `gates.py` never reads it: its statistical checks are deflated Sharpe, PBO and backtest length only, and no code anywhere reads the key. Found writing `docs/METRICS/validation/t-statistic.md`. No strategy was promoted on the strength of it: every one evaluated was killed on other checks. Both files are operator-owned, so nothing was changed; T-4250 asks the operator to decide.
+
+**43. The after-close brief described the day before, and briefs ran on non-trading days.** (2026-10-31) `make agents-close` ran the after-close brief at 16:15, but index closes, participant OI and FII/DII flows arrive in `make daily` at 19:30, so the 16:15 note reported the previous session. And nothing checked the calendar: the brief forced on Saturday 31 October repeated Friday's numbers under Saturday's date. Fixed (ADR-105): the after-close note runs inside `make daily` after the data; a weekend or NSE holiday gets a markets-closed note that says so and shows the last session's date, once per break; every brief states its data date. No stored number depended on it.
+
+**44. Sixty-eight stored daily strategies are about three bets.** (2026-10-31) The library lists 68 India daily strategies with stored reports, and research 113 ranked them as if they were separate candidates. `make strategy-map` (ADR-106) measured them for the first time: 39 of them, every momentum, trend, low-volatility and value variant, move together (average correlation 0.79, lowest pair 0.55), and the participation ratio of the whole correlation matrix is 2.78. With Nifty taken out, 17 momentum and trend rules still form one family (0.80) and the count rises only to about 6. An equal-weight book across all 27 families has Sharpe 0.60, and hedged −0.28: most families are single calendar or candle rules that earn nothing. No stored number is wrong, but no combination of these rules can be counted as diversified, and adding another momentum variant buys nothing.
+
+---
+
+## What the project has actually concluded
 
 **Nothing has beaten the bar.** 19 trials are logged. A candidate must clear
 **Sharpe 1.88** from noise alone. The best result ever produced here is

@@ -101,3 +101,39 @@ def save_holidays(cache_dir: Path, payload: bytes) -> Path:
     stamp = cache_dir / "nse_holidays.fetched_at"
     stamp.write_text(datetime.now().astimezone().isoformat(), encoding="utf-8")
     return cache
+
+
+REFERENCE = Path("data/landing/reference")
+
+
+def is_session(day: date, holidays: frozenset[date]) -> bool:
+    """A weekday not on NSE's holiday list. With no list held, weekdays only."""
+    return day.weekday() < 5 and day not in holidays
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`make holidays`: fetch this year's NSE trading holidays into the reference cache."""
+    from eulerlab.ingest.fetch import Fetcher, FetchPolicy, UrllibTransport
+
+    transport = UrllibTransport()
+    transport.establish_session()
+    got = Fetcher(transport, FetchPolicy(max_attempts=2)).get(HOLIDAY_URL)
+    if not got.ok or got.payload is None:
+        print(f"holidays: not fetched ({got.detail or got.status})")
+        return 1
+    try:
+        parsed = json.loads(got.payload)
+    except json.JSONDecodeError:
+        print("holidays: NSE did not answer with JSON; nothing saved")
+        return 1
+    days = extract(parsed) if isinstance(parsed, dict) else frozenset()
+    if not days:
+        print("holidays: no trading holidays in NSE's answer; nothing saved")
+        return 1
+    path = save_holidays(REFERENCE, got.payload)
+    print(f"holidays: {len(days)} day(s), {min(days)} to {max(days)} -> {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

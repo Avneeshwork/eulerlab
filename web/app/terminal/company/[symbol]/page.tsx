@@ -195,7 +195,7 @@ function FairValuePanel({ value, series }: { value: FairValue; series: [string, 
 }
 
 /** The cost of equity, forecast and data notes behind the fair value: the
- *  explanation, so it opens from an info button (ADR-084). Spans, not
+ *  explanation, so it opens from an info button (ADR-102). Spans, not
  *  paragraphs, because the button can sit inside a heading. */
 function AssumptionNotes({ value }: { value: FairValue }) {
   const coe = value.cost_of_equity;

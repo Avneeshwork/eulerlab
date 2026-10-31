@@ -17,6 +17,10 @@ not caution for its own sake — an agent that could originate a hypothesis and
 then decide it was worth testing would be selecting on its own output, and the
 trial counter would be measuring a search it no longer controlled.
 
+Since 2026-10-29 one agent may test, and only within the operator's weekly
+trial allowance: the idea lab (`agents/workers/lab.py`, ADR-089), through
+`research/agent_trials.py`. This loop still stops at registration.
+
 What it reports is deliberately unflattering: how many hypotheses exist, how
 many were killed and by which rule, and what the accumulated searching has
 done to the bar every future candidate must clear.

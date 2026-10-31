@@ -5,8 +5,10 @@ description = "Quant research and execution platform (theeulerlab)."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "anthropic>=1.0",
     "boto3>=1.43.73",
     "kiteconnect>=5.2.1",
+    "numpy>=2.0",
     "orjson>=3.10",
     "pyarrow>=25.0.1",
     "pydantic>=2.9",
@@ -126,7 +128,7 @@ plugins = ["pydantic.mypy"]
 # that has not installed the `crypto` extra. Ignored here rather than silenced
 # at each import, so the exemption is visible in one place.
 [[tool.mypy.overrides]]
-module = ["ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect", "sklearn.*", "sklearn"]
+module = ["ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect", "sklearn.*", "sklearn", "logzero", "logzero.*", "pyotp", "pyotp.*", "SmartApi", "SmartApi.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

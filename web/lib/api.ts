@@ -570,6 +570,16 @@ export type DeploymentState = {
   next_rebalance?: string;
   intended?: { wanted?: number; affordable?: number; names?: string[]; cut?: string[]; error?: string };
   warnings?: string[];
+  refused_reducing?: number;
+  /** The loss limits as the last run saw them (ADR-092). Shares, not percent. */
+  loss_limit?: {
+    drawdown: number;
+    worst: number;
+    reduce_at: number | null;
+    halt_at: number | null;
+    reducing: boolean;
+    action: '' | 'reducing' | 'halted';
+  };
 };
 
 /** One strategy trading forward with its own money (paper only for now). */
@@ -585,6 +595,9 @@ export type Deployment = {
   slippage_bps: number;
   running: string;
   state: DeploymentState;
+  reducing: { from: string; to: string | null; why: string; by: string }[];
+  reducing_now: boolean;
+  limits: { reduce_at: number | null; halt_at: number | null };
 };
 
 export type DeployPreview = {
@@ -1084,6 +1097,8 @@ export type History = {
   source?: string;
   first?: string;
   last?: string;
+  /** Equity bars back-adjusted for splits and bonuses. */
+  adjusted?: boolean;
 };
 
 export type MacroReading = {
@@ -1371,6 +1386,98 @@ export type PulseCard = {
   above_50?: number | null;
   tag?: string | null;
 };
+/** `/api/market-reports`: the Deals & filings tab (ADR-096). Each section
+ *  either carries its data or says why it is missing. */
+type Section<T> = ({ available: true } & T) | { available: false; reason: string };
+export type Deal = {
+  date: string;
+  kind: 'bulk' | 'block';
+  symbol: string;
+  client: string;
+  side: string;
+  qty: number;
+  price: number;
+  value_cr: number;
+};
+export type DealClient = { client: string; buy_cr: number; sell_cr: number; net_cr: number };
+export type MtfRow = { symbol: string; cr: number; change: number | null };
+export type SastFiling = {
+  time: string;
+  symbol: string;
+  company: string;
+  who: string;
+  promoter: boolean;
+  side: string;
+  shares: number;
+  pct: number;
+  after_pct: number;
+  mode: string;
+};
+export type InsiderFiling = {
+  time: string;
+  symbol: string;
+  company: string;
+  regulation: string;
+  type: string;
+  link: string;
+};
+export type MarketReports = {
+  ok: boolean;
+  reason?: string;
+  built_at?: string;
+  deals?: Section<{
+    as_of: string;
+    since: string;
+    today: Deal[];
+    today_count: number;
+    largest: Deal[];
+    buyers: DealClient[];
+    sellers: DealClient[];
+    count: number;
+  }>;
+  ban?: Section<{ as_of: string; symbols: string[]; added: string[]; removed: string[] }>;
+  mtf?: Section<{
+    as_of: string;
+    compared_with: string;
+    totals_cr: Record<string, number>;
+    largest: MtfRow[];
+    rising: MtfRow[];
+    falling: MtfRow[];
+  }>;
+  shorts?: Section<{
+    as_of: string;
+    short_sold: { symbol: string; qty: number }[];
+    short_count: number;
+    slbm_as_of: string | null;
+    lent: { symbol: string; qty: number; fee: number }[];
+  }>;
+  filings?: Section<{ days: number; sast: SastFiling[]; insider: InsiderFiling[]; insider_count: number }>;
+  pledges?: Section<{
+    as_of: string;
+    count: number;
+    top: {
+      company: string;
+      of_promoter_pct: number;
+      of_company_pct: number;
+      promoter_pct: number;
+      quarter: string;
+    }[];
+  }>;
+  ipos?: Section<{
+    as_of: string;
+    open: {
+      symbol: string;
+      company: string;
+      opens: string;
+      closes: string;
+      price: string;
+      subscribed: number;
+      series: string;
+    }[];
+    listed: { symbol: string; company: string; listed: string; price: string; series: string }[];
+  }>;
+};
+
 export type MarketContext = {
   ok: boolean;
   pulse: { available: true; cards: PulseCard[]; note: string } | Unavailable;
@@ -1489,6 +1596,32 @@ export type MarketContext = {
     | Unavailable;
 };
 export type BreadthName = { symbol: string; close: number; change_1d: number | null; turnover_cr: number };
+
+/** `/api/fii-dii` (ADR-098): NSE's provisional cash flows, ₹ crore. */
+export type FiiDiiGroup = {
+  buy: number;
+  sell: number;
+  net: number;
+  net_5d: number;
+  net_month: number;
+  /** Sessions in a row on the latest side: +3 buying, −2 selling. */
+  streak: number;
+};
+export type FiiDiiMonth = { month: string; fii: number; dii: number; days: number };
+export type FiiDiiFlows =
+  | {
+      available: true;
+      as_of: string;
+      known_at: string;
+      days_held: number;
+      first_day: string;
+      fii: FiiDiiGroup;
+      dii: FiiDiiGroup;
+      series: { days: string[]; fii: number[]; dii: number[] };
+      months: FiiDiiMonth[];
+      note: string;
+    }
+  | { available: false; reason: string };
 
 async function get<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: 'no-store' });
@@ -1850,15 +1983,23 @@ export const api = {
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/run`, {}),
   stopDeployment: (id: string) =>
     post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/stop`, {}),
+  reduceOnly: (id: string, on: boolean) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/reduce`, { on }),
+  deploymentLimits: (id: string, reduce_at: number | null, halt_at: number | null) =>
+    post<{ ok: boolean; error?: string }>(`/api/deployments/${encodeURIComponent(id)}/limits`, {
+      reduce_at,
+      halt_at,
+    }),
   deploymentFlow: (id: string, action: 'add' | 'withdraw', amount: number) =>
     post<{ ok: boolean; error?: string; flow?: { amount: number; last_decided: string; entered_at: string } }>(
       `/api/deployments/${encodeURIComponent(id)}/flow`,
       { action, amount },
     ),
   data: () => get<DataStatus>('/api/data'),
-  history: (symbol: string, assetClass = 'equity', days = 400) =>
+  /** `adjusted` back-adjusts equity bars for splits and bonuses (the SIP needs it). */
+  history: (symbol: string, assetClass = 'equity', days = 400, adjusted = false) =>
     get<History>(
-      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}`,
+      `/api/history?symbol=${encodeURIComponent(symbol)}&asset_class=${assetClass}&days=${days}${adjusted ? '&adjusted=true' : ''}`,
     ),
   syncData: () => post<{ ok: boolean; job?: string; error?: string }>('/api/data/sync', {}),
   /** Fetch today's data from every source, then mirror it. Different from
@@ -1883,6 +2024,8 @@ export const api = {
     post<{ ok: boolean; job?: string; error?: string }>('/api/data/prune', { dry_run: dryRun }),
   /** `live` false answers from held data alone, without waiting on a broker. */
   marketContext: () => get<MarketContext>('/api/market-context'),
+  fiiDii: () => get<FiiDiiFlows>('/api/fii-dii'),
+  marketReports: () => get<MarketReports>('/api/market-reports'),
   snapshot: (workspace = '', live = true) =>
     get<Snapshot>(`/api/snapshot?workspace=${encodeURIComponent(workspace)}&live=${live}`),
   tweezer: (input: {
@@ -2252,3 +2395,212 @@ export const fyersLogin = (pasted: string) =>
     '/api/fyers/login',
     { pasted },
   );
+/* ---------------- agent network (ADR-085) ---------------- */
+
+export type AgentRow = {
+  name: string;
+  title: string;
+  job: string;
+  enabled: boolean;
+  switched: 'definition' | 'operator';
+  schedule: string;
+  uses_model: boolean;
+  daily_requests: number;
+  ceiling: number;
+  used_today: number;
+  never: string[];
+  running: boolean;
+  brief: string;
+  latest: {
+    run_id: string;
+    status: string;
+    summary: string;
+    started: string;
+    items: number;
+    model: string;
+  } | null;
+};
+
+export type AgentsResponse = {
+  ok: boolean;
+  agents: AgentRow[];
+  trials: { per_week: number; spent: number };
+  brief_all: string;
+  inbox: number;
+  log_ok: boolean;
+  log_problem: string;
+};
+
+export type AgentItem = {
+  id: string;
+  agent: string;
+  run: string;
+  at: string;
+  kind: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'warn' | 'critical';
+  needs_approval: boolean;
+  ref: string;
+  data: Record<string, unknown>;
+};
+
+export type AgentOutput = {
+  agent: string;
+  run_id: string;
+  started: string;
+  finished: string;
+  status: string;
+  summary: string;
+  items: AgentItem[];
+  briefs: string[];
+  model: string;
+  requests: number;
+  notes: string[];
+  data: Record<string, unknown>;
+};
+
+export type QualityCheck = { name: string; state: 'pass' | 'warn' | 'fail' | 'info'; detail: string };
+export type DatasetGrade = {
+  name: string;
+  grade: 'A' | 'B' | 'C' | 'D';
+  freshness: string;
+  critical: boolean;
+  min_grade: string;
+  usable: boolean;
+  point_in_time: boolean;
+  checks: QualityCheck[];
+};
+
+export type DeskTicket = {
+  id: string;
+  deployment: string;
+  strategy: string;
+  mode: string;
+  rebalance: string;
+  equity: number;
+  sells: { symbol: string; quantity: number; value: number }[];
+  buys: { symbol: string; target_value: number }[];
+  holds: string[];
+  est_cost: number;
+  checks: { name: string; ok: boolean; detail: string }[];
+  reason: string;
+  decision: string;
+  blocked: boolean;
+};
+
+export type AgentStep = { at: string; kind: string; text: string };
+
+/** One agent's newest run as it stands: `/api/agents/activity` (ADR-091). */
+export type AgentActivity = {
+  name: string;
+  title: string;
+  job: string;
+  enabled: boolean;
+  uses_model: boolean;
+  cli_only: boolean;
+  schedule?: string;
+  state: 'idle' | 'running' | 'stopped' | 'ok' | 'skipped' | 'over_budget' | 'refused' | 'failed';
+  run_id: string;
+  started: string;
+  summary: string;
+  now: string;
+  steps: AgentStep[];
+  /** The last run's items, worst first. */
+  findings?: AgentFinding[];
+  findings_total?: number;
+};
+
+/** The market brief as data (ADR-105): `agents/workers/market_brief.build_brief`. */
+export type MarketBrief = {
+  mode: 'pre-open' | 'after-close' | 'weekend';
+  day: string;
+  as_of: string | null;
+  headline: string;
+  tone: 'weak' | 'supportive' | 'mixed' | 'incomplete';
+  missing: string[];
+  matters: { key: string; score: number; title: string; fact: string; meaning: string; page: string }[];
+  range: { close?: number; low?: number; high?: number; move?: number };
+  levels: string[];
+  scenarios: string[];
+  coming_up: { items: { when: string; what: string; why: string }[]; not_covered: string[] };
+  attention: { book: string; why: string }[];
+  books: string[];
+  rows: { signal: string; value: string; normal: string; word: string; why: string }[];
+  underneath: {
+    leading: string[];
+    lagging: string[];
+    new_highs: string[];
+    new_lows: string[];
+    delivery: string[];
+    deals: string[];
+    deals_as_of?: string | null;
+    flows?: string;
+  };
+  review: string[];
+  review_title?: string;
+  left_out: string[];
+  note?: string;
+  detail: [string, string[]][];
+};
+
+export type AgentFinding = {
+  kind: string;
+  severity: 'info' | 'warn' | 'critical';
+  title: string;
+  body: string;
+  ref: string;
+};
+
+export type SkepticTarget = { strategy: string; report: string; at: string };
+
+export type ActivityResponse = {
+  ok: boolean;
+  running: number;
+  agents: AgentActivity[];
+  feed: (AgentStep & { agent: string; title: string })[];
+};
+
+export const agentsApi = {
+  list: () => get<AgentsResponse>('/api/agents'),
+  activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
+  inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
+  skepticTargets: () => get<{ ok: boolean; targets: SkepticTarget[] }>('/api/agents/skeptic/targets'),
+  decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, { decision, note }),
+  setting: (name: string, change: { enabled?: boolean; daily_requests?: number }) =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/settings`, change),
+  brief: (name: string, text: string) =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/brief`, { text }),
+  run: (name: string, args: Record<string, string> = {}) =>
+    post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/run`, { args }),
+  outputs: (name: string, limit = 5) =>
+    get<{ ok: boolean; running: boolean; outputs: AgentOutput[] }>(
+      `/api/agents/${encodeURIComponent(name)}/outputs?limit=${limit}`,
+    ),
+  log: (limit = 60) =>
+    get<{
+      ok: boolean;
+      verified: boolean;
+      problem: string;
+      entries: { seq: number; at: string; kind: string; agent: string; detail: Record<string, unknown> }[];
+    }>(`/api/agents/log?limit=${limit}`),
+  ask: (question: string, history: { role: string; content: string }[] = []) =>
+    post<{ ok: boolean; answer?: string; error?: string; model?: string; requests?: number; notes?: string[] }>(
+      '/api/agents/knowledge/ask',
+      { question, history },
+    ),
+  marketBrief: () =>
+    get<{ ok: boolean; text?: string; brief?: MarketBrief | null; mode?: string; at?: string; error?: string }>(
+      '/api/agents/market_brief/latest',
+    ),
+  quality: () =>
+    get<{
+      ok: boolean;
+      grades: DatasetGrade[];
+      held: { dataset: string; path: string; reason: string; at: string; by: string }[];
+    }>('/api/quality'),
+  tickets: () => get<{ ok: boolean; tickets: DeskTicket[]; error?: string }>('/api/desk/tickets'),
+  decideTicket: (id: string, decision: 'approved' | 'rejected', note = '') =>
+    post<{ ok: boolean; error?: string }>(`/api/desk/tickets/${encodeURIComponent(id)}`, { decision, note }),
+};

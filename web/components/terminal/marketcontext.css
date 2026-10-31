@@ -2,27 +2,12 @@
    chrome; the three chart roles are declared here once, for light and dark. */
 
 .terminal {
-  --mc-a: #2a78d6;
-  --mc-b: #eb6834;
-  --mc-c: #1baf7a;
-  --mc-guide: rgba(120, 118, 110, 0.28);
-  --mc-mid: #c9a227;
-}
-@media (prefers-color-scheme: dark) {
-  .terminal:not([data-theme='light']) {
-    --mc-a: #5598e7;
-    --mc-b: #e2703a;
-    --mc-c: #2fc28c;
-    --mc-guide: rgba(170, 168, 160, 0.22);
-    --mc-mid: #d9b23a;
-  }
-}
-.terminal[data-theme='dark'] {
-  --mc-a: #5598e7;
-  --mc-b: #e2703a;
-  --mc-c: #2fc28c;
-  --mc-guide: rgba(170, 168, 160, 0.22);
-  --mc-mid: #d9b23a;
+  /* The three chart roles, in the four colours (ADR-090). */
+  --mc-a: var(--brand);
+  --mc-b: var(--caveat);
+  --mc-c: var(--up);
+  --mc-guide: color-mix(in srgb, var(--ink-3) 28%, transparent);
+  --mc-mid: var(--caveat);
 }
 
 /* --- Shared ----------------------------------------------------------------- */
@@ -196,7 +181,7 @@
   position: relative;
   display: flex;
   height: 22px;
-  border-radius: 5px;
+  border-radius: var(--r-xs);
   overflow: visible;
   font-size: 11px;
   font-weight: 600;
@@ -208,7 +193,7 @@
   padding: 0 7px;
   white-space: nowrap;
   overflow: hidden;
-  color: #fff;
+  color: var(--brand-ink);
 }
 .mc-split i.long {
   background: color-mix(in srgb, var(--clear) 70%, transparent);
@@ -272,7 +257,7 @@
   flex-direction: column;
   align-items: center;
   padding: 3px 0;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: var(--surface-2);
   font-variant-numeric: tabular-nums;
 }
@@ -336,7 +321,7 @@
 .mc-seg {
   display: inline-flex;
   border: 1px solid var(--rule);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   overflow: hidden;
 }
 .mc-seg button {
@@ -538,7 +523,7 @@
   position: absolute;
   top: 24px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   background: color-mix(in srgb, var(--mc-a) 30%, transparent);
   border: 1px solid color-mix(in srgb, var(--mc-a) 60%, transparent);
 }

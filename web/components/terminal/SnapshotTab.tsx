@@ -19,6 +19,8 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Info } from './ui';
+import { FiiDiiFlows } from './FiiDiiFlows';
+import { DealsFilings } from './DealsFilings';
 import type { IndexLevel, Snapshot, Story, Tile, WorldMover } from '@/lib/api';
 import {
   IndexContext,
@@ -29,15 +31,17 @@ import {
   useMarketContext,
 } from './MarketContext';
 
-const pct = (value: number, digits = 2) =>
-  `${value >= 0 ? '+' : '−'}${Math.abs(value * 100).toFixed(digits)}%`;
+/** A sign only when the rounded number has one: -0.0004 read "−0.0%". */
+const signed = (shown: string, value: number) =>
+  Number(shown) === 0 ? `${shown}%` : `${value >= 0 ? '+' : '−'}${shown}%`;
+
+const pct = (value: number, digits = 2) => signed(Math.abs(value * 100).toFixed(digits), value);
 
 /** Already-percent values. `pct` takes a fraction and multiplies by 100, which
  *  is right for the panel's returns and wrong for anything a quote API hands
  *  over — those arrive as percent already, and running them through `pct`
  *  rendered NIFTY's +0.20% as "+20.00%" and INDIA VIX's -3.30% as "-330.00%". */
-const pctRaw = (value: number, digits = 2) =>
-  `${value >= 0 ? '+' : '−'}${Math.abs(value).toFixed(digits)}%`;
+const pctRaw = (value: number, digits = 2) => signed(Math.abs(value).toFixed(digits), value);
 
 const crore = (value: number) =>
   value >= 1e7 ? `₹${(value / 1e7).toFixed(1)}Cr` : `₹${(value / 1e5).toFixed(1)}L`;
@@ -174,11 +178,12 @@ function SectorStrip({ rows }: { rows: { sector: string; change_pct: number }[] 
 type Market = 'IN' | 'US' | 'CRYPTO' | 'FX';
 
 /** The India view's tabs (research 121): the verdict first, detail a click away. */
-type View = 'overview' | 'sectors' | 'money' | 'watch';
+type View = 'overview' | 'sectors' | 'money' | 'deals' | 'watch';
 const VIEWS: [View, string, string][] = [
   ['overview', 'Overview', 'Market pulse, what happened today, the indices'],
   ['sectors', 'Sectors', 'Which sectors lead and lag Nifty, and the map'],
-  ['money', 'Big money (F&O)', 'Who holds index futures, and what options price'],
+  ['money', 'Big money', 'FII/DII cash flows, who holds index futures, and what options price'],
+  ['deals', 'Deals & filings', 'Bulk and block deals, F&O ban, margin funding, shorts, promoter filings, pledges, IPOs'],
   ['watch', 'Stocks to watch', 'Movers, new highs and lows, delivery spikes'],
 ];
 
@@ -489,7 +494,9 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       view !== 'overview' ? null : (
       <section className="regime tight">
         <div className="regime-lead">
-          <div className="theyebrow">The session</div>
+          {/* Not "the session": this is a 20-day number, and on 2026-10-29 it
+              read −5.26% in red under that label on a day the indices rose. */}
+          <div className="theyebrow">Average stock, last 20 sessions</div>
           <div className="thnum">
             <b className={r.proxy_return_20d >= 0 ? 'up' : 'dn'}>
               {pct(r.proxy_return_20d)}
@@ -811,8 +818,12 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
       {india('watch') && ctx && <WatchContext ctx={ctx} />}
 
       {/* --- Big money: who holds the index, and what options price -------- */}
+      {india('money') && <FiiDiiFlows />}
       {india('money') &&
         (ctx ? <PositioningContext ctx={ctx} /> : <div className="tempty">Reading positions…</div>)}
+
+      {/* --- Deals & filings: NSE's evening reports (ADR-096) --------------- */}
+      {india('deals') && <DealsFilings />}
 
       {general && (
       <>
@@ -926,7 +937,10 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             </table>
           </div>
         ) : (
-          <div className="tpanel mc-missing">—</div>
+          // A bare dash gave no hint why; the reason was only in the (i).
+          <div className="tpanel mc-missing">
+            No releases to show{snap.catalysts.reason ? `: ${snap.catalysts.reason}` : '.'}
+          </div>
         )}
 
       </section>

@@ -3,30 +3,30 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
-## UI revamp (2026-10-28, ADR-084)
+## UI revamp (2026-10-28, ADR-102)
 
 Operator: "now i want you to revamp all screen ui don't ask for permission and setup auto start if session credit used".
-Rules for every screen (ADR-084): numbers and pictures on the page; every explanation, definition and caveat behind an `Info` (i) button, none inline; the chart type chosen for the question it answers; arrows beside red/green; the shared kit in `web/components/terminal/ui/`; fits a 390 px phone (no horizontal page scroll); a long screen split into tabs kept in the URL.
+Rules for every screen (ADR-102): numbers and pictures on the page; every explanation, definition and caveat behind an `Info` (i) button, none inline; the chart type chosen for the question it answers; arrows beside red/green; the shared kit in `web/components/terminal/ui/`; fits a 390 px phone (no horizontal page scroll); a long screen split into tabs kept in the URL.
 Work on branch `ui-revamp`; one screen per commit; do not push. Verify: `make verify`, then a desktop and a 390 px screenshot of the screen.
 Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourly) continues from the first TODO below when `data/cache/ui-revamp.active` exists and has not been touched for 90 minutes. Delete that file to stop it.
 
 | ID | Screen | Status |
 |---|---|---|
-| T-4170 | Shared UI kit: `ui/` (Info, Heading, Stat, Seg, Tabs, Sparkline, Bar, Chip) used by every screen | DONE. `web/components/terminal/ui/` (Info, Heading, Stat/Stats, Chip, Seg, Empty, Move/signed, Sparkline, Bar) and `ui.css`; page subtitles and Tools card descriptions moved behind (i) |
-| T-4171 | Strategies (Library) | DONE. Headline as stat tiles; Sharpe drawn as a bar against the noise bar; returns with arrows; verdict, class and column notes behind (i); drawer summary behind (i). Fits 390 px |
-| T-4172 | Strategy report (BacktestReport, AdoptedReport) | DONE. Card subtitles, view introductions, reconciliation, factor-model method and paging notes behind (i): 29 paragraphs to 16 (the rest are data, warnings or actions). Fits 390 px |
-| T-4173 | Live & Risk (LiveTab, RiskBook, RiskTab, PaperDeployments, deployment report) | DONE. 31 explanation lines behind (i); diversification sentence now a stat, overnight-gap warning and data notes now chips; names no longer squeezed to "…"; tab row scrolls inside itself, so the page fits 390 px (was 478) |
-| T-4174 | Options (OptionsTab, OptionsTools, OptionsCharts, PayoffBuilder) | DONE. 14 explanation paragraphs behind (i); the no-arbitrage result is a chip. Fits 390 px |
-| T-4175 | Charts (ChartTab, MacroBand) | DONE. ETF, TradingView, macro-source and uncharted notes are chips with (i). Fits 390 px |
-| T-4184 | The Charts embed refuses NSE symbols ("only available on TradingView"), so the default NIFTYBEES chart is empty | TODO, not presentation: needs a data decision (own-panel chart as the default for NSE, or a licensed widget) |
-| T-4176 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4170); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
-| T-4177 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
-| T-4178 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
-| T-4179 | SIP backtester | DONE. Headline on kit Stat tiles with arrows; lump-sum comparison a chip; XIRR, day-of-month, step-up, chart key and the costs caveat behind (i) ("Upper bound" chip). 390 px screenshot not taken: the unattended run could not reach the dev server |
-| T-4180 | Company page (`app/terminal/company/[symbol]`) | DONE. Main column split into Overview / Financials / Peers / News tabs kept in `?view=`; kit Stat tiles with arrows on moves and growth; the price-source, provisional-close, chart, bar, statement, peer, news, not-held and fair-value assumption notes behind (i); confidence and provisional close are chips; "Not held" is a chip list. 390 px screenshot not taken: the unattended run could not reach the dev server |
-| T-4181 | Dialogs (Backtest, Deploy, Explain) | TODO |
-| T-4182 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
-| T-4183 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | TODO |
+| T-4270 | Shared UI kit: `ui/` (Info, Heading, Stat, Seg, Tabs, Sparkline, Bar, Chip) used by every screen | DONE. `web/components/terminal/ui/` (Info, Heading, Stat/Stats, Chip, Seg, Empty, Move/signed, Sparkline, Bar) and `ui.css`; page subtitles and Tools card descriptions moved behind (i) |
+| T-4271 | Strategies (Library) | DONE. Headline as stat tiles; Sharpe drawn as a bar against the noise bar; returns with arrows; verdict, class and column notes behind (i); drawer summary behind (i). Fits 390 px |
+| T-4272 | Strategy report (BacktestReport, AdoptedReport) | DONE. Card subtitles, view introductions, reconciliation, factor-model method and paging notes behind (i): 29 paragraphs to 16 (the rest are data, warnings or actions). Fits 390 px |
+| T-4273 | Live & Risk (LiveTab, RiskBook, RiskTab, PaperDeployments, deployment report) | DONE. 31 explanation lines behind (i); diversification sentence now a stat, overnight-gap warning and data notes now chips; names no longer squeezed to "…"; tab row scrolls inside itself, so the page fits 390 px (was 478) |
+| T-4274 | Options (OptionsTab, OptionsTools, OptionsCharts, PayoffBuilder) | DONE. 14 explanation paragraphs behind (i); the no-arbitrage result is a chip. Fits 390 px |
+| T-4275 | Charts (ChartTab, MacroBand) | DONE. ETF, TradingView, macro-source and uncharted notes are chips with (i). Fits 390 px |
+| T-4284 | The Charts embed refuses NSE symbols ("only available on TradingView"), so the default NIFTYBEES chart is empty | TODO, not presentation: needs a data decision (own-panel chart as the default for NSE, or a licensed widget) |
+| T-4276 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4270); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
+| T-4277 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
+| T-4278 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
+| T-4279 | SIP backtester | DONE. Headline on kit Stat tiles with arrows; lump-sum comparison a chip; XIRR, day-of-month, step-up, chart key and the costs caveat behind (i) ("Upper bound" chip). 390 px screenshot not taken: the unattended run could not reach the dev server |
+| T-4280 | Company page (`app/terminal/company/[symbol]`) | DONE. Main column split into Overview / Financials / Peers / News tabs kept in `?view=`; kit Stat tiles with arrows on moves and growth; the price-source, provisional-close, chart, bar, statement, peer, news, not-held and fair-value assumption notes behind (i); confidence and provisional close are chips; "Not held" is a chip list. 390 px screenshot not taken: the unattended run could not reach the dev server |
+| T-4281 | Dialogs (Backtest, Deploy, Explain) | TODO |
+| T-4282 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
+| T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | DONE 2026-10-31. PR #38 merged. The flag file and launchd job are switched off by the operator on the Mac (the agent session was not permitted to) |
 
 ## Five Indian microstructure strategies (2026-10-28)
 
@@ -35,7 +35,198 @@ Verify: `make microstructure-five`.
 
 | ID | Task | Status |
 |---|---|---|
-| T-4185 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+| T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+## Market brief: the Trader's read (2026-10-31)
+
+Operator: "current market brief is joke and it doesn't make any sense and not helping a trade at all ... add one more component how to answer which give better clarity to trader". ADR-100.
+Verify: `uv run pytest -q tests/test_trader_read.py`; `make agent NAME=market_brief ARGS=force=1` and read the top of the brief; ask the assistant "how is the market today".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4243 | Trader's read at the top of the brief: bottom line, scorecard with normal levels, today's map, what would change the read, books; detail cleaned; Telegram gets the read only; assistant `market_read` tool | DONE 2026-10-31. `agents/trader_read.py`, `config/trader_read.yaml`, 8 tests |
+| T-4244 | Operator sets the read's thresholds (A-082) | TODO. Operator |
+| T-4246 | An incomplete read says so in its first words, marks missing rows, and is held back from Telegram with one line (ADR-101) | DONE 2026-10-31. 4 tests in `tests/test_trader_read.py` |
+| T-4247 | Research how a brief and agent notes should read (research 134): pre-open brief, after-close note, agent notes, Telegram, rendering | DONE 2026-10-31. Proposal only; the operator decides the four open questions before building |
+| T-4245 | Show the read as its own card on the Dashboard strip and the AI tab, not only inside the brief text | TODO |
+
+## Market brief as a morning note (2026-10-31)
+
+Operator: "is this readable?", "not much information in market brief just data", then "start market brief work" with research 134's defaults. ADR-105, research 137.
+Verify: `uv run pytest -q tests/test_brief_content.py tests/test_board_meetings.py tests/test_trader_read.py`; `make agent NAME=market_brief ARGS="force=1"`; open AI → Market brief.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4286 | Brief as data in reading order: what matters (ranked), levels and if-then, coming up, books needing you, underneath, after-close review; AI-tab view and agent card; Telegram in 8 lines | DONE 2026-10-31 |
+| T-4287 | Results calendar from NSE board-meeting intimations (`make board-meetings`, in `make daily`) | DONE 2026-10-31. Built forward from 2026-10-31 |
+| T-4288 | Closed days get a markets-closed note (last session, week in review, week ahead), once per break; `make holidays`; `brief-weekend` launchd job; after-close note moved into `make daily` | DONE 2026-10-31. HISTORY #43 |
+| T-4289 | PR 2: what history says (base rates for today's conditions, with case counts) and each book's backtest in this kind of market | TODO |
+| T-4290 | Operator reviews the brief's ranking weights (A-086) | TODO. Operator |
+
+## Metrics library: how to answer (2026-10-31)
+
+Operator: "gather all possible documents related to metrics we have train model that how to answer", "do for what all possible and before building brief". ADR-103, research 135.
+Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open any page, for example `docs/METRICS/market/india-vix.md`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4248 | `docs/METRICS/`: 116 pages in 14 families (platform metrics plus Indian and global economy, policy and regulators, institutions and flows, events, market structure), normal ranges from our data, answer rules | DONE 2026-10-31 |
+| T-4254 | Hold the macro data the new pages say we lack: RBI policy rate and liquidity, CPI/WPI/IIP/GDP/PMI values, AMFI monthly flows, GIFT Nifty, forex reserves; find free official sources first (research) | TODO |
+| T-4249 | Operator decides: subtract a risk-free rate in Sharpe (and so DSR and the noise bar), or keep raw returns and say so (A-083) | TODO. Operator. Touches the gate's inputs |
+| T-4250 | Operator decides: enforce `min_t_statistic` in `gates.py`, or remove it from `mandate.yaml` (HISTORY #42) | TODO. Operator. Both files operator-owned |
+| T-4251 | Decide whether Sortino's downside deviation should average over all days, as Sortino & Price define it (A-084) | TODO |
+| T-4252 | Wire the library in: knowledge agent sources (`docs/METRICS`, `docs/GLOSSARY.md`), an `explain_metric` assistant tool; scored questions | DONE 2026-10-31. 10 cases added to `config/agent_eval/knowledge.yaml` (k-13 to k-22), not yet run live. The brief's analyst note waits for the brief rebuild |
+| T-4255 | Knowledge keeper agent: daily normals and SEBI/RBI/NSE feed watch, weekly gaps and drafted page updates, `make metrics-accept` | DONE 2026-10-31. ADR-104, research 136, `tests/test_metrics_library.py` (18 tests). First run in a scratch copy recorded 94 feed items as baseline |
+| T-4258 | Market Handbook: the library as one searchable page (`make handbook`, workbench `/handbook.html`), rebuilt by `make ui` and the daily agent batch | DONE 2026-10-31. `tools/render_metrics_handbook.py`, 2 tests |
+| T-4256 | Watch MoSPI and AMFI: no RSS; find a readable official source (PIB RSS?) | TODO |
+| T-4257 | Recheck the seven assumptions the keeper found overdue on its first weekly pass (A-000, A-002, A-004, A-005, A-008, A-010, A-019) | TODO. Operator |
+| T-4253 | Review the Trader's read cash-flow thresholds: ±₹5,000 cr sits near this year's median FII 5-day net (−₹6,110 cr), so "weak" is the usual reading (A-082) | TODO. Operator |
+
+## Researching many daily strategies (2026-10-31, ADR-106)
+
+Operator: "make other thread of how we will research multiple daily strategy", then "start". Plan: Claude Doc "Researching many daily strategies at once" (https://claude.ai/artifact/8MDtW5qPpmb4VraqxXg1ez). Judge books, not single rules; screen many ideas for free, confirm few. Builds on the self-improving agent plan below.
+Verify: `make strategy-map`; `uv run pytest -q tests/test_strategy_map.py`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4291 | Phase 1: strategy map. Correlations raw and Nifty-hedged, families at 0.7, participation ratio, one fixed equal-weight book | DONE 2026-10-31. 68 strategies: 27 families, 2.78 independent bets; one family of 39 (HISTORY #44) |
+| T-4292 | Operator decides the plan's seven questions: the book as the unit gated; T-4230; trial allowance split; lane D waits for 5 years; equal weight by family; 0.7 redundancy line; gate the hedged book | TODO. Operator |
+| T-4293 | Phase 2: batch screen. Family and lane tags on H-cards, zero-trial filters, discovery screen and redundancy check in one run, `make research-batch` | TODO. Blocked by T-4230, T-4232 |
+| T-4294 | Phase 4: book builder. Score blending, fixed weights, long-only and Nifty-hedged versions with futures costs, a book as one H-card | TODO. After T-4293 |
+| T-4295 | Phase 3: delivery %, index P/E and P/B and Nifty futures as formula inputs | TODO |
+| T-4296 | Phase 5: forward recorder for short-history signals (FII/DII, deals, short selling, insider), `make shadow-signals` | TODO |
+| T-4297 | Phase 6: quarterly book rebuild, member drop rules, forward against backtest per member | TODO. After T-4294 |
+| T-4298 | Strategy map on the workbench: families and the correlation heat map on the Strategies page | TODO |
+
+## Self-improving research agent (proposed 2026-10-31)
+
+Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 131. Phase 1 built (ADR-097); the trial-counting decision (T-4230) is still open.
+Verify: read `docs/RESEARCH/131-self-improving-research-agent.md`; `uv run pytest -q tests/test_features_formula.py`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4230 | Operator decides: do discovery-window searches count against the gate's trial bar; window dates; paid model for proposals; trial allowance | TODO. Operator |
+| T-4231 | Phase 1: formula language, the 10 features rewritten as the alpha zoo, originality score | DONE 2026-10-31. ADR-097; `uv run pytest -q tests/test_features_formula.py` |
+| T-4237 | Phase 1b: more portfolio shapes (quantile long-only, sector-neutral) and a liquidity floor as cards can name them | TODO |
+| T-4232 | Phase 2: discovery-only view, exploration log, pass-or-fail confirmation call | TODO. Blocked by T-4230 |
+| T-4233 | Phase 3: hypothesis-first generator, originality/alignment/complexity checks, weakest-score refinement and bandit; measure cost | TODO |
+| T-4234 | Phase 4: zero-trial test bench (planted signals, noise panels, known anomalies), `make agent-bench` | TODO |
+| T-4235 | Phase 5: experience store, cited lessons list, graveyard | TODO |
+| T-4236 | Phase 6: confirmation trials within the allowance, equal-weight composite, forward results back to memory | TODO |
+
+## FII/DII cash flows (2026-10-29)
+
+Operator: "make a scrapper to scrape all the data https://scanx.trade/insight/fii-dii-data which we don't have and include in dashboard". scanx could not be read and its terms are unread, so NSE's own figure is captured instead (research 128, ADR-098).
+Verify: `uv run pytest -q tests/test_fii_dii_cash.py tests/test_fii_dii_history.py`; `make fii-dii` on a trading evening; `make fii-dii-history`; `make data-quality`; Dashboard → India → Big money.
+Then, 2026-10-30: "get fii - dii historical data from other place then like money control or other website by scrappping them atleast last 1 year data" (ADR-099, research 127).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4163 | Capture NSE's FII/DII provisional cash flows daily; table with event and knowledge time; `/api/fii-dii`; panel on Big money | DONE. `ingest/fii_dii_cash.py`, `api/fii_dii_routes.py`, `FiiDiiFlows.tsx`. In `make daily`, `make india-live` and the coverage button. 18 tests. Not yet run against NSE (no network to it from the build session) |
+| T-4238 | First live `make fii-dii` on the Mac; replace the hand-written test payload with the landed file | DONE (2026-10-30). 29 Oct landed; real response is `tests/fixtures/fii_dii/nse_fiidiiTradeReact_2026-10-29.json`. A-079 confirmed, S-054 resolved |
+| T-4239 | Backfill FII/DII history | DONE (2026-10-30) from Trendlyne, not NSDL, by operator decision (ADR-099, research 127). `make fii-dii-history MONTHS=12`: 264 days, 2025-10-01 to 2026-10-28, plus NSE's 29 Oct. Cross-checked against NSE, Groww and stockezee: largest gap 0.05 crore. NSDL's official FPI series is still unread (T-4241) |
+| T-4240 | Open scanx.trade's FII/DII page and its terms; list anything it shows that EulerLab does not hold | TODO. Not tried on 2026-10-30: the history came from Trendlyne instead. Still the only open question about scanx |
+| T-4241 | Read NSDL's FPI daily report format and terms; compare its official FPI figure with the provisional one | TODO. Official, FPI only, a different figure (research 004, 065, 127) |
+| T-4242 | Did NSE hold a session on Sunday 1 Feb 2026 (Budget day)? Trendlyne and stockezee show FII/DII flows for it; EulerLab has no bhavcopy for it | TODO. If it did, land that bhavcopy and re-run `make fii-dii-history`, which admits the day once the bhavcopy is in the manifest |
+## Loss limits that act (2026-10-29)
+
+Operator: "finally implement new thing which a trader need." Chosen from research 079's gaps that matter now: a reduce-only state and a drawdown rule that acts. ADR-092.
+Verify: `uv run pytest -q tests/test_loss_limits.py`; Live & Risk → Deployment → a paper card's Loss limits row.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4201 | Reduce-only windows on a deployment; buys refused inside them on every replay | DONE. `deploy/loss_limits.py`, `ForwardExecutor` |
+| T-4202 | Drawdown levels that act: reduce-only at one, halt at the other; defaults in `config/loss_limits.yaml` | DONE. A-071 |
+| T-4203 | Reduce only / Resume buying and the levels on each paper card; Telegram line when a book goes reduce-only | DONE |
+| T-4204 | Reduce-only on the overnight, intraday and study books | TODO (S-050) |
+| T-4205 | Set the levels you would act on in `config/loss_limits.yaml` | TODO. Operator |
+
+## Workbench redesign and live agent activity (2026-10-29)
+
+Operator: "rewamp whole ui to make it simple easy to understand visually appealing with simple design … better solid 3-4 colours max and round corners … for ai agents shows what agent is actually doing." ADR-090, ADR-091.
+Verify: `uv run pytest -q tests/test_agent_activity.py`; `make workbench` → every page; AI → Live while `make agent NAME=data` runs.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4195 | Four colours (blue, green, red, amber) and rounded corners across the terminal; every chart palette mapped onto them | DONE. ADR-090; `web/app/tokens.css`, `web/app/terminal/theme.css` |
+| T-4196 | AI tab shows what each agent is doing now: step trail, live cards, activity feed, dot on the AI link | DONE. ADR-091; `/api/agents/activity` |
+| T-4197 | `make agent` crashed for any agent that returned an item | DONE. HISTORY #34 |
+| T-4198 | API failed to start on a clean install: numpy undeclared | DONE. HISTORY #35 |
+| T-4199 | A place on Dashboard → Big money for the FII/DII cash flows panel | DONE by the flows work itself (PR #32 puts `FiiDiiFlows` there); its colours already read the four-colour tokens through `--mc-a`/`--mc-b` |
+| T-4200 | Merge with the operator's unpushed `ui-revamp` branch | TODO. Not visible from here; may overlap `tokens.css` and `shell.css` |
+| T-4206 | End-to-end walk-through of every page (synthetic panel): fix what broke | DONE. Coloured dashes for missing returns; "−0.0%"; the old orange accent on Dashboard tabs; the (i) button by "NSE" drawn as a segment; unreadable text in a selected chip; Deploy/Explain dialogs following you to other pages; a refused paper action's error vanishing; negative rupees shown as "₹-31161" |
+| T-4207 | Company page shows only a notice when fundamentals are missing; first snapshot is slow when outside fetches time out; "Open Live & Risk" wraps in the deploy dialog | TODO. Seen in the walk-through, not fixed |
+| T-4208 | Repeat the walk-through on the operator's real data | DONE 2026-10-30. Fixed: SIP ignored splits and bonuses (HISTORY #36); one unreachable asset class turned the whole instrument search into a 500; "The session −5.26%" was a 20-day average; deployment names in Performance showed as "…"; the live and backtest labels overlapped; gains drawn in blue; paper cards read "not measured yet" until the next run; a blocked ticket's data row read "grade D, ok"; the calendar showed a bare dash; the AI feed said no agent had run when two had |
+| T-4213 | The assistant and Research Library model lists show Groq gpt-oss-120b and the Claude models only, as agreed on 2026-10-29; that work sat unpushed on a local branch, so main still showed the OpenRouter free list (operator, 2026-10-30) | DONE. ADR-095 (was numbered ADR-088 on the local branch, which clashed with the grounding check) |
+| T-4212 | Agent cards say what each agent found and what to do, the skeptic picks a strategy or checks all, the idea lab says why it runs from the terminal, and the data grades are explained (operator, 2026-10-30) | DONE. ARCHITECTURE "Agents on the page they serve" |
+| T-4211 | Each agent on the page it works for, with an animated icon, its last result and Run now; a guide to what each agent does (operator, 2026-10-30) | DONE. ADR-094; `AgentStrip.tsx` |
+| T-4210 | Apple-style frosted glass look across the terminal (operator, 2026-10-30) | DONE. ADR-093; `web/app/terminal/glass.css` |
+| T-4209 | Deployment titles on Live & Risk → Deployment show the strategy id until the strategy list loads | TODO. Seen on a cold start |
+
+## Agent accuracy: the grounding check and agent-eval (2026-10-29)
+
+Operator: "what will be done if model start hallucinating?" then "yes build". Research 126; ADR-088.
+Verify: `uv run pytest -q tests/test_agent_grounding.py`; `make agent-eval ONLY=skeptic`; `make agent-eval` (uses the knowledge agent's budget).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4185 | Grounding check on knowledge answers and brief commentary; prompt fingerprints; `make agent-eval` with switch-off | DONE. 12 knowledge cases and 10 skeptic fakes. Knowledge cases not yet run live (S-047) |
+| T-4186 | Grow the knowledge test set to 50 cases, 10 with no answer on disk | TODO |
+| T-4187 | Record each model's training cutoff in `config/llm.yaml`; refuse to backtest a model-derived signal before it | TODO (research 126, finding 7) |
+| T-4188 | Name-swap and scrambled-input cases in agent-eval | TODO |
+| T-4189 | Verification questions on research drafts answered from the paper's text only | TODO |
+| T-4190 | Research critic votes three times; a draft passes on 2 of 3 | TODO |
+| T-4191 | Split the knowledge index into chunks with a context note each; measure recall before adding embeddings | TODO |
+| T-4192 | Approve/dismiss counts per agent on the AI tab | TODO |
+| T-4193 | Idea lab: test drafts within 5 trials a week (IC screen, then backtest), skeptic, inbox | DONE. ADR-089; `make agent NAME=lab`; `tests/test_agent_trials.py`. Runs Sundays after research |
+| T-4194 | First real lab run on the operator's machine, after a live research run | TODO. Needs research drafts (T-4171) |
+## Market microdata: NSE reports, Nifty minutes, order book (2026-10-30)
+
+Operator: "look for all other data, scrap and store, look for orderbook data also if we can get historical data of last 1 year nifty 50 minute level, ensure uploading copy on b2 and delete from local"; then "I am asking for market order data"; then, on the ScanX comparison, "yes lets have all these data". Research 130, ADR-095.
+Verify: `uv run pytest -q tests/test_market_microdata.py`; `make nse-reports`; after `make kite-login`, `make index-minute` and `make depth-day`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4220 | Land NSE bulk/block deals, short selling, F&O ban, SLBM, MTF, insider (PIT), SAST daily and a year back; pledges, IPOs and the Nifty 50 list as daily snapshots | DONE. `make nse-reports`, in `make daily`; one-year backfill from 2025-10-30 (insider from 2026-05-01, the earliest NSE serves): 1,925 files, about 633,000 rows, in B2 under `nse_reports/` with SHA-256 checked; local copies deleted |
+| T-4221 | NIFTY 50, NIFTY BANK, INDIA VIX 1-minute bars from Kite | DONE. Five years (2021-11-01 to 2026-10-30), 1,388,541 candles, in B2 under `kite_index_minute/` with SHA-256 checked; local copies deleted. In `make daily` |
+| T-4222 | Record five-level depth for the Nifty 50, the index and the near future during market hours | DONE (S-052). One-minute live test on 2026-10-30 after the close: 52 instruments, five levels. First full session is the first trading day after it is loaded. `make schedule ACTION=install JOB=depth` loads the 09:10 job; needs a Kite login each morning |
+| T-4223 | Price NSE's historical order and trade data (the only source of past order books) | TODO, operator. Email marketdata@nse.co.in |
+| T-4224 | Mutual fund holdings by stock | TODO. Each fund house publishes its own monthly workbook; no consolidated free file found (research 130) |
+| T-4225 | Readers for the new reports (deals, ban list, MTF, SLBM, insider) on the dashboard or as features | DONE for the dashboard: Dashboard → India → Deals & filings (ADR-096, `make market-reports`, `tests/test_market_reports.py`). Not yet used as features (S-053) |
+| T-4228 | NSE's API answered a day it had not published with an empty file, which then locked in | DONE. Empty API answers within 3 days are retried, not landed; an early empty file is re-landed beside itself as `_recheck` (HISTORY #37) |
+| T-4229 | NSE's bulk list repeats block trades over 0.5% | DONE. Counted once, as the block (`market_reports.drop_repeats`) |
+| T-4227 | NSE served an empty MTF file for 2026-04-08 | OPEN. Refused as malformed, so the day is missing; `make nse-reports FROM=2026-04-08` retries it |
+| T-4226 | Upload-and-delete only after B2's size and SHA-256 match | DONE. `make upload-verified TREES=...`; used by the three new jobs |
+
+## The AI agent network (2026-10-29)
+
+Operator: an AI agent network for research, building, backtesting, optimisation, risk, scenarios, a trade panel, code quality and latency; one data quality reference for every ingest; security; a way to instruct agents; a knowledge agent, a daily market brief and a data maintenance agent; Quantpedia as a source; an AI tab. "Build everything in one go." ADR-085, ADR-086, ADR-087; research 125.
+Verify: `make verify`; `make agents`; `make data-quality`; `make agent NAME=market_brief`; open the workbench's AI tab.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4174 | Agent runtime: definitions, budgets, briefs, inbox, hash-chained log, import boundaries | DONE. `src/eulerlab/agents/`, `config/agents/`, `tests/test_agents_runtime.py` |
+| T-4175 | Eight agents: data, knowledge, market brief, research, skeptic, engineering, portfolio, operations | DONE. `tests/test_agent_workers.py`. None run live with a model yet (needs `GROQ_API_KEY`) |
+| T-4176 | Data quality contract, quarantine, panel SHA check, backtest guard, restore check | DONE. `make data-quality`; `tests/test_data_quality_contract.py` |
+| T-4177 | Trade desk tickets and strategy version lock | DONE. Live & Risk → Trade desk and AI → Trade desk; `make relock`; `tests/test_desk_and_version_lock.py` |
+| T-4178 | AI tab in the workbench, API routes, Telegram `agents`, `instruct`, `outlook`, `inbox` | DONE. `web/components/terminal/AgentsTab.tsx`, `api/agent_routes.py` |
+| T-4179 | Load the three agent launchd jobs on the Mac | TODO. `make schedule JOB=agents-preopen`, `agents-close`, `agents-weekly` |
+| T-4180 | Every reader of `data/landing/` skips quarantined files, not only the panel build | TODO (S-043) |
+| T-4181 | Read each registered source's licence and record it | TODO (S-044) |
+| T-4182 | First `make quantpedia-sync` with the operator's key; record real responses as fixtures | TODO (S-045, A-069). Put `QUANTPEDIA_USERNAME` and `QUANTPEDIA_API_KEY` in `.env`, never in chat |
+| T-4183 | VaR and futures lot checks on desk tickets | TODO (S-041, S-042) |
+| T-4184 | Time the order path, signal to fill | TODO (S-046), after T-4022 |
+
+## Paper-reading research agent (2026-10-29)
+
+Operator: build a research agent that finds market papers, drafts strategy cards in the repo's format, and stops for approval before any backtest or trial-ledger entry. Then: "use better model for ai agent network which is free ... scrape all useless models". Research 123, 124; ADR-084.
+Verify: `uv run pytest -q tests/test_paper_agent.py`; `make paper-agent TOPIC="overnight returns India" LIMIT=2`; read the drafts; `make paper-agent-approve DRAFT=<folder>`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4170 | **Paper agent: search, read, draft, validate, stage; approval moves files only** | DONE. `research/paper_agent.py`, `paper_search.py`, `make paper-agent`, `paper-agent-approve`, `paper-agent-list`. 20 tests, none touch the network. Not yet run against the live services (S-040) |
+| T-4171 | First live `make paper-agent` run on the operator's machine; record real arXiv and OpenAlex responses as test fixtures | TODO. Settles A-064 and A-065 and retires S-040. Needs `GROQ_API_KEY` and `EULERLAB_ASSISTANT_ZDR=1` in `.env`, or it runs on OpenRouter's 50 a day |
+| T-4172 | Stronger free model; remove dead and weak ones | DONE. `research_agent: groq` with `openai/gpt-oss-120b` (1,000 requests a day). Removed `ollama-small`, `openrouter-free`, `openai`, and Groq's `llama-3.3-70b-versatile`, shut down on 2026-08-16 (HISTORY #33) |
+| T-4173 | Show staged paper-agent drafts in Tools → Research Library | TODO. Today drafts are files to read; the library shows them only after approval |
 
 ## Quality and latency pass (2026-10-27)
 
@@ -51,7 +242,7 @@ Verify: `make verify` (8 of 8).
 | T-4166 | India dashboard hard to read: one long page, a breadth chart, numbers without words (research 121) | DONE. Four tabs, Market pulse cards in place of the Breadth band, template summary, plain names and arrows (ADR-081). 32 tests |
 | T-4161 | Dashboard lacks what trader platforms lead with: index trend and valuation, breadth depth, sector strength, F&O positioning (research 120) | DONE. `/api/market-context` and five India bands (ADR-080). 22 tests |
 | T-4162 | `landing_reader` asks the bucket for `nse/nse/...` for the `nse` tree; NSE files are at `nse/...`. Only local NSE files are seen, and `market_history._read` fails for pruned files | OPEN. The dashboard lists `participant_oi` as its own tree instead. Fix `remote_key` and the listing for the `nse` tree, then check every `nse/` reader |
-| T-4163 | Land FII/DII provisional cash flows | OPEN. A new source (research 120). The dashboard says it is missing |
+| T-4163 | Land FII/DII provisional cash flows | DONE (2026-10-29). `make fii-dii`, ADR-098; see the FII/DII section above |
 | T-4164 | Land upcoming results dates (board meetings) | OPEN. `nse_earnings_announcements.jsonl` holds past filings and ends 2024-12-31 |
 | T-4165 | The Dashboard page is wider than a phone screen: header, market toggle and ribbon run past 390 px | FIXED. The market toggle row did not wrap (scroll width 431 at 390); now every tab measures 390 |
 | T-4157 | Tests slept through the 5-orders-a-second governor in real time (25 of `test_paper_attribution.py`'s 27 s) | DONE. Simulated clock in tests only. Suite 153 s → 119 s |
@@ -184,7 +375,7 @@ Verify: read `docs/RESEARCH/079-what-other-platforms-have-and-a-risk-screen.md`;
 | T-4118 | The what-if sizes a new strategy in equal amounts | OPEN — A-060. The preview gives names, not sizes |
 | T-4114 | The rounding bug in the first VaR | NOTED — `(1 - 0.95) * 100` is 5.000000000000004 in floating point, and its ceiling put a sixth day in a five-day tail. Caught by the hand-worked test before any figure was shown |
 | T-4110 | **Limits with headroom** | DONE as warnings 2026-10-14 — the kill switch's daily loss (₹10,000, which already existed) and rupees-in-one-name limits are shown with how much is used. Four new levels in `config/risk_watch.yaml` (book VaR 2%, book drawdown 10%, deployment drawdown 8%, largest sector 35%) **warn and do nothing else**. Their values came from the mockup, not from the operator: change them. Orders-a-day and unresolved-order limits are not shown: the screen has no count of today's live orders |
-| T-4111 | A reduce-only state for a deployment | TODO — between trading and stopped; needs a decision record |
+| T-4111 | A reduce-only state for a deployment | DONE 2026-10-29 — ADR-092 (T-4201) |
 
 ---
 

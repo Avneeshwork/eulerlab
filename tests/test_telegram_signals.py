@@ -277,10 +277,17 @@ def test_no_word_can_place_change_or_stop_an_order() -> None:
         "jobs",
         "kite",
         "kill",
+        "agents",
+        "instruct",
+        "outlook",
+        "inbox",
         "ask",
         "forget",
         "help",
-    }, "a new word needs a decision recorded first: every word here is read-only (ADR-068)"
+    }, (
+        "a new word needs a decision recorded first: every word here is read-only (ADR-068), "
+        "except `instruct`, which saves an agent brief and nothing else (ADR-085)"
+    )
 
 
 def test_only_the_operators_chat_is_answered(monkeypatch: pytest.MonkeyPatch) -> None:

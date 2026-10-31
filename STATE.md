@@ -1,9 +1,9 @@
 # STATE — where this project is right now
 
-**Status:** IN PROGRESS — five fixed microstructure rules are coded. Strategy 5 has an immutable FYERS expired-futures fetch path, ID normalization, a bounded backtest runner, and verified raw/derived B2 mirrors. App credentials are present, but today's token is missing; no futures data or P&L exists yet (T-4185). The operator reports written historical-backtest approval. NSE's commercial-entity trial is unavailable to this individual. The UI revamp remains isolated on its own branch.
-**Next:** Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`; keep the UI revamp isolated.
+**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token) and the UI revamp (T-4283).
+**Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
-*Last updated: 2026-10-29. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-31. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,45 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Strategy map (2026-10-31, ADR-106):** `make strategy-map` reads stored reports, spends no trial. 68 daily strategies are
+  2.78 independent bets; 39 move together (correlation 0.79), about 6 with Nifty taken out (HISTORY #44). Plan for many daily
+  strategies: judge books, not single rules (TASKS T-4291 to T-4298); your seven decisions are T-4292.
+- **Market brief as a morning note (2026-10-31, ADR-105):** the brief is saved as data and drawn in the AI tab: headline, the three things
+  that matter ranked by how unusual they are (each with what it means), levels and if-then, coming up (expiry, ban list, results due), books
+  needing you, then the detail folded. Telegram gets 8 lines. Weekends and NSE holidays get a markets-closed note (week in review, week ahead); the after-close note runs in `make daily`.
+- **Metrics library (2026-10-31, ADR-103):** `docs/METRICS/`, 116 pages: every platform metric plus macro, policy, institutions, events and market structure,
+  traps and example answers, plus `HOW_TO_ANSWER.md`. Wired into the knowledge agent and the assistant (`explain_metric`); kept current by the knowledge keeper agent (ADR-104), which recomputes normals daily, watches SEBI/RBI/NSE circulars and drafts page updates for approval. Found: Sharpe has no
+  risk-free rate (A-083, T-4249) and the gate never checks `min_t_statistic` (HISTORY #42, T-4250).
+- **Market brief answers first (2026-10-31, ADR-100):** the brief opens with the Trader's read: bottom line, a seven-row
+  scorecard with what is normal for each signal, Nifty's levels and ranges, what would change the read, the books.
+  Thresholds in `config/trader_read.yaml` (proposals, A-082). Telegram gets the read only; the assistant has `market_read`.
+- **Formula language (2026-10-31, ADR-097, research 131):** a card can name `feature: "formula:<text>"`, e.g. `neg(ts_mad(ret(1), 62))`;
+  parsed and interpreted, never executed. The 10 library features rewritten as formulas match exactly. Phase 1 of the
+  self-improving agent plan; whether discovery-window searches count as trials is your call (T-4230).
+- **FII/DII cash flows (2026-10-29/30, ADR-098, ADR-099):** `make fii-dii` captures NSE's evening figure in `make daily` and
+  `make india-live`; first live run 2026-10-30. `make fii-dii-history` backfilled 265 days (2025-10-01 to 2026-10-29) from Trendlyne
+  against its terms, by operator decision; agrees with NSE, Groww and stockezee within 0.05 crore. Shown on Dashboard → Big money.
+- **Market microdata (2026-10-30, ADR-095, research 130):** `make nse-reports` lands bulk/block deals, short selling, F&O ban,
+  SLBM, MTF, insider and SAST filings, and pledge/IPO/Nifty 50 list snapshots; a year back (insider from May 2026). `make
+  index-minute`: 5 years of NIFTY 50, BANK and VIX minutes. `make depth-day` records Kite five-level depth (snapshots, not every
+  order; S-052), launchd job `depth` not loaded. All in B2, SHA-256 checked, local deleted. Past order books are paid only (T-4223).
+  Dashboard → India → **Deals & filings** shows them (ADR-096, `make market-reports`, run inside `make nse-reports`).
+- **Loss limits that act (2026-10-29, ADR-092):** a paper book goes reduce-only (sells only) at a 10% drawdown and halts at 20%
+  (`config/loss_limits.yaml`, defaults not yet chosen by you); Reduce only / Resume buying on each card.
+- **Workbench redesign (2026-10-29, ADR-090, 091):** four colours (blue, green, red, amber), rounded corners, one look file
+  (`web/app/terminal/theme.css`). AI tab opens on Live: what each agent is doing now, step by step. `make agent` works again (HISTORY #34).
+- **AI agent network (2026-10-29, ADR-085 to 087):** eight agents on one runtime with budgets, briefs, an inbox
+  and a hash-chained log; none can import the order path, gate, ledger writer, env or a shell. Workbench **AI** tab and
+  Telegram `instruct`/`outlook`/`inbox`. One data quality contract grades 18 datasets (`make data-quality`); backtests refuse a
+  low-grade panel. Trade desk tickets and a version lock on every deployment. Quantpedia sync needs a key (T-4182).
+  No agent has run live with a model yet; launchd jobs not loaded (T-4179).
+  Code checks every figure in a knowledge answer or brief commentary against what the model was given; `make agent-eval`
+  switches off an agent that shows a made-up figure (ADR-088). The idea lab may spend up to **5 trials a week** testing
+  the research agent's drafts (IC screen, then backtest, before the holdout), each logged and raising the bar (ADR-089).
+- **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
+  library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
+  `research/agent_drafts/`. `make paper-agent-approve DRAFT=...` moves one into `hypotheses/` as a draft. It never
+  backtests or logs a trial. Not yet run live (T-4171). Dead and weak models removed from `config/llm.yaml` (HISTORY #33).
 - **Quality and speed pass (2026-10-27):** all uncommitted work committed; `make verify` 8 of 8.
   Engines agree again (Tier A got Tier B's cash and delisting rules, HISTORY #28). FX now pays its
   recorded spread (it paid nothing, HISTORY #30). Panel: 2.6 → 1.85 GB, read about 8 s from a
