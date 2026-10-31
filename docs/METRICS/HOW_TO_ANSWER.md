@@ -1,5 +1,8 @@
 # HOW_TO_ANSWER — the rules for answering about markets, strategies and risk
 
+To read the whole library comfortably, open the Market Handbook: `make handbook`, then
+`http://localhost:3000/handbook.html` in the workbench.
+
 For the assistant, the market brief's analyst note, the knowledge agent, and anyone writing a note
 for the operator. Research 134 records where each rule comes from. The metric pages in this folder
 hold the facts each rule needs.

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history
+.PHONY: handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history
 
 help:
 	@echo "EulerLab — targets"
@@ -74,6 +74,7 @@ help:
 	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
 	@echo "  make knowledge-keeper [MODE=weekly]  refresh metric normals, watch SEBI/RBI/NSE, draft page updates"
 	@echo "  make metrics-normals          recompute what is normal for each metric"
+	@echo "  make handbook                 rebuild the Market Handbook (workbench /handbook.html)"
 	@echo "  make metrics-accept DRAFT=... apply an approved draft page to docs/METRICS"
 	@echo "  make agent-eval [ONLY=skeptic|knowledge]  score agents; one that makes up a figure is switched off"
 	@echo "  make relock DEPLOYMENT=<id> NOTE='...'  accept a strategy's changed code after review"
@@ -274,6 +275,9 @@ agents-preopen:
 knowledge-keeper:
 	@uv run python -m eulerlab.agents.runtime knowledge_keeper $(if $(MODE),--arg mode=$(MODE),)
 
+handbook:
+	@uv run python tools/render_metrics_handbook.py
+
 metrics-normals:
 	@uv run python -m eulerlab.metrics_library.normals
 
@@ -286,6 +290,7 @@ agents-close:
 	-@uv run python -m eulerlab.agents.runtime portfolio
 	-@uv run python -m eulerlab.agents.runtime market_brief
 	-@uv run python -m eulerlab.agents.runtime knowledge_keeper
+	-@uv run python tools/render_metrics_handbook.py
 
 agents-weekly:
 	-@uv run python -m eulerlab.agents.evaluate
@@ -340,6 +345,7 @@ api:
 	uv run --extra web uvicorn eulerlab.api.server:app --port 8000 --reload --reload-dir src
 
 ui:
+	-@uv run python tools/render_metrics_handbook.py
 	cd web && npm install --silent && npm run dev
 
 # Download and merge every backtest result from the bucket, whatever its size.

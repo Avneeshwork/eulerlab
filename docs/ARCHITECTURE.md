@@ -2468,6 +2468,13 @@ material is dropped (ADR-088). A kept draft waits in the inbox, and
 `make metrics-accept DRAFT=...` copies it over its page; it refuses any
 path outside `docs/METRICS/`. Nothing else writes to `docs/`.
 
+**The Market Handbook.** `tools/render_metrics_handbook.py` (`make handbook`)
+renders every page, `HOW_TO_ANSWER.md` and the open operator tasks from
+`TASKS.md` into one searchable page, `web/public/handbook.html`. The
+workbench serves it at `/handbook.html`. It is generated and gitignored,
+like `architecture.html`, and rebuilt by `make ui` and after the keeper's
+daily run, so it shows accepted drafts the next day.
+
 ### Agents on the page they serve (ADR-094)
 
 Each page shows its own agents in a strip under the heading

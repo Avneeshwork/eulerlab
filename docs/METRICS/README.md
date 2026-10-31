@@ -7,6 +7,9 @@ its sources, and example answers. The rules for answering are in
 point to it rather than repeat it. Built for the assistant, the brief and the knowledge agent
 (ADR-103), and for the operator.
 
+To read it as one searchable page, run `make handbook` and open
+`http://localhost:3000/handbook.html` in the workbench.
+
 "What is normal" figures were computed from the data held on 2026-10-30. They age: the
 percentile a payload carries (for example `percentile_1y`) is always the live answer.
 

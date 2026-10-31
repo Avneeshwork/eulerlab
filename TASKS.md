@@ -30,6 +30,7 @@ Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open 
 | T-4251 | Decide whether Sortino's downside deviation should average over all days, as Sortino & Price define it (A-084) | TODO |
 | T-4252 | Wire the library in: knowledge agent sources (`docs/METRICS`, `docs/GLOSSARY.md`), an `explain_metric` assistant tool; scored questions | DONE 2026-10-31. 10 cases added to `config/agent_eval/knowledge.yaml` (k-13 to k-22), not yet run live. The brief's analyst note waits for the brief rebuild |
 | T-4255 | Knowledge keeper agent: daily normals and SEBI/RBI/NSE feed watch, weekly gaps and drafted page updates, `make metrics-accept` | DONE 2026-10-31. ADR-104, research 136, `tests/test_metrics_library.py` (18 tests). First run in a scratch copy recorded 94 feed items as baseline |
+| T-4258 | Market Handbook: the library as one searchable page (`make handbook`, workbench `/handbook.html`), rebuilt by `make ui` and the daily agent batch | DONE 2026-10-31. `tools/render_metrics_handbook.py`, 2 tests |
 | T-4256 | Watch MoSPI and AMFI: no RSS; find a readable official source (PIB RSS?) | TODO |
 | T-4257 | Recheck the seven assumptions the keeper found overdue on its first weekly pass (A-000, A-002, A-004, A-005, A-008, A-010, A-019) | TODO. Operator |
 | T-4253 | Review the Trader's read cash-flow thresholds: ±₹5,000 cr sits near this year's median FII 5-day net (−₹6,110 cr), so "weak" is the usual reading (A-082) | TODO. Operator |
