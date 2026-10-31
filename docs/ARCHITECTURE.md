@@ -142,6 +142,43 @@ re-reads every panel day's cash bhavcopy from NSE's archive (not B2, whose
 uses, and `SWAP=1` replaces the panel only if every stored close is reproduced
 exactly; the close-only panel is kept beside it.
 
+### NSE daily reports, index minutes and market depth (ADR-095)
+
+`make nse-reports` (`ingest/nse_reports`, research 130) lands twelve NSE
+reports raw under `data/landing/nse_reports/<report>/YYYY/MM/`. Eight are
+dated, one file per trading day: bulk deals, block deals, short selling (all
+from the archive API's CSV form, because its JSON form stops at 70 rows), the
+F&O ban list, the SLBM bhavcopy, MTF, SEBI PIT insider filings and SAST
+regulation 29 filings. Four are snapshots of today, since NSE keeps no history
+of them: promoter pledges, open IPOs, past IPOs and the Nifty 50 constituent
+list. A day is fetched once it is over: from 21:00 IST that day for the
+end-of-day files, the next day for the filings NSE broadcasts late. A report in
+the manifest is never fetched again, even after its local copy is pruned.
+
+`make index-minute` lands Kite 1-minute candles for NIFTY 50, NIFTY BANK and
+INDIA VIX under `data/landing/kite_index_minute/` (volume is always 0: an
+index does not trade). `make depth-day`, run by the `depth` launchd job at
+09:10 IST, records Kite's five-level depth for the 50 Nifty stocks, the index
+and the nearest Nifty future until 15:31. Each row has `event_time` (the
+exchange timestamp) and `knowledge_time` (when the Mac received it). This is a
+snapshot per change, not NSE's order feed (S-052), and starts from the first
+day it ran: no free source has past order books.
+
+`make market-reports` (`market_reports.py`, ADR-096) turns the latest landed
+reports into `data/derived/market_reports.json` for Dashboard → India → Deals &
+filings: 30 trading days of bulk and block deals (a block trade NSE repeats in
+the bulk list counted once), net buyers and sellers, the F&O ban against the
+day before, MTF funding against five sessions back, short selling and SLBM
+lending, ten days of SAST and PIT filings, promoter pledges from the last two
+quarters, and IPOs. It runs between the download and the upload, so it reads
+local files. An empty API answer within three days of its date is not landed:
+NSE answers a day it has not published yet with an empty 200.
+
+All three upload with `make upload-verified`, which deletes a local file only
+when B2 holds it at the same size and the SHA-256 recorded at upload equals
+the hash of the local bytes, computed again. A file that fails either check is
+kept and named.
+
 ## 3.2 The bitemporal model: two clocks, not one
 
 This is the most important data concept in the system, and the one most
@@ -335,6 +372,44 @@ around **0.02–0.05** — small, and that is normal. What matters is consistenc
 > **Warning attached to this project's own IC figures:** the Sprint 8 IC
 > numbers were computed on *raw, unadjusted* prices over a 3-year panel and
 > have not been recomputed (ticket T-1317). They should not be relied on.
+
+## 4.1a The formula language (ADR-097)
+
+A feature can also be written as a formula, so the research agent can compose
+new ones without writing Python. `features/formula.py` parses the text into a
+tree and interprets it; nothing is ever passed to `exec`.
+
+```
+    low_volatility     =  neg(ts_mad(ret(1), 62))
+    price_to_52w_high  =  div(close, ts_max(close, 252))
+    momentum_12_1      =  delay(ret(231), 21)
+```
+
+- **Inputs:** `close`, `volume`, `turnover` for one stock. Zero or negative reads as missing.
+- **Operators:** `ret`, `delay`, `delta`, `neg`, `abs`, `log`, `sign`, `add`, `sub`, `mul`, `div`,
+  and window operators `ts_mean`, `ts_std`, `ts_sum`, `ts_min`, `ts_max`, `ts_median`, `ts_mad`,
+  `ts_rank`, `ts_drawdown`. Every one looks back only.
+- **Limits:** depth 6, 24 operators, windows 1 to 504 sessions.
+- **Missing data:** a window needs at least half its values. Division by zero and the log of a
+  non-positive number are missing, not errors.
+- **Lookback** is computed from the tree: `ts_op(x, n)` needs `lookback(x) + n − 1` rows,
+  `delay(x, n)` needs `lookback(x) + n`, `ret(n)` needs `n + 1`.
+
+A formula compiles into the same `Feature` as the library, so the IC screen, `RankAndHold`,
+codegen, the critic and the idea lab's trial path take `feature: "formula:<text>"` on a card
+through one resolver, `formula.resolve`. Every evaluation still spends a trial as before.
+
+**The alpha zoo** is the ten library features rewritten as formulas. On full histories each
+gives exactly the library's value (tested every 7 rows over 400). They can differ only when
+most of a window is missing, because the hand-written features have their own minimum counts.
+
+**Originality** is the size of the largest subtree a candidate shares exactly with another
+formula, over the candidate's size. Wrapping a zoo formula in one more operator scores 0.75;
+an unrelated formula that shares only `volume` scores 1/3. Research 131 plans to use it to
+refuse ideas that copy the zoo or the graveyard.
+
+**What it cannot do:** compare stocks with each other inside a formula (ranking stays in the
+strategy), or read fundamentals, delivery or participant data. Each needs a new, tested input.
 
 ## 4.2 The cost model: itemised, not blended
 
@@ -1110,6 +1185,28 @@ study, MCX gold and the option structures (each a different engine).
 
 # Part V — The workbench
 
+## 7.0 The look (ADR-090, ADR-093)
+
+Four colours (Apple's system blue, green, red and orange) on frosted glass,
+defined once in `web/app/tokens.css`:
+
+| Colour | Token | Means |
+|---|---|---|
+| Blue | `--brand` | an action, the page you are on, the selected thing |
+| Green | `--up`, `--clear` | a rise; on a result, cleared the noise bar |
+| Red | `--down`, `--fail` | a fall, a refusal, a failure |
+| Amber | `--caveat` | a warning: assumed, unrecorded, stale |
+
+Charts that need more series use `--series-1..8` (the four, then a light tint
+of three, then grey). Corners: `--r-sm` 12px on controls, `--r-md` 16px on
+panels, `--r-lg` 22px on cards, pills on toggles and buttons.
+`web/app/terminal/theme.css` loads after `terminal.css` and `shell.css`, and
+`glass.css` after it. `--surface` is translucent: three soft glows sit behind
+the page and each card blurs them (`--glass-blur`), with a white hairline edge.
+The selected page or view is a raised white thumb on a grey track, as in iOS.
+`--surface-solid` is for what must hide the page; dialogs use heavier glass.
+Dark mode redefines tokens only, apart from three hover tints.
+
 ## 7.1 The strategy builder
 
 Tools → Strategy Builder (`web/components/terminal/StrategyBuilder.tsx`,
@@ -1168,10 +1265,16 @@ the paper and moves an `idea` to `specified`.
 
 ADR-059.
 
-New papers can be drafted from operator-pasted source text with a selectable
-assistant provider. OpenRouter choices come from its live free-model catalog
-filtered for ZDR endpoints and tool support, refreshed every ten minutes; the
-selected model is checked against that catalog before use. Inference still
+New papers can be drafted from operator-pasted source text with the
+assistant provider. The assistant panel and the Research Library list the
+`offered` providers in `config/llm.yaml`: Groq `openai/gpt-oss-120b` (the
+default) and every current Claude model, which are paid, used only when picked,
+and never a fallback (ADR-095). Claude goes through Anthropic's SDK
+(`assistant/anthropic_api.py`), which translates the chat shape, passes thinking
+blocks back, and turns a refusal into a model failure; Anthropic keeps API data
+up to 30 days and does not train on it (research 129). When `assistant` is OpenRouter, the API
+can still list its live free-model catalog filtered for ZDR endpoints and tool
+support, refreshed every ten minutes, and checks a requested model against it. Inference still
 enforces ZDR and collection denial. The endpoint uses the assistant's approved-host, retention
 and `.env` redaction checks; it returns a draft and never saves it. Source text
 is not persisted, and a link alone is not fetched. Neither draft depends on
@@ -1253,6 +1356,56 @@ which symbols are fund units from the rows (`vector.fund_symbols`) and pass it
 to the one cost path; until 2026-10-07 they charged ETFs the share rate
 (HISTORY #18).
 
+## 7.1b The paper agent (ADR-084)
+
+`make paper-agent TOPIC="..." [LIMIT=5]` (`research/paper_agent.py`,
+`research/paper_search.py`) goes from a topic to drafts the operator reads. It
+stops there.
+
+    price the search -> arXiv (q-fin) + OpenAlex -> drop papers already known
+      -> read arXiv HTML (first 16,000 chars) or the abstract
+      -> research_agent model -> JSON reply -> library.Paper + Card
+      -> card.validate + critic.review
+      -> research/agent_drafts/<run>/<paper>/{paper,card}.yaml, review.txt, draft.json
+
+**Order matters.** The search is priced before anything is fetched. An
+unaffordable search (`budget.price_search`) reads nothing. Known papers
+(matched on title or link, in `research/papers/` or an earlier run) are never
+sent to the model again.
+
+**What the model writes, and what it doesn't.** It writes the summary, trade
+idea, implementation, red flags, claim, rationale and configurations. Code
+sets the title, authors, year, link and fetch date from the search result. Code
+also sets the holdout date (`scout.HOLDOUT_START`) and the card id. A staged
+card has id `PENDING`; the next free `H-NNNN` is taken only at approval. A URL
+in the reply is dropped. Each draft gets one more red flag naming the model and
+how much was read. The reply must parse into `paper_agent.Reply`, or that paper
+fails and the run goes on.
+
+**Where text goes.** The prompt goes to the provider named `research_agent` in
+`config/llm.yaml` (Groq `openai/gpt-oss-120b`, research 123) through
+`assistant.chat.complete_any`. It passes the same host, zero-retention and
+redaction locks as the assistant, and falls back to other models the same way.
+If Groq's key or ZDR confirmation is missing, the run says so and uses the
+`assistant` provider. Paper text is not stored. Drafts are spaced 60 s apart
+(Groq allows 8,000 tokens a minute), and arXiv requests 3 s apart (its terms).
+
+**Approval.** `make paper-agent-approve DRAFT=<folder>` checks the card again
+with `card.validate` and refuses an incomplete one. It writes
+`hypotheses/H-NNNN.yaml` as `status: draft` through `card.write`, which never
+overwrites, and saves the paper to the library linked to that id with status
+`specified`. It marks the draft `approved.json` so it cannot be approved twice.
+The new card is not registered, so the gate ignores it. Whether to spend a
+trial on it is still the operator's separate decision (`make research
+CRITIC=H-NNNN`, then registration). `make paper-agent-list` shows drafts not
+yet approved.
+
+**What it cannot do.** It does not backtest, register, validate or write to the
+trial ledger. `tests/test_paper_agent.py` reads the two modules' imports and
+fails on any import of `backtest`, `validation`, `gates`, `gate_run`, `batch`,
+`optimize`, `oms`, `deploy`, `paper` or `features.trials`. It also runs a full
+draft and approval with the ledger's `append` set to raise an error.
+
 ## 7.2 The sandbox: how "paste code" stays safe
 
 Executing arbitrary Python would discard the lookahead firewall, because
@@ -1290,6 +1443,9 @@ into a run.
 - **The operator sees it before it runs.** Drafting starts no backtest.
 - **Provider-agnostic.** Any OpenAI-compatible endpoint; the default is local
   Ollama, which is free, has no quota and sends nothing anywhere.
+  Three roles in `config/llm.yaml`: `default` (Ollama, for the translator and
+  the audit), `assistant` (Groq `openai/gpt-oss-120b`, the chat panel's default; `offered` adds the paid Claude models) and `research_agent` (Groq
+  `openai/gpt-oss-120b`, the paper agent). Research 123 has their free limits.
 
 Neither mode can produce lookahead — not because the prompt says so, but
 because the `MarketView` contains no future rows to reach.
@@ -1873,13 +2029,64 @@ for `nse/nse/...` and finds only the local files (T-4162).
 
 None of these figures has passed the gate. They are context. The page carries
 each definition, and Sensibull's own statement that PCR and max pain "do not
-have high predictive power". Not shown, because neither is landed: FII/DII
-cash flows and upcoming results.
+have high predictive power". Not shown, because it is not landed: upcoming
+results.
+
+### FII/DII cash flows (ADR-098, research 128)
+
+NSE publishes each evening what FII/FPI and DII bought and sold in the cash
+market that day, in Rs crore, at `www.nseindia.com/api/fiidiiTradeReact`. It
+serves the latest day only and ignores `?date=` (research 004), so the dataset
+is capture-only: `make fii-dii` makes one request, lands the JSON under
+`data/landing/fii_dii/cash/` dated by the payload's own date, and appends one
+row to `data/derived/fii_dii_cash.jsonl` with `event_time` (15:30 IST on the
+trade date) and `knowledge_time` (when the file landed). A day already in the
+manifest is skipped, whether or not its file is still local. A payload without
+both groups, with two dates, with net not equal to buy - sell (0.05 crore
+tolerance), or dated after today is refused.
+
+It runs in `make daily` (19:30), in every `make india-live` pass, and from the
+Data coverage table's own button. `fii_dii_cash.rows(as_of=...)` drops rows
+known after `as_of`. `/api/fii-dii` (`api/fii_dii_routes.py`) answers the
+dashboard: today's buy, sell and net per group, net over the last 5 sessions
+held and the month to date, the run of same-sign sessions, the last 60 nets and
+up to 12 monthly sums with the days each covers.
+
+The panel is `web/components/terminal/FiiDiiFlows.tsx` with its own
+`fiidii.css`; every colour is a `--fd-*` token. It sits at the top of the
+Big money tab. There is no free official archive of these figures (research
+004, 126).
+
+**History (ADR-099, research 127).** `make fii-dii-history MONTHS=12`
+(`ingest/fii_dii_history.py`) fills the days before capture began. It fetches
+one Trendlyne page per month (`.../cash-pastmonth/DD-Mon-YYYY/`, the month ends
+of the last N months, then today). Each page carries about 20 days in the
+`data-jsondata` attribute of the table `cash-table-main-pastmonth`. It also
+fetches one page each from Groww and stockezee to cross-check. Every page lands
+unedited under `data/landing/fii_dii/<source>/`, keyed in the manifest by its
+date. A page already there is not fetched again, so re-runs only ask for
+today's pages.
+
+Requests are one at a time, at least 2.5 s apart, with one try each. A 403 or
+429 stops the run. A Trendlyne row is refused when net is not buy - sell within
+0.15 crore (each figure is rounded to 0.1). It is also refused when the date is
+in the future, or falls inside the NSE cash bhavcopy manifest's range without
+a bhavcopy. Past the manifest's last day, a weekday is enough.
+
+Only Trendlyne rows are written, with `source: "trendlyne"` and the page's
+scrape time as `knowledge_time`. So `rows(as_of=...)` never shows a backfilled
+day before it was scraped. NSE rows carry `source: "nse"`; a row without
+`source` is NSE's. A day already in the table is never overwritten, and
+`make fii-dii REBUILD=1` puts NSE's days first and fills the rest from the
+landed Trendlyne pages.
+
+Each run compares Trendlyne with NSE and Groww on every figure, and with
+stockezee on the nets. It lists any gap over 1 crore.
 
 ### The India tabs and the market pulse (research 121, ADR-081)
 
 The India view has four tabs, kept in the address as `?view=`: Overview,
-Sectors, Big money (F&O) and Stocks to watch. The other markets keep the
+Sectors, Big money and Stocks to watch. The other markets keep the
 single page. `market_pulse.py` turns the figures above into words; it adds no
 data of its own.
 
@@ -1911,7 +2118,7 @@ second tap, a click elsewhere or Escape. Hover tooltips remain only for values.
 The breadth series is still computed (Participation and the new-high lists use
 it), but its chart is not drawn.
 
-### One visual language for every screen (ADR-084)
+### One visual language for every screen (ADR-102)
 
 Every terminal screen is built from `web/components/terminal/ui/`: `Info` (the
 only place explanation lives, a tap-to-open button), `Heading`, `Stat`/`Stats`,
@@ -2014,6 +2221,30 @@ others keep theirs. Each row carries the book's VaR without it, and
 `POST /api/risk/what-if` gives the book's VaR before and after adding a
 strategy at a stated capital, sized as equal amounts of today's names (A-060).
 
+
+### Loss limits that act (ADR-092)
+
+After every run, `deploy/loss_limits.apply` reads the deployment's drawdown
+from its own high on the time-weighted curve (`risk.book.growth`, so moving
+money is not a loss) and compares it with two levels:
+
+| Level | Default | What happens |
+|---|---|---|
+| `reduce_at` | 10% | a reduce-only window opens from the next session: sells fill, buys are refused |
+| `halt_at` | 20% | the deployment's kill switch trips; status halted; `make kill-reset` to clear |
+
+Defaults are in `config/loss_limits.yaml` (operator-owned, A-071); a
+deployment's own `reduce_at`/`halt_at` win. A window is stored on the
+deployment as `{from, to, why, by}`. The runner replays the deployment from its
+start every day, so `ForwardExecutor` refuses a buy whose fill day is inside a
+window before the OMS sees it, on every replay alike; the book and the broker
+never differ. Live & Risk shows the drawdown against both levels on each paper
+card, with **Reduce only** / **Resume buying** and **Change** for the levels.
+Only the daily rebalancing book enforces reduce-only (S-050). A book not yet
+run since loss limits existed has no measurement in its state; the API makes
+the same calculation for its card, with no action attached, so the card never
+waits a day to show the drawdown.
+
 ## Scheduled jobs
 
 `tools/schedule_daily.py` writes launchd jobs; `make schedule JOB=...`.
@@ -2023,6 +2254,9 @@ strategy at a stated capital, sized as equal amounts of today's names (A-060).
 | `com.eulerlab.daily` | 19:30 every day | `tools/daily_guard.sh` (`make daily`, and a message if it fails) |
 | `com.eulerlab.fundamentals` | 10:00 on Sunday | `make fundamentals-update` |
 | `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
+| `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
+| `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, after-close brief) |
+| `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge index, research, code review) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
@@ -2126,7 +2360,7 @@ A floating button on every screen (`web/components/Assistant.tsx`, mounted in
 
 **Path of one question.** Browser → `POST /api/assistant/chat` →
 `assistant/chat.ask` → the provider named `assistant` in `config/llm.yaml`
-(OpenRouter's free `apodex/apodex-1.1-mini:free`). The model is sent the conversation and a list of tools. It replies
+(OpenRouter; the model is picked from its live free zero-retention list, ADR-080). The model is sent the conversation and a list of tools. It replies
 either with an answer or with tool calls; `assistant/tools.call` runs each and
 the text goes back. At most `MAX_ROUNDS` (6) requests per question; the last
 has no tools, so it must answer.
@@ -2153,7 +2387,7 @@ answer the tools that were sent with their sizes. `GET /api/assistant/status`
 gives the reason when it is off and never calls the provider.
 
 
-## Five intraday microstructure rules (research 125)
+## Five intraday microstructure rules (research 133)
 
 `intraday/microstructure_five.py` contains five fixed hypotheses. The first
 four need order, trade, or book events; candle volume is never used as a proxy
@@ -2178,3 +2412,202 @@ minutes. Positions for one share cannot overlap. The cash replay charges 2 bp
 slippage per side and the date-specific NSE intraday fee schedule. This is a
 single fixed-rule research run, not the platform's promotion gate or a live
 deployment approval.
+## The agent network (ADR-085)
+
+Eight agents on one runtime, `src/eulerlab/agents/`. Each is a YAML file in
+`config/agents/` (job, worker module, schedule, daily model budget, what it
+may never do) and a worker with one `run(ctx)` function.
+
+```
+brief (AI page, make agent-brief, Telegram instruct) ─┐
+definition + operator switches (narrow only) ─────┤
+                                                  ▼
+                       runtime.run ── counted model (assistant locks: approved hosts, ZDR)
+                                  │
+            data/agents/<agent>/<run>/output.json  +  one line in the hash-chained log
+                                  │
+                 items that need you ──► inbox ──► approve / dismiss (a record only)
+```
+
+| Agent | Reads | Hands on |
+|---|---|---|
+| data | data quality grades, coverage, feed timings, launchd results | alerts, rerun proposals, answers to data requests |
+| knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia) | answers with sources |
+| market_brief | the running API's market context, world prices, the day's events, the books | a pre-open or after-close brief; Telegram |
+| research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads |
+| skeptic | a stored backtest's equity curve | attacks: best year, best days, stress windows (A-067), t-stat, costs |
+| engineering | the branch's changed files | review findings: operator-owned files, missing docs or tests, boundary breaks |
+| portfolio | promoted strategies, deployed books | inverse-volatility weights (capped), drift, retirement proposals |
+| operations | step timings against deadlines, contract notes, deployment halts | latency and failure alerts |
+
+**What no agent can do.** `agents/boundaries.py` reads every agent module's
+imports and a test fails on the order path, the gate, the trial ledger's
+writer, the validation battery, `env`, the deployment runners or `subprocess`.
+Reruns go through `agents/jobs.py`, an allowlist of the feed's own idempotent
+steps. A brief is text; it cannot raise a budget or switch off a check.
+
+**Budgets.** `log.requests_on(agent, IST day)` sums the model requests of the
+day's runs; a run that reaches the budget stops with `over_budget`.
+
+**Memory.** The market brief reads market context over HTTP from the running
+API rather than loading a second copy of the 1.85 GB panel.
+
+**The Trader's read (ADR-100).** The brief opens with an answer, not a list.
+`agents/trader_read.py` turns the gathered inputs into, in this order: a bottom
+line; a scorecard of seven rows (trend, breadth, volatility, FII futures, cash
+flows, valuation, options), each with its value, what is normal and a word
+(supportive, neutral, weak, not held) from `config/trader_read.yaml`; today's
+map (last Nifty close, its 20/50/200-day averages, a one-day range of
+close × VIX / 100 / √252, the straddle range and max pain when the option data
+is no more than three days old); what would change the read, as the numbers at
+which a word flips; and each paper book's day, drawdown from its peak and
+share invested. The bottom line counts the words (Risk-off when weak exceeds
+supportive by two or more, Mixed otherwise) and names a large/small-cap gap
+over three points. The model, when it has budget, answers three fixed
+questions under the read and passes the grounding check. Telegram gets the
+read only; the assistant's `market_read` tool returns it, and its prompt tells
+it to answer market questions in the same order.
+
+**Workbench.** The AI tab opens on **Live**: a card per agent with its state
+(working, done, failed, stopped, never run), the step it is on, its last few
+steps and today's model requests, beside a feed of every agent's steps. Then
+the inbox, agents and briefs (switch, budget, brief, run), ask the knowledge
+agent, research and skeptic runs, the market brief, data quality and the
+agents' log. The trade desk is on Live & Risk only.
+
+### Agents on the page they serve (ADR-094)
+
+Each page shows its own agents in a strip under the heading
+(`AgentStrip.tsx`, `PAGE_AGENTS`):
+
+| Page | Agents |
+|---|---|
+| Dashboard | market brief, with the latest brief shown in the strip |
+| Strategies | idea lab, skeptic, portfolio |
+| Live & Risk | operations, portfolio |
+| Data, Instruments | data |
+| Research | research, knowledge |
+
+The strip reads `/api/agents/activity` and `/api/agents/inbox`. It polls every
+30 s, or every 3 s while one of its agents runs. Run now posts to
+`/api/agents/{name}/run`. The AI tab stays the control room: the inbox, every
+agent live, Ask, settings and the log. Engineering shows only there.
+
+Each card says what the last run found, not only how many (T-4212). The
+activity route carries `findings`: up to 12 of the run's items, critical first,
+then warnings, alerts before findings, each with its explanation and the
+command that fixes it; `findings_total` is the full count. The card shows the
+worst three and expands to the rest.
+
+- **Skeptic.** A picker lists every strategy with a stored report
+  (`GET /api/agents/skeptic/targets`). Run with a strategy, it gives that
+  result's full review. Run with "all", or with nothing named, it runs the
+  numbers-only attacks on every stored result and lists them worst first. That
+  spends no model request and no trial, because it only reads reports already
+  stored.
+- **Idea lab.** It runs from the terminal (`cli_only`) because it loads the
+  whole price panel. The card says so, gives its schedule, and has the command
+  with a copy button.
+- **Data.** The summary reads "N clean (A or B), N usable with a failed check
+  (C), N not usable (D)" and names the critical datasets that block backtests.
+  Each failed check is said as the problem it is (`CHECK_WORDS`), and the card
+  carries the key to the grades.
+- **Operations.** The summary names each alert, and a halted book's alert says
+  why it halted and that it places no trades while halted.
+
+### What an agent is doing now (ADR-091)
+
+```
+runtime.run ── step("Started …") ─┐
+worker ── ctx.step(…) / ctx.notes.append(…) ─┤──► data/agents/<agent>/<run>/progress.jsonl
+ctx.ask ── "Asking …" / "The model answered" ─┤        {at, kind: start|step|note|model|end, text}
+runtime.run ── step("Finished: status · summary") ─┘
+                                   │
+         GET /api/agents/activity ─┴─► newest run per agent + all steps newest first
+```
+
+A run with no `output.json` is *running* while its last step is under 15
+minutes old (or the web server started it), and *stopped* after that. Steps
+carry no model text, only what the code chose to say.
+
+### When a model makes something up (ADR-088)
+
+`agents/grounding.py` checks every number (two digits or more, or with a
+point, comma or %), id and file path in an answer against the text the model
+was given. A number counts as supported when the evidence holds the same
+value at the answer's precision, or the same share as a fraction (12% for 0.12).
+
+| Where | On an unsupported figure |
+|---|---|
+| Knowledge answer | One retry that names the figures; then "Not held", listing them. The first answer is kept in the output |
+| Market brief commentary | Dropped; the brief goes out with data only, and a note says why |
+| `make agent-eval` | A figure the operator would have seen switches the agent off until the operator switches it on |
+
+Each output records a fingerprint of the prompts it ran under, so a changed
+score can be traced to a prompt change. `make agent-eval` runs weekly in
+`agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
+
+### The idea lab and the agents' trial allowance (ADR-089)
+
+```
+research drafts ──► lab: skip repeats, waiting-for-data, unbuildable
+                     │  fits this week's allowance (config/agent_trials.yaml, 5)?  no ─► wait
+                     ▼
+        panel cut at the card's holdout
+                     │
+     IC screen per feature (1 trial each) ── fails ─► stop, report
+                     │ every feature passes (IC >= 0.02, t >= 2)
+                     ▼
+     Tier A backtest per configuration (1 trial each)
+                     │
+     skeptic attacks ──► survivors to the inbox ──► operator: approve, register, make gate
+```
+
+Every trial is written to `data/derived/trials.jsonl` as `agent|<card>|...`
+before its result is read, so `budget.searches_run` and the noise bar count it.
+`research/agent_trials.py` is the only trial path an agent may import, and only
+`workers/lab.py` imports it (test-enforced). The lab reads the whole panel, so
+the web page refuses to start it; it runs from `make agent NAME=lab` and the
+Sunday batch.
+
+## The data quality contract (ADR-086)
+
+`config/data_sources.yaml` registers every dataset. `make data-quality` grades
+each one:
+
+| Check | Fails when |
+|---|---|
+| registered | the dataset is not in the register |
+| provenance | publisher, address or licence is missing; `unreviewed` licence warns |
+| fingerprint | a landed file has no SHA-256 or no knowledge time |
+| sense | duplicates, empty files, calendar gaps (`quality/manifest_checks.py`) |
+| quarantine | one of its files is held |
+| freshness | reported beside the grade, not in it |
+
+A = all pass; B = warnings only; C = one failure; D = more, or nothing landed.
+A derived table takes the worst grade of what it is built from, and a source
+that cannot date its values (`point_in_time: false`) is B at best.
+Quarantine is an append-only list (`data/quality/quarantine.jsonl`); the raw
+file is never moved. The panel build skips held files and holds any file whose
+SHA-256 no longer matches its manifest. `make backtest` refuses a price panel
+below its minimum grade unless `ALLOW_LOW=1`. Optimisation sweeps are refused
+outside the grid written on their card (`research/grid_rule.py`).
+
+## The trade desk and the version lock (ADR-087)
+
+One ticket per active deployment (`desk.py`): sells and buys at the next
+rebalance, estimated cost at 0.25% a round trip (A-068), the reason, and
+pre-trade checks (kill switch, data grade, version lock, position size, order
+rate). A blocked ticket cannot be approved. `deploy/version_lock.py`
+fingerprints a strategy's own source on its first run. Paper books whose code
+changed trade on with a warning; a live book stops, and also stops unless
+that day's ticket is approved. `make relock DEPLOYMENT=... NOTE=...` accepts
+reviewed code.
+
+## Quantpedia (research 125)
+
+`make quantpedia-sync` lands Quantpedia's strategy list and up to 50 new
+strategy details a run under `data/landing/quantpedia/<day>/`, with a SHA-256
+manifest; nothing landed is fetched again. Needs `QUANTPEDIA_USERNAME` and
+`QUANTPEDIA_API_KEY` in `.env`. Their Sharpe ratios are their own, shown as
+prior evidence only.

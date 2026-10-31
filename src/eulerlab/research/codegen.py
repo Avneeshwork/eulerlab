@@ -26,6 +26,11 @@ and hold the top N" needs a new primitive, written and tested by hand, before
 a card can reference it. That is a deliberate brake on the loop's throughput,
 and given what Sprint 15 measured about the cost of searching, throughput is
 not the constraint worth relaxing.
+
+Since ADR-097 a card's `feature:` may also be `formula:<expression>` in the
+formula language (`features/formula.py`). That is still composition, not code:
+the expression is parsed into a tree of tested, past-only operators and
+interpreted. It widens what a feature can be; it does not widen the shapes.
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ import yaml
 
 from eulerlab.backtest.strategies import BuyAndHold, RankAndHold
 from eulerlab.backtest.strategy import Strategy
+from eulerlab.features.formula import is_known, resolve
 from eulerlab.features.library import BY_NAME
 
 
@@ -78,16 +84,16 @@ def _one(config: dict[str, Any]) -> Built:
         return Built(f"buy_and_hold|top{top_n}", BuyAndHold(top_n=top_n), rebalance)
 
     name = str(config.get("feature", ""))
-    if name not in BY_NAME:
+    if not is_known(name):
         msg = (
-            f"unknown feature {name!r}. The library provides {sorted(BY_NAME)}. "
-            f"A new feature must be written and tested by hand before a card can "
-            f"reference it — generated code would have no tests behind it."
+            f"unknown feature {name!r}. The library provides {sorted(BY_NAME)}, or write "
+            f"`formula:<expression>` in the formula language (features/formula.py, ADR-097). "
+            f"Generated Python is never accepted — it would have no tests behind it."
         )
         raise UnknownPrimitive(msg)
 
     min_turnover = float(config.get("min_turnover", 0.0) or 0.0)
-    strategy = RankAndHold(BY_NAME[name], top_n=top_n, min_turnover=min_turnover)
+    strategy = RankAndHold(resolve(name), top_n=top_n, min_turnover=min_turnover)
     label = f"{name}|top{top_n}|rb{rebalance}"
     if min_turnover:
         label += f"|liq{min_turnover:.0f}"

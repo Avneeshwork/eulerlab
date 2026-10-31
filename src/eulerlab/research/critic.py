@@ -30,7 +30,7 @@ from typing import Any
 
 import yaml
 
-from eulerlab.features.library import BY_NAME
+from eulerlab.features.formula import is_known
 from eulerlab.research.budget import price_search
 from eulerlab.validation.ledger import read as read_ledger
 
@@ -105,7 +105,7 @@ def review(path: Path, *, available_years: float) -> Review:
     out: list[Objection] = []
 
     # --- can it even be run? ---
-    unknown = sorted(f for f in features if f not in BY_NAME)
+    unknown = sorted(f for f in features if not is_known(f))
     if unknown:
         out.append(
             Objection(

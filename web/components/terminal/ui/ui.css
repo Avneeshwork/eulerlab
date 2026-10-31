@@ -1,6 +1,6 @@
-/* The shared terminal kit (ADR-084). Shell tokens only. */
+/* The shared terminal kit (ADR-102). Shell tokens only. */
 
-/* --- Info button: the only place explanation lives (ADR-082, ADR-084) --------------- */
+/* --- Info button: the only place explanation lives (ADR-082, ADR-102) --------------- */
 .info {
   position: relative;
   display: inline-flex;

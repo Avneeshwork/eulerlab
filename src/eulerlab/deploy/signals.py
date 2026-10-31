@@ -91,9 +91,17 @@ def message(
         reason = str(state.get("reason") or "no reason recorded").strip()
         return f"⚠️ {header}\n\n{status.upper()}: {reason[:600]}\nNothing more is sent until it is cleared."
 
+    limit = state.get("loss_limit")
+    went_reducing = isinstance(limit, Mapping) and limit.get("action") == "reducing"
+    reducing_line = (
+        f"⚠️ REDUCE-ONLY from the next session: down {float(limit.get('drawdown', 0)):.1%} "
+        f"from its high. Sells go through; buys are refused until you resume it (ADR-092)."
+        if went_reducing and isinstance(limit, Mapping)
+        else ""
+    )
     fills = new_fills(previous, state)
     if not fills:
-        return None
+        return f"{header}\n\n{reducing_line}" if reducing_line else None
     days = sorted({str(f.get("day")) for f in fills})
     when = days[0] if len(days) == 1 else f"{days[0]} to {days[-1]}"
     lines = [_order_line(f) for f in fills[:MAX_LINES]]
@@ -113,6 +121,8 @@ def message(
     upcoming = state.get("next_rebalance")
     if upcoming:
         footer += f"\nNext rebalance: {upcoming}"
+    if reducing_line:
+        footer += f"\n\n{reducing_line}"
     return f"{header}\n\nActions on {when} ({len(fills)}):\n" + "\n".join(lines) + f"\n\n{footer}"
 
 

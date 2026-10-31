@@ -1,0 +1,7 @@
+# ADR-085: Eight agents on one runtime, steered by briefs, stopped at the inbox
+
+- **Context:** The operator asked for an AI agent network covering research, building, backtesting, optimisation, risk, scenarios, a trade panel, code quality and latency, plus a knowledge agent, a daily market brief and a data maintenance agent; a way to instruct each agent; and "build everything in one go".
+- **Options:** (a) one large agent with every tool; (b) separate scripts per job; (c) small agents on one shared runtime, each with a YAML definition, a budget, a log and an inbox, handing work on through files.
+- **Choice:** (c). `src/eulerlab/agents/`: `runtime.run` gives a worker its brief and a counted model, writes `data/agents/<name>/<run>/output.json` and one entry in a hash-chained log. Eight workers: data, knowledge, market_brief, research, skeptic, engineering, portfolio, operations. Briefs (control room, `make agent-brief`, Telegram `instruct`) steer; switches only narrow a definition. Anything that changes something waits in the inbox, and approving records a decision only.
+- **Why:** The trial ledger and the gate stay the only way to a verdict. `agents/boundaries.py` plus a test fail any agent module that imports the order path, the gate, the ledger writer, env or subprocess. One runtime means one budget rule, one log and one test of it.
+- **Cost if wrong:** A worker could still produce a bad proposal; it waits for the operator. Free model limits change (A-019): the runtime says "over budget" and stops rather than switching to a paid model.

@@ -1,4 +1,4 @@
-# ADR-084: One visual language for every screen
+# ADR-102: One visual language for every screen
 
 - **Context:** the operator asked to revamp every screen's UI without being asked for each step, after the Dashboard moved to numbers and pictures with all explanation behind info buttons (ADR-082). Other screens still carry paragraphs, hover-only "?" tooltips, plain tables where a chart reads faster, and layouts that do not fit a phone.
 - **Options:** (a) restyle each screen on its own; (b) a small shared kit in `web/components/terminal/ui/` and each screen moved onto it, one per commit; (c) a component library dependency.

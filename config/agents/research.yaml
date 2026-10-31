@@ -1,0 +1,16 @@
+# The research agent (ADR-085): the paper agent (ADR-084) plus a librarian pass.
+name: research
+title: Research agent
+job: Finds papers on the brief's topic, drafts idea cards, drops repeats of ideas already tried, asks the data agent for data it lacks, and ranks the week's survivors for you.
+worker: eulerlab.agents.workers.research
+schedule: "Sunday 07:00"
+uses_model: true
+daily_requests: 40
+never:
+  - register a hypothesis or spend a trial
+  - backtest, validate or write to the trial ledger
+  - invent a source or a URL
+needs_approval: true
+options:
+  limit: 5
+  topic: "Indian equities cross-sectional anomalies with low turnover"

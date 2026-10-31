@@ -158,3 +158,24 @@ def _private_positions(
         monkeypatch.setattr(
             server, "_POSITIONS", market_context.PositionHistory(folder / "positions.jsonl")
         )
+
+
+@pytest.fixture(autouse=True)
+def _private_agent_files(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Agent outputs, the quarantine list, grades, timings and desk approvals go to a temp folder.
+
+    Each of these is an append-only record the operator reads; a test run
+    writing into the real ones would put fake runs in the agent log (ADR-085).
+    """
+    from eulerlab import desk, timings
+    from eulerlab.agents import spec
+    from eulerlab.quality import contract, quarantine
+
+    base = tmp_path_factory.mktemp("agentfiles")
+    monkeypatch.setattr(spec, "ROOT", base / "agents")
+    monkeypatch.setattr(quarantine, "PATH", base / "quarantine.jsonl")
+    monkeypatch.setattr(contract, "GRADES", base / "grades.json")
+    monkeypatch.setattr(timings, "PATH", base / "timings.jsonl")
+    monkeypatch.setattr(desk, "APPROVALS", base / "approvals.jsonl")

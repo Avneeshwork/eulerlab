@@ -1,0 +1,15 @@
+name: lab
+title: Idea lab
+job: Tests the research agent's drafts within the weekly trial allowance - an IC screen, then a backtest of the card's own configurations - and sends survivors, attacked by the skeptic, to your inbox.
+worker: eulerlab.agents.workers.lab
+schedule: Sunday 07:00 IST, after research (make agents-weekly)
+uses_model: false
+daily_requests: 0
+needs_approval: true
+never:
+  - spend more trials than config/agent_trials.yaml allows
+  - read the holdout, run the gate or edit gates.py or mandate.yaml
+  - change, tune or sweep a card's parameters
+options:
+  max_cards: 3
+  cli_only: true

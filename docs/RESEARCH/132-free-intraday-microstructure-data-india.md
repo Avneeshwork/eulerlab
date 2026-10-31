@@ -1,4 +1,4 @@
-# 123 — Can we get Indian intraday microstructure data for free?
+# 132 — Can we get Indian intraday microstructure data for free?
 
 **Checked:** 2026-10-29
 **Question:** Can the five new microstructure strategy leads use free data or

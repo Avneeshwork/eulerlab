@@ -1,0 +1,41 @@
+# Thresholds for the market brief's Trader's read (ADR-100). OPERATOR-EDITABLE.
+#
+# Each scorecard row reads "supportive", "neutral" or "weak" by comparing one
+# held number with the two levels below. Nothing here places, sizes or blocks
+# a trade: the read is words on a page for the operator.
+#
+# ASSUMPTION: these values were proposed with the read on 2026-10-31 and are
+# not measured against anything (docs/ASSUMPTIONS.md, A-trader-read-levels).
+# Change them to the levels you would actually act on.
+
+# Share of NSE stocks above their 50-day average, in %.
+breadth_weak_below: 30.0
+breadth_supportive_above: 60.0
+
+# India VIX percentile of the past year (0-100). High VIX reads weak.
+vix_weak_above: 70.0
+vix_supportive_below: 30.0
+
+# FII share of index futures held long, as a percentile of their past year.
+positioning_weak_below: 30.0
+positioning_supportive_above: 70.0
+
+# FII net cash buying over the last five sessions, in ₹ crore.
+flows_weak_below: -5000.0
+flows_supportive_above: 5000.0
+
+# Nifty 50 P/E percentile since 2015. Cheap reads supportive, rich reads weak.
+valuation_supportive_below: 20.0
+valuation_weak_above: 80.0
+
+# Nearest-expiry put/call ratio of open interest.
+pcr_weak_below: 0.7
+pcr_supportive_above: 1.2
+
+# Nifty 50 one-month return minus Smallcap 250's, in percentage points, above
+# which the read says large caps are holding while the broad market sells off.
+divergence_points: 3.0
+
+# Options data older than this many calendar days is shown with its date and
+# not used for the expected range.
+options_max_age_days: 3

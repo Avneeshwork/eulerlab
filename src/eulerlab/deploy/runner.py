@@ -40,12 +40,13 @@ from __future__ import annotations
 import argparse
 import time
 import traceback
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from eulerlab.backtest import event_driven
 from eulerlab.backtest.events import Fill, Order, Rejection
+from eulerlab.costs.schedule import Side
 from eulerlab.deploy import deployments as store
 from eulerlab.deploy.deployments import Deployment
 from eulerlab.deploy.sizing import fit_to_capital
@@ -73,12 +74,26 @@ class HistoryChanged(RuntimeError):
 class ForwardExecutor(OMSExecutor):
     """`OMSExecutor`, refusing to send for a day that has already been traded."""
 
-    def __init__(self, oms: OMS, *, traded_through: date | None, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        oms: OMS,
+        *,
+        traded_through: date | None,
+        reducing: Callable[[date], bool] | None = None,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(oms, **kwargs)
         self.traded_through = traded_through
+        self.reducing = reducing
         self.sent_today: list[str] = []
+        self.refused_reducing = 0
 
     def execute(self, order: Order, *, day: date, price: float | None) -> Fill | Rejection:
+        if order.side is Side.BUY and self.reducing is not None and self.reducing(day):
+            # Reduce-only (ADR-092): refused before the OMS sees it, on this day
+            # and on every replay of it, so the book and the broker stay equal.
+            self.refused_reducing += 1
+            return Rejection(order.client_order_id, day, order.symbol, "reduce-only: no new buys")
         known = self.oms.state(order.client_order_id) is not None
         if (
             not known
@@ -219,9 +234,23 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     route to a run comes through here — `make paper-daily`, the auto-updater
     and the Run now button — so none of them can act silently.
     """
-    from eulerlab.deploy import overnight, signals
+    from eulerlab import desk
+    from eulerlab.deploy import overnight, signals, version_lock
 
     previous = store.read_state(deployment) or {}
+    # The version lock (ADR-087): a deployment trades the code it was deployed
+    # with. A change warns on paper and stops a live book before it sends.
+    lock = version_lock.check(deployment.folder, deployment.strategy_id)
+    if deployment.mode == "live":
+        held_back = ""
+        if lock.changed:
+            held_back = lock.detail
+        elif not desk.approved_today(deployment.id):
+            held_back = "waiting for today's ticket to be approved on the trade desk"
+        if held_back:
+            state = {**previous, "status": "waiting", "reason": held_back}
+            store.write_state(deployment, state)
+            return state
     # The overnight future has its own book (ADR-066): the equity engine fills
     # once a day at the close and cannot hold from one close to the next open.
     # Same OMS, journal, kill switch and state file either way.
@@ -236,11 +265,21 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
         state = study_book.run(deployment)
     else:
         state = _run(deployment, rows)
+    if lock.changed:
+        state.setdefault("warnings", []).append(lock.detail)
+        store.write_state(deployment, state)
+    # Loss limits act after the day is traded (ADR-092): reduce-only from the
+    # next session, or a halt through the deployment's own kill switch.
+    from eulerlab.deploy import loss_limits
+
+    deployment, state = loss_limits.apply(store.load(deployment.id), state)
     signals.announce(deployment, previous, state)
     return state
 
 
 def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
+    from eulerlab.deploy import loss_limits
+
     began = time.monotonic()
     previous = store.read_state(deployment) or {}
     traded_through = (
@@ -290,6 +329,7 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     executor = ForwardExecutor(
         oms,
         traded_through=traded_through,
+        reducing=lambda day: loss_limits.reducing_on(deployment, day),
         asset_class="equity",
         fund_symbols=frozenset(r.symbol for r in kept if r.isin.startswith("INF")),
     )
@@ -419,6 +459,7 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
             for r in result.rejections[-50:]
         ],
         sent_this_run=len(executor.sent_today),
+        refused_reducing=executor.refused_reducing,
         rebalance_every=rebalance,
         next_rebalance=(
             f"decided on {days[-1]}'s close, filled at the next session's close"

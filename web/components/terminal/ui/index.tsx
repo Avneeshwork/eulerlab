@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * The shared parts every terminal screen is built from (ADR-084).
+ * The shared parts every terminal screen is built from (ADR-102).
  *
  * The rules they carry: numbers and pictures on the page, explanation only
  * behind `Info`; an arrow beside every red or green; nothing wider than a

@@ -27,7 +27,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"panel now covers {len(cached_days()):,} trading days")
     if note:
         print(f"\nincomplete: {note}")
-        return 2
+        # A quarantined day is a finding for `make data-quality`, not a failed
+        # build; only an early stop (the B2 cap) is worth a non-zero exit.
+        return 2 if "cap" in note else 0
     return 0
 
 

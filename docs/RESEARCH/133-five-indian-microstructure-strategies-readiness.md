@@ -1,4 +1,4 @@
-# 125 — Five Indian intraday microstructure strategies: code and data readiness
+# 133 — Five Indian intraday microstructure strategies: code and data readiness
 
 **Checked:** 2026-10-29
 **Question:** Can the five sourced NSE microstructure hypotheses be coded and
@@ -72,7 +72,7 @@ request or data download has happened yet.
 ## Reproduction
 
 Run `make microstructure-five`. It inventories local files and writes
-`docs/RESEARCH/125-microstructure-five-readiness.json`. It does not download,
+`docs/RESEARCH/133-microstructure-five-readiness.json`. It does not download,
 scrape, open the holdout, or spend a hypothesis trial. The signal and replay
 functions accept normalized Parquet frames keyed by EulerLab `instrument_id`;
 the raw NSE files still need a point-in-time instrument-map adapter before
@@ -121,11 +121,11 @@ No API request, futures download, or P&L test has happened yet.
 - NSE Data Sharing & Usage Policy (checked 2026-10-29) and historical-data
   specification (checked 2026-10-28); full source list and the
   no-scraping/data-pricing findings are in
-  [123 — Free intraday microstructure data in India](123-free-intraday-microstructure-data-india.md).
+  [132 — Free intraday microstructure data in India](132-free-intraday-microstructure-data-india.md).
 - FYERS free Standard limits, expired F&O candles, and API terms, checked
-  2026-10-29; see research 123. The operator reports written data-use approval.
+  2026-10-29; see research 132. The operator reports written data-use approval.
 - FYERS individual login and token endpoints, checked 2026-10-29; see research
-  123. Tokens expire daily at 06:30 IST; the local auth helper does not print or
+  132. Tokens expire daily at 06:30 IST; the local auth helper does not print or
   log the token.
 - Murphy and Thirumalai, repetitive institutional order flow,
   [Journal of Financial Research](https://onlinelibrary.wiley.com/doi/10.1111/jfir.12131),

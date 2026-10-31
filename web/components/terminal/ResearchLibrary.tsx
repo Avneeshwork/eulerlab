@@ -16,8 +16,8 @@
 import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
-import { api, assistantModels, assistantStatus, tweezerJob } from '@/lib/api';
-import type { AssistantLiveModel, AssistantStatus, Paper, PaperView, ResearchLinkView, TweezerResult } from '@/lib/api';
+import { api, assistantStatus, tweezerJob } from '@/lib/api';
+import type { AssistantStatus, Paper, PaperView, ResearchLinkView, TweezerResult } from '@/lib/api';
 import './builder.css';
 import './research.css';
 
@@ -35,8 +35,6 @@ const AI_MODEL_KEY = 'eulerlab.research.model';
 function useResearchModel() {
   const [selection, setSelection] = useState('');
   const [status, setStatus] = useState<AssistantStatus | null>(null);
-  const [models, setModels] = useState<AssistantLiveModel[]>([]);
-  const [modelsError, setModelsError] = useState('');
   const choose = (value: string) => {
     setSelection(value);
     try { window.localStorage.setItem(AI_MODEL_KEY, value); } catch { /* this visit only */ }
@@ -46,43 +44,33 @@ function useResearchModel() {
       setSelection(window.localStorage.getItem(AI_MODEL_KEY) ?? window.localStorage.getItem('eulerlab.assistant.model') ?? '');
     } catch { /* use configured default */ }
   }, []);
-  useEffect(() => {
-    assistantModels().then((response) => {
-      if (response.ok) setModels(response.models);
-      else setModelsError(response.error ?? 'Could not load current OpenRouter ZDR models.');
-    }).catch((error) => setModelsError(String(error)));
-  }, []);
   const [provider, model] = selection.includes('::') ? selection.split('::', 2) : [selection, ''];
   useEffect(() => {
     let current = true;
     assistantStatus(provider, model).then((next) => current && setStatus(next)).catch(() => current && setStatus(null));
     return () => { current = false; };
   }, [provider, model]);
+  // The list is `offered` in config/llm.yaml. A pick kept from when it held
+  // other models (an OpenRouter model, Ollama) falls back to the default.
   useEffect(() => {
-    if (models.length > 0 && status?.host === 'openrouter.ai' && !selection.includes('::')) {
-      choose(`openrouter-private::${models[0].id}`);
-    }
-  }, [selection, status, models]);
-  return { selection, provider, model, status, models, modelsError, choose };
+    if (selection && status && !status.choices.some((choice) => choice.name === selection)) choose('');
+  }, [selection, status]);
+  return { selection, provider, model, status, choose };
 }
 
-function ModelPicker({ selection, status, models, modelsError, choose }: ReturnType<typeof useResearchModel>) {
+function ModelPicker({ selection, status, choose }: ReturnType<typeof useResearchModel>) {
   if (!status || status.choices.length === 0) return <span className="tfine">Checking AI models…</span>;
   return (
     <label className="rl-model">
       AI model
       <select value={selection} onChange={(event) => choose(event.target.value)}>
         <option value="">Default · {status.choices.find((choice) => choice.is_default)?.model ?? 'configured assistant'}</option>
-        {status.choices.filter((choice) => choice.host !== 'openrouter.ai').map((choice) => (
+        {status.choices.map((choice) => (
           <option key={choice.name} value={choice.name} disabled={!choice.ready} title={choice.reason}>
             {choice.name} · {choice.model}{choice.ready ? (choice.free ? '' : ' · paid') : ` — ${choice.blocked}`}
           </option>
         ))}
-        {models.length > 0 && <optgroup label="Current OpenRouter free models with ZDR">{models.map((choice) => (
-          <option key={choice.id} value={`openrouter-private::${choice.id}`}>{choice.name} · {choice.id}</option>
-        ))}</optgroup>}
       </select>
-      {modelsError && <span title={modelsError}>ZDR list unavailable</span>}
     </label>
   );
 }

@@ -22,6 +22,7 @@ from collections.abc import Sequence
 
 from eulerlab import optimize, optimize_store
 from eulerlab.features import trials
+from eulerlab.research import grid_rule
 
 SPACES: dict[str, dict[str, list[float]]] = {
     # Deliberately small. A three-point sweep of two parameters is nine trials
@@ -232,6 +233,14 @@ def run(
         # otherwise. Sweeping the exit on a strategy whose problem is upstream
         # of the exit spends nine trials to learn nothing.
         space = SPACES.get(strategy_id, SPACES["default"])
+        # A card that registered a grid for this strategy fixes it (ADR-085):
+        # a sweep outside it is refused before a single trial is spent.
+        try:
+            grid_rule.enforce(strategy_id, space)
+        except grid_rule.OutsideCard as exc:
+            print(f"{strategy_id:22s} refused: {exc}")
+            skipped.append(strategy_id)
+            continue
         sweep = optimize.sweep_intraday(
             strategy_id,
             symbol,
