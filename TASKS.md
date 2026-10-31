@@ -13,6 +13,7 @@ Verify: `uv run pytest -q tests/test_trader_read.py`; `make agent NAME=market_br
 | T-4243 | Trader's read at the top of the brief: bottom line, scorecard with normal levels, today's map, what would change the read, books; detail cleaned; Telegram gets the read only; assistant `market_read` tool | DONE 2026-10-31. `agents/trader_read.py`, `config/trader_read.yaml`, 8 tests |
 | T-4244 | Operator sets the read's thresholds (A-082) | TODO. Operator |
 | T-4246 | An incomplete read says so in its first words, marks missing rows, and is held back from Telegram with one line (ADR-101) | DONE 2026-10-31. 4 tests in `tests/test_trader_read.py` |
+| T-4247 | Research how a brief and agent notes should read (research 134): pre-open brief, after-close note, agent notes, Telegram, rendering | DONE 2026-10-31. Proposal only; the operator decides the four open questions before building |
 | T-4245 | Show the read as its own card on the Dashboard strip and the AI tab, not only inside the brief text | TODO |
 
 ## Self-improving research agent (proposed 2026-10-31)
