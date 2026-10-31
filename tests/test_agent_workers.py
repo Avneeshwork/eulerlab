@@ -155,6 +155,7 @@ def test_the_market_brief_skips_when_nothing_changed(
     monkeypatch.setattr(market_brief, "_world", lambda notes, fetch: [])
     monkeypatch.setattr(market_brief, "_events", lambda day: [])
     monkeypatch.setattr(market_brief, "_books", list)
+    monkeypatch.setattr(market_brief, "_history", lambda books: {})
     agents = _agent("market_brief", "market_brief")
     now = datetime(2026, 10, 29, 3, 0, tzinfo=UTC)
     first = runtime.run("market_brief", root=tmp_path, agents=agents, now=now)

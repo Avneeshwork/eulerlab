@@ -207,6 +207,7 @@ def _run_brief(
     monkeypatch.setattr(market_brief, "_books", list)
     monkeypatch.setattr(market_brief, "_flows", lambda: FLOWS)
     monkeypatch.setattr(market_brief, "_closes", lambda: CLOSES)
+    monkeypatch.setattr(market_brief, "_history", lambda books: {})
     monkeypatch.setattr(notify, "configured", lambda: True)
 
     def send(text: str, **_kw: Any) -> notify.Delivery:

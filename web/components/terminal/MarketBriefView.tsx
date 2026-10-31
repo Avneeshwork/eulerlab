@@ -104,6 +104,17 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
         )}
       </Section>
 
+      {(brief.history?.length ?? 0) > 0 && (
+        <Section title="What history says">
+          <p className="mb-quiet">Past days that looked like today, and what Nifty did next. History, not a forecast.</p>
+          <ul className="mb-list">
+            {brief.history?.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       <Section title="Levels and what would change the read">
         {brief.range.low !== undefined && (
           <div className="mb-range" role="img" aria-label={`One-day range ${brief.range.low} to ${brief.range.high}`}>
@@ -161,6 +172,16 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
           ))}
         </ul>
       </Section>
+
+      {(brief.books_history?.length ?? 0) > 0 && (
+        <Section title="Your books in this kind of market" open={false}>
+          <ul className="mb-list">
+            {brief.books_history?.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       <Section title="Scorecard" open={false}>
         <div className="mb-score">

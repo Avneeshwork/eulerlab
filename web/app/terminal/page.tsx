@@ -410,7 +410,7 @@ export default function TerminalPage() {
           </div>
         )}
 
-        <AgentStrip page={page} onOpenAI={() => setPage('agents')} />
+        <AgentStrip page={page} onOpenAI={(view) => setPage('agents', view ?? '')} />
 
         {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 
@@ -489,7 +489,7 @@ export default function TerminalPage() {
             </div>
           ))}
 
-        {page === 'agents' && <AgentsTab />}
+        {page === 'agents' && <AgentsTab open={reportId} />}
         {page === 'charts' && <ChartTab />}
         {page === 'options' && <OptionsTab />}
 
