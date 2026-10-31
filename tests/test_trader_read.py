@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
-from eulerlab.agents import trader_read
+import pytest
+
+from eulerlab import notify
+from eulerlab.agents import runtime, trader_read
+from eulerlab.agents.spec import AgentSpec, effective
 from eulerlab.agents.workers import market_brief
 
 LEVELS = trader_read.levels()
@@ -128,8 +134,8 @@ def test_the_map_and_triggers_carry_levels() -> None:
 
 def test_nothing_held_says_so_and_does_not_guess() -> None:
     read = _read({}, closes=[], flows={"available": False, "reason": "no day captured yet"})
-    assert read.bottom_line == "No read: none of the signals is held."
-    assert all(r.word == "not held" for r in read.rows)
+    assert read.bottom_line == "Incomplete: 7 of 7 signals missing. No read."
+    assert all(r.word == "missing" for r in read.rows)
     assert "Cash flows: no day captured yet" in read.gaps
 
 
@@ -169,3 +175,76 @@ def test_a_book_shows_its_loss_limit_beside_the_drawdown() -> None:
     assert _read(_ctx(), books=books).books == [
         "s (paper), 3.7% below its peak (reduce-only at 10%)"
     ]
+
+
+def test_a_complete_read_does_not_say_incomplete() -> None:
+    read = _read(_ctx())
+    assert trader_read.missing(read.rows) == []
+    assert not read.bottom_line.startswith("Incomplete")
+
+
+def test_a_read_missing_signals_says_so_first_and_marks_the_rows() -> None:
+    ctx = _ctx()
+    for key in ("breadth", "positioning", "options"):
+        ctx[key] = {"available": False, "reason": "needs the workbench running"}
+    read = _read(ctx)
+    assert trader_read.missing(read.rows) == ["Breadth", "FII futures", "Options"]
+    assert read.bottom_line.startswith(
+        "Incomplete: 3 of 7 signals missing (Breadth, FII futures, Options). "
+    )
+    text = trader_read.render(read)
+    assert "? Breadth: MISSING. no data" in text
+    assert "Breadth: NEUTRAL" not in text
+
+
+def _run_brief(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ctx: dict[str, Any]
+) -> tuple[runtime.Output, list[str]]:
+    sent: list[str] = []
+    monkeypatch.setattr(market_brief, "_context", lambda notes: ctx)
+    monkeypatch.setattr(market_brief, "_world", lambda notes, fetch: [])
+    monkeypatch.setattr(market_brief, "_events", lambda day: [])
+    monkeypatch.setattr(market_brief, "_books", list)
+    monkeypatch.setattr(market_brief, "_flows", lambda: FLOWS)
+    monkeypatch.setattr(market_brief, "_closes", lambda: CLOSES)
+    monkeypatch.setattr(notify, "configured", lambda: True)
+
+    def send(text: str, **_kw: Any) -> notify.Delivery:
+        sent.append(text)
+        return notify.Delivery(True)
+
+    monkeypatch.setattr(notify, "send", send)
+    spec = AgentSpec(
+        name="market_brief",
+        title="brief",
+        job="a job for the test",
+        worker="eulerlab.agents.workers.market_brief",
+        options={"telegram": True, "world": False},
+    )
+    result = runtime.run(
+        "market_brief",
+        root=tmp_path,
+        agents={"market_brief": effective(spec, None)},
+        now=datetime(2026, 10, 31, 3, 0, tzinfo=UTC),
+    )
+    return result, sent
+
+
+def test_telegram_gets_the_read_when_every_signal_is_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    result, sent = _run_brief(tmp_path, monkeypatch, _ctx())
+    assert result.status == "ok" and "sent to Telegram" in result.summary
+    assert len(sent) == 1 and "TRADER'S READ" in sent[0]
+
+
+def test_telegram_gets_one_line_when_signals_are_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ctx = _ctx()
+    ctx["breadth"] = {"available": False, "reason": "needs the workbench running"}
+    result, sent = _run_brief(tmp_path, monkeypatch, ctx)
+    assert sent == ["Brief held back: Breadth missing. Full brief in the workbench."]
+    assert "held back on Telegram" in result.summary
+    # The full brief is still written for the workbench.
+    assert "TRADER'S READ" in result.data["text"] and "Incomplete: 1 of 7" in result.data["text"]
