@@ -3,6 +3,22 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Self-improving research agent (proposed 2026-10-31)
+
+Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 131. Phase 1 built (ADR-097); the trial-counting decision (T-4230) is still open.
+Verify: read `docs/RESEARCH/131-self-improving-research-agent.md`; `uv run pytest -q tests/test_features_formula.py`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4230 | Operator decides: do discovery-window searches count against the gate's trial bar; window dates; paid model for proposals; trial allowance | TODO. Operator |
+| T-4231 | Phase 1: formula language, the 10 features rewritten as the alpha zoo, originality score | DONE 2026-10-31. ADR-097; `uv run pytest -q tests/test_features_formula.py` |
+| T-4237 | Phase 1b: more portfolio shapes (quantile long-only, sector-neutral) and a liquidity floor as cards can name them | TODO |
+| T-4232 | Phase 2: discovery-only view, exploration log, pass-or-fail confirmation call | TODO. Blocked by T-4230 |
+| T-4233 | Phase 3: hypothesis-first generator, originality/alignment/complexity checks, weakest-score refinement and bandit; measure cost | TODO |
+| T-4234 | Phase 4: zero-trial test bench (planted signals, noise panels, known anomalies), `make agent-bench` | TODO |
+| T-4235 | Phase 5: experience store, cited lessons list, graveyard | TODO |
+| T-4236 | Phase 6: confirmation trials within the allowance, equal-weight composite, forward results back to memory | TODO |
+
 ## Loss limits that act (2026-10-29)
 
 Operator: "finally implement new thing which a trader need." Chosen from research 079's gaps that matter now: a reduce-only state and a drawdown rule that acts. ADR-092.
