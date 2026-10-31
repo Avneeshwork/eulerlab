@@ -81,6 +81,22 @@ Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open 
 | T-4257 | Recheck the seven assumptions the keeper found overdue on its first weekly pass (A-000, A-002, A-004, A-005, A-008, A-010, A-019) | TODO. Operator |
 | T-4253 | Review the Trader's read cash-flow thresholds: ±₹5,000 cr sits near this year's median FII 5-day net (−₹6,110 cr), so "weak" is the usual reading (A-082) | TODO. Operator |
 
+## Researching many daily strategies (2026-10-31, ADR-106)
+
+Operator: "make other thread of how we will research multiple daily strategy", then "start". Plan: Claude Doc "Researching many daily strategies at once" (https://claude.ai/artifact/8MDtW5qPpmb4VraqxXg1ez). Judge books, not single rules; screen many ideas for free, confirm few. Builds on the self-improving agent plan below.
+Verify: `make strategy-map`; `uv run pytest -q tests/test_strategy_map.py`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4291 | Phase 1: strategy map. Correlations raw and Nifty-hedged, families at 0.7, participation ratio, one fixed equal-weight book | DONE 2026-10-31. 68 strategies: 27 families, 2.78 independent bets; one family of 39 (HISTORY #44) |
+| T-4292 | Operator decides the plan's seven questions: the book as the unit gated; T-4230; trial allowance split; lane D waits for 5 years; equal weight by family; 0.7 redundancy line; gate the hedged book | TODO. Operator |
+| T-4293 | Phase 2: batch screen. Family and lane tags on H-cards, zero-trial filters, discovery screen and redundancy check in one run, `make research-batch` | TODO. Blocked by T-4230, T-4232 |
+| T-4294 | Phase 4: book builder. Score blending, fixed weights, long-only and Nifty-hedged versions with futures costs, a book as one H-card | TODO. After T-4293 |
+| T-4295 | Phase 3: delivery %, index P/E and P/B and Nifty futures as formula inputs | TODO |
+| T-4296 | Phase 5: forward recorder for short-history signals (FII/DII, deals, short selling, insider), `make shadow-signals` | TODO |
+| T-4297 | Phase 6: quarterly book rebuild, member drop rules, forward against backtest per member | TODO. After T-4294 |
+| T-4298 | Strategy map on the workbench: families and the correlation heat map on the Strategies page | TODO |
+
 ## Self-improving research agent (proposed 2026-10-31)
 
 Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 131. Phase 1 built (ADR-097); the trial-counting decision (T-4230) is still open.

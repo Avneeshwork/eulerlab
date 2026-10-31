@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty-two times this project was wrong
+## Forty-four times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -382,6 +382,8 @@ figure produced outside the result store before this date was frictionless.
 **42. The mandate's t-statistic bar is not checked by the gate.** (2026-10-31) `mandate.yaml` has carried `min_t_statistic: 3.0` since it was written. `gates.py` never reads it: its statistical checks are deflated Sharpe, PBO and backtest length only, and no code anywhere reads the key. Found writing `docs/METRICS/validation/t-statistic.md`. No strategy was promoted on the strength of it: every one evaluated was killed on other checks. Both files are operator-owned, so nothing was changed; T-4250 asks the operator to decide.
 
 **43. The after-close brief described the day before, and briefs ran on non-trading days.** (2026-10-31) `make agents-close` ran the after-close brief at 16:15, but index closes, participant OI and FII/DII flows arrive in `make daily` at 19:30, so the 16:15 note reported the previous session. And nothing checked the calendar: the brief forced on Saturday 31 October repeated Friday's numbers under Saturday's date. Fixed (ADR-105): the after-close note runs inside `make daily` after the data; a weekend or NSE holiday gets a markets-closed note that says so and shows the last session's date, once per break; every brief states its data date. No stored number depended on it.
+
+**44. Sixty-eight stored daily strategies are about three bets.** (2026-10-31) The library lists 68 India daily strategies with stored reports, and research 113 ranked them as if they were separate candidates. `make strategy-map` (ADR-106) measured them for the first time: 39 of them, every momentum, trend, low-volatility and value variant, move together (average correlation 0.79, lowest pair 0.55), and the participation ratio of the whole correlation matrix is 2.78. With Nifty taken out, 17 momentum and trend rules still form one family (0.80) and the count rises only to about 6. An equal-weight book across all 27 families has Sharpe 0.60, and hedged −0.28: most families are single calendar or candle rules that earn nothing. No stored number is wrong, but no combination of these rules can be counted as diversified, and adding another momentum variant buys nothing.
 
 ---
 

@@ -1,0 +1,7 @@
+# ADR-106: Measure how alike the stored daily strategies are before building more
+
+- **Context:** On 2026-10-31 the operator asked how EulerLab will research many daily strategies at once, then approved the plan (Claude Doc "Researching many daily strategies at once") and its phase 1. The plan's premise was that our daily rules are mostly one bet, so more of them raise the trial bar without adding diversification. That had never been measured.
+- **Options:** (a) Re-run every daily strategy on a common window and compare. (b) Read the daily equity curves already stored in `reports/` and compare those. (c) Skip it and start building the batch screen.
+- **Choice:** (b). `research/strategy_map.py` (`make strategy-map`) reads the longest stored equity report per India equity strategy, computes pairwise return correlations raw and with Nifty (NIFTYBEES) taken out, clusters at average correlation 0.7, reports the participation ratio of the correlation matrix's eigenvalues, and one book fixed in advance (equal weight across families, equal within).
+- **Why:** It re-runs nothing and selects nothing, so it spends no trial. The one book is a fixed rule, not a search, and is marked `is_a_candidate: false`: its members have seen 2016-2026, so it cannot be confirmed on any window.
+- **Cost if wrong:** The hedge uses full-sample beta with no futures cost (S-056), and only one configuration per strategy is read; family sizes could be off by a few members. Nothing trades on it.
