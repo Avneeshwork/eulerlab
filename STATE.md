@@ -33,6 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Strategy map (2026-10-31, ADR-106):** `make strategy-map` reads stored reports, spends no trial. 68 daily strategies are
+  2.78 independent bets; 39 move together (correlation 0.79), about 6 with Nifty taken out (HISTORY #44). Plan for many daily
+  strategies: judge books, not single rules (TASKS T-4291 to T-4298); your seven decisions are T-4292.
 - **Market brief as a morning note (2026-10-31, ADR-105):** the brief is saved as data and drawn in the AI tab: headline, the three things
   that matter ranked by how unusual they are (each with what it means), levels and if-then, coming up (expiry, ban list, results due), books
   needing you, then the detail folded. Telegram gets 8 lines. Weekends and NSE holidays get a markets-closed note (week in review, week ahead); the after-close note runs in `make daily`.

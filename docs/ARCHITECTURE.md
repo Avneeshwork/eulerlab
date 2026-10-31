@@ -847,6 +847,41 @@ refuses the read entirely.
 **Acceptance:** three deliberately overfit strategies are fed to the gate; all
 three must die. They do — killed on deflated Sharpe, PBO and worst-regime.
 
+## 5.9 The strategy map: how many different bets do we hold? (ADR-106)
+
+Every new strategy raises the noise bar (5.3). A book of several strategies
+can clear a bar none of them clears alone, but only if they are different. For
+K strategies of equal Sharpe s and average pairwise correlation ρ, an
+equal-weight book has
+
+```
+    SR_book  =  s · √( K / (1 + (K − 1)·ρ) )
+```
+
+so ten rules at s = 0.9 make 0.99 at ρ = 0.8 and 2.06 at ρ = 0.1.
+`research/strategy_map.py` (`make strategy-map`) measures ρ for what we hold.
+
+- **Input:** the longest stored report (`reports/<strategy>/<configuration>.json`)
+  of each India equity strategy with 500+ daily returns; `buy_and_hold` is left
+  out as a benchmark. Nothing is re-run, so no trial is spent.
+- **Correlation:** Pearson on daily returns, over the days both traded; fewer
+  than 250 shared days is unknown, not guessed. Also computed after taking out
+  NIFTYBEES at each strategy's full-sample beta (an upper bound, S-056).
+- **Families:** average-linkage clustering; two groups join while their
+  average correlation is at least 0.7. An unknown pair counts as 0.
+- **Independent bets:** the participation ratio `(Σλ)² / Σλ²` of the
+  correlation matrix's eigenvalues (negatives clipped): N for N unrelated
+  strategies, 1 for N copies.
+- **One fixed book:** equal weight across families, equal within, rebalanced
+  daily. Fixed before any number was seen and marked `is_a_candidate: false`:
+  its members have seen every window.
+
+**First reading (2026-10-31, 68 strategies, HISTORY #44):** 27 families, 2.78
+independent bets, average correlation 0.55. One family holds 39 strategies
+(average correlation 0.79). With Nifty out: 45 families, 5.97 bets, and the
+momentum and trend core is still one family of 17 at 0.80. The fixed book makes
+Sharpe 0.60, and −0.28 hedged. Output: `data/derived/strategy_map.json`.
+
 ## 5.5 The optimisation pipeline, and what each stage costs
 
 Four commands, each answering a different question. They are separate because
