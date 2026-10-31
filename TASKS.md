@@ -3,6 +3,21 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Self-improving research agent (proposed 2026-10-31)
+
+Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 130. Nothing built; waiting for the operator's decisions.
+Verify: read `docs/RESEARCH/130-self-improving-research-agent.md`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4214 | Operator decides: do discovery-window searches count against the gate's trial bar; window dates; paid model for proposals; trial allowance | TODO. Operator |
+| T-4215 | Phase 1: typed formula language over `MarketView`, new portfolio shapes, the 10 features rewritten as the alpha zoo | TODO |
+| T-4216 | Phase 2: discovery-only view, exploration log, pass-or-fail confirmation call | TODO. Blocked by T-4214 |
+| T-4217 | Phase 3: hypothesis-first generator, originality/alignment/complexity checks, weakest-score refinement and bandit; measure cost | TODO |
+| T-4218 | Phase 4: zero-trial test bench (planted signals, noise panels, known anomalies), `make agent-bench` | TODO |
+| T-4219 | Phase 5: experience store, cited lessons list, graveyard | TODO |
+| T-4220 | Phase 6: confirmation trials within the allowance, equal-weight composite, forward results back to memory | TODO |
+
 ## Loss limits that act (2026-10-29)
 
 Operator: "finally implement new thing which a trader need." Chosen from research 079's gaps that matter now: a reduce-only state and a drawdown rule that acts. ADR-092.
