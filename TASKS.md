@@ -23,7 +23,8 @@ Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open 
 
 | ID | Task | Status |
 |---|---|---|
-| T-4248 | `docs/METRICS/`: 70 pages (market, options, performance, validation, risk, attribution, data quality, fundamentals), normal ranges from our data, answer rules | DONE 2026-10-31 |
+| T-4248 | `docs/METRICS/`: 116 pages in 14 families (platform metrics plus Indian and global economy, policy and regulators, institutions and flows, events, market structure), normal ranges from our data, answer rules | DONE 2026-10-31 |
+| T-4254 | Hold the macro data the new pages say we lack: RBI policy rate and liquidity, CPI/WPI/IIP/GDP/PMI values, AMFI monthly flows, GIFT Nifty, forex reserves; find free official sources first (research) | TODO |
 | T-4249 | Operator decides: subtract a risk-free rate in Sharpe (and so DSR and the noise bar), or keep raw returns and say so (A-083) | TODO. Operator. Touches the gate's inputs |
 | T-4250 | Operator decides: enforce `min_t_statistic` in `gates.py`, or remove it from `mandate.yaml` (HISTORY #42) | TODO. Operator. Both files operator-owned |
 | T-4251 | Decide whether Sortino's downside deviation should average over all days, as Sortino & Price define it (A-084) | TODO |

@@ -23,6 +23,31 @@ What do the primary sources say each metric on the platform means, so that `docs
 | SqueezeMetrics, Gamma Exposure (2017) | https://squeezemetrics.com/monitor/docs | 2026-10-31 | **Not read**; formula and sign convention from third-party summaries |
 | Already in the repo: Bailey & López de Prado DSR, Harvey-Liu-Zhu (research 015); StockCharts breadth and High-Low, Faber, Brock et al. (research 122); participant OI explainers (research 120); costs (research 013); FII/DII (research 104, 105, 127, 128) | | | |
 
+## Added the same day: economy, policy, institutions, events, market structure
+
+The operator then asked to add "other market parameters, macro economic events, Govt Policies, big banks, FII/DII all these things". Sources, all fetched 2026-10-31 as search summaries unless marked:
+
+| Topic | Source |
+|---|---|
+| RBI repo, SDF, MSF, LAF | RBI notifications, website.rbi.org.in; taxguru and goldenpi reproductions (conflicting latest corridor levels, so no level is quoted) |
+| SEBI index derivatives rules | SEBI/HO/MRD/TPD-1/P/CIR/2024/132 via SCC Online and Business Standard |
+| CPI, IIP, GDP calendar and base years | MoSPI press releases and Advance Release Calendar 2026-27, mospi.gov.in |
+| F&O ban / MWPL | Zerodha support, IIFL |
+| Circuit breakers | NSE circuit breakers page; SEBI circular SMDRPD/Policy/Cir-37/2001 |
+| AMFI and SIP flows | 5paisa, Angel One summaries of AMFI data |
+| Nifty review schedule | Bajaj AMC and other summaries of NSE methodology |
+| Budget 2024 capital gains and STT | Business Standard, Zerodha |
+| GIFT Nifty | Kotak, Upstox, Bajaj AMC explainers |
+| Fed and emerging-market flows | Republic World, Vajiram summaries |
+| FPI categories | PwC webinar, AZB Partners |
+| Pre-open session | NSE pre-open pages; Business Today on F&O pre-open |
+| Bank health indicators | RBI Financial Stability Report coverage |
+| MSCI weights | Business Standard, SuperKalam |
+| PMI | HSBC India PMI releases (S&P Global), 2024 copies |
+| Peak margin | Broker summaries of SEBI's 2020 circular |
+
+**Not read:** NSE's Nifty 50 factsheet (timed out), so sector weights are not quoted. Regulatory details are recorded as A-085 with a recheck date.
+
 ## Findings that changed something
 
 1. **Our Sharpe has no risk-free rate.** Sharpe defines the ratio on differential returns against a riskless asset; `validation/statistics.sharpe_stats` uses raw returns. Recorded as A-083, T-4249.

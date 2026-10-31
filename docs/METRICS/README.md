@@ -119,3 +119,79 @@ percentile a payload carries (for example `percentile_1y`) is always the live an
 | [Margins and growth](fundamentals/margins-and-growth.md) | Profit as a share of sales, and how fast sales and profit grow. |
 | [Debt to equity](fundamentals/debt-to-equity.md) | Borrowings against shareholders' funds. |
 | [Fair-value estimate (residual income)](fundamentals/fair-value-estimate.md) | An internal estimate of value from book value, earnings, peers and the cost of equity. |
+
+## Indian economy
+
+| Metric | In one line |
+|---|---|
+| [RBI repo rate and the monetary policy decision](macro_india/rbi-policy-rate.md) | The rate at which RBI lends to banks overnight; the main lever on borrowing costs in India. |
+| [Banking system liquidity (LAF balance)](macro_india/rbi-liquidity.md) | Whether banks have surplus cash parked with RBI or are short and borrowing from it. |
+| [CPI inflation (retail)](macro_india/cpi-inflation.md) | Year-on-year change in consumer prices; the inflation measure RBI targets. |
+| [WPI inflation (wholesale)](macro_india/wpi-inflation.md) | Year-on-year change in wholesale prices; a read on input costs for companies. |
+| [GDP growth](macro_india/gdp-growth.md) | Quarterly growth of the economy's output. |
+| [Index of Industrial Production (IIP)](macro_india/iip.md) | Monthly growth in factory, mining and electricity output. |
+| [PMI (manufacturing, services, composite)](macro_india/pmi.md) | A monthly survey of purchasing managers; above 50 means activity expanded on the month. |
+| [10-year government bond (G-Sec) yield and the yield curve](macro_india/gsec-yield.md) | What the government pays to borrow for ten years; the base rate for valuing every other asset. |
+| [Rupee (USD/INR) and forex reserves](macro_india/rupee.md) | How many rupees one dollar buys, and RBI's stock of foreign currency to defend it. |
+| [Fiscal deficit, current account deficit and trade balance](macro_india/fiscal-and-current-account.md) | How much the government borrows, and how much more India imports than it earns abroad. |
+| [GST collections](macro_india/gst-collections.md) | Monthly goods and services tax revenue; a quick read on consumption and compliance. |
+
+## Global economy and markets
+
+| Metric | In one line |
+|---|---|
+| [US Federal Reserve (FOMC) rate decisions](macro_global/us-fed.md) | The US policy rate; the single biggest driver of global money moving into or out of emerging markets. |
+| [US inflation and jobs data (CPI, payrolls)](macro_global/us-data.md) | The US numbers that move Fed expectations, and so global markets. |
+| [US 10-year Treasury yield](macro_global/us-treasury-yield.md) | The world's benchmark risk-free rate. |
+| [Dollar index (DXY)](macro_global/dollar-index.md) | The dollar against six major currencies. |
+| [Crude oil (Brent, WTI)](macro_global/crude-oil.md) | The price of oil; India imports most of what it uses. |
+| [Gold](macro_global/gold.md) | The traditional safe asset; also a large Indian import. |
+| [GIFT Nifty and overnight global markets](macro_global/gift-nifty.md) | Nifty 50 futures traded in GIFT City before India opens; the first read on the morning. |
+| [Other central banks: ECB, Bank of Japan, People's Bank of China](macro_global/global-central-banks.md) | Policy moves elsewhere that shift global liquidity and currencies. |
+
+## Government policy and regulators
+
+| Metric | In one line |
+|---|---|
+| [Union Budget](policy/union-budget.md) | The government's yearly plan for spending, borrowing and taxes, usually presented on 1 February. |
+| [Capital gains tax and securities transaction tax (STT)](policy/capital-gains-and-stt.md) | The taxes on investment profits and on each trade. |
+| [SEBI's index derivatives rules (2024 framework)](policy/sebi-fno-rules.md) | The rules SEBI tightened in 2024 to curb speculative index F&O trading. |
+| [Foreign portfolio investor (FPI) rules](policy/fpi-rules.md) | Who may invest from abroad, in what category, and with what limits. |
+| [GST Council decisions](policy/gst-council.md) | Changes to indirect tax rates on goods and services. |
+| [Government schemes, PLI and disinvestment](policy/government-schemes-and-disinvestment.md) | Policies that direct money to sectors, and government stake sales in listed companies. |
+| [Elections](policy/elections.md) | National and major state elections and their results. |
+
+## Institutions and money flows
+
+| Metric | In one line |
+|---|---|
+| [RBI and SEBI: who regulates what](institutions/rbi-and-sebi.md) | RBI runs monetary policy, banks and the rupee; SEBI regulates markets, brokers, funds and listed companies. |
+| [FIIs / FPIs: foreign investors](institutions/fii-fpi.md) | Foreign funds, pension funds and sovereign investors buying Indian securities. |
+| [DIIs: mutual funds, insurers, pension funds, banks](institutions/dii-mutual-funds-insurers.md) | Domestic institutions; mostly mutual funds investing monthly SIP money, plus LIC and other insurers. |
+| [SIP flows and mutual fund inflows (AMFI)](institutions/sip-flows.md) | Monthly money retail investors put into mutual funds through systematic plans. |
+| [Big banks and financials in the index](institutions/big-banks.md) | Banks and financial companies are among the heaviest sectors in Nifty 50, so their results and RBI's rules move the index. |
+| [MSCI, FTSE and passive funds](institutions/global-index-providers.md) | Global index weights decide how much passive money must buy or sell Indian stocks. |
+
+## Market events and calendar
+
+| Metric | In one line |
+|---|---|
+| [F&O expiry day](events/expiry-day.md) | The day derivative contracts settle; volumes and swings near big strikes rise. |
+| [Index rebalancing (Nifty) and index inclusion](events/index-rebalancing.md) | Stocks entering or leaving an index, which forces index funds to buy or sell them. |
+| [Index inclusion effects (stocks)](events/index-inclusion.md) | The price effect on a stock of being added to or removed from a major index. |
+| [Quarterly results season](events/results-season.md) | The weeks when listed companies report quarterly earnings. |
+| [New supply: IPOs, OFS, QIPs and lock-in expiries](events/supply-ipos-ofs-qip.md) | Fresh shares coming to market, which absorb money that might otherwise buy existing stocks. |
+| [Block and bulk deals; insider (SAST) disclosures; pledges](events/block-and-bulk-deals.md) | Large trades by named parties, and promoters' buying, selling or pledging. |
+| [Corporate actions: dividends, splits, bonuses, rights](events/corporate-actions.md) | Company events that change the share count or pay out cash, and so the price. |
+
+## Market structure and trading rules
+
+| Metric | In one line |
+|---|---|
+| [Trading sessions: pre-open, normal, closing](structure/trading-sessions.md) | How the trading day is organised on NSE. |
+| [Circuit breakers and price bands](structure/circuit-breakers.md) | Market-wide halts at 10%, 15% and 20% index moves, and per-stock daily price limits. |
+| [Settlement (T+1)](structure/settlement.md) | When shares and money actually change hands after a trade. |
+| [F&O ban period and market-wide position limit (MWPL)](structure/fno-ban.md) | A stock's derivatives are frozen to new positions once open interest passes 95% of its limit. |
+| [Margins: SPAN, exposure, peak margin](structure/margins.md) | The money brokers must collect before you can hold a position. |
+| [Lot size, tick size and contract multiplier](structure/lot-size-and-tick.md) | The units contracts trade in; they change over time. |
+| [Margin trading (MTF) and securities lending (SLBM)](structure/mtf-and-slbm.md) | Borrowed money used to buy shares, and shares lent out for short selling. |
