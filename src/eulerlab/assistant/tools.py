@@ -290,6 +290,26 @@ def _data_quality(args: Mapping[str, Any]) -> str:
     return "Source: data/quality/grades.json\n" + "\n".join(lines)
 
 
+def _explain_metric(args: Mapping[str, Any]) -> str:
+    from eulerlab.metrics_library import catalog, normals
+
+    query = str(args.get("metric") or "").strip()
+    if not query:
+        return "Name a metric, for example india-vix, breadth or deflated Sharpe."
+    found = catalog.find(query)
+    if not found:
+        catalog.record_miss(query)
+        return f"No page in docs/METRICS answers '{query}'. Say it is not covered; it is logged for the knowledge keeper."
+    page = found[0]
+    live = normals.describe(page.id, normals.load())
+    others = ", ".join(p.id for p in found[1:])
+    return (
+        f"Source: {page.path}\n{page.text}"
+        + (f"\n\n{live}" if live else "")
+        + (f"\n\nOther pages that matched: {others}" if others else "")
+    )
+
+
 def _market_read(_args: Mapping[str, Any]) -> str:
     from eulerlab.agents import runtime
 
@@ -563,6 +583,18 @@ TOOLS: dict[str, Tool] = {
         "Each dataset's quality grade (A clean to D unusable), its freshness and its first problem.",
         _text("dataset", "Part of a dataset name. Empty lists every dataset."),
         _data_quality,
+    ),
+    "explain_metric": Tool(
+        "What a metric, market term, economic indicator, policy or rule means, from the metrics "
+        "library (docs/METRICS): definition, how this platform computes it, what is normal with "
+        "today's live range, how to read it, traps and example answers. Use it before explaining "
+        "any number or term.",
+        _text(
+            "metric",
+            "A metric id or words, for example india-vix, put-call ratio, repo rate.",
+            True,
+        ),
+        _explain_metric,
     ),
     "market_read": Tool(
         "The latest Trader's read of the Indian market from the market brief: bottom line, a "

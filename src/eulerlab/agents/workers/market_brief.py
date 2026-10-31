@@ -3,7 +3,8 @@
 **Answer first** (ADR-100). The brief opens with the Trader's read
 (`agents/trader_read.py`): a bottom line, a scorecard with what is normal for
 each signal, today's levels, what would change the read, and the books. The
-detail sections follow. Telegram gets the Trader's read only.
+detail sections follow. Telegram gets the Trader's read only, and only when
+all seven signals are held; otherwise one line says which are missing (ADR-101).
 
 Two briefs a trading day: **pre-open** (before 12:00 IST) and **after the
 close**. Every number in a brief comes from data the platform holds or
@@ -378,9 +379,22 @@ def run(ctx: Context) -> WorkerResult:
         from eulerlab import notify
 
         if notify.configured():
-            short = f"{'PRE-OPEN' if mode == 'pre-open' else 'AFTER-CLOSE'} · {day}\n\n{read_text}"
-            delivery = notify.send((short + "\n\nFull brief: workbench → AI → market_brief")[:3900])
-            sent = "sent to Telegram" if delivery.sent else f"Telegram: {delivery.reason}"
+            gone = trader_read.missing(read.rows)
+            if gone:
+                # An incomplete read is not sent; one line says why (ADR-101).
+                message = (
+                    f"Brief held back: {', '.join(gone)} missing. Full brief in the workbench."
+                )
+            else:
+                title = "PRE-OPEN" if mode == "pre-open" else "AFTER-CLOSE"
+                message = (
+                    f"{title} · {day}\n\n{read_text}\n\nFull brief: workbench → AI → market_brief"
+                )
+            delivery = notify.send(message[:3900])
+            if not delivery.sent:
+                sent = f"Telegram: {delivery.reason}"
+            else:
+                sent = "held back on Telegram (incomplete)" if gone else "sent to Telegram"
         else:
             sent = "Telegram not configured"
     return WorkerResult(

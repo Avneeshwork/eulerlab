@@ -29,7 +29,7 @@ from pydantic import BaseModel, ConfigDict
 
 from eulerlab.config import CONFIG_DIR
 
-Word = Literal["supportive", "neutral", "weak", "not held"]
+Word = Literal["supportive", "neutral", "weak", "missing"]
 
 
 class ReadLevels(BaseModel):
@@ -86,9 +86,9 @@ def _num(value: Any) -> float | None:
 
 def _band(
     value: float | None, low: float, high: float, *, high_is_good: bool
-) -> Literal["supportive", "neutral", "weak", "not held"]:
+) -> Literal["supportive", "neutral", "weak", "missing"]:
     if value is None:
-        return "not held"
+        return "missing"
     if value < low:
         return "weak" if high_is_good else "supportive"
     if value > high:
@@ -130,7 +130,7 @@ def _trend(ctx: Mapping[str, Any], close: float | None, avg: Mapping[int, float]
     if faber:
         value = f"{faber} (monthly rule); {value}"
     if not above and faber is None:
-        return Row("Trend", value, "", "not held", "no index history")
+        return Row("Trend", value, "", "missing", "no index history")
     long_up = above.get(200)
     if faber == "Uptrend" and long_up is not False:
         word: Word = "supportive"
@@ -148,7 +148,7 @@ def _breadth(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
     latest = b.get("latest") or {}
     share = _num(latest.get("above_50"))
     if not b.get("available") or share is None:
-        return Row("Breadth", "not held", "", "not held", str(b.get("reason") or ""))
+        return Row("Breadth", "no data", "", "missing", str(b.get("reason") or ""))
     highs, lows = latest.get("new_highs"), latest.get("new_lows")
     value = f"{share:.0f}% of stocks above their 50-day"
     if isinstance(highs, int) and isinstance(lows, int):
@@ -167,7 +167,7 @@ def _volatility(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
     vix = (ctx.get("strip") or {}).get("vix") or {}
     level, pct = _num(vix.get("level")), _num(vix.get("percentile_1y"))
     if level is None:
-        return Row("Volatility", "not held", "", "not held", "no India VIX")
+        return Row("Volatility", "no data", "", "missing", "no India VIX")
     median = _num(vix.get("median_1y"))
     word = _band(pct, lv.vix_supportive_below, lv.vix_weak_above, high_is_good=False)
     return Row(
@@ -185,7 +185,7 @@ def _positioning(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
     p = ctx.get("positioning") or {}
     fii = next((r for r in p.get("participants") or [] if r.get("participant") == "FII"), None)
     if not p.get("available") or fii is None:
-        return Row("FII futures", "not held", "", "not held", str(p.get("reason") or ""))
+        return Row("FII futures", "no data", "", "missing", str(p.get("reason") or ""))
     share, usual = _num(fii.get("index_futures_long_share")), _num(fii.get("usual"))
     pct = _num(fii.get("percentile"))
     value = f"{share * 100:.0f}% of FII index futures are long" if share is not None else "n/a"
@@ -203,7 +203,7 @@ def _positioning(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
 
 def _flows(flows: Mapping[str, Any], lv: ReadLevels) -> Row:
     if not flows.get("available"):
-        return Row("Cash flows", "not held", "", "not held", str(flows.get("reason") or ""))
+        return Row("Cash flows", "no data", "", "missing", str(flows.get("reason") or ""))
     fii, dii = flows.get("fii") or {}, flows.get("dii") or {}
     five = _num(fii.get("net_5d"))
     value = f"FII {_crore(float(fii.get('net', 0)))} on the day, {_crore(five or 0)} over 5 days"
@@ -226,7 +226,7 @@ def _valuation(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
     pe = (nifty or {}).get("pe") or {}
     value, pct = _num(pe.get("value")), _num(pe.get("percentile"))
     if value is None:
-        return Row("Valuation", "not held", "", "not held", "no Nifty 50 P/E")
+        return Row("Valuation", "no data", "", "missing", "no Nifty 50 P/E")
     word = _band(pct, lv.valuation_supportive_below, lv.valuation_weak_above, high_is_good=False)
     median = _num(pe.get("median"))
     return Row(
@@ -243,7 +243,7 @@ def _options(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
     o = ctx.get("options") or {}
     pcr = _num(o.get("pcr_oi"))
     if not o.get("available") or pcr is None:
-        return Row("Options", "not held", "", "not held", str(o.get("reason") or ""))
+        return Row("Options", "no data", "", "missing", str(o.get("reason") or ""))
     before, iv, iv_before = (
         _num(o.get("pcr_oi_before")),
         _num(o.get("atm_iv")),
@@ -268,11 +268,11 @@ def _options(ctx: Mapping[str, Any], lv: ReadLevels) -> Row:
 
 
 def _bottom_line(ctx: Mapping[str, Any], rows: Sequence[Row], lv: ReadLevels) -> str:
-    held = [r for r in rows if r.word != "not held"]
+    held = [r for r in rows if r.word != "missing"]
     weak = sum(r.word == "weak" for r in held)
     good = sum(r.word == "supportive" for r in held)
     if not held:
-        return "No read: none of the signals is held."
+        return f"Incomplete: {len(rows)} of {len(rows)} signals missing. No read."
     if weak >= good + 2:
         tone = "Risk-off"
     elif good >= weak + 2:
@@ -302,7 +302,16 @@ def _bottom_line(ctx: Mapping[str, Any], rows: Sequence[Row], lv: ReadLevels) ->
     elif vol is not None and vol.word == "supportive":
         phrases.append("volatility below normal")
     head = tone + (": " + "; ".join(phrases) if phrases else "")
-    return f"{head}. {weak} of {len(held)} signals weak, {good} supportive."
+    line = f"{head}. {weak} of {len(held)} signals weak, {good} supportive."
+    gone = missing(rows)
+    if gone:
+        line = f"Incomplete: {len(gone)} of {len(rows)} signals missing ({', '.join(gone)}). {line}"
+    return line
+
+
+def missing(rows: Sequence[Row]) -> list[str]:
+    """The scorecard rows with no data behind them."""
+    return [r.signal for r in rows if r.word == "missing"]
 
 
 def _map(
@@ -445,7 +454,7 @@ def build(
         _options(ctx, lv),
     ]
     lines, gaps = _map(ctx, close, avg, lv, day)
-    gaps += [f"{r.signal}: {r.why}" for r in rows if r.word == "not held" and r.why]
+    gaps += [f"{r.signal}: {r.why}" for r in rows if r.word == "missing" and r.why]
     return Read(
         bottom_line=_bottom_line(ctx, rows, lv),
         rows=rows,
@@ -456,7 +465,7 @@ def build(
     )
 
 
-MARK = {"supportive": "+", "neutral": "=", "weak": "-", "not held": "?"}
+MARK = {"supportive": "+", "neutral": "=", "weak": "-", "missing": "?"}
 
 
 def render(read: Read) -> str:
