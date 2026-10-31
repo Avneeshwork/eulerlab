@@ -100,9 +100,11 @@ def run(ctx: Context) -> WorkerResult:
 
     deadlines = {str(k): float(v) for k, v in (ctx.options.get("deadlines") or {}).items()}
     warn_share = float(ctx.options.get("warn_share", 0.8))
+    ctx.step("Reading 60 days of job timings against their deadlines")
     rows = timings.read(since=ctx.now - timedelta(days=60))
     report, items = step_report(rows, deadlines, warn_share)
 
+    ctx.step("Checking the cost model against contract notes, then each deployment")
     notes = cost_check.check_contract_notes()
     items.append(
         Item(
@@ -121,7 +123,10 @@ def run(ctx: Context) -> WorkerResult:
                 Item(
                     kind="alert",
                     title=f"{d.strategy_id} ({d.mode}) is {d.status}",
-                    body=d.status_reason,
+                    body=(
+                        f"Why: {d.status_reason or 'no reason recorded'}. While {d.status} it places no "
+                        "trades; open Live & Risk to see the book."
+                    ),
                     severity="warn",
                 )
             )
@@ -132,9 +137,21 @@ def run(ctx: Context) -> WorkerResult:
                 )
             )
 
-    slow = sum(1 for i in items if i.kind == "alert")
+    alerts = [i for i in items if i.kind == "alert"]
+    timed = (
+        f"{len(report)} scheduled steps checked against their deadlines over 60 days"
+        if report
+        else "No scheduled step has recorded a timing in 60 days"
+    )
+    said = (
+        f"{len(alerts)} alert{'s' if len(alerts) != 1 else ''}: "
+        + "; ".join(i.title for i in alerts[:2])
+        + (f" and {len(alerts) - 2} more" if len(alerts) > 2 else "")
+        if alerts
+        else "no alerts"
+    )
     return WorkerResult(
-        f"{len(report)} timed steps over 60 days; {slow} alerts",
+        f"{timed}. {said}.",
         items,
         data={"steps": report},
     )

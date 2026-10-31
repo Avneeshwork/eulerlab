@@ -8,6 +8,13 @@ the answer ends with the files it came from.** When the model leaves the
 sources off, the code appends the tools it actually called, so the operator
 can always see where an answer was looked up.
 
+**Checked by code (ADR-088).** Every number, id and path in the answer must
+appear in what the tools returned (`agents/grounding.py`). If one does not,
+the model is told exactly which ones and asked once more, with the tools. If
+the second answer still has one, the operator gets "not held" and the
+unsupported figures, never the made-up answer; it is kept in the output for
+the record.
+
 Run with no question, it only rebuilds the search index (after the close, so
 the day's new papers, cards and grades are searchable).
 """
@@ -16,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from eulerlab.agents import knowledge_index
+from eulerlab.agents import grounding, knowledge_index
 from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, resolve_provider
 
 SYSTEM = """You are the knowledge agent of Euler Lab, one person's quant research and trading platform for Indian markets.
@@ -64,15 +71,56 @@ def run(ctx: Context) -> WorkerResult:
             msg = f"knowledge has used its {ctx.agent.daily_requests} requests for today"
             raise BudgetSpent(msg)
         ctx.requests += 1
+        ctx.step(f"Asking {ctx.model} (request {ctx.requests})", "model")
         return chat._post(provider, payload)
 
     history = ctx.args.get("history") or []
     turns = [t for t in history if isinstance(t, dict)] if isinstance(history, list) else []
     system = SYSTEM + (f"\n\nThe operator's brief:\n{ctx.brief}" if ctx.brief else "")
-    answer = chat.ask(
-        [*turns, {"role": "user", "content": question}], post=counted, chosen=chosen, system=system
-    )
+    ctx.prompts.append(grounding.prompt_version(system))
+    asked = [*turns, {"role": "user", "content": question}]
+    answer = chat.ask(asked, post=counted, chosen=chosen, system=system)
+    evidence = list(answer.evidence)
+    used = list(answer.used)
+    ctx.step(f"Checking every figure in the answer against what {len(used)} tool calls returned")
+    found = grounding.check(answer.text, evidence, question)
+    first = answer.text
+    retried = False
+    if not found.ok:
+        retried = True
+        ctx.notes.append(
+            f"first answer had figures no tool returned: {', '.join(found.unsupported)}"
+        )
+        again = chat.ask(
+            [
+                *asked,
+                {"role": "assistant", "content": answer.text},
+                {
+                    "role": "user",
+                    "content": (
+                        "These figures in your answer are in no tool result: "
+                        + ", ".join(found.unsupported)
+                        + '. Look them up with the tools, or remove them and say "not held". '
+                        "Answer the original question again."
+                    ),
+                },
+            ],
+            post=counted,
+            chosen=chosen,
+            system=system,
+        )
+        evidence += again.evidence
+        used += again.used
+        answer = again
+        found = grounding.check(answer.text, evidence, question)
     text = answer.text
+    if not found.ok:
+        text = (
+            "Not held: the model's answer used figures no tool returned "
+            f"({', '.join(found.unsupported)}), so it was withheld. "
+            "Ask more narrowly, or look in the sources it searched."
+        )
+    answer = chat.Answer(text, answer.provider, answer.model, answer.host, used, evidence)
     looked = _sources(answer.used)
     if "sources:" not in text.lower() and looked:
         text += "\n\nSources (tools called):\n" + "\n".join(f"- {s}" for s in looked)
@@ -81,5 +129,17 @@ def run(ctx: Context) -> WorkerResult:
     return WorkerResult(
         text.splitlines()[0][:200] if text else "no answer",
         [Item(kind="answer", title=question[:200], body=text, data={"tools": answer.used})],
-        data={"question": question, "answer": text, "tools": answer.used, "host": answer.host},
+        data={
+            "question": question,
+            "answer": text,
+            "tools": answer.used,
+            "host": answer.host,
+            "grounding": {
+                "checked": found.checked,
+                "unsupported": found.unsupported,
+                "retried": retried,
+                "withheld": not found.ok,
+            },
+            "first_answer": first if retried else "",
+        },
     )

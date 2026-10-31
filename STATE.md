@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-29. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-30. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -37,11 +37,23 @@ never edit them without an explicit instruction in that session.
   `make india-live`; first live run 2026-10-30. `make fii-dii-history` backfilled 265 days (2025-10-01 to 2026-10-29) from Trendlyne
   against its terms, by operator decision; agrees with NSE, Groww and stockezee within 0.05 crore. Shown on Dashboard → Big money.
 
+- **Market microdata (2026-10-30, ADR-095, research 130):** `make nse-reports` lands bulk/block deals, short selling, F&O ban,
+  SLBM, MTF, insider and SAST filings, and pledge/IPO/Nifty 50 list snapshots; a year back (insider from May 2026). `make
+  index-minute`: 5 years of NIFTY 50, BANK and VIX minutes. `make depth-day` records Kite five-level depth (snapshots, not every
+  order; S-052), launchd job `depth` not loaded. All in B2, SHA-256 checked, local deleted. Past order books are paid only (T-4223).
+  Dashboard → India → **Deals & filings** shows them (ADR-096, `make market-reports`, run inside `make nse-reports`).
+- **Loss limits that act (2026-10-29, ADR-092):** a paper book goes reduce-only (sells only) at a 10% drawdown and halts at 20%
+  (`config/loss_limits.yaml`, defaults not yet chosen by you); Reduce only / Resume buying on each card.
+- **Workbench redesign (2026-10-29, ADR-090, 091):** four colours (blue, green, red, amber), rounded corners, one look file
+  (`web/app/terminal/theme.css`). AI tab opens on Live: what each agent is doing now, step by step. `make agent` works again (HISTORY #34).
 - **AI agent network (2026-10-29, ADR-085 to 087):** eight agents on one runtime with budgets, briefs, an inbox
   and a hash-chained log; none can import the order path, gate, ledger writer, env or a shell. Workbench **AI** tab and
   Telegram `instruct`/`outlook`/`inbox`. One data quality contract grades 18 datasets (`make data-quality`); backtests refuse a
   low-grade panel. Trade desk tickets and a version lock on every deployment. Quantpedia sync needs a key (T-4182).
   No agent has run live with a model yet; launchd jobs not loaded (T-4179).
+  Code checks every figure in a knowledge answer or brief commentary against what the model was given; `make agent-eval`
+  switches off an agent that shows a made-up figure (ADR-088). The idea lab may spend up to **5 trials a week** testing
+  the research agent's drafts (IC screen, then backtest, before the holdout), each logged and raising the bar (ADR-089).
 - **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
   library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
   `research/agent_drafts/`. `make paper-agent-approve DRAFT=...` moves one into `hypotheses/` as a draft. It never

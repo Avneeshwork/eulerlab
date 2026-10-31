@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily fii-dii fii-dii-history market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync
+.PHONY: nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history
 
 help:
 	@echo "EulerLab — targets"
@@ -25,6 +25,9 @@ help:
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
 	@echo "  make kite-login   obtain a Kite access token (expires 6 AM daily)"
+	@echo "  make nse-reports [FROM=date]  NSE deals, ban list, SLBM, MTF, insider, SAST; to B2"
+	@echo "  make index-minute [YEARS=1]   NIFTY 50 / BANK / VIX minute bars; to B2"
+	@echo "  make depth-day                record Nifty 50 five-level depth until 15:31; to B2"
 	@echo "  make mcx-instruments  fetch today's MCX instrument master and mirror to B2"
 	@echo "  make mcx-gold-minute  fetch current Gold futures minutes and mirror to B2"
 	@echo "  make mcx-gold-backtest run the frozen MCX Gold rule with costs"
@@ -69,6 +72,7 @@ help:
 	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
 	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
 	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
+	@echo "  make agent-eval [ONLY=skeptic|knowledge]  score agents; one that makes up a figure is switched off"
 	@echo "  make relock DEPLOYMENT=<id> NOTE='...'  accept a strategy's changed code after review"
 	@echo "  make gate-acceptance    feed the gate 3 overfit strategies; all must die"
 	@echo "  make gate H=H-0001      apply the mandate; PROMOTE or KILL"
@@ -271,10 +275,15 @@ agents-close:
 	-@uv run python -m eulerlab.agents.runtime market_brief
 
 agents-weekly:
+	-@uv run python -m eulerlab.agents.evaluate
 	-@uv run python -m eulerlab.research.quantpedia
 	-@uv run python -m eulerlab.agents.runtime knowledge
 	-@uv run python -m eulerlab.agents.runtime research
+	-@uv run python -m eulerlab.agents.runtime lab
 	-@uv run python -m eulerlab.agents.runtime engineering
+
+agent-eval:
+	@uv run python -m eulerlab.agents.evaluate $(if $(ONLY),--only $(ONLY),)
 
 relock:
 	@test -n "$(DEPLOYMENT)" -a -n "$(NOTE)" || (echo "usage: make relock DEPLOYMENT=<id> NOTE='why the new code is accepted'"; exit 2)
@@ -572,6 +581,38 @@ daily-minute:
 	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
 
 # Five-year MCX iCOMDEX minute history; the manifest makes repeats incremental.
+# NSE daily reports: bulk/block deals, short selling, F&O ban, SLBM, MTF,
+# insider (PIT) and SAST filings, plus today's pledge, IPO and Nifty 50 list
+# snapshots. Research 130, ADR-095. FROM defaults to a week back.
+nse-reports:
+	-uv run python -m eulerlab.ingest.nse_reports --from $(if $(FROM),$(FROM),$$(date -v-7d +%Y-%m-%d))
+	-@$(MAKE) --no-print-directory market-reports
+	@$(MAKE) --no-print-directory upload-verified TREES="nse_reports"
+
+# Dashboard → India → Deals & filings, from the landed reports (ADR-096).
+# Runs inside nse-reports, before the upload deletes the local copies.
+market-reports:
+	uv run python -m eulerlab.market_reports
+
+# Kite 1-minute candles for NIFTY 50, NIFTY BANK and INDIA VIX. YEARS=1 default.
+index-minute:
+	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_index_minute $(if $(YEARS),--years $(YEARS),)
+	@$(MAKE) --no-print-directory upload-verified TREES="kite_index_minute"
+
+# Kite five-level depth for the Nifty 50, the index and the near future, until
+# 15:31 IST. depth-day records, then uploads and deletes after verification.
+depth-record:
+	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.depth_recorder $(if $(RUN_SECONDS),--seconds $(RUN_SECONDS),)
+
+depth-day:
+	-@$(MAKE) --no-print-directory depth-record
+	@$(MAKE) --no-print-directory upload-verified TREES="kite_depth"
+
+# Upload trees to B2 and delete a local file only when the bucket's size and
+# SHA-256 match it. KEEP=1 verifies without deleting.
+upload-verified:
+	@uv run python -m eulerlab.ingest.verified_prune $(TREES) $(if $(KEEP),--keep,)
+
 mcx-index-minute:
 	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_mcx_indices --years 5
 
@@ -615,6 +656,8 @@ daily-run:
 	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
 	@echo "== participant OI =="
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)
+	@echo "== NSE reports (deals, ban list, SLBM, MTF, insider, SAST, snapshots) =="
+	-$(MAKE) --no-print-directory nse-reports
 	@echo "== NSE index closes (incl. India VIX) and delivery =="
 	-uv run python -m eulerlab.ingest.nse_daily_files --from $$(date -v-7d +%Y-%m-%d)
 	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
@@ -644,6 +687,8 @@ daily-run:
 	@echo "== provisional daily bars (minute bars while the bhavcopy is missing) =="
 	-uv run python -m eulerlab.ingest.provisional_daily
 	-@$(MAKE) --no-print-directory upload-tree TREES="kite_minute" DELETE=1
+	@echo "== index minute bars: NIFTY 50, NIFTY BANK, INDIA VIX (needs a token minted today) =="
+	-$(MAKE) --no-print-directory index-minute
 	@echo "== MCX iCOMDEX minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory mcx-index-minute
 	-@$(MAKE) --no-print-directory upload-tree TREES="mcx_indices" DELETE=1

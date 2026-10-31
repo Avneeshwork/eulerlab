@@ -5,6 +5,7 @@
         brief for all + brief for it
         budget left today (IST)  ->  ctx.ask() refuses once it is spent
         worker.run(ctx)  ->  WorkerResult (summary, items)
+        data/agents/<name>/<run>/progress.jsonl   <- each step as it happens (ADR-091)
         data/agents/<name>/<run>/output.json      <- the next agent reads this
         data/agents/log.jsonl                     <- one hash-chained entry
 
@@ -37,9 +38,11 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, ConfigDict, Field
 
 from eulerlab.agents import briefs, log
+from eulerlab.agents.grounding import prompt_version
 from eulerlab.agents.spec import ROOT, Effective, all_effective, home
 
 IST = ZoneInfo("Asia/Kolkata")
+PROGRESS = "progress.jsonl"
 
 Status = Literal["ok", "skipped", "over_budget", "refused", "failed"]
 Severity = Literal["info", "warn", "critical"]
@@ -89,6 +92,8 @@ class Output(BaseModel):
     requests: int = 0
     notes: list[str] = Field(default_factory=list)
     """Fallbacks used, budget reached, anything the operator should know."""
+    prompts: list[str] = Field(default_factory=list)
+    """Fingerprints of the instructions each model request ran under (ADR-088)."""
     data: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -102,6 +107,28 @@ class WorkerResult:
 
 class Asker(Protocol):
     def __call__(self, system: str, user: str, accept: Callable[[str], object] | None) -> str: ...
+
+
+class Trail(list[str]):
+    """A list of notes that also reports each one as a step while the run is going.
+
+    Workers already append what they are doing to `ctx.notes` (the paper agent
+    is handed `ctx.notes.append` as its log). Making that list report each line
+    to `progress.jsonl` shows the operator what an agent is doing now without
+    changing a worker.
+    """
+
+    def __init__(self, report: Callable[[str], None]) -> None:
+        super().__init__()
+        self._report = report
+
+    def append(self, note: str) -> None:
+        super().append(note)
+        self._report(note)
+
+    def extend(self, notes: Any) -> None:
+        for note in notes:
+            self.append(note)
 
 
 def untrusted(label: str, text: str, limit: int = 16_000) -> str:
@@ -151,6 +178,7 @@ class Context:
     budget_left: int = 0
     model: str = ""
     notes: list[str] = field(default_factory=list)
+    prompts: list[str] = field(default_factory=list)
     args: dict[str, Any] = field(default_factory=dict)
     """Arguments from the command line or the control room (a question, a topic)."""
 
@@ -181,7 +209,36 @@ class Context:
         rules = SHARED_RULES
         if self.brief:
             rules += "\n\nThe operator's brief:\n" + self.brief
-        return self.asker(f"{system}\n\n{rules}", user, accept)
+        version = prompt_version(system, SHARED_RULES)
+        if version not in self.prompts:
+            self.prompts.append(version)
+        self.step(
+            f"Asking {self.model or 'the model'} (request {self.requests} of {self.budget_left} allowed)",
+            "model",
+        )
+        answer = self.asker(f"{system}\n\n{rules}", user, accept)
+        self.step(f"The model answered ({len(answer):,} characters)", "model")
+        return answer
+
+    def step(self, text: str, kind: str = "step") -> None:
+        """Say what the agent is doing now. Appended to this run's `progress.jsonl`.
+
+        Never raises: a full disk must not fail the run it is describing.
+        """
+        line = text.strip().splitlines()[-1][:300] if text.strip() else ""
+        if not line:
+            return
+        try:
+            self.out_dir.mkdir(parents=True, exist_ok=True)
+            row = {
+                "at": datetime.now(UTC).isoformat(timespec="seconds"),
+                "kind": kind,
+                "text": line,
+            }
+            with (self.out_dir / PROGRESS).open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(row) + "\n")
+        except OSError:
+            return
 
     def write(self, name: str, payload: Any) -> Path:
         """Write a file into this run's folder only."""
@@ -248,7 +305,19 @@ def run(
         budget_left=max(agent.daily_requests - used_today, 0),
         args=dict(args or {}),
     )
+    ctx.notes = Trail(lambda note: ctx.step(note, "note"))
     result: WorkerResult
+    if agent.enabled:
+        ctx.step(
+            f"Started {agent.spec.title}"
+            + (
+                f" with {', '.join(f'{k}={v}' for k, v in ctx.args.items() if isinstance(v, str))}"
+                if ctx.args
+                else ""
+            )
+            + (" under the operator's brief" if brief_text else ""),
+            "start",
+        )
     if not agent.enabled:
         result = WorkerResult(f"{agent.spec.title} is switched off.", status="skipped")
     else:
@@ -273,8 +342,10 @@ def run(
         model=ctx.model,
         requests=ctx.requests,
         notes=ctx.notes,
+        prompts=sorted(set(ctx.prompts)),
         data=result.data,
     )
+    ctx.step(f"Finished: {output.status} · {output.summary}", "end")
     ctx.write("output.json", output.model_dump())
     log.append(
         "run",
@@ -285,6 +356,7 @@ def run(
             "items": len(output.items),
             "requests": output.requests,
             "model": output.model,
+            "prompts": output.prompts,
             "briefs": brief_ids,
             "ist_day": day,
         },
@@ -316,6 +388,31 @@ def outputs(name: str, root: Path | None = None, limit: int = 20) -> list[Output
         except ValueError:
             continue
     return found
+
+
+def progress(run_dir: Path, limit: int = 60) -> list[dict[str, str]]:
+    """The steps one run has reported so far, oldest first (the last `limit`)."""
+    path = run_dir / PROGRESS
+    if not path.exists():
+        return []
+    rows: list[dict[str, str]] = []
+    for line in path.read_text(encoding="utf-8").splitlines()[-limit:]:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict):
+            rows.append({k: str(row.get(k, "")) for k in ("at", "kind", "text")})
+    return rows
+
+
+def latest_run_dir(name: str, root: Path | None = None) -> Path | None:
+    """The newest run folder for an agent, finished or not. Run ids sort by time."""
+    folder = home(root) / name
+    if not folder.is_dir():
+        return None
+    runs = sorted((p for p in folder.iterdir() if p.is_dir()), key=lambda p: p.name)
+    return runs[-1] if runs else None
 
 
 def latest_output(
@@ -361,4 +458,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # `python -m` runs this file as `__main__`, a second copy of the module with
+    # its own `Item` class. Workers import `eulerlab.agents.runtime`, so their
+    # items failed validation here and `make agent` crashed for any agent that
+    # found something (HISTORY #34). Run the canonical module's main instead.
+    canonical = importlib.import_module("eulerlab.agents.runtime")
+    raise SystemExit(canonical.main())

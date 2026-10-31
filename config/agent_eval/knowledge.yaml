@@ -1,0 +1,46 @@
+# The knowledge agent's test set (ADR-088). `make agent-eval` asks each
+# question and scores the answer.
+#
+#   expect      every string must appear in the answer (case ignored)
+#   not_held    true: the right answer is that the platform does not hold it
+#
+# Answers come from the repo's own files (STATE.md, docs/, config/), so a
+# case breaks only when those files change. Keep it at a size the daily budget
+# carries: each case costs 2 to 6 model requests.
+cases:
+  - id: k-01
+    question: How many trials are logged in the trial ledger, according to STATE.md?
+    expect: ["19"]
+  - id: k-02
+    question: What is the deflated Sharpe noise bar a strategy must beat today?
+    expect: ["1.88"]
+  - id: k-03
+    question: What is the best Sharpe ratio this project has produced so far?
+    expect: ["1.27"]
+  - id: k-04
+    question: Which decision record says the paper agent stops at drafts?
+    expect: ["ADR-084"]
+  - id: k-05
+    question: Which provider does config/llm.yaml name for the research agent?
+    expect: ["groq"]
+  - id: k-06
+    question: Which decision record set up the data quality contract?
+    expect: ["ADR-086"]
+  - id: k-07
+    question: What round-trip cost does the trade desk use for its estimate, as a percent of value?
+    expect: ["0.25"]
+  - id: k-08
+    question: Has any capital been traded live on this platform?
+    expect: ["no"]
+  - id: k-09
+    question: What was the measured order-to-fill latency of our live orders last week?
+    not_held: true
+  - id: k-10
+    question: What Sharpe did our crypto pairs-trading strategy make in 2019?
+    not_held: true
+  - id: k-11
+    question: What is the analyst consensus target price for Reliance held on the platform?
+    not_held: true
+  - id: k-12
+    question: Which assumption id covers the skeptic agent's Indian stress windows?
+    expect: ["A-067"]

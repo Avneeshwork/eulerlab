@@ -53,6 +53,13 @@ class Deployment(BaseModel):
     near the close does not get exactly the closing price (A-048)."""
     flows: list[dict[str, Any]] = Field(default_factory=list)
     """Dated external cash flows. Positive amounts are deposits."""
+    reducing: list[dict[str, Any]] = Field(default_factory=list)
+    """Reduce-only windows, `{from, to, why, by}`: buys filled inside one are
+    refused, sells go through (ADR-092, `deploy/loss_limits.py`)."""
+    reduce_at: float | None = Field(default=None, gt=0, lt=1)
+    """This deployment's own reduce-only drawdown, else config/loss_limits.yaml."""
+    halt_at: float | None = Field(default=None, gt=0, lt=1)
+    """This deployment's own halt drawdown, else config/loss_limits.yaml."""
 
     @property
     def folder(self) -> Path:

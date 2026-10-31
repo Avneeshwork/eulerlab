@@ -46,6 +46,19 @@ class PreviewRequest(BaseModel):
     capital: float = Field(gt=0)
 
 
+class ReduceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    on: bool
+
+
+class LimitsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reduce_at: float | None = Field(default=None, gt=0, lt=1)
+    halt_at: float | None = Field(default=None, gt=0, lt=1)
+
+
 class FlowRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -60,11 +73,32 @@ def _rows() -> list[Any]:
 
 
 def _summary(deployment: store.Deployment) -> dict[str, Any]:
+    from eulerlab.deploy import loss_limits
+
     state = store.read_state(deployment) or {}
+    limits = loss_limits.for_deployment(deployment)
+    if "loss_limit" not in state and state.get("curve"):
+        # A book not run since loss limits existed has no measurement in its
+        # state, and every card read "not measured yet" for a day. The same
+        # calculation, made here, with no action attached: only a run acts.
+        now, worst = loss_limits.drawdown(state, deployment.capital)
+        state = {
+            **state,
+            "loss_limit": {
+                "drawdown": now,
+                "worst": worst,
+                "reduce_at": limits.reduce_at,
+                "halt_at": limits.halt_at,
+                "reducing": loss_limits.is_reducing(deployment),
+                "action": None,
+            },
+        }
     return {
         **deployment.model_dump(mode="json"),
         "running": RUNNING.get(deployment.id, ""),
         "state": state,
+        "reducing_now": loss_limits.is_reducing(deployment),
+        "limits": limits.model_dump(),
     }
 
 
@@ -375,5 +409,61 @@ def cash_flow(deployment_id: str, request: FlowRequest) -> dict[str, Any]:
                 },
             )
             return {"ok": True, "flow": flow, "deployment": _summary(updated)}
+    except FileNotFoundError:
+        return {"ok": False, "error": "no such deployment"}
+
+
+@router.post("/{deployment_id}/reduce")
+def reduce_only(deployment_id: str, request: ReduceRequest) -> dict[str, Any]:
+    """Reduce-only on or off (ADR-092). On: buys are refused from the next session.
+
+    Off closes the window at the last traded day, so days already traded
+    reduce-only replay exactly as they were traded.
+    """
+    from datetime import date, timedelta
+
+    from eulerlab.deploy import loss_limits
+    from eulerlab.ingest.filelock import exclusive
+
+    try:
+        with RUN_LOCK, exclusive("paper_daily"):
+            deployment = store.load(deployment_id)
+            if deployment.status != "active":
+                return {"ok": False, "error": f"deployment is {deployment.status}"}
+            state = store.read_state(deployment) or {}
+            traded = state.get("traded_through")
+            last = (
+                date.fromisoformat(str(traded)) if traded else deployment.start - timedelta(days=1)
+            )
+            if request.on:
+                updated = loss_limits.start_reducing(
+                    deployment, last, "set by the operator", "operator"
+                )
+            else:
+                updated = loss_limits.stop_reducing(deployment, last, "operator")
+            return {"ok": True, "deployment": _summary(updated)}
+    except FileNotFoundError:
+        return {"ok": False, "error": "no such deployment"}
+
+
+@router.post("/{deployment_id}/limits")
+def set_limits(deployment_id: str, request: LimitsRequest) -> dict[str, Any]:
+    """This deployment's own drawdown levels; null falls back to config/loss_limits.yaml."""
+    from eulerlab.ingest.filelock import exclusive
+
+    if (
+        request.reduce_at is not None
+        and request.halt_at is not None
+        and request.reduce_at >= request.halt_at
+    ):
+        return {"ok": False, "error": "the reduce-only level must be below the halt level"}
+    try:
+        with RUN_LOCK, exclusive("paper_daily"):
+            deployment = store.load(deployment_id)
+            updated = deployment.model_copy(
+                update={"reduce_at": request.reduce_at, "halt_at": request.halt_at}
+            )
+            store.save(updated)
+            return {"ok": True, "deployment": _summary(updated)}
     except FileNotFoundError:
         return {"ok": False, "error": "no such deployment"}

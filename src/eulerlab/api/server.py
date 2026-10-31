@@ -57,6 +57,7 @@ from eulerlab import (
     last_seen,
     market_context,
     market_pulse,
+    market_reports,
     reports,
     strategy_results,
     walk_run,
@@ -2467,7 +2468,9 @@ def data_prune(request: PruneRequest) -> dict[str, Any]:
 
 
 @app.get("/api/history")
-def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[str, Any]:
+def history(
+    symbol: str, asset_class: str = "equity", days: int = 400, adjusted: bool = False
+) -> dict[str, Any]:
     """OHLC bars for one instrument, **from data this platform holds**.
 
     The TradingView embed refuses a great deal of what is charted here: index
@@ -2484,6 +2487,10 @@ def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[s
     What it cannot serve is anything not landed: US listings, sovereign yields,
     the dollar index. Those stay on the embed, which is honest about being a
     different source.
+
+    `adjusted=true` back-adjusts equity bars for splits and bonuses, as a
+    backtest does. The SIP calculator needs it: on raw closes Reliance's 1:1
+    bonus of October 2024 read as a 50% loss in a day.
     """
     wanted = symbol.strip().upper()
     if not wanted:
@@ -2491,17 +2498,27 @@ def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[s
 
     try:
         if asset_class == "equity":
-            rows = [r for r in PANEL.rows(days=days) if r.symbol == wanted]
+            rows = sorted(
+                (r for r in PANEL.rows(days=days) if r.symbol == wanted), key=lambda r: r.day
+            )
+            scale = dict.fromkeys((r.day for r in rows), 1.0)
+            if adjusted and rows:
+                from eulerlab.backtest.vector import build_adjusted_index
+
+                closes = build_adjusted_index(rows).get(wanted) or {}
+                scale = {
+                    r.day: closes.get(r.day, r.close) / r.close if r.close else 1.0 for r in rows
+                }
             bars = [
                 {
                     "time": row.day.isoformat(),
-                    "open": row.open or row.close,
-                    "high": row.high or row.close,
-                    "low": row.low or row.close,
-                    "close": row.close,
+                    "open": (row.open or row.close) * scale[row.day],
+                    "high": (row.high or row.close) * scale[row.day],
+                    "low": (row.low or row.close) * scale[row.day],
+                    "close": row.close * scale[row.day],
                     "volume": row.volume,
                 }
-                for row in sorted(rows, key=lambda r: r.day)
+                for row in rows
             ]
         elif asset_class in ("crypto", "fx"):
             from datetime import timedelta
@@ -2550,6 +2567,7 @@ def history(symbol: str, asset_class: str = "equity", days: int = 400) -> dict[s
         "asset_class": asset_class,
         "bars": bars,
         "source": "price panel" if asset_class == "equity" else f"{asset_class} archive",
+        "adjusted": adjusted and asset_class == "equity",
         "first": bars[0]["time"],
         "last": bars[-1]["time"],
     }
@@ -4216,6 +4234,16 @@ _MARKET_CONTEXT: dict[str, tuple[float, dict[str, Any]]] = {}
 _BREADTH: dict[tuple[date, int, tuple[int, int] | None], dict[str, Any]] = {}
 _POSITIONS = market_context.PositionHistory()
 _BREADTH_LOCK = threading.Lock()
+
+
+@app.get("/api/market-reports")
+def market_reports_route() -> dict[str, Any]:
+    """The Deals & filings tab: the summary `make market-reports` wrote (ADR-096)."""
+    path = market_reports.OUT
+    if not path.exists():
+        return {"ok": False, "reason": "no summary yet: run make nse-reports"}
+    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+    return data
 
 
 @app.get("/api/market-context")

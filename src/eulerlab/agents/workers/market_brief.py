@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.agents import grounding
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output, untrusted
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -250,6 +251,7 @@ def run(ctx: Context) -> WorkerResult:
     notes: list[str] = []
     from eulerlab.quality import contract
 
+    ctx.step(f"Gathering market context, world markets, events and books for the {mode} brief")
     inputs: dict[str, Any] = {
         "mode": mode,
         "day": day,
@@ -278,6 +280,7 @@ def run(ctx: Context) -> WorkerResult:
             data={"fingerprint": stamp, "mode": mode},
         )
 
+    ctx.step("Writing the brief from the numbers gathered")
     sections = compose(mode, inputs)
     commentary = ""
     if ctx.can_ask():
@@ -291,6 +294,14 @@ def run(ctx: Context) -> WorkerResult:
             )
         except Exception as exc:
             notes.append(f"no commentary: {type(exc).__name__}: {str(exc)[:120]}")
+        if commentary:
+            found = grounding.check(commentary, [plain])
+            if not found.ok:
+                notes.append(
+                    "commentary dropped: it used figures not in the brief "
+                    f"({', '.join(found.unsupported)}) (ADR-088)"
+                )
+                commentary = ""
     text = render(mode, day, sections, commentary)
     ctx.notes.extend(notes)
     ctx.write("brief.txt", text)

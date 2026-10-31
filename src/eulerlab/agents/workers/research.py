@@ -178,6 +178,7 @@ def run(ctx: Context) -> WorkerResult:
     limit = int(ctx.args.get("limit") or ctx.options.get("limit") or 5)
     limit = max(1, min(limit, max(ctx.budget_left - ctx.requests, 0)))
 
+    ctx.step(f"Looking for '{topic[:80]}' in Quantpedia's catalogue")
     found = quantpedia.leads(topic, quantpedia.catalogue(), limit=5)
     if not found:
         ctx.notes.append("no Quantpedia leads: none landed for this topic (make quantpedia-sync)")
@@ -204,6 +205,7 @@ def run(ctx: Context) -> WorkerResult:
         text = ctx.ask(system, user, accept)
         return _Answer(text, ctx.model, ctx.model)
 
+    ctx.step(f"Searching arXiv and OpenAlex; drafting up to {limit} cards")
     result = paper_agent.run(topic, limit=limit, ask=ask, log=ctx.notes.append)
     if result.failures and not result.drafts:
         return WorkerResult(
@@ -212,6 +214,7 @@ def run(ctx: Context) -> WorkerResult:
             status="refused" if "affordable" in " ".join(result.failures) else "failed",
         )
 
+    ctx.step(f"Checking {len(result.drafts)} drafts against ideas already tried")
     cards = known_cards()
     grades = {str(g.get("name")): g for g in contract.saved()}
     items: list[Item] = []

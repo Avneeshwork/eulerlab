@@ -58,7 +58,7 @@ export function SipTab() {
     let alive = true;
     setLoading(true);
     api
-      .history(symbol, market, period)
+      .history(symbol, market, period, true)
       .then((h) => alive && setHistory(h))
       .catch((problem) =>
         alive &&
@@ -238,7 +238,8 @@ export function SipTab() {
               </table>
             </div>
             <p className="tfine" style={{ marginTop: 10 }}>
-              Closes from the {history.source ?? 'landed data'}, {history.first} to {history.last}.
+              Closes from the {history.source ?? 'landed data'}, {history.first} to {history.last}
+              {history.adjusted ? ', adjusted for splits and bonuses' : ''}.
               No brokerage, taxes or stamp duty, and fractional units, so this is an upper bound
               on what the plan returned. It is not recorded in the trial ledger.
             </p>

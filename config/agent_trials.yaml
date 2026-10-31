@@ -1,0 +1,10 @@
+# The agents' trial allowance (ADR-089). Operator-set: the operator chose 5 a
+# week on 2026-10-29. Every trial an agent spends is logged in
+# data/derived/trials.jsonl like any other and raises the noise bar for every
+# strategy. Lower it to slow the agents' search; 0 stops them testing at all.
+per_week: 5
+# The IC screen a card's features must pass before it is backtested.
+ic_horizon: 21
+ic_step: 5
+min_ic: 0.02
+min_t: 2.0

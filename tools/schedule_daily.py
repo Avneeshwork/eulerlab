@@ -110,6 +110,22 @@ JOBS = {
             "provisional daily bars meanwhile (ADR-079). It exits at once on an NSE holiday."
         ),
     ),
+    "depth": Job(
+        name="depth",
+        label="com.eulerlab.depth",
+        command="cd {repo} && make depth-day",
+        hour=9,
+        minute=10,
+        weekdays=WEEKDAYS,
+        log="depth",
+        what="make depth-day, Monday to Friday",
+        why_then=(
+            "09:10 IST is five minutes before the open. It records Kite's five-level depth\n"
+            "for the Nifty 50 until 15:31, then uploads the day to B2 and deletes the local\n"
+            "copy only after the size and SHA-256 match (ADR-095). It needs a Kite token\n"
+            "made that morning; without one it says so and exits."
+        ),
+    ),
     "gap-signal": Job(
         name="gap-signal",
         label="com.eulerlab.gapsignal",
