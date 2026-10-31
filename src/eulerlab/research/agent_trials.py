@@ -190,8 +190,8 @@ def test_card(
     """Screen a card, and backtest it if every feature passes. Raises `OverAllowance` before spending."""
     from eulerlab.backtest import vector
     from eulerlab.backtest.report import _annualised, _max_drawdown, _robust_sharpe
+    from eulerlab.features.formula import resolve
     from eulerlab.features.ic import evaluate
-    from eulerlab.features.library import BY_NAME
     from eulerlab.validation import holdout
 
     allowance = allowance or load_allowance()
@@ -219,7 +219,7 @@ def test_card(
     out.research_window = f"{days[0]} to {days[-1]} ({dropped:,} holdout rows withheld)"
 
     for name in features:
-        result = evaluate(rows, BY_NAME[name], horizon=allowance.ic_horizon, step=allowance.ic_step)
+        result = evaluate(rows, resolve(name), horizon=allowance.ic_horizon, step=allowance.ic_step)
         _log(label, f"ic|{name}", days, result.n, result.mean_ic, result.t_stat, trials_path)
         out.trials_spent += 1
         out.screens.append(

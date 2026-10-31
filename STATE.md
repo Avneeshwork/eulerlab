@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. Nothing is in flight.
 **Next:** Sprints 29–31 — compliance, then first capital. Operator's work, not a coding task.
 
-*Last updated: 2026-10-30. One page, and it stays one page. If it is not here
+*Last updated: 2026-10-31. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,10 +33,12 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Formula language (2026-10-31, ADR-097, research 131):** a card can name `feature: "formula:<text>"`, e.g. `neg(ts_mad(ret(1), 62))`;
+  parsed and interpreted, never executed. The 10 library features rewritten as formulas match exactly. Phase 1 of the
+  self-improving agent plan; whether discovery-window searches count as trials is your call (T-4230).
 - **FII/DII cash flows (2026-10-29/30, ADR-098, ADR-099):** `make fii-dii` captures NSE's evening figure in `make daily` and
   `make india-live`; first live run 2026-10-30. `make fii-dii-history` backfilled 265 days (2025-10-01 to 2026-10-29) from Trendlyne
   against its terms, by operator decision; agrees with NSE, Groww and stockezee within 0.05 crore. Shown on Dashboard → Big money.
-
 - **Market microdata (2026-10-30, ADR-095, research 130):** `make nse-reports` lands bulk/block deals, short selling, F&O ban,
   SLBM, MTF, insider and SAST filings, and pledge/IPO/Nifty 50 list snapshots; a year back (insider from May 2026). `make
   index-minute`: 5 years of NIFTY 50, BANK and VIX minutes. `make depth-day` records Kite five-level depth (snapshots, not every
