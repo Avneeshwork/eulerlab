@@ -16,6 +16,20 @@ Verify: `uv run pytest -q tests/test_trader_read.py`; `make agent NAME=market_br
 | T-4247 | Research how a brief and agent notes should read (research 134): pre-open brief, after-close note, agent notes, Telegram, rendering | DONE 2026-10-31. Proposal only; the operator decides the four open questions before building |
 | T-4245 | Show the read as its own card on the Dashboard strip and the AI tab, not only inside the brief text | TODO |
 
+## Metrics library: how to answer (2026-10-31)
+
+Operator: "gather all possible documents related to metrics we have train model that how to answer", "do for what all possible and before building brief". ADR-103, research 135.
+Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open any page, for example `docs/METRICS/market/india-vix.md`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4248 | `docs/METRICS/`: 70 pages (market, options, performance, validation, risk, attribution, data quality, fundamentals), normal ranges from our data, answer rules | DONE 2026-10-31 |
+| T-4249 | Operator decides: subtract a risk-free rate in Sharpe (and so DSR and the noise bar), or keep raw returns and say so (A-083) | TODO. Operator. Touches the gate's inputs |
+| T-4250 | Operator decides: enforce `min_t_statistic` in `gates.py`, or remove it from `mandate.yaml` (HISTORY #42) | TODO. Operator. Both files operator-owned |
+| T-4251 | Decide whether Sortino's downside deviation should average over all days, as Sortino & Price define it (A-084) | TODO |
+| T-4252 | Wire the library in: knowledge agent sources (`docs/METRICS`, `docs/GLOSSARY.md`), an `explain_metric` assistant tool, the brief's analyst note; ~40 scored questions in `config/agent_eval/metrics.yaml` | TODO. Next |
+| T-4253 | Review the Trader's read cash-flow thresholds: ±₹5,000 cr sits near this year's median FII 5-day net (−₹6,110 cr), so "weak" is the usual reading (A-082) | TODO. Operator |
+
 ## Self-improving research agent (proposed 2026-10-31)
 
 Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 131. Phase 1 built (ADR-097); the trial-counting decision (T-4230) is still open.

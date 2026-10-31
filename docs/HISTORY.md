@@ -378,6 +378,8 @@ figure produced outside the result store before this date was frictionless.
 
 **40. A paper book's drawdown counted a withdrawal as a loss.** (2026-10-31) The first draft of the Trader's read measured drawdown from the raw equity curve, so the ₹20,000 taken out of one `india_sharpe_momentum_opt` book on 16 Oct showed as 23.1% below its peak. The loss limit's time-weighted figure is 3.7%. Caught on real data before the read was merged; the merged code uses the loss limit's figure. No stored number depended on it.
 
+**42. The mandate's t-statistic bar is not checked by the gate.** (2026-10-31) `mandate.yaml` has carried `min_t_statistic: 3.0` since it was written. `gates.py` never reads it: its statistical checks are deflated Sharpe, PBO and backtest length only, and no code anywhere reads the key. Found writing `docs/METRICS/validation/t-statistic.md`. No strategy was promoted on the strength of it: every one evaluated was killed on other checks. Both files are operator-owned, so nothing was changed; T-4250 asks the operator to decide.
+
 ---
 
 ## What the project has actually concluded

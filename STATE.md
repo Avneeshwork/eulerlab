@@ -33,6 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Metrics library (2026-10-31, ADR-103):** `docs/METRICS/`, 70 pages on what each number means, what is normal on our data,
+  traps and example answers, plus `HOW_TO_ANSWER.md`. Not yet wired into the agents (T-4252). Found: Sharpe has no
+  risk-free rate (A-083, T-4249) and the gate never checks `min_t_statistic` (HISTORY #42, T-4250).
 - **Market brief answers first (2026-10-31, ADR-100):** the brief opens with the Trader's read: bottom line, a seven-row
   scorecard with what is normal for each signal, Nifty's levels and ranges, what would change the read, the books.
   Thresholds in `config/trader_read.yaml` (proposals, A-082). Telegram gets the read only; the assistant has `market_read`.

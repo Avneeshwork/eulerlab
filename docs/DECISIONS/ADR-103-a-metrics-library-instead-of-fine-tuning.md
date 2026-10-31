@@ -1,0 +1,7 @@
+# ADR-103: A metrics library the models must read, not a fine-tuned model
+
+- **Context:** On 2026-10-31 the operator asked to "gather all possible documents related to metrics we have" and "train model that how to answer", before rebuilding the brief. The meaning of each metric was spread over code docstrings, `docs/ARCHITECTURE.md`, `docs/GLOSSARY.md` and research notes. Nothing said, per metric, what is normal on our data, how to read it, or what it does not tell you.
+- **Options:** (a) Fine-tune a model on Q&A about our metrics. (b) A reference library, one page per metric, plus answer rules and worked examples, that the assistant, the brief and the knowledge agent look up, scored by a test set. (c) Longer system prompts.
+- **Choice:** (b). `docs/METRICS/`: 70 pages in eight families (market, options, performance, validation, risk, attribution, data quality, fundamentals) and `HOW_TO_ANSWER.md`. Wiring into the agents and a scored test set follow in a second change (T-4252).
+- **Why:** The Groq models in use cannot be fine-tuned, and the model list changes. A fine-tuned model would hold today's numbers and could not say where an answer came from. Pages are readable and correctable by the operator and cited in every answer; ADR-088's grounding check already works on cited text. (c) does not scale to 70 metrics.
+- **Cost if wrong:** The "what is normal" figures age (they carry their as-of date and the live percentile wins). A wrong page teaches every agent the same mistake; the test set in T-4252 is the check.

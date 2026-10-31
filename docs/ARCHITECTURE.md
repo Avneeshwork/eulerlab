@@ -6,6 +6,10 @@ finance, and every term is defined where it first appears.*
 
 ---
 
+What each number on the platform means, what is normal for it and how to talk
+about it is in `docs/METRICS/` (ADR-103), one page per metric; this file keeps
+the maths.
+
 ## 0. What this is, in one paragraph
 
 This is a **quant research and execution platform** for Indian equity markets,
@@ -612,6 +616,11 @@ The **Sharpe ratio** is return per unit of volatility, annualised:
 ```
 
 with `r` the daily returns and 252 trading days per year.
+
+No risk-free rate is subtracted: `r` is the raw daily return, not the return in
+excess of cash as Sharpe (1994) defines it. This flatters any strategy that is
+mostly invested, by about 0.4 of Sharpe at 15% volatility with cash at 6%
+(A-083, T-4249).
 
 The system also computes **skewness** and **excess kurtosis**:
 
