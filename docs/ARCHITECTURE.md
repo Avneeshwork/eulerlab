@@ -2659,9 +2659,13 @@ score can be traced to a prompt change. `make agent-eval` runs weekly in
 
 ### The idea lab and the agents' trial allowance (ADR-089)
 
+**No weekly limit since 2026-10-31 (ADR-107).** `per_week: null` in
+`config/agent_trials.yaml`; a number puts a cap back. Every trial is still logged
+before its result is read.
+
 ```
 research drafts ──► lab: skip repeats, waiting-for-data, unbuildable
-                     │  fits this week's allowance (config/agent_trials.yaml, 5)?  no ─► wait
+                     │  fits this week's allowance (config/agent_trials.yaml; none since ADR-107)?  no ─► wait
                      ▼
         panel cut at the card's holdout
                      │

@@ -76,7 +76,8 @@ def run(ctx: Context) -> WorkerResult:
         return WorkerResult(str(exc).splitlines()[0], status="refused")
 
     tested_before = already_tested(ctx)
-    limit = int(ctx.args.get("max_cards") or ctx.options.get("max_cards") or 3)
+    default_cards = 3 if allowance.per_week is not None else 1000
+    limit = int(ctx.args.get("max_cards") or ctx.options.get("max_cards") or default_cards)
     items: list[Item] = []
     tested: list[str] = []
     results: list[dict[str, Any]] = []
@@ -99,7 +100,7 @@ def run(ctx: Context) -> WorkerResult:
             found = agent_trials.test_card(card_path, allowance=allowance, now=ctx.now)
         except agent_trials.OverAllowance as exc:
             ctx.notes.append(str(exc))
-            if cost > allowance.per_week:
+            if allowance.per_week is not None and cost > allowance.per_week:
                 continue
             break
         tested.append(str(card_path))
@@ -169,8 +170,12 @@ def run(ctx: Context) -> WorkerResult:
     spent = sum(r["trials"] for r in results)
     return WorkerResult(
         f"{len(results)} card(s) tested, {spent} trial(s) spent, "
-        f"{agent_trials.left_this_week(allowance, ctx.now)} left this week; "
-        f"{sum(i.data.get('survivors', 0) for i in items)} survivor(s) for you",
+        + (
+            f"{agent_trials.left_this_week(allowance, ctx.now)} left this week; "
+            if allowance.per_week is not None
+            else "no weekly limit; "
+        )
+        + f"{sum(i.data.get('survivors', 0) for i in items)} survivor(s) for you",
         items,
         data={"tested": tested, "results": results, "allowance": allowance.per_week},
     )

@@ -33,6 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Sharpe bar without raw counts (2026-10-31, research 138):** measured σ_SR is 0.39 to 0.48, not the assumed 1.0, which is most of why
+  the bar is 1.88. Proposed: N = families of everything tested, σ measured, plus a Romano-Wolf test over Nifty; needs your approval
+  to change `gates.py`/`mandate.yaml` (T-4300). Agent trials: no weekly limit (ADR-107).
 - **Strategy map (2026-10-31, ADR-106):** `make strategy-map` reads stored reports, spends no trial. 68 daily strategies are
   2.78 independent bets; 39 move together (correlation 0.79), about 6 with Nifty taken out (HISTORY #44). Plan for many daily
   strategies: judge books, not single rules (TASKS T-4291 to T-4298); your seven decisions are T-4292.
@@ -66,7 +69,7 @@ never edit them without an explicit instruction in that session.
   low-grade panel. Trade desk tickets and a version lock on every deployment. Quantpedia sync needs a key (T-4182).
   No agent has run live with a model yet; launchd jobs not loaded (T-4179).
   Code checks every figure in a knowledge answer or brief commentary against what the model was given; `make agent-eval`
-  switches off an agent that shows a made-up figure (ADR-088). The idea lab may spend up to **5 trials a week** testing
+  switches off an agent that shows a made-up figure (ADR-088). The idea lab has **no weekly trial limit** since 2026-10-31 (ADR-107; was 5) testing
   the research agent's drafts (IC screen, then backtest, before the holdout), each logged and raising the bar (ADR-089).
 - **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
   library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
