@@ -40,7 +40,7 @@ export const PAGE_AGENTS: Record<string, PageAgent[]> = {
   dashboard: [
     {
       name: 'market_brief',
-      role: 'Writes the pre-open brief at 08:45 and the after-close brief once the day’s data is in.',
+      role: 'Writes the pre-open brief at 08:45, the after-close note once the day’s data is in, and a markets-closed note on weekends and holidays.',
       next: 'Read it before the open.',
     },
   ],
@@ -215,7 +215,7 @@ function CopyCommand({ command }: { command: string }) {
   );
 }
 
-export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI: () => void }) {
+export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI: (view?: string) => void }) {
   const wanted = PAGE_AGENTS[page];
   const [agents, setAgents] = useState<AgentActivity[]>([]);
   const [items, setItems] = useState<AgentItem[]>([]);
@@ -305,7 +305,7 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
               </header>
               <p className="agent-chip-role">{w.role}</p>
               {w.name === 'market_brief' && briefData ? (
-                <BriefCard brief={briefData} onOpen={onOpenAI} />
+                <BriefCard brief={briefData} onOpen={() => onOpenAI('brief')} />
               ) : w.name === 'market_brief' && brief ? (
                 <div className="agent-brief" data-open={open}>
                   <p>{brief}</p>
@@ -341,7 +341,7 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
               <footer>
                 <span className="agent-next">{w.next}</span>
                 {waiting > 0 && (
-                  <button type="button" className="agent-link" onClick={onOpenAI}>
+                  <button type="button" className="agent-link" onClick={() => onOpenAI()}>
                     {waiting} waiting on you
                   </button>
                 )}

@@ -2493,8 +2493,10 @@ the brief as `data.brief` in the order research 134 found traders read:
 15:30 IST, after-close from 15:30. On a weekend or a day in NSE's holiday
 list (`make holidays`, `ingest/holidays.is_session`) it is a markets-closed note
 (mode `weekend`): the last session's read under a "Markets closed today" headline,
-the week in review (`brief_content.week`) and a seven-day look-ahead. One note
-per break: a closed day whose data date matches the last note's is skipped.
+the week in review (`brief_content.week`) and a seven-day look-ahead. Every
+closed-day run writes and shows the note; Telegram gets it once per break (a
+run whose data date matches the last note's does not resend it). "Open the
+brief" on the agent card opens `#agents/brief`, the AI tab's Market brief view.
 
 **The Trader's read (ADR-100).** The brief opens with an answer, not a list.
 `agents/trader_read.py` turns the gathered inputs into, in this order: a bottom

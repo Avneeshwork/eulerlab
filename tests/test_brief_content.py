@@ -224,11 +224,22 @@ def test_a_closed_day_gets_one_markets_closed_note_per_break(
     monkeypatch.setattr(market_brief, "_reports", dict)
     monkeypatch.setattr(market_brief, "_results", lambda day: {"upcoming": [], "since": ""})
     monkeypatch.setattr(market_brief, "_history", lambda books: {})
+    from eulerlab import notify
+
+    sent: list[str] = []
+    monkeypatch.setattr(notify, "configured", lambda: True)
+
+    def send(text: str, **_kw: Any) -> Any:
+        sent.append(text)
+        return notify.Delivery(True)
+
+    monkeypatch.setattr(notify, "send", send)
     spec = AgentSpec(
         name="market_brief",
         title="brief",
         job="a job for the test",
         worker="eulerlab.agents.workers.market_brief",
+        options={"telegram": True},
     )
     agents = {"market_brief": effective(spec, None)}
 
@@ -243,9 +254,13 @@ def test_a_closed_day_gets_one_markets_closed_note_per_break(
     assert brief["review"][0] == "Nifty 50: +2.0% over the week, to 23,053.1 (2026-10-30)."
     assert brief_content.telegram(brief).startswith("MARKETS CLOSED · 2026-10-31")
     sunday = run(datetime(2026, 11, 1, 4, 0, tzinfo=UTC))
-    assert sunday.status == "skipped" and "already written" in sunday.summary
-    holiday = run(datetime(2026, 11, 10, 4, 0, tzinfo=UTC))
-    assert holiday.status == "skipped"  # same data date as Saturday's note: one note per break
+    # Sunday still shows the note (a skipped run left the operator with nothing to read,
+    # 2026-10-31) but does not send it to Telegram again.
+    assert sunday.status == "ok" and sunday.data["brief"]["mode"] == "weekend"
+    assert "not sent again" in sunday.summary
+    assert (
+        len(sent) == 1
+    )  # Saturday's only (here the held-back line: cash flows are not in the fixture)
     assert holidays.is_session(date(2026, 11, 9), frozenset()) and not holidays.is_session(
         date(2026, 11, 8), frozenset()
     )

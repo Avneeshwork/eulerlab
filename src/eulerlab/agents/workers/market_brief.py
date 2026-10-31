@@ -423,21 +423,18 @@ def run(ctx: Context) -> WorkerResult:
     }
     stamp = fingerprint(inputs)
     last = latest_output(ctx.name, ctx.root)
-    if mode == "weekend" and not force and last is not None:
+    # One Telegram message per break: Sunday shows the note again but does not resend it.
+    repeat = False
+    if mode == "weekend" and last is not None:
         before = last.data.get("brief") or {}
         as_of = next(
             (r.get("as_of") for r in (inputs["context"].get("strip") or {}).get("indices") or []),
             None,
         )
-        if before.get("mode") == "weekend" and before.get("as_of") == as_of:
-            # One note per break: Sunday does not repeat Saturday's.
-            return WorkerResult(
-                f"no note: the closed-market note for data to {as_of} is already written",
-                status="skipped",
-                data={"fingerprint": stamp, "mode": mode},
-            )
+        repeat = before.get("mode") == "weekend" and before.get("as_of") == as_of
     if (
         not force
+        and mode != "weekend"
         and last is not None
         and last.data.get("fingerprint") == stamp
         and last.data.get("mode") == mode
@@ -500,7 +497,9 @@ def run(ctx: Context) -> WorkerResult:
     if ctx.options.get("telegram"):
         from eulerlab import notify
 
-        if notify.configured():
+        if repeat:
+            sent = "Telegram not sent again: this break's note was already sent"
+        elif notify.configured():
             gone = trader_read.missing(read.rows)
             if gone:
                 # An incomplete read is not sent; one line says why (ADR-101).

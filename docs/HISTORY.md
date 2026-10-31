@@ -383,6 +383,8 @@ figure produced outside the result store before this date was frictionless.
 
 **43. The after-close brief described the day before, and briefs ran on non-trading days.** (2026-10-31) `make agents-close` ran the after-close brief at 16:15, but index closes, participant OI and FII/DII flows arrive in `make daily` at 19:30, so the 16:15 note reported the previous session. And nothing checked the calendar: the brief forced on Saturday 31 October repeated Friday's numbers under Saturday's date. Fixed (ADR-105): the after-close note runs inside `make daily` after the data; a weekend or NSE holiday gets a markets-closed note that says so and shows the last session's date, once per break; every brief states its data date. No stored number depended on it.
 
+**44. The weekend note could not be found in the workbench.** (2026-10-31) The operator wrote "i can't see weekly brief" the evening it shipped (ADR-105). The note was written and served. Two things hid it. A later run on the same closed day (a Run press, or the evening job) returned "skipped: already written", so the agent card showed a skip and no brief. And "Open the brief" opened the AI tab on Live, not on Market brief. Fixed: every closed-day run writes and shows the note, and only the Telegram message is limited to one per break; "Open the brief" goes to `#agents/brief`, the Market brief view. No stored number was affected.
+
 ---
 
 ## What the project has actually concluded

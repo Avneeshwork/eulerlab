@@ -722,8 +722,13 @@ function Research({ onStarted }: { onStarted: () => void }) {
   );
 }
 
-export function AgentsTab() {
-  const [view, setView] = useState<View>('live');
+/** `#agents/brief` opens the Market brief view, so the brief can be linked to. */
+export function AgentsTab({ open = '' }: { open?: string }) {
+  const wanted = VIEWS.find(([id]) => id === open)?.[0];
+  const [view, setView] = useState<View>(wanted ?? 'live');
+  useEffect(() => {
+    if (wanted) setView(wanted);
+  }, [wanted]);
   const [data, setData] = useState<AgentsResponse | null>(null);
   const [items, setItems] = useState<AgentItem[]>([]);
   const [error, setError] = useState('');
