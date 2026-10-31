@@ -290,6 +290,21 @@ def _data_quality(args: Mapping[str, Any]) -> str:
     return "Source: data/quality/grades.json\n" + "\n".join(lines)
 
 
+def _market_read(_args: Mapping[str, Any]) -> str:
+    from eulerlab.agents import runtime
+
+    latest = runtime.latest_output("market_brief")
+    text = str(latest.data.get("read_text") or "") if latest is not None else ""
+    if latest is None or not text:
+        return (
+            "No Trader's read held yet. It is written by the market brief: "
+            "`make agent NAME=market_brief` or the AI tab's run button."
+        )
+    return (
+        f"Source: data/agents/market_brief/{latest.run_id}/output.json ({latest.started})\n{text}"
+    )
+
+
 def _agent_outputs(args: Mapping[str, Any]) -> str:
     from eulerlab.agents import runtime
 
@@ -548,6 +563,14 @@ TOOLS: dict[str, Tool] = {
         "Each dataset's quality grade (A clean to D unusable), its freshness and its first problem.",
         _text("dataset", "Part of a dataset name. Empty lists every dataset."),
         _data_quality,
+    ),
+    "market_read": Tool(
+        "The latest Trader's read of the Indian market from the market brief: bottom line, a "
+        "scorecard of trend, breadth, volatility, FII futures, cash flows, valuation and options "
+        "with what is normal for each, today's Nifty levels, what would change the read, and the "
+        "paper books. Use it first for any question about the current market.",
+        _NONE,
+        _market_read,
     ),
     "agent_outputs": Tool(
         "The latest run of one agent: when, its status, its summary and its items.",

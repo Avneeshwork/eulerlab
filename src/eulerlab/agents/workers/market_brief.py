@@ -1,5 +1,10 @@
 """The market brief agent: what happened, what is on today, and what it means for the books.
 
+**Answer first** (ADR-100). The brief opens with the Trader's read
+(`agents/trader_read.py`): a bottom line, a scorecard with what is normal for
+each signal, today's levels, what would change the read, and the books. The
+detail sections follow. Telegram gets the Trader's read only.
+
 Two briefs a trading day: **pre-open** (before 12:00 IST) and **after the
 close**. Every number in a brief comes from data the platform holds or
 fetched for it; the model, when it has budget, adds a few sentences of
@@ -27,7 +32,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from eulerlab.agents import grounding
+from eulerlab.agents import grounding, trader_read
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output, untrusted
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -104,6 +109,11 @@ def _books() -> list[dict[str, Any]]:
     out = []
     for d in deployments.all_deployments():
         state = deployments.read_state(d) or {}
+        curve = state.get("curve") or []
+        flowed = {str(f.get("applied_day")) for f in state.get("flows") or []}
+        limit = state.get("loss_limit") or {}
+        equity = state.get("equity")
+        cash = state.get("cash")
         out.append(
             {
                 "id": d.id,
@@ -113,13 +123,50 @@ def _books() -> list[dict[str, Any]]:
                 "traded_through": state.get("traded_through"),
                 "equity": state.get("equity"),
                 "warnings": list(state.get("warnings") or [])[:2],
+                # A day with money added or withdrawn has no clean day change.
+                "day_change": float(curve[-1][1]) / float(curve[-2][1]) - 1
+                if len(curve) > 1 and float(curve[-2][1]) and str(curve[-1][0]) not in flowed
+                else None,
+                # The loss limit's time-weighted drawdown, so a withdrawal is not a loss.
+                "drawdown": limit.get("drawdown"),
+                "reduce_at": limit.get("reduce_at"),
+                "invested": 1 - float(cash) / float(equity)
+                if isinstance(equity, int | float) and isinstance(cash, int | float) and equity
+                else None,
             }
         )
     return out
 
 
+def _flows() -> dict[str, Any]:
+    try:
+        from eulerlab.ingest import fii_dii_cash
+
+        return fii_dii_cash.summary(fii_dii_cash.rows())
+    except (OSError, ValueError, KeyError) as exc:
+        return {"available": False, "reason": f"{type(exc).__name__}: {str(exc)[:80]}"}
+
+
+def _closes() -> list[float]:
+    """Nifty 50's last 200 closes, for its averages. The index history, not the panel."""
+    try:
+        from eulerlab import market_context
+
+        return [row.close for row in market_context.indices().get("Nifty 50", [])[-200:]]
+    except (OSError, ValueError):
+        return []
+
+
 def _pct(value: Any) -> str:
     return f"{value * 100:+.1f}%" if isinstance(value, int | float) else "n/a"
+
+
+def _share(value: Any) -> str:
+    return f"{value * 100:.0f}%" if isinstance(value, int | float) else "n/a"
+
+
+def _points(value: Any) -> str:
+    return f"{value * 100:+.1f} points" if isinstance(value, int | float) else "n/a"
 
 
 def compose(mode: str, inputs: dict[str, Any]) -> list[tuple[str, list[str]]]:
@@ -141,12 +188,14 @@ def compose(mode: str, inputs: dict[str, Any]) -> list[tuple[str, list[str]]]:
     strip = ctx.get("strip") or {}
     india = [
         f"{row['name']}: {row['close']:,} ({_pct(row['change'].get('1d'))} day, {_pct(row['change'].get('1m'))} month) as of {row['as_of']}"
-        for row in (strip.get("indices") or [])[:6]
+        for row in (strip.get("indices") or [])[:7]
+        if row.get("name") != "India VIX"
     ]
     vix = strip.get("vix")
     if vix:
         india.append(
-            f"India VIX: {vix['level']} (percentile {vix.get('percentile_1y')} of the past year)"
+            f"India VIX: {vix['level']} (percentile {vix.get('percentile_1y')} of the past year, "
+            f"median {vix.get('median_1y')})"
         )
     for card in (
         (ctx.get("pulse") or {}).get("cards", []) if isinstance(ctx.get("pulse"), dict) else []
@@ -171,13 +220,20 @@ def compose(mode: str, inputs: dict[str, Any]) -> list[tuple[str, list[str]]]:
         sections.append(
             (
                 "Breadth",
-                [f"{k.replace('_', ' ')}: {v}" for k, v in list(latest.items())[:5]] or ["held"],
+                [
+                    f"Stocks above their 20/50/200-day average: {latest.get('above_20')}% / "
+                    f"{latest.get('above_50')}% / {latest.get('above_200')}%",
+                    f"52-week new highs {latest.get('new_highs')}, new lows {latest.get('new_lows')}",
+                ]
+                if latest
+                else ["held"],
             )
         )
     positioning = ctx.get("positioning") or {}
     if positioning.get("available"):
         lines = [
-            f"{p['participant']}: {_pct(p.get('index_futures_long_share'))} of index futures long ({_pct(p.get('change_1d'))} on the day)"
+            f"{p['participant']}: {_share(p.get('index_futures_long_share'))} of index futures held long "
+            f"(usual {_share(p.get('usual'))}; {_points(p.get('change_1d'))} on the day)"
             for p in positioning.get("participants", [])[:4]
         ]
         sections.append((f"F&O positioning ({positioning.get('as_of')})", lines))
@@ -190,42 +246,48 @@ def compose(mode: str, inputs: dict[str, Any]) -> list[tuple[str, list[str]]]:
             or ["no medium or high impact release in the calendar held"],
         )
     )
-    books = inputs.get("books") or []
-    sections.append(
-        (
-            "Your books",
-            [
-                f"{b['strategy']} ({b['mode']}, {b['status']}): traded through {b['traded_through'] or 'not yet'}"
-                + (
-                    f", equity {b['equity']:,.0f}"
-                    if isinstance(b.get("equity"), int | float)
-                    else ""
-                )
-                for b in books
-            ]
-            or ["no deployment"],
-        )
-    )
     data = inputs.get("data") or []
     low = [f"{g['name']} grade {g['grade']}" for g in data if g.get("grade") in ("C", "D")]
     behind = [g["name"] for g in data if g.get("freshness") in ("stale", "missing", "behind")]
     sections.append(
         (
             "Data",
-            [f"Low grade: {', '.join(low) or 'none'}", f"Behind: {', '.join(behind) or 'none'}"],
+            [
+                f"{len(low)} of {len(data)} sources at grade C or D (Data Status lists them)"
+                if low
+                else "every source at grade A or B",
+                f"Behind: {', '.join(behind) or 'none'}",
+            ],
         )
     )
     return sections
 
 
-def render(mode: str, day: str, sections: list[tuple[str, list[str]]], commentary: str) -> str:
+def render(
+    mode: str, day: str, sections: list[tuple[str, list[str]]], commentary: str, read: str = ""
+) -> str:
     title = "PRE-OPEN BRIEF" if mode == "pre-open" else "AFTER-CLOSE BRIEF"
     lines = [f"{title} · {day}"]
+    if read:
+        lines += ["", read]
+    if commentary:
+        lines += ["", "ANALYST NOTE (model, not data)", commentary.strip()]
+    if read:
+        lines += ["", "— DETAIL —"]
     for heading, body in sections:
         lines += ["", heading.upper(), *[f"- {b}" for b in body]]
-    if commentary:
-        lines += ["", "COMMENTARY (model, not data)", commentary.strip()]
     return "\n".join(lines)
+
+
+QUESTIONS = (
+    "You write an analyst note under one trader's market read for India. Use only the numbers "
+    "in the read. Answer exactly these three, each on its own line starting with its label, one "
+    "or two sentences each:\n"
+    "What matters today: the one or two signals that explain the bottom line, and why.\n"
+    "What to watch: the level or number in the read that decides the session.\n"
+    "What would prove it wrong: which trigger in the read, if hit, flips the bottom line.\n"
+    "No price predictions, no advice to buy or sell, no markdown."
+)
 
 
 def fingerprint(inputs: dict[str, Any]) -> str:
@@ -259,6 +321,8 @@ def run(ctx: Context) -> WorkerResult:
         "world": _world(notes, fetch=bool(ctx.options.get("world", True))),
         "events": _events(day),
         "books": _books(),
+        "flows": _flows(),
+        "closes": _closes(),
         "data": [
             {"name": g.get("name"), "grade": g.get("grade"), "freshness": g.get("freshness")}
             for g in contract.saved()
@@ -280,18 +344,22 @@ def run(ctx: Context) -> WorkerResult:
             data={"fingerprint": stamp, "mode": mode},
         )
 
-    ctx.step("Writing the brief from the numbers gathered")
+    ctx.step("Writing the Trader's read and the brief from the numbers gathered")
+    read = trader_read.build(
+        inputs["context"],
+        closes=inputs["closes"],
+        flows=inputs["flows"],
+        books=inputs["books"],
+        day=day,
+        lv=trader_read.levels(),
+    )
+    read_text = trader_read.render(read)
     sections = compose(mode, inputs)
     commentary = ""
     if ctx.can_ask():
-        plain = render(mode, day, sections, "")
+        plain = render(mode, day, sections, "", read_text)
         try:
-            commentary = ctx.ask(
-                "You write three to five plain sentences of commentary under a market brief for one "
-                "trader in India. Use only the numbers in the brief. Say what stands out and what to "
-                "watch today. No predictions of prices, no advice to buy or sell, no markdown.",
-                untrusted("brief", plain),
-            )
+            commentary = ctx.ask(QUESTIONS, untrusted("read", read_text))
         except Exception as exc:
             notes.append(f"no commentary: {type(exc).__name__}: {str(exc)[:120]}")
         if commentary:
@@ -302,7 +370,7 @@ def run(ctx: Context) -> WorkerResult:
                     f"({', '.join(found.unsupported)}) (ADR-088)"
                 )
                 commentary = ""
-    text = render(mode, day, sections, commentary)
+    text = render(mode, day, sections, commentary, read_text)
     ctx.notes.extend(notes)
     ctx.write("brief.txt", text)
     sent = ""
@@ -310,7 +378,8 @@ def run(ctx: Context) -> WorkerResult:
         from eulerlab import notify
 
         if notify.configured():
-            delivery = notify.send(text[:3900])
+            short = f"{'PRE-OPEN' if mode == 'pre-open' else 'AFTER-CLOSE'} · {day}\n\n{read_text}"
+            delivery = notify.send((short + "\n\nFull brief: workbench → AI → market_brief")[:3900])
             sent = "sent to Telegram" if delivery.sent else f"Telegram: {delivery.reason}"
         else:
             sent = "Telegram not configured"
@@ -321,6 +390,8 @@ def run(ctx: Context) -> WorkerResult:
             "fingerprint": stamp,
             "mode": mode,
             "text": text,
+            "read": read.as_dict(),
+            "read_text": read_text,
             "sections": sections,
             "notes": notes,
         },

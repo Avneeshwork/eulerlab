@@ -3,6 +3,17 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Market brief: the Trader's read (2026-10-31)
+
+Operator: "current market brief is joke and it doesn't make any sense and not helping a trade at all ... add one more component how to answer which give better clarity to trader". ADR-100.
+Verify: `uv run pytest -q tests/test_trader_read.py`; `make agent NAME=market_brief ARGS=force=1` and read the top of the brief; ask the assistant "how is the market today".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4243 | Trader's read at the top of the brief: bottom line, scorecard with normal levels, today's map, what would change the read, books; detail cleaned; Telegram gets the read only; assistant `market_read` tool | DONE 2026-10-31. `agents/trader_read.py`, `config/trader_read.yaml`, 8 tests |
+| T-4244 | Operator sets the read's thresholds (A-082) | TODO. Operator |
+| T-4245 | Show the read as its own card on the Dashboard strip and the AI tab, not only inside the brief text | TODO |
+
 ## Self-improving research agent (proposed 2026-10-31)
 
 Operator: "focus mostly on how we can make our research agent more intelligent, how it will improve itself ... come up with a plan." Research 131. Phase 1 built (ADR-097); the trial-counting decision (T-4230) is still open.

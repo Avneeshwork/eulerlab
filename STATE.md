@@ -33,6 +33,9 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Market brief answers first (2026-10-31, ADR-100):** the brief opens with the Trader's read: bottom line, a seven-row
+  scorecard with what is normal for each signal, Nifty's levels and ranges, what would change the read, the books.
+  Thresholds in `config/trader_read.yaml` (proposals, A-082). Telegram gets the read only; the assistant has `market_read`.
 - **Formula language (2026-10-31, ADR-097, research 131):** a card can name `feature: "formula:<text>"`, e.g. `neg(ts_mad(ret(1), 62))`;
   parsed and interpreted, never executed. The 10 library features rewritten as formulas match exactly. Phase 1 of the
   self-improving agent plan; whether discovery-window searches count as trials is your call (T-4230).
