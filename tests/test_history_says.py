@@ -1,4 +1,4 @@
-"""What history says: matching past days, no look-ahead, too few means no numbers (ADR-106)."""
+"""What history says: matching past days, no look-ahead, too few means no numbers (ADR-109)."""
 
 from __future__ import annotations
 

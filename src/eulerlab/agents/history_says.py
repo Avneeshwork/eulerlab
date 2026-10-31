@@ -1,4 +1,4 @@
-"""What history says: past days that looked like today, and what followed (ADR-106).
+"""What history says: past days that looked like today, and what followed (ADR-109).
 
 The outside view research 134 recommends. A past trading day matches today
 when three fixed conditions read the same (`config/history_setup.yaml`):

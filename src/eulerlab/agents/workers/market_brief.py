@@ -136,7 +136,7 @@ def _results(day: str) -> dict[str, Any]:
 
 
 def _history(books: list[dict[str, Any]]) -> dict[str, Any]:
-    """What history says and each book's backtest in this kind of market (ADR-106)."""
+    """What history says and each book's backtest in this kind of market (ADR-109)."""
     from eulerlab import market_context, workspace
 
     try:

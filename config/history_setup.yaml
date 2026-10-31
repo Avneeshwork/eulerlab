@@ -1,4 +1,4 @@
-# "What history says" in the market brief (ADR-106). OPERATOR-EDITABLE.
+# "What history says" in the market brief (ADR-109). OPERATOR-EDITABLE.
 #
 # A past day matches today when all three conditions read the same as today.
 # They are few and fixed on purpose: adding or tuning conditions until the

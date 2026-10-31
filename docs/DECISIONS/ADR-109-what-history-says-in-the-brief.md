@@ -1,4 +1,4 @@
-# ADR-106: The brief shows what history says, from three fixed conditions
+# ADR-109: The brief shows what history says, from three fixed conditions
 
 - **Context:** Research 134 found good notes take the outside view: what usually followed similar setups, with the number of cases. The operator accepted it as PR 2 of the brief rebuild on 2026-10-31, along with each book's backtest in this kind of market.
 - **Options:** (a) A similarity search over many features to find the "closest" past days. (b) A few fixed conditions, exact match, counts shown. (c) A model's judgement of similar periods.

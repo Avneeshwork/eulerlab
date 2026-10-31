@@ -22,8 +22,8 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4276 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4270); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
 | T-4277 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
 | T-4278 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
-| T-4279 | SIP backtester | TODO |
-| T-4280 | Company page (`app/terminal/company/[symbol]`) | TODO |
+| T-4279 | SIP backtester | DONE. Headline on kit Stat tiles with arrows; lump-sum comparison a chip; XIRR, day-of-month, step-up, chart key and the costs caveat behind (i) ("Upper bound" chip). 390 px screenshot not taken: the unattended run could not reach the dev server |
+| T-4280 | Company page (`app/terminal/company/[symbol]`) | DONE. Main column split into Overview / Financials / Peers / News tabs kept in `?view=`; kit Stat tiles with arrows on moves and growth; the price-source, provisional-close, chart, bar, statement, peer, news, not-held and fair-value assumption notes behind (i); confidence and provisional close are chips; "Not held" is a chip list. 390 px screenshot not taken: the unattended run could not reach the dev server |
 | T-4281 | Dialogs (Backtest, Deploy, Explain) | TODO |
 | T-4282 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
 | T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | DONE 2026-10-31. PR #38 merged. The flag file and launchd job are switched off by the operator on the Mac (the agent session was not permitted to) |
@@ -59,8 +59,8 @@ Verify: `uv run pytest -q tests/test_brief_content.py tests/test_board_meetings.
 | T-4286 | Brief as data in reading order: what matters (ranked), levels and if-then, coming up, books needing you, underneath, after-close review; AI-tab view and agent card; Telegram in 8 lines | DONE 2026-10-31 |
 | T-4287 | Results calendar from NSE board-meeting intimations (`make board-meetings`, in `make daily`) | DONE 2026-10-31. Built forward from 2026-10-31 |
 | T-4288 | Closed days get a markets-closed note (last session, week in review, week ahead), once per break; `make holidays`; `brief-weekend` launchd job; after-close note moved into `make daily` | DONE 2026-10-31. HISTORY #43 |
-| T-4289 | PR 2: what history says (base rates for today's conditions, with case counts) and each book's backtest in this kind of market | DONE 2026-10-31. ADR-106, `agents/history_says.py`, 5 tests; 2 metrics pages |
-| T-4291 | Operator reviews the history conditions (A-087) | TODO. Operator |
+| T-4289 | PR 2: what history says (base rates for today's conditions, with case counts) and each book's backtest in this kind of market | DONE 2026-10-31. ADR-109, `agents/history_says.py`, 5 tests; 2 metrics pages |
+| T-4304 | Operator reviews the history conditions (A-087) | TODO. Operator |
 | T-4290 | Operator reviews the brief's ranking weights (A-086) | TODO. Operator |
 
 ## Metrics library: how to answer (2026-10-31)
@@ -81,6 +81,22 @@ Verify: read `docs/METRICS/README.md` and `docs/METRICS/HOW_TO_ANSWER.md`; open 
 | T-4256 | Watch MoSPI and AMFI: no RSS; find a readable official source (PIB RSS?) | TODO |
 | T-4257 | Recheck the seven assumptions the keeper found overdue on its first weekly pass (A-000, A-002, A-004, A-005, A-008, A-010, A-019) | TODO. Operator |
 | T-4253 | Review the Trader's read cash-flow thresholds: ±₹5,000 cr sits near this year's median FII 5-day net (−₹6,110 cr), so "weak" is the usual reading (A-082) | TODO. Operator |
+
+## Researching many daily strategies (2026-10-31, ADR-106)
+
+Operator: "make other thread of how we will research multiple daily strategy", then "start". Plan: Claude Doc "Researching many daily strategies at once" (https://claude.ai/artifact/8MDtW5qPpmb4VraqxXg1ez). Judge books, not single rules; screen many ideas for free, confirm few. Builds on the self-improving agent plan below.
+Verify: `make strategy-map`; `uv run pytest -q tests/test_strategy_map.py`.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4291 | Phase 1: strategy map. Correlations raw and Nifty-hedged, families at 0.7, participation ratio, one fixed equal-weight book | DONE 2026-10-31. 68 strategies: 27 families, 2.78 independent bets; one family of 39 (HISTORY #44) |
+| T-4292 | Operator decides the plan's seven questions: the book as the unit gated; T-4230; trial allowance split; lane D waits for 5 years; equal weight by family; 0.7 redundancy line; gate the hedged book | TODO. Operator |
+| T-4293 | Phase 2: batch screen. Family and lane tags on H-cards, zero-trial filters, discovery screen and redundancy check in one run, `make research-batch` | TODO. Blocked by T-4230, T-4232 |
+| T-4294 | Phase 4: book builder. Score blending, fixed weights, long-only and Nifty-hedged versions with futures costs, a book as one H-card | TODO. After T-4293 |
+| T-4295 | Phase 3: delivery %, index P/E and P/B and Nifty futures as formula inputs | TODO |
+| T-4296 | Phase 5: forward recorder for short-history signals (FII/DII, deals, short selling, insider), `make shadow-signals` | TODO |
+| T-4297 | Phase 6: quarterly book rebuild, member drop rules, forward against backtest per member | TODO. After T-4294 |
+| T-4298 | Strategy map on the workbench: families and the correlation heat map on the Strategies page | TODO |
 
 ## Self-improving research agent (proposed 2026-10-31)
 

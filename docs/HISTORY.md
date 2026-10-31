@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty-two times this project was wrong
+## Forty-five times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -383,7 +383,9 @@ figure produced outside the result store before this date was frictionless.
 
 **43. The after-close brief described the day before, and briefs ran on non-trading days.** (2026-10-31) `make agents-close` ran the after-close brief at 16:15, but index closes, participant OI and FII/DII flows arrive in `make daily` at 19:30, so the 16:15 note reported the previous session. And nothing checked the calendar: the brief forced on Saturday 31 October repeated Friday's numbers under Saturday's date. Fixed (ADR-105): the after-close note runs inside `make daily` after the data; a weekend or NSE holiday gets a markets-closed note that says so and shows the last session's date, once per break; every brief states its data date. No stored number depended on it.
 
-**44. The weekend note could not be found in the workbench.** (2026-10-31) The operator wrote "i can't see weekly brief" the evening it shipped (ADR-105). The note was written and served. Two things hid it. A later run on the same closed day (a Run press, or the evening job) returned "skipped: already written", so the agent card showed a skip and no brief. And "Open the brief" opened the AI tab on Live, not on Market brief. Fixed: every closed-day run writes and shows the note, and only the Telegram message is limited to one per break; "Open the brief" goes to `#agents/brief`, the Market brief view. No stored number was affected.
+**44. Sixty-eight stored daily strategies are about three bets.** (2026-10-31) The library lists 68 India daily strategies with stored reports, and research 113 ranked them as if they were separate candidates. `make strategy-map` (ADR-106) measured them for the first time: 39 of them, every momentum, trend, low-volatility and value variant, move together (average correlation 0.79, lowest pair 0.55), and the participation ratio of the whole correlation matrix is 2.78. With Nifty taken out, 17 momentum and trend rules still form one family (0.80) and the count rises only to about 6. An equal-weight book across all 27 families has Sharpe 0.60, and hedged −0.28: most families are single calendar or candle rules that earn nothing. No stored number is wrong, but no combination of these rules can be counted as diversified, and adding another momentum variant buys nothing.
+
+**46. The weekend note could not be found in the workbench.** (2026-10-31) The operator wrote "i can't see weekly brief" the evening it shipped (ADR-105). The note was written and served. Two things hid it. A later run on the same closed day (a Run press, or the evening job) returned "skipped: already written", so the agent card showed a skip and no brief. And "Open the brief" opened the AI tab on Live, not on Market brief. Fixed: every closed-day run writes and shows the note, and only the Telegram message is limited to one per break; "Open the brief" goes to `#agents/brief`, the Market brief view. No stored number was affected.
 
 ---
 
