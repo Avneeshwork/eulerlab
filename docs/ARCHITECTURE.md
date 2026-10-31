@@ -2348,7 +2348,11 @@ a mirror would merge the bucket's repeats straight back.
 ## Company pages (ADR-065)
 
 `/terminal/company/<SYMBOL>` shows what is held about one company. Tiles on
-the market map link to it, and the page has its own search.
+the market map link to it, and the page has its own search. The side column
+(price, vitals, classification, not held) is always shown; the main column has
+four tabs kept in the address as `?view=`: `overview` (fair value or price
+chart, key metrics, earnings bars), `financials` (the six statements),
+`peers` and `news`. Notes and caveats open from (i) buttons (ADR-102).
 
 **Sources.** `GET /api/company/{symbol}` reads the newest file under
 `data/landing/fundamentals/<SYMBOL>/` through `landing_reader`, so a pruned

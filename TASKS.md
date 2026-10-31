@@ -22,8 +22,8 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4276 | Tools hub, Strategy Builder | DONE. Tools cards with (i) (in T-4270); Builder warnings are chips (slow universe, warm-up, screening run), rule hints, slot size, stop and backtest notes behind (i); the rules read-back stays as the page's content. Fits 390 px |
 | T-4277 | Research library | DONE. Paper text stays (it is the content); the single-backtest caveat is a chip, empty-state help behind (i). Fits 390 px. (An unattended run first tried it and was blocked by its PATH; fixed in `tools/ui_revamp_resume.sh`.) |
 | T-4278 | Instruments, Data | DONE. Header, sync, coverage, Kite, panel, universe and cloud notes behind (i); busy and not-configured states are chips. Both fit 390 px |
-| T-4279 | SIP backtester | TODO |
-| T-4280 | Company page (`app/terminal/company/[symbol]`) | TODO |
+| T-4279 | SIP backtester | DONE. Headline on kit Stat tiles with arrows; lump-sum comparison a chip; XIRR, day-of-month, step-up, chart key and the costs caveat behind (i) ("Upper bound" chip). 390 px screenshot not taken: the unattended run could not reach the dev server |
+| T-4280 | Company page (`app/terminal/company/[symbol]`) | DONE. Main column split into Overview / Financials / Peers / News tabs kept in `?view=`; kit Stat tiles with arrows on moves and growth; the price-source, provisional-close, chart, bar, statement, peer, news, not-held and fair-value assumption notes behind (i); confidence and provisional close are chips; "Not held" is a chip list. 390 px screenshot not taken: the unattended run could not reach the dev server |
 | T-4281 | Dialogs (Backtest, Deploy, Explain) | TODO |
 | T-4282 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
 | T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | DONE 2026-10-31. PR #38 merged. The flag file and launchd job are switched off by the operator on the Mac (the agent session was not permitted to) |
