@@ -1,6 +1,6 @@
 # STATE — where this project is right now
 
-**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4265; strategy 5 waits on a FYERS token) and the UI revamp (T-4263).
+**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token) and the UI revamp (T-4283).
 **Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
 *Last updated: 2026-10-31. One page, and it stays one page. If it is not here
