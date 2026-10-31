@@ -296,7 +296,7 @@
 .agent-findings li[data-severity='critical'] { background: var(--down-wash); }
 .agent-findings li[data-severity='warn'] { background: var(--caveat-wash); }
 .agent-findings li b { font-weight: 600; }
-.agent-findings li p { color: var(--ink-2); margin-top: 2px; }
+.agent-findings li p { color: var(--ink-2); margin-top: 2px; white-space: pre-line; overflow-wrap: anywhere; }
 .agent-findings > .agent-link { margin-top: 6px; }
 .agent-sev {
   flex: none;

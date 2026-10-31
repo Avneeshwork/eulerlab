@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -80,6 +80,8 @@ help:
 	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
 	@echo "  make knowledge-keeper [MODE=weekly]  refresh metric normals, watch SEBI/RBI/NSE, draft page updates"
 	@echo "  make metrics-normals          recompute what is normal for each metric"
+	@echo "  make board-meetings           capture today's NSE board-meeting intimations (results calendar)"
+	@echo "  make holidays                 fetch this year's NSE trading holidays (the brief skips them)"
 	@echo "  make handbook                 rebuild the Market Handbook (workbench /handbook.html)"
 	@echo "  make metrics-accept DRAFT=... apply an approved draft page to docs/METRICS"
 	@echo "  make agent-eval [ONLY=skeptic|knowledge]  score agents; one that makes up a figure is switched off"
@@ -281,6 +283,12 @@ agents-preopen:
 knowledge-keeper:
 	@uv run python -m eulerlab.agents.runtime knowledge_keeper $(if $(MODE),--arg mode=$(MODE),)
 
+board-meetings:
+	@uv run python -m eulerlab.ingest.board_meetings
+
+holidays:
+	@uv run python -m eulerlab.ingest.holidays
+
 handbook:
 	@uv run python tools/render_metrics_handbook.py
 
@@ -294,7 +302,6 @@ agents-close:
 	-@uv run python -m eulerlab.agents.runtime data
 	-@uv run python -m eulerlab.agents.runtime operations
 	-@uv run python -m eulerlab.agents.runtime portfolio
-	-@uv run python -m eulerlab.agents.runtime market_brief
 	-@uv run python -m eulerlab.agents.runtime knowledge_keeper
 	-@uv run python tools/render_metrics_handbook.py
 
@@ -729,6 +736,10 @@ daily-run:
 	@echo "== economic calendar =="
 	-uv run python -m eulerlab.ingest.forexfactory
 	-@$(MAKE) --no-print-directory upload-tree TREES="calendar" DELETE=1
+	@echo "== NSE holidays, then the after-close note (now the day's closes, flows and calendar are in) =="
+	-uv run python -m eulerlab.ingest.holidays
+	-uv run python -m eulerlab.ingest.board_meetings
+	-uv run python -m eulerlab.agents.runtime market_brief --arg mode=after-close
 	@echo "== minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory daily-minute
 	@echo "== provisional daily bars (minute bars while the bhavcopy is missing) =="

@@ -225,7 +225,7 @@ def _run_brief(
         "market_brief",
         root=tmp_path,
         agents={"market_brief": effective(spec, None)},
-        now=datetime(2026, 10, 31, 3, 0, tzinfo=UTC),
+        now=datetime(2026, 10, 30, 3, 0, tzinfo=UTC),
     )
     return result, sent
 
@@ -235,7 +235,8 @@ def test_telegram_gets_the_read_when_every_signal_is_held(
 ) -> None:
     result, sent = _run_brief(tmp_path, monkeypatch, _ctx())
     assert result.status == "ok" and "sent to Telegram" in result.summary
-    assert len(sent) == 1 and "TRADER'S READ" in sent[0]
+    assert len(sent) == 1 and sent[0].startswith("PRE-OPEN · 2026-10-30\nRisk-off")
+    assert len(sent[0].splitlines()) <= 8
 
 
 def test_telegram_gets_one_line_when_signals_are_missing(

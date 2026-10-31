@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { agentsApi } from '@/lib/api';
+import MarketBriefView from './MarketBriefView';
 import type {
   ActivityResponse,
   AgentActivity,
@@ -27,6 +28,7 @@ import type {
   AgentsResponse,
   AgentStep,
   DatasetGrade,
+  MarketBrief as MarketBriefData,
 } from '@/lib/api';
 
 const VIEWS = [
@@ -457,16 +459,18 @@ function Agents({ data, onChange }: { data: AgentsResponse; onChange: () => void
 // ---------------------------------------------------------------- the rest
 
 function MarketBrief() {
-  const [brief, setBrief] = useState<{ text?: string; at?: string; error?: string } | null>(null);
+  const [brief, setBrief] = useState<{ text?: string; brief?: MarketBriefData | null; at?: string; error?: string } | null>(null);
   useEffect(() => {
     agentsApi.marketBrief().then(setBrief).catch((e: unknown) => setBrief({ error: String(e) }));
   }, []);
+  if (!brief) return null;
+  if (brief.brief) return <MarketBriefView brief={brief.brief} at={brief.at} />;
   return (
     <div className="tpanel">
       <h3>Market brief</h3>
-      {!brief ? null : brief.text ? (
+      {brief.text ? (
         <>
-          <p className="tfine">{when(brief.at ?? '')}</p>
+          <p className="tfine">{when(brief.at ?? '')} · an older brief, written before briefs were saved as data</p>
           <pre className="ai-pre">{brief.text}</pre>
         </>
       ) : (

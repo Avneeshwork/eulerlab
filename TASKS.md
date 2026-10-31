@@ -26,7 +26,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4280 | Company page (`app/terminal/company/[symbol]`) | TODO |
 | T-4281 | Dialogs (Backtest, Deploy, Explain) | TODO |
 | T-4282 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
-| T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | IN PROGRESS. main merged into `ui-revamp` on 2026-10-31 and ids renumbered (ADR-102, research 132/133, HISTORY #41, T-4270..T-4285); PR #38 open. Left: merge it, then delete the flag file and unload the launchd job on the Mac |
+| T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | DONE 2026-10-31. PR #38 merged. The flag file and launchd job are switched off by the operator on the Mac (the agent session was not permitted to) |
 
 ## Five Indian microstructure strategies (2026-10-28)
 
@@ -48,6 +48,19 @@ Verify: `uv run pytest -q tests/test_trader_read.py`; `make agent NAME=market_br
 | T-4246 | An incomplete read says so in its first words, marks missing rows, and is held back from Telegram with one line (ADR-101) | DONE 2026-10-31. 4 tests in `tests/test_trader_read.py` |
 | T-4247 | Research how a brief and agent notes should read (research 134): pre-open brief, after-close note, agent notes, Telegram, rendering | DONE 2026-10-31. Proposal only; the operator decides the four open questions before building |
 | T-4245 | Show the read as its own card on the Dashboard strip and the AI tab, not only inside the brief text | TODO |
+
+## Market brief as a morning note (2026-10-31)
+
+Operator: "is this readable?", "not much information in market brief just data", then "start market brief work" with research 134's defaults. ADR-105, research 137.
+Verify: `uv run pytest -q tests/test_brief_content.py tests/test_board_meetings.py tests/test_trader_read.py`; `make agent NAME=market_brief ARGS="force=1"`; open AI → Market brief.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4286 | Brief as data in reading order: what matters (ranked), levels and if-then, coming up, books needing you, underneath, after-close review; AI-tab view and agent card; Telegram in 8 lines | DONE 2026-10-31 |
+| T-4287 | Results calendar from NSE board-meeting intimations (`make board-meetings`, in `make daily`) | DONE 2026-10-31. Built forward from 2026-10-31 |
+| T-4288 | No brief on weekends or NSE holidays (`make holidays`); after-close note moved into `make daily` | DONE 2026-10-31. HISTORY #43 |
+| T-4289 | PR 2: what history says (base rates for today's conditions, with case counts) and each book's backtest in this kind of market | TODO |
+| T-4290 | Operator reviews the brief's ranking weights (A-086) | TODO. Operator |
 
 ## Metrics library: how to answer (2026-10-31)
 

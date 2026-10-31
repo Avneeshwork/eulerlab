@@ -14,7 +14,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { agentsApi } from '@/lib/api';
-import type { AgentActivity, AgentFinding, AgentItem, SkepticTarget } from '@/lib/api';
+import type { AgentActivity, AgentFinding, AgentItem, MarketBrief, SkepticTarget } from '@/lib/api';
+import { BriefCard } from './MarketBriefView';
 
 const GRADE_KEY =
   'Grades: A every check passed. B passed with a warning. C one check failed, still usable. D missing or not usable. Backtests and the trade desk need C or better.';
@@ -219,6 +220,7 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
   const [agents, setAgents] = useState<AgentActivity[]>([]);
   const [items, setItems] = useState<AgentItem[]>([]);
   const [brief, setBrief] = useState('');
+  const [briefData, setBriefData] = useState<MarketBrief | null>(null);
   const [open, setOpen] = useState(false);
   const [asked, setAsked] = useState('');
   const [problem, setProblem] = useState('');
@@ -249,8 +251,14 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
     if (!wanted?.some((w) => w.name === 'market_brief')) return;
     agentsApi
       .marketBrief()
-      .then((r) => setBrief(r.ok && r.text ? r.text.trim() : ''))
-      .catch(() => setBrief(''));
+      .then((r) => {
+        setBrief(r.ok && r.text ? r.text.trim() : '');
+        setBriefData(r.ok && r.brief ? r.brief : null);
+      })
+      .catch(() => {
+        setBrief('');
+        setBriefData(null);
+      });
   }, [wanted]);
 
   useEffect(() => {
@@ -296,7 +304,9 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
                 {a?.started && state !== 'running' && <span className="tfine">{ago(a.started)}</span>}
               </header>
               <p className="agent-chip-role">{w.role}</p>
-              {w.name === 'market_brief' && brief ? (
+              {w.name === 'market_brief' && briefData ? (
+                <BriefCard brief={briefData} onOpen={onOpenAI} />
+              ) : w.name === 'market_brief' && brief ? (
                 <div className="agent-brief" data-open={open}>
                   <p>{brief}</p>
                   <button type="button" className="agent-link" onClick={() => setOpen(!open)}>
@@ -310,7 +320,13 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
                   </p>
                 )
               )}
-              {state !== 'running' && <Findings list={a?.findings ?? []} total={a?.findings_total ?? 0} />}
+              {state !== 'running' && (
+                <Findings
+                  // The brief itself is shown above; its item would repeat it.
+                  list={(a?.findings ?? []).filter((f) => !(w.name === 'market_brief' && f.kind === 'brief'))}
+                  total={a?.findings_total ?? 0}
+                />
+              )}
               {w.key && <p className="agent-key">{w.key}</p>}
               {a?.cli_only && (
                 <div className="agent-cli">
