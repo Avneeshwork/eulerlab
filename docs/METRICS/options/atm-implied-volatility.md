@@ -10,7 +10,7 @@
 
 **Data and freshness:** F&O bhavcopy settlement prices.
 
-**What is normal (our data, as of 2026-10-30):** Nifty nearest expiry, 34 sessions held (2026-09-10 to 2026-10-30), so these ranges are thin: median 12.2%, 5th-95th 9.1% to 17.2%.
+**What is normal (our data, as of 2026-10-30):** Nifty nearest expiry, 34 sessions held (2026-09-10 to 2026-10-30), so these ranges are thin: median 12.6%, 5th-95th 9.1% to 17.2%.
 
 **How to read it:**
 

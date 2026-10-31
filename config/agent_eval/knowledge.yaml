@@ -44,3 +44,34 @@ cases:
   - id: k-12
     question: Which assumption id covers the skeptic agent's Indian stress windows?
     expect: ["A-067"]
+  # The metrics library (docs/METRICS, ADR-103/104). Answers must come from the pages.
+  - id: k-13
+    question: Over what window does the platform rank India VIX to get its percentile?
+    expect: ["251"]
+  - id: k-14
+    question: What share of stocks above their 50-day average makes the Trader's read call breadth weak?
+    expect: ["30"]
+  - id: k-15
+    question: Is a risk-free rate subtracted when this platform computes the Sharpe ratio?
+    expect: ["no", "A-083"]
+  - id: k-16
+    question: Does the gate check the t-statistic minimum written in mandate.yaml?
+    expect: ["no"]
+  - id: k-17
+    question: Which version of Brinson attribution does the platform use?
+    expect: ["Fachler"]
+  - id: k-18
+    question: At what share of the market-wide position limit does a stock enter the F&O ban, and when does it leave?
+    expect: ["95", "80"]
+  - id: k-19
+    question: What minimum index derivatives contract size did SEBI's October 2024 circular set?
+    expect: ["15 lakh"]
+  - id: k-20
+    question: Is max pain a forecast of where Nifty will settle, according to the metrics library?
+    expect: ["not"]
+  - id: k-21
+    question: What does the high-low index measure and over how many days is it averaged?
+    expect: ["10"]
+  - id: k-22
+    question: Does the platform hold CPI inflation values?
+    expect: ["no"]

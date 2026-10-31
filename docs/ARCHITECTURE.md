@@ -2255,8 +2255,8 @@ waits a day to show the drawdown.
 | `com.eulerlab.fundamentals` | 10:00 on Sunday | `make fundamentals-update` |
 | `com.eulerlab.gapsignal` | 15:20 Monday to Friday | `make gap-signal SCHEDULED=1` |
 | `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
-| `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, after-close brief) |
-| `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge index, research, code review) |
+| `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, after-close brief, knowledge keeper) |
+| `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, research, code review) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
@@ -2394,7 +2394,8 @@ definition + operator switches (narrow only) ─────┤
 | Agent | Reads | Hands on |
 |---|---|---|
 | data | data quality grades, coverage, feed timings, launchd results | alerts, rerun proposals, answers to data requests |
-| knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia) | answers with sources |
+| knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia, the metrics library, the glossary) | answers with sources |
+| knowledge_keeper | held data for normals; SEBI, RBI and NSE circular feeds; the metrics library; `docs/ASSUMPTIONS.md` | refreshed normals; notices linked to pages; gaps; drafted page updates for approval |
 | market_brief | the running API's market context, world prices, the day's events, the books | a pre-open or after-close brief; Telegram |
 | research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads |
 | skeptic | a stored backtest's equity curve | attacks: best year, best days, stress windows (A-067), t-stat, costs |
@@ -2438,6 +2439,34 @@ steps and today's model requests, beside a feed of every agent's steps. Then
 the inbox, agents and briefs (switch, budget, brief, run), ask the knowledge
 agent, research and skeptic runs, the market brief, data quality and the
 agents' log. The trade desk is on Live & Risk only.
+
+### The knowledge keeper (ADR-104)
+
+`agents/workers/knowledge_keeper.py` with `metrics_library/` keeps
+`docs/METRICS/` current. **Daily** (`make agents-close`):
+`metrics_library.normals` recomputes each market metric's 5/25/50/75/95th
+percentiles over a named window into `data/derived/metric_normals.json`
+(event and knowledge time). The assistant's `explain_metric` tool appends
+them to the page it returns. `metrics_library.regwatch` lands the SEBI, RBI
+and NSE circular RSS feeds once per IST day under `data/landing/regwatch/`
+and appends unseen items to `data/derived/regwatch_items.jsonl`. Each item
+carries its own date as event time and the landing time as knowledge time.
+The first run is marked `baseline` and never reported. A later item whose
+title matches a topic in `config/knowledge_sources.yaml` (whole words,
+routine titles skipped) becomes an inbox lead naming the pages it may change.
+A feed that fails or stops parsing is an alert.
+
+**Weekly** (`mode=weekly`, `make agents-weekly`) adds four checks:
+- assumptions past their recheck date;
+- pages whose written normals are older than `stale_days` (90);
+- market-context sections with no page mapped;
+- `explain_metric` lookups that found no page (`data/derived/metric_misses.jsonl`).
+
+It then drafts up to `max_drafts` (3) updated pages from the page plus that
+week's linked notices or live normals. A draft with any figure not in that
+material is dropped (ADR-088). A kept draft waits in the inbox, and
+`make metrics-accept DRAFT=...` copies it over its page; it refuses any
+path outside `docs/METRICS/`. Nothing else writes to `docs/`.
 
 ### Agents on the page they serve (ADR-094)
 

@@ -10,7 +10,7 @@
 
 **Data and freshness:** Bhavcopy, nearest expiry.
 
-**What is normal (our data, as of 2026-10-30):** Nifty nearest expiry, 34 sessions held (2026-09-10 to 2026-10-30), so these ranges are thin: straddle median 1.09% of the forward (5th-95th 0.68% to 1.57%), varying with days to expiry.
+**What is normal (our data, as of 2026-10-30):** Nifty nearest expiry, 34 sessions held (2026-09-10 to 2026-10-30), so these ranges are thin: straddle median 1.13% of the forward (5th-95th 0.68% to 1.57%), varying with days to expiry.
 
 **How to read it:**
 

@@ -35,6 +35,9 @@ SOURCES: tuple[tuple[str, str, str], ...] = (
     ("record", "docs", "ASSUMPTIONS.md"),
     ("record", "docs", "STUBS.md"),
     ("record", ".", "STATE.md"),
+    ("metric", "docs/METRICS", "*/*.md"),
+    ("metric", "docs/METRICS", "HOW_TO_ANSWER.md"),
+    ("record", "docs", "GLOSSARY.md"),
 )
 EXTRA = (Path("data/quality/grades.json"),)
 SNIPPET = 1500
