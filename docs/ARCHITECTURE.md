@@ -689,10 +689,47 @@ Note the denominator. Negative skew makes `−skew·SR` positive, **enlarging** 
 denominator and **shrinking** DSR. Fat tails do the same. A strategy with ugly
 moments is penalised, correctly.
 
-> **This project's live numbers.** 19 trials are logged. The noise bar is
-> currently **Sharpe 1.88**. The best result this project has ever produced is
+> **Replaced on 2026-10-31 (ADR-108): see 5.3a.** Under the old rule, 19
+> ledger rows and σ_SR = 1.0, the noise bar was **Sharpe 1.88**. The best result this project has ever produced is
 > **1.27**. Read that again: the best strategy found so far is *below* what
 > pure noise would be expected to produce given how much has been searched.
+
+## 5.3a The bar from what was searched (ADR-108, research 138)
+
+From 2026-10-31, by operator decision, `N` and `σ_SR` in 5.3 come from the
+search itself, not from the ledger's row count and an assumed 1.0.
+`validation/search_bar.py`, called by `make validate`:
+
+1. **Families.** Every stored India equity strategy (one configuration each,
+   as in 5.9) plus the hypothesis's own configurations is clustered by
+   average linkage at correlation 0.7. `N` = families; `σ_SR` = the spread of
+   the families' annualised Sharpes, each family equal-weighted inside. The
+   deflated Sharpe and the minimum backtest length both use these. A tenth
+   variant of one idea joins its family and moves nothing; a new kind of idea
+   adds one family. First reading: 27 families, σ 0.48, bar **0.98**.
+2. **Romano-Wolf StepM.** The best configuration's daily return over Nifty
+   (beta 1) is tested jointly with every stored strategy that traded on at
+   least 90% of its days, on their common window. Statistic: √T · mean / sd.
+   A stationary block bootstrap (mean block 20 days, 2,000 draws, fixed
+   seed) of all columns together gives the distribution of the maximum
+   statistic; its 95th percentile is the critical value, stepped down until
+   nothing more is rejected. The candidate passes only if it is rejected as
+   no-edge. No `N` or `σ` is assumed: correlation between strategies is in
+   the bootstrap. First reading: critical Sharpe 0.95 over Nifty on
+   2016-01-25 to 2026-09-30.
+
+The pack records both under `search`; `gates.py` kills a pack whose
+`search.method` is not the mandate's, or whose Romano-Wolf test is missing,
+failed, or run at a looser level than `mandate.yaml` sets. The ledger still
+records every trial; it no longer sets the bar.
+
+**What it cannot see.** Runs that store no daily returns: optimiser and
+walk-forward sweeps (T-4301). A tuned strategy's own search is therefore
+invisible, which is why `india_sharpe_momentum_opt`'s pass is not evidence
+yet (T-4302). Families use equal weights and average linkage, not the paper's
+minimum-variance weights and ONC (S-057). The gate-acceptance packs carry no
+`search` block, so they now also die on it; they were already dying on DSR,
+PBO and worst regime.
 
 ## 5.4 Probability of Backtest Overfitting (PBO)
 
@@ -2663,9 +2700,13 @@ score can be traced to a prompt change. `make agent-eval` runs weekly in
 
 ### The idea lab and the agents' trial allowance (ADR-089)
 
+**No weekly limit since 2026-10-31 (ADR-107).** `per_week: null` in
+`config/agent_trials.yaml`; a number puts a cap back. Every trial is still logged
+before its result is read.
+
 ```
 research drafts ──► lab: skip repeats, waiting-for-data, unbuildable
-                     │  fits this week's allowance (config/agent_trials.yaml, 5)?  no ─► wait
+                     │  fits this week's allowance (config/agent_trials.yaml; none since ADR-107)?  no ─► wait
                      ▼
         panel cut at the card's holdout
                      │

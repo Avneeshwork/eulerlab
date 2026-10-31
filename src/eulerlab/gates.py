@@ -136,6 +136,8 @@ def _check_statistics(pack: dict[str, Any], rules: dict[str, Any]) -> list[Findi
             )
         )
 
+    out.extend(_check_search(pack, rules["search_correction"]))
+
     pbo = _get(pack, "pbo", "value")
     ceiling = rules["max_pbo"]
     if not isinstance(pbo, int | float):
@@ -164,6 +166,48 @@ def _check_statistics(pack: dict[str, Any], rules: dict[str, Any]) -> list[Findi
                 f"mandate requires {ratio_floor}x)",
             )
         )
+    return out
+
+
+def _check_search(pack: dict[str, Any], rules: dict[str, Any]) -> list[Finding]:
+    """The deflated Sharpe must use the mandate's search correction (ADR-108).
+
+    A pack built any other way (the old ledger count, or none) fails: its
+    deflated Sharpe answers a different question. When Romano-Wolf is
+    required, the candidate's return over Nifty must be rejected as no-edge
+    at no looser a level than the mandate's.
+    """
+    out: list[Finding] = []
+    method = _get(pack, "search", "method")
+    family = _get(pack, "search", "families") or {}
+    out.append(
+        Finding(
+            "search correction",
+            method == rules["method"],
+            (
+                f"{method}: {family.get('families')} families of {family.get('strategies')} "
+                f"strategies, sigma {family.get('sigma')}, bar Sharpe {family.get('bar')}"
+                if method == rules["method"]
+                else f"pack used {method!r}; mandate requires {rules['method']!r}"
+            ),
+        )
+    )
+    if rules["romano_wolf_required"]:
+        test = _get(pack, "search", "romano_wolf")
+        if not isinstance(test, dict):
+            out.append(Finding("romano-wolf", False, "no Romano-Wolf test in the evidence pack"))
+        else:
+            level = test.get("alpha")
+            strict_enough = isinstance(level, int | float) and level <= rules["romano_wolf_alpha"]
+            out.append(
+                Finding(
+                    "romano-wolf",
+                    bool(test.get("passed")) and strict_enough,
+                    f"Sharpe over Nifty {test.get('candidate_sharpe')} vs critical "
+                    f"{test.get('critical_sharpe')} across {test.get('strategies')} strategies, "
+                    f"level {level}, mandate requires <= {rules['romano_wolf_alpha']}",
+                )
+            )
     return out
 
 

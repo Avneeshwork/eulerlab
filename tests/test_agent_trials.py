@@ -135,7 +135,23 @@ def test_the_week_resets_on_monday_ist(tmp_path: Path) -> None:
 
 
 def test_the_shipped_allowance_is_the_operators_choice() -> None:
-    assert agent_trials.load_allowance().per_week == 5
+    # Lifted by the operator on 2026-10-31 (ADR-107).
+    assert agent_trials.load_allowance().per_week is None
+
+
+def test_no_limit_never_runs_out(tmp_path: Path) -> None:
+    log = tmp_path / "trials.jsonl"
+    log.write_text(
+        "".join(
+            json.dumps({"feature": f"agent|H-1|{i}", "logged_at": "2026-10-27T10:00:00+00:00"})
+            + "\n"
+            for i in range(500)
+        )
+    )
+    unlimited = agent_trials.Allowance(per_week=None)
+    assert agent_trials.spent_this_week(NOW, log) == 500
+    assert agent_trials.left_this_week(unlimited, NOW, log) == agent_trials.UNLIMITED
+    assert agent_trials.describe(unlimited) == "no weekly limit"
 
 
 def test_the_lab_sends_a_survivor_to_the_inbox(

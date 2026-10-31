@@ -33,6 +33,10 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **The gate's bar counts idea families, not ledger rows (2026-10-31, ADR-108, research 138, your decision):** N = families of every
+  stored strategy (27 of 68), σ_SR measured (0.48, was assumed 1.0): bar **Sharpe 0.98**, was 1.88. A candidate must also pass
+  Romano-Wolf over Nifty (critical about 0.95; only `india_sharpe_momentum_opt` passes, its tuning runs unseen, T-4302).
+  Agent trials: no weekly limit (ADR-107).
 - **Strategy map (2026-10-31, ADR-106):** `make strategy-map` reads stored reports, spends no trial. 68 daily strategies are
   2.78 independent bets; 39 move together (correlation 0.79), about 6 with Nifty taken out (HISTORY #44). Plan for many daily
   strategies: judge books, not single rules (TASKS T-4291 to T-4298); your seven decisions are T-4292.
@@ -66,7 +70,7 @@ never edit them without an explicit instruction in that session.
   low-grade panel. Trade desk tickets and a version lock on every deployment. Quantpedia sync needs a key (T-4182).
   No agent has run live with a model yet; launchd jobs not loaded (T-4179).
   Code checks every figure in a knowledge answer or brief commentary against what the model was given; `make agent-eval`
-  switches off an agent that shows a made-up figure (ADR-088). The idea lab may spend up to **5 trials a week** testing
+  switches off an agent that shows a made-up figure (ADR-088). The idea lab has **no weekly trial limit** since 2026-10-31 (ADR-107; was 5) testing
   the research agent's drafts (IC screen, then backtest, before the holdout), each logged and raising the bar (ADR-089).
 - **Paper agent (2026-10-29, ADR-084):** `make paper-agent TOPIC=...` searches arXiv and OpenAlex, drafts a
   library entry and an H-card per new paper with Groq `openai/gpt-oss-120b`, and stages them in
@@ -113,8 +117,8 @@ never edit them without an explicit instruction in that session.
   and a frictionless paper run reproduces the backtest exactly (gap 0.00).
 - **The gate has killed everything it has seen** — H-0001 plus three
   deliberately overfit acceptance strategies. It has never promoted anything.
-- **19 trials are logged.** The noise bar is **Sharpe 1.88**. The best result
-  this project has produced is **1.27**.
+- **19 trials are logged.** Since ADR-108 the bar is set by 27 idea families
+  with measured spread: **Sharpe 0.98** (was 1.88), plus Romano-Wolf over Nifty.
 - **No capital has ever been traded.** Paper deployments trade forward with an
   operator-set capital (`make paper-daily`, Live & Risk → Paper trading, ADR-060);
   live is refused in code until the Kite adapter is proven (S-015, T-4022).

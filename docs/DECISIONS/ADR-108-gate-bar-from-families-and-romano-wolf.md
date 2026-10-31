@@ -1,0 +1,7 @@
+# ADR-108: The gate's Sharpe bar comes from idea families and Romano-Wolf, not ledger rows
+
+- **Context:** On 2026-10-31 the operator asked for "other method for sharpe ratio bar instead of no of trials". Research 138 found the bar (1.88) rested mostly on an unmeasured spread of Sharpes (1.0, A-021; measured 0.48) and on N = ledger rows, which counts a variant of one idea like a new idea. The operator chose "Families plus Romano-Wolf" on the decision card.
+- **Options:** (a) Keep ledger rows and σ = 1.0. (b) Families with measured σ only. (c) Families with measured σ, plus Romano-Wolf StepM over Nifty.
+- **Choice:** (c). `mandate.yaml` `statistical.search_correction` holds the numbers (0.7, 0.05, 20-day blocks, 2,000 draws); `validation/search_bar.py` computes the pack's `search` block in `make validate`; `gates.py` `_check_search` kills a pack without it or failing it.
+- **Why:** Both still correct for the search but stop punishing repeats of one idea. Romano-Wolf needs no N or σ at all, and it tests the edge over Nifty, so a long-only rule cannot pass on the market's own return.
+- **Cost if wrong:** The bar fell from 1.88 to 0.98. Anything tested without stored daily returns (optimiser sweeps) is invisible to both checks (T-4301), so a tuned strategy can pass too easily; `india_sharpe_momentum_opt` is the case in point (T-4302). The holdout and forward paper still stand behind the gate.

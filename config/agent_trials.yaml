@@ -1,8 +1,9 @@
-# The agents' trial allowance (ADR-089). Operator-set: the operator chose 5 a
-# week on 2026-10-29. Every trial an agent spends is logged in
-# data/derived/trials.jsonl like any other and raises the noise bar for every
-# strategy. Lower it to slow the agents' search; 0 stops them testing at all.
-per_week: 5
+# The agents' trial allowance (ADR-089, ADR-107). Operator-set: 5 a week from
+# 2026-10-29; on 2026-10-31 the operator lifted the limit ("instead of 5 trials
+# a week make it unlimited how much we needed"). null = no weekly limit.
+# Every trial an agent spends is still logged in data/derived/trials.jsonl
+# before its result is read. A number puts a weekly cap back; 0 stops testing.
+per_week: null
 # The IC screen a card's features must pass before it is backtested.
 ic_horizon: 21
 ic_step: 5

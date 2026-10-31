@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty-four times this project was wrong
+## Forty-five times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -385,12 +385,15 @@ figure produced outside the result store before this date was frictionless.
 
 **44. Sixty-eight stored daily strategies are about three bets.** (2026-10-31) The library lists 68 India daily strategies with stored reports, and research 113 ranked them as if they were separate candidates. `make strategy-map` (ADR-106) measured them for the first time: 39 of them, every momentum, trend, low-volatility and value variant, move together (average correlation 0.79, lowest pair 0.55), and the participation ratio of the whole correlation matrix is 2.78. With Nifty taken out, 17 momentum and trend rules still form one family (0.80) and the count rises only to about 6. An equal-weight book across all 27 families has Sharpe 0.60, and hedged −0.28: most families are single calendar or candle rules that earn nothing. No stored number is wrong, but no combination of these rules can be counted as diversified, and adding another momentum variant buys nothing.
 
+**45. The noise bar assumed a spread of Sharpes twice the measured one.** (2026-10-31) Since Sprint 14 the deflated Sharpe used σ_SR = 1.0 (A-021), a default nobody had measured, and N = trial-ledger rows. Research 138 measured σ_SR across the 68 stored daily strategies at 0.39, and 0.48 across their 27 families. At 19 rows and σ 1.0 the bar was 1.88; with 27 families and the measured σ it is 0.98. The assumption, not the count, was most of the bar. Every "Sharpe 1.88 bar" figure in earlier reviews and in research 113's verdicts overstated the bar by about 0.9. No strategy was promoted or deployed on the old bar; the gate also killed them on other checks. By operator decision (ADR-108) the gate now uses families with measured σ, plus Romano-Wolf StepM over Nifty.
+
 ---
 
 ## What the project has actually concluded
 
 **Nothing has beaten the bar.** 19 trials are logged. A candidate must clear
-**Sharpe 1.88** from noise alone. The best result ever produced here is
+**Sharpe 1.88** from noise alone (until 2026-10-31; since ADR-108 the bar is
+0.98 from 27 idea families, plus Romano-Wolf over Nifty, HISTORY #45). The best result ever produced here is
 **1.27**. The most recent Monte Carlo on `momentum_12_1` puts the bootstrap 5th
 percentile at **−0.96** — the data cannot rule out that there is no edge.
 
