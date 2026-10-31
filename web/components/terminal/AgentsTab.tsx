@@ -250,9 +250,9 @@ function Live({
           <span>Agent trials this week</span>
           <b>
             {data.trials.spent}
-            <small> / {data.trials.per_week}</small>
+            <small> / {data.trials.per_week ?? 'no limit'}</small>
           </b>
-          <i>each one raises the noise bar</i>
+          <i>each one is logged before its result is read</i>
         </div>
         <div className="tstat-card">
           <span>Model requests today</span>

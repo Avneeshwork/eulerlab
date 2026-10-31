@@ -30,6 +30,7 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
+from itertools import pairwise
 from pathlib import Path
 
 from eulerlab.backtest import event_driven
@@ -37,7 +38,7 @@ from eulerlab.backtest.strategies import RankAndHold
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
 from eulerlab.validation import holdout as holdout_mod
-from eulerlab.validation import ledger, stress
+from eulerlab.validation import ledger, search_bar, stress
 from eulerlab.validation.cpcv import cpcv_splits, leakage_check
 from eulerlab.validation.statistics import (
     deflated_sharpe,
@@ -56,6 +57,7 @@ class ConfigResult:
     in_sample: list[float] = field(default_factory=list)
     out_of_sample: list[float] = field(default_factory=list)
     full_returns: list[float] = field(default_factory=list)
+    dated_returns: dict[date, float] = field(default_factory=dict)
 
 
 def _strategy_for(config: dict[str, object]) -> tuple[RankAndHold, int]:
@@ -133,16 +135,23 @@ def evaluate(
             )
 
     for config, result in zip(configurations, results, strict=True):
-        result.full_returns = _returns_of(rows, config)
+        result.dated_returns = _dated_returns_of(rows, config)
+        result.full_returns = list(result.dated_returns.values())
 
     return results, notes
 
 
-def _returns_of(rows: Sequence[PanelRow], config: dict[str, object]) -> list[float]:
+def _dated_returns_of(rows: Sequence[PanelRow], config: dict[str, object]) -> dict[date, float]:
+    """Daily returns keyed by the day they were earned, in day order."""
     strategy, rebalance = _strategy_for(config)
-    return event_driven.run(
+    run = event_driven.run(
         rows, strategy, rebalance_every=rebalance, warmup=253, asset_class="equity"
-    ).daily_returns()
+    )
+    return {
+        day: after / before - 1.0
+        for (_, before), (day, after) in pairwise(zip(run.days, run.equity, strict=True))
+        if before > 0
+    }
 
 
 def _label(config: dict[str, object]) -> str:
@@ -209,6 +218,36 @@ def main(argv: Sequence[str] | None = None) -> int:
     out_sample = [list(col) for col in zip(*[r.out_of_sample for r in results], strict=True)]
     pbo = probability_of_backtest_overfitting(in_sample, out_sample)
 
+    # --- 4a. the bar from what was searched (ADR-108, research 138) ---
+    from eulerlab import gates
+
+    search_rules = gates.load_mandate()["statistical"]["search_correction"]
+    best_result = max(results, key=lambda r: sharpe_stats(r.full_returns).sharpe)
+    search = search_bar.assess(
+        best_result.dated_returns,
+        [r.dated_returns for r in results if r is not best_result],
+        search_rules,
+    )
+    family = search.get("families") or {}
+    if family:
+        bar_n = int(family["families"])
+        bar_var = float(family["sigma"]) ** 2
+        print(
+            f"\nsearch bar     : {family['families']} families of {family['strategies']} "
+            f"strategies, sigma {family['sigma']}, bar Sharpe {family['bar']}"
+        )
+    else:
+        bar_n, bar_var = n_trials, 1.0
+        print(
+            "\nsearch bar     : UNAVAILABLE (no stored strategies); ledger count used, gate will fail"
+        )
+    rw = search.get("romano_wolf")
+    if rw:
+        print(
+            f"romano-wolf    : {'PASS' if rw['passed'] else 'FAIL'} — candidate {rw['candidate_sharpe']} "
+            f"over Nifty vs critical {rw['critical_sharpe']} ({rw['strategies']} strategies, {rw['days']} days)"
+        )
+
     print("\n-- per configuration --")
     print(f"{'configuration':<38}{'IS Sharpe':>11}{'OOS Sharpe':>12}{'DSR':>8}")
     rows_out: list[dict[str, float | str]] = []
@@ -218,7 +257,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             sum(result.out_of_sample) / len(result.out_of_sample) if result.out_of_sample else 0.0
         )
         stats = sharpe_stats(result.full_returns)
-        dsr = deflated_sharpe(stats, n_trials=n_trials)
+        dsr = deflated_sharpe(stats, n_trials=bar_n, variance_of_sharpes=bar_var)
         print(f"{result.label:<38}{mean_is:>11.2f}{mean_oos:>12.2f}{dsr:>8.3f}")
         rows_out.append(
             {
@@ -234,7 +273,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     sharpes = [float(r["full_sample_sharpe"]) for r in rows_out]
     best_sharpe = max(sharpes, default=0.0)
-    min_years = min_backtest_length(n_trials, target_sharpe=max(best_sharpe, 0.01))
+    min_years = min_backtest_length(
+        bar_n, target_sharpe=max(best_sharpe, 0.01), variance_of_sharpes=bar_var
+    )
     have_years = len(days) / 252
 
     print("\n-- the battery --")
@@ -316,6 +357,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "paths": pbo.n_paths,
         },
         "configurations": rows_out,
+        "search": search,
         "pbo": {"value": round(pbo.pbo, 4), "verdict": pbo.verdict},
         "min_backtest_length_years": round(min_years, 2),
         "available_years": round(have_years, 2),

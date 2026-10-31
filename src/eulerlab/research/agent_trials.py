@@ -1,10 +1,12 @@
-"""The one path by which an agent may spend a trial: a weekly allowance, set by the operator (ADR-089).
+"""The one path by which an agent may spend a trial: an allowance set by the operator (ADR-089, ADR-107).
 
 Until 2026-10-29 the research loop stopped at drafts, on the argument in
 `research/orchestrator.py`: an agent that originates an idea and also decides
 to test it is selecting on its own output. The operator chose to let it test,
-within 5 trials a week (`config/agent_trials.yaml`). This module is how that
-choice is kept to its terms:
+within 5 trials a week (`config/agent_trials.yaml`). On 2026-10-31 the
+operator lifted the limit (ADR-107): `per_week: null` means no weekly cap.
+Every trial is still logged before its result is read. This module is how
+that choice is kept to its terms:
 
 - **Every evaluation is a trial in the same append-only log** as `make ic`,
   `make optimize` and `make walk` (`features/trials.py`), labelled
@@ -45,12 +47,15 @@ from eulerlab.features.panel import PanelRow, trading_days
 IST = ZoneInfo("Asia/Kolkata")
 CONFIG = Path("config/agent_trials.yaml")
 PREFIX = "agent|"
+UNLIMITED = 1_000_000
+"""What `left_this_week` reports when the allowance has no limit."""
 
 
 class Allowance(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    per_week: int = Field(ge=0, le=50)
+    per_week: int | None = Field(default=None, ge=0)
+    """Trials an agent may spend a week. None: no limit (ADR-107); 0 stops testing."""
     ic_horizon: int = Field(default=21, ge=1, le=252)
     ic_step: int = Field(default=5, ge=1, le=21)
     min_ic: float = Field(default=0.02, ge=0.0)
@@ -101,7 +106,14 @@ def spent_this_week(now: datetime | None = None, path: Path | None = None) -> in
 def left_this_week(
     allowance: Allowance, now: datetime | None = None, path: Path | None = None
 ) -> int:
+    if allowance.per_week is None:
+        return UNLIMITED
     return max(allowance.per_week - spent_this_week(now, path), 0)
+
+
+def describe(allowance: Allowance) -> str:
+    """The allowance in words: "no weekly limit" or "5 a week"."""
+    return "no weekly limit" if allowance.per_week is None else f"{allowance.per_week} a week"
 
 
 @dataclass

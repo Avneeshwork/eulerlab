@@ -23,6 +23,17 @@ def _passing_pack() -> dict[str, Any]:
         "configurations": [
             {"configuration": "c1", "full_sample_sharpe": 1.5, "deflated_sharpe_probability": 0.99}
         ],
+        "search": {
+            "method": "families",
+            "families": {"strategies": 70, "families": 28, "sigma": 0.48, "bar": 0.99},
+            "romano_wolf": {
+                "passed": True,
+                "alpha": 0.05,
+                "candidate_sharpe": 1.4,
+                "critical_sharpe": 0.94,
+                "strategies": 55,
+            },
+        },
         "pbo": {"value": 0.10, "verdict": "low"},
         "min_backtest_length_years": 2.0,
         "available_years": 10.0,
@@ -219,3 +230,34 @@ def test_no_threshold_is_hardcoded_in_the_gate() -> None:
 def test_the_mandate_declares_its_owner() -> None:
     assert MANDATE["owner"] == "operator"
     assert MANDATE["version"] >= 1
+
+
+# --- the search correction (ADR-108) ---
+
+
+def test_a_pack_using_the_old_ledger_count_kills() -> None:
+    pack = _passing_pack()
+    pack["search"]["method"] = None
+    decision = _decide(pack)
+    assert decision.verdict is gates.Verdict.KILL
+    assert "search correction" in [f.rule for f in decision.failures]
+
+
+def test_failing_romano_wolf_kills() -> None:
+    pack = _passing_pack()
+    pack["search"]["romano_wolf"]["passed"] = False
+    decision = _decide(pack)
+    assert decision.verdict is gates.Verdict.KILL
+    assert [f.rule for f in decision.failures] == ["romano-wolf"]
+
+
+def test_a_looser_romano_wolf_level_than_the_mandate_kills() -> None:
+    pack = _passing_pack()
+    pack["search"]["romano_wolf"]["alpha"] = 0.10
+    assert _decide(pack).verdict is gates.Verdict.KILL
+
+
+def test_a_missing_romano_wolf_test_kills() -> None:
+    pack = _passing_pack()
+    del pack["search"]["romano_wolf"]
+    assert _decide(pack).verdict is gates.Verdict.KILL
