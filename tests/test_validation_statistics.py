@@ -85,7 +85,7 @@ def test_deflated_sharpe_uses_the_papers_kurtosis_term() -> None:
     """Bailey and López de Prado: sqrt(1 - g3*SR + (g4 - 1)/4 * SR^2), g4 raw.
 
     With excess kurtosis k the last term is (k + 2)/4. A normal stream (k = 0)
-    still carries SR^2/2 there; the code had k/4, which dropped it (HISTORY #48).
+    still carries SR^2/2 there; the code had k/4, which dropped it (HISTORY #50).
     """
     from eulerlab.validation.statistics import SharpeStats
 

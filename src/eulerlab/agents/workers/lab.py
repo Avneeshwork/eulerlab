@@ -1,4 +1,4 @@
-"""The idea lab: many ideas a day, a memory of what each showed, and a handoff to research (ADR-089, ADR-110).
+"""The idea lab: many ideas a day, a memory of what each showed, and a handoff to research (ADR-089, ADR-111).
 
     every research draft not yet tested (all recent runs, not only the latest)
     + its own ideas: formula cards from config/idea_families.yaml, planned from
@@ -24,7 +24,9 @@ the web page, which would hold a second copy of the panel in the API's memory.
 
 from __future__ import annotations
 
+import math
 import os
+import statistics
 import time
 from datetime import date
 from pathlib import Path
@@ -32,6 +34,7 @@ from typing import Any
 
 import yaml
 
+from eulerlab.agents import doctor
 from eulerlab.agents.runtime import Context, Item, WorkerResult, ist_day, outputs
 from eulerlab.features import formula
 from eulerlab.research import idea_generator, idea_memory
@@ -41,6 +44,13 @@ DEFAULT_IDEAS = 30
 DEFAULT_DRAFTS = 10
 DEFAULT_MINUTES = 90
 DEFAULT_MODEL_IDEAS = 6
+
+
+def _floor(card_path: Path) -> float:
+    """The card's liquidity floor: the lowest `min_turnover` across its configurations."""
+    spec = yaml.safe_load(card_path.read_text(encoding="utf-8")) or {}
+    floors = [float(c.get("min_turnover") or 0) for c in spec.get("configurations") or []]
+    return min(floors, default=0.0)
 
 
 def _card_features(card_path: Path) -> list[str]:
@@ -108,6 +118,39 @@ def _model_ideas(
     return found
 
 
+_NIFTY: list[dict[date, float]] = []
+
+
+def nifty() -> dict[date, float]:
+    """NIFTYBEES daily returns, read once per process; empty when the panel lacks it."""
+    if not _NIFTY:
+        try:
+            from eulerlab.research.strategy_map import nifty_returns
+
+            _NIFTY.append(nifty_returns())
+        except (OSError, ValueError):
+            _NIFTY.append({})
+    return _NIFTY[0]
+
+
+def excess_sharpe(days: list[str], values: list[float], market: dict[date, float]) -> float | None:
+    """Annualised Sharpe of the daily return over Nifty, on the days both have.
+
+    A long-only top-30 book earns the market's return too, so a positive Sharpe
+    alone says little: before 2026-11-01 that was the lab's whole survival test.
+    None when Nifty is not held or fewer than 250 days overlap.
+    """
+    diffs: list[float] = []
+    for i in range(1, len(values)):
+        d = date.fromisoformat(days[i])
+        if d in market and values[i - 1] > 0:
+            diffs.append(values[i] / values[i - 1] - 1.0 - market[d])
+    if len(diffs) < 250:
+        return None
+    sd = statistics.pstdev(diffs)
+    return round(statistics.fmean(diffs) / sd * math.sqrt(252), 3) if sd > 0 else None
+
+
 LOCK = "lab.running"
 """Under the agents' root. Held while a lab run is testing."""
 STALE_HOURS = 4
@@ -122,7 +165,10 @@ def run(ctx: Context) -> WorkerResult:
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
     except FileExistsError:
-        age = time.time() - lock.stat().st_mtime
+        try:
+            age = time.time() - lock.stat().st_mtime
+        except FileNotFoundError:  # the other run finished between the two calls
+            age = STALE_HOURS * 3600.0
         if age < STALE_HOURS * 3600:
             started = lock.read_text(encoding="utf-8").strip() or "earlier"
             return WorkerResult(
@@ -166,9 +212,10 @@ def _run(ctx: Context) -> WorkerResult:
         return default
 
     day = date.fromisoformat(ist_day(ctx.now))
-    memory = idea_memory.load(ctx.root)
     families = idea_generator.load_families()
-    tested_before = already_tested(ctx, memory)
+    everything = idea_memory.load(ctx.root)
+    tested_before = already_tested(ctx, everything)
+    memory = idea_memory.usable(everything, families.min_turnover)
     max_drafts = option("max_cards", DEFAULT_DRAFTS)
     deadline = time.monotonic() + 60 * option("max_minutes", DEFAULT_MINUTES)
 
@@ -180,6 +227,10 @@ def _run(ctx: Context) -> WorkerResult:
             continue
         unknown = [f for f in _card_features(card_path) if not formula.is_known(f)]
         missing.update(unknown)
+        if unknown or not _card_features(card_path):
+            # Not buildable: listed once in the feedback, never given a slot (2026-11-01:
+            # unbuildable drafts were re-noted every run and could crowd out real ones).
+            continue
         if len([q for q in queue if q[2] == "research"]) < max_drafts:
             queue.append((card_path, "research", "research", ""))
     plan = idea_generator.Plan()
@@ -259,11 +310,18 @@ def _run(ctx: Context) -> WorkerResult:
             attacked = skeptic.attacks(days, bt.values, _report(bt))
             verdicts = skeptic.verdicts(attacked)
             critical = [v.title for v in verdicts if v.severity == "critical"]
-            ok = bt.robust_sharpe > 0 and not critical
+            excess = excess_sharpe(bt.days, bt.values, nifty())
+            beats = excess is None or excess > 0
+            if bt.robust_sharpe > doctor.SUSPECT_SHARPE:
+                # Too good to be true for a long-only daily rule: the doctor flags it for
+                # investigation, and it is not called a survivor (ADR-113).
+                critical = [*critical, f"robust Sharpe {bt.robust_sharpe:.1f} is too high to trust"]
+            ok = bt.robust_sharpe > 0 and not critical and beats
             survivors += ok
             row = {
                 "label": bt.label,
                 "robust_sharpe": bt.robust_sharpe,
+                "excess_sharpe_vs_nifty": excess,
                 "annualised": bt.annualised,
                 "max_drawdown": bt.max_drawdown,
                 "critical": critical,
@@ -290,10 +348,12 @@ def _run(ctx: Context) -> WorkerResult:
                 robust_sharpe=best["robust_sharpe"] if best else None,
                 annualised=best["annualised"] if best else None,
                 max_drawdown=best["max_drawdown"] if best else None,
+                excess_sharpe=best["excess_sharpe_vs_nifty"] if best else None,
                 survived=bool(survivors),
                 critical=best["critical"] if best else [],
                 trials=found.trials_spent,
                 stopped=found.stopped,
+                min_turnover=_floor(card_path),
             ),
         )
         ctx.write(
@@ -345,7 +405,7 @@ def _run(ctx: Context) -> WorkerResult:
             )
         )
 
-    memory = idea_memory.load(ctx.root)
+    memory = idea_memory.usable(idea_memory.load(ctx.root), families.min_turnover)
     fb = idea_memory.feedback(
         memory, {k: f.search for k, f in families.families.items()}, missing_features=missing
     )

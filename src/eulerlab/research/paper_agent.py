@@ -130,6 +130,7 @@ class Reply(_Strict):
         return reply
 
 
+# ASSUMPTION: A-089, the Rs 1 crore turnover floor asked for in drafted configurations.
 SYSTEM = f"""You read market research papers for EulerLab, one person's quant research platform.
 Markets, in order: Indian equities, Indian index options, US equities, US options, crypto, FX.
 Indian round-trip costs are about 9 bps for a large stock intraday and 4 bps for an ETF; delivery trades pay 0.1% STT each side.
@@ -163,7 +164,8 @@ Rules:
 - Give "hypothesis" only if the idea can be tested on Indian or US markets with daily or minute bars. Otherwise null.
 - "configurations" must list 2 to 6 settings fixed in advance, each a flat object. Where the idea is a cross-sectional rank, use this library:
 {describe_library()}
-  as {{"shape": "rank_and_hold", "feature": "<name>", "top_n": 30, "rebalance": 21}}.
+  as {{"shape": "rank_and_hold", "feature": "<name>", "top_n": 30, "rebalance": 21, "min_turnover": 10000000}}.
+  Keep "min_turnover" (rupees traded on the day) so the backtest only buys stocks that trade enough to fill.
   A signal the library lacks can be written as "feature": "formula:<expression>" in this language, over one stock's own past close, volume and turnover:
 {formula_ops()}
   A feature name that is neither in the library nor a formula cannot be tested. Anything else is described in plain keys and will be coded by hand.

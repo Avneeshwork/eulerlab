@@ -521,7 +521,7 @@ def _shown_bar() -> search_bar.ShownBar:
 
     Until 2026-11-01 every screen used the ledger-count bar while the gate used
     idea families, so the library could call a strategy "beats the bar" that
-    the gate would judge on a different number (HISTORY #48).
+    the gate would judge on a different number (HISTORY #50).
     """
     from eulerlab import gates
 

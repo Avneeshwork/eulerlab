@@ -128,7 +128,7 @@ def test_the_report_says_what_it_will_not_do(tmp_path: Path) -> None:
 
 
 def test_a_partial_fill_then_the_full_fill_counts_the_order_once(tmp_path: Path) -> None:
-    """Fill entries carry the broker's cumulative quantity (HISTORY #49).
+    """Fill entries carry the broker's cumulative quantity (HISTORY #51).
 
     Partial seen at 4 of 10, the process restarts, the complete fill is seen
     at 10 of 10: the position is 10, not 14.

@@ -113,7 +113,7 @@ def test_assess_without_stored_strategies_has_no_method() -> None:
     assert "romano_wolf" not in block
 
 
-# --- the bar the workbench shows is the gate's (HISTORY #48) -------------------
+# --- the bar the workbench shows is the gate's (HISTORY #50) -------------------
 
 
 def _store(root: Path, strategy: str, returns: dict[date, float]) -> None:

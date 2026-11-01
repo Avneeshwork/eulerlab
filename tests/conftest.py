@@ -94,7 +94,7 @@ def _private_macro_history(
 
     `indices.land` appends every sweep's readings there. Until 2026-11-01 one
     test's fake Dollar Index reading (98.9) was written into the real landing
-    folder on every `make verify` (HISTORY #48). Landing data is immutable, so
+    folder on every `make verify` (HISTORY #50). Landing data is immutable, so
     a test must never be able to add to it.
     """
     from eulerlab import macro
@@ -109,7 +109,7 @@ def _no_names_download(monkeypatch: pytest.MonkeyPatch) -> None:
 
     Tagging news reads that list and fetches it when missing, so any test that
     reached the dashboard snapshot on a machine without the file went to the
-    internet and landed a real download (HISTORY #48). Offline, the fetch fails
+    internet and landed a real download (HISTORY #50). Offline, the fetch fails
     the way a network failure does, which every caller already handles.
     """
     from eulerlab.ingest import news

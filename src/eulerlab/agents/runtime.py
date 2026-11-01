@@ -327,7 +327,7 @@ def run(
         except BudgetSpent as exc:
             result = WorkerResult(str(exc), status="over_budget")
         except Exception as exc:
-            ctx.notes.append(traceback.format_exc(limit=4)[-1500:])
+            ctx.notes.append(traceback.format_exc(limit=-6)[-2500:])
             result = WorkerResult(f"{type(exc).__name__}: {str(exc)[:300]}", status="failed")
     finished = datetime.now(UTC) if now is None else started
     output = Output(
@@ -363,6 +363,9 @@ def run(
         root=root,
         at=started,
     )
+    from eulerlab.agents import doctor
+
+    doctor.after_run(output, root)
     return output
 
 

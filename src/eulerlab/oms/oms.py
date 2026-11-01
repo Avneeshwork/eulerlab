@@ -11,7 +11,7 @@ re-run of the same rebalance, a script started twice — none of them can
 double-send. And the defence is two-deep: even if the OMS somehow sent again,
 the broker rejects a duplicate client order id, and `ems.send` reads that
 rejection as *the original is fine* rather than as a failure. (Kite does not
-enforce unique tags, so on Kite only the journal lookup stands; T-4328.)
+enforce unique tags, so on Kite only the journal lookup stands; T-4348.)
 
 **Intent is on disk before the network call.** `submit` journals `INTENT`,
 fsynced, and only then sends. There is no window in which an order exists at
@@ -133,7 +133,7 @@ class OMS:
         entry for an order is the whole of it. Until 2026-11-01 every entry was
         summed, so a partial fill seen once and then the complete fill seen
         after a restart counted 50 + 100 shares for a 100-share order, and
-        reconciliation reported a break that was not there (HISTORY #49).
+        reconciliation reported a break that was not there (HISTORY #51).
         """
         latest: dict[str, Execution] = {}
         for entry in self.journal.read():

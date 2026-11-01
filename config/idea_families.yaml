@@ -1,4 +1,4 @@
-# The idea lab's signal families (ADR-110). Committed, so what the lab may
+# The idea lab's signal families (ADR-111). Committed, so what the lab may
 # generate is reviewable in a diff.
 #
 # Each family is one economic reason a stock might out-earn its peers, written
@@ -17,6 +17,14 @@
 # up. It is not a citation of a result on our data.
 
 top_n: 30
+
+# A stock is eligible only on a day its turnover is at least this many rupees
+# (ADR-112). Without it the first run's top picks were stocks that barely
+# trade, whose flat prices made a backtest look smooth (robust Sharpe 5.6 for
+# 21-day low volatility). Rs 1 crore keeps a Rs 33,000 position, a thirtieth of
+# Rs 10 lakh, under 0.5% of a day's trading.
+# ASSUMPTION (A-089): Rs 1 crore is enough to make the engine's fills believable.
+min_turnover: 10000000
 
 families:
   momentum:

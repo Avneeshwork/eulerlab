@@ -47,6 +47,11 @@ allowance, at a card's own configurations, before its holdout. Only the idea
 lab may import it; `trial_spenders` lists who does, and a test holds it to that."""
 TRIAL_SPENDERS = ("lab.py",)
 
+FIXER_PATH = "eulerlab.devtools"
+"""The reviewed helper that runs fixed git, lint, type and test commands (ADR-113).
+Only the engineering agent may import it; `fixer_users` lists who does."""
+FIXER_USERS = ("engineering.py",)
+
 
 def imports_of(path: Path) -> list[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -84,3 +89,12 @@ def trial_spenders(modules: list[Path] | None = None) -> list[str]:
         ):
             found.append(path.name)
     return sorted(found)
+
+
+def fixer_users(modules: list[Path] | None = None) -> list[str]:
+    """Agent modules that import the fixer."""
+    return sorted(
+        path.name
+        for path in (modules if modules is not None else agent_modules())
+        if any(n == FIXER_PATH or n.startswith(FIXER_PATH + ".") for n in imports_of(path))
+    )

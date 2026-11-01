@@ -134,7 +134,7 @@ def deflated_sharpe(
     # Bailey and López de Prado write (gamma_4 - 1) / 4 with gamma_4 the raw
     # kurtosis (3 for a normal). `stats.kurtosis` is excess kurtosis, so the
     # term is (excess + 2) / 4. It read excess / 4 until 2026-11-01, which
-    # penalised fat tails slightly too little (HISTORY #48).
+    # penalised fat tails slightly too little (HISTORY #50).
     raw_minus_one = stats.kurtosis + 2.0
     denominator = math.sqrt(max(1e-12, 1.0 - stats.skew * sr + (raw_minus_one / 4.0) * sr**2))
     z = ((sr - sr0) * math.sqrt(n - 1)) / denominator

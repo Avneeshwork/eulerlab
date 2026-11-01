@@ -189,7 +189,7 @@ def test_a_name_with_no_distinctive_word_falls_back_to_nothing() -> None:
 
 
 # A few rows of NSE's EQUITY_L list, so tagging is tested offline. The real
-# list used to be downloaded into data/ by these tests (HISTORY #48).
+# list used to be downloaded into data/ by these tests (HISTORY #50).
 _NAMES = {
     "HDFCBANK": "HDFC Bank Limited",
     "ICICIBANK": "ICICI Bank Limited",

@@ -38,8 +38,11 @@ what is open is in `TASKS.md`.*
 - **AI agents.** Eight agents on one runtime with budgets, an inbox and a
   hash-chained log; none can reach the order path, gate or ledger. The market
   brief runs before the open, after the close and on closed days. The idea lab
-  writes and tests about 30 formula cards a day (`make agents-ideas`).
-  Launchd jobs are not all loaded on the Mac yet (T-4138, T-4179, T-4308).
+  writes and tests about 30 formula cards a day (`make agents-ideas`, ADR-111);
+  cards trade only stocks with Rs 1 crore of turnover and a survivor must beat
+  Nifty (ADR-112). A doctor checks every agent run and the engineering agent
+  proposes fixes on its own branch for you to merge (ADR-113). Launchd jobs are
+  not all loaded on the Mac yet (T-4138, T-4179, T-4323).
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):
   Dashboard, Strategies, Charts, Options, Live & Risk, AI, Tools.
 
@@ -77,4 +80,4 @@ run them to check that they work (T-2609).
 - **Sharpe has no risk-free rate** (A-083, T-4249).
 
 `docs/STUBS.md` lists what is fake; `docs/ASSUMPTIONS.md` what is unverified;
-`docs/HISTORY.md` the 49 times this project has been wrong.
+`docs/HISTORY.md` the 51 times this project has been wrong.

@@ -1,4 +1,4 @@
-"""The idea lab's own ideas, its memory and its handoff with the research agent (ADR-110).
+"""The idea lab's own ideas, its memory and its handoff with the research agent (ADR-111).
 
 The end-to-end tests use the same kind of synthetic panel as `test_agent_trials.py`.
 """
@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -466,3 +467,62 @@ def test_a_second_lab_run_stops_while_one_is_testing(lab_env: Path) -> None:
     (root / lab.LOCK).unlink()
     done = runtime.run("lab", root=root, agents=_lab(max_ideas=1, model_ideas=0), now=NOW)
     assert done.status == "ok" and not (root / lab.LOCK).exists()
+
+
+# --- the liquidity floor and the Nifty comparison (ADR-112) ---
+
+
+def test_generated_cards_carry_the_liquidity_floor_in_the_card_and_the_folder(
+    tmp_path: Path,
+) -> None:
+    fams = _families()
+    assert fams.min_turnover == 10_000_000
+    ideas = idea_generator.plan(fams, [], n=2, day=DAY).ideas
+    written = idea_generator.write_cards(
+        ideas, fams, day=DAY, holdout_starts=date(2025, 1, 1), folder=tmp_path
+    )
+    for _, path in written:
+        assert path.parent.name.endswith("-liq10000000")
+        config = yaml.safe_load(path.read_text())["configurations"][0]
+        assert config["min_turnover"] == 10_000_000
+        assert "|liq10000000" in codegen.build_from_card(path)[0].label
+
+
+def test_cards_tested_without_the_floor_are_not_learned_from() -> None:
+    old = _exp("formula:neg(ts_std(ret(1), 21))", "low_volatility", passed=True, sharpe=5.6)
+    new = _exp("formula:delay(ret(126), 21)", "momentum", passed=True).model_copy(
+        update={"min_turnover": 10_000_000.0}
+    )
+    draft = _exp("reversal_1m", "research").model_copy(update={"source": "research"})
+    kept = idea_memory.usable([old, new, draft], 10_000_000)
+    assert [e.card for e in kept] == [new.card, draft.card]
+    replanned = idea_generator.plan(_families(), kept, n=40, day=DAY)
+    assert old.features[0] in {i.feature for i in replanned.ideas}
+
+
+def test_the_ic_screen_drops_names_below_the_floor() -> None:
+    from eulerlab.features.ic import evaluate
+    from eulerlab.features.library import BY_NAME
+
+    rows = _panel(n_symbols=40, n_days=300)
+    thin = [replace(r, turnover=1e5) if r.symbol < "S20" else r for r in rows]
+    everyone = evaluate(thin, BY_NAME["reversal_1m"], min_names=10)
+    liquid = evaluate(thin, BY_NAME["reversal_1m"], min_names=10, min_turnover=1e7)
+    assert everyone.n > 0 and liquid.n > 0
+    assert liquid.mean_ic != everyone.mean_ic
+    assert evaluate(thin, BY_NAME["reversal_1m"], min_names=30, min_turnover=1e7).n == 0
+
+
+def test_survival_needs_a_return_over_nifty() -> None:
+    from eulerlab.agents.workers import lab
+
+    days = [date(2020, 1, 1).toordinal() + i for i in range(400)]
+    iso = [date.fromordinal(d).isoformat() for d in days]
+    market = {date.fromordinal(d): 0.001 for d in days}
+    same = [100.0 * 1.001**i for i in range(400)]
+    wobble = [v * (1 + 0.0005 * math.sin(i)) for i, v in enumerate(same)]
+    assert (lab.excess_sharpe(iso, wobble, market) or 0.0) <= 0.5
+    better = [100.0 * 1.002**i * (1 + 0.0005 * math.sin(i)) for i in range(400)]
+    assert (lab.excess_sharpe(iso, better, market) or 0.0) > 1.0
+    assert lab.excess_sharpe(iso[:100], better[:100], market) is None
+    assert lab.excess_sharpe(iso, better, {}) is None

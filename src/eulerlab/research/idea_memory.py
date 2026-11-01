@@ -1,4 +1,4 @@
-"""The idea lab's memory: every idea it tested, what each family has shown, and what to tell research (ADR-110).
+"""The idea lab's memory: every idea it tested, what each family has shown, and what to tell research (ADR-111).
 
     data/agents/memory/lab_ideas.jsonl   one line per card tested, appended, never edited
 
@@ -71,10 +71,23 @@ class Experience(BaseModel):
     robust_sharpe: float | None = None
     annualised: float | None = None
     max_drawdown: float | None = None
+    excess_sharpe: float | None = None
+    """Annualised Sharpe of the daily return over Nifty; None when not measured."""
     survived: bool = False
     critical: list[str] = Field(default_factory=list)
     trials: int = 0
     stopped: str = ""
+    min_turnover: float = 0.0
+    """The card's liquidity floor in rupees (ADR-112). Generated cards tested before
+    the floor existed have 0 and are left out of planning and lessons (`usable`)."""
+
+
+def usable(experiences: Iterable[Experience], min_turnover: float) -> list[Experience]:
+    """The experiences the lab learns from: research drafts, and its own cards tested
+    at today's liquidity floor or stricter. The rest stay in the file, unread
+    (2026-11-01: the first run's own cards had no floor and picked stocks that
+    barely trade, HISTORY #48)."""
+    return [e for e in experiences if e.source == "research" or e.min_turnover >= min_turnover]
 
 
 def path_in(root: Path) -> Path:

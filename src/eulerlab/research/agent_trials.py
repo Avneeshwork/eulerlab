@@ -185,6 +185,18 @@ def _log(
 Reader = Callable[[], list[PanelRow]]
 
 
+def screen_turnover(configurations: Sequence[dict[str, object]], feature: str) -> float:
+    """The liquidity floor a feature's IC screen uses: the lowest `min_turnover`
+    among the configurations that use it, so the screen never sees fewer stocks
+    than a backtest of the card would (ADR-112)."""
+    floors = [
+        float(str(c.get("min_turnover", 0) or 0))
+        for c in configurations
+        if str(c.get("feature", "")) == feature
+    ]
+    return min(floors, default=0.0)
+
+
 def card_label(card_id: str, card_path: Path) -> str:
     """A registered card's id, or a staged draft's folder name (drafts share a placeholder id)."""
     digits = card_id.removeprefix("H-")
@@ -231,7 +243,13 @@ def test_card(
     out.research_window = f"{days[0]} to {days[-1]} ({dropped:,} holdout rows withheld)"
 
     for name in features:
-        result = evaluate(rows, resolve(name), horizon=allowance.ic_horizon, step=allowance.ic_step)
+        result = evaluate(
+            rows,
+            resolve(name),
+            horizon=allowance.ic_horizon,
+            step=allowance.ic_step,
+            min_turnover=screen_turnover(card.configurations, name),
+        )
         _log(label, f"ic|{name}", days, result.n, result.mean_ic, result.t_stat, trials_path)
         out.trials_spent += 1
         out.screens.append(
