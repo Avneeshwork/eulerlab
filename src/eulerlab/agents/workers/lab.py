@@ -24,6 +24,7 @@ the web page, which would hold a second copy of the panel in the API's memory.
 
 from __future__ import annotations
 
+import os
 import time
 from datetime import date
 from pathlib import Path
@@ -107,7 +108,39 @@ def _model_ideas(
     return found
 
 
+LOCK = "lab.running"
+"""Under the agents' root. Held while a lab run is testing."""
+STALE_HOURS = 4
+"""A lock older than this is from a run that died without cleaning up, and is taken over."""
+
+
 def run(ctx: Context) -> WorkerResult:
+    """One lab run at a time (2026-11-01: two overlapping runs tested the same idea twice,
+    spending its trials twice). A second run says so and stops."""
+    lock = ctx.root / LOCK
+    ctx.root.mkdir(parents=True, exist_ok=True)
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        age = time.time() - lock.stat().st_mtime
+        if age < STALE_HOURS * 3600:
+            started = lock.read_text(encoding="utf-8").strip() or "earlier"
+            return WorkerResult(
+                f"another idea lab run is testing (started {started}); this one stopped "
+                "so no idea is tested, and no trial spent, twice",
+                status="skipped",
+            )
+        lock.unlink(missing_ok=True)
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(ctx.now.isoformat(timespec="seconds"))
+    try:
+        return _run(ctx)
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _run(ctx: Context) -> WorkerResult:
     from eulerlab.agents.workers import skeptic
     from eulerlab.features import panel
     from eulerlab.quality import contract

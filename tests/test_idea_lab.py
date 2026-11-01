@@ -451,3 +451,18 @@ def test_research_uses_the_lab_feedback_and_trusts_the_library_over_abstract_wor
     draft = next(i for i in out.items if i.kind == "draft")
     assert draft.data["needs_data"] == [] and draft.data["unknown_features"] == []
     assert not [i for i in out.items if i.kind == "data_request"]
+
+
+def test_a_second_lab_run_stops_while_one_is_testing(lab_env: Path) -> None:
+    from eulerlab.agents.workers import lab
+
+    root = lab_env / "agents"
+    root.mkdir(parents=True)
+    (root / lab.LOCK).write_text("2026-11-02T05:00:00+00:00")
+    out = runtime.run("lab", root=root, agents=_lab(max_ideas=2, model_ideas=0), now=NOW)
+    assert out.status == "skipped" and "another idea lab run" in out.summary
+    assert not (lab_env / "trials.jsonl").exists()
+
+    (root / lab.LOCK).unlink()
+    done = runtime.run("lab", root=root, agents=_lab(max_ideas=1, model_ideas=0), now=NOW)
+    assert done.status == "ok" and not (root / lab.LOCK).exists()
