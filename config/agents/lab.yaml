@@ -1,4 +1,4 @@
-# The idea lab (ADR-089, ADR-110): its own ideas from config/idea_families.yaml,
+# The idea lab (ADR-089, ADR-111): its own ideas from config/idea_families.yaml,
 # every untested research draft, a memory of what each family has shown, and
 # feedback the research agent reads the next day.
 name: lab

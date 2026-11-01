@@ -29,6 +29,7 @@ cannot hide behind a flattering average.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -161,6 +162,7 @@ def evaluate(
     horizon: int = 21,
     step: int = 5,
     min_names: int = 30,
+    min_turnover: float = 0.0,
 ) -> ICResult:
     """Compute the IC of `feature` at `horizon` trading days.
 
@@ -169,6 +171,10 @@ def evaluate(
     independent would inflate the t-statistic by roughly the square root of
     the overlap. Sampling every 5th day reduces that; it does not eliminate
     it, and the tear sheet says so rather than pretending otherwise.
+
+    `min_turnover` (rupees) leaves out a name whose turnover on `day` is below
+    it, the same rule `RankAndHold` applies, so a screen and the backtest after
+    it judge the same stocks (ADR-112). 0 keeps every name.
     """
     histories = by_symbol(rows)
     days = trading_days(rows)
@@ -186,7 +192,10 @@ def evaluate(
             history = histories[symbol]
             # Strictly up to and including `day` - the feature can physically
             # not see the window its own forward return is measured over.
-            visible = [r for r in history if r.day <= day]
+            # Histories are oldest first, so a binary search finds the cut.
+            visible = history[: bisect_right(history, day, key=lambda r: r.day)]
+            if min_turnover and (not visible or visible[-1].turnover < min_turnover):
+                continue
             value = feature(visible)
             if value is None:
                 continue
