@@ -512,6 +512,34 @@ class S3ObjectStore:
         body: bytes = response["Body"].read()
         return body
 
+    def versions(self, key: str) -> list[tuple[str, str, int]]:
+        """Every stored version of exactly `key`, oldest first.
+
+        `(version_id, last_modified ISO, size)`. B2 keeps old versions of an
+        overwritten object, which is what lets a day the mirror shortened be
+        restored (T-4365). Delete markers are left out.
+        """
+        out: list[tuple[str, str, int]] = []
+        paginator = self._client.get_paginator("list_object_versions")
+        for page in paginator.paginate(Bucket=self._bucket, Prefix=key):
+            for row in page.get("Versions") or []:
+                if row.get("Key") != key:
+                    continue
+                out.append(
+                    (
+                        str(row["VersionId"]),
+                        row["LastModified"].isoformat(),
+                        int(row.get("Size", 0)),
+                    )
+                )
+        return sorted(out, key=lambda row: row[1])
+
+    def get_version(self, key: str, version_id: str) -> bytes:
+        """One stored version's bytes, current or not."""
+        response = self._client.get_object(Bucket=self._bucket, Key=key, VersionId=version_id)
+        body: bytes = response["Body"].read()
+        return body
+
     def put(self, key: str, payload: bytes, sha256: str) -> None:
         """Upload one object, retrying a dropped connection.
 

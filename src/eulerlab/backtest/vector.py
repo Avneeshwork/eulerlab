@@ -46,7 +46,7 @@ from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from eulerlab.backtest.strategy import MarketView, Strategy, normalise
+from eulerlab.backtest.strategy import MarketView, Strategy, long_only, normalise
 from eulerlab.bitemporal.store import BitemporalStore
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Segment, Side
@@ -95,6 +95,9 @@ class BacktestResult:
     final_marks: dict[str, float] = field(default_factory=dict)
     """The prices open positions were valued at on the last day. See the same
     field on TierBResult for why this is returned rather than reconstructed."""
+    refused_shorts: int = 0
+    """Negative weights the strategy asked for and the engine did not trade,
+    counted once per symbol per decision (`long_only`, T-4363)."""
 
     @property
     def total_cost(self) -> float:
@@ -471,7 +474,9 @@ def run(
 
         if (index - warmup) % rebalance_every == 0:
             view = MarketView(as_of=today, history=_view_history(today))
-            targets = normalise(strategy.target_weights(view), gross_cap=gross_cap)
+            longs, refused = long_only(strategy.target_weights(view))
+            result.refused_shorts += len(refused)
+            targets = normalise(longs, gross_cap=gross_cap)
             equity = portfolio_value(today)
 
             desired: dict[str, int] = {}

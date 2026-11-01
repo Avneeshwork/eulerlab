@@ -519,6 +519,13 @@ for, with `BUY_COST_RESERVE` (0.3%) held back for charges, and is skipped if
 that is nothing. So cash never goes below zero, and no leverage appears that
 the strategy did not ask for.
 
+**Long only (2026-11-01, T-4363, ADR-115).** Both engines and the paper runner drop a
+negative weight before normalising (`strategy.long_only`) and count it on the
+result as `refused_shorts`. An Indian delivery position cannot be held short
+overnight, and Tier B's cash accounting would book a short sale's proceeds as
+profit. The longs are not scaled up to fill the gap: the book holds exactly
+what it would with the shorts left out.
+
 ### The Strategy interface
 
 A strategy is deliberately tiny:
@@ -1838,6 +1845,11 @@ reported as mismatched and never sent, so B2 kept the short first file
 reported and never overwritten. B2 keeps every version, so a replaced copy is
 not lost. Data-quality findings name their segment, and a dataset is graded
 only on findings for its own segment: five segments share the `nse` manifest.
+
+`tools/restore_macro_days.py` repairs a `macro/` day that an older overwrite
+shortened (T-4365): it reads every B2 version of the day, writes their union
+(`macro.merge_day_versions`: every reading once, in `at` order) as the current
+object, and reads it back. Dry run by default; it never changes `data/landing/`.
 
 Launchd runs these jobs only while their plists are installed
 (`make schedule ACTION=install JOB=...`). On 2026-11-01 only `briefweekend` was
