@@ -19,6 +19,8 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { agentsApi } from '@/lib/api';
+import { usePoll } from '@/lib/usePoll';
+import { AGENTS_TAB } from '@/lib/poll';
 import MarketBriefView from './MarketBriefView';
 import type {
   ActivityResponse,
@@ -207,13 +209,9 @@ function Live({
       .catch((e: unknown) => setError(String(e)));
   }, []);
 
-  // Fast while something runs, slow when nothing does.
+  // Faster while something runs, slow when nothing does, never while hidden.
   const busy = (activity?.running ?? 0) > 0;
-  useEffect(() => {
-    read();
-    const timer = window.setInterval(read, busy ? 2500 : 12000);
-    return () => window.clearInterval(timer);
-  }, [read, busy]);
+  usePoll(read, AGENTS_TAB, busy);
   useEffect(() => {
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(tick);
