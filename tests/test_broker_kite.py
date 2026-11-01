@@ -366,13 +366,24 @@ def test_a_partial_sale_counts_once_when_kite_lowers_quantity() -> None:
     assert KiteBroker(kite).positions() == {"TCS": 60}
 
 
-def test_a_partial_sale_counts_once_if_kite_keeps_quantity() -> None:
-    """The other reading of the docs: `quantity` stays, `used_quantity` rises."""
+def test_a_sale_shown_any_other_way_is_refused_not_guessed() -> None:
+    """No source says Kite ever keeps `quantity` after a sale. If it did, the
+    fields would not add up, and the adapter says so rather than picking."""
     kite = FakeKite(
         holdings_rows=[_holding("TCS", opening=100, quantity=100, used=40)],
         positions_book={"net": [_sale("TCS", 40)]},
     )
-    assert KiteBroker(kite).positions() == {"TCS": 60}
+    with pytest.raises(BrokerUnreachable, match="do not add up"):
+        KiteBroker(kite).positions()
+
+
+def test_a_sale_from_settled_shares_with_t1_shares_held() -> None:
+    """Forum 16275: 60 settled + 40 T1, sell 50: quantity 10, t1 40, used 50."""
+    kite = FakeKite(
+        holdings_rows=[_holding("TCS", opening=100, quantity=10, t1=40, used=50)],
+        positions_book={"net": [_sale("TCS", 50)]},
+    )
+    assert KiteBroker(kite).positions() == {"TCS": 50}
 
 
 def test_selling_a_whole_holding_today_leaves_nothing() -> None:
@@ -419,3 +430,18 @@ def test_an_unreadable_holdings_book_is_unreachable_not_empty() -> None:
     )
     with pytest.raises(BrokerUnreachable):
         KiteBroker(kite).positions()
+
+
+def test_a_margin_traded_holding_is_refused_not_miscounted() -> None:
+    """Kite's mock holdings row: quantity 1, opening_quantity 1, mtf.quantity 1000."""
+    row = _holding("AARON", opening=1, quantity=1)
+    row["mtf"] = {"quantity": 1000, "used_quantity": 0}
+    with pytest.raises(BrokerUnreachable, match="MTF"):
+        KiteBroker(FakeKite(holdings_rows=[row])).positions()
+
+
+def test_kites_own_mock_holdings_read_as_expected() -> None:
+    """Rows shaped like zerodha/kiteconnect-mocks holdings.json (SBIN on BSE)."""
+    row = _holding("SBIN", opening=16, quantity=16)
+    row.update({"realised_quantity": 16, "short_quantity": 0, "mtf": {"quantity": 0}})
+    assert KiteBroker(FakeKite(holdings_rows=[row])).positions() == {"SBIN": 16}

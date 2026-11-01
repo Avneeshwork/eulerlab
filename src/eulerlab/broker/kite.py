@@ -297,11 +297,12 @@ class KiteBroker:
         16259); adding `quantity` to net, as this did first, counted every
         sale twice (HISTORY #55).
 
-        Each holding must add up one of two ways: `quantity + t1_quantity`
-        plus or not plus `used_quantity` equals `opening_quantity`. If neither
-        holds, Kite is showing something this code was not built for, and the
-        call raises `BrokerUnreachable` instead of guessing. Both books are
-        read or neither counts.
+        Each holding must add up the way Kite's answers describe it:
+        `quantity + t1_quantity + used_quantity == opening_quantity` (forum
+        16259 and 16275). If it does not, or the row has no opening quantity,
+        or it holds margin-traded (MTF) shares, Kite is showing something this
+        code was not built for, and the call raises `BrokerUnreachable` instead
+        of guessing. Both books are read or neither counts.
         """
         try:
             book = self._kite.positions() or {}
@@ -316,11 +317,19 @@ class KiteBroker:
                 continue
             if row.get("opening_quantity") is None:
                 raise BrokerUnreachable(f"{symbol}: holding has no opening_quantity; not guessing")
+            mtf = row.get("mtf") or {}
+            if int(mtf.get("quantity") or 0) if isinstance(mtf, dict) else 0:
+                # Margin-traded shares are counted apart from `opening_quantity`
+                # (Kite's own mock: quantity 1, opening 1, mtf.quantity 1000).
+                # This platform never places MTF orders, so one is not ours.
+                raise BrokerUnreachable(
+                    f"{symbol}: holds MTF shares, which this adapter does not count"
+                )
             opening = int(row["opening_quantity"])
             now = int(row.get("quantity") or 0) + int(row.get("t1_quantity") or 0)
             used = int(row.get("used_quantity") or 0)
-            # ASSUMPTION: A-091. A holding adds up as quantity + t1 (+ used) = opening.
-            if opening not in (now, now + used):
+            # ASSUMPTION: A-091. quantity + t1 + used == opening, from forum answers.
+            if opening != now + used:
                 msg = (
                     f"{symbol}: holdings do not add up (quantity + t1_quantity = {now}, "
                     f"used_quantity = {used}, opening_quantity = {opening}); not guessing (A-091)"
