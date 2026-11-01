@@ -63,6 +63,21 @@ Verify: `uv run pytest -q tests/test_brief_content.py tests/test_board_meetings.
 | T-4304 | Operator reviews the history conditions (A-087) | TODO. Operator |
 | T-4290 | Operator reviews the brief's ranking weights (A-086) | TODO. Operator |
 
+## Idea lab: many ideas daily, memory, handoff with research (2026-11-01)
+
+Operator: "i want it to be most impactful agent which bring lot of trading ideas daily and coperate with research agent properly", "make it intelligent day by day"; approved the plan with "yes". ADR-110, HISTORY #47.
+Verify: `uv run pytest -q tests/test_idea_lab.py tests/test_agent_trials.py`; then on the Mac `make agents-ideas` and open the Idea lab card.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4305 | Lab writes its own formula cards daily from 13 signal families (`config/idea_families.yaml`), planned by Thompson sampling, flips, combinations and window variants | DONE 2026-11-01. `research/idea_generator.py` |
+| T-4306 | Lab memory of every card tested, lessons that cite it, feedback for research | DONE 2026-11-01. `research/idea_memory.py`, `data/agents/memory/lab_ideas.jsonl` |
+| T-4307 | Lab reads every untested research draft, not only the latest run; research stops marking buildable drafts as waiting for data, takes its topic and lessons from the lab, and skips papers already judged not relevant | DONE 2026-11-01 |
+| T-4308 | `make agents-ideas` every day 17:00 IST; install with `make schedule ACTION=install JOB=agents-ideas` and the `launchctl load -w` line it prints | TODO. Operator |
+| T-4309 | Measure the lab's seconds per card on the full panel after the first `make agents-ideas`; set `max_ideas` and `max_minutes` from it | TODO |
+| T-4310 | Store the lab's backtest curves where the gate's family count and Romano-Wolf can see them (with T-4301) | TODO |
+| T-4311 | Families need inputs the formula language lacks (fundamentals, sector-relative ranks, calendar); each needs a tested input before a family can use it | TODO |
+
 ## Metrics library: how to answer (2026-10-31)
 
 Operator: "gather all possible documents related to metrics we have train model that how to answer", "do for what all possible and before building brief". ADR-103, research 135.
@@ -184,7 +199,7 @@ Verify: `uv run pytest -q tests/test_agent_grounding.py`; `make agent-eval ONLY=
 | T-4191 | Split the knowledge index into chunks with a context note each; measure recall before adding embeddings | TODO |
 | T-4192 | Approve/dismiss counts per agent on the AI tab | TODO |
 | T-4193 | Idea lab: test drafts within 5 trials a week (IC screen, then backtest), skeptic, inbox | DONE. ADR-089; `make agent NAME=lab`; `tests/test_agent_trials.py`. Runs Sundays after research |
-| T-4194 | First real lab run on the operator's machine, after a live research run | TODO. Needs research drafts (T-4171) |
+| T-4194 | First real lab run on the operator's machine, after a live research run | DONE 2026-11-01: it tested 0 cards (HISTORY #47); fixed by T-4305 to T-4307 |
 ## Market microdata: NSE reports, Nifty minutes, order book (2026-10-30)
 
 Operator: "look for all other data, scrap and store, look for orderbook data also if we can get historical data of last 1 year nifty 50 minute level, ensure uploading copy on b2 and delete from local"; then "I am asking for market order data"; then, on the ScanX comparison, "yes lets have all these data". Research 130, ADR-095.

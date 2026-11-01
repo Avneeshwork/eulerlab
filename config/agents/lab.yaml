@@ -1,15 +1,22 @@
+# The idea lab (ADR-089, ADR-110): its own ideas from config/idea_families.yaml,
+# every untested research draft, a memory of what each family has shown, and
+# feedback the research agent reads the next day.
 name: lab
 title: Idea lab
-job: Tests the research agent's drafts within the weekly trial allowance - an IC screen, then a backtest of the card's own configurations - and sends survivors, attacked by the skeptic, to your inbox.
+job: Writes 30 or more formula cards a day from the signal families and its memory of what worked, tests them with every untested research draft (IC screen, then a backtest), sends survivors attacked by the skeptic to your inbox, and tells the research agent what to look for next.
 worker: eulerlab.agents.workers.lab
-schedule: Sunday 07:00 IST, after research (make agents-weekly)
-uses_model: false
-daily_requests: 0
+schedule: Every day 17:00 IST, after research (make agents-ideas)
+uses_model: true
+daily_requests: 4
 needs_approval: true
 never:
-  - spend more trials than config/agent_trials.yaml allows
+  - spend more trials than config/agent_trials.yaml allows, or test without logging the trial first
   - read the holdout, run the gate or edit gates.py or mandate.yaml
-  - change, tune or sweep a card's parameters
+  - change a card after writing it, or tune a parameter after seeing its result
+  - run model-written code (a model's idea is a formula the formula language parses)
 options:
-  max_cards: 3
+  max_ideas: 30
+  max_cards: 10
+  max_minutes: 90
+  model_ideas: 6
   cli_only: true

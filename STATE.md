@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token) and the UI revamp (T-4283).
 **Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
-*Last updated: 2026-10-31. One page, and it stays one page. If it is not here
+*Last updated: 2026-11-01. One page, and it stays one page. If it is not here
 or in `TASKS.md`, it did not happen.*
 
 ---
@@ -33,6 +33,10 @@ never edit them without an explicit instruction in that session.
 
 ## What is true today
 
+- **Idea lab finds ideas daily (2026-11-01, ADR-110):** its first run tested nothing (HISTORY #47). Now `make agents-ideas`
+  (17:00 IST every day; install it, T-4308) runs research then the lab. The lab writes about 30 formula cards a day from 13
+  signal families, steered by a memory of every test (`data/agents/memory/lab_ideas.jsonl`), tests every untested draft, and
+  hands research its lessons and the next topic. Every card is a logged trial; speed on the full panel is unmeasured (T-4309).
 - **The gate's bar counts idea families, not ledger rows (2026-10-31, ADR-108, research 138, your decision):** N = families of every
   stored strategy (27 of 68), σ_SR measured (0.48, was assumed 1.0): bar **Sharpe 0.98**, was 1.88. A candidate must also pass
   Romano-Wolf over Nifty (critical about 0.95; only `india_sharpe_momentum_opt` passes, its tuning runs unseen, T-4302).

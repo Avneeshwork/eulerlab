@@ -42,5 +42,7 @@ docs/RESEARCH/papers/*.pdf
 # Paper-agent drafts wait here for the operator (ADR-084). Approved drafts
 # move to hypotheses/ and research/papers/, which are committed.
 research/agent_drafts/
+# The idea lab's generated cards (ADR-110). A survivor is copied into hypotheses/.
+research/lab_ideas/
 # Generated from docs/METRICS by tools/render_metrics_handbook.py (make handbook). Never edit or commit.
 web/public/handbook.html

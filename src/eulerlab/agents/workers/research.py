@@ -26,12 +26,15 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from eulerlab.agents.runtime import Context, Item, WorkerResult
+from eulerlab.agents.runtime import IST, Context, Item, WorkerResult, latest_output
+from eulerlab.features import formula
+from eulerlab.research import idea_memory
 
 HYPOTHESES = Path("hypotheses")
 REPEAT = 0.45
@@ -165,13 +168,35 @@ def _draft_text(folder: Path) -> tuple[str, dict[str, Any]]:
     return text, spec
 
 
+def lab_feedback(ctx: Context) -> idea_memory.Feedback | None:
+    """The idea lab's latest feedback: topics to search and what its tests have shown."""
+    lab = latest_output("lab", ctx.root)
+    raw = lab.data.get("feedback") if lab is not None else None
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return idea_memory.Feedback.model_validate(raw)
+    except ValueError:
+        return None
+
+
+def todays_topic(topics: list[str], now: datetime) -> str:
+    """One topic a day, in turn, so the research agent stops reading one topic's papers again."""
+    day = now.astimezone(IST).date()
+    return topics[day.toordinal() % len(topics)]
+
+
 def run(ctx: Context) -> WorkerResult:
     from eulerlab.quality import contract
     from eulerlab.research import paper_agent, quantpedia
 
+    lab = lab_feedback(ctx)
     topic = str(ctx.args.get("topic") or "").strip()
     if not topic and ctx.brief:
         topic = ctx.brief.splitlines()[-1].split(": ", 1)[-1][:200]
+    if not topic and lab is not None and lab.topics:
+        topic = todays_topic(lab.topics, ctx.now)
+        ctx.notes.append(f"topic from the idea lab's feedback, in turn: {topic}")
     topic = topic or str(ctx.options.get("topic") or "")
     if not topic:
         return WorkerResult("no topic: give one, or write a brief", status="refused")
@@ -206,7 +231,8 @@ def run(ctx: Context) -> WorkerResult:
         return _Answer(text, ctx.model, ctx.model)
 
     ctx.step(f"Searching arXiv and OpenAlex; drafting up to {limit} cards")
-    result = paper_agent.run(topic, limit=limit, ask=ask, log=ctx.notes.append)
+    guidance = idea_memory.guidance(lab) if lab is not None else ""
+    result = paper_agent.run(topic, limit=limit, ask=ask, log=ctx.notes.append, guidance=guidance)
     if result.failures and not result.drafts:
         return WorkerResult(
             "; ".join(result.failures)[:300],
@@ -216,6 +242,7 @@ def run(ctx: Context) -> WorkerResult:
 
     ctx.step(f"Checking {len(result.drafts)} drafts against ideas already tried")
     cards = known_cards()
+    lab_tested = idea_memory.tested_features(idea_memory.load(ctx.root))
     grades = {str(g.get("name")): g for g in contract.saved()}
     items: list[Item] = []
     ranked: list[tuple[float, Item]] = []
@@ -224,8 +251,16 @@ def run(ctx: Context) -> WorkerResult:
             continue
         text, spec = _draft_text(draft.path)
         match, score = nearest(text, cards)
-        repeat = match is not None and score >= REPEAT
-        needs = data_needs(text)
+        configured = [
+            str(c.get("feature")) for c in spec.get("configurations") or [] if c.get("feature")
+        ]
+        unknown = [f for f in configured if not formula.is_known(f)]
+        lab_tried = bool(configured) and all(f in lab_tested for f in configured)
+        repeat = (match is not None and score >= REPEAT) or lab_tried
+        # Words in an abstract are a guess at data needs; a card whose every feature
+        # the library can build needs nothing more (2026-11-01: a buildable draft was
+        # marked as waiting for three datasets and never tested).
+        needs = data_needs(text) if unknown or not configured else []
         missing = [
             n
             for n in needs
@@ -255,7 +290,9 @@ def run(ctx: Context) -> WorkerResult:
             f"read: {draft.read}",
             f"claim: {spec.get('claim', 'no card drafted')}",
         ]
-        if repeat and match is not None:
+        if lab_tried:
+            lines.append("the idea lab has already tested every feature this card names")
+        elif repeat and match is not None:
             lines.append(
                 f"looks like {match.id} ({match.status}): {match.title} — overlap {score:.0%}"
             )
@@ -276,7 +313,10 @@ def run(ctx: Context) -> WorkerResult:
                     ref=str(draft.path),
                     data={
                         "rank": round(rank, 2),
-                        "repeat_of": match.id if repeat and match else "",
+                        "repeat_of": "idea lab"
+                        if lab_tried
+                        else (match.id if repeat and match else ""),
+                        "unknown_features": unknown,
                         "overlap": round(score, 2),
                         "needs_data": missing,
                     },
@@ -296,5 +336,6 @@ def run(ctx: Context) -> WorkerResult:
             "topic": topic,
             "folder": str(result.folder),
             "bar_now": round(result.cost.bar_now, 3),
+            "topic_from_lab": lab is not None and topic in lab.topics,
         },
     )

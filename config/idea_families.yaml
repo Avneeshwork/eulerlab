@@ -1,0 +1,157 @@
+# The idea lab's signal families (ADR-110). Committed, so what the lab may
+# generate is reviewable in a diff.
+#
+# Each family is one economic reason a stock might out-earn its peers, written
+# BEFORE any result is seen. The lab writes formula cards from a family's
+# templates (features/formula.py); a template's {placeholders} take every value
+# in `windows`, in order. Each generated card has one configuration, fixed in
+# advance: rank by the formula, hold the top `top_n`, rebalance every
+# `rebalance` sessions.
+#
+# ASSUMPTION (A-088): the reasons below are textbook descriptions of
+# well-known anomalies, not findings on Indian data. The lab tests them; it
+# does not take them as true. `search` is the phrase the research agent uses
+# to look for papers on the family.
+#
+# `paper` names the best-known study of the effect, for the operator to look
+# up. It is not a citation of a result on our data.
+
+top_n: 30
+
+families:
+  momentum:
+    reason: Investors under-react to news, so stocks that rose over the past months keep rising for a while.
+    paper: Jegadeesh and Titman (1993)
+    search: price momentum Indian stocks
+    rebalance: 21
+    templates:
+      - "delay(ret({n}), {skip})"
+    windows:
+      n: [63, 126, 189, 231]
+      skip: [5, 21, 126]
+
+  risk_adjusted_momentum:
+    reason: A rise made of many small steady gains carries more information than one made of a few jumps.
+    paper: Barroso and Santa-Clara (2015)
+    search: volatility-scaled momentum risk-adjusted momentum
+    rebalance: 21
+    templates:
+      - "div(delay(ret({n}), 21), ts_std(ret(1), {n}))"
+    windows:
+      n: [63, 126, 252]
+
+  frog_in_the_pan:
+    reason: Information that arrives in many small pieces is noticed late, so a rise built from many up days continues.
+    paper: Da, Gurun and Warachka (2014)
+    search: frog in the pan continuous information momentum
+    rebalance: 21
+    templates:
+      - "ts_mean(sign(ret(1)), {n})"
+    windows:
+      n: [63, 126, 252]
+
+  short_term_reversal:
+    reason: Liquidity providers are paid to absorb short-lived selling, so last week's losers bounce.
+    paper: Lehmann (1990); Jegadeesh (1990)
+    search: short-term reversal liquidity provision emerging markets
+    rebalance: 5
+    templates:
+      - "neg(ret({n}))"
+    windows:
+      n: [5, 10, 21]
+
+  low_volatility:
+    reason: Leverage-constrained investors bid up risky stocks, so calm stocks earn more per unit of risk.
+    paper: Frazzini and Pedersen (2014); Ang et al. (2006)
+    search: low volatility anomaly betting against beta India
+    rebalance: 21
+    templates:
+      - "neg(ts_std(ret(1), {n}))"
+      - "neg(ts_mad(ret(1), {n}))"
+    windows:
+      n: [21, 63, 126, 252]
+
+  lottery_max:
+    reason: Investors overpay for stocks with lottery-like single-day jumps, so those stocks earn less later.
+    paper: Bali, Cakici and Whitelaw (2011)
+    search: MAX effect lottery stocks extreme daily returns
+    rebalance: 21
+    templates:
+      - "neg(ts_max(ret(1), {n}))"
+    windows:
+      n: [21, 63]
+
+  drawdown_resilience:
+    reason: Stocks that fell least from their peak tend to be the quality names institutions hold through stress.
+    paper: Asness, Frazzini and Pedersen (2019)
+    search: quality minus junk drawdown resilience stocks
+    rebalance: 21
+    templates:
+      - "ts_drawdown(close, {n})"
+    windows:
+      n: [63, 126, 252]
+
+  high_anchoring:
+    reason: Traders anchor on the 52-week high and are slow to buy a stock through it, so names near their high drift up.
+    paper: George and Hwang (2004)
+    search: 52-week high anchoring momentum
+    rebalance: 21
+    templates:
+      - "div(close, ts_max(close, {n}))"
+      - "ts_rank(close, {n})"
+    windows:
+      n: [126, 252, 504]
+
+  illiquidity_premium:
+    reason: Investors demand a premium for holding stocks that are expensive to trade.
+    paper: Amihud (2002)
+    search: Amihud illiquidity premium emerging markets
+    rebalance: 21
+    templates:
+      - "neg(ts_median(div(abs(ret(1)), turnover), {n}))"
+    windows:
+      n: [21, 126, 252]
+
+  attention_volume:
+    reason: A surge in trading draws attention and buying that later fades, so recent volume spikes predict weaker returns.
+    paper: Gervais, Kaniel and Mingelgrin (2001); Barber and Odean (2008)
+    search: abnormal trading volume attention returns
+    rebalance: 21
+    templates:
+      - "neg(div(ts_mean(volume, {s}), ts_mean(volume, {n})))"
+      - "div(ts_mean(volume, {s}), ts_mean(volume, {n}))"
+    windows:
+      s: [5, 21]
+      n: [126, 252]
+
+  turnover_fading:
+    reason: Stocks traded heavily relative to their history are crowded; falling turnover marks neglected names that do better.
+    paper: Lee and Swaminathan (2000)
+    search: share turnover momentum life cycle neglected stocks
+    rebalance: 21
+    templates:
+      - "neg(div(ts_median(turnover, {s}), ts_median(turnover, {n})))"
+    windows:
+      s: [21, 63]
+      n: [252, 504]
+
+  skewness:
+    reason: Investors overpay for stocks whose returns are skewed to the upside, so those stocks earn less later; mean above median marks that skew.
+    paper: Boyer, Mitton and Vorkink (2010); Barberis and Huang (2008)
+    search: idiosyncratic skewness expected returns lottery preference
+    rebalance: 21
+    templates:
+      - "neg(sub(ts_mean(ret(1), {n}), ts_median(ret(1), {n})))"
+    windows:
+      n: [63, 126, 252]
+
+  volatility_compression:
+    reason: A stock whose volatility is falling relative to its own history is leaving a period of uncertainty, and its risk premium shrinks as prices rise.
+    paper: Bollerslev, Li and Zhao (2020)
+    search: idiosyncratic volatility change predicts returns
+    rebalance: 21
+    templates:
+      - "neg(div(ts_std(ret(1), {s}), ts_std(ret(1), {n})))"
+    windows:
+      s: [21, 63]
+      n: [252, 504]

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -78,6 +78,7 @@ help:
 	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
 	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
 	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
+	@echo "  make agents-ideas             research, then the idea lab (daily, 17:00 IST)"
 	@echo "  make knowledge-keeper [MODE=weekly]  refresh metric normals, watch SEBI/RBI/NSE, draft page updates"
 	@echo "  make metrics-normals          recompute what is normal for each metric"
 	@echo "  make board-meetings           capture today's NSE board-meeting intimations (results calendar)"
@@ -310,9 +311,13 @@ agents-weekly:
 	-@uv run python -m eulerlab.research.quantpedia
 	-@uv run python -m eulerlab.agents.runtime knowledge_keeper --arg mode=weekly
 	-@uv run python -m eulerlab.agents.runtime knowledge
+	-@uv run python -m eulerlab.agents.runtime engineering
+
+# Research, then the idea lab, every day (ADR-110). The lab reads the research
+# agent's new drafts; research reads the lab's feedback from the day before.
+agents-ideas:
 	-@uv run python -m eulerlab.agents.runtime research
 	-@uv run python -m eulerlab.agents.runtime lab
-	-@uv run python -m eulerlab.agents.runtime engineering
 
 agent-eval:
 	@uv run python -m eulerlab.agents.evaluate $(if $(ONLY),--only $(ONLY),)
