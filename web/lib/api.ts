@@ -2007,6 +2007,16 @@ export const api = {
     get<{ ok: boolean; series: Record<string, { at: string; value: number }[]> }>(
       `/api/macro/history?days=${days}`,
     ),
+  /** Intraday candles from the minute archive. `time` is IST wall-clock
+   *  written as UTC epoch seconds, so the chart's axis reads in IST. */
+  historyIntraday: (symbol: string, minutes = 5, days = 30) =>
+    get<{
+      ok: boolean;
+      error?: string;
+      bars: { time: number; open: number; high: number; low: number; close: number; volume: number }[];
+      source?: string;
+      last?: string;
+    }>(`/api/history/intraday?symbol=${encodeURIComponent(symbol)}&minutes=${minutes}&days=${days}`),
   /** `adjusted` back-adjusts equity bars for splits and bonuses (the SIP needs it). */
   history: (symbol: string, assetClass = 'equity', days = 400, adjusted = false) =>
     get<History>(

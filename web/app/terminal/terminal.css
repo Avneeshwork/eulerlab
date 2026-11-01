@@ -1875,7 +1875,9 @@
   top: 0;
   left: 0;
   pointer-events: none;
-  overflow: visible;
+  /* Clipped to the price pane: a level far from the visible prices must not
+     spill into the RSI or MACD panes below. */
+  overflow: hidden;
 }
 .tchart-label { font-size: 10.5px; fill: var(--accent); font-variant-numeric: tabular-nums; }
 .tchart-hint {

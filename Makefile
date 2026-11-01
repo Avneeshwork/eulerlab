@@ -120,6 +120,7 @@ help:
 
 install:
 	uv sync --extra dev --extra web
+	cd web && npm install
 	uv run pre-commit install
 
 verify:

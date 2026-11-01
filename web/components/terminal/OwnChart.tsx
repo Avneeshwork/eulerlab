@@ -13,6 +13,9 @@
  * lines, interactable, some features of TradingView"):
  * - a crosshair readout of the bar under the cursor: open, high, low, close,
  *   change and volume;
+ * - candle timeframes: 1, 5, 15 and 30 minutes, 1 and 4 hours from the
+ *   minute archive (`/api/history/intraday`), and day, week and month from
+ *   daily bars (`lib/bars.ts`, tested);
  * - range buttons, a log scale and a reset;
  * - drawings: horizontal, vertical and trend lines, erased by clicking near
  *   one, kept per symbol in this browser;
@@ -29,18 +32,66 @@ import type {
   MouseEventParams,
   SeriesType,
   Time,
+  UTCTimestamp,
 } from 'lightweight-charts';
 import { api } from '@/lib/api';
 import type { Bar } from '@/lib/api';
+import { rollUp } from '@/lib/bars';
 import { bollinger, ema, macd, rsi, sma, type Series } from '@/lib/indicators';
 import { token } from '@/lib/tokens';
 
 type Tool = 'cursor' | 'hline' | 'vline' | 'trend' | 'erase';
 
+/** A drawing's times are bar keys (seconds, see `ChartBar.key`). Drawings
+ *  saved before timeframes existed hold ISO dates; `toKey` reads both, so a
+ *  line drawn on the daily chart lands on the right candle of any other. */
+type Stamp = number | string;
 type Drawing =
   | { kind: 'hline'; price: number }
-  | { kind: 'vline'; time: string }
-  | { kind: 'trend'; t1: string; p1: number; t2: string; p2: number };
+  | { kind: 'vline'; time: Stamp }
+  | { kind: 'trend'; t1: Stamp; p1: number; t2: Stamp; p2: number };
+
+const toKey = (stamp: Stamp): number =>
+  typeof stamp === 'number' ? stamp : Date.parse(`${stamp}T00:00:00Z`) / 1000;
+
+/** A key as the axis prints it: the date, with the time when it has one. */
+const stampLabel = (stamp: Stamp): string => {
+  const iso = new Date(toKey(stamp) * 1000).toISOString();
+  return iso.slice(11, 16) === '00:00' ? iso.slice(0, 10) : iso.slice(0, 16).replace('T', ' ');
+};
+
+/** One candle as the chart draws it, whatever its timeframe. `key` is seconds:
+ *  UTC midnight for a daily date, IST wall-clock written as UTC for intraday. */
+type ChartBar = {
+  key: number;
+  time: Time;
+  label: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
+type Frame = '1' | '5' | '15' | '30' | '60' | '240' | 'D' | 'W' | 'M';
+
+const FRAMES: [Frame, string][] = [
+  ['1', '1m'],
+  ['5', '5m'],
+  ['15', '15m'],
+  ['30', '30m'],
+  ['60', '1h'],
+  ['240', '4h'],
+  ['D', '1D'],
+  ['W', '1W'],
+  ['M', '1M'],
+];
+
+/** Calendar days of minutes fetched per intraday frame: enough for a few
+ *  hundred candles without pulling the whole archive for a 1-minute chart. */
+const INTRADAY_DAYS: Record<string, number> = { '1': 5, '5': 30, '15': 60, '30': 120, '60': 250, '240': 400 };
+
+const isIntraday = (frame: Frame) => /^\d+$/.test(frame);
 
 type Indicator = 'volume' | 'sma20' | 'sma50' | 'sma200' | 'ema20' | 'bollinger' | 'rsi' | 'macd';
 
@@ -55,12 +106,17 @@ const INDICATORS: [Indicator, string][] = [
   ['macd', 'MACD 12, 26, 9'],
 ];
 
+const DAY = 86_400;
+/** Ranges are spans of time, not counts of bars, so 3M means three months
+ *  on a 5-minute chart and on a weekly one. */
 const RANGES: [string, number | null][] = [
-  ['1M', 21],
-  ['3M', 63],
-  ['6M', 126],
-  ['1Y', 252],
-  ['5Y', 1260],
+  ['1D', DAY],
+  ['5D', 5 * DAY],
+  ['1M', 31 * DAY],
+  ['3M', 92 * DAY],
+  ['6M', 183 * DAY],
+  ['1Y', 366 * DAY],
+  ['5Y', 1827 * DAY],
   ['All', null],
 ];
 
@@ -93,6 +149,14 @@ function saveDrawings(key: string, drawings: Drawing[]) {
     /* storage blocked: drawings last for this view only */
   }
 }
+function loadFrame(): Frame {
+  try {
+    const raw = window.localStorage.getItem('eulerlab.chart.frame');
+    return FRAMES.some(([value]) => value === raw) ? (raw as Frame) : 'D';
+  } catch {
+    return 'D';
+  }
+}
 function loadIndicators(): Indicator[] {
   try {
     const raw = window.localStorage.getItem('eulerlab.chart.indicators');
@@ -121,48 +185,135 @@ export function OwnChart({
   const chartRef = useRef<IChartApi | null>(null);
   const mainRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const [note, setNote] = useState('');
-  const [bars, setBars] = useState<Bar[]>([]);
+  const [daily, setDaily] = useState<Bar[]>([]);
+  const [intraday, setIntraday] = useState<ChartBar[]>([]);
+  const [frame, setFrame] = useState<Frame>('D');
   const [tool, setTool] = useState<Tool>('cursor');
   const [log, setLog] = useState(false);
   const [shown, setShown] = useState<Indicator[]>(['volume', 'sma50']);
   const [menu, setMenu] = useState(false);
   const [hover, setHover] = useState<number | null>(null);
   const [drawings, setDrawings] = useState<Drawing[]>([]);
-  const [anchor, setAnchor] = useState<{ time: string; price: number } | null>(null);
-  const [preview, setPreview] = useState<{ time: string; price: number } | null>(null);
+  const [anchor, setAnchorState] = useState<{ time: number; price: number } | null>(null);
+  // Mirrored in a ref so a quick second click sees the first point before
+  // React has re-rendered and re-attached the click handler.
+  const anchorRef = useRef<{ time: number; price: number } | null>(null);
+  const setAnchor = (next: { time: number; price: number } | null) => {
+    anchorRef.current = next;
+    setAnchorState(next);
+  };
+  const [preview, setPreview] = useState<{ time: number; price: number } | null>(null);
   const [tick, setTick] = useState(0);
   const key = storageKey(assetClass, symbol);
 
-  useEffect(() => setShown(loadIndicators()), []);
+  useEffect(() => {
+    setShown(loadIndicators());
+    setFrame(loadFrame());
+  }, []);
+  // Minute bars exist only for NSE stocks.
+  const frameUsed: Frame = isIntraday(frame) && assetClass !== 'equity' ? 'D' : frame;
+  const minutes = isIntraday(frameUsed) ? Number(frameUsed) : null;
+  const intradayFrame = minutes !== null;
+  const frameDaily = frameUsed === 'D';
+  const chooseFrame = (next: Frame) => {
+    setFrame(next);
+    setAnchor(null);
+    setPreview(null);
+    try {
+      window.localStorage.setItem('eulerlab.chart.frame', next);
+    } catch {
+      /* not remembered */
+    }
+  };
   useEffect(() => {
     setDrawings(loadDrawings(key));
     setAnchor(null);
   }, [key]);
 
+  // Daily bars: fetched once per symbol; day, week and month all come from them.
+  const [dailyNote, setDailyNote] = useState('');
   useEffect(() => {
     let live = true;
-    setNote('');
+    setDailyNote('');
     api
       .history(symbol, assetClass, days)
       .then((result) => {
         if (!live) return;
         if (!result.ok) {
-          setBars([]);
+          setDaily([]);
           // Named, not blank. "We hold nothing for this symbol" and "the
           // request failed" are different answers and the panel says which.
-          setNote(result.error ?? 'no bars');
+          setDailyNote(result.error ?? 'no bars');
           return;
         }
-        setBars(result.bars);
-        setNote(`${result.bars.length} bars · ${result.source} · to ${result.last}`);
+        setDaily(result.bars);
+        setDailyNote(`${result.source} · to ${result.last}`);
       })
-      .catch((problem) => live && setNote(String(problem)));
+      .catch((problem) => live && setDailyNote(String(problem)));
     return () => {
       live = false;
     };
   }, [symbol, assetClass, days]);
 
-  const index = useMemo(() => new Map(bars.map((bar, i) => [bar.time, i])), [bars]);
+  // Intraday bars: fetched per symbol and candle size.
+  useEffect(() => {
+    if (minutes === null) return;
+    let live = true;
+    setIntraday([]);
+    setNote('loading minute bars…');
+    api
+      .historyIntraday(symbol, minutes, INTRADAY_DAYS[String(minutes)] ?? 30)
+      .then((result) => {
+        if (!live) return;
+        if (!result.ok) {
+          setNote(result.error ?? 'no minute bars');
+          return;
+        }
+        setIntraday(
+          result.bars.map((bar) => ({
+            ...bar,
+            key: bar.time,
+            time: bar.time as UTCTimestamp,
+            label: new Date(bar.time * 1000).toISOString().slice(0, 16).replace('T', ' '),
+          })),
+        );
+        setNote(`${result.source} · to ${result.last} IST`);
+      })
+      .catch((problem) => live && setNote(String(problem)));
+    return () => {
+      live = false;
+    };
+  }, [symbol, minutes]);
+
+  const bars: ChartBar[] = useMemo(() => {
+    if (minutes !== null) return intraday;
+    const rows = frameUsed === 'W' || frameUsed === 'M' ? rollUp(daily, frameUsed) : daily;
+    return rows.map((bar) => ({ ...bar, key: toKey(bar.time), time: bar.time as Time, label: bar.time }));
+  }, [minutes, intraday, daily, frameUsed]);
+  const shownNote = minutes === null ? dailyNote && `${bars.length} bars · ${dailyNote}` : note;
+
+  /** The candle a time falls in: the last bar at or before it. Null when the
+   *  time is outside what is loaded, so a line from 2021 is not pinned to the
+   *  first candle of a five-day minute chart. */
+  const keys = useMemo(() => bars.map((bar) => bar.key), [bars]);
+  const barIndex = useCallback(
+    (stamp: Stamp): number | null => {
+      const k = toKey(stamp);
+      const n = keys.length;
+      if (!n || k < keys[0]) return null;
+      const step = n > 1 ? keys[n - 1] - keys[n - 2] : DAY;
+      if (k > keys[n - 1] + step) return null;
+      let lo = 0;
+      let hi = n - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (keys[mid] <= k) lo = mid;
+        else hi = mid - 1;
+      }
+      return lo;
+    },
+    [keys],
+  );
   const closes = useMemo(() => bars.map((bar) => bar.close), [bars]);
 
   const setIndicators = (next: Indicator[]) => {
@@ -209,11 +360,18 @@ export function OwnChart({
             },
             grid: { vertLines: { color: grid }, horzLines: { color: grid } },
             crosshair: { mode: CrosshairMode.Normal },
+            localization: {
+              // Intraday keys are IST written as UTC: read them back as UTC.
+              timeFormatter: (time: Time) =>
+                typeof time === 'number'
+                  ? new Date(time * 1000).toISOString().slice(0, 16).replace('T', ' ')
+                  : String(time),
+            },
             rightPriceScale: {
               borderColor: edge,
               mode: log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal,
             },
-            timeScale: { borderColor: edge, rightOffset: 6 },
+            timeScale: { borderColor: edge, rightOffset: 6, timeVisible: intradayFrame, secondsVisible: false },
             autoSize: true,
           });
           chartRef.current = chart;
@@ -228,7 +386,7 @@ export function OwnChart({
           });
           candles.setData(
             bars.map((bar) => ({
-              time: bar.time as Time,
+              time: bar.time,
               open: bar.open,
               high: bar.high,
               low: bar.low,
@@ -251,7 +409,7 @@ export function OwnChart({
             );
             series.setData(
               values.flatMap((value, i) =>
-                value === null ? [] : [{ time: bars[i].time as Time, value }],
+                value === null ? [] : [{ time: bars[i].time, value }],
               ),
             );
             return series;
@@ -267,7 +425,7 @@ export function OwnChart({
             volume.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
             volume.setData(
               bars.map((bar, i) => ({
-                time: bar.time as Time,
+                time: bar.time,
                 value: bar.volume,
                 color: (i === 0 || bar.close >= bars[i - 1].close ? up : down) + '66',
               })),
@@ -301,7 +459,7 @@ export function OwnChart({
               m.histogram.flatMap((value, i) =>
                 value === null
                   ? []
-                  : [{ time: bars[i].time as Time, value, color: (value >= 0 ? up : down) + '99' }],
+                  : [{ time: bars[i].time, value, color: (value >= 0 ? up : down) + '99' }],
               ),
             );
             line(m.macd, accent, pane, 1);
@@ -315,7 +473,7 @@ export function OwnChart({
             const at = param.logical;
             setHover(at === undefined || at === null ? null : Math.round(at));
           });
-          const visible = Math.min(bars.length, 252);
+          const visible = Math.min(bars.length, intradayFrame ? 200 : frameDaily ? 252 : 150);
           chart.timeScale().setVisibleLogicalRange({ from: bars.length - visible, to: bars.length + 4 });
           setTick((t) => t + 1);
         },
@@ -328,7 +486,7 @@ export function OwnChart({
       chartRef.current = null;
       mainRef.current = null;
     };
-  }, [bars, closes, shown, log]);
+  }, [bars, closes, shown, log, intradayFrame, frameDaily]);
 
   // --- clicks: what a drawing tool does with them ---
   // Read from the DOM, not `chart.subscribeClick`: the library swallows a
@@ -336,7 +494,7 @@ export function OwnChart({
   // to see whether it is a double click), which lost the second point of
   // nearly every trend line when this was first tried.
   const pointAt = useCallback(
-    (event: MouseEvent): { time: string; price: number; x: number; y: number } | null => {
+    (event: MouseEvent): { time: number; price: number; x: number; y: number } | null => {
       const chart = chartRef.current;
       const series = mainRef.current;
       const node = holder.current;
@@ -351,7 +509,7 @@ export function OwnChart({
       const price = series.coordinateToPrice(py);
       if (logical === null || price === null) return null;
       const i = Math.max(0, Math.min(bars.length - 1, Math.round(logical)));
-      return { time: bars[i].time, price, x: px, y: py };
+      return { time: bars[i].key, price, x: px, y: py };
     },
     [bars],
   );
@@ -365,9 +523,10 @@ export function OwnChart({
       if (tool === 'hline') setDrawings((d) => [...d, { kind: 'hline', price: at.price }]);
       if (tool === 'vline') setDrawings((d) => [...d, { kind: 'vline', time: at.time }]);
       if (tool === 'trend') {
-        if (!anchor) setAnchor({ time: at.time, price: at.price });
+        const first = anchorRef.current;
+        if (!first) setAnchor({ time: at.time, price: at.price });
         else {
-          setDrawings((d) => [...d, { kind: 'trend', t1: anchor.time, p1: anchor.price, t2: at.time, p2: at.price }]);
+          setDrawings((d) => [...d, { kind: 'trend', t1: first.time, p1: first.price, t2: at.time, p2: at.price }]);
           setAnchor(null);
           setPreview(null);
         }
@@ -380,7 +539,7 @@ export function OwnChart({
       }
     };
     const onMove = (event: MouseEvent) => {
-      if (tool !== 'trend' || !anchor) return;
+      if (tool !== 'trend' || !anchorRef.current) return;
       const at = pointAt(event);
       if (at) setPreview({ time: at.time, price: at.price });
     };
@@ -396,10 +555,10 @@ export function OwnChart({
   useEffect(() => saveDrawings(key, drawings), [key, drawings]);
 
   // --- coordinates for the overlay ---
-  const x = (time: string): number | null => {
+  const x = (time: Stamp): number | null => {
     const chart = chartRef.current;
-    const i = index.get(time);
-    if (!chart || i === undefined) return null;
+    const i = barIndex(time);
+    if (!chart || i === null) return null;
     return chart.timeScale().logicalToCoordinate(i as Logical);
   };
   const y = (price: number): number | null => mainRef.current?.priceToCoordinate(price) ?? null;
@@ -439,24 +598,52 @@ export function OwnChart({
   const prev = shownIndex > 0 ? bars[shownIndex - 1] : undefined;
   const change = bar && prev ? bar.close / prev.close - 1 : null;
 
-  const zoom = (count: number | null) => {
+  const zoom = (span: number | null) => {
     const chart = chartRef.current;
     if (!chart || !bars.length) return;
-    if (count === null) chart.timeScale().fitContent();
-    else chart.timeScale().setVisibleLogicalRange({ from: bars.length - count, to: bars.length + 4 });
+    if (span === null) {
+      chart.timeScale().fitContent();
+      return;
+    }
+    const since = keys[keys.length - 1] - span;
+    const from = Math.max(0, keys.findIndex((k) => k > since));
+    chart.timeScale().setVisibleLogicalRange({ from: Math.min(from, bars.length - 2), to: bars.length + 4 });
+  };
+  const reset = () => {
+    const chart = chartRef.current;
+    if (!chart || !bars.length) return;
+    const visible = Math.min(bars.length, intradayFrame ? 200 : frameDaily ? 252 : 150);
+    chart.timeScale().setVisibleLogicalRange({ from: bars.length - visible, to: bars.length + 4 });
   };
 
   return (
     <div className="ownchart tchart">
       <div className="ownhead">
         <b>{symbol}</b>
-        <span className="tfine">{note || 'loading…'}</span>
+        <span className="tfine">{shownNote || 'loading…'}</span>
       </div>
 
       <div className="tchart-tools">
-        <div className="mkttoggle">
-          {RANGES.map(([label, count]) => (
-            <button key={label} type="button" onClick={() => zoom(count)}>
+        <div className="mkttoggle" role="group" aria-label="Candle timeframe">
+          {FRAMES.map(([value, label]) => {
+            const blocked = isIntraday(value) && assetClass !== 'equity';
+            return (
+              <button
+                key={value}
+                type="button"
+                className={frameUsed === value ? 'on' : ''}
+                disabled={blocked}
+                title={blocked ? 'Minute bars are held for NSE stocks only' : `${label} candles`}
+                onClick={() => chooseFrame(value)}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mkttoggle" role="group" aria-label="Range">
+          {RANGES.filter(([label]) => intradayFrame || (label !== '1D' && label !== '5D')).map(([label, span]) => (
+            <button key={label} type="button" onClick={() => zoom(span)}>
               {label}
             </button>
           ))}
@@ -465,7 +652,7 @@ export function OwnChart({
           <button type="button" className={log ? 'on' : ''} onClick={() => setLog(!log)} title="Logarithmic price scale">
             Log
           </button>
-          <button type="button" onClick={() => zoom(252)} title="Back to the last year">
+          <button type="button" onClick={reset} title="Back to the latest candles">
             Reset
           </button>
         </div>
@@ -518,7 +705,7 @@ export function OwnChart({
         <div className="tchart-body" data-tool={tool}>
           {bar && (
             <div className="tchart-legend">
-              <span>{bar.time}</span>
+              <span>{bar.label}</span>
               <span>O <b>{fmt(bar.open)}</b></span>
               <span>H <b>{fmt(bar.high)}</b></span>
               <span>L <b>{fmt(bar.low)}</b></span>
@@ -558,7 +745,7 @@ export function OwnChart({
                   <g key={i}>
                     <line x1={at} x2={at} y1={0} y2={paneHeight} stroke={lineColor} strokeWidth={1.5} />
                     <text x={at + 4} y={14} className="tchart-label">
-                      {drawing.time}
+                      {stampLabel(drawing.time)}
                     </text>
                   </g>
                 );
@@ -574,7 +761,7 @@ export function OwnChart({
           {tool === 'trend' && anchor && <div className="tchart-hint">Click the second point</div>}
         </div>
       ) : (
-        <div className="tempty">{note || 'loading…'}</div>
+        <div className="tempty">{shownNote || 'loading…'}</div>
       )}
     </div>
   );

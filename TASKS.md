@@ -26,6 +26,8 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4354 | Charts page: the seven TradingView macro mini-charts were blank on the Mac and the Advanced Chart refuses NSE:NIFTYBEES; draw them from our own history instead, or drop them | DONE — operator chose our own data (ADR-114) |
 | T-4357 | Our chart: crosshair readout, ranges, log scale, horizontal/vertical/trend lines, indicators in panes | DONE — ADR-114; `web/lib/indicators.test.ts`; clicks checked in a browser |
 | T-4358 | Save chart drawings on the server so they follow the operator between devices | TODO. If the operator wants it |
+| T-4359 | Chart timeframes 1m, 5m, 15m, 30m, 1h, 4h, 1D, 1W, 1M; the embed's own interval buttons hidden for NSE, where they did nothing | DONE — ADR-114; `tests/test_history_intraday.py`, `web/lib/bars.test.ts` |
+| T-4360 | Node on the Mac is 20.11; the chart-maths tests need 22.6 or newer, so `make verify` skips them there | TODO. Operator: `brew upgrade node` |
 | T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | TODO |
 | T-4356 | Fundamentals not fetched since 2026-10-18 | TODO |
 
