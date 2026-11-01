@@ -282,18 +282,23 @@ export function ChartTab() {
           ))}
         </div>
 
-        <div className="mkttoggle">
-          {INTERVALS.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              className={interval === value ? 'on' : ''}
-              onClick={() => setInterval(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* These drive the TradingView embed only. NSE symbols are drawn by
+            our own chart, which has its own timeframe buttons; showing both
+            left two rows of 1m to 1W where one did nothing (2026-11-01). */}
+        {!ours && (
+          <div className="mkttoggle">
+            {INTERVALS.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                className={interval === value ? 'on' : ''}
+                onClick={() => setInterval(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <form
           onSubmit={(event) => {

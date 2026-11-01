@@ -2631,6 +2631,69 @@ def history(
     }
 
 
+INTRADAY_MINUTES = (1, 5, 15, 30, 60, 240)
+"""Candle sizes the chart offers from the minute archive."""
+
+INTRADAY_MAX_DAYS = 400
+
+
+@app.get("/api/history/intraday")
+def history_intraday(symbol: str, minutes: int = 5, days: int = 30) -> dict[str, Any]:
+    """Intraday candles for one NSE stock, rolled up from the minute archive.
+
+    The same minute bars the intraday papers read (`intraday.store.fetch`, one
+    bar per timestamp, later chunk wins), resampled per session from its first
+    candle as Kite draws them. B2 is the store of record, so a symbol whose
+    files were pruned here is downloaded once and cached.
+
+    `time` is the candle's IST wall-clock time written as if it were UTC
+    epoch seconds. The chart library labels its axis in UTC; shifting by the
+    IST offset makes 09:15 read 09:15, not 03:45. It is a display key, never a
+    timestamp to compute with.
+    """
+    from datetime import timedelta
+
+    from eulerlab.intraday import store
+
+    wanted = symbol.strip().upper()
+    if not wanted:
+        return {"ok": False, "error": "no symbol", "bars": []}
+    if minutes not in INTRADAY_MINUTES:
+        return {"ok": False, "error": f"minutes must be one of {INTRADAY_MINUTES}", "bars": []}
+    days = max(1, min(days, INTRADAY_MAX_DAYS))
+    start = (datetime.now(UTC) - timedelta(days=days)).date()
+    try:
+        candles = store.resample(store.fetch(wanted, start=start), minutes)
+    except Exception as exc:
+        return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "bars": []}
+    if not candles:
+        return {
+            "ok": False,
+            "error": f"no minute bars for {wanted} in the last {days} days",
+            "bars": [],
+        }
+    bars = [
+        {
+            "time": int(c.ts.replace(tzinfo=UTC).timestamp()),
+            "open": c.open,
+            "high": c.high,
+            "low": c.low,
+            "close": c.close,
+            "volume": c.volume,
+        }
+        for c in candles
+    ]
+    return {
+        "ok": True,
+        "symbol": wanted,
+        "minutes": minutes,
+        "bars": bars,
+        "source": "minute archive",
+        "first": candles[0].ts.strftime("%Y-%m-%d %H:%M"),
+        "last": candles[-1].ts.strftime("%Y-%m-%d %H:%M"),
+    }
+
+
 @app.get("/api/paper/{strategy_id}")
 def paper(strategy_id: str) -> Any:
     """The source PDF for one strategy, when it has been fetched.

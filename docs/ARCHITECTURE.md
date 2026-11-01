@@ -1311,6 +1311,19 @@ Bollinger with the population standard deviation. The macro charts plot
 `macro.all_series`: one point per sweep, last six months, skipping the fake
 DXY test row.
 
+**Timeframes.** 1, 5, 15 and 30 minutes and 1 and 4 hours come from
+`/api/history/intraday`: the minute archive read by `intraday.store.fetch`
+(one bar per timestamp) and rolled up by `store.resample`, whose buckets start
+at each session's first candle, so a 4-hour chart has 09:15 to 13:15 and a
+short 13:15 to 15:30. Minute bars exist for NSE stocks only, and the window is
+bounded (5 calendar days for 1 minute, up to 400 for 4 hours). Intraday times
+are IST wall-clock written as UTC epoch seconds, so the axis reads 09:15.
+Day, week and month come from the daily bars; a week runs Monday to Sunday
+and a candle is dated by its first trading day (`web/lib/bars.ts`). Drawings
+store times as seconds and land on the candle that holds them in any
+timeframe; a line outside the loaded window is not drawn. Ranges (1D to All)
+are spans of time, not counts of bars.
+
 ## 7.1 The strategy builder
 
 Tools → Strategy Builder (`web/components/terminal/StrategyBuilder.tsx`,
