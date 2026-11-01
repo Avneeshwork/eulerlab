@@ -281,23 +281,27 @@ class KiteBroker:
             raise BrokerUnreachable(f"cancel failed: {exc}") from exc
 
     def positions(self) -> dict[str, int]:
-        """What the account holds by symbol: delivery holdings plus the net book.
+        """What the account holds by symbol: the day's opening holding plus the net book.
 
         Kite keeps the two apart. A delivery (CNC) buy sits in `positions.net`
         on the day it fills and moves to `holdings` the next day ("Equity
         positions carried overnight move to the holdings portfolio the next
         day", RESEARCH/139). Reading `net` alone reported every carried
-        delivery stock as missing, so reconciling a delivery book would have
-        raised a `local_only` break for each one (T-4364).
+        delivery stock as missing (T-4364).
 
-        Holdings count `quantity` (in the demat) plus `t1_quantity` (bought,
-        not yet delivered), as Zerodha's staff say to combine them. The net
-        book adds today's buys and subtracts today's sales out of holdings,
-        which Kite shows there as a negative CNC position.
+        A holding counts as its `opening_quantity`, the quantity carried into
+        the day (settled plus T1), which a sale does not change. Today's buys
+        and today's sales out of holdings are both in the net book (a sale is a
+        negative CNC row), so opening plus net is the holding now. Kite also
+        lowers `holdings.quantity` on the day of a sale (RESEARCH/139, forum
+        16259); adding `quantity` to net, as this did first, counted every
+        sale twice (HISTORY #55).
 
-        Both books are read or neither counts: a holdings call that fails
-        raises `BrokerUnreachable` rather than returning the net book alone,
-        which would read as every carried stock having been sold.
+        Each holding must add up one of two ways: `quantity + t1_quantity`
+        plus or not plus `used_quantity` equals `opening_quantity`. If neither
+        holds, Kite is showing something this code was not built for, and the
+        call raises `BrokerUnreachable` instead of guessing. Both books are
+        read or neither counts.
         """
         try:
             book = self._kite.positions() or {}
@@ -308,11 +312,22 @@ class KiteBroker:
         totals: dict[str, int] = {}
         for row in held:
             symbol = str(row.get("tradingsymbol") or "")
-            # ASSUMPTION: A-091. Holdings `quantity` is not reduced on the day a
-            # holding is sold; the sale shows only as a negative net position.
-            quantity = int(row.get("quantity") or 0) + int(row.get("t1_quantity") or 0)
-            if symbol and quantity:
-                totals[symbol] = totals.get(symbol, 0) + quantity
+            if not symbol:
+                continue
+            if row.get("opening_quantity") is None:
+                raise BrokerUnreachable(f"{symbol}: holding has no opening_quantity; not guessing")
+            opening = int(row["opening_quantity"])
+            now = int(row.get("quantity") or 0) + int(row.get("t1_quantity") or 0)
+            used = int(row.get("used_quantity") or 0)
+            # ASSUMPTION: A-091. A holding adds up as quantity + t1 (+ used) = opening.
+            if opening not in (now, now + used):
+                msg = (
+                    f"{symbol}: holdings do not add up (quantity + t1_quantity = {now}, "
+                    f"used_quantity = {used}, opening_quantity = {opening}); not guessing (A-091)"
+                )
+                raise BrokerUnreachable(msg)
+            if opening:
+                totals[symbol] = totals.get(symbol, 0) + opening
         for row in book.get("net", []) or []:
             symbol = str(row.get("tradingsymbol") or "")
             quantity = int(row.get("quantity") or 0)

@@ -321,32 +321,87 @@ def test_ems_reads_the_duplicate_as_the_original_landing() -> None:
 # --- delivery holdings (T-4364) --------------------------------------------
 
 
+def _holding(
+    symbol: str, *, opening: int, quantity: int, t1: int = 0, used: int = 0
+) -> dict[str, Any]:
+    return {
+        "tradingsymbol": symbol,
+        "opening_quantity": opening,
+        "quantity": quantity,
+        "t1_quantity": t1,
+        "used_quantity": used,
+    }
+
+
+def _sale(symbol: str, quantity: int) -> dict[str, Any]:
+    return {"tradingsymbol": symbol, "quantity": -quantity, "product": "CNC"}
+
+
 def test_a_carried_delivery_holding_is_a_position() -> None:
-    """Bought CNC yesterday: Kite moved it out of `net` into `holdings`."""
-    kite = FakeKite(holdings_rows=[{"tradingsymbol": "INFY", "quantity": 0, "t1_quantity": 25}])
+    """Bought CNC yesterday: Kite moved it out of `net` into `holdings` as T1."""
+    kite = FakeKite(holdings_rows=[_holding("INFY", opening=25, quantity=0, t1=25)])
     assert KiteBroker(kite).positions() == {"INFY": 25}
 
 
-def test_settled_and_undelivered_quantities_add() -> None:
-    kite = FakeKite(holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 5}])
+def test_settled_and_undelivered_quantities_both_count() -> None:
+    kite = FakeKite(holdings_rows=[_holding("TCS", opening=15, quantity=10, t1=5)])
     assert KiteBroker(kite).positions() == {"TCS": 15}
 
 
 def test_todays_buy_adds_to_a_holding() -> None:
     kite = FakeKite(
-        holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 0}],
+        holdings_rows=[_holding("TCS", opening=10, quantity=10)],
         positions_book={"net": [{"tradingsymbol": "TCS", "quantity": 4, "product": "CNC"}]},
     )
     assert KiteBroker(kite).positions() == {"TCS": 14}
 
 
-def test_selling_a_whole_holding_today_leaves_nothing() -> None:
-    """Kite shows a sale out of holdings as a negative CNC net position."""
+def test_a_partial_sale_counts_once_when_kite_lowers_quantity() -> None:
+    """Forum 16259's example: 100 held, 40 sold, `quantity` 60, `used_quantity`
+    40, net -40. Adding `quantity` to net gave 20 (HISTORY #55)."""
     kite = FakeKite(
-        holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 0}],
-        positions_book={"net": [{"tradingsymbol": "TCS", "quantity": -10, "product": "CNC"}]},
+        holdings_rows=[_holding("TCS", opening=100, quantity=60, used=40)],
+        positions_book={"net": [_sale("TCS", 40)]},
+    )
+    assert KiteBroker(kite).positions() == {"TCS": 60}
+
+
+def test_a_partial_sale_counts_once_if_kite_keeps_quantity() -> None:
+    """The other reading of the docs: `quantity` stays, `used_quantity` rises."""
+    kite = FakeKite(
+        holdings_rows=[_holding("TCS", opening=100, quantity=100, used=40)],
+        positions_book={"net": [_sale("TCS", 40)]},
+    )
+    assert KiteBroker(kite).positions() == {"TCS": 60}
+
+
+def test_selling_a_whole_holding_today_leaves_nothing() -> None:
+    kite = FakeKite(
+        holdings_rows=[_holding("TCS", opening=10, quantity=0, used=10)],
+        positions_book={"net": [_sale("TCS", 10)]},
     )
     assert KiteBroker(kite).positions() == {}
+
+
+def test_selling_undelivered_t1_shares_counts_once() -> None:
+    """A 2017 staff reply: a T1 sale is taken off `t1_quantity` at once."""
+    kite = FakeKite(
+        holdings_rows=[_holding("SBIN", opening=40, quantity=20, t1=0, used=20)],
+        positions_book={"net": [_sale("SBIN", 20)]},
+    )
+    assert KiteBroker(kite).positions() == {"SBIN": 20}
+
+
+def test_a_holding_that_does_not_add_up_is_unreachable_not_guessed() -> None:
+    kite = FakeKite(holdings_rows=[_holding("TCS", opening=100, quantity=50, used=10)])
+    with pytest.raises(BrokerUnreachable, match="do not add up"):
+        KiteBroker(kite).positions()
+
+
+def test_a_holding_without_an_opening_quantity_is_unreachable() -> None:
+    kite = FakeKite(holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 0}])
+    with pytest.raises(BrokerUnreachable, match="opening_quantity"):
+        KiteBroker(kite).positions()
 
 
 def test_an_intraday_position_with_no_holdings_reads_as_before() -> None:

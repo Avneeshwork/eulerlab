@@ -1048,11 +1048,15 @@ tag already there (unless rejected or cancelled), because Kite itself accepts
 duplicate tags; `ems.send` reads that refusal as the original landing. If the
 book cannot be read, nothing is sent (T-4348).
 
-**Positions are holdings plus the net book.** Kite moves a delivery stock out
-of `positions.net` into `holdings` the day after it is bought, so
-`KiteBroker.positions` adds holdings (`quantity + t1_quantity`) to the net
-book per symbol; a sale out of holdings is a negative net row. Both books are
-read or the call raises (T-4364, RESEARCH/139, A-091).
+**Positions are the opening holding plus the net book.** Kite moves a
+delivery stock out of `positions.net` into `holdings` the day after it is
+bought, and shows a sale out of holdings as a negative CNC net row while also
+lowering `holdings.quantity`. So `KiteBroker.positions` counts each holding's
+`opening_quantity` (fixed for the day) plus the net book, which is right
+whichever way the sale shows. A holding whose `quantity + t1_quantity`
+(+ `used_quantity`) is not its `opening_quantity` raises rather than being
+guessed, as does a failed read of either book (T-4364, RESEARCH/139, A-091,
+HISTORY #55).
 
 **`UNSENT` ≠ `REJECTED`.** Both terminal, opposite meanings: `UNSENT` means the
 exchange has no record; `REJECTED` means it saw the order and refused.
