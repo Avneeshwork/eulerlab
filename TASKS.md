@@ -27,6 +27,7 @@ Auto-resume: `tools/ui_revamp_resume.sh` (launchd `com.eulerlab.uirevamp`, hourl
 | T-4281 | Dialogs (Backtest, Deploy, Explain) | TODO |
 | T-4282 | Dashboard: move its own Info/Sparkline/Dial onto the shared kit | TODO |
 | T-4283 | Finish: merge `ui-revamp` into `main`, push, delete `data/cache/ui-revamp.active`, unload the launchd job | DONE 2026-10-31. PR #38 merged. The flag file and launchd job are switched off by the operator on the Mac (the agent session was not permitted to) |
+| T-4305 | Agent cards on Strategies, Live & Risk and Research as compact tiles; the picked agent's card opens full width (ADR-110) | DONE 2026-11-01. `AgentStrip.tsx`, `glass.css`. Verify: open Strategies, click a tile, then click it again |
 
 ## Five Indian microstructure strategies (2026-10-28)
 

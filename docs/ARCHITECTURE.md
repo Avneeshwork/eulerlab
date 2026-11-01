@@ -2653,6 +2653,11 @@ The strip reads `/api/agents/activity` and `/api/agents/inbox`. It polls every
 `/api/agents/{name}/run`. The AI tab stays the control room: the inbox, every
 agent live, Ask, settings and the log. Engineering shows only there.
 
+A page with more than one agent (Strategies, Live & Risk, Research) shows each
+as a small tile: orb, name, status, when it last ran and its inbox count.
+Picking a tile opens that agent's full card across the page width; picking it
+again closes it (ADR-110). A page with one agent shows its card directly.
+
 Each card says what the last run found, not only how many (T-4212). The
 activity route carries `findings`: up to 12 of the run's items, critical first,
 then warnings, alerts before findings, each with its explanation and the

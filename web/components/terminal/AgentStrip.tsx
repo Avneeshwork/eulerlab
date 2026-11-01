@@ -8,6 +8,10 @@
  * agent does here, what it last found and when, what is waiting on you, and a
  * button to run it now. The icon moves while the agent works.
  *
+ * A page with more than one agent shows each as a small tile: icon, name,
+ * status. Picking a tile opens that agent's full card across the whole width;
+ * picking it again closes it (ADR-110). A page with one agent shows its card.
+ *
  * Reads `/api/agents/activity` and `/api/agents/inbox`; writes nothing but a
  * run request. Nothing an agent does places a trade.
  */
@@ -226,6 +230,9 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
   const [problem, setProblem] = useState('');
   const [targets, setTargets] = useState<SkepticTarget[]>([]);
   const [target, setTarget] = useState('all');
+  const [picked, setPicked] = useState('');
+  // A tile picked on one page should not stay open on the next.
+  useEffect(() => setPicked(''), [page]);
 
   const load = useCallback(async () => {
     try {
@@ -285,96 +292,143 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
     }
   };
 
-  return (
-    <section className="agent-strip" aria-label="Agents for this page">
-      {wanted.map((w) => {
-        const a = agents.find((x) => x.name === w.name);
-        const state = a?.state ?? 'idle';
-        const waiting = items.filter((i) => i.agent === w.name).length;
-        const said = state === 'running' ? a?.now : a?.summary;
-        return (
-          <article key={w.name} className="agent-chip" data-state={state}>
-            <AgentOrb state={state} />
-            <div className="agent-chip-body">
-              <header>
-                <b>{a?.title ?? w.name}</b>
-                <span className="tbadge" data-tone={TONE[state]}>
-                  {WORD[state]}
-                </span>
-                {a?.started && state !== 'running' && <span className="tfine">{ago(a.started)}</span>}
-              </header>
-              <p className="agent-chip-role">{w.role}</p>
-              {w.name === 'market_brief' && briefData ? (
-                <BriefCard brief={briefData} onOpen={() => onOpenAI('brief')} />
-              ) : w.name === 'market_brief' && brief ? (
-                <div className="agent-brief" data-open={open}>
-                  <p>{brief}</p>
-                  <button type="button" className="agent-link" onClick={() => setOpen(!open)}>
-                    {open ? 'Show less' : 'Read the whole brief'}
-                  </button>
-                </div>
-              ) : (
-                said && (
-                  <p className="agent-chip-said">
-                    <span>{state === 'running' ? 'Now' : state === 'refused' ? 'Why' : 'Found'}</span> {said}
-                  </p>
-                )
-              )}
-              {state !== 'running' && (
-                <Findings
-                  // The brief itself is shown above; its item would repeat it.
-                  list={(a?.findings ?? []).filter((f) => !(w.name === 'market_brief' && f.kind === 'brief'))}
-                  total={a?.findings_total ?? 0}
-                />
-              )}
-              {w.key && <p className="agent-key">{w.key}</p>}
-              {a?.cli_only && (
-                <div className="agent-cli">
-                  <p>
-                    <b>Runs from your terminal, not this page.</b> {CLI_WHY[w.name] ?? ''}
-                    {a.schedule ? ` It runs on its own: ${a.schedule}.` : ''} To run it now, open a terminal in
-                    your EulerLab folder and type:
-                  </p>
-                  <CopyCommand command={`make agent NAME=${w.name}`} />
-                </div>
-              )}
-              <footer>
-                <span className="agent-next">{w.next}</span>
-                {waiting > 0 && (
-                  <button type="button" className="agent-link" onClick={() => onOpenAI()}>
-                    {waiting} waiting on you
-                  </button>
-                )}
-                {w.name === 'skeptic' && (
-                  <select
-                    className="tinput agent-pick"
-                    aria-label="Result to attack"
-                    value={target}
-                    onChange={(e) => setTarget(e.target.value)}
-                  >
-                    <option value="all">All {targets.length || ''} stored results, worst first</option>
-                    {targets.map((t) => (
-                      <option key={t.strategy} value={t.strategy}>
-                        {t.strategy}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {!a?.cli_only && (
-                  <button
-                    type="button"
-                    className="tbtn"
-                    disabled={state === 'running' || asked === w.name || a?.enabled === false}
-                    onClick={() => void run(w.name)}
-                  >
-                    {state === 'running' ? 'Working…' : 'Run now'}
-                  </button>
-                )}
-              </footer>
+  const detail = (w: PageAgent) => {
+    const a = agents.find((x) => x.name === w.name);
+    const state = a?.state ?? 'idle';
+    const waiting = items.filter((i) => i.agent === w.name).length;
+    const said = state === 'running' ? a?.now : a?.summary;
+    return (
+      <article key={w.name} id={`agent-${w.name}`} className="agent-chip" data-state={state}>
+        <AgentOrb state={state} />
+        <div className="agent-chip-body">
+          <header>
+            <b>{a?.title ?? w.name}</b>
+            <span className="tbadge" data-tone={TONE[state]}>
+              {WORD[state]}
+            </span>
+            {a?.started && state !== 'running' && <span className="tfine">{ago(a.started)}</span>}
+          </header>
+          <p className="agent-chip-role">{w.role}</p>
+          {w.name === 'market_brief' && briefData ? (
+            <BriefCard brief={briefData} onOpen={() => onOpenAI('brief')} />
+          ) : w.name === 'market_brief' && brief ? (
+            <div className="agent-brief" data-open={open}>
+              <p>{brief}</p>
+              <button type="button" className="agent-link" onClick={() => setOpen(!open)}>
+                {open ? 'Show less' : 'Read the whole brief'}
+              </button>
             </div>
-          </article>
-        );
-      })}
+          ) : (
+            said && (
+              <p className="agent-chip-said">
+                <span>{state === 'running' ? 'Now' : state === 'refused' ? 'Why' : 'Found'}</span> {said}
+              </p>
+            )
+          )}
+          {state !== 'running' && (
+            <Findings
+              // The brief itself is shown above; its item would repeat it.
+              list={(a?.findings ?? []).filter((f) => !(w.name === 'market_brief' && f.kind === 'brief'))}
+              total={a?.findings_total ?? 0}
+            />
+          )}
+          {w.key && <p className="agent-key">{w.key}</p>}
+          {a?.cli_only && (
+            <div className="agent-cli">
+              <p>
+                <b>Runs from your terminal, not this page.</b> {CLI_WHY[w.name] ?? ''}
+                {a.schedule ? ` It runs on its own: ${a.schedule}.` : ''} To run it now, open a terminal in
+                your EulerLab folder and type:
+              </p>
+              <CopyCommand command={`make agent NAME=${w.name}`} />
+            </div>
+          )}
+          <footer>
+            <span className="agent-next">{w.next}</span>
+            {waiting > 0 && (
+              <button type="button" className="agent-link" onClick={() => onOpenAI()}>
+                {waiting} waiting on you
+              </button>
+            )}
+            {w.name === 'skeptic' && (
+              <select
+                className="tinput agent-pick"
+                aria-label="Result to attack"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              >
+                <option value="all">All {targets.length || ''} stored results, worst first</option>
+                {targets.map((t) => (
+                  <option key={t.strategy} value={t.strategy}>
+                    {t.strategy}
+                  </option>
+                ))}
+              </select>
+            )}
+            {!a?.cli_only && (
+              <button
+                type="button"
+                className="tbtn"
+                disabled={state === 'running' || asked === w.name || a?.enabled === false}
+                onClick={() => void run(w.name)}
+              >
+                {state === 'running' ? 'Working…' : 'Run now'}
+              </button>
+            )}
+          </footer>
+        </div>
+      </article>
+    );
+  };
+
+  const one = wanted.length === 1;
+  const shown = wanted.find((w) => w.name === picked);
+
+  return (
+    <section className="agent-strip" data-tiles={!one} aria-label="Agents for this page">
+      {one ? (
+        detail(wanted[0])
+      ) : (
+        <>
+          <div className="agent-tiles" role="group" aria-label="Pick an agent to see its full card">
+            {wanted.map((w) => {
+              const a = agents.find((x) => x.name === w.name);
+              const state = a?.state ?? 'idle';
+              const waiting = items.filter((i) => i.agent === w.name).length;
+              const on = picked === w.name;
+              return (
+                <button
+                  key={w.name}
+                  type="button"
+                  className="agent-tile"
+                  data-state={state}
+                  aria-pressed={on}
+                  aria-controls={on ? `agent-${w.name}` : undefined}
+                  title={w.role}
+                  onClick={() => setPicked(on ? '' : w.name)}
+                >
+                  <AgentOrb state={state} />
+                  <span className="agent-tile-text">
+                    <b>{a?.title ?? w.name}</b>
+                    <span>
+                      <span className="tbadge" data-tone={TONE[state]}>
+                        {WORD[state]}
+                      </span>
+                      {a?.started && state !== 'running' && <span className="tfine">{ago(a.started)}</span>}
+                    </span>
+                  </span>
+                  {waiting > 0 && (
+                    <span className="agent-tile-count" title={`${waiting} waiting on you`}>
+                      {waiting}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {shown && detail(shown)}
+        </>
+      )}
       {problem && <p className="tnote bad">{problem}</p>}
     </section>
   );
