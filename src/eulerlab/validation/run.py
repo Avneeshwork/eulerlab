@@ -67,10 +67,20 @@ def _strategy_for(config: dict[str, object]) -> tuple[RankAndHold, int]:
     the conversion once here keeps `# type: ignore` out of the analysis code,
     where it would be easy to silence a real mistake.
     """
-    feature = BY_NAME[str(config["feature"])]
-    top_n = int(str(config["top_n"]))
-    rebalance = int(str(config["rebalance"]))
-    return RankAndHold(feature, top_n=top_n), rebalance
+    if str(config.get("feature", "")) in BY_NAME and not config.get("min_turnover"):
+        feature = BY_NAME[str(config["feature"])]
+        top_n = int(str(config["top_n"]))
+        rebalance = int(str(config["rebalance"]))
+        return RankAndHold(feature, top_n=top_n), rebalance
+    # A formula feature or a liquidity floor (idea lab cards, ADR-116): build it exactly
+    # as the lab tested it, so validation judges the same strategy.
+    from eulerlab.research import codegen
+
+    built = codegen.build_one(config)
+    if not isinstance(built.strategy, RankAndHold):
+        msg = f"validation runs rank_and_hold configurations, not {config.get('shape')!r}"
+        raise ValueError(msg)
+    return built.strategy, built.rebalance
 
 
 def _sharpe_of(rows: Sequence[PanelRow], config: dict[str, object]) -> float:

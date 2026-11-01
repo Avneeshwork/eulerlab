@@ -264,7 +264,39 @@ def agents_decide(item_id: str, request: DecideRequest) -> dict[str, Any]:
         recorded = inbox.decide(item_id, request.decision, note=request.note)
     except (KeyError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
-    return {"ok": True, "decision": recorded.decision, "at": recorded.at}
+    gate = _gate_on_approve(item_id) if recorded.decision == "approved" else ""
+    return {"ok": True, "decision": recorded.decision, "at": recorded.at, "gate": gate}
+
+
+_GATE_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gate")
+"""One gate run at a time: each validation reads the whole panel in its own process."""
+
+
+def _gate_on_approve(item_id: str) -> str:
+    """An approved idea-lab survivor goes to the gate with no further tap (ADR-116).
+
+    Returns what happened, for the page: queued, or why not.
+    """
+    from eulerlab.research import promote
+
+    found = inbox.find(item_id)
+    if found is None:
+        return ""
+    agent, item = found
+    try:
+        card = promote.eligible(agent, item)
+    except promote.Refused as exc:
+        return "" if agent != "lab" else f"not sent to the gate: {exc}"
+    _GATE_POOL.submit(promote.gate, item_id, card)
+    return "sent to the gate: registering, validating and gating it now"
+
+
+@router.get("/api/agents/promotions")
+def agents_promotions() -> dict[str, Any]:
+    """Approved survivors sent to the gate, newest first, with each verdict (ADR-116)."""
+    from eulerlab.research import promote
+
+    return {"ok": True, "promotions": promote.results()}
 
 
 @router.get("/api/agents/log")

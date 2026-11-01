@@ -2869,6 +2869,22 @@ before its result is read, so `budget.searches_run` and the noise bar count it.
 the web page refuses to start it; it runs from `make agent NAME=lab` and
 `make agents-ideas`.
 
+### An approved survivor goes to the gate (ADR-116)
+
+    Inbox: approve a lab finding ("<card>: N configuration(s) survived")
+      -> promote.eligible: agent is lab, survivors >= 1, card exists, every
+         configuration has min_turnover > 0, no registered.json beside it
+      -> promote.register: hypotheses/H-NNNN.yaml (next free id, configurations
+         untouched, status draft); registered.json beside the lab card
+      -> python -m eulerlab.validation.run --hypothesis H-NNNN   (own process)
+      -> python -m eulerlab.gate_run --hypothesis H-NNNN         (own process, never --read-holdout)
+      -> data/agents/promote/H-NNNN.json: the gate's VERDICT line and both outputs
+
+One gate run at a time (`_GATE_POOL`, one worker). `GET /api/agents/promotions`
+lists them; the Inbox shows them under Gate runs. Validation builds a lab card's
+strategy with `codegen.build_one`, so a formula feature and its liquidity floor
+are validated exactly as the lab tested them.
+
 ### The doctor and the engineering fixer (ADR-113)
 
 After every agent run, `runtime.run` calls `agents/doctor.after_run(output)`. It never raises and takes remedies only from `doctor.REMEDIES`:

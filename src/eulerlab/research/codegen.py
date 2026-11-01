@@ -100,6 +100,11 @@ def _one(config: dict[str, Any]) -> Built:
     return Built(label, strategy, rebalance)
 
 
+def build_one(config: dict[str, Any]) -> Built:
+    """One configuration, as the lab and validation both build it (formula features, liquidity floor)."""
+    return _one(config)
+
+
 def build_from_card(path: Path) -> list[Built]:
     """Realise every configuration a card declares.
 
