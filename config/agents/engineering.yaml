@@ -1,13 +1,18 @@
-# The engineering agent (ADR-085). Reviews changes; drafts code you merge.
+# The engineering agent (ADR-085, ADR-113). Reviews changes, fixes code problems
+# one file at a time on a branch, and drafts code you merge.
 name: engineering
 title: Engineering agent
-job: Reviews the branch against the house rules (operator-owned files, docs with code, agent boundaries) and drafts new primitives as proposals for you to turn into a pull request.
+job: Fixes code problems the doctor and the daily quality check find, one file and its test on its own branch, proven by lint, types, tests and the engine self-test, for you to merge; reviews branches against the house rules and drafts new primitives.
 worker: eulerlab.agents.workers.engineering
-schedule: "on demand, and Sunday 07:30"
+schedule: "daily 16:15 IST quality check and fixes (agents-close), on demand, and Sunday 07:30"
 uses_model: true
+provider: claude-opus
 daily_requests: 20
 never:
-  - merge or push
-  - edit gates.py or mandate.yaml
-  - run code it drafted
+  - merge into your branch, or push anywhere but its own agent-fix branch
+  - change more than the one suspected file and its test
+  - edit gates.py, mandate.yaml, the order path, broker, deployment, kill switch, validation, config or secrets
+  - fix on a weaker model than Claude Opus, or skip or weaken a test to pass
 needs_approval: true
+options:
+  max_fixes: 3

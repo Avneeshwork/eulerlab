@@ -34,6 +34,7 @@ from typing import Any
 
 import yaml
 
+from eulerlab.agents import doctor
 from eulerlab.agents.runtime import Context, Item, WorkerResult, ist_day, outputs
 from eulerlab.features import formula
 from eulerlab.research import idea_generator, idea_memory
@@ -311,6 +312,10 @@ def _run(ctx: Context) -> WorkerResult:
             critical = [v.title for v in verdicts if v.severity == "critical"]
             excess = excess_sharpe(bt.days, bt.values, nifty())
             beats = excess is None or excess > 0
+            if bt.robust_sharpe > doctor.SUSPECT_SHARPE:
+                # Too good to be true for a long-only daily rule: the doctor flags it for
+                # investigation, and it is not called a survivor (ADR-113).
+                critical = [*critical, f"robust Sharpe {bt.robust_sharpe:.1f} is too high to trust"]
             ok = bt.robust_sharpe > 0 and not critical and beats
             survivors += ok
             row = {

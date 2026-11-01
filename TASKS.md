@@ -81,6 +81,11 @@ Verify: `uv run pytest -q tests/test_idea_lab.py tests/test_agent_trials.py`; th
 | T-4328 | Liquidity floor (Rs 1 crore) on generated cards and their IC screen; survival against Nifty; the first run's unfloored cards not learned from | DONE 2026-11-01. ADR-112, HISTORY #48 |
 | T-4329 | Store which stocks each lab backtest held, so a high Sharpe can be traced to the names behind it | TODO |
 | T-4326 | Families need inputs the formula language lacks (fundamentals, sector-relative ranks, calendar); each needs a tested input before a family can use it | TODO |
+| T-4330 | Doctor after every agent run: close dead runs, flag too-good results, note model outages, route data refusals, queue crashes for engineering | DONE 2026-11-01. ADR-113, `agents/doctor.py` |
+| T-4331 | Engineering agent fixes queued code problems on Claude Opus, one file and its test, on an `agent-fix/<id>` branch proven by lint, types, tests and the engine self-test | DONE 2026-11-01. ADR-113, `devtools/fixer.py`; merge with `make agent-fix-apply ID=<id>` |
+| T-4332 | Daily code quality check (ruff, mypy, pytest) in `make agents-close`, findings queued for engineering | DONE 2026-11-01 |
+| T-4333 | Measure a real fix: seconds and cost per attempt on the operator's machine, and how many come back green | TODO. After the first queued problem |
+| T-4334 | Fixes that need two files (a caller and a callee) are reported, not fixed; decide after a month of the doctor log whether to allow a second file | TODO |
 
 ## Metrics library: how to answer (2026-10-31)
 

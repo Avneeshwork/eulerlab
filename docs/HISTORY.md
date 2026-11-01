@@ -393,6 +393,8 @@ figure produced outside the result store before this date was frictionless.
 
 **48. The idea lab's first results came from stocks that barely trade.** (2026-11-01) The first `make agents-ideas` reported robust Sharpe 5.6 for 21-day low volatility and 3.5 for the share of up days, with no skeptic objection, and called anything with a positive Sharpe a survivor. ADR-111 generated cards without a turnover floor, although `RankAndHold` has documented since Sprint 8 that an unfiltered top-30 book buys stocks trading a few thousand rupees a day, and a long-only book has a positive Sharpe from the market alone. Fixed (ADR-112): a Rs 1 crore floor on every generated card and in its IC screen, survival judged against Nifty, and the first run's own cards left out of the lab's learning. Every number from the lab's runs on 2026-11-01 before this fix is invalid; none reached the gate.
 
+**49. A crashed agent's notes showed where the run started, not where it broke.** (2026-11-01) Since ADR-085 the runtime kept `traceback.format_exc(limit=4)`, which is the four outermost frames: the runtime and the worker's top, rarely the line that raised. Found while building the doctor (ADR-113), which needs the deepest frame to know which file to fix. Now the last six frames are kept. Crash notes in earlier run folders may not name the failing file; no number depended on them.
+
 ---
 
 ## What the project has actually concluded

@@ -38,6 +38,9 @@ never edit them without an explicit instruction in that session.
   signal families, steered by a memory of every test (`data/agents/memory/lab_ideas.jsonl`), tests every untested draft, and
   hands research its lessons and the next topic. Every card is a logged trial; speed on the full panel is unmeasured (T-4324).
   Cards trade only stocks with Rs 1 crore of turnover that day, and a survivor must beat Nifty (ADR-112); the first run's numbers are invalid (HISTORY #48).
+- **Agents fix their own problems (2026-11-01, ADR-113):** a doctor checks every run (closes dead runs, flags Sharpe above 3, queues
+  crashes); the engineering agent fixes a queued file on Claude Opus on its own branch, proven by lint, types and tests, and you merge
+  it with `make agent-fix-apply ID=<id>`. `make agents-close` now runs a daily code quality check.
 - **The gate's bar counts idea families, not ledger rows (2026-10-31, ADR-108, research 138, your decision):** N = families of every
   stored strategy (27 of 68), σ_SR measured (0.48, was assumed 1.0): bar **Sharpe 0.98**, was 1.88. A candidate must also pass
   Romano-Wolf over Nifty (critical about 0.95; only `india_sharpe_momentum_opt` passes, its tuning runs unseen, T-4302).
