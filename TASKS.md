@@ -14,7 +14,12 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4342 | No test writes to `data/` or downloads NSE's company list | DONE — `tests/conftest.py` fixtures; full suite left `data/` untouched |
 | T-4343 | `make install` installs the `web` extra so `make verify` passes on a fresh machine | DONE |
 | T-4344 | STATE.md back to one page; README check and test counts | DONE |
-| T-4345 | Check every workbench page against real data on the operator's Mac | TODO |
+| T-4345 | Check every workbench page against real data on the operator's Mac | DONE — all screens load, no console errors, every call 200; prices, FII/DII, chain and paper equity match the files; eight fixes (HISTORY #56). Not checked: raw cash/delivery/participant files (in B2 only), TradingView embeds, action buttons |
+| T-4368 | Kite access token expired (`TokenException`): live quotes off and India minute bars stop at 29 Oct; FYERS not logged in | TODO. Operator: log in from Instruments → Kite (or `make kite-login`) |
+| T-4369 | Crypto 1-minute bars two days behind; `/api/history` for BTCUSDT takes 8.8 s and AI → Data quality 2.4 s | TODO |
+| T-4370 | The UI polls `/api/agents/activity` and `/inbox` every 2–3 s | TODO. Slow it, or poll only while the AI tab is open |
+| T-4371 | Idea lab "NOW" card names a card started 57 minutes earlier, and the same card shows again 2 minutes ago | TODO |
+| T-4372 | Economic calendar had nothing past 31 Oct: the daily feed that fetches it was not scheduled (T-4356); it lands again on the next daily run | TODO. Check after the next `com.eulerlab.daily` run |
 | T-4346 | Review the order path, risk limits and backtester module by module | DONE — order path and loss limits (HISTORY #51); backtester (HISTORY #53, `tests/test_backtest_audit.py`) |
 | T-4347 | Fake DXY rows (98.9, +0.15%) in the Mac's `data/landing/macro`, one per day `make verify` ran: decide whether readers should skip them | DONE — `macro._is_test_row`; the files stay, landing is immutable; `tests/test_macro_history.py` |
 | T-4351 | OMS counted cumulative fill entries twice (HISTORY #51) | DONE — `tests/test_oms_reconcile.py` |

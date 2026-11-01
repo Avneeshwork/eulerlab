@@ -156,12 +156,15 @@ def build(
         for row in names
     }
 
-    # Two deployments of one strategy share a title; the capital tells them apart.
+    # Two deployments of one strategy share a title; the money in tells them
+    # apart. The money put in now, not the starting capital: after a deposit a
+    # book named "Rs 10,000" held Rs 30,000 (T-4345). The amount comes first: a
+    # long title is cut short on screen, and a suffix would be the part lost.
     titles = [b.title for b in books]
-    # The capital comes first: a long title is cut short on screen, and a
-    # suffix would be the part that is lost.
     label = {
-        b.id: f"{_short_rupees(b.capital)} · {b.title}" if titles.count(b.title) > 1 else b.title
+        b.id: f"{_short_rupees(b.deployed)} in · {b.title}"
+        if titles.count(b.title) > 1
+        else b.title
         for b in books
     }
 
@@ -186,7 +189,11 @@ def build(
                 "invested": round(sum(h.value for h in b.holdings), 2),
                 "positions": len(b.holdings),
                 "made": round(b.made, 2),
+                # Time-weighted: the figure compared with the backtest. Beside
+                # rupees made, the screen shows made_pct, the same rupees over the
+                # money put in, so the pair agrees after a deposit (T-4345).
                 "since_start": round(b.total_return, 6),
+                "made_pct": round(b.made / b.deployed, 6) if b.deployed > 0 else 0.0,
                 "today": round(rb.today_pnl(b, as_of), 2),
                 "volatility": round(sd * rb.TRADING_DAYS**0.5, 6) if enough else None,
                 "var95": round(standalone[b.id], 2) if enough else None,
@@ -313,7 +320,10 @@ def build(
                 else 0.0
             ),
             "since_start": round(equity - capital, 2),
-            "since_start_pct": round(book_growth[-1][1] - 1, 6) if book_growth else 0.0,
+            # Rupees made over the money put in, so it agrees with since_start.
+            # The time-weighted growth is since_start_twr (T-4345).
+            "since_start_pct": round(equity / capital - 1, 6) if capital > 0 else 0.0,
+            "since_start_twr": round(book_growth[-1][1] - 1, 6) if book_growth else 0.0,
             "var95": var95,
             "var95_pct": _pct(var95, equity),
             "es95": table[0]["es95"] if table else 0.0,
@@ -389,7 +399,7 @@ def build(
                 "capital": round(b.deployed, 2),
                 "equity": round(b.equity, 2),
                 "made": round(b.made, 2),
-                "made_pct": round(b.total_return, 6),
+                "made_pct": round(b.made / b.deployed, 6) if b.deployed > 0 else 0.0,
                 "days_live": len(b.curve),
                 "last_day": b.curve[-1][0].isoformat() if b.curve else None,
             }

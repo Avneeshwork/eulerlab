@@ -364,6 +364,8 @@ export type RiskDeployment = {
   made: number;
   /** Time-weighted: deposits and withdrawals are not returns. */
   since_start: number;
+  /** `made` over the money put in, the % shown beside the rupees. */
+  made_pct: number;
   today: number;
   volatility: number | null;
   var95: number | null;
@@ -405,7 +407,10 @@ export type RiskBook = {
     moved: number;
     today_pct: number;
     since_start: number;
+    /** `since_start` over the money put in. */
     since_start_pct: number;
+    /** Time-weighted growth since the start; deposits are not returns. */
+    since_start_twr: number;
     var95: number;
     var95_pct: number;
     es95: number;

@@ -252,7 +252,15 @@ export function BacktestReport({
       )}
 
       <div className="rpt-grid">
-        <Stat label="Net profit" value={money(net)} sub={pct(m.total_return)} tone={tone(net)} />
+        <Stat
+          label="Net profit"
+          value={money(net)}
+          // The % is the rupees over the money behind them, so the pair always
+          // agrees. metrics.total_return starts from the first day's close, after
+          // that day's costs, and read 58.87% beside Rs 5,87,725 on Rs 10 lakh.
+          sub={pct(net / (dep ? dep.put_in : report.starting_cash))}
+          tone={tone(net)}
+        />
         <Stat
           label="CAGR"
           value={pct(m.annualised)}

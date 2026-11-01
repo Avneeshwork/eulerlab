@@ -234,12 +234,24 @@ not that, and its Sharpe is not comparable to one from a fully-invested run.
 """
 
 
-def _metrics(equity: list[float], days: list[date], costs: float, traded: float) -> dict[str, Any]:
+def _metrics(
+    equity: list[float],
+    days: list[date],
+    costs: float,
+    traded: float,
+    *,
+    starting_cash: float | None = None,
+) -> dict[str, Any]:
     returns = [b / a - 1.0 for a, b in pairwise(equity) if a > 0]
     stats = sharpe_stats(returns)
     n = len(returns)
     years = n / TRADING_DAYS if n else 0.0
     start, end = (equity[0], equity[-1]) if equity else (0.0, 0.0)
+    # From the money the run started with, not the first day's close: that
+    # close is already net of the first day's costs, so measuring from it read
+    # 58.87% beside a rupee gain of 58.77% (T-4345).
+    if starting_cash is not None and starting_cash > 0:
+        start = starting_cash
     total = end / start - 1.0 if start > 0 else 0.0
     mean = sum(returns) / n if n else 0.0
     variance = sum((r - mean) ** 2 for r in returns) / (n - 1) if n > 2 else 0.0
@@ -369,7 +381,7 @@ def build(
 
     traded = sum(c.traded_value for c in constituents)
     costs = sum(c.costs for c in constituents)
-    metrics = _metrics(equity, days, costs, traded)
+    metrics = _metrics(equity, days, costs, traded, starting_cash=starting_cash)
 
     warnings: list[str] = []
     invested = float(metrics["invested_fraction"] or 0.0)
@@ -621,8 +633,8 @@ _HEADLINE_CACHE: dict[tuple[str, int], dict[str, Any]] = {}
 
 
 def headline(workspace: Workspace, strategy_id: str, configuration: str) -> dict[str, Any]:
-    """The few report figures a list of strategies shows: trades, win rate and
-    the period traded. Cached by the file's modification time, because a
+    """The few report figures a list of strategies shows: trades, win rate,
+    the period traded and the annual return. Cached by the file's modification time, because a
     report can be 600 KB and the list reads one per strategy on every load."""
     if not all(_safe_name(name) for name in (strategy_id, configuration)):
         return {}
@@ -637,5 +649,8 @@ def headline(workspace: Workspace, strategy_id: str, configuration: str) -> dict
             "trades": summary.get("closed"),
             "win_rate": summary.get("win_rate"),
             "period": payload.get("period") or [None, None],
+            # The report's own CAGR, so the Strategies list and the report
+            # show one annual return, not two (T-4345).
+            "annualised": (payload.get("metrics") or {}).get("annualised"),
         }
     return _HEADLINE_CACHE[key]

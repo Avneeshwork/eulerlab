@@ -434,7 +434,7 @@ function Performance({ risk, onReport }: { risk: RiskBook; onReport?: (deploymen
                   </td>
                   <td title={d.moved ? `${lakh(d.starting_capital)} at the start, ${d.moved > 0 ? '+' : '−'}${lakh(Math.abs(d.moved))} moved since` : undefined}>{lakh(d.capital)}</td>
                   <td>{lakh(d.equity)}</td>
-                  <td>{signedInr(d.made)} ({pct(d.since_start, 2, true)})</td>
+                  <td>{signedInr(d.made)} ({pct(d.made_pct, 2, true)})</td>
                   <td>{signedInr(d.today)}</td>
                   <td>{d.flat ? '—' : pct(d.volatility, 0)}</td>
                   <td>{d.flat || d.var95 === null ? '—' : inr(d.var95)}</td>

@@ -2068,6 +2068,13 @@ A second pass on 2026-10-12 timed every read route and profiled the slow ones:
 | A study run from Strategies | computed twice | once | The report-rebuild pass recomputed items that had just been computed and have no report to rebuild |
 | Paper-book update, two deployments | about 29 s | 21 s | The faster panel read; `trading_days` and `by_symbol` no longer hash or sort what is already in order. Same equity to the paisa |
 
+**The chain's forward.** The options screen prices every row with one forward
+and discount factor, fitted from put-call parity across strikes (Theil-Sen,
+`implied_forward_and_discount`). A fitted discount above 1 is a negative rupee
+rate, so it is replaced by parity with the discount fixed at 1: the forward is
+the median of `C - P + K` (`implied_forward_at_unit_discount`, T-4345). With no
+fit, the exact-expiry future is used undiscounted.
+
 None of these stores a result to reuse later. Each removes work that was being
 repeated or was never needed. `tests/test_dashboard_speed.py` checks every
 fast path against the slow one it replaced.
@@ -2370,8 +2377,12 @@ is the time-weighted return `rb.growth`:
     index(t) = index(t-1) * equity(t) / (equity(t-1) + flow(t)),   index(start) = 1
 
 the rule `TierBResult.total_return` already used. Rupees made are equity less
-the money put in (`Book.deployed` = capital + flows). Today's P&L subtracts
-that day's flow. Drawdown and the live line against the backtest band are read
+the money put in (`Book.deployed` = capital + flows). The percentage printed
+beside rupees made is those rupees over the money put in (`made_pct`,
+`since_start_pct`), so the pair always agrees; the time-weighted figure is
+`since_start` per deployment and `since_start_twr` for the book, and is what the
+backtest comparison uses (T-4345). A deployment is named by the money in it
+now, not its starting capital. Today's P&L subtracts that day's flow. Drawdown and the live line against the backtest band are read
 from the index, never from equity: the backtest has no flows, and a withdrawal
 is not a drawdown.
 

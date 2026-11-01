@@ -305,9 +305,16 @@ def _paper_rows(now: datetime, closed: frozenset[date]) -> Iterable[Row]:
         if spec.get("status") != "active":
             continue
         state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+        # The money put in now (capital plus applied flows), as Live & Risk
+        # counts it; the starting capital alone went stale after a deposit.
+        put_in = float(spec.get("capital", 0)) + sum(
+            float(flow.get("amount") or 0)
+            for flow in state.get("flows") or []
+            if flow.get("applied_day")
+        )
         row = judge(
             group="Paper trading",
-            name=f"{spec.get('strategy_id')} · ₹{float(spec.get('capital', 0)):,.0f}",
+            name=f"{spec.get('strategy_id')} · ₹{put_in:,.0f} in",
             last=str(state.get("traded_through") or ""),
             cadence="nse",
             now=now,

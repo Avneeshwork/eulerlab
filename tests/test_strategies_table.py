@@ -61,3 +61,23 @@ def test_the_row_shows_its_latest_run_not_the_ledgers_older_sharpe(
 
     monkeypatch.setattr(result_store, "latest", lambda *a, **k: None)
     assert server._headline_sharpe(resolve(None), row, {}) == 1.2667
+
+
+def test_the_annual_return_is_the_reports_own_cagr(monkeypatch: Any) -> None:
+    """The list divided by calendar years (+12.8%) while the report divides
+    trading days by 252 (13.14%) for the same run (T-4345)."""
+    from eulerlab import benchmark, reports
+
+    monkeypatch.setattr(
+        reports,
+        "headline",
+        lambda *_: {
+            "trades": 5,
+            "win_rate": 0.6,
+            "period": ["2022-12-30", "2026-10-30"],
+            "annualised": 0.131447,
+        },
+    )
+    monkeypatch.setattr(benchmark, "nifty_return", lambda *_: 0.3)
+    row = item(result={"total_return": 0.587725, "configuration": "cfg"})
+    assert server._table_figures(resolve(None), row, 2.9)["annual_return"] == 0.1314

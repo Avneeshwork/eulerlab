@@ -51,6 +51,17 @@ def _sources(used: list[dict[str, Any]]) -> list[str]:
     return seen
 
 
+def _plural(kind: str, count: int) -> str:
+    """ "19 hypotheses", not "19 hypothesiss" (T-4345)."""
+    if count == 1:
+        return kind
+    if kind.endswith("sis"):
+        return kind[:-3] + "ses"
+    if kind.endswith(("s", "x", "ch", "sh")):
+        return kind + "es"
+    return kind + "s"
+
+
 def run(ctx: Context) -> WorkerResult:
     entries = knowledge_index.load(root=ctx.root)
     question = str(ctx.args.get("question") or "").strip()
@@ -58,7 +69,7 @@ def run(ctx: Context) -> WorkerResult:
         kinds: dict[str, int] = {}
         for e in entries:
             kinds[e.kind] = kinds.get(e.kind, 0) + 1
-        parts = ", ".join(f"{v} {k}s" for k, v in sorted(kinds.items()))
+        parts = ", ".join(f"{v} {_plural(k, v)}" for k, v in sorted(kinds.items()))
         return WorkerResult(f"index holds {len(entries)} entries: {parts}", data={"kinds": kinds})
 
     from eulerlab.assistant import chat

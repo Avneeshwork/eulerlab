@@ -103,7 +103,7 @@ def _events(now_ist_day: str) -> list[dict[str, Any]]:
     try:
         from eulerlab.ingest import forexfactory
 
-        events = forexfactory.read_all(stale_ok=True)
+        events = forexfactory.latest_schedule(forexfactory.read_all(stale_ok=True))
     except Exception:
         return []
     out = []

@@ -191,6 +191,9 @@ def test_a_date_with_cash_but_no_derivatives_is_flagged(tmp_path: Path) -> None:
     findings = check_segment_coverage(path)
     assert findings
     assert "fo" in findings[0].detail
+    # Carried by the missing segment, so the F&O grade drops and cash's does
+    # not (T-4345).
+    assert findings[0].segment == "fo"
 
 
 def test_a_complete_day_is_not_flagged(tmp_path: Path) -> None:
