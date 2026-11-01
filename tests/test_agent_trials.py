@@ -164,6 +164,11 @@ def test_the_lab_sends_a_survivor_to_the_inbox(
     monkeypatch.setattr(panel, "read_panel", lambda *a, **k: rows)
     monkeypatch.setattr(trials, "TRIALS_PATH", tmp_path / "trials.jsonl")
     monkeypatch.setattr(contract, "guard", lambda *a, **k: [])
+    # The synthetic panel's signal is perfect, so its Sharpe is far above what the
+    # doctor trusts (ADR-113); raise the line here to test the survivor path.
+    from eulerlab.agents import doctor
+
+    monkeypatch.setattr(doctor, "SUSPECT_SHARPE", 1e9)
     card = _card(tmp_path, ONE)
     agents = {"lab": effective(all_effective()["lab"].spec, None)}
     out = runtime.run(
@@ -176,6 +181,27 @@ def test_the_lab_sends_a_survivor_to_the_inbox(
         "lab", args={"card": str(card.parent)}, root=tmp_path / "agents", agents=agents, now=NOW
     )
     assert "0 card(s) tested" in again.summary
+
+
+def test_a_sharpe_too_good_to_trust_never_survives(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.agents import doctor
+    from eulerlab.features import panel, trials
+    from eulerlab.quality import contract
+
+    rows = _panel()
+    monkeypatch.setattr(panel, "read_panel", lambda *a, **k: rows)
+    monkeypatch.setattr(trials, "TRIALS_PATH", tmp_path / "trials.jsonl")
+    monkeypatch.setattr(contract, "guard", lambda *a, **k: [])
+    card = _card(tmp_path, ONE)
+    agents = {"lab": effective(all_effective()["lab"].spec, None)}
+    out = runtime.run(
+        "lab", args={"card": str(card.parent)}, root=tmp_path / "agents", agents=agents, now=NOW
+    )
+    assert "0 survived" in out.items[0].title
+    log = (tmp_path / "agents" / doctor.FOLDER / doctor.LOG).read_text()
+    assert "suspicious" in log
 
 
 def test_the_lab_cannot_be_started_from_the_web_page() -> None:

@@ -66,19 +66,26 @@ Verify: `uv run pytest -q tests/test_brief_content.py tests/test_board_meetings.
 
 ## Idea lab: many ideas daily, memory, handoff with research (2026-11-01)
 
-Operator: "i want it to be most impactful agent which bring lot of trading ideas daily and coperate with research agent properly", "make it intelligent day by day"; approved the plan with "yes". ADR-110, HISTORY #47.
+Operator: "i want it to be most impactful agent which bring lot of trading ideas daily and coperate with research agent properly", "make it intelligent day by day"; approved the plan with "yes". ADR-111, HISTORY #47.
 Verify: `uv run pytest -q tests/test_idea_lab.py tests/test_agent_trials.py`; then on the Mac `make agents-ideas` and open the Idea lab card.
 
 | ID | Task | Status |
 |---|---|---|
-| T-4305 | Lab writes its own formula cards daily from 13 signal families (`config/idea_families.yaml`), planned by Thompson sampling, flips, combinations and window variants | DONE 2026-11-01. `research/idea_generator.py` |
-| T-4306 | Lab memory of every card tested, lessons that cite it, feedback for research | DONE 2026-11-01. `research/idea_memory.py`, `data/agents/memory/lab_ideas.jsonl` |
-| T-4307 | Lab reads every untested research draft, not only the latest run; research stops marking buildable drafts as waiting for data, takes its topic and lessons from the lab, and skips papers already judged not relevant | DONE 2026-11-01 |
-| T-4308 | `make agents-ideas` every day 17:00 IST; install with `make schedule ACTION=install JOB=agents-ideas` and the `launchctl load -w` line it prints | TODO. Operator |
-| T-4309 | Measure the lab's seconds per card on the full panel after the first `make agents-ideas`; set `max_ideas` and `max_minutes` from it | IN PROGRESS. First run 2026-11-01: about 3 minutes per own idea, 5 for a two-feature draft, so 90 minutes covers about 25 to 30 cards |
-| T-4312 | One lab run at a time: a lock so overlapping runs cannot test, and pay for, the same idea twice | DONE 2026-11-01. RUNBOOKS/idea-lab-two-runs-at-once.md |
-| T-4310 | Store the lab's backtest curves where the gate's family count and Romano-Wolf can see them (with T-4301) | TODO |
-| T-4311 | Families need inputs the formula language lacks (fundamentals, sector-relative ranks, calendar); each needs a tested input before a family can use it | TODO |
+| T-4320 | Lab writes its own formula cards daily from 13 signal families (`config/idea_families.yaml`), planned by Thompson sampling, flips, combinations and window variants | DONE 2026-11-01. `research/idea_generator.py` |
+| T-4321 | Lab memory of every card tested, lessons that cite it, feedback for research | DONE 2026-11-01. `research/idea_memory.py`, `data/agents/memory/lab_ideas.jsonl` |
+| T-4322 | Lab reads every untested research draft, not only the latest run; research stops marking buildable drafts as waiting for data, takes its topic and lessons from the lab, and skips papers already judged not relevant | DONE 2026-11-01 |
+| T-4323 | `make agents-ideas` every day 17:00 IST; install with `make schedule ACTION=install JOB=agents-ideas` and the `launchctl load -w` line it prints | TODO. Operator |
+| T-4324 | Measure the lab's seconds per card on the full panel after the first `make agents-ideas`; set `max_ideas` and `max_minutes` from it | IN PROGRESS. First run 2026-11-01: about 3 minutes per own idea, 5 for a two-feature draft, so 90 minutes covers about 25 to 30 cards |
+| T-4327 | One lab run at a time: a lock so overlapping runs cannot test, and pay for, the same idea twice | DONE 2026-11-01. RUNBOOKS/idea-lab-two-runs-at-once.md |
+| T-4325 | Store the lab's backtest curves where the gate's family count and Romano-Wolf can see them (with T-4301) | TODO |
+| T-4328 | Liquidity floor (Rs 1 crore) on generated cards and their IC screen; survival against Nifty; the first run's unfloored cards not learned from | DONE 2026-11-01. ADR-112, HISTORY #48 |
+| T-4329 | Store which stocks each lab backtest held, so a high Sharpe can be traced to the names behind it | TODO |
+| T-4326 | Families need inputs the formula language lacks (fundamentals, sector-relative ranks, calendar); each needs a tested input before a family can use it | TODO |
+| T-4330 | Doctor after every agent run: close dead runs, flag too-good results, note model outages, route data refusals, queue crashes for engineering | DONE 2026-11-01. ADR-113, `agents/doctor.py` |
+| T-4331 | Engineering agent fixes queued code problems on Claude Opus, one file and its test, on an `agent-fix/<id>` branch proven by lint, types, tests and the engine self-test | DONE 2026-11-01. ADR-113, `devtools/fixer.py`; merge with `make agent-fix-apply ID=<id>` |
+| T-4332 | Daily code quality check (ruff, mypy, pytest) in `make agents-close`, findings queued for engineering | DONE 2026-11-01 |
+| T-4333 | Measure a real fix: seconds and cost per attempt on the operator's machine, and how many come back green | TODO. After the first queued problem |
+| T-4334 | Fixes that need two files (a caller and a callee) are reported, not fixed; decide after a month of the doctor log whether to allow a second file | TODO |
 
 ## Metrics library: how to answer (2026-10-31)
 
@@ -201,7 +208,7 @@ Verify: `uv run pytest -q tests/test_agent_grounding.py`; `make agent-eval ONLY=
 | T-4191 | Split the knowledge index into chunks with a context note each; measure recall before adding embeddings | TODO |
 | T-4192 | Approve/dismiss counts per agent on the AI tab | TODO |
 | T-4193 | Idea lab: test drafts within 5 trials a week (IC screen, then backtest), skeptic, inbox | DONE. ADR-089; `make agent NAME=lab`; `tests/test_agent_trials.py`. Runs Sundays after research |
-| T-4194 | First real lab run on the operator's machine, after a live research run | DONE 2026-11-01: it tested 0 cards (HISTORY #47); fixed by T-4305 to T-4307 |
+| T-4194 | First real lab run on the operator's machine, after a live research run | DONE 2026-11-01: it tested 0 cards (HISTORY #47); fixed by T-4320 to T-4322 |
 ## Market microdata: NSE reports, Nifty minutes, order book (2026-10-30)
 
 Operator: "look for all other data, scrap and store, look for orderbook data also if we can get historical data of last 1 year nifty 50 minute level, ensure uploading copy on b2 and delete from local"; then "I am asking for market order data"; then, on the ScanX comparison, "yes lets have all these data". Research 130, ADR-095.

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty-seven times this project was wrong
+## Forty-eight times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -389,7 +389,11 @@ figure produced outside the result store before this date was frictionless.
 
 **46. The weekend note could not be found in the workbench.** (2026-10-31) The operator wrote "i can't see weekly brief" the evening it shipped (ADR-105). The note was written and served. Two things hid it. A later run on the same closed day (a Run press, or the evening job) returned "skipped: already written", so the agent card showed a skip and no brief. And "Open the brief" opened the AI tab on Live, not on Market brief. Fixed: every closed-day run writes and shows the note, and only the Telegram message is limited to one per break; "Open the brief" goes to `#agents/brief`, the Market brief view. No stored number was affected.
 
-**47. The idea lab never tested an idea.** (2026-11-01) ADR-089 built the lab to test the research agent's drafts, and ADR-107 lifted its trial limit, but its first run on the operator's Mac tested 0 cards and the trial log holds no `agent|` row. Three causes. It read only the research agent's latest run, whose one draft named a feature the library lacks (`liquidity_beta`). The research agent flagged that draft as waiting for minute bars, delivery and futures data because of words in its abstract, and the lab skips such drafts, so the previous run's buildable draft (1-month reversal and turnover) was never looked at. And research made about one draft a run from one fixed topic, re-reading the same abstracts. Fixed (ADR-110): the lab writes its own formula cards from 13 signal families every day, keeps a memory of every test, reads every untested draft, and hands research its feedback; a draft whose features the library can build is never marked as waiting for data. No stored number depended on it: the lab had produced none.
+**47. The idea lab never tested an idea.** (2026-11-01) ADR-089 built the lab to test the research agent's drafts, and ADR-107 lifted its trial limit, but its first run on the operator's Mac tested 0 cards and the trial log holds no `agent|` row. Three causes. It read only the research agent's latest run, whose one draft named a feature the library lacks (`liquidity_beta`). The research agent flagged that draft as waiting for minute bars, delivery and futures data because of words in its abstract, and the lab skips such drafts, so the previous run's buildable draft (1-month reversal and turnover) was never looked at. And research made about one draft a run from one fixed topic, re-reading the same abstracts. Fixed (ADR-111): the lab writes its own formula cards from 13 signal families every day, keeps a memory of every test, reads every untested draft, and hands research its feedback; a draft whose features the library can build is never marked as waiting for data. No stored number depended on it: the lab had produced none.
+
+**48. The idea lab's first results came from stocks that barely trade.** (2026-11-01) The first `make agents-ideas` reported robust Sharpe 5.6 for 21-day low volatility and 3.5 for the share of up days, with no skeptic objection, and called anything with a positive Sharpe a survivor. ADR-111 generated cards without a turnover floor, although `RankAndHold` has documented since Sprint 8 that an unfiltered top-30 book buys stocks trading a few thousand rupees a day, and a long-only book has a positive Sharpe from the market alone. Fixed (ADR-112): a Rs 1 crore floor on every generated card and in its IC screen, survival judged against Nifty, and the first run's own cards left out of the lab's learning. Every number from the lab's runs on 2026-11-01 before this fix is invalid; none reached the gate.
+
+**49. A crashed agent's notes showed where the run started, not where it broke.** (2026-11-01) Since ADR-085 the runtime kept `traceback.format_exc(limit=4)`, which is the four outermost frames: the runtime and the worker's top, rarely the line that raised. Found while building the doctor (ADR-113), which needs the deepest frame to know which file to fix. Now the last six frames are kept. Crash notes in earlier run folders may not name the failing file; no number depended on them.
 
 ---
 

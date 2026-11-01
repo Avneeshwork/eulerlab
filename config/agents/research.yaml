@@ -1,5 +1,5 @@
 # The research agent (ADR-085): the paper agent (ADR-084) plus a librarian pass.
-# Since ADR-110 it runs daily and takes its topic from the idea lab's feedback
+# Since ADR-111 it runs daily and takes its topic from the idea lab's feedback
 # when no brief names one; `topic` below is the fallback.
 name: research
 title: Research agent

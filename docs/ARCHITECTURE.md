@@ -2339,7 +2339,7 @@ waits a day to show the drawdown.
 | `com.eulerlab.briefweekend` | 09:30 Saturday and Sunday | `make agent NAME=market_brief`: the markets-closed note, once per break (ADR-105) |
 | `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, knowledge keeper, handbook). The after-close note runs in `make daily` once the day's data is in (ADR-105) |
 | `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, code review) |
-| `com.eulerlab.agentsideas` | 17:00 every day | `make agents-ideas` (research, then the idea lab; ADR-110) |
+| `com.eulerlab.agentsideas` | 17:00 every day | `make agents-ideas` (research, then the idea lab; ADR-111) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
@@ -2712,13 +2712,13 @@ Each output records a fingerprint of the prompts it ran under, so a changed
 score can be traced to a prompt change. `make agent-eval` runs weekly in
 `agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
 
-### The idea lab and the agents' trial allowance (ADR-089, ADR-110)
+### The idea lab and the agents' trial allowance (ADR-089, ADR-111)
 
 **No weekly limit since 2026-10-31 (ADR-107).** `per_week: null` in
 `config/agent_trials.yaml`; a number puts a cap back. Every trial is still logged
 before its result is read.
 
-**Daily, with its own ideas and a memory, since 2026-11-01 (ADR-110).**
+**Daily, with its own ideas and a memory, since 2026-11-01 (ADR-111).**
 
 ```
  17:00 IST  make agents-ideas
@@ -2752,6 +2752,15 @@ before its result is read.
 | Feedback | `idea_memory.feedback` | Families working / dead / untried, features drafts lacked, paper topics in order |
 
 Only one lab run tests at a time: it holds `data/agents/lab.running` (taken over after 4 hours).
+
+**Liquidity floor and Nifty (ADR-112).** Every generated card sets `min_turnover`
+(Rs 1 crore on the day, `config/idea_families.yaml`); its IC screen applies the
+card's lowest floor (`ic.evaluate(min_turnover=)`), so screen and backtest judge
+the same stocks. A survivor needs robust Sharpe > 0, no critical skeptic finding,
+and a positive Sharpe of its daily return over NIFTYBEES on 250+ shared days.
+Planning and lessons read only `idea_memory.usable` experiences: research drafts
+and own cards at today's floor. Unbuildable drafts are listed in the feedback and
+never take a draft slot.
 A family is called dead after 4 cards with none through the screen, and its
 search phrase leaves the topic list. The lab stops starting new cards after
 `max_minutes` (90); what is left is planned again the next day because it is
@@ -2763,6 +2772,34 @@ before its result is read, so `budget.searches_run` and the noise bar count it.
 `workers/lab.py` imports it (test-enforced). The lab reads the whole panel, so
 the web page refuses to start it; it runs from `make agent NAME=lab` and
 `make agents-ideas`.
+
+### The doctor and the engineering fixer (ADR-113)
+
+After every agent run, `runtime.run` calls `agents/doctor.after_run(output)`. It never raises and takes remedies only from `doctor.REMEDIES`:
+
+| Problem | How it is seen | Remedy |
+|---|---|---|
+| stalled | a run folder (`YYYYMMDDTHHMMSSZ-xxxxxx`) with no `output.json` and no step for 3 hours | write a failed `output.json`, so the card stops saying running |
+| suspicious | a lab result with robust Sharpe above 3 or IC t above 10 | flagged in the doctor log; the lab also adds it as a critical finding, so it cannot survive |
+| model_down | "no model ideas today" or a refusal in the notes | noted; the next run tries again |
+| data_refused | a refused run whose summary names grade or data | logged as a data request |
+| code_error | a failed run whose traceback has a `src/eulerlab` frame | queued for engineering under the deepest such frame (`data/agents/doctor/code_queue.jsonl`) |
+
+The runtime keeps the last six traceback frames, so the deepest frame is the one that raised.
+
+`engineering --arg mode=quality` (in `make agents-close`) runs ruff, mypy and pytest over the repository and queues one finding per file. `mode=fix` (and `mode=quality` after the check) takes up to `max_fixes` queued files and hands each to `devtools/fixer.fix`:
+
+    refuse NEVER (gate, mandate, oms, broker, deploy, validation, trials ledger, boundaries, env, devtools, config, .env)
+      -> git worktree on agent-fix/<id> from HEAD
+      -> Claude Opus: CLAUDE.md + ARCHITECTURE sections naming the file + file + first test importing it + error
+         -> JSON {explanation, file, test}
+      -> git diff must name only the file and that test
+      -> ruff, ruff format --check, mypy (file), pytest (its tests), backtest self-test
+      -> red: one retry with the failures; still red: a finding for the operator
+      -> green: commit, push the branch, a proposal "fix ready" with `make agent-fix-apply ID=<id>`
+      -> worktree removed in every case
+
+The fixer runs only fixed commands with fixed arguments; the model's text is written to files in the worktree, never to a shell. It refuses to run when Claude Opus is not reachable rather than use a weaker model. `agents/boundaries.fixer_users` holds the fixer to `engineering.py`.
 
 ## The data quality contract (ADR-086)
 

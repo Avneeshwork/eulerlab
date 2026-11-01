@@ -1,4 +1,4 @@
-"""The idea lab's own ideas: formula cards from the signal families, steered by its memory (ADR-110).
+"""The idea lab's own ideas: formula cards from the signal families, steered by its memory (ADR-111).
 
     config/idea_families.yaml  (families: a reason, templates, windows)
     memory (research/idea_memory.py)
@@ -69,6 +69,8 @@ class Families(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     top_n: int = Field(default=30, ge=5, le=200)
+    min_turnover: float = Field(default=0.0, ge=0.0)
+    """Rupees of turnover on the day for a stock to be eligible (ADR-112)."""
     families: dict[str, Family]
 
 
@@ -404,7 +406,13 @@ def model_prompt(
 
 
 def card(
-    idea: Idea, *, top_n: int, holdout_starts: date, day: date, paper: str = ""
+    idea: Idea,
+    *,
+    top_n: int,
+    holdout_starts: date,
+    day: date,
+    paper: str = "",
+    min_turnover: float = 0.0,
 ) -> dict[str, Any]:
     """The card for one idea: the claim, the family's reason, one configuration, red flags."""
     shown = idea.feature.removeprefix(formula.PREFIX)
@@ -421,13 +429,14 @@ def card(
             "beats Nifty after realistic costs."
         ),
         "rationale": idea.reason + (f" Best-known study: {paper}." if paper else ""),
-        "source": {"generated_by": "idea lab (ADR-110)", "day": day.isoformat()},
+        "source": {"generated_by": "idea lab (ADR-111)", "day": day.isoformat()},
         "configurations": [
             {
                 "shape": "rank_and_hold",
                 "feature": idea.feature,
                 "top_n": top_n,
                 "rebalance": idea.rebalance,
+                **({"min_turnover": min_turnover} if min_turnover else {}),
             }
         ],
         "red_flags": [
@@ -450,11 +459,16 @@ def write_cards(
     holdout_starts: date,
     folder: Path = FOLDER,
 ) -> list[tuple[Idea, Path]]:
-    """One folder per idea under `folder/<day>/`. An existing card is left as it is."""
+    """One folder per idea under `folder/<day>/`. An existing card is left as it is.
+
+    The folder name carries the liquidity floor, so a card written before the
+    floor existed is never reused for the same idea with one (ADR-112).
+    """
     out: list[tuple[Idea, Path]] = []
     base = folder / day.isoformat()
+    floor = f"-liq{families.min_turnover:.0f}" if families.min_turnover else ""
     for idea in ideas:
-        target = base / idea.slug
+        target = base / f"{idea.slug}{floor}"
         path = target / "card.yaml"
         if not path.exists():
             target.mkdir(parents=True, exist_ok=True)
@@ -465,6 +479,7 @@ def write_cards(
                 holdout_starts=holdout_starts,
                 day=day,
                 paper=fam.paper if fam else "",
+                min_turnover=families.min_turnover,
             )
             path.write_text(yaml.safe_dump(spec, sort_keys=False, allow_unicode=True), "utf-8")
         out.append((idea, path))
