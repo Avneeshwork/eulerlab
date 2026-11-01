@@ -401,14 +401,31 @@ def agent_outputs(name: str, limit: int = 10) -> dict[str, Any]:
     }
 
 
+QUALITY_TTL_SECONDS = 120.0
+"""How long one grading answers the Data quality screen. Grading reads every
+manifest and the coverage table, 2.2 to 3.7 s on the operator's Mac
+(2026-11-01, T-4369), and its inputs change when data lands, a few times a
+day. `refresh=true` grades again at once."""
+
+_QUALITY: dict[str, Any] = {}
+
+
 @router.get("/api/quality")
-def quality() -> dict[str, Any]:
+def quality(refresh: bool = False) -> dict[str, Any]:
+    import time
+
     from eulerlab.quality import contract, quarantine
 
-    grades = contract.grade_all()
-    contract.save(grades)
+    now = time.monotonic()
+    cached = _QUALITY.get("grades")
+    if refresh or cached is None or now - _QUALITY.get("at", 0.0) > QUALITY_TTL_SECONDS:
+        cached = contract.grade_all()
+        contract.save(cached)
+        _QUALITY.update(grades=cached, at=now, graded_at=datetime.now(UTC).isoformat())
+    grades = cached
     return {
         "ok": True,
+        "graded_at": _QUALITY.get("graded_at"),
         "grades": [g.as_dict() for g in grades],
         "held": [
             {"dataset": r.dataset, "path": r.path, "reason": r.reason, "at": r.at, "by": r.by}

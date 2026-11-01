@@ -16,7 +16,9 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4344 | STATE.md back to one page; README check and test counts | DONE |
 | T-4345 | Check every workbench page against real data on the operator's Mac | DONE — all screens load, no console errors, every call 200; prices, FII/DII, chain and paper equity match the files; eight fixes (HISTORY #56). Not checked: raw cash/delivery/participant files (in B2 only), TradingView embeds, action buttons |
 | T-4368 | Kite access token expired (`TokenException`): live quotes off and India minute bars stop at 29 Oct; FYERS not logged in | TODO. Operator: log in from Instruments → Kite (or `make kite-login`) |
-| T-4369 | Crypto 1-minute bars two days behind; `/api/history` for BTCUSDT takes 8.8 s and AI → Data quality 2.4 s | TODO |
+| T-4369 | Crypto 1-minute bars two days behind; `/api/history` for BTCUSDT takes 8.8 s and AI → Data quality 2.4 s | DONE — the filler asked for no days on the 1st; day files beside month files were read twice (volume doubled, HISTORY #57); daily bars cached per file; quality graded once per 2 minutes. `tests/test_crypto_day_files.py`, `tests/test_quality_route_cache.py`. 30 and 31 Oct land on the next daily run (T-4376) |
+| T-4376 | After the next `com.eulerlab.daily` run: BTCUSDT's newest bar is yesterday, and `/api/history` for BTCUSDT answers in under 2 s on its second load | TODO. Check on the Mac |
+| T-4377 | Rerun any crypto backtest or intraday crypto paper whose window touches 1 Aug to 29 Sep 2026 and compare with the stored result (HISTORY #57) | TODO |
 | T-4373 | The UI polls `/api/agents/activity` and `/inbox` every 2–3 s | TODO. Slow it, or poll only while the AI tab is open |
 | T-4374 | Idea lab "NOW" card names a card started 57 minutes earlier, and the same card shows again 2 minutes ago | TODO |
 | T-4375 | Economic calendar had nothing past 31 Oct: the daily feed that fetches it was not scheduled (T-4356); it lands again on the next daily run | TODO. Check after the next `com.eulerlab.daily` run |

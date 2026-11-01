@@ -31,9 +31,17 @@ def symbols() -> list[str]:
 
 
 def _months(symbol: str) -> list[str]:
+    """The pair's files, without day files its month file already covers
+    (`crypto.without_superseded`; reading both gave two candles a minute)."""
+    from eulerlab.ingest import crypto
+
     prefix = f"{TREE}/{symbol}/"
-    return sorted(
-        p for p in landing_reader.available(TREE, f"{symbol}/*.jsonl.gz") if p.startswith(prefix)
+    return crypto.without_superseded(
+        sorted(
+            p
+            for p in landing_reader.available(TREE, f"{symbol}/*.jsonl.gz")
+            if p.startswith(prefix)
+        )
     )
 
 

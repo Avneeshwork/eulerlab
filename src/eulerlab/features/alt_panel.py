@@ -87,53 +87,18 @@ def crypto_daily(
         folder = root / symbol
         if not folder.is_dir():
             continue
-
-        # (open, high, low, close, volume) accumulated per day.
+        files = crypto.without_superseded(p.as_posix() for p in sorted(folder.glob("*.jsonl.gz")))
         days: dict[date, list[float]] = {}
-        for path in sorted(folder.glob("*.jsonl.gz")):
+        for name in files:
             try:
-                with gzip.open(path, "rt", encoding="utf-8") as handle:
-                    for line in handle:
-                        if not line.strip():
-                            continue
-                        row = json.loads(line)
-                        when = datetime.fromisoformat(str(row["event_time"])).date()
-                        if start and when < start:
-                            continue
-                        close = float(row["close"])
-                        entry = days.get(when)
-                        if entry is None:
-                            days[when] = [
-                                float(row["open"]),
-                                float(row["high"]),
-                                float(row["low"]),
-                                close,
-                                float(row["volume"]),
-                            ]
-                        else:
-                            entry[1] = max(entry[1], float(row["high"]))
-                            entry[2] = min(entry[2], float(row["low"]))
-                            entry[3] = close  # last close of the day wins
-                            entry[4] += float(row["volume"])
+                with gzip.open(name, "rt", encoding="utf-8") as handle:
+                    rolled = _crypto_rollup(handle.read())
             except Exception:
                 # A month that cannot be read is skipped, not fatal. One
                 # damaged file must not cost the other 1,199.
                 continue
-
-        for when, (open_, high, low, close, volume) in sorted(days.items()):
-            rows.append(
-                PanelRow(
-                    day=when,
-                    symbol=symbol,
-                    close=close,
-                    volume=volume,
-                    turnover=close * volume,
-                    isin=f"CRYPTO:{symbol}",
-                    open=open_,
-                    high=high,
-                    low=low,
-                )
-            )
+            _merge_days(days, rolled, start)
+        rows.extend(_crypto_rows(symbol, days))
     return rows
 
 
@@ -363,10 +328,9 @@ def _fx_row(pair: str, bars: Sequence[object], start: date | None) -> PanelRow |
 def _crypto_from_cloud(symbols: list[str], start: date | None) -> list[PanelRow]:
     """Daily bars built from the landed archive, fetched from B2 when pruned.
 
-    Same aggregation as the on-disk path — last close of the day wins, volume
-    sums, turnover is close x volume - deliberately duplicated rather than
-    shared, because the two differ only in how bytes arrive and merging them
-    behind a flag made the disk path harder to read for no gain.
+    Same aggregation as the on-disk path (`_crypto_rollup`): last close of the
+    day wins, volume sums, turnover is close x volume. Each file's daily bars
+    are kept in `ROLLUP_CACHE`, so a file is downloaded once, not per load.
 
     Only months that could straddle `start` are opened. The archive is 1,200
     symbol-months; fetching all of them to answer a ten-day question would
@@ -381,61 +345,179 @@ def _crypto_from_cloud(symbols: list[str], start: date | None) -> list[PanelRow]
             by_symbol.setdefault(parts[1], []).append(relative)
 
     cutoff = f"{start:%Y-%m}" if start else ""
+    wanted: dict[str, list[str]] = {}
     for symbol in symbols:
-        days: dict[date, list[float]] = {}
-        for relative in sorted(by_symbol.get(symbol, [])):
+        files = []
+        for relative in crypto.without_superseded(sorted(by_symbol.get(symbol, []))):
             # Filenames carry the month, so a month entirely before `start` is
             # skipped without being downloaded. Matched rather than sliced: the
             # first version took `[-15:-9]` and got "026-07", which sorted below
             # every real cutoff and skipped the entire archive.
-            stamp = re.search(r"(\d{4}-\d{2})\.jsonl\.gz$", relative)
+            stamp = re.search(r"(\d{4}-\d{2})(?:-\d{2})?\.jsonl\.gz$", relative)
             if cutoff and stamp and stamp.group(1) < cutoff:
                 continue
-            try:
-                payload = gzip.decompress(landing_reader.read(relative))
-            except Exception:
-                continue
-            for line in payload.decode("utf-8", errors="replace").splitlines():
-                if not line.strip():
-                    continue
-                try:
-                    row = json.loads(line)
-                    when = datetime.fromisoformat(str(row["event_time"])).date()
-                    if start and when < start:
-                        continue
-                    close = float(row["close"])
-                    entry = days.get(when)
-                    if entry is None:
-                        days[when] = [
-                            float(row["open"]),
-                            float(row["high"]),
-                            float(row["low"]),
-                            close,
-                            float(row["volume"]),
-                        ]
-                    else:
-                        entry[1] = max(entry[1], float(row["high"]))
-                        entry[2] = min(entry[2], float(row["low"]))
-                        entry[3] = close
-                        entry[4] += float(row["volume"])
-                except Exception:
-                    continue
+            files.append(relative)
+        wanted[symbol] = files
 
-        for when, (open_, high, low, close, volume) in sorted(days.items()):
-            rows.append(
-                PanelRow(
-                    day=when,
-                    symbol=symbol,
-                    close=close,
-                    volume=volume,
-                    turnover=close * volume,
-                    isin=f"CRYPTO:{symbol}",
-                    open=open_,
-                    high=high,
-                    low=low,
-                )
-            )
+    rollups = _rollups([f for files in wanted.values() for f in files])
+    for symbol in symbols:
+        days: dict[date, list[float]] = {}
+        for relative in wanted[symbol]:
+            rolled = rollups.get(relative)
+            if rolled is not None:
+                _merge_days(days, rolled, start)
+        rows.extend(_crypto_rows(symbol, days))
     return rows
+
+
+_Bar = tuple[float, float, float, float, float]
+
+ROLLUP_CACHE = Path("data/cache/crypto_daily.json")
+"""Daily bars per landed crypto file, kept between runs (T-4369).
+
+A landed file never changes (the landing zone is immutable), so its daily
+roll-up never does either. Without this, every chart load downloaded each
+month from B2 again, because `prune-local` leaves the local tree empty: 99
+downloads at about 0.5 s each, 51 to 74 s for 400 days of BTCUSDT on the
+operator's Mac (2026-11-01). Keyed by the landing-relative path; about 31
+small rows per file. Derived, so deleting it only costs one slow load."""
+
+_ROLLUPS: dict[str, dict[date, _Bar]] = {}
+_ROLLUPS_LOADED: list[Path] = []
+
+
+def _load_rollups() -> None:
+    if ROLLUP_CACHE in _ROLLUPS_LOADED:
+        return
+    _ROLLUPS_LOADED.append(ROLLUP_CACHE)
+    try:
+        stored = json.loads(ROLLUP_CACHE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    for relative, by_day in stored.items():
+        try:
+            _ROLLUPS[relative] = {
+                date.fromisoformat(day): (bar[0], bar[1], bar[2], bar[3], bar[4])
+                for day, bar in by_day.items()
+            }
+        except (TypeError, ValueError, IndexError):
+            continue  # one bad entry is read again from the archive, not trusted
+
+
+def _save_rollups() -> None:
+    payload = {
+        relative: {day.isoformat(): list(bar) for day, bar in sorted(by_day.items())}
+        for relative, by_day in sorted(_ROLLUPS.items())
+    }
+    try:
+        ROLLUP_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = ROLLUP_CACHE.with_suffix(".json.partial")
+        temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        temporary.replace(ROLLUP_CACHE)
+    except OSError:
+        pass  # a cache that cannot be written only makes the next load slow
+
+
+def _rollups(relatives: Sequence[str]) -> dict[str, dict[date, _Bar]]:
+    """Each file's daily bars: from the cache, else downloaded and rolled up.
+
+    Missing files are fetched eight at a time and not kept in the landing
+    tree (`cache=False`): the roll-up is all a daily reader needs, and keeping
+    the minutes refilled the disk `prune-local` had just emptied. A file that
+    cannot be read is left out and tried again next time.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    _load_rollups()
+    missing = [r for r in dict.fromkeys(relatives) if r not in _ROLLUPS]
+
+    def one(relative: str) -> tuple[str, dict[date, _Bar] | None]:
+        try:
+            payload = gzip.decompress(landing_reader.read(relative, cache=False))
+        except Exception:
+            return relative, None
+        return relative, _crypto_rollup(payload.decode("utf-8", errors="replace"))
+
+    if missing:
+        with ThreadPoolExecutor(8) as pool:
+            fetched = list(pool.map(one, missing))
+        added = False
+        for relative, rolled in fetched:
+            if rolled is not None:
+                _ROLLUPS[relative] = rolled
+                added = True
+        if added:
+            _save_rollups()
+    return {r: _ROLLUPS[r] for r in relatives if r in _ROLLUPS}
+
+
+def _crypto_rollup(text: str) -> dict[date, _Bar]:
+    """(open, high, low, close, volume) per UTC day, for one file's minutes.
+
+    The minutes are in time order within a file, so the first open and last
+    close of each day are the day's.
+    """
+    days: dict[date, list[float]] = {}
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+            when = datetime.fromisoformat(str(row["event_time"])).date()
+            close = float(row["close"])
+            entry = days.get(when)
+            if entry is None:
+                days[when] = [
+                    float(row["open"]),
+                    float(row["high"]),
+                    float(row["low"]),
+                    close,
+                    float(row["volume"]),
+                ]
+            else:
+                entry[1] = max(entry[1], float(row["high"]))
+                entry[2] = min(entry[2], float(row["low"]))
+                entry[3] = close  # last close of the day wins
+                entry[4] += float(row["volume"])
+        except Exception:
+            continue
+    return {when: (e[0], e[1], e[2], e[3], e[4]) for when, e in days.items()}
+
+
+def _merge_days(
+    days: dict[date, list[float]],
+    rolled: dict[date, _Bar],
+    start: date | None,
+) -> None:
+    """Fold one file's daily bars into a symbol's, files taken in name order."""
+    for when, (open_, high, low, close, volume) in rolled.items():
+        if start and when < start:
+            continue
+        entry = days.get(when)
+        if entry is None:
+            days[when] = [open_, high, low, close, volume]
+        else:
+            entry[1] = max(entry[1], high)
+            entry[2] = min(entry[2], low)
+            entry[3] = close
+            entry[4] += volume
+
+
+def _crypto_rows(symbol: str, days: dict[date, list[float]]) -> list[PanelRow]:
+    return [
+        PanelRow(
+            day=when,
+            symbol=symbol,
+            close=close,
+            volume=volume,
+            turnover=close * volume,
+            isin=f"CRYPTO:{symbol}",
+            open=open_,
+            high=high,
+            low=low,
+        )
+        for when, (open_, high, low, close, volume) in sorted(days.items())
+    ]
 
 
 def _fx_from_disk(directory: Path, pairs: list[str] | None, start: date | None) -> list[PanelRow]:
