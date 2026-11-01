@@ -384,8 +384,8 @@ def _run(ctx: Context) -> WorkerResult:
                 + (f"; skeptic: {'; '.join(b['critical'])}" if b["critical"] else "")
             )
         lines.append(
-            "Before the gate: approve the draft (make paper-agent-approve DRAFT=...) or copy the card "
-            "into hypotheses/, register it, then make gate H=<id>. The gate's noise bar already "
+            "Approve this to send it to the gate: it is registered in hypotheses/, validated and "
+            "gated, and the verdict shows under Gate runs (ADR-116). The gate's noise bar already "
             "includes these trials."
         )
         items.append(

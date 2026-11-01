@@ -2786,6 +2786,11 @@ A run with no `output.json` is *running* while its last step is under 15
 minutes old (or the web server started it), and *stopped* after that. Steps
 carry no model text, only what the code chose to say.
 
+A run the doctor closed (`data.closed_by == "doctor"`, ADR-113) also shows as
+*stopped*, not *failed*: it stopped because the Mac slept or the app closed.
+A stopped card's summary says so and gives the newest run that finished ok,
+with that run's findings, so a full run is not hidden by a later one that died.
+
 ### When a model makes something up (ADR-088)
 
 `agents/grounding.py` checks every number (two digits or more, or with a
@@ -2863,6 +2868,22 @@ before its result is read, so `budget.searches_run` and the noise bar count it.
 `workers/lab.py` imports it (test-enforced). The lab reads the whole panel, so
 the web page refuses to start it; it runs from `make agent NAME=lab` and
 `make agents-ideas`.
+
+### An approved survivor goes to the gate (ADR-116)
+
+    Inbox: approve a lab finding ("<card>: N configuration(s) survived")
+      -> promote.eligible: agent is lab, survivors >= 1, card exists, every
+         configuration has min_turnover > 0, no registered.json beside it
+      -> promote.register: hypotheses/H-NNNN.yaml (next free id, configurations
+         untouched, status draft); registered.json beside the lab card
+      -> python -m eulerlab.validation.run --hypothesis H-NNNN   (own process)
+      -> python -m eulerlab.gate_run --hypothesis H-NNNN         (own process, never --read-holdout)
+      -> data/agents/promote/H-NNNN.json: the gate's VERDICT line and both outputs
+
+One gate run at a time (`_GATE_POOL`, one worker). `GET /api/agents/promotions`
+lists them; the Inbox shows them under Gate runs. Validation builds a lab card's
+strategy with `codegen.build_one`, so a formula feature and its liquidity floor
+are validated exactly as the lab tested them.
 
 ### The doctor and the engineering fixer (ADR-113)
 

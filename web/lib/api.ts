@@ -2452,6 +2452,15 @@ export type AgentsResponse = {
   log_problem: string;
 };
 
+export type Promotion = {
+  item: string;
+  card: string;
+  hypothesis: string;
+  verdict: string;
+  started: string;
+  finished: string;
+};
+
 export type AgentItem = {
   id: string;
   agent: string;
@@ -2588,9 +2597,13 @@ export const agentsApi = {
   list: () => get<AgentsResponse>('/api/agents'),
   activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
   inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
+  promotions: () => get<{ ok: boolean; promotions: Promotion[] }>('/api/agents/promotions'),
   skepticTargets: () => get<{ ok: boolean; targets: SkepticTarget[] }>('/api/agents/skeptic/targets'),
   decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
-    post<{ ok: boolean; error?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, { decision, note }),
+    post<{ ok: boolean; error?: string; gate?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, {
+      decision,
+      note,
+    }),
   setting: (name: string, change: { enabled?: boolean; daily_requests?: number }) =>
     post<{ ok: boolean; error?: string }>(`/api/agents/${encodeURIComponent(name)}/settings`, change),
   brief: (name: string, text: string) =>

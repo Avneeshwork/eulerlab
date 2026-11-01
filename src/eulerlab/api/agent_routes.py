@@ -12,6 +12,7 @@ from __future__ import annotations
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter
@@ -141,6 +142,26 @@ FINDINGS_SHOWN = 12
 _SEVERITY_ORDER = {"critical": 0, "warn": 1, "info": 2}
 
 
+def _last_full_run(name: str, stopped: Path | None) -> tuple[str, list[dict[str, str]]]:
+    """For a run that stopped without finishing: say so, and show the newest run that did finish.
+
+    A stopped run is almost always the Mac sleeping or the app closing, not the
+    agent failing (the doctor closes such runs after 3 hours, ADR-113). Showing
+    only "failed" hid the full run before it (2026-11-01: the lab tested 22
+    cards at 10:30 IST, then a second run stopped at 10:36 and the card said failed).
+    """
+    note = "This run stopped without finishing: the Mac slept or the app was closed."
+    for output in runtime.outputs(name, limit=50):
+        if stopped is not None and output.run_id == stopped.name:
+            continue
+        if output.status == "ok":
+            return (
+                f"{note} Last full run {output.started[:16].replace('T', ' ')} UTC: {output.summary}",
+                _findings(output.items),
+            )
+    return note, []
+
+
 def _findings(items: list[runtime.Item]) -> list[dict[str, str]]:
     """A run's items, worst first and alerts before findings, as the page shows them."""
     ordered = sorted(
@@ -187,6 +208,8 @@ def agents_activity(steps: int = 40) -> dict[str, Any]:
                     )
                     state, summary, started = done.status, done.summary, done.started
                     found = _findings(done.items)
+                    if isinstance(done.data, dict) and done.data.get("closed_by") == "doctor":
+                        state = "stopped"
                 except ValueError:
                     state = "failed"
             else:
@@ -199,6 +222,8 @@ def agents_activity(steps: int = 40) -> dict[str, Any]:
                 started = trail[0]["at"] if trail else ""
         if name in _RUNNING:
             state = "running"
+        if state == "stopped":
+            summary, found = _last_full_run(name, run_dir)
         rows.append(
             {
                 "name": name,
@@ -239,7 +264,39 @@ def agents_decide(item_id: str, request: DecideRequest) -> dict[str, Any]:
         recorded = inbox.decide(item_id, request.decision, note=request.note)
     except (KeyError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
-    return {"ok": True, "decision": recorded.decision, "at": recorded.at}
+    gate = _gate_on_approve(item_id) if recorded.decision == "approved" else ""
+    return {"ok": True, "decision": recorded.decision, "at": recorded.at, "gate": gate}
+
+
+_GATE_POOL = ThreadPoolExecutor(max_workers=1, thread_name_prefix="gate")
+"""One gate run at a time: each validation reads the whole panel in its own process."""
+
+
+def _gate_on_approve(item_id: str) -> str:
+    """An approved idea-lab survivor goes to the gate with no further tap (ADR-116).
+
+    Returns what happened, for the page: queued, or why not.
+    """
+    from eulerlab.research import promote
+
+    found = inbox.find(item_id)
+    if found is None:
+        return ""
+    agent, item = found
+    try:
+        card = promote.eligible(agent, item)
+    except promote.Refused as exc:
+        return "" if agent != "lab" else f"not sent to the gate: {exc}"
+    _GATE_POOL.submit(promote.gate, item_id, card)
+    return "sent to the gate: registering, validating and gating it now"
+
+
+@router.get("/api/agents/promotions")
+def agents_promotions() -> dict[str, Any]:
+    """Approved survivors sent to the gate, newest first, with each verdict (ADR-116)."""
+    from eulerlab.research import promote
+
+    return {"ok": True, "promotions": promote.results()}
 
 
 @router.get("/api/agents/log")
