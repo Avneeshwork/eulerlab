@@ -1297,6 +1297,20 @@ The selected page or view is a raised white thumb on a grey track, as in iOS.
 `--surface-solid` is for what must hide the page; dialogs use heavier glass.
 Dark mode redefines tokens only, apart from three hover tints.
 
+## 7.0a The Charts page (ADR-114)
+
+NSE symbols are drawn only by `OwnChart` from `/api/history`, the same bars a
+backtest reads; other venues use TradingView's free embed. The chart's
+drawings (horizontal, vertical, trend) are stored as prices and dates, not
+pixels, so they stay put through zoom, scroll and the log scale; an SVG layer
+over the price pane converts them on every redraw. Clicks are read from the
+DOM, because the library drops a second click within 500 ms while it waits for
+a double click. Indicators come from `web/lib/indicators.ts`: SMA; EMA seeded
+with the SMA, k = 2/(n+1); RSI with Wilder's smoothing; MACD 12/26/9;
+Bollinger with the population standard deviation. The macro charts plot
+`macro.all_series`: one point per sweep, last six months, skipping the fake
+DXY test row.
+
 ## 7.1 The strategy builder
 
 Tools → Strategy Builder (`web/components/terminal/StrategyBuilder.tsx`,

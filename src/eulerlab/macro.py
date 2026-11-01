@@ -253,6 +253,8 @@ def series(name: str, *, days: int = 90, root: Path = HISTORY) -> list[tuple[str
             except json.JSONDecodeError:
                 continue
             if row.get("name") == name and isinstance(row.get("last"), (int, float)):
+                if _is_test_row(row):
+                    continue
                 out.append((str(row.get("at", "")), float(row["last"])))
     out.sort(key=lambda pair: pair[0])
     return out
@@ -291,4 +293,48 @@ def _days(root: Path) -> list[tuple[str, str]]:
         except Exception:
             continue
         out.append((Path(relative).stem, text))
+    return out
+
+
+def _is_test_row(row: dict[str, object]) -> bool:
+    """The reading a test wrote into the real history until 2026-11-01.
+
+    `test_indices` appended this exact Dollar Index row to the day's file on
+    every `make verify` (HISTORY #50). Landing files are immutable, so the rows
+    stay on disk and in the bucket and are skipped here. A real sweep matching
+    all three fields to the last digit is not expected.
+    """
+    return (
+        row.get("symbol") == "TVC:DXY" and row.get("last") == 98.9 and row.get("change_pct") == 0.15
+    )
+
+
+def all_series(*, days: int = 180, root: Path = HISTORY) -> dict[str, list[tuple[str, float]]]:
+    """Every series' (timestamp, level) points, oldest first, from one pass.
+
+    What the Charts page draws: the readings this platform recorded, not a
+    vendor's chart widget, which refuses most of these symbols (HISTORY #52).
+    """
+    from datetime import timedelta
+
+    cutoff = (datetime.now(UTC) - timedelta(days=days)).date().isoformat()
+    out: dict[str, list[tuple[str, float]]] = {}
+    for stem, text in _days(root):
+        if stem < cutoff:
+            continue
+        for line in text.splitlines():
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            name, last = row.get("name"), row.get("last")
+            if not isinstance(name, str) or not isinstance(last, (int, float)):
+                continue
+            if _is_test_row(row):
+                continue
+            out.setdefault(name, []).append((str(row.get("at", "")), float(last)))
+    for points in out.values():
+        points.sort(key=lambda pair: pair[0])
     return out

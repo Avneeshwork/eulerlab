@@ -35,3 +35,45 @@ def test_another_folder_is_read_from_disk_alone(
     assert macro.series("BRENT", days=100_000, root=tmp_path) == [
         ("2026-10-30T10:00:00+00:00", 64.0)
     ]
+
+
+def test_every_series_comes_from_one_pass_and_skips_the_old_test_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Charts page draws all series from one request (HISTORY #52), and the
+    Dollar Index row a test used to write into the real history is skipped."""
+    from datetime import UTC, datetime
+
+    today = datetime.now(UTC).date().isoformat()
+    rows = [
+        {
+            "at": f"{today}T04:00:00+00:00",
+            "symbol": "TVC:DXY",
+            "name": "DOLLAR INDEX",
+            "last": 99.4,
+            "change_pct": 0.1,
+        },
+        {
+            "at": f"{today}T05:00:00+00:00",
+            "symbol": "TVC:DXY",
+            "name": "DOLLAR INDEX",
+            "last": 98.9,
+            "change_pct": 0.15,
+        },
+        {
+            "at": f"{today}T03:00:00+00:00",
+            "symbol": "TVC:US10Y",
+            "name": "US 10Y",
+            "last": 4.1,
+            "change_pct": 0.0,
+        },
+    ]
+    (tmp_path / f"{today}.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8"
+    )
+
+    found = macro.all_series(days=5, root=tmp_path)
+    assert found == {
+        "DOLLAR INDEX": [(f"{today}T04:00:00+00:00", 99.4)],
+        "US 10Y": [(f"{today}T03:00:00+00:00", 4.1)],
+    }

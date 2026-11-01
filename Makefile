@@ -385,7 +385,7 @@ results-dedupe:
 
 # The web code's own gates: types and the Next lint rules.
 web-check:
-	cd web && npm run typecheck && npm run lint
+	cd web && npm run typecheck && npm run lint && npm test
 
 # The UI built once and served as built: what to run when using the app, not
 # changing it. `make ui` compiles each screen on first visit and ships a

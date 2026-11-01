@@ -2002,6 +2002,11 @@ export const api = {
       { action, amount },
     ),
   data: () => get<DataStatus>('/api/data'),
+  /** Every macro series as this platform's sweeps recorded it (HISTORY #52). */
+  macroHistory: (days = 180) =>
+    get<{ ok: boolean; series: Record<string, { at: string; value: number }[]> }>(
+      `/api/macro/history?days=${days}`,
+    ),
   /** `adjusted` back-adjusts equity bars for splits and bonuses (the SIP needs it). */
   history: (symbol: string, assetClass = 'equity', days = 400, adjusted = false) =>
     get<History>(

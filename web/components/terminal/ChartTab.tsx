@@ -1,27 +1,23 @@
 'use client';
 
 /**
- * A full charting surface — TradingView's Advanced Chart widget.
+ * The Charts page.
  *
  * ### Whose data this is
  *
- * **TradingView's, not this platform's.** That distinction is the whole reason
- * this file has a comment at the top. Every other number on this terminal is
- * traceable: the map and breadth come from the NSE panel or live Kite quotes,
- * the index ribbon from the broker and FMP, the backtests from landed bars we
- * hold and can re-read. This chart is a window onto a third party's feed.
+ * **NSE symbols: ours.** They are drawn only by `OwnChart` from the bars a
+ * backtest reads, with our own drawing tools and indicators (ADR-114). The
+ * free TradingView embed refused `NSE:NIFTYBEES` on the operator's Mac, and a
+ * chart from the same rows as a result cannot disagree with it.
  *
- * So a close here can differ from a close in the panel — different vendors
- * adjust for corporate actions differently, and TradingView's continuous
- * contracts are stitched by rules we do not control. **Never reconcile a
- * backtest against this chart.** It is for looking, drawing and thinking; the
- * numbers that decide anything come from the read API.
+ * **Every other venue: TradingView's.** Their Advanced Chart widget is a
+ * window onto a third party's feed, so a close there can differ from ours:
+ * vendors adjust for corporate actions differently and continuous contracts
+ * are stitched by rules we do not control. **Never reconcile a backtest
+ * against the embed.** Where we hold bars for that venue, our chart sits
+ * below it.
  *
- * The alternative was `lightweight-charts`, which renders *our* bars with
- * TradingView's engine. It was not chosen because it has no drawing tools, no
- * indicator library and no symbol search — which is most of what a chart is
- * for at this stage. The trade is honest provenance for capability, and the
- * banner says which way it went.
+ * The macro band below plots our own sweeps (`/api/macro/history`).
  */
 
 import { Info } from '@/components/terminal/ui';
@@ -181,9 +177,14 @@ export function ChartTab() {
     };
   }, []);
 
+  // NSE symbols are drawn from our own bars, not the embed. The free embed
+  // answers "only available on TradingView" for NSE listings, NIFTYBEES
+  // included (seen on the operator's Mac, 2026-11-01, HISTORY #52).
+  const ours = symbol.startsWith('NSE:');
+
   useEffect(() => {
     const node = holder.current;
-    if (!node) return;
+    if (!node || ours) return;
 
     // The widget writes into whatever node it is given and does not clean up
     // after itself, so the container is emptied first. Without this, changing
@@ -218,7 +219,7 @@ export function ChartTab() {
     return () => {
       node.innerHTML = '';
     };
-  }, [symbol, interval]);
+  }, [symbol, interval, ours]);
 
   function go(next: string) {
     const clean = next.trim().toUpperCase();
@@ -235,11 +236,31 @@ export function ChartTab() {
           </div>
         </div>
         <div className="tsyncbox">
-          <span className="ui-chip">TradingView data</span>
-          <Info align="right">
-            Data, drawing tools and indicators are TradingView&rsquo;s. A close here can differ from
-            the panel&rsquo;s: never reconcile a backtest against this chart.
-          </Info>
+          {ours ? (
+            <>
+              <span className="ui-chip">Our own bars</span>
+              <Info align="right">
+                Drawn from the price panel, the same rows a backtest reads. TradingView&rsquo;s free
+                embed refuses NSE listings, so there are no drawing tools here;{' '}
+                <a
+                  href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  open it on TradingView
+                </a>{' '}
+                for those.
+              </Info>
+            </>
+          ) : (
+            <>
+              <span className="ui-chip">TradingView data</span>
+              <Info align="right">
+                Data, drawing tools and indicators are TradingView&rsquo;s. A close here can differ
+                from the panel&rsquo;s: never reconcile a backtest against this chart.
+              </Info>
+            </>
+          )}
         </div>
       </section>
 
@@ -300,10 +321,8 @@ export function ChartTab() {
           <Info>
             NIFTYBEES, BANKBEES and JUNIORBEES are ETFs, named for the funds they are rather than
             the indices they track: Nippon India&rsquo;s Nifty 50, Nifty Bank and Nifty Next 50
-            funds. The embed refuses `NSE:NIFTY` itself because index data is licensed separately,
-            and an ETF is close to its index but not the same instrument: it carries tracking error
-            and trades at its own premium. The chart below each one is the real index series from
-            our own panel.
+            funds, drawn from our own price panel. An ETF is close to its index but not the same
+            instrument: it carries tracking error and trades at its own premium.
           </Info>
         </p>
       )}
@@ -324,13 +343,12 @@ export function ChartTab() {
       {/* Given a real height rather than a percentage: the widget measures its
           container on mount, and a container that is auto-height at that moment
           measures zero and renders nothing at all. */}
-      <div className="chartholder" ref={holder} />
+      {!ours && <div className="chartholder" ref={holder} />}
 
-      {/* The same instrument from our own bars, when we hold them. Shown
-          beside the embed rather than instead of it: the embed has the drawing
-          tools, this has the provenance, and a reader comparing the two can
-          see for themselves where a vendor's adjusted close differs from the
-          panel's. */}
+      {/* The same instrument from our own bars, when we hold them. For NSE it
+          is the chart; elsewhere it sits under the embed, which has the
+          drawing tools, so a reader can see where a vendor's adjusted close
+          differs from the panel's. */}
       {ownOf(symbol) && (
         <OwnChart symbol={ownOf(symbol)!.symbol} assetClass={ownOf(symbol)!.assetClass} />
       )}

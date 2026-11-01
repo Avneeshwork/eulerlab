@@ -2504,6 +2504,27 @@ def data_prune(request: PruneRequest) -> dict[str, Any]:
     return {"ok": True, "job": job.id}
 
 
+@app.get("/api/macro/history")
+def macro_history(days: int = 180) -> dict[str, Any]:
+    """Every macro series as recorded by this platform's own sweeps.
+
+    The Charts page drew these with TradingView mini-chart widgets, which
+    refuse most of the symbols and were blank on the operator's Mac on
+    2026-11-01 (HISTORY #52). These are the readings `make daily` lands, so
+    the chart and the numbers view come from the same source.
+    """
+    from eulerlab import macro as macro_feed
+
+    found = macro_feed.all_series(days=max(1, min(days, 3650)))
+    return {
+        "ok": True,
+        "series": {
+            name: [{"at": at, "value": value} for at, value in points]
+            for name, points in sorted(found.items())
+        },
+    }
+
+
 @app.get("/api/history")
 def history(
     symbol: str, asset_class: str = "equity", days: int = 400, adjusted: bool = False
