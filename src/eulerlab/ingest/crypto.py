@@ -41,9 +41,11 @@ import csv
 import gzip
 import io
 import json
+import re
 import urllib.error
 import urllib.request
 import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -444,34 +446,105 @@ def land_day(symbol: str, day: str, *, directory: Path = LANDING) -> tuple[int, 
     return len(candles), True
 
 
+_MONTH_FILE = re.compile(r"-1m-(\d{4}-\d{2})\.jsonl\.gz$")
+_DAY_FILE = re.compile(r"-1m-(\d{4}-\d{2})-(\d{2})\.jsonl\.gz$")
+
+
+def _folder(name: str) -> str:
+    return name.rsplit("/", 1)[0] if "/" in name else ""
+
+
+def without_superseded(names: Iterable[str]) -> list[str]:
+    """The files to read: day files whose month file is also landed are dropped.
+
+    Both are Binance's own minute bars for the same days. The daily filler
+    lands a month's days while the month is open; the month file lands once
+    Binance publishes it, and the day files stay, because landing is immutable.
+    Reading both counted every minute of those days twice: daily volume and
+    turnover doubled, and the minute reader returned two candles per minute
+    (T-4369). The month file wins because it is the one the archive keeps.
+    Paths are compared within their folder, so one symbol's month never hides
+    another symbol's day.
+    """
+    names = list(names)
+    months = {(_folder(n), m.group(1)) for n in names if (m := _MONTH_FILE.search(n)) is not None}
+    kept = []
+    for name in names:
+        day = _DAY_FILE.search(name)
+        if day is not None and (_folder(name), day.group(1)) in months:
+            continue
+        kept.append(name)
+    return kept
+
+
+def _landed_names(directory: Path) -> set[str]:
+    """Basenames already landed for every symbol, on disk and, for the real
+    landing zone, in the bucket as well."""
+    names = {p.name for p in directory.glob("*/*.jsonl.gz")} if directory.exists() else set()
+    if directory == LANDING:
+        from eulerlab.ingest import landing_reader
+
+        names |= {r.rsplit("/", 1)[-1] for r in landing_reader.available("crypto", "*/*.jsonl.gz")}
+    return names
+
+
+def fill_window(today: date) -> date:
+    """The first day the daily filler asks for when no `--since` is given.
+
+    The first of the previous month, not of this one. Binance publishes a
+    month file a few days after the month ends, so on the 1st to about the 3rd
+    the previous month is in neither archive unless its days were filled.
+    Starting at the first of the current month asked for nothing at all on the
+    1st (from 1 Nov to 31 Oct is no days) and left the previous month's last
+    days unfilled until its month file appeared: on 2026-11-01 the newest
+    crypto bar was two days old (T-4369). Days already landed, or inside a
+    landed month file, are not asked for again, so the wider window costs
+    nothing once filled.
+    """
+    first = today.replace(day=1)
+    return (first - timedelta(days=1)).replace(day=1)
+
+
 def fill_days(
     symbols: list[str],
     *,
     since: date | None = None,
     directory: Path = LANDING,
     workers: int = 6,
+    landed: Iterable[str] | None = None,
 ) -> tuple[int, int, list[str]]:
     """Land every published day from `since` to yesterday. Returns
     (days, candles, missing).
 
-    Defaults to the first of the current month, which is precisely the window
-    the monthly archive does not yet cover. Today is excluded: Binance
-    publishes a day after it closes, so asking for it is a guaranteed 404 and
-    a misleading one — it would land in `missing` as though something were
-    wrong.
+    Defaults to `fill_window`: the first of the previous month. Today is
+    excluded: Binance publishes a day after it closes, so asking for it is a
+    guaranteed 404 and a misleading one — it would land in `missing` as
+    though something were wrong.
+
+    A day is skipped when its file is already landed, on disk or in the
+    bucket, or when its month file is. `prune-local` deletes local files once
+    the bucket holds them, so checking the disk alone downloaded the month's
+    days again on every run. `landed` is the set of landed basenames; it is
+    read from `directory` (and the bucket, for the real landing zone) when
+    not given.
     """
     from concurrent.futures import ThreadPoolExecutor
 
     now = datetime.now(UTC).date()
-    start = since or now.replace(day=1)
+    start = since or fill_window(now)
     days = []
     cursor = start
     while cursor < now:
         days.append(cursor.isoformat())
         cursor += timedelta(days=1)
 
-    jobs = [(symbol, day) for symbol in symbols for day in days]
-    landed = candles = 0
+    have = set(landed) if landed is not None else _landed_names(directory)
+
+    def already(symbol: str, day: str) -> bool:
+        return f"{symbol}-1m-{day}.jsonl.gz" in have or f"{symbol}-1m-{day[:7]}.jsonl.gz" in have
+
+    jobs = [(symbol, day) for symbol in symbols for day in days if not already(symbol, day)]
+    landed_count = candles = 0
     missing: list[str] = []
 
     def one(job: tuple[str, str]) -> tuple[str, str, int, bool]:
@@ -485,8 +558,8 @@ def fill_days(
     with ThreadPoolExecutor(workers) as pool:
         for symbol, day, count, downloaded in pool.map(one, jobs):
             if downloaded:
-                landed += 1
+                landed_count += 1
                 candles += count
             elif not day_path(symbol, day, directory=directory).exists():
                 missing.append(f"{symbol} {day}")
-    return landed, candles, missing
+    return landed_count, candles, missing

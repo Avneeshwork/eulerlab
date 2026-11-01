@@ -183,6 +183,20 @@ when B2 holds it at the same size and the SHA-256 recorded at upload equals
 the hash of the local bytes, computed again. A file that fails either check is
 kept and named.
 
+### Crypto minutes: month files and day files
+
+Binance publishes one file per symbol per month, a few days after the month
+ends, and one per day, the day after it ends. `crypto_backfill` lands months;
+`crypto_fill` lands days from the first of the *previous* month to yesterday
+(`crypto.fill_window`), so a month's last days arrive before its month file
+does. A day already landed, on disk or in B2, or inside a landed month file, is
+not asked for again. Both shapes stay in `data/landing/crypto/<SYMBOL>/`
+because landing is immutable, and every reader drops a day file whose month
+file is landed (`crypto.without_superseded`): reading both counted each minute
+twice. The daily reader keeps each file's daily bars in
+`data/cache/crypto_daily.json`, a derived file; a pruned month is downloaded
+once, eight at a time, and its minutes are not kept on disk.
+
 ## 3.2 The bitemporal model: two clocks, not one
 
 This is the most important data concept in the system, and the one most

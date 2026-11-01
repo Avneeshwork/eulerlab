@@ -39,7 +39,7 @@ def _main(argv: list[str] | None = None) -> int:
         print("no crypto symbols landed — run `make crypto` first")
         return 1
 
-    start = since or datetime.now(UTC).date().replace(day=1)
+    start = since or crypto.fill_window(datetime.now(UTC).date())
     print(f"filling {len(symbols)} symbols from {start} to yesterday")
     days, candles, missing = crypto.fill_days(symbols, since=start)
     print(f"  landed  : {days} symbol-days, {candles:,} candles")

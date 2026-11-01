@@ -57,6 +57,19 @@ def _private_panel_copy(
 
 
 @pytest.fixture(autouse=True)
+def _private_crypto_rollups(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or writes the real crypto daily roll-up cache."""
+    from eulerlab.features import alt_panel
+
+    folder = tmp_path_factory.mktemp("crypto_rollups")
+    monkeypatch.setattr(alt_panel, "ROLLUP_CACHE", folder / "crypto_daily.json")
+    monkeypatch.setattr(alt_panel, "_ROLLUPS", {})
+    monkeypatch.setattr(alt_panel, "_ROLLUPS_LOADED", [])
+
+
+@pytest.fixture(autouse=True)
 def _private_options_history(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:
