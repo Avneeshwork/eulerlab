@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -187,6 +188,26 @@ def test_a_name_with_no_distinctive_word_falls_back_to_nothing() -> None:
     )
 
 
+# A few rows of NSE's EQUITY_L list, so tagging is tested offline. The real
+# list used to be downloaded into data/ by these tests (HISTORY #50).
+_NAMES = {
+    "HDFCBANK": "HDFC Bank Limited",
+    "ICICIBANK": "ICICI Bank Limited",
+    "RELIANCE": "Reliance Industries Limited",
+    "TCS": "Tata Consultancy Services Limited",
+    "HINDALCO": "Hindalco Industries Limited",
+}
+
+
+@pytest.fixture
+def _listed(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.setattr(news, "load_names", lambda *a, **k: _NAMES)
+    news._company_index.cache_clear()
+    yield
+    news._company_index.cache_clear()
+
+
+@pytest.mark.usefixtures("_listed")
 def test_tagging_finds_every_company_a_headline_names() -> None:
     """A sector piece naming several lenders is one event with several
     exposures, and a reader on one mover needs to see the others."""
@@ -194,6 +215,7 @@ def test_tagging_finds_every_company_a_headline_names() -> None:
     assert "HDFCBANK" in hit.symbols and "ICICIBANK" in hit.symbols
 
 
+@pytest.mark.usefixtures("_listed")
 def test_tagging_finds_nothing_in_an_index_headline() -> None:
     """ "Nifty ends flat as metals drag" names no listed company. Tagging one
     would invent an exposure that is not there."""

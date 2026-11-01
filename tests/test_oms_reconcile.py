@@ -125,3 +125,37 @@ def test_the_report_says_what_it_will_not_do(tmp_path: Path) -> None:
     PaperBroker(tmp_path / "paper_broker.json").inject("manual", "INFY", Side.BUY, 40, 1500.0)
     text = reconcile.reconcile(oms).render()
     assert "No order is placed" in text
+
+
+def test_a_partial_fill_then_the_full_fill_counts_the_order_once(tmp_path: Path) -> None:
+    """Fill entries carry the broker's cumulative quantity (HISTORY #51).
+
+    Partial seen at 4 of 10, the process restarts, the complete fill is seen
+    at 10 of 10: the position is 10, not 14.
+    """
+    from eulerlab.oms.states import Event, OrderState
+
+    oms = _oms(tmp_path)
+    order = _order("TCS", 1, qty=10)
+    coid = order.client_order_id
+    fill = {"symbol": "TCS", "side": "buy", "signal_day": DAY.isoformat()}
+    oms.journal.append(coid, Event.CREATED, OrderState.INTENT, {"symbol": "TCS"})
+    state = oms._apply(coid, OrderState.INTENT, Event.SEND_OK, {})
+    state = oms._apply(coid, state, Event.PROCESS_RESTART, {})
+    state = oms._apply(
+        coid,
+        state,
+        Event.QUERY_FOUND_PARTIAL,
+        {**fill, "filled_quantity": 4, "average_price": 99.0},
+    )
+    state = oms._apply(coid, state, Event.PROCESS_RESTART, {})
+    oms._apply(
+        coid,
+        state,
+        Event.QUERY_FOUND_FILLED,
+        {**fill, "filled_quantity": 10, "average_price": 99.5},
+    )
+
+    executions = oms.executions()
+    assert [(e.quantity, e.price) for e in executions] == [(10, 99.5)]
+    assert reconcile.local_positions(oms) == {"TCS": 10}

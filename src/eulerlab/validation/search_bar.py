@@ -201,3 +201,73 @@ def assess(
         if test is not None:
             out["romano_wolf"] = asdict(test)
     return out
+
+
+@dataclass(frozen=True)
+class ShownBar:
+    """The bar the workbench draws every Sharpe against: the gate's own (ADR-108).
+
+    `families` is None when fewer than two stored strategies exist; the value
+    is then the old ledger-count bar, and `basis` says so.
+    """
+
+    value: float
+    basis: str
+    families: FamilyBar | None
+
+
+_SHOWN: dict[tuple[int, int, float], FamilyBar | None] = {}
+
+
+def _reports_stamp(root: Path) -> tuple[int, int]:
+    paths = list(root.glob("*/reports/*/*.json"))
+    newest = max((p.stat().st_mtime_ns for p in paths), default=0)
+    return len(paths), newest
+
+
+def stored_family_bar(*, join_at: float, root: Path = strategy_map.WORKSPACES) -> FamilyBar | None:
+    """`family_bar` over every stored report, cached until a report changes.
+
+    The library, the dashboard and the deploy checks all ask for it on every
+    request, and reading 68 reports and clustering them each time would cost
+    seconds; a new or rewritten report changes the stamp and the bar is redone.
+    """
+    key = (*_reports_stamp(root), join_at)
+    if key not in _SHOWN:
+        _SHOWN.clear()
+        _SHOWN[key] = family_bar(stored_universe(root), join_at=join_at)
+    return _SHOWN[key]
+
+
+def shown_bar(
+    rules: Mapping[str, Any], *, ledger_bar: float, root: Path = strategy_map.WORKSPACES
+) -> ShownBar:
+    """The families bar when there is one, else the ledger bar, labelled as such."""
+    bar = stored_family_bar(join_at=float(rules["family_join_correlation"]), root=root)
+    if bar is None:
+        return ShownBar(
+            value=ledger_bar,
+            basis=(
+                "Fewer than two stored strategy reports, so the gate's family bar cannot be "
+                "measured yet; this is the old bar from the trial count (ADR-108)."
+            ),
+            families=None,
+        )
+    return ShownBar(
+        value=bar.bar,
+        basis=(
+            f"The gate's bar (ADR-108): the best of {bar.families} idea families, found by "
+            f"clustering {bar.strategies} stored strategies whose daily returns correlate "
+            f"above {rules['family_join_correlation']}, with the spread of their Sharpes "
+            f"measured ({bar.sigma}). Variants of one idea count once."
+        ),
+        families=bar,
+    )
+
+
+def bar_if_new(bar: FamilyBar, new: int) -> float:
+    """The bar if every one of `new` configurations turned out to be a new family.
+
+    An upper bound: a variant of a stored idea joins its family and moves nothing.
+    """
+    return expected_max_sharpe(bar.families + max(new, 0), variance_of_sharpes=bar.sigma**2)

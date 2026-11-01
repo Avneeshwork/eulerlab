@@ -10,7 +10,8 @@ first and returns the state it already has. A retry after a timeout, a
 re-run of the same rebalance, a script started twice — none of them can
 double-send. And the defence is two-deep: even if the OMS somehow sent again,
 the broker rejects a duplicate client order id, and `ems.send` reads that
-rejection as *the original is fine* rather than as a failure.
+rejection as *the original is fine* rather than as a failure. (Kite does not
+enforce unique tags, so on Kite only the journal lookup stands; T-4348.)
 
 **Intent is on disk before the network call.** `submit` journals `INTENT`,
 fsynced, and only then sends. There is no window in which an order exists at
@@ -121,13 +122,20 @@ class OMS:
         return sorted(c for c, s in self.states().items() if s is OrderState.UNKNOWN)
 
     def executions(self) -> list[Execution]:
-        """Every fill, rebuilt from the journal.
+        """Every fill, rebuilt from the journal, one per order.
 
         From the journal rather than from an in-memory list, so a process that
         just started has exactly the same view as one that has been running all
         day. An OMS whose answer depends on its own uptime is not a record.
+
+        A fill entry carries the broker's **cumulative** filled quantity and
+        average price (Kite's `filled_quantity` is cumulative), so the latest
+        entry for an order is the whole of it. Until 2026-11-01 every entry was
+        summed, so a partial fill seen once and then the complete fill seen
+        after a restart counted 50 + 100 shares for a 100-share order, and
+        reconciliation reported a break that was not there (HISTORY #51).
         """
-        out: list[Execution] = []
+        latest: dict[str, Execution] = {}
         for entry in self.journal.read():
             if entry.event not in FILL_EVENTS:
                 continue
@@ -135,17 +143,16 @@ class OMS:
             quantity = int(detail.get("filled_quantity", 0))
             if quantity <= 0:
                 continue
-            out.append(
-                Execution(
-                    client_order_id=entry.client_order_id,
-                    symbol=str(detail["symbol"]),
-                    side=Side(detail["side"]),
-                    quantity=quantity,
-                    price=float(detail["average_price"]),
-                    day=date.fromisoformat(str(detail["signal_day"])),
-                )
+            # Re-inserting keeps the order's first-fill position in the dict.
+            latest[entry.client_order_id] = Execution(
+                client_order_id=entry.client_order_id,
+                symbol=str(detail["symbol"]),
+                side=Side(detail["side"]),
+                quantity=quantity,
+                price=float(detail["average_price"]),
+                day=date.fromisoformat(str(detail["signal_day"])),
             )
-        return out
+        return list(latest.values())
 
     def _has_fills(self, client_order_id: str) -> bool:
         return any(e.event in FILL_EVENTS for e in self.journal.history(client_order_id))

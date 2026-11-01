@@ -36,7 +36,7 @@ type Style = '' | 'intraday' | 'daily';
 type Source = '' | 'paper' | 'builder' | 'coded';
 
 const VERDICTS: { value: StrategyVerdict; label: string; hint: string }[] = [
-  { value: 'beats_bar', label: 'Beats the bar', hint: 'Sharpe above what luck across every trial so far explains.' },
+  { value: 'beats_bar', label: 'Beats the bar', hint: 'Sharpe above what luck across every idea family tested so far explains (the gate’s bar).' },
   { value: 'positive', label: 'Positive, not proven', hint: 'Made money, but luck could explain a Sharpe this size.' },
   { value: 'loses', label: 'Loses money', hint: 'Lost money over its latest run, after costs.' },
   { value: 'not_run', label: 'Not run', hint: 'Never backtested in this workspace.' },

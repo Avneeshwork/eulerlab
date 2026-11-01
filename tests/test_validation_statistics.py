@@ -81,6 +81,22 @@ def test_negative_skew_is_penalised() -> None:
     assert sharpe_stats(skewed).skew < plain.skew
 
 
+def test_deflated_sharpe_uses_the_papers_kurtosis_term() -> None:
+    """Bailey and López de Prado: sqrt(1 - g3*SR + (g4 - 1)/4 * SR^2), g4 raw.
+
+    With excess kurtosis k the last term is (k + 2)/4. A normal stream (k = 0)
+    still carries SR^2/2 there; the code had k/4, which dropped it (HISTORY #50).
+    """
+    from eulerlab.validation.statistics import SharpeStats
+
+    stats = SharpeStats(sharpe=2.0, n=1000, skew=0.0, kurtosis=0.0)
+    sr = 2.0 / math.sqrt(252)
+    sr0 = expected_max_sharpe(10) / math.sqrt(252)
+    z = (sr - sr0) * math.sqrt(999) / math.sqrt(1.0 + 0.5 * sr**2)
+    expected = 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+    assert deflated_sharpe(stats, n_trials=10) == pytest.approx(expected, abs=1e-12)
+
+
 def test_moments_are_computed() -> None:
     stats = sharpe_stats(_noise())
     assert stats.n == 2500

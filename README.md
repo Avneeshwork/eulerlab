@@ -16,7 +16,7 @@ still look excellent. That fact shapes nearly every design decision here.
 
 ```bash
 make install     # once
-make verify      # 7 checks, ~998 tests — expect all green
+make verify      # 8 checks, ~2,700 tests — expect all green
 make workbench   # the UI on :3000
 ```
 

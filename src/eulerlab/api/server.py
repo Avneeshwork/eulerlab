@@ -104,7 +104,7 @@ from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_
 from eulerlab.strategies import archive as strategy_archive
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.strategies import studies as strategy_studies
-from eulerlab.validation import montecarlo
+from eulerlab.validation import montecarlo, search_bar
 from eulerlab.validation.ledger import count as trial_count
 from eulerlab.validation.ledger import sharpe_dispersion
 from eulerlab.validation.statistics import sharpe_stats
@@ -503,7 +503,7 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
             "costs": round(costs, 2),
             "period": [curve_days[0].isoformat(), curve_days[-1].isoformat()],
             "warmup": warmup,
-            "noise_bar": round(price_search(0, available_years=11.4).bar_after, 3),
+            "noise_bar": round(_bar(), 3),
             "caveats": _caveats(request, stats.sharpe),
         }
         job.status, job.message = "done", "complete"
@@ -516,6 +516,24 @@ def _run_backtest(job: Job, request: BacktestRequest) -> None:
         job.finished = time.time()
 
 
+def _shown_bar() -> search_bar.ShownBar:
+    """The one bar every screen draws a Sharpe against: the gate's (ADR-108).
+
+    Until 2026-11-01 every screen used the ledger-count bar while the gate used
+    idea families, so the library could call a strategy "beats the bar" that
+    the gate would judge on a different number (HISTORY #50).
+    """
+    from eulerlab import gates
+
+    rules = gates.load_mandate()["statistical"]["search_correction"]
+    ledger_bar = price_search(0, available_years=11.4).bar_after
+    return search_bar.shown_bar(rules, ledger_bar=ledger_bar)
+
+
+def _bar() -> float:
+    return _shown_bar().value
+
+
 def _caveats(request: BacktestRequest, sharpe: float) -> list[str]:
     """What this number does not mean. Returned with every result, always.
 
@@ -524,11 +542,16 @@ def _caveats(request: BacktestRequest, sharpe: float) -> list[str]:
     away. A backtest shown without its caveats is the most misleading artefact
     this project can produce.
     """
-    trials = trial_count()
-    bar = price_search(0, available_years=11.4).bar_after
+    shown = _shown_bar()
+    bar = shown.value
+    searched = (
+        f"{shown.families.families} idea families have been tested"
+        if shown.families
+        else f"{trial_count()} trials are already logged"
+    )
     out = [
-        f"This is one backtest, not evidence. {trials} trials are already logged, so a "
-        f"candidate needs to beat Sharpe {bar:.2f} from noise alone before it means anything.",
+        f"This is one backtest, not evidence. {searched}, so a candidate needs to "
+        f"beat Sharpe {bar:.2f} from noise alone before it means anything.",
         "Running this did NOT spend a trial. Only `make validate` and `make gate` do, "
         "and both are deliberately absent from this interface.",
         "Market impact is not modelled at all (T-907). Any result involving thin names "
@@ -562,19 +585,19 @@ def _caveats(request: BacktestRequest, sharpe: float) -> list[str]:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    # The bar is scaled by sigma_SR, which is assumed to be 1.0 and has never
-    # been measured (A-021). Reporting the bar without that fact invites it to
-    # be read as measured, and at sigma_SR 0.5 the same 19 trials give a bar of
-    # 0.94 rather than 1.88 — a difference that spans our best-ever result.
+    # The bar is the gate's (ADR-108): sigma_SR is measured across idea
+    # families. Only when no families can be formed does it fall back to the
+    # ledger count with the ledger's sigma, and the note says which.
+    shown = _shown_bar()
     dispersion = sharpe_dispersion()
     return {
         "ok": True,
         "panel_loaded": PANEL.loaded(),
         "trials_logged": trial_count(),
-        "noise_bar": round(price_search(0, available_years=11.4).bar_after, 3),
-        "noise_bar_sigma_measured": dispersion.usable,
-        "noise_bar_sigma": dispersion.sigma,
-        "noise_bar_note": dispersion.reason,
+        "noise_bar": round(shown.value, 3),
+        "noise_bar_sigma_measured": shown.families is not None or dispersion.usable,
+        "noise_bar_sigma": shown.families.sigma if shown.families else dispersion.sigma,
+        "noise_bar_note": shown.basis if shown.families else dispersion.reason,
     }
 
 
@@ -619,8 +642,8 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     in a list invites sorting descending and taking the top, which is exactly
     the selection procedure PBO measures as overfitting.
     """
-    bar = price_search(0, available_years=11.4).bar_after
-    dispersion = sharpe_dispersion()
+    shown = _shown_bar()
+    bar = shown.value
     tenant = workspace_mod.resolve(workspace or None)
     # Read once for the whole payload rather than per strategy: it is one small
     # file and thirty-two reads of it would be thirty-two parses.
@@ -632,7 +655,7 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     # is out of sample, so it belongs beside the Sharpe rather than behind a
     # separate screen.
     walks = walk_run.read()
-    payload = _fleet_payload(tenant, bar, dispersion, adopted_results, us_all_results, walks)
+    payload = _fleet_payload(tenant, shown, adopted_results, us_all_results, walks)
     put_away = strategy_archive.read(tenant)
     for item in payload["strategies"]:
         item["table"] = _table_figures(tenant, item, bar)
@@ -661,8 +684,7 @@ def archive_strategies(request: ArchiveRequest) -> dict[str, Any]:
 
 def _fleet_payload(
     tenant: workspace_mod.Workspace,
-    bar: float,
-    dispersion: Any,
+    shown: search_bar.ShownBar,
     adopted_results: dict[str, dict[str, Any]],
     us_all_results: dict[str, dict[str, Any]],
     walks: dict[str, Any],
@@ -672,15 +694,20 @@ def _fleet_payload(
     measured: dict[str, list[strategy_results.Row]] = {}
     for result in strategy_results.load():
         measured.setdefault(result.strategy_id, []).append(result)
+    bar = shown.value
+    dispersion = sharpe_dispersion()
     return {
         "bar": round(bar, 3),
         # The denominator the bar was actually computed from. The console used
         # to sum each strategy's own trial count and present that total as the
         # bar's basis — 20 against a bar derived from 211 — which stated a
-        # relationship between two numbers that did not hold.
+        # relationship between two numbers that did not hold. Since ADR-108
+        # that basis is idea families; `bar_trials` stays as the ledger count.
         "bar_trials": searches_run(),
-        "bar_sigma_measured": dispersion.usable,
-        "bar_note": dispersion.reason,
+        "bar_families": shown.families.families if shown.families else None,
+        "bar_strategies": shown.families.strategies if shown.families else None,
+        "bar_sigma_measured": shown.families is not None or dispersion.usable,
+        "bar_note": shown.basis if shown.families else dispersion.reason,
         "strategies": [
             {
                 "id": row.declaration.id,
@@ -1051,8 +1078,16 @@ def price_run(request: PriceRunRequest) -> dict[str, Any]:
     become the way search gets laundered (ADR-036).
     """
     new = max(request.configurations - request.cached, 0)
-    before = price_search(0, available_years=11.4).bar_after
-    forecast = price_search(new, available_years=11.4).bar_after
+    shown = _shown_bar()
+    before = shown.value
+    # Under the families bar (ADR-108) a variant of a stored idea joins its
+    # family and moves nothing, so the forecast is the worst case: every new
+    # configuration a new family. Without families, the old ledger forecast.
+    forecast = (
+        search_bar.bar_if_new(shown.families, new)
+        if shown.families
+        else price_search(new, available_years=11.4).bar_after
+    )
     return {
         "logged": trial_count(),
         "configurations": request.configurations,
@@ -1066,7 +1101,7 @@ def price_run(request: PriceRunRequest) -> dict[str, Any]:
             f"{new} configuration(s) would be newly evaluated. This run spends no trial — "
             f"only `make validate` and `make gate` do, and neither is reachable from here. "
             f"But the search is real: recorded, it would move the bar from {before:.2f} to "
-            f"{forecast:.2f}. It will not move, and that is the gap."
+            f"at most {forecast:.2f}. It will not move, and that is the gap."
             if new
             else "Every configuration is cached. Nothing new would be evaluated."
         ),
@@ -2056,7 +2091,7 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         blocking=evidence_blocks,
     )
 
-    bar = price_search(0, available_years=11.4).bar_after
+    bar = _bar()
     top = result_store.best(tenant, request.strategy)
     beats = top is not None and top.run.sharpe >= bar
     check(
@@ -3277,7 +3312,7 @@ def explain(strategy: str = "") -> dict[str, Any]:
         top = result_store.best(tenant, declaration.id)
         recent = result_store.latest(tenant, declaration.id)
         runs = result_store.distinct(tenant, declaration.id)
-        bar = price_search(0, available_years=11.4).bar_after
+        bar = _bar()
         about = {
             "id": declaration.id,
             "title": declaration.title,
@@ -4122,7 +4157,7 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
         )
 
     # --- band 5: evidence ---------------------------------------------------
-    bar = price_search(0, available_years=11.4).bar_after
+    bar = _bar()
     fleet_rows = list(strategy_fleet(tenant.ledger))
     # Same adopted results the library judges on, so the snapshot's count and
     # the library's flags cannot disagree about the same strategies.

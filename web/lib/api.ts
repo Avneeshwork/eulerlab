@@ -516,6 +516,10 @@ export type Fleet = {
    *  the same as summing each strategy's own trial count, which is what the
    *  header used to show beside a bar derived from a much larger number. */
   bar_trials: number;
+  /** The gate's basis since ADR-108: idea families among the stored
+   *  strategies. Null when too few reports exist and the bar is the ledger's. */
+  bar_families: number | null;
+  bar_strategies: number | null;
   bar_sigma_measured: boolean;
   bar_note: string;
   strategies: FleetStrategy[];

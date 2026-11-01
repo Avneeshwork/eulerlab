@@ -423,7 +423,13 @@ export default function TerminalPage() {
                   label="Beat the noise bar"
                   value={fleet ? clearing : '—'}
                   tone={fleet && clearing > 0 ? 'up' : ''}
-                  sub={fleet ? `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_trials ?? 0} trials` : undefined}
+                  sub={
+                    fleet
+                      ? fleet.bar_families != null
+                        ? `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_families} idea families`
+                        : `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_trials ?? 0} trials`
+                      : undefined
+                  }
                   info={fleet?.bar_note}
                 />
                 <Stat label="Backtested" value={fleet ? measured : '—'} />
