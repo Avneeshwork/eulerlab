@@ -1829,6 +1829,21 @@ object with a **smaller** local file; it reports the file instead. A smaller
 local copy is a pruned file recreated with part of its rows, and uploading it
 would erase the rest from the store of record.
 
+The bhavcopy mirror (`cloud.sync`, the `nse` manifest) replaces a bucket object
+only when the bucket holds an **earlier landing of ours** of that key and the
+manifest's latest landing is different (`SyncPlan.superseded`). NSE revises
+the index closes after first publishing them; until 2026-11-01 those were
+reported as mismatched and never sent, so B2 kept the short first file
+(HISTORY #54). A bucket object that no landing of ours produced is still
+reported and never overwritten. B2 keeps every version, so a replaced copy is
+not lost. Data-quality findings name their segment, and a dataset is graded
+only on findings for its own segment: five segments share the `nse` manifest.
+
+Launchd runs these jobs only while their plists are installed
+(`make schedule ACTION=install JOB=...`). On 2026-11-01 only `briefweekend` was
+loaded on the operator's Mac; nothing else had run from launchd since about
+20 October.
+
 Fundamentals is not in `make daily`. `make fundamentals-update` fetches,
 uploads and deletes under its own `fundamentals` lock; launchd runs it on
 Sunday at 10:00.

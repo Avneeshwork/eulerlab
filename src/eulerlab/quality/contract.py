@@ -246,7 +246,15 @@ def grade_all(
             manifest = landing / source.tree / "manifest.jsonl"
             mrows = _manifest_rows(manifest, source.segment)
             checks.append(fingerprint_check(mrows))
-            mine = [f for f in found if f.dataset == source.tree]
+            # Only this source's segment, where the finding names one: the
+            # `nse` manifest holds five segments, and a revised index file
+            # graded the cash and F&O bhavcopies C (T-4355).
+            mine = [
+                f
+                for f in found
+                if f.dataset == source.tree
+                and (not f.segment or not source.segment or f.segment == source.segment)
+            ]
             checks.append(sense_check(mine))
             checks.append(quarantine_check(source, holds))
             grade = "D" if not mrows else _grade_of(checks)

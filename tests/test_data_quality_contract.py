@@ -133,3 +133,45 @@ def test_plateau_compares_each_point_with_its_neighbours() -> None:
     )
     peak = next(r for r in rows if r["params"]["lookback"] == 60)
     assert peak["neighbours"] == 2 and peak["plateau"] < peak["value"]
+
+
+def test_a_revised_index_file_does_not_grade_the_cash_bhavcopy(tmp_path: Path) -> None:
+    """The `nse` manifest holds five segments. A content-changed finding on
+    the index closes graded the cash and F&O bhavcopies C (T-4355)."""
+    from eulerlab.quality.findings import Finding, Severity
+
+    def findings(segment: str) -> list[Finding]:
+        return [
+            Finding(
+                check="content-changed",
+                severity=Severity.ERROR,
+                dataset="nse",
+                segment=segment,
+                detail="2026-10-15/indices landed 2 times with 2 different checksums",
+            )
+        ]
+
+    def grade(segment: str, where: Path) -> contract.Graded:
+        graded = contract.grade_all(
+            register=_register(),
+            coverage=lambda: [SimpleNamespace(name="Cash bhavcopy", status="ok")],
+            findings=lambda: findings(segment),
+            landing=_landing(where, [ROW]),
+        )
+        return {g.name: g for g in graded}["Cash bhavcopy"]
+
+    sense = {c.name: c.state for c in grade("indices", tmp_path / "a").checks}["sense"]
+    assert sense == "pass"
+    sense = {c.name: c.state for c in grade("cm", tmp_path / "b").checks}["sense"]
+    assert sense == "fail"
+
+
+def test_duplicate_key_findings_name_their_segment(tmp_path: Path) -> None:
+    from eulerlab.quality.manifest_checks import check_duplicate_keys
+
+    rows: list[dict[str, object]] = [
+        {"trade_date": "2026-10-15", "segment": "indices", "sha256": "a"},
+        {"trade_date": "2026-10-15", "segment": "indices", "sha256": "b"},
+    ]
+    found = check_duplicate_keys(_landing(tmp_path, rows) / "nse" / "manifest.jsonl", "nse")
+    assert [(f.check, f.segment) for f in found] == [("content-changed", "indices")]

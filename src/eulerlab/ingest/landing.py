@@ -125,6 +125,13 @@ class Landing:
                     self._entries[entry.key] = entry
         return self._entries
 
+    def landings(self) -> Iterator[ManifestEntry]:
+        """Every landing in the manifest, oldest first, including ones a later
+        landing of the same key replaced. `entries()` keeps only the latest."""
+        if self.manifest_path.exists():
+            for line in self._read_manifest_lines():
+                yield ManifestEntry.from_json(line)
+
     def _read_manifest_lines(self) -> Iterator[dict[str, object]]:
         with self.manifest_path.open(encoding="utf-8") as handle:
             for raw in handle:

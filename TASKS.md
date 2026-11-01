@@ -22,7 +22,7 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4349 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | DONE — stays `UNKNOWN` and is reported as a break; `tests/test_live_order_gaps.py` |
 | T-4350 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | DONE — `ems.live_governor()`, a locked shared window; the live OMS must use it when S-015 is wired; `tests/test_live_order_gaps.py` |
 | T-4352 | One row, one run: the Strategies table's Sharpe and verdict come from the latest stored run (HISTORY #52) | DONE — `tests/test_strategies_table.py` |
-| T-4353 | Check B2's `nse/macro/` day files for days that lost rows to a shrinking upload before 2026-11-01 | TODO |
+| T-4353 | Check B2's `nse/macro/` day files for days that lost rows to a shrinking upload before 2026-11-01 | DONE — six days lost rows, all still in older B2 versions (HISTORY #54); restoring is T-4365 |
 | T-4354 | Charts page: the seven TradingView macro mini-charts were blank on the Mac and the Advanced Chart refuses NSE:NIFTYBEES; draw them from our own history instead, or drop them | DONE — operator chose our own data (ADR-114) |
 | T-4357 | Our chart: crosshair readout, ranges, log scale, horizontal/vertical/trend lines, indicators in panes | DONE — ADR-114; `web/lib/indicators.test.ts`; clicks checked in a browser |
 | T-4358 | Save chart drawings on the server so they follow the operator between devices | TODO. If the operator wants it |
@@ -32,8 +32,10 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4362 | `npm install` reports 19 known vulnerabilities (1 critical) in `web/` dependencies; review `npm audit` and upgrade what is safe (Next 14.2.5 is the likely source) | TODO |
 | T-4363 | Shorts in the daily engines: both accept negative weights and hold a short overnight in cash equity, which Indian delivery does not allow, and Tier B's realised P&L books a short sale's proceeds as profit. Refuse negative weights for delivery equity, or model shorts properly (borrow, margin, P&L) | TODO. Operator's call (HISTORY #53) |
 | T-4364 | `KiteBroker.positions` reads only the `net` book. A CNC (delivery) buy moves to Kite's `holdings` the next day, so reconciling a delivery book against `net` would report every carried holding as `local_only` | TODO. Before live (S-015) |
-| T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | TODO |
-| T-4356 | Fundamentals not fetched since 2026-10-18 | TODO |
+| T-4365 | Restore the six macro days B2 lost (24 Aug, 7, 14, 15, 18 and 29 Oct): write the union of each day's B2 versions, ordered by sweep time, as the current object | TODO. Needs the operator's go-ahead (writes to the bucket) |
+| T-4366 | Reinstall the launchd jobs on the Mac: `make schedule ACTION=install JOB=...` for daily, fundamentals and the agent jobs, then confirm with `launchctl list` | TODO. Operator, or say "go" |
+| T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | DONE — cash and F&O were byte-identical; the index closes were revised by NSE; the mirror now uploads the latest and grades are per segment (HISTORY #54) |
+| T-4356 | Fundamentals not fetched since 2026-10-18 | CAUSE FOUND — the launchd jobs are no longer installed on the Mac (only `briefweekend` is); reinstall is T-4366 |
 
 ## UI revamp (2026-10-28, ADR-102)
 
