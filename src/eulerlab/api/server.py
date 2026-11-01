@@ -2574,7 +2574,8 @@ def history(
                     "high": (row.high or row.close) * scale[row.day],
                     "low": (row.low or row.close) * scale[row.day],
                     "close": row.close * scale[row.day],
-                    "volume": row.volume,
+                    # Counted in today's shares, as `PanelRow.adjusted` does.
+                    "volume": row.volume / scale[row.day] if scale[row.day] else row.volume,
                 }
                 for row in rows
             ]

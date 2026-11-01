@@ -29,8 +29,8 @@ class Clock:
         self.now += seconds
 
 
-def _governor(clock: Clock, limit: int = 5, **kwargs: float) -> Governor:
-    return Governor(limit, clock=clock, sleep=clock.sleep, **kwargs)
+def _governor(clock: Clock, limit: int = 5, *, max_wait: float = 30.0) -> Governor:
+    return Governor(limit, clock=clock, sleep=clock.sleep, max_wait=max_wait)
 
 
 def test_the_default_comes_from_config_not_from_a_literal() -> None:

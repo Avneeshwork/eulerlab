@@ -20,7 +20,7 @@ import pytest
 from eulerlab.backtest.events import Order
 from eulerlab.broker.kite import TAG_LIMIT, KiteBroker
 from eulerlab.costs.schedule import Side
-from eulerlab.oms.broker import BrokerRejected, BrokerUnreachable
+from eulerlab.oms.broker import BrokerRejected, BrokerUnreachable, DuplicateOrder
 
 
 class FakeKite:
@@ -31,12 +31,14 @@ class FakeKite:
         *,
         order_id: str | None = "240821000123",
         raises: Exception | None = None,
+        orders_raises: Exception | None = None,
         orders_rows: list[dict[str, Any]] | None = None,
         positions_book: dict[str, list[dict[str, Any]]] | None = None,
         gtt: dict[str, Any] | None = None,
     ) -> None:
         self.order_id = order_id
         self.raises = raises
+        self.orders_raises = orders_raises
         self.orders_rows = orders_rows or []
         self.positions_book = positions_book or {"net": []}
         self.gtt = gtt if gtt is not None else {"trigger_id": 55}
@@ -61,8 +63,8 @@ class FakeKite:
         return None
 
     def orders(self) -> list[dict[str, Any]]:
-        if self.raises:
-            raise self.raises
+        if self.orders_raises:
+            raise self.orders_raises
         return self.orders_rows
 
     def positions(self) -> dict[str, list[dict[str, Any]]]:
@@ -103,11 +105,12 @@ def test_a_long_id_is_truncated_the_same_way_on_send_and_lookup() -> None:
     the lookup would find nothing — and "found nothing" is what turns an
     UNKNOWN order into UNSENT, i.e. into a retry."""
     long_id = "x" * 40
-    kite = FakeKite(orders_rows=[{"tag": long_id[:TAG_LIMIT], "order_id": "1", "status": "OPEN"}])
+    kite = FakeKite()
     broker = KiteBroker(kite)
 
     broker.place(_order(long_id))
     assert kite.sent[0]["tag"] == long_id[:TAG_LIMIT]
+    kite.orders_rows = [{"tag": long_id[:TAG_LIMIT], "order_id": "1", "status": "OPEN"}]
 
     found = broker.query(long_id)
     assert found is not None
@@ -167,7 +170,7 @@ def test_side_maps_to_kite_transaction_type() -> None:
 def test_a_failed_query_raises_rather_than_reporting_absence() -> None:
     """`None` from `query` means UNSENT, which is a strong claim. An
     unanswerable question must never be answered with 'it does not exist'."""
-    kite = FakeKite(raises=OSError("connection reset"))
+    kite = FakeKite(orders_raises=OSError("connection reset"))
     with pytest.raises(BrokerUnreachable):
         KiteBroker(kite).query("abc123")
 
@@ -266,3 +269,41 @@ def test_it_actually_satisfies_the_broker_adapter_protocol() -> None:
 
     adapter: BrokerAdapter = KiteBroker(FakeKite())
     assert adapter.name == "kite"
+
+
+# --- the duplicate check (T-4348) ------------------------------------------
+
+
+@pytest.mark.parametrize("status", ["OPEN", "COMPLETE", "TRIGGER PENDING"])
+def test_a_tag_already_in_the_book_is_not_sent_again(status: str) -> None:
+    """Kite accepts a second order with the same tag, so the adapter refuses
+    it itself. `ems.send` reads this as "the original is fine"."""
+    kite = FakeKite(orders_rows=[{"tag": "abc123", "order_id": "7", "status": status}])
+    with pytest.raises(DuplicateOrder):
+        KiteBroker(kite).place(_order("abc123"))
+    assert kite.sent == []
+
+
+def test_a_rejected_order_with_the_same_tag_does_not_block_a_send() -> None:
+    kite = FakeKite(orders_rows=[{"tag": "abc123", "order_id": "7", "status": "REJECTED"}])
+    assert KiteBroker(kite).place(_order("abc123")) == "240821000123"
+    assert len(kite.sent) == 1
+
+
+def test_an_unreadable_book_sends_nothing_and_says_so() -> None:
+    """Not being able to check is a definite refusal, not an ambiguity: the
+    order never left this process."""
+    kite = FakeKite(orders_raises=OSError("read timed out"))
+    with pytest.raises(BrokerRejected, match="not sent"):
+        KiteBroker(kite).place(_order())
+    assert kite.sent == []
+
+
+def test_ems_reads_the_duplicate_as_the_original_landing() -> None:
+    from eulerlab.oms import ems
+    from eulerlab.oms.states import Event
+
+    kite = FakeKite(orders_rows=[{"tag": "abc123", "order_id": "7", "status": "OPEN"}])
+    outcome = ems.send(KiteBroker(kite), _order("abc123"))
+    assert outcome.event is Event.SEND_OK
+    assert kite.sent == []

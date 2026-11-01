@@ -345,15 +345,6 @@ def run(
     assert_adjustable(rows)
     funds = fund_symbols(rows)
     lookback = strategy.lookback
-    # Indexed once per run. `factor_as_of` scans the whole store per call, and
-    # calling it per row per symbol per rebalance took the test suite from 5
-    # seconds to nearly nine minutes. The factors for one instrument are a
-    # short sorted list, so one pass builds what every lookup needs.
-    _factor_events: dict[str, list[tuple[date, float]]] = {}
-    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
-        _factor_events.setdefault(record.key, []).append((record.event_time.date(), record.value))
-    for events in _factor_events.values():
-        events.sort()
 
     def _view_history(today: date) -> dict[str, list[PanelRow]]:
         """Rows up to `today`, capped at the lookback and **adjusted as of today**.

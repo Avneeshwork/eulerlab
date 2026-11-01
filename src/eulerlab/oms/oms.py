@@ -9,9 +9,11 @@ intention always produces the same id. `submit` looks it up in the journal
 first and returns the state it already has. A retry after a timeout, a
 re-run of the same rebalance, a script started twice — none of them can
 double-send. And the defence is two-deep: even if the OMS somehow sent again,
-the broker rejects a duplicate client order id, and `ems.send` reads that
-rejection as *the original is fine* rather than as a failure. (Kite does not
-enforce unique tags, so on Kite only the journal lookup stands; T-4348.)
+the adapter refuses a duplicate client order id, and `ems.send` reads that
+refusal as *the original is fine* rather than as a failure. Kite itself does
+not enforce unique tags, so `KiteBroker.place` looks the tag up in the day's
+order book before sending and raises `DuplicateOrder` itself (T-4348). That
+check covers the same day only: Kite's book forgets yesterday.
 
 **Intent is on disk before the network call.** `submit` journals `INTENT`,
 fsynced, and only then sends. There is no window in which an order exists at
@@ -22,7 +24,8 @@ to `UNKNOWN`, because whatever happened while this process was dead is not
 knowable from local state. Each one is then resolved by querying the broker.
 If the query fails, the order stays `UNKNOWN` — there is no timeout after
 which it is written off, because writing it off is the assumption the rules
-forbid.
+forbid. Nor is "not in the book" proof, when the book only holds today's
+orders and the order was sent on an earlier day (T-4349).
 
 One case gets special handling and it is worth naming. If the broker reports
 no knowledge of an order **that we have recorded fills for**, that is not a
@@ -34,7 +37,8 @@ The OMS refuses to resolve it and reports it as a break for a human.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from eulerlab.backtest.events import Order
 from eulerlab.costs.schedule import Side
@@ -43,6 +47,8 @@ from eulerlab.oms.broker import BrokerAdapter, BrokerOrderView, BrokerUnreachabl
 from eulerlab.oms.journal import Journal, JournalEntry
 from eulerlab.oms.killswitch import KillSwitch, KillSwitchTripped
 from eulerlab.oms.states import Event, OrderState, is_terminal, transition
+
+IST = ZoneInfo("Asia/Kolkata")
 
 FILL_EVENTS = frozenset(
     {Event.FILL, Event.PARTIAL_FILL, Event.QUERY_FOUND_FILLED, Event.QUERY_FOUND_PARTIAL}
@@ -273,8 +279,18 @@ class OMS:
             self._apply(client_order_id, state, Event.PROCESS_RESTART, {"was": state.value})
         return self.resolve_unknown()
 
-    def resolve_unknown(self) -> ResolutionReport:
+    def _sent_before(self, client_order_id: str, today: date) -> date | None:
+        """The IST day the order's intent was journaled, when before `today`."""
+        history = self.journal.history(client_order_id)
+        if not history:
+            return None
+        sent = datetime.fromisoformat(history[0].at).astimezone(IST).date()
+        return sent if sent < today else None
+
+    def resolve_unknown(self, *, today: date | None = None) -> ResolutionReport:
         """Ask the broker about everything we are unsure of."""
+        today = today or datetime.now(IST).date()
+        daily_book = bool(getattr(self.adapter, "order_book_is_daily", False))
         report = ResolutionReport()
         for client_order_id in self.unresolved():
             try:
@@ -292,6 +308,18 @@ class OMS:
                     report.breaks.append(
                         f"{client_order_id}: we have recorded fills, the broker has no "
                         f"record of the order. One of the two is wrong; a human decides which."
+                    )
+                    report.unresolved.append(client_order_id)
+                    continue
+                if daily_book and (sent := self._sent_before(client_order_id, today)):
+                    # Absent from a book that only holds today's orders says
+                    # nothing about an order sent on an earlier day. It may
+                    # have filled. Left UNKNOWN for a human with the trade
+                    # book or contract note, never resolved as unsent.
+                    report.breaks.append(
+                        f"{client_order_id}: sent on {sent}, and {self.adapter.name}'s order "
+                        f"book holds only today's orders. Check that day's trade book or "
+                        f"contract note; it stays UNKNOWN until then."
                     )
                     report.unresolved.append(client_order_id)
                     continue

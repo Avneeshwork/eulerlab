@@ -37,7 +37,12 @@ from typing import Any, Protocol
 
 from eulerlab.backtest.events import Order
 from eulerlab.costs.schedule import Side
-from eulerlab.oms.broker import BrokerOrderView, BrokerRejected, BrokerUnreachable
+from eulerlab.oms.broker import (
+    BrokerOrderView,
+    BrokerRejected,
+    BrokerUnreachable,
+    DuplicateOrder,
+)
 
 TAG_LIMIT = 20
 """Kite truncates order tags beyond this. Applied on both send and lookup so
@@ -81,6 +86,11 @@ class KiteBroker:
 
     name = "kite"
 
+    order_book_is_daily = True
+    """Kite's `orders()` holds only today's orders. Read by `OMS.resolve_unknown`:
+    an order sent on an earlier day that is missing from today's book has not
+    been shown never to exist, so it must not resolve as unsent (T-4349)."""
+
     def __init__(
         self,
         client: KiteClient,
@@ -111,6 +121,24 @@ class KiteBroker:
         limit here would let the adapter trade differently from the backtest.
         """
         tag = order.client_order_id[:TAG_LIMIT]
+        # Kite does not refuse a second order with the same tag, so the check
+        # the OMS documents as its second line of defence is made here: look
+        # for the tag in today's book first (T-4348). If the book cannot be
+        # read, nothing is sent, which is a definite refusal and not an
+        # ambiguity: this call never reached the exchange.
+        try:
+            today = self._kite.orders() or []
+        except Exception as exc:
+            raise BrokerRejected(f"not sent: could not check for a duplicate first: {exc}") from exc
+        for row in today:
+            if str(row.get("tag") or "") != tag:
+                continue
+            if str(row.get("status") or "").upper() in _TERMINAL_REJECTED:
+                continue
+            raise DuplicateOrder(
+                f"tag {tag} is already at Kite as order {row.get('order_id')} "
+                f"({row.get('status')}); not sent again"
+            )
         try:
             broker_id = self._kite.place_order(
                 variety=self.variety,

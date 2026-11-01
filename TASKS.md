@@ -15,12 +15,12 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4343 | `make install` installs the `web` extra so `make verify` passes on a fresh machine | DONE |
 | T-4344 | STATE.md back to one page; README check and test counts | DONE |
 | T-4345 | Check every workbench page against real data on the operator's Mac | TODO |
-| T-4346 | Review the order path, risk limits and backtester module by module | DOING — order path and loss limits done (HISTORY #51); backtester not yet read line by line |
+| T-4346 | Review the order path, risk limits and backtester module by module | DONE — order path and loss limits (HISTORY #51); backtester (HISTORY #53, `tests/test_backtest_audit.py`) |
 | T-4347 | Fake DXY rows (98.9, +0.15%) in the Mac's `data/landing/macro`, one per day `make verify` ran: decide whether readers should skip them | DONE — `macro._is_test_row`; the files stay, landing is immutable; `tests/test_macro_history.py` |
 | T-4351 | OMS counted cumulative fill entries twice (HISTORY #51) | DONE — `tests/test_oms_reconcile.py` |
-| T-4348 | Kite does not reject duplicate tags: make the second line of defence real (look up the tag before a retry) or remove the claim | TODO. Before live (S-015) |
-| T-4349 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | TODO. Before live (S-015) |
-| T-4350 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | TODO. Before live |
+| T-4348 | Kite does not reject duplicate tags: make the second line of defence real (look up the tag before a retry) or remove the claim | DONE — `KiteBroker.place` checks the day's book first; `tests/test_broker_kite.py` |
+| T-4349 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | DONE — stays `UNKNOWN` and is reported as a break; `tests/test_live_order_gaps.py` |
+| T-4350 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | DONE — `ems.live_governor()`, a locked shared window; the live OMS must use it when S-015 is wired; `tests/test_live_order_gaps.py` |
 | T-4352 | One row, one run: the Strategies table's Sharpe and verdict come from the latest stored run (HISTORY #52) | DONE — `tests/test_strategies_table.py` |
 | T-4353 | Check B2's `nse/macro/` day files for days that lost rows to a shrinking upload before 2026-11-01 | TODO |
 | T-4354 | Charts page: the seven TradingView macro mini-charts were blank on the Mac and the Advanced Chart refuses NSE:NIFTYBEES; draw them from our own history instead, or drop them | DONE — operator chose our own data (ADR-114) |
@@ -30,6 +30,8 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4360 | Node on the Mac is 20.11; the chart-maths tests need 22.6 or newer, so `make verify` skips them there | TODO. Operator: `brew upgrade node` |
 | T-4361 | Our chart drew raw daily prices: NIFTYBEES's monthly chart showed its 2019 1:10 unit split as a 90% crash. Now split-adjusted, as backtests read them (A-043); 1h/4h answers kept in memory for the day; candle buttons D/W/M so they no longer read like the 1D/1M ranges | DONE — `tests/test_history_intraday.py` |
 | T-4362 | `npm install` reports 19 known vulnerabilities (1 critical) in `web/` dependencies; review `npm audit` and upgrade what is safe (Next 14.2.5 is the likely source) | TODO |
+| T-4363 | Shorts in the daily engines: both accept negative weights and hold a short overnight in cash equity, which Indian delivery does not allow, and Tier B's realised P&L books a short sale's proceeds as profit. Refuse negative weights for delivery equity, or model shorts properly (borrow, margin, P&L) | TODO. Operator's call (HISTORY #53) |
+| T-4364 | `KiteBroker.positions` reads only the `net` book. A CNC (delivery) buy moves to Kite's `holdings` the next day, so reconciling a delivery book against `net` would report every carried holding as `local_only` | TODO. Before live (S-015) |
 | T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | TODO |
 | T-4356 | Fundamentals not fetched since 2026-10-18 | TODO |
 

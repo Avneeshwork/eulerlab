@@ -1029,6 +1029,18 @@ So `QUERY_FAILED` maps `UNKNOWN` back to `UNKNOWN`. There is deliberately **no
 timeout after which the system gives up**. A test asserts this over the entire
 transition table, not over chosen examples.
 
+**"Absent" needs a book that remembers.** Kite's `orders()` holds only today's
+orders. An order sent on an earlier day and missing from today's book has not
+been shown never to exist, so for an adapter with `order_book_is_daily` the OMS
+does not resolve it as `UNSENT`: it stays `UNKNOWN` and is reported as a break
+for a human with that day's trade book or contract note (T-4349).
+
+**Duplicates.** The OMS never sends a client order id it has journaled. As a
+second line, `KiteBroker.place` reads the day's order book first and refuses a
+tag already there (unless rejected or cancelled), because Kite itself accepts
+duplicate tags; `ems.send` reads that refusal as the original landing. If the
+book cannot be read, nothing is sent (T-4348).
+
 **`UNSENT` ≠ `REJECTED`.** Both terminal, opposite meanings: `UNSENT` means the
 exchange has no record; `REJECTED` means it saw the order and refused.
 
@@ -1055,6 +1067,11 @@ It is implemented as a **sliding one-second window**, not a token bucket. The
 distinction is not academic: a bucket refilling 5 tokens per second permits 5
 sends at 0.99s and 5 more at 1.01s — **ten orders inside 200 milliseconds**,
 which is precisely the burst the rule exists to prevent.
+
+The limit is per client at the exchange, not per process. `ems.live_governor()`
+keeps the window in `data/oms/rate_window.json` behind an exclusive file lock,
+with wall-clock times, so every live sender on the machine shares one window
+(T-4350). Paper books keep a window each; their orders never reach an exchange.
 
 ## 6.4 Reconciliation: the broker is right
 
