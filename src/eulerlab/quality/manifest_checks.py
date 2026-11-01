@@ -194,14 +194,18 @@ def check_segment_coverage(path: Path, dataset: str = "nse") -> list[Finding]:
 
     out: list[Finding] = []
     for day, segments in sorted(by_date.items()):
-        if missing := EXPECTED_SEGMENTS - segments:
+        # One finding per missing segment, carrying that segment, so a day
+        # with no F&O file grades F&O and not the cash bhavcopy beside it. With
+        # no segment, it graded every dataset in the `nse` manifest (T-4345).
+        for missing in sorted(EXPECTED_SEGMENTS - segments):
             out.append(
                 Finding(
                     check="segment-coverage",
                     severity=Severity.WARN,
                     dataset=dataset,
                     day=date.fromisoformat(day),
-                    detail=f"has {sorted(segments)} but not {sorted(missing)}",
+                    detail=f"has {sorted(segments)} but not {[missing]}",
+                    segment=missing,
                 )
             )
     return out

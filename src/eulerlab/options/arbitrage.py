@@ -169,6 +169,20 @@ def implied_forward_and_discount(
     return intercept / discount, discount
 
 
+def implied_forward_at_unit_discount(chain: Chain, *, traded_only: bool = True) -> float | None:
+    """The forward from parity with the discount factor fixed at 1.
+
+    `C - P = F - K`, so each strike gives `F = C - P + K`; the median of those
+    is the forward, robust to a bad quote as the Theil-Sen fit is. Used when
+    the free fit returns a discount factor above 1, a negative rupee rate that
+    is fit noise on a short expiry (T-4345). None with fewer than three pairs.
+    """
+    pairs = chain.paired(traded_only=traded_only)
+    if len(pairs) < 3:
+        return None
+    return float(median([call.price - put.price + float(strike) for strike, call, put in pairs]))
+
+
 def check_put_call_parity(chain: Chain, *, traded_only: bool = True) -> list[Finding]:
     """`C - P` must equal `DF*(F - K)` at every strike.
 

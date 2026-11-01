@@ -319,3 +319,25 @@ def test_pruning_a_configuration_drops_its_history_too(space: ws.Workspace) -> N
     assert kept.exists()
     assert not dropped.exists()
     assert reports.load(space, "demo", "drop") is None
+
+
+def test_total_return_is_measured_from_the_starting_cash() -> None:
+    """The first day's close is already net of that day's costs. Measured from
+    it, a report read 58.87% beside a rupee gain of 58.77% (T-4345)."""
+    fills = [_Fill(date(2026, 1, 1), "AAA", Side.BUY, 100, 10.0, 6.0)]
+    payload = reports.build(
+        strategy_id="demo",
+        configuration="cfg",
+        universe="all",
+        instruments=[],
+        tier="B",
+        window_days=10,
+        equity=[994.0, 1100.0],
+        days=_days(2),
+        fills=fills,
+        rejections=[],
+        marks={"AAA": 11.06},
+        starting_cash=1000.0,
+    )
+    gain = payload["final_equity"] - payload["starting_cash"]
+    assert payload["metrics"]["total_return"] == pytest.approx(gain / 1000.0)

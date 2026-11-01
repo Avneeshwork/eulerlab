@@ -236,6 +236,25 @@ def read_all(
     return out
 
 
+def latest_schedule(events: list[Event]) -> list[Event]:
+    """One row per release: when the source moves an event's time, the newer
+    record wins.
+
+    The landing key includes the time, so a release moved from 08:00 to 08:32
+    lands as a second record and both used to show (BOJ Policy Rate, 2026-W43,
+    T-4345). Grouped by country, title and calendar day; the record with the
+    latest `knowledge_time` is the schedule as last published. The landed
+    files are not changed.
+    """
+    best: dict[tuple[str, str, str], Event] = {}
+    for event in events:
+        group = (event.country, event.title, event.event_time[:10])
+        held = best.get(group)
+        if held is None or event.knowledge_time > held.knowledge_time:
+            best[group] = event
+    return sorted(best.values(), key=lambda e: e.event_time)
+
+
 def main() -> int:
     total, new = land()
     print(f"calendar: {total} events in the week, {new} new")

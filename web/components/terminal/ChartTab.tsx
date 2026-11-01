@@ -90,14 +90,19 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
   FX: {
     label: 'Forex',
     symbols: [
-      ['FX_IDC:USDINR', 'USD/INR'],
+      // The ten pairs `ingest/fx.py` lands, in its order, so every button has
+      // bars. USD/INR used to open first and had none: no source here lands
+      // it (T-4345).
       ['FX:EURUSD', 'EUR/USD'],
       ['FX:USDJPY', 'USD/JPY'],
       ['FX:GBPUSD', 'GBP/USD'],
       ['FX:AUDUSD', 'AUD/USD'],
       ['FX:USDCAD', 'USD/CAD'],
       ['FX:USDCHF', 'USD/CHF'],
+      ['FX:NZDUSD', 'NZD/USD'],
       ['FX:EURJPY', 'EUR/JPY'],
+      ['FX:GBPJPY', 'GBP/JPY'],
+      ['FX:EURGBP', 'EUR/GBP'],
       ['TVC:DXY', 'DOLLAR INDEX'],
     ],
   },
@@ -158,6 +163,7 @@ export function ChartTab() {
   const [macro, setMacro] = useState<MacroReading[]>([]);
   const [spread, setSpread] = useState<number | null>(null);
   const [stale, setStale] = useState(false);
+  const [sweptAt, setSweptAt] = useState<string | null>(null);
 
   // The macro band reads the landed sweep, same as the snapshot's ribbon —
   // one file rather than seventeen requests per page view.
@@ -170,6 +176,7 @@ export function ChartTab() {
         setMacro(snap.world?.macro ?? []);
         setSpread(snap.world?.macro_2s10s ?? null);
         setStale(Boolean(snap.world?.stale_groups?.includes('macro')));
+        setSweptAt(snap.world?.taken_at ?? null);
       })
       .catch(() => undefined);
     return () => {
@@ -359,7 +366,7 @@ export function ChartTab() {
       )}
 
       {/* Below the chart, as asked: what a trader checks around a price. */}
-      <MacroBand rows={macro} spread={spread} stale={stale} />
+      <MacroBand rows={macro} spread={spread} stale={stale} sweptAt={sweptAt} />
     </>
   );
 }

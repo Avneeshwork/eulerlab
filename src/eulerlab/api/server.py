@@ -812,12 +812,18 @@ def _table_figures(
         "nifty_return": None,
     }
     configuration = result.get("configuration")
+    reported_cagr = None
     if configuration:
-        figures.update(reports.headline(tenant, str(item["id"]), str(configuration)))
+        found = dict(reports.headline(tenant, str(item["id"]), str(configuration)))
+        reported_cagr = found.pop("annualised", None)
+        figures.update(found)
     start, end = figures["period"]
+    if reported_cagr is not None:
+        # The report's CAGR (trading days / 252), the figure its page shows.
+        figures["annual_return"] = round(float(reported_cagr), 4)
     if start and end and total is not None:
         years = (_date.fromisoformat(end) - _date.fromisoformat(start)).days / 365.25
-        if years > 0.25 and total > -1:
+        if reported_cagr is None and years > 0.25 and total > -1:
             figures["annual_return"] = round((1 + float(total)) ** (1 / years) - 1, 4)
         adopted = item.get("adopted") or {}
         ran_on = adopted.get("market") or result.get("asset_class") or item.get("asset_class")
@@ -4007,7 +4013,7 @@ def _calendar_band() -> dict[str, Any]:
     try:
         from eulerlab.ingest import forexfactory
 
-        events = forexfactory.read_all(stale_ok=True)
+        events = forexfactory.latest_schedule(forexfactory.read_all(stale_ok=True))
     except Exception as exc:
         return {
             "available": False,
@@ -4629,6 +4635,27 @@ def mode() -> dict[str, Any]:
     }
 
 
+def _chain_forward(
+    fitted: tuple[float, float] | None,
+    future_price: float | None,
+    unit_forward: float | None = None,
+) -> tuple[float | None, float, str]:
+    """The forward, discount factor and a note of where they came from.
+
+    `unit_forward` is the parity forward with the discount fixed at 1
+    (`implied_forward_at_unit_discount`), used when the free fit's discount is
+    above 1: a negative rupee rate, which is fit noise on a short expiry and
+    pushed a deep call's delta (DF * N(d1)) to 1.001 (T-4345).
+    """
+    if fitted is not None and fitted[1] > 1.0 and unit_forward is not None:
+        return unit_forward, 1.0, "put-call parity with the discount at 1 (the fit gave above 1)"
+    if fitted is not None and fitted[1] <= 1.0:
+        return fitted[0], fitted[1], "fitted from put-call parity"
+    if future_price is not None:
+        return future_price, 1.0, "the exact-expiry future, undiscounted"
+    return None, 1.0, "unavailable — no parity fit and no matching future"
+
+
 @app.get("/api/options/chain")
 def options_chain(underlying: str = "NIFTY", day: str = "", expiry: str = "") -> dict[str, Any]:
     """One option chain in full. The work, and its notes, are in `_chain_payload`."""
@@ -4655,7 +4682,11 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
     from eulerlab.ingest import landing_reader
     from eulerlab.master.derivatives import Right
     from eulerlab.options import analytics
-    from eulerlab.options.arbitrage import implied_forward_and_discount, run_chain_checks
+    from eulerlab.options.arbitrage import (
+        implied_forward_and_discount,
+        implied_forward_at_unit_discount,
+        run_chain_checks,
+    )
     from eulerlab.options.chain import build_chains, quotes_from_fo_bhavcopy
     from eulerlab.options.iv import implied_vol, years_to_expiry
 
@@ -4703,15 +4734,11 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
     # And the fit returns the discount factor with it, which was otherwise
     # hardcoded to 1.0 and silently shifted every vol on the screen.
     fitted = implied_forward_and_discount(chain, traded_only=True)
-    if fitted is not None:
-        forward, discount = fitted
-        forward_source = "fitted from put-call parity"
-    elif chain.future is not None:
-        forward, discount = chain.future.price, 1.0
-        forward_source = "the exact-expiry future, undiscounted"
-    else:
-        forward, discount = None, 1.0
-        forward_source = "unavailable — no parity fit and no matching future"
+    forward, discount, forward_source = _chain_forward(
+        fitted,
+        chain.future.price if chain.future is not None else None,
+        implied_forward_at_unit_discount(chain, traded_only=True),
+    )
     days_out = max((chain.expiry - trade_day).days, 0)
     tenor = years_to_expiry(days_out)
 

@@ -269,9 +269,21 @@ def test_two_deployments_of_one_strategy_are_told_apart_by_capital() -> None:
     a = rb.Book(
         "a", "s", "Momentum", 100000.0, 100000.0, 0.0, (rb.Holding("A", 1, 1.0, 1000.0),), ()
     )
-    b = rb.Book("b", "s", "Momentum", 10000.0, 10000.0, 0.0, (rb.Holding("A", 1, 1.0, 100.0),), ())
+    # Rs 10,000 at the start and Rs 20,000 deposited: named by the Rs 30,000
+    # in it now, not the starting capital (T-4345).
+    b = rb.Book(
+        "b",
+        "s",
+        "Momentum",
+        10000.0,
+        30000.0,
+        0.0,
+        (rb.Holding("A", 1, 1.0, 100.0),),
+        (),
+        flows=((date(2026, 10, 1), 20000.0),),
+    )
     titles = [row["title"] for row in _payload([a, b], prices)["deployments"]]
-    assert titles == ["₹1 L · Momentum", "₹10,000 · Momentum"]
+    assert titles == ["₹1 L in · Momentum", "₹30,000 in · Momentum"]
 
 
 def test_watch_levels_come_from_the_file_and_reject_an_unknown_key(tmp_path: Path) -> None:
@@ -467,5 +479,9 @@ def test_flows_are_read_from_state_and_reach_the_payload() -> None:
     row, total = payload["deployments"][0], payload["book"]
     assert row["capital"] == 2000.0 and row["moved"] == 1000.0 and row["made"] == 310.0
     assert row["since_start"] == pytest.approx(0.21) and row["drawdown_now"] == 0.0
-    assert total["since_start"] == 310.0 and total["since_start_pct"] == pytest.approx(0.21)
+    # Rupees made over money put in, so the pair on screen agrees (T-4345):
+    # 310 on 2,000 is 15.5%. The time-weighted 21% stays for the backtest check.
+    assert row["made_pct"] == pytest.approx(0.155)
+    assert total["since_start"] == 310.0 and total["since_start_pct"] == pytest.approx(0.155)
+    assert total["since_start_twr"] == pytest.approx(0.21)
     assert total["today"] == pytest.approx(210.0) and total["today_pct"] == pytest.approx(0.1)

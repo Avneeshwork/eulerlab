@@ -1048,6 +1048,16 @@ tag already there (unless rejected or cancelled), because Kite itself accepts
 duplicate tags; `ems.send` reads that refusal as the original landing. If the
 book cannot be read, nothing is sent (T-4348).
 
+**Positions are the opening holding plus the net book.** Kite moves a
+delivery stock out of `positions.net` into `holdings` the day after it is
+bought, and shows a sale out of holdings as a negative CNC net row while also
+lowering `holdings.quantity`. So `KiteBroker.positions` counts each holding's
+`opening_quantity` (fixed for the day) plus the net book, which is right
+whichever way the sale shows. A holding whose `quantity + t1_quantity
++ used_quantity` is not its `opening_quantity`, that has no opening quantity,
+or that holds MTF shares raises rather than being guessed, as does a failed
+read of either book (T-4364, RESEARCH/139, A-091, HISTORY #55).
+
 **`UNSENT` ≠ `REJECTED`.** Both terminal, opposite meanings: `UNSENT` means the
 exchange has no record; `REJECTED` means it saw the order and refused.
 
@@ -1851,10 +1861,10 @@ shortened (T-4365): it reads every B2 version of the day, writes their union
 (`macro.merge_day_versions`: every reading once, in `at` order) as the current
 object, and reads it back. Dry run by default; it never changes `data/landing/`.
 
-Launchd runs these jobs only while their plists are installed
-(`make schedule ACTION=install JOB=...`). On 2026-11-01 only `briefweekend` was
-loaded on the operator's Mac; nothing else had run from launchd since about
-20 October.
+Launchd runs these jobs only while their plists are installed and loaded
+(`make schedule ACTION=install JOB=...` writes the plist; `launchctl load -w`
+loads it). From about 20 October to 2026-11-01 only `briefweekend` was loaded
+on the operator's Mac.
 
 Fundamentals is not in `make daily`. `make fundamentals-update` fetches,
 uploads and deletes under its own `fundamentals` lock; launchd runs it on
@@ -2057,6 +2067,13 @@ A second pass on 2026-10-12 timed every read route and profiled the slow ones:
 | The wait after every batch run | 43 s | 2 s | The results mirror downloaded all 70 result files to compare them. It now skips a file whose size matches, the test `push` already used; `make results-pull` still fetches everything |
 | A study run from Strategies | computed twice | once | The report-rebuild pass recomputed items that had just been computed and have no report to rebuild |
 | Paper-book update, two deployments | about 29 s | 21 s | The faster panel read; `trading_days` and `by_symbol` no longer hash or sort what is already in order. Same equity to the paisa |
+
+**The chain's forward.** The options screen prices every row with one forward
+and discount factor, fitted from put-call parity across strikes (Theil-Sen,
+`implied_forward_and_discount`). A fitted discount above 1 is a negative rupee
+rate, so it is replaced by parity with the discount fixed at 1: the forward is
+the median of `C - P + K` (`implied_forward_at_unit_discount`, T-4345). With no
+fit, the exact-expiry future is used undiscounted.
 
 None of these stores a result to reuse later. Each removes work that was being
 repeated or was never needed. `tests/test_dashboard_speed.py` checks every
@@ -2360,8 +2377,12 @@ is the time-weighted return `rb.growth`:
     index(t) = index(t-1) * equity(t) / (equity(t-1) + flow(t)),   index(start) = 1
 
 the rule `TierBResult.total_return` already used. Rupees made are equity less
-the money put in (`Book.deployed` = capital + flows). Today's P&L subtracts
-that day's flow. Drawdown and the live line against the backtest band are read
+the money put in (`Book.deployed` = capital + flows). The percentage printed
+beside rupees made is those rupees over the money put in (`made_pct`,
+`since_start_pct`), so the pair always agrees; the time-weighted figure is
+`since_start` per deployment and `since_start_twr` for the book, and is what the
+backtest comparison uses (T-4345). A deployment is named by the money in it
+now, not its starting capital. Today's P&L subtracts that day's flow. Drawdown and the live line against the backtest band are read
 from the index, never from equity: the backtest has no flows, and a withdrawal
 is not a drawdown.
 

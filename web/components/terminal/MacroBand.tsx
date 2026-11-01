@@ -93,6 +93,22 @@ function Curve({ rows, spread }: { rows: MacroReading[]; spread?: number | null 
   );
 }
 
+/** "30 Oct, 23:35 IST" from a UTC ISO stamp. */
+const sweepTime = (iso: string) => {
+  const when = new Date(iso);
+  if (Number.isNaN(when.getTime())) return iso.slice(0, 16);
+  return (
+    when.toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }) + ' IST'
+  );
+};
+
 const GROUPS: [string, string][] = [
   ['yields', 'Sovereign yields'],
   ['energy', 'Energy'],
@@ -104,10 +120,13 @@ export function MacroBand({
   rows,
   spread,
   stale,
+  sweptAt,
 }: {
   rows: MacroReading[];
   spread?: number | null;
   stale?: boolean;
+  /** When the sweep behind these numbers ran (UTC ISO). */
+  sweptAt?: string | null;
 }) {
   const [view, setView] = useState<'charts' | 'numbers'>('charts');
   const [history, setHistory] = useState<Record<string, MacroPoint[]>>({});
@@ -126,7 +145,12 @@ export function MacroBand({
     <section>
       <h3 className="report-h">
         Macro
-        <span className="tfine hstat">{stale ? 'last sweep' : 'live'} · 17 series</span>
+        {/* The time of the sweep, not "live": the numbers are one landed
+            snapshot, which on 1 Nov was Friday's mid-session one (T-4345). */}
+        <span className="tfine hstat">
+          {stale ? 'last good sweep' : 'sweep'}
+          {sweptAt ? ` of ${sweepTime(sweptAt)}` : ''} · {rows.length} series
+        </span>
         <Info>
           From TradingView&apos;s public scanner: one request, no key. FMP&apos;s free plan answers 402
           for WTI, natural gas and the dollar index, and serves no sovereign yields at all.
