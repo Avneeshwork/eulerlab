@@ -42,7 +42,8 @@ what is open is in `TASKS.md`.*
   cards trade only stocks with Rs 1 crore of turnover and a survivor must beat
   Nifty (ADR-112). A doctor checks every agent run and the engineering agent
   proposes fixes on its own branch for you to merge (ADR-113). Launchd jobs are
-  not all loaded on the Mac yet (T-4138, T-4179, T-4323).
+  not loaded on the Mac: only the weekend brief runs, so fundamentals and the
+  daily feed have not run on their own since about 20 October (T-4356).
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):
   Dashboard, Strategies, Charts, Options, Live & Risk, AI, Tools.
 
@@ -80,4 +81,4 @@ run them to check that they work (T-2609).
 - **Sharpe has no risk-free rate** (A-083, T-4249).
 
 `docs/STUBS.md` lists what is fake; `docs/ASSUMPTIONS.md` what is unverified;
-`docs/HISTORY.md` the 52 times this project has been wrong.
+`docs/HISTORY.md` the 54 times this project has been wrong.

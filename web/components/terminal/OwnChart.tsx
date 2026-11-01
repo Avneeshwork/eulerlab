@@ -82,9 +82,10 @@ const FRAMES: [Frame, string][] = [
   ['30', '30m'],
   ['60', '1h'],
   ['240', '4h'],
-  ['D', '1D'],
-  ['W', '1W'],
-  ['M', '1M'],
+  // Not 1D/1W/1M: those read the same as the 1D and 1M ranges beside them.
+  ['D', 'D'],
+  ['W', 'W'],
+  ['M', 'M'],
 ];
 
 /** Calendar days of minutes fetched per intraday frame: enough for a few
@@ -236,7 +237,9 @@ export function OwnChart({
     let live = true;
     setDailyNote('');
     api
-      .history(symbol, assetClass, days)
+      // Split-adjusted, as a backtest reads them. Raw NIFTYBEES fell 90% on
+      // its 2019 unit split (A-043) and the monthly chart showed it as a crash.
+      .history(symbol, assetClass, days, assetClass === 'equity')
       .then((result) => {
         if (!live) return;
         if (!result.ok) {
@@ -247,7 +250,7 @@ export function OwnChart({
           return;
         }
         setDaily(result.bars);
-        setDailyNote(`${result.source} · to ${result.last}`);
+        setDailyNote(`${result.source}${result.adjusted ? ', split-adjusted' : ''} · to ${result.last}`);
       })
       .catch((problem) => live && setDailyNote(String(problem)));
     return () => {

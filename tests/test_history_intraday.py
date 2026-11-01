@@ -32,6 +32,7 @@ def _minutes(day: int, count: int) -> list[Candle]:
 @pytest.fixture
 def minutes(monkeypatch: pytest.MonkeyPatch) -> list[date | None]:
     asked: list[date | None] = []
+    monkeypatch.setattr(server, "_INTRADAY_CACHE", {})
 
     def fake_fetch(
         symbol: str, *, start: date | None = None, end: date | None = None
@@ -69,3 +70,22 @@ def test_names_a_symbol_with_no_minutes(minutes: list[date | None]) -> None:
     found = server.history_intraday("TITAN", minutes=5, days=5000)
     assert found["ok"] is False
     assert "no minute bars for TITAN in the last 400 days" in found["error"]
+
+
+def test_second_ask_is_served_from_memory(minutes: list[date | None]) -> None:
+    first = server.history_intraday("NIFTYBEES", minutes=60, days=250)
+    again = server.history_intraday("NIFTYBEES", minutes=60, days=250)
+    assert again is first
+    assert len(minutes) == 1
+
+
+def test_a_miss_is_not_remembered(minutes: list[date | None]) -> None:
+    server.history_intraday("TITAN", minutes=5)
+    server.history_intraday("TITAN", minutes=5)
+    assert len(minutes) == 2
+
+
+def test_the_cache_is_bounded(minutes: list[date | None]) -> None:
+    for days in range(1, server._INTRADAY_CACHE_SIZE + 5):
+        server.history_intraday("NIFTYBEES", minutes=5, days=days)
+    assert len(server._INTRADAY_CACHE) == server._INTRADAY_CACHE_SIZE

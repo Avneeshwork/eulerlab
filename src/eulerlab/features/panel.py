@@ -109,6 +109,12 @@ class PanelRow:
         the close left a pre-split bar whose high sat far above its close, so
         any range — ATR, a Donchian high, a candle body — read a corporate
         action as a price move. A zero (not recorded) stays zero.
+
+        Volume is multiplied by the same divisor, so it is counted in today's
+        shares. Left raw, a 1:10 split made every pre-split day trade a tenth
+        of its true volume, and a volume-ratio feature read the split as a
+        tenfold spike (2026-11-01 audit). Turnover is rupees and does not
+        change with a split, so it is left alone.
         """
         if divisor == 1.0:
             return self
@@ -118,6 +124,7 @@ class PanelRow:
             open=self.open / divisor,
             high=self.high / divisor,
             low=self.low / divisor,
+            volume=self.volume * divisor,
         )
 
     def ohlc(self) -> tuple[float, float, float, float]:

@@ -44,6 +44,11 @@ class Finding:
     dataset: str = ""
     symbol: str = ""
     day: date | None = None
+    segment: str = ""
+    """The manifest segment a finding is about, when it is about one. Several
+    datasets share one manifest (`nse` holds cm, fo, indices, delivery and
+    participant OI), and a revised index file must not grade the cash
+    bhavcopy (T-4355)."""
 
     def location(self) -> str:
         parts = [

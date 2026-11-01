@@ -20,7 +20,7 @@ from eulerlab.ingest.cloud import (
     plan_sync,
     sync,
 )
-from eulerlab.ingest.landing import Landing
+from eulerlab.ingest.landing import Landing, ManifestEntry
 
 CONFIG = StorageConfig(
     endpoint_url="https://s3.us-west-004.backblazeb2.com",
@@ -568,3 +568,56 @@ def test_a_successful_upload_makes_one_call(monkeypatch: pytest.MonkeyPatch) -> 
     client = FlakyClient(drops=0)
     _store_with(client).put("k", b"payload", "sha")
     assert client.calls == 1
+
+
+# --- a revised file: the bucket holds our earlier landing (T-4355) ---------
+
+
+def _relanded(tmp_path: Path) -> tuple[Landing, ManifestEntry, ManifestEntry]:
+    """The same key landed twice, the second time with more rows, as NSE's
+    index closes do when it adds indices later in the day."""
+    landing = Landing(tmp_path)
+    common = {
+        "trade_date": date(2026, 10, 15),
+        "segment": "indices",
+        "file_format": "csv",
+        "url": "https://example.invalid/ind.csv",
+        "inner_name": "ind.csv",
+        "suffix": "csv",
+    }
+    first = landing.write(payload=b"146 rows", rows=146, **common)  # type: ignore[arg-type]
+    second = Landing(tmp_path).write(payload=b"167 rows, longer", rows=167, **common)  # type: ignore[arg-type]
+    return Landing(tmp_path), first, second
+
+
+def test_an_earlier_landing_in_the_bucket_is_replaced_by_the_latest(tmp_path: Path) -> None:
+    landing, first, second = _relanded(tmp_path)
+    key = object_key(CONFIG.prefix, second)
+    store = FakeStore({key: (b"146 rows", first.sha256)})
+
+    result = sync(landing, store, CONFIG)
+
+    assert result.replaced == [key]
+    assert result.mismatched == []
+    assert result.ok
+    assert store.objects[key][0] == b"167 rows, longer"
+
+
+def test_with_verify_an_earlier_landing_is_recognised_by_its_hash(tmp_path: Path) -> None:
+    landing, first, second = _relanded(tmp_path)
+    key = object_key(CONFIG.prefix, second)
+    store = FakeStore({key: (b"146 rows", first.sha256)})
+
+    assert sync(landing, store, CONFIG, verify=True).replaced == [key]
+
+
+def test_a_bucket_copy_no_landing_produced_is_still_never_overwritten(tmp_path: Path) -> None:
+    landing, _, second = _relanded(tmp_path)
+    key = object_key(CONFIG.prefix, second)
+    store = FakeStore({key: (b"someone else", "cafe")})
+
+    result = sync(landing, store, CONFIG)
+
+    assert result.replaced == []
+    assert result.mismatched == [key]
+    assert store.puts == []

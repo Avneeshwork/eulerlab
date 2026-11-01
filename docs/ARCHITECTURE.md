@@ -1029,6 +1029,18 @@ So `QUERY_FAILED` maps `UNKNOWN` back to `UNKNOWN`. There is deliberately **no
 timeout after which the system gives up**. A test asserts this over the entire
 transition table, not over chosen examples.
 
+**"Absent" needs a book that remembers.** Kite's `orders()` holds only today's
+orders. An order sent on an earlier day and missing from today's book has not
+been shown never to exist, so for an adapter with `order_book_is_daily` the OMS
+does not resolve it as `UNSENT`: it stays `UNKNOWN` and is reported as a break
+for a human with that day's trade book or contract note (T-4349).
+
+**Duplicates.** The OMS never sends a client order id it has journaled. As a
+second line, `KiteBroker.place` reads the day's order book first and refuses a
+tag already there (unless rejected or cancelled), because Kite itself accepts
+duplicate tags; `ems.send` reads that refusal as the original landing. If the
+book cannot be read, nothing is sent (T-4348).
+
 **`UNSENT` ≠ `REJECTED`.** Both terminal, opposite meanings: `UNSENT` means the
 exchange has no record; `REJECTED` means it saw the order and refused.
 
@@ -1055,6 +1067,11 @@ It is implemented as a **sliding one-second window**, not a token bucket. The
 distinction is not academic: a bucket refilling 5 tokens per second permits 5
 sends at 0.99s and 5 more at 1.01s — **ten orders inside 200 milliseconds**,
 which is precisely the burst the rule exists to prevent.
+
+The limit is per client at the exchange, not per process. `ems.live_governor()`
+keeps the window in `data/oms/rate_window.json` behind an exclusive file lock,
+with wall-clock times, so every live sender on the machine shares one window
+(T-4350). Paper books keep a window each; their orders never reach an exchange.
 
 ## 6.4 Reconciliation: the broker is right
 
@@ -1323,6 +1340,10 @@ and a candle is dated by its first trading day (`web/lib/bars.ts`). Drawings
 store times as seconds and land on the candle that holds them in any
 timeframe; a line outside the loaded window is not drawn. Ranges (1D to All)
 are spans of time, not counts of bars.
+Equity daily bars are drawn split-adjusted (`/api/history?adjusted=true`), the
+prices a backtest reads; minute bars are raw. Intraday answers are kept in the
+API's memory for the day (24 at most), because a 4-hour chart reads 400 days
+of minute files and took 7 to 8 seconds.
 
 ## 7.1 The strategy builder
 
@@ -1807,6 +1828,21 @@ local through the landing reader. And a tree upload never replaces a bucket
 object with a **smaller** local file; it reports the file instead. A smaller
 local copy is a pruned file recreated with part of its rows, and uploading it
 would erase the rest from the store of record.
+
+The bhavcopy mirror (`cloud.sync`, the `nse` manifest) replaces a bucket object
+only when the bucket holds an **earlier landing of ours** of that key and the
+manifest's latest landing is different (`SyncPlan.superseded`). NSE revises
+the index closes after first publishing them; until 2026-11-01 those were
+reported as mismatched and never sent, so B2 kept the short first file
+(HISTORY #54). A bucket object that no landing of ours produced is still
+reported and never overwritten. B2 keeps every version, so a replaced copy is
+not lost. Data-quality findings name their segment, and a dataset is graded
+only on findings for its own segment: five segments share the `nse` manifest.
+
+Launchd runs these jobs only while their plists are installed
+(`make schedule ACTION=install JOB=...`). On 2026-11-01 only `briefweekend` was
+loaded on the operator's Mac; nothing else had run from launchd since about
+20 October.
 
 Fundamentals is not in `make daily`. `make fundamentals-update` fetches,
 uploads and deletes under its own `fundamentals` lock; launchd runs it on

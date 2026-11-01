@@ -97,10 +97,21 @@ class SyncPlan:
     already_present: list[ManifestEntry]
     mismatched: list[ManifestEntry]
     """Present in the bucket but with a different hash. Never silently overwritten."""
+    superseded: list[ManifestEntry] = field(default_factory=list)
+    """The bucket holds an **earlier landing of our own** under this key, and
+    the manifest's latest landing is a different file. Safe to replace: the
+    bucket's copy is ours, the manifest says it is out of date, and the bucket
+    keeps every version. Distinct from `mismatched`, where the bucket holds
+    something no landing of ours produced (T-4355)."""
 
     @property
     def total(self) -> int:
-        return len(self.upload) + len(self.already_present) + len(self.mismatched)
+        return (
+            len(self.upload)
+            + len(self.already_present)
+            + len(self.mismatched)
+            + len(self.superseded)
+        )
 
 
 @dataclass(frozen=True)
@@ -113,6 +124,8 @@ class SyncResult:
     # uploads plus these is the state of the bucket after them, which is what
     # anyone reusing that listing needs.
     uploaded_keys: list[str] = field(default_factory=list)
+    replaced: list[str] = field(default_factory=list)
+    """Keys whose bucket copy was an earlier landing and now holds the latest."""
 
     @property
     def ok(self) -> bool:
@@ -152,6 +165,17 @@ def plan_sync(
     upload: list[ManifestEntry] = []
     present: list[ManifestEntry] = []
     mismatched: list[ManifestEntry] = []
+    superseded: list[ManifestEntry] = []
+    earlier = _earlier_landings(landing)
+
+    def ours_but_older(entry: ManifestEntry, key: str, size: int) -> bool:
+        """The bucket's copy matches an earlier landing of this key."""
+        older = [e for e in earlier.get(entry.key, []) if e.size_bytes == size]
+        if not older:
+            return False
+        if not verify:
+            return True
+        return store.head_sha256(key) in {e.sha256 for e in older}
 
     for entry in _sorted_entries(landing):
         key = object_key(config.prefix, entry)
@@ -161,7 +185,7 @@ def plan_sync(
             upload.append(entry)
             continue
         if size != entry.size_bytes:
-            mismatched.append(entry)
+            (superseded if ours_but_older(entry, key, size) else mismatched).append(entry)
             continue
         if not verify:
             present.append(entry)
@@ -170,10 +194,29 @@ def plan_sync(
         remote_sha = store.head_sha256(key)
         if remote_sha == entry.sha256:
             present.append(entry)
+        elif remote_sha in {e.sha256 for e in earlier.get(entry.key, [])}:
+            superseded.append(entry)
         else:
             mismatched.append(entry)
 
-    return SyncPlan(upload=upload, already_present=present, mismatched=mismatched)
+    return SyncPlan(
+        upload=upload, already_present=present, mismatched=mismatched, superseded=superseded
+    )
+
+
+def _earlier_landings(landing: Landing) -> dict[tuple[str, str], list[ManifestEntry]]:
+    """Every landing of each key except the latest, which `entries()` returns.
+
+    NSE revises some files after first publishing them (the index closes add
+    indices later in the day), and the lander records each landing. The bucket
+    may still hold an earlier one.
+    """
+    latest = landing.entries()
+    out: dict[tuple[str, str], list[ManifestEntry]] = {}
+    for entry in landing.landings():
+        if entry.sha256 != latest[entry.key].sha256:
+            out.setdefault(entry.key, []).append(entry)
+    return out
 
 
 def _sorted_entries(landing: Landing) -> Iterator[ManifestEntry]:
@@ -189,7 +232,17 @@ def sync(
     verify: bool = False,
     remote_sizes: dict[str, int] | None = None,
 ) -> SyncResult:
-    """Upload anything the bucket does not already have."""
+    """Upload anything the bucket does not have, or has an older landing of.
+
+    A key whose bucket copy is an **earlier landing of ours** is replaced with
+    the manifest's latest (`SyncPlan.superseded`). Until 2026-11-01 those were
+    reported as mismatched and never sent: NSE re-published the index closes
+    for 15 Oct and 26 to 29 Oct with 167 rows where the first copy had 146 or
+    151, and B2 kept the short file while the manifest named the long one, so
+    pruning the local copy would have lost the full file (T-4355). The bucket
+    keeps every version, so the earlier copy survives. A bucket copy that no
+    landing of ours produced is still reported and never overwritten.
+    """
     plan = plan_sync(landing, store, config, verify=verify, remote_sizes=remote_sizes)
     mismatched = [object_key(config.prefix, e) for e in plan.mismatched]
     failed: list[str] = []
@@ -224,17 +277,24 @@ def sync(
     #
     # `map` preserves input order, so `failed` reads in landing order and a
     # re-run reports problems in the same sequence.
+    to_send = [*plan.upload, *plan.superseded]
     with ThreadPoolExecutor(max_workers=UPLOAD_WORKERS) as pool:
-        problems = list(pool.map(send, plan.upload))
+        problems = list(pool.map(send, to_send))
     failed.extend(p for p in problems if p is not None)
     landed = [
         object_key(config.prefix, entry)
-        for entry, problem in zip(plan.upload, problems, strict=True)
+        for entry, problem in zip(to_send, problems, strict=True)
         if problem is None
     ]
+    older = {object_key(config.prefix, e) for e in plan.superseded}
 
     return SyncResult(
-        len(landed), len(plan.already_present), mismatched, failed, uploaded_keys=landed
+        len(landed),
+        len(plan.already_present),
+        mismatched,
+        failed,
+        uploaded_keys=landed,
+        replaced=[key for key in landed if key in older],
     )
 
 

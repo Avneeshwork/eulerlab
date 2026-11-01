@@ -104,12 +104,7 @@ class TierBResult:
     def total_return(self) -> float:
         previous = self.starting_cash
         growth = 1.0
-        flows_by_day: dict[date, float] = {}
-        for flow in self.applied_flows:
-            day = flow.get("fill_day")
-            amount = flow.get("amount")
-            if isinstance(day, date) and isinstance(amount, (int, float)):
-                flows_by_day[day] = flows_by_day.get(day, 0.0) + float(amount)
+        flows_by_day = self._flows_by_day()
         for day, equity in zip(self.days, self.equity, strict=True):
             denominator = previous + flows_by_day.get(day, 0.0)
             if denominator > 0:
@@ -130,7 +125,34 @@ class TierBResult:
         return self.portfolio.rejections if self.portfolio else []
 
     def daily_returns(self) -> list[float]:
-        return [b / a - 1.0 for a, b in zip(self.equity, self.equity[1:], strict=False) if a > 0]
+        """Day-on-day returns, net of deposits and withdrawals.
+
+        A deposit is not a gain. Until 2026-11-01 this divided one day's equity
+        by the last, so a ₹1 lakh top-up into a ₹10 lakh book read as a 10%
+        day, while `total_return` already took flows out. A flow is credited
+        before the fill day's close, as the engine applies it, so it joins the
+        denominator of that day's return.
+        """
+        flows = self._flows_by_day()
+        out: list[float] = []
+        for (_, a), (day, b) in zip(
+            zip(self.days, self.equity, strict=True),
+            zip(self.days[1:], self.equity[1:], strict=True),
+            strict=False,
+        ):
+            base = a + flows.get(day, 0.0)
+            if base > 0:
+                out.append(b / base - 1.0)
+        return out
+
+    def _flows_by_day(self) -> dict[date, float]:
+        out: dict[date, float] = {}
+        for flow in self.applied_flows:
+            day = flow.get("fill_day")
+            amount = flow.get("amount")
+            if isinstance(day, date) and isinstance(amount, (int, float)):
+                out[day] = out.get(day, 0.0) + float(amount)
+        return out
 
 
 def run(
@@ -212,15 +234,6 @@ def run(
 
     assert_adjustable(rows)
     lookback = strategy.lookback
-    # Indexed once per run. `factor_as_of` scans the whole store per call, and
-    # calling it per row per symbol per rebalance took the test suite from 5
-    # seconds to nearly nine minutes. The factors for one instrument are a
-    # short sorted list, so one pass builds what every lookup needs.
-    _factor_events: dict[str, list[tuple[date, float]]] = {}
-    for record in load_price_factor_store().query(as_of=FAR_FUTURE):
-        _factor_events.setdefault(record.key, []).append((record.event_time.date(), record.value))
-    for events in _factor_events.values():
-        events.sort()
 
     def _view_history(today: date) -> dict[str, list[PanelRow]]:
         """Rows up to `today`, capped at the lookback and **adjusted as of today**.

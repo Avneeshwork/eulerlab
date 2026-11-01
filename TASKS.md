@@ -15,21 +15,27 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4343 | `make install` installs the `web` extra so `make verify` passes on a fresh machine | DONE |
 | T-4344 | STATE.md back to one page; README check and test counts | DONE |
 | T-4345 | Check every workbench page against real data on the operator's Mac | TODO |
-| T-4346 | Review the order path, risk limits and backtester module by module | DOING — order path and loss limits done (HISTORY #51); backtester not yet read line by line |
+| T-4346 | Review the order path, risk limits and backtester module by module | DONE — order path and loss limits (HISTORY #51); backtester (HISTORY #53, `tests/test_backtest_audit.py`) |
 | T-4347 | Fake DXY rows (98.9, +0.15%) in the Mac's `data/landing/macro`, one per day `make verify` ran: decide whether readers should skip them | DONE — `macro._is_test_row`; the files stay, landing is immutable; `tests/test_macro_history.py` |
 | T-4351 | OMS counted cumulative fill entries twice (HISTORY #51) | DONE — `tests/test_oms_reconcile.py` |
-| T-4348 | Kite does not reject duplicate tags: make the second line of defence real (look up the tag before a retry) or remove the claim | TODO. Before live (S-015) |
-| T-4349 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | TODO. Before live (S-015) |
-| T-4350 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | TODO. Before live |
+| T-4348 | Kite does not reject duplicate tags: make the second line of defence real (look up the tag before a retry) or remove the claim | DONE — `KiteBroker.place` checks the day's book first; `tests/test_broker_kite.py` |
+| T-4349 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | DONE — stays `UNKNOWN` and is reported as a break; `tests/test_live_order_gaps.py` |
+| T-4350 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | DONE — `ems.live_governor()`, a locked shared window; the live OMS must use it when S-015 is wired; `tests/test_live_order_gaps.py` |
 | T-4352 | One row, one run: the Strategies table's Sharpe and verdict come from the latest stored run (HISTORY #52) | DONE — `tests/test_strategies_table.py` |
-| T-4353 | Check B2's `nse/macro/` day files for days that lost rows to a shrinking upload before 2026-11-01 | TODO |
+| T-4353 | Check B2's `nse/macro/` day files for days that lost rows to a shrinking upload before 2026-11-01 | DONE — six days lost rows, all still in older B2 versions (HISTORY #54); restoring is T-4365 |
 | T-4354 | Charts page: the seven TradingView macro mini-charts were blank on the Mac and the Advanced Chart refuses NSE:NIFTYBEES; draw them from our own history instead, or drop them | DONE — operator chose our own data (ADR-114) |
 | T-4357 | Our chart: crosshair readout, ranges, log scale, horizontal/vertical/trend lines, indicators in panes | DONE — ADR-114; `web/lib/indicators.test.ts`; clicks checked in a browser |
 | T-4358 | Save chart drawings on the server so they follow the operator between devices | TODO. If the operator wants it |
 | T-4359 | Chart timeframes 1m, 5m, 15m, 30m, 1h, 4h, 1D, 1W, 1M; the embed's own interval buttons hidden for NSE, where they did nothing | DONE — ADR-114; `tests/test_history_intraday.py`, `web/lib/bars.test.ts` |
 | T-4360 | Node on the Mac is 20.11; the chart-maths tests need 22.6 or newer, so `make verify` skips them there | TODO. Operator: `brew upgrade node` |
-| T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | TODO |
-| T-4356 | Fundamentals not fetched since 2026-10-18 | TODO |
+| T-4361 | Our chart drew raw daily prices: NIFTYBEES's monthly chart showed its 2019 1:10 unit split as a 90% crash. Now split-adjusted, as backtests read them (A-043); 1h/4h answers kept in memory for the day; candle buttons D/W/M so they no longer read like the 1D/1M ranges | DONE — `tests/test_history_intraday.py` |
+| T-4362 | `npm install` reports 19 known vulnerabilities (1 critical) in `web/` dependencies; review `npm audit` and upgrade what is safe (Next 14.2.5 is the likely source) | TODO |
+| T-4363 | Shorts in the daily engines: both accept negative weights and hold a short overnight in cash equity, which Indian delivery does not allow, and Tier B's realised P&L books a short sale's proceeds as profit. Refuse negative weights for delivery equity, or model shorts properly (borrow, margin, P&L) | TODO. Operator's call (HISTORY #53) |
+| T-4364 | `KiteBroker.positions` reads only the `net` book. A CNC (delivery) buy moves to Kite's `holdings` the next day, so reconciling a delivery book against `net` would report every carried holding as `local_only` | TODO. Before live (S-015) |
+| T-4365 | Restore the six macro days B2 lost (24 Aug, 7, 14, 15, 18 and 29 Oct): write the union of each day's B2 versions, ordered by sweep time, as the current object | TODO. Needs the operator's go-ahead (writes to the bucket) |
+| T-4366 | Reinstall the launchd jobs on the Mac: `make schedule ACTION=install JOB=...` for daily, fundamentals and the agent jobs, then confirm with `launchctl list` | TODO. Operator, or say "go" |
+| T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | DONE — cash and F&O were byte-identical; the index closes were revised by NSE; the mirror now uploads the latest and grades are per segment (HISTORY #54) |
+| T-4356 | Fundamentals not fetched since 2026-10-18 | CAUSE FOUND — the launchd jobs are no longer installed on the Mac (only `briefweekend` is); reinstall is T-4366 |
 
 ## UI revamp (2026-10-28, ADR-102)
 

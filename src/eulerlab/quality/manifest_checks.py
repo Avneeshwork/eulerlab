@@ -100,6 +100,7 @@ def check_duplicate_keys(path: Path, dataset: str) -> list[Finding]:
                     check="duplicate-key",
                     severity=Severity.INFO,
                     dataset=dataset,
+                    segment=segment,
                     detail=f"{label} landed {len(hashes)} times, byte-identical each time",
                 )
             )
@@ -109,6 +110,7 @@ def check_duplicate_keys(path: Path, dataset: str) -> list[Finding]:
                     check="content-changed",
                     severity=Severity.ERROR,
                     dataset=dataset,
+                    segment=segment,
                     detail=(
                         f"{label} landed {len(hashes)} times with "
                         f"{len(set(hashes))} different checksums; the landing zone "
