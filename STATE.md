@@ -41,9 +41,10 @@ what is open is in `TASKS.md`.*
   writes and tests about 30 formula cards a day (`make agents-ideas`, ADR-111);
   cards trade only stocks with Rs 1 crore of turnover and a survivor must beat
   Nifty (ADR-112). A doctor checks every agent run and the engineering agent
-  proposes fixes on its own branch for you to merge (ADR-113). Launchd runs
-  the daily feed, fundamentals and the agent jobs on the Mac again since
-  2026-11-01; they had not run on their own since about 20 October (T-4356).
+  proposes fixes on its own branch for you to merge (ADR-113). Approving a lab
+  survivor registers, validates and gates it; verdicts show under Gate runs
+  (ADR-116). Launchd jobs were not loaded until 2026-11-01 (T-4356); on that
+  evening the agents, daily feed, fundamentals and idea lab jobs were loaded.
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):
   Dashboard, Strategies, Charts, Options, Live & Risk, AI, Tools.
 

@@ -29,6 +29,7 @@ import type {
   AgentStep,
   DatasetGrade,
   MarketBrief as MarketBriefData,
+  Promotion,
 } from '@/lib/api';
 
 const VIEWS = [
@@ -302,15 +303,53 @@ function Live({
   );
 }
 
+// ---------------------------------------------------------------- gate runs
+
+/** Approved idea lab survivors sent to the gate (ADR-116), newest first. */
+function GateRuns() {
+  const [rows, setRows] = useState<Promotion[]>([]);
+  useEffect(() => {
+    const load = () =>
+      agentsApi
+        .promotions()
+        .then((r) => setRows(r.ok ? r.promotions : []))
+        .catch(() => setRows([]));
+    load();
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
+  }, []);
+  if (rows.length === 0) return null;
+  return (
+    <div className="tpanel">
+      <h3>Gate runs ({rows.length})</h3>
+      <ul className="ai-inbox">
+        {rows.map((row) => (
+          <li key={row.item}>
+            <div>
+              <strong>{row.hypothesis || row.card.split('/').slice(-2, -1)[0]}</strong>{' '}
+              <Badge tone={row.verdict.startsWith('PROMOTE') ? 'up' : row.finished ? 'down' : undefined}>
+                {row.finished ? row.verdict.split(' ')[0] : 'running'}
+              </Badge>
+              <p className="tfine">{row.finished ? row.verdict : `started ${row.started.slice(0, 16)}`}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- inbox
 
 function Inbox({ items, onDone }: { items: AgentItem[]; onDone: () => void }) {
   const [error, setError] = useState('');
+  const [gate, setGate] = useState('');
   const decide = (id: string, decision: 'approved' | 'dismissed') => {
     agentsApi
       .decide(id, decision)
       .then((r) => {
         setError(r.ok ? '' : r.error ?? 'not recorded');
+        setGate(r.gate ?? '');
         onDone();
       })
       .catch((e: unknown) => setError(String(e)));
@@ -319,10 +358,11 @@ function Inbox({ items, onDone }: { items: AgentItem[]; onDone: () => void }) {
     <div className="tpanel">
       <h3>Waiting on you ({items.length})</h3>
       <p className="tfine">
-        Approving records your decision and nothing else. A draft still needs <code>make paper-agent-approve</code>; a
-        rerun or a relock is still your command.
+        Approving an idea lab survivor sends it to the gate: it is registered, validated and gated, and the verdict
+        appears under Gate runs. Approving anything else only records your decision.
       </p>
       {error && <p className="tnote bad">{error}</p>}
+      {gate && <p className="tnote">{gate}</p>}
       {items.length === 0 ? (
         <div className="tempty">Nothing waiting on you.</div>
       ) : (
@@ -772,7 +812,12 @@ export function AgentsTab({ open = '' }: { open?: string }) {
       <section className="tsection ai-section">
         {!data.log_ok && <p className="tnote bad">The agent log does not verify: {data.log_problem}</p>}
         {view === 'live' && <Live data={data} inbox={items.length} onRead={read} onOpen={setView} />}
-        {view === 'inbox' && <Inbox items={items} onDone={read} />}
+        {view === 'inbox' && (
+          <>
+            <Inbox items={items} onDone={read} />
+            <GateRuns />
+          </>
+        )}
         {view === 'agents' && <Agents data={data} onChange={read} />}
         {view === 'ask' && <Ask />}
         {view === 'research' && <Research onStarted={read} />}
