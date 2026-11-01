@@ -108,13 +108,34 @@ class Strategy(ABC):
     def target_weights(self, view: MarketView) -> dict[str, float]:
         """Desired portfolio weights on `view.as_of`.
 
-        Positive is long, negative is short, and the engine normalises. A
+        Positive is long and the engine normalises. Negative (short) weights
+        are dropped by the daily engines and the paper runner (`long_only`):
+        Indian delivery equity cannot be held short overnight (T-4363). A
         symbol left out means zero — absence and zero must mean the same thing
         so a strategy cannot accidentally hold something by forgetting it.
         """
 
     def describe(self) -> str:
         return self.name
+
+
+def long_only(weights: Mapping[str, float]) -> tuple[dict[str, float], list[str]]:
+    """Split a strategy's weights into the longs kept and the shorts refused.
+
+    The daily engines trade cash equity. An Indian delivery position cannot be
+    short overnight (shorts must be squared off the same day), and Tier B's
+    cash accounting would book a short sale's proceeds as profit. So a negative
+    weight is not traded: it is dropped here, before normalising, and the
+    engine counts it on its result so a report can say so (T-4363).
+    """
+    kept: dict[str, float] = {}
+    refused: list[str] = []
+    for symbol, weight in weights.items():
+        if weight < 0:
+            refused.append(symbol)
+        else:
+            kept[symbol] = weight
+    return kept, sorted(refused)
 
 
 def normalise(weights: Mapping[str, float], *, gross_cap: float = 1.0) -> dict[str, float]:

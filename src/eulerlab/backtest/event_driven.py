@@ -48,7 +48,7 @@ from eulerlab.backtest.events import (
     target_quantities,
 )
 from eulerlab.backtest.execution import Executor, SimulatedExecutor
-from eulerlab.backtest.strategy import MarketView, Strategy, normalise
+from eulerlab.backtest.strategy import MarketView, Strategy, long_only, normalise
 from eulerlab.backtest.vector import fund_symbols, fx_spreads
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Side
@@ -86,6 +86,9 @@ class TierBResult:
     orders: list[Order] = field(default_factory=list)
     final_marks: dict[str, float] = field(default_factory=dict)
     applied_flows: list[dict[str, object]] = field(default_factory=list)
+    refused_shorts: int = 0
+    """Negative weights the strategy asked for and the engine did not trade,
+    counted once per symbol per decision (`long_only`, T-4363)."""
     """The prices open positions were valued at on the last day.
 
     Returned rather than left for a caller to reconstruct. The report's
@@ -354,7 +357,9 @@ def run(
         if (index - warmup) % rebalance_every == 0 or is_flow_day:
             # --- decide ---
             view = MarketView(as_of=today, history=_view_history(today))
-            targets = normalise(strategy.target_weights(view), gross_cap=gross_cap)
+            longs, refused = long_only(strategy.target_weights(view))
+            result.refused_shorts += len(refused)
+            targets = normalise(longs, gross_cap=gross_cap)
 
             marks = {
                 symbol: price

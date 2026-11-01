@@ -232,6 +232,41 @@ def append(macro: Macro, *, root: Path = HISTORY) -> int:
     return len(macro.readings)
 
 
+def merge_day_versions(versions: list[str]) -> str:
+    """One day file holding every reading any stored version of it held.
+
+    For restoring a day whose bucket copy was overwritten by a shorter one
+    (HISTORY #54, T-4365). A day file is append-only, so every version is a
+    run of the day's readings and the true file is their union. A line is
+    kept as many times as the version holding it most often has it: versions
+    overlap, so a reading in two of them is one reading, but a line repeated
+    within one version was written twice and stays twice. Ordered by each
+    row's `at` stamp, ties in the order first seen, and the lines are kept
+    byte for byte. A line that is not a JSON object sorts last, unchanged.
+    """
+    from collections import Counter
+
+    most: Counter[str] = Counter()
+    first_seen: dict[str, int] = {}
+    for text in versions:
+        lines = [line for line in text.splitlines() if line.strip()]
+        for line, count in Counter(lines).items():
+            most[line] = max(most[line], count)
+        for line in lines:
+            first_seen.setdefault(line, len(first_seen))
+
+    def stamp(line: str) -> str:
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            return "\uffff"
+        return str(row.get("at", "")) if isinstance(row, dict) else "\uffff"
+
+    ordered = sorted(most, key=lambda line: (stamp(line), first_seen[line]))
+    out = [line for line in ordered for _ in range(most[line])]
+    return "".join(f"{line}\n" for line in out)
+
+
 def series(name: str, *, days: int = 90, root: Path = HISTORY) -> list[tuple[str, float]]:
     """(timestamp, level) for one series, oldest first.
 

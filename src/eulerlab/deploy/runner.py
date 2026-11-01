@@ -476,15 +476,16 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
 
 def _intended(strategy: Any, rows: Sequence[PanelRow], day: date, equity: float) -> dict[str, Any]:
     """The names the strategy wants on `day`, and how many the money can buy."""
-    from eulerlab.backtest.strategy import MarketView, normalise
+    from eulerlab.backtest.strategy import MarketView, long_only, normalise
 
     lookback = int(getattr(strategy, "lookback", 0) or 0)
     histories = by_symbol(rows)
     view_history = {s: (h[-lookback:] if lookback else h) for s, h in histories.items()}
     try:
-        targets = normalise(
-            strategy.target_weights(MarketView(as_of=day, history=view_history)), gross_cap=GROSS
+        longs, _refused = long_only(
+            strategy.target_weights(MarketView(as_of=day, history=view_history))
         )
+        targets = normalise(longs, gross_cap=GROSS)
     except Exception as exc:  # a preview must never fail the run
         return {"error": str(exc)}
     closes = {s: h[-1].close for s, h in histories.items() if h and h[-1].day == day}
