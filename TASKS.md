@@ -17,6 +17,10 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4325 | Check every workbench page against real data on the operator's Mac | TODO |
 | T-4326 | Review the order path, risk limits and backtester module by module | TODO |
 | T-4327 | Fake DXY rows (98.9, +0.15%) in the Mac's `data/landing/macro`, one per day `make verify` ran: decide whether readers should skip them | TODO. Operator |
+| T-4331 | OMS counted cumulative fill entries twice (HISTORY #49) | DONE — `tests/test_oms_reconcile.py` |
+| T-4328 | Kite does not reject duplicate tags: make the second line of defence real (look up the tag before a retry) or remove the claim | TODO. Before live (S-015) |
+| T-4329 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | TODO. Before live (S-015) |
+| T-4330 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | TODO. Before live |
 
 ## UI revamp (2026-10-28, ADR-102)
 
