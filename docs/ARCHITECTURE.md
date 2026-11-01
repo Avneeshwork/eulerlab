@@ -2786,6 +2786,11 @@ A run with no `output.json` is *running* while its last step is under 15
 minutes old (or the web server started it), and *stopped* after that. Steps
 carry no model text, only what the code chose to say.
 
+A run the doctor closed (`data.closed_by == "doctor"`, ADR-113) also shows as
+*stopped*, not *failed*: it stopped because the Mac slept or the app closed.
+A stopped card's summary says so and gives the newest run that finished ok,
+with that run's findings, so a full run is not hidden by a later one that died.
+
 ### When a model makes something up (ADR-088)
 
 `agents/grounding.py` checks every number (two digits or more, or with a

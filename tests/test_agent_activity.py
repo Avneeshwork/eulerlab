@@ -111,3 +111,35 @@ def test_make_agent_runs_an_agent_that_returns_items(monkeypatch: Any) -> None:
         warnings.simplefilter("ignore", RuntimeWarning)
         runpy.run_module("eulerlab.agents.runtime", run_name="__main__")
     assert done.value.code == 0
+
+
+def test_a_run_the_doctor_closed_shows_as_stopped_with_the_last_full_run() -> None:
+    """2026-11-01: the lab tested 22 cards, a second run stopped when the Mac slept,
+    the doctor closed it as failed, and the card said only "failed"."""
+    root = home()
+    runtime.run("lab", worker=lambda ctx: WorkerResult("22 card(s) tested"))
+    later = datetime.now(UTC) + timedelta(minutes=5)
+    dead = root / "lab" / f"{later:%Y%m%dT%H%M%SZ}-cccccc"
+    dead.mkdir(parents=True)
+    (dead / runtime.PROGRESS).write_text(
+        json.dumps({"at": later.isoformat(timespec="seconds"), "kind": "step", "text": "Testing"})
+        + "\n"
+    )
+    (dead / "output.json").write_text(
+        json.dumps(
+            {
+                "agent": "lab",
+                "run_id": dead.name,
+                "started": later.isoformat(timespec="seconds"),
+                "finished": later.isoformat(timespec="seconds"),
+                "status": "failed",
+                "summary": "stopped without finishing; closed by the doctor",
+                "items": [],
+                "notes": [],
+                "data": {"closed_by": "doctor"},
+            }
+        )
+    )
+    row = {row["name"]: row for row in r.agents_activity()["agents"]}["lab"]
+    assert row["state"] == "stopped" and row["run_id"] == dead.name
+    assert "the Mac slept" in row["summary"] and "22 card(s) tested" in row["summary"]

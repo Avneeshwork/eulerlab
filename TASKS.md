@@ -120,6 +120,7 @@ Verify: `uv run pytest -q tests/test_idea_lab.py tests/test_agent_trials.py`; th
 | T-4332 | Daily code quality check (ruff, mypy, pytest) in `make agents-close`, findings queued for engineering | DONE 2026-11-01 |
 | T-4333 | Measure a real fix: seconds and cost per attempt on the operator's machine, and how many come back green | TODO. After the first queued problem |
 | T-4334 | Fixes that need two files (a caller and a callee) are reported, not fixed; decide after a month of the doctor log whether to allow a second file | TODO |
+| T-4335 | A run that stopped (Mac asleep, app closed) shows as stopped with the last full run, not as failed | DONE 2026-11-01. `api/agent_routes._last_full_run` |
 
 ## Metrics library: how to answer (2026-10-31)
 
