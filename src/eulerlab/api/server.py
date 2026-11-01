@@ -3043,9 +3043,12 @@ def _headline_sharpe(
     happened. Recency decides between the two: the adopted result is what a
     strategy shows until someone asks it a newer question.
 
-    Everything else keeps the previous order: the ledger's validated Sharpe
-    first, since it is the stronger claim and was paid for, then the most
-    recent screened one.
+    Everything else shows the most recent stored run, the same run the row's
+    return, drawdown and report come from. The ledger's validated Sharpe is
+    used only for a strategy with no stored run. It used to come first, so
+    `momentum_12_1` showed the ledger's 1.27 and "beats the bar" beside a
+    return and drawdown from its latest run, whose Sharpe is 0.39: one row,
+    two runs (HISTORY #52).
     """
     adopted_row = adopted_results.get(row.declaration.id)
     adopted_sharpe = adopted_row.get("sharpe") if adopted_row else None
@@ -3064,7 +3067,10 @@ def _headline_sharpe(
         return latest.sharpe
     if adopted_sharpe is not None:
         return float(adopted_sharpe)
-    return row.sharpe if row.sharpe is not None else _latest_sharpe(tenant, row)
+    recent = _latest_sharpe(tenant, row)
+    if recent is not None:
+        return recent
+    return float(row.sharpe) if row.sharpe is not None else None
 
 
 def _tuning(strategy_id: str) -> dict[str, Any] | None:
@@ -4157,7 +4163,8 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
         )
 
     # --- band 5: evidence ---------------------------------------------------
-    bar = _bar()
+    shown = _shown_bar()
+    bar = shown.value
     fleet_rows = list(strategy_fleet(tenant.ledger))
     # Same adopted results the library judges on, so the snapshot's count and
     # the library's flags cannot disagree about the same strategies.
@@ -4241,6 +4248,10 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
             "clearing": len(clearing),
             "clearing_names": [r.declaration.id for r in clearing][:8],
             "trials": sum(r.trials for r in fleet_rows),
+            # What the bar is computed from (ADR-108). The per-strategy trial
+            # sum above is not its basis, and showing it beside the bar read
+            # as though it were (HISTORY #52).
+            "families": shown.families.families if shown.families else None,
         },
         "gaps": [
             *(

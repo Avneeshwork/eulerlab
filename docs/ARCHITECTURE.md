@@ -1774,6 +1774,13 @@ them, and the US files after the US panel. The full `sync-cloud` sweep and
 `prune-local` still run last. The button still mirrors once, at the end of
 its own shorter run.
 
+Two exceptions (2026-11-01, HISTORY #52). `macro/` is never pruned: its day
+files are appended to by every sweep, and readers fetch any day that is not
+local through the landing reader. And a tree upload never replaces a bucket
+object with a **smaller** local file; it reports the file instead. A smaller
+local copy is a pruned file recreated with part of its rows, and uploading it
+would erase the rest from the store of record.
+
 Fundamentals is not in `make daily`. `make fundamentals-update` fetches,
 uploads and deletes under its own `fundamentals` lock; launchd runs it on
 Sunday at 10:00.
@@ -1781,7 +1788,7 @@ Sunday at 10:00.
 Order: NSE end-of-day → participant OI → index closes and delivery → market
 history → price panel → Nifty options → **paper books** → mutual funds,
 calendar, crypto, FX, news, index levels, option chain, US bars → US panel →
-mirror (uploads only keys B2 lacks or holds at a different size) → census.
+mirror (uploads only keys B2 lacks or holds at a smaller size) → census.
 
 **Nothing twice.** Every source skips files already in the manifest. Every
 derived table appends only the days it lacks, and reads what it holds *inside*

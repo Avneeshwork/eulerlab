@@ -240,16 +240,10 @@ def series(name: str, *, days: int = 90, root: Path = HISTORY) -> list[tuple[str
     """
     from datetime import timedelta
 
-    if not root.exists():
-        return []
     cutoff = (datetime.now(UTC) - timedelta(days=days)).date().isoformat()
     out: list[tuple[str, float]] = []
-    for path in sorted(root.glob("????-??-??.jsonl")):
-        if path.stem < cutoff:
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except OSError:
+    for stem, text in _days(root):
+        if stem < cutoff:
             continue
         for line in text.splitlines():
             if not line.strip():
@@ -261,4 +255,40 @@ def series(name: str, *, days: int = 90, root: Path = HISTORY) -> list[tuple[str
             if row.get("name") == name and isinstance(row.get("last"), (int, float)):
                 out.append((str(row.get("at", "")), float(row["last"])))
     out.sort(key=lambda pair: pair[0])
+    return out
+
+
+def _days(root: Path) -> list[tuple[str, str]]:
+    """(day, text) for every day file, local and in the bucket.
+
+    `make daily` uploads the landing zone and `prune-local` then deletes what
+    the bucket holds, so reading only the local folder found nothing: on the
+    operator's Mac every macro chart was blank on 2026-11-01 because the folder
+    was empty (HISTORY #52). The real folder is read through the landing
+    reader, which fetches a pruned day from B2; any other root (a test) is
+    read from disk alone.
+    """
+    out: list[tuple[str, str]] = []
+    if root != HISTORY:
+        for path in sorted(root.glob("????-??-??.jsonl")) if root.exists() else []:
+            try:
+                out.append((path.stem, path.read_text(encoding="utf-8")))
+            except OSError:
+                continue
+        return out
+
+    from eulerlab.ingest import landing_reader
+
+    try:
+        names = landing_reader.available("macro", "????-??-??.jsonl", stale_ok=True)
+    except Exception:  # an unreachable bucket leaves what is on disk
+        names = []
+    if not names and root.exists():
+        names = [f"macro/{p.name}" for p in sorted(root.glob("????-??-??.jsonl"))]
+    for relative in names:
+        try:
+            text = landing_reader.read(relative).decode("utf-8", "replace")
+        except Exception:
+            continue
+        out.append((Path(relative).stem, text))
     return out

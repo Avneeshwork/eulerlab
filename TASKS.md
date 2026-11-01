@@ -3,7 +3,7 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
-## Platform audit (2026-11-01, HISTORY #50, #51)
+## Platform audit (2026-11-01, HISTORY #50 to #52)
 
 Operator: "audit test and complete what ever we have done till now ... look over codes if they make sense if not remove them or fix them".
 
@@ -21,6 +21,11 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4348 | Kite does not reject duplicate tags: make the second line of defence real (look up the tag before a retry) or remove the claim | TODO. Before live (S-015) |
 | T-4349 | Recovery reads Kite's day-only order book: an order `UNKNOWN` across a day boundary must not resolve as never sent | TODO. Before live (S-015) |
 | T-4350 | One rate governor across processes (a lock file or one sender), so books together stay at 5 orders a second | TODO. Before live |
+| T-4352 | One row, one run: the Strategies table's Sharpe and verdict come from the latest stored run (HISTORY #52) | DONE — `tests/test_strategies_table.py` |
+| T-4353 | Check B2's `nse/macro/` day files for days that lost rows to a shrinking upload before 2026-11-01 | TODO |
+| T-4354 | Charts page: the seven TradingView macro mini-charts were blank on the Mac and the Advanced Chart refuses NSE:NIFTYBEES; draw them from our own history instead, or drop them | TODO. Operator's call |
+| T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | TODO |
+| T-4356 | Fundamentals not fetched since 2026-10-18 | TODO |
 
 ## UI revamp (2026-10-28, ADR-102)
 

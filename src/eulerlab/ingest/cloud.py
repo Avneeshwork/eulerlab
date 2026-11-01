@@ -617,18 +617,30 @@ def sync_directory(
 
     pending: list[tuple[Path, str]] = []
     skipped = 0
+    shrinking: list[str] = []
     for path in local:
         key = f"{prefix}{path.relative_to(root).as_posix()}"
-        if remote.get(key) == path.stat().st_size:
+        remote_size = remote.get(key)
+        local_size = path.stat().st_size
+        if remote_size == local_size:
             skipped += 1
+            continue
+        if remote_size is not None and local_size < remote_size:
+            # Never replace the bucket's copy with a smaller one. The bucket is
+            # the store of record, and a smaller local file is a pruned file
+            # recreated with part of its rows (HISTORY #52), not a correction.
+            shrinking.append(
+                f"{path.relative_to(root)}: local {local_size} bytes is smaller than the "
+                f"bucket's {remote_size}; not uploaded"
+            )
             continue
         pending.append((path, key))
 
     if dry_run:
-        return TreeSyncResult(uploaded=len(pending), skipped=skipped, failed=[])
+        return TreeSyncResult(uploaded=len(pending), skipped=skipped, failed=shrinking)
 
     uploaded = 0
-    failed: list[str] = []
+    failed: list[str] = list(shrinking)
     landed: list[str] = []
     lock = Lock()
 

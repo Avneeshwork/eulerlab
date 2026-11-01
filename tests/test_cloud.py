@@ -312,15 +312,30 @@ def test_a_directory_tree_uploads_then_skips(tmp_path: Path) -> None:
     assert "nse/kite_minute/HDFCBANK/a.parquet" in store.objects
 
 
-def test_tree_sync_reuploads_when_size_differs(tmp_path: Path) -> None:
+def test_tree_sync_reuploads_when_the_local_file_grew(tmp_path: Path) -> None:
     from eulerlab.ingest.cloud import sync_directory
 
     root = tmp_path / "minute"
     root.mkdir()
-    (root / "a.parquet").write_bytes(b"aaa")
-    store = FakeStore({"p/a.parquet": (b"different-length", "x")})
+    (root / "a.parquet").write_bytes(b"a longer local copy")
+    store = FakeStore({"p/a.parquet": (b"short", "x")})
 
     assert sync_directory(root, store, prefix="p/").uploaded == 1
+
+
+def test_tree_sync_never_replaces_the_bucket_with_a_smaller_file(tmp_path: Path) -> None:
+    """A pruned append-only day file recreated with part of its rows (HISTORY #52)."""
+    from eulerlab.ingest.cloud import sync_directory
+
+    root = tmp_path / "macro"
+    root.mkdir()
+    (root / "2026-11-01.jsonl").write_bytes(b"afternoon\n")
+    store = FakeStore({"p/2026-11-01.jsonl": (b"morning\nnoon\nafternoon\n", "x")})
+
+    result = sync_directory(root, store, prefix="p/")
+    assert result.uploaded == 0
+    assert result.failed and "smaller" in result.failed[0]
+    assert store.objects["p/2026-11-01.jsonl"][0] == b"morning\nnoon\nafternoon\n"
 
 
 def test_tree_sync_dry_run_sends_nothing(tmp_path: Path) -> None:

@@ -1249,6 +1249,8 @@ export type Snapshot = {
     clearing: number;
     clearing_names: string[];
     trials: number;
+    /** Idea families the bar is computed from; null when it is the ledger's. */
+    families: number | null;
   };
   gaps: string[];
 };
