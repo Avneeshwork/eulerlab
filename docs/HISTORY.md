@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty-six times this project was wrong
+## Forty-seven times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -388,6 +388,8 @@ figure produced outside the result store before this date was frictionless.
 **45. The noise bar assumed a spread of Sharpes twice the measured one.** (2026-10-31) Since Sprint 14 the deflated Sharpe used σ_SR = 1.0 (A-021), a default nobody had measured, and N = trial-ledger rows. Research 138 measured σ_SR across the 68 stored daily strategies at 0.39, and 0.48 across their 27 families. At 19 rows and σ 1.0 the bar was 1.88; with 27 families and the measured σ it is 0.98. The assumption, not the count, was most of the bar. Every "Sharpe 1.88 bar" figure in earlier reviews and in research 113's verdicts overstated the bar by about 0.9. No strategy was promoted or deployed on the old bar; the gate also killed them on other checks. By operator decision (ADR-108) the gate now uses families with measured σ, plus Romano-Wolf StepM over Nifty.
 
 **46. The weekend note could not be found in the workbench.** (2026-10-31) The operator wrote "i can't see weekly brief" the evening it shipped (ADR-105). The note was written and served. Two things hid it. A later run on the same closed day (a Run press, or the evening job) returned "skipped: already written", so the agent card showed a skip and no brief. And "Open the brief" opened the AI tab on Live, not on Market brief. Fixed: every closed-day run writes and shows the note, and only the Telegram message is limited to one per break; "Open the brief" goes to `#agents/brief`, the Market brief view. No stored number was affected.
+
+**47. The idea lab never tested an idea.** (2026-11-01) ADR-089 built the lab to test the research agent's drafts, and ADR-107 lifted its trial limit, but its first run on the operator's Mac tested 0 cards and the trial log holds no `agent|` row. Three causes. It read only the research agent's latest run, whose one draft named a feature the library lacks (`liquidity_beta`). The research agent flagged that draft as waiting for minute bars, delivery and futures data because of words in its abstract, and the lab skips such drafts, so the previous run's buildable draft (1-month reversal and turnover) was never looked at. And research made about one draft a run from one fixed topic, re-reading the same abstracts. Fixed (ADR-110): the lab writes its own formula cards from 13 signal families every day, keeps a memory of every test, reads every untested draft, and hands research its feedback; a draft whose features the library can build is never marked as waiting for data. No stored number depended on it: the lab had produced none.
 
 ---
 

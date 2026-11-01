@@ -210,7 +210,24 @@ JOBS = {
         what="make agents-weekly, every Sunday",
         why_then=(
             "Sunday 07:00 IST, before the 10:00 fundamentals job: the Quantpedia sync, the\n"
-            "knowledge index, a research run on the standing brief and the code review."
+            "knowledge index and the code review. Research and the idea lab moved to the\n"
+            "daily agents-ideas job (ADR-110)."
+        ),
+    ),
+    "agents-ideas": Job(
+        name="agents-ideas",
+        label="com.eulerlab.agentsideas",
+        command="cd {repo} && make agents-ideas",
+        hour=17,
+        minute=0,
+        weekdays=(),
+        log="agents_ideas",
+        what="make agents-ideas, every day",
+        why_then=(
+            "17:00 IST, after india-live (15:31) and agents-close (16:15) have the day's prices,\n"
+            "and with the idea lab's 90-minute limit, done before the 19:30 daily run.\n"
+            "Research first, so the lab tests the day's drafts; the lab's feedback steers\n"
+            "the next day's research (ADR-110). Weekends too: ideas do not need a session."
         ),
     ),
 }

@@ -2338,7 +2338,8 @@ waits a day to show the drawdown.
 | `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
 | `com.eulerlab.briefweekend` | 09:30 Saturday and Sunday | `make agent NAME=market_brief`: the markets-closed note, once per break (ADR-105) |
 | `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, knowledge keeper, handbook). The after-close note runs in `make daily` once the day's data is in (ADR-105) |
-| `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, research, code review) |
+| `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, code review) |
+| `com.eulerlab.agentsideas` | 17:00 every day | `make agents-ideas` (research, then the idea lab; ADR-110) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
@@ -2706,32 +2707,56 @@ Each output records a fingerprint of the prompts it ran under, so a changed
 score can be traced to a prompt change. `make agent-eval` runs weekly in
 `agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
 
-### The idea lab and the agents' trial allowance (ADR-089)
+### The idea lab and the agents' trial allowance (ADR-089, ADR-110)
 
 **No weekly limit since 2026-10-31 (ADR-107).** `per_week: null` in
 `config/agent_trials.yaml`; a number puts a cap back. Every trial is still logged
 before its result is read.
 
+**Daily, with its own ideas and a memory, since 2026-11-01 (ADR-110).**
+
 ```
-research drafts ──► lab: skip repeats, waiting-for-data, unbuildable
-                     │  fits this week's allowance (config/agent_trials.yaml; none since ADR-107)?  no ─► wait
-                     ▼
-        panel cut at the card's holdout
-                     │
-     IC screen per feature (1 trial each) ── fails ─► stop, report
-                     │ every feature passes (IC >= 0.02, t >= 2)
-                     ▼
-     Tier A backtest per configuration (1 trial each)
-                     │
-     skeptic attacks ──► survivors to the inbox ──► operator: approve, register, make gate
+ 17:00 IST  make agents-ideas
+   research ── topic: arg > brief > lab feedback (one topic a day, in turn) > standing topic
+      │        prompt carries the lab's lessons; buildable drafts never "wait for data"
+      ▼ drafts
+   lab ── every untested draft from the last 50 research runs (up to max_cards)
+      │ + its own plan for the day (max_ideas, default 30):
+      │     flips of signals with t <= -2      ─┐
+      │     combinations of two passers         ├ a third of the slots while fresh
+      │     window variants (halved, doubled)  ─┘ templates last; all slots after
+      │     fresh templates, family by Thompson sampling on Beta(1+pass+2·survive, 1+fail)
+      │ + up to model_ideas formulas from the model, parsed by the formula language
+      ▼ one card each under research/lab_ideas/<day>/, one configuration, written before testing
+   panel read once, cut at the card's holdout
+      │
+   IC screen per feature (1 trial each) ── fails ─► memory
+      │ every feature passes (IC >= 0.02, t >= 2)
+   Tier A backtest per configuration (1 trial each) ── skeptic ──► memory
+      │
+   survivors ─► inbox ─► operator: register, make gate
+   memory ─► lessons + feedback (output.data.feedback) ─► tomorrow's research and plan
 ```
+
+| Piece | Where | What it holds |
+|---|---|---|
+| Families | `config/idea_families.yaml` | 13 reasons, each with formula templates, windows, rebalance, a paper-search phrase (A-088) |
+| Planner | `research/idea_generator.py` | Dedupes by canonical formula; the ten library features count under their own names; seeded by the date |
+| Memory | `data/agents/memory/lab_ideas.jsonl` | One line per card tested: family, source, features, IC and t, best robust Sharpe, survived |
+| Lessons | `idea_memory.lessons` | Computed rules, each citing experience ids: survivors, families passing, families dead (4 tries, none through), signals worth reversing |
+| Feedback | `idea_memory.feedback` | Families working / dead / untried, features drafts lacked, paper topics in order |
+
+A family is called dead after 4 cards with none through the screen, and its
+search phrase leaves the topic list. The lab stops starting new cards after
+`max_minutes` (90); what is left is planned again the next day because it is
+not in the memory.
 
 Every trial is written to `data/derived/trials.jsonl` as `agent|<card>|...`
 before its result is read, so `budget.searches_run` and the noise bar count it.
 `research/agent_trials.py` is the only trial path an agent may import, and only
 `workers/lab.py` imports it (test-enforced). The lab reads the whole panel, so
-the web page refuses to start it; it runs from `make agent NAME=lab` and the
-Sunday batch.
+the web page refuses to start it; it runs from `make agent NAME=lab` and
+`make agents-ideas`.
 
 ## The data quality contract (ADR-086)
 

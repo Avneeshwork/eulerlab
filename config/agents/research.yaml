@@ -1,9 +1,11 @@
 # The research agent (ADR-085): the paper agent (ADR-084) plus a librarian pass.
+# Since ADR-110 it runs daily and takes its topic from the idea lab's feedback
+# when no brief names one; `topic` below is the fallback.
 name: research
 title: Research agent
-job: Finds papers on the brief's topic, drafts idea cards, drops repeats of ideas already tried, asks the data agent for data it lacks, and ranks the week's survivors for you.
+job: Finds papers on the brief's topic, or on the topic the idea lab's feedback names that day, drafts idea cards with what the lab has learned in hand, drops repeats of ideas already tried or tested, asks the data agent for data it lacks, and ranks the survivors for you.
 worker: eulerlab.agents.workers.research
-schedule: "Sunday 07:00"
+schedule: "Every day 17:00 IST, before the idea lab (make agents-ideas)"
 uses_model: true
 daily_requests: 40
 never:

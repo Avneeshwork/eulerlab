@@ -33,7 +33,7 @@ def test_activity_carries_the_findings_worst_first() -> None:
     assert [f["title"] for f in found] == ["panel grade D", "book halted", "a warning", "a note"]
     assert found[1]["body"] == "history changed"
     assert rows["operations"]["findings_total"] == 4
-    assert rows["lab"]["cli_only"] is True and "Sunday" in rows["lab"]["schedule"]
+    assert rows["lab"]["cli_only"] is True and "Every day" in rows["lab"]["schedule"]
 
 
 def _report(path: Path, drift: float) -> None:
