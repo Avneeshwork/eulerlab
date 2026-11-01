@@ -34,6 +34,8 @@ class FakeKite:
         orders_raises: Exception | None = None,
         orders_rows: list[dict[str, Any]] | None = None,
         positions_book: dict[str, list[dict[str, Any]]] | None = None,
+        holdings_rows: list[dict[str, Any]] | None = None,
+        holdings_raises: Exception | None = None,
         gtt: dict[str, Any] | None = None,
     ) -> None:
         self.order_id = order_id
@@ -41,6 +43,8 @@ class FakeKite:
         self.orders_raises = orders_raises
         self.orders_rows = orders_rows or []
         self.positions_book = positions_book or {"net": []}
+        self.holdings_rows = holdings_rows or []
+        self.holdings_raises = holdings_raises
         self.gtt = gtt if gtt is not None else {"trigger_id": 55}
         self.sent: list[dict[str, Any]] = []
 
@@ -71,6 +75,11 @@ class FakeKite:
         if self.raises:
             raise self.raises
         return self.positions_book
+
+    def holdings(self) -> list[dict[str, Any]]:
+        if self.holdings_raises:
+            raise self.holdings_raises
+        return self.holdings_rows
 
 
 def _order(coid: str = "abc123", side: Side = Side.BUY, quantity: int = 10) -> Order:
@@ -307,3 +316,51 @@ def test_ems_reads_the_duplicate_as_the_original_landing() -> None:
     outcome = ems.send(KiteBroker(kite), _order("abc123"))
     assert outcome.event is Event.SEND_OK
     assert kite.sent == []
+
+
+# --- delivery holdings (T-4364) --------------------------------------------
+
+
+def test_a_carried_delivery_holding_is_a_position() -> None:
+    """Bought CNC yesterday: Kite moved it out of `net` into `holdings`."""
+    kite = FakeKite(holdings_rows=[{"tradingsymbol": "INFY", "quantity": 0, "t1_quantity": 25}])
+    assert KiteBroker(kite).positions() == {"INFY": 25}
+
+
+def test_settled_and_undelivered_quantities_add() -> None:
+    kite = FakeKite(holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 5}])
+    assert KiteBroker(kite).positions() == {"TCS": 15}
+
+
+def test_todays_buy_adds_to_a_holding() -> None:
+    kite = FakeKite(
+        holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 0}],
+        positions_book={"net": [{"tradingsymbol": "TCS", "quantity": 4, "product": "CNC"}]},
+    )
+    assert KiteBroker(kite).positions() == {"TCS": 14}
+
+
+def test_selling_a_whole_holding_today_leaves_nothing() -> None:
+    """Kite shows a sale out of holdings as a negative CNC net position."""
+    kite = FakeKite(
+        holdings_rows=[{"tradingsymbol": "TCS", "quantity": 10, "t1_quantity": 0}],
+        positions_book={"net": [{"tradingsymbol": "TCS", "quantity": -10, "product": "CNC"}]},
+    )
+    assert KiteBroker(kite).positions() == {}
+
+
+def test_an_intraday_position_with_no_holdings_reads_as_before() -> None:
+    kite = FakeKite(
+        positions_book={"net": [{"tradingsymbol": "SBIN", "quantity": 30, "product": "MIS"}]}
+    )
+    assert KiteBroker(kite).positions() == {"SBIN": 30}
+
+
+def test_an_unreadable_holdings_book_is_unreachable_not_empty() -> None:
+    """Returning the net book alone would read as every carried stock sold."""
+    kite = FakeKite(
+        positions_book={"net": [{"tradingsymbol": "SBIN", "quantity": 30}]},
+        holdings_raises=OSError("read timed out"),
+    )
+    with pytest.raises(BrokerUnreachable):
+        KiteBroker(kite).positions()

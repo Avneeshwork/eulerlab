@@ -62,6 +62,7 @@ class KiteClient(Protocol):
     def cancel_order(self, **kwargs: Any) -> Any: ...
     def orders(self) -> list[dict[str, Any]]: ...
     def positions(self) -> dict[str, list[dict[str, Any]]]: ...
+    def holdings(self) -> list[dict[str, Any]]: ...
 
 
 # Exceptions that mean the request never reached the exchange. Everything else
@@ -280,24 +281,44 @@ class KiteBroker:
             raise BrokerUnreachable(f"cancel failed: {exc}") from exc
 
     def positions(self) -> dict[str, int]:
-        """Net holdings by symbol, as Kite has them.
+        """What the account holds by symbol: delivery holdings plus the net book.
 
-        Reads the `net` book rather than `day`: a position carried from
-        yesterday is still a position, and reconciling against the day book
-        would report it as a break we did not create.
+        Kite keeps the two apart. A delivery (CNC) buy sits in `positions.net`
+        on the day it fills and moves to `holdings` the next day ("Equity
+        positions carried overnight move to the holdings portfolio the next
+        day", RESEARCH/139). Reading `net` alone reported every carried
+        delivery stock as missing, so reconciling a delivery book would have
+        raised a `local_only` break for each one (T-4364).
+
+        Holdings count `quantity` (in the demat) plus `t1_quantity` (bought,
+        not yet delivered), as Zerodha's staff say to combine them. The net
+        book adds today's buys and subtracts today's sales out of holdings,
+        which Kite shows there as a negative CNC position.
+
+        Both books are read or neither counts: a holdings call that fails
+        raises `BrokerUnreachable` rather than returning the net book alone,
+        which would read as every carried stock having been sold.
         """
         try:
             book = self._kite.positions() or {}
+            held = self._kite.holdings() or []
         except Exception as exc:
             raise BrokerUnreachable(f"positions lookup failed: {exc}") from exc
 
-        out: dict[str, int] = {}
+        totals: dict[str, int] = {}
+        for row in held:
+            symbol = str(row.get("tradingsymbol") or "")
+            # ASSUMPTION: A-091. Holdings `quantity` is not reduced on the day a
+            # holding is sold; the sale shows only as a negative net position.
+            quantity = int(row.get("quantity") or 0) + int(row.get("t1_quantity") or 0)
+            if symbol and quantity:
+                totals[symbol] = totals.get(symbol, 0) + quantity
         for row in book.get("net", []) or []:
             symbol = str(row.get("tradingsymbol") or "")
             quantity = int(row.get("quantity") or 0)
             if symbol and quantity:
-                out[symbol] = quantity
-        return out
+                totals[symbol] = totals.get(symbol, 0) + quantity
+        return {symbol: quantity for symbol, quantity in totals.items() if quantity}
 
     def open_orders(self) -> list[BrokerOrderView]:
         """Everything Kite considers live — including orders we never sent.

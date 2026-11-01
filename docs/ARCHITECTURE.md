@@ -1048,6 +1048,12 @@ tag already there (unless rejected or cancelled), because Kite itself accepts
 duplicate tags; `ems.send` reads that refusal as the original landing. If the
 book cannot be read, nothing is sent (T-4348).
 
+**Positions are holdings plus the net book.** Kite moves a delivery stock out
+of `positions.net` into `holdings` the day after it is bought, so
+`KiteBroker.positions` adds holdings (`quantity + t1_quantity`) to the net
+book per symbol; a sale out of holdings is a negative net row. Both books are
+read or the call raises (T-4364, RESEARCH/139, A-091).
+
 **`UNSENT` ≠ `REJECTED`.** Both terminal, opposite meanings: `UNSENT` means the
 exchange has no record; `REJECTED` means it saw the order and refused.
 
@@ -1851,10 +1857,10 @@ shortened (T-4365): it reads every B2 version of the day, writes their union
 (`macro.merge_day_versions`: every reading once, in `at` order) as the current
 object, and reads it back. Dry run by default; it never changes `data/landing/`.
 
-Launchd runs these jobs only while their plists are installed
-(`make schedule ACTION=install JOB=...`). On 2026-11-01 only `briefweekend` was
-loaded on the operator's Mac; nothing else had run from launchd since about
-20 October.
+Launchd runs these jobs only while their plists are installed and loaded
+(`make schedule ACTION=install JOB=...` writes the plist; `launchctl load -w`
+loads it). From about 20 October to 2026-11-01 only `briefweekend` was loaded
+on the operator's Mac.
 
 Fundamentals is not in `make daily`. `make fundamentals-update` fetches,
 uploads and deletes under its own `fundamentals` lock; launchd runs it on

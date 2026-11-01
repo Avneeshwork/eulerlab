@@ -31,11 +31,11 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4361 | Our chart drew raw daily prices: NIFTYBEES's monthly chart showed its 2019 1:10 unit split as a 90% crash. Now split-adjusted, as backtests read them (A-043); 1h/4h answers kept in memory for the day; candle buttons D/W/M so they no longer read like the 1D/1M ranges | DONE — `tests/test_history_intraday.py` |
 | T-4362 | `npm install` reports 19 known vulnerabilities (1 critical) in `web/` dependencies; review `npm audit` and upgrade what is safe (Next 14.2.5 is the likely source) | TODO |
 | T-4363 | Shorts in the daily engines: both accept negative weights and hold a short overnight in cash equity, which Indian delivery does not allow, and Tier B's realised P&L books a short sale's proceeds as profit. Refuse negative weights for delivery equity, or model shorts properly (borrow, margin, P&L) | DONE — refused: both engines and the paper runner drop negative weights and count them as `refused_shorts` (`tests/test_backtest_audit.py`) |
-| T-4364 | `KiteBroker.positions` reads only the `net` book. A CNC (delivery) buy moves to Kite's `holdings` the next day, so reconciling a delivery book against `net` would report every carried holding as `local_only` | TODO. Before live (S-015) |
+| T-4364 | `KiteBroker.positions` reads only the `net` book. A CNC (delivery) buy moves to Kite's `holdings` the next day, so reconciling a delivery book against `net` would report every carried holding as `local_only` | DONE — reads `holdings` (`quantity + t1_quantity`) plus `net`; same-day sale handling is A-091 (RESEARCH/139, `tests/test_broker_kite.py`) |
 | T-4365 | Restore the six macro days B2 lost (24 Aug, 7, 14, 15, 18 and 29 Oct): write the union of each day's B2 versions, ordered by sweep time, as the current object | DONE 2026-11-01 — B2 holds the union of every version for all six days (401, 631, 157, 406, 612 and 227 rows; 29 Oct gained 17). The Mac's local copies stay short (70, 140, 105, 389, 35, 210 lines) and are read first, by the operator's choice |
-| T-4366 | Reinstall the launchd jobs on the Mac: `make schedule ACTION=install JOB=...` for daily, fundamentals and the agent jobs, then `launchctl load -w` each plist (install only writes it) and confirm with `launchctl list` | TODO. Operator: the Mac's permission check refuses it from a Claude session |
+| T-4366 | Reinstall the launchd jobs on the Mac: `make schedule ACTION=install JOB=...` for daily, fundamentals and the agent jobs, then `launchctl load -w` each plist (install only writes it) and confirm with `launchctl list` | DONE 2026-11-01 — loaded on the Mac (`launchctl list`) |
 | T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | DONE — cash and F&O were byte-identical; the index closes were revised by NSE; the mirror now uploads the latest and grades are per segment (HISTORY #54) |
-| T-4356 | Fundamentals not fetched since 2026-10-18 | CAUSE FOUND — the launchd jobs are no longer installed on the Mac (only `briefweekend` is); reinstall is T-4366 |
+| T-4356 | Fundamentals not fetched since 2026-10-18 | DONE — the launchd jobs were not installed; reinstalled 2026-11-01 (T-4366) |
 
 ## UI revamp (2026-10-28, ADR-102)
 
@@ -108,7 +108,7 @@ Verify: `uv run pytest -q tests/test_idea_lab.py tests/test_agent_trials.py`; th
 | T-4320 | Lab writes its own formula cards daily from 13 signal families (`config/idea_families.yaml`), planned by Thompson sampling, flips, combinations and window variants | DONE 2026-11-01. `research/idea_generator.py` |
 | T-4321 | Lab memory of every card tested, lessons that cite it, feedback for research | DONE 2026-11-01. `research/idea_memory.py`, `data/agents/memory/lab_ideas.jsonl` |
 | T-4322 | Lab reads every untested research draft, not only the latest run; research stops marking buildable drafts as waiting for data, takes its topic and lessons from the lab, and skips papers already judged not relevant | DONE 2026-11-01 |
-| T-4323 | `make agents-ideas` every day 17:00 IST; install with `make schedule ACTION=install JOB=agents-ideas` and the `launchctl load -w` line it prints | TODO. Operator |
+| T-4323 | `make agents-ideas` every day 17:00 IST; install with `make schedule ACTION=install JOB=agents-ideas` and the `launchctl load -w` line it prints | DONE 2026-11-01 — loaded on the Mac (`launchctl list`) |
 | T-4324 | Measure the lab's seconds per card on the full panel after the first `make agents-ideas`; set `max_ideas` and `max_minutes` from it | IN PROGRESS. First run 2026-11-01: about 3 minutes per own idea, 5 for a two-feature draft, so 90 minutes covers about 25 to 30 cards |
 | T-4327 | One lab run at a time: a lock so overlapping runs cannot test, and pay for, the same idea twice | DONE 2026-11-01. RUNBOOKS/idea-lab-two-runs-at-once.md |
 | T-4325 | Store the lab's backtest curves where the gate's family count and Romano-Wolf can see them (with T-4301) | TODO |
@@ -273,7 +273,7 @@ Verify: `make verify`; `make agents`; `make data-quality`; `make agent NAME=mark
 | T-4176 | Data quality contract, quarantine, panel SHA check, backtest guard, restore check | DONE. `make data-quality`; `tests/test_data_quality_contract.py` |
 | T-4177 | Trade desk tickets and strategy version lock | DONE. Live & Risk → Trade desk and AI → Trade desk; `make relock`; `tests/test_desk_and_version_lock.py` |
 | T-4178 | AI tab in the workbench, API routes, Telegram `agents`, `instruct`, `outlook`, `inbox` | DONE. `web/components/terminal/AgentsTab.tsx`, `api/agent_routes.py` |
-| T-4179 | Load the three agent launchd jobs on the Mac | TODO. `make schedule JOB=agents-preopen`, `agents-close`, `agents-weekly` |
+| T-4179 | Load the three agent launchd jobs on the Mac | DONE 2026-11-01 — loaded on the Mac (`launchctl list`) |
 | T-4180 | Every reader of `data/landing/` skips quarantined files, not only the panel build | TODO (S-043) |
 | T-4181 | Read each registered source's licence and record it | TODO (S-044) |
 | T-4182 | First `make quantpedia-sync` with the operator's key; record real responses as fixtures | TODO (S-045, A-069). Put `QUANTPEDIA_USERNAME` and `QUANTPEDIA_API_KEY` in `.env`, never in chat |
