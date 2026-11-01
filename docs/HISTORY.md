@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Forty-seven times this project was wrong
+## Forty-eight times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -390,6 +390,8 @@ figure produced outside the result store before this date was frictionless.
 **46. The weekend note could not be found in the workbench.** (2026-10-31) The operator wrote "i can't see weekly brief" the evening it shipped (ADR-105). The note was written and served. Two things hid it. A later run on the same closed day (a Run press, or the evening job) returned "skipped: already written", so the agent card showed a skip and no brief. And "Open the brief" opened the AI tab on Live, not on Market brief. Fixed: every closed-day run writes and shows the note, and only the Telegram message is limited to one per break; "Open the brief" goes to `#agents/brief`, the Market brief view. No stored number was affected.
 
 **47. The idea lab never tested an idea.** (2026-11-01) ADR-089 built the lab to test the research agent's drafts, and ADR-107 lifted its trial limit, but its first run on the operator's Mac tested 0 cards and the trial log holds no `agent|` row. Three causes. It read only the research agent's latest run, whose one draft named a feature the library lacks (`liquidity_beta`). The research agent flagged that draft as waiting for minute bars, delivery and futures data because of words in its abstract, and the lab skips such drafts, so the previous run's buildable draft (1-month reversal and turnover) was never looked at. And research made about one draft a run from one fixed topic, re-reading the same abstracts. Fixed (ADR-110): the lab writes its own formula cards from 13 signal families every day, keeps a memory of every test, reads every untested draft, and hands research its feedback; a draft whose features the library can build is never marked as waiting for data. No stored number depended on it: the lab had produced none.
+
+**48. The workbench judged strategies on a different bar from the gate, and tests wrote into real data.** (2026-11-01, audit) Four faults found by one audit. (a) ADR-108 moved the gate to the idea-family bar (0.98), but every screen (Strategies "Beats the bar", the dashboard count, backtest caveats, deploy preflight, `/api/health`) still drew Sharpes against the ledger-count bar with σ 1.0, so a strategy between the two bars was "below the bar" on screen while the gate would judge it on 0.98. All screens now show the gate's family bar (`search_bar.shown_bar`) and fall back to the ledger bar, labelled, only when fewer than two reports are stored. (b) The deflated Sharpe's kurtosis term was `excess/4`; the paper's `(γ₄ − 1)/4` with raw kurtosis is `(excess + 2)/4`. Fat tails were penalised slightly too little; at a daily Sharpe of 0.1 the denominator moved by 0.25%. Every DSR printed before is very slightly too high; none crossed 0.95 because of it. (c) `test_indices` appended a fake Dollar Index reading (98.9) to the real `data/landing/macro/<today>.jsonl` on every `make verify`, and the dashboard and news tests downloaded NSE's company list into `data/` when it was absent. On the operator's Mac the macro history has one fake DXY row per day `make verify` ran; those rows are `symbol TVC:DXY, last 98.9, change_pct 0.15` and should be ignored (landing is immutable, so they are not deleted). (d) `make install` left out the `web` extra, so a fresh `make install && make verify` failed with 107 type errors.
 
 ---
 

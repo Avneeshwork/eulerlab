@@ -87,6 +87,57 @@ def _private_last_seen(
 
 
 @pytest.fixture(autouse=True)
+def _private_macro_history(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test appends to the operator's macro history in `data/landing/macro`.
+
+    `indices.land` appends every sweep's readings there. Until 2026-11-01 one
+    test's fake Dollar Index reading (98.9) was written into the real landing
+    folder on every `make verify` (HISTORY #48). Landing data is immutable, so
+    a test must never be able to add to it.
+    """
+    from eulerlab import macro
+
+    folder = tmp_path_factory.mktemp("macro")
+    monkeypatch.setattr(macro.append, "__kwdefaults__", {"root": folder})
+
+
+@pytest.fixture(autouse=True)
+def _no_names_download(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test downloads NSE's company list into `data/landing/names`.
+
+    Tagging news reads that list and fetches it when missing, so any test that
+    reached the dashboard snapshot on a machine without the file went to the
+    internet and landed a real download (HISTORY #48). Offline, the fetch fails
+    the way a network failure does, which every caller already handles.
+    """
+    from eulerlab.ingest import news
+
+    def offline(*_: object, **__: object) -> None:
+        raise OSError("tests run offline: NSE's company list is not downloaded")
+
+    monkeypatch.setattr(news, "land_names", offline)
+
+
+@pytest.fixture(autouse=True)
+def _private_strategy_reports(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The workbench's bar is not computed from the operator's stored reports.
+
+    Every screen now shows the gate's family bar (ADR-108), which clusters the
+    reports in `data/workspaces`. A test of a screen would otherwise depend on
+    whatever the operator has run; with none stored it shows the ledger bar.
+    """
+    from eulerlab.validation import search_bar
+
+    folder = tmp_path_factory.mktemp("workspaces")
+    monkeypatch.setattr(search_bar.shown_bar, "__kwdefaults__", {"root": folder})
+    search_bar._SHOWN.clear()
+
+
+@pytest.fixture(autouse=True)
 def _no_telegram(monkeypatch: pytest.MonkeyPatch) -> None:
     """No test sends a Telegram message.
 

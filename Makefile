@@ -118,7 +118,7 @@ help:
 	@echo "  make india-live   Indian data from 15:31, retried until in (schedulable)"
 
 install:
-	uv sync --extra dev
+	uv sync --extra dev --extra web
 	uv run pre-commit install
 
 verify:

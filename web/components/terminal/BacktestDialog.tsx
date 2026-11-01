@@ -378,7 +378,7 @@ export function BacktestDialog({
                 <b>{price.bar_now.toFixed(2)}</b>
               </div>
               <div className="tfact">
-                <span>Bar if recorded</span>
+                <span>Bar if recorded (at most)</span>
                 <b>{price.would_move_bar_to.toFixed(2)}</b>
               </div>
               <div className="tfact">

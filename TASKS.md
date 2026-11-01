@@ -3,6 +3,21 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Platform audit (2026-11-01, HISTORY #48)
+
+Operator: "audit test and complete what ever we have done till now ... look over codes if they make sense if not remove them or fix them".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4320 | Every screen draws Sharpes against the gate's family bar, not the ledger-count bar | DONE — `search_bar.shown_bar`; `tests/test_search_bar.py` |
+| T-4321 | Deflated Sharpe kurtosis term is `(excess + 2)/4` as in the paper | DONE — `tests/test_validation_statistics.py` |
+| T-4322 | No test writes to `data/` or downloads NSE's company list | DONE — `tests/conftest.py` fixtures; full suite left `data/` untouched |
+| T-4323 | `make install` installs the `web` extra so `make verify` passes on a fresh machine | DONE |
+| T-4324 | STATE.md back to one page; README check and test counts | DONE |
+| T-4325 | Check every workbench page against real data on the operator's Mac | TODO |
+| T-4326 | Review the order path, risk limits and backtester module by module | TODO |
+| T-4327 | Fake DXY rows (98.9, +0.15%) in the Mac's `data/landing/macro`, one per day `make verify` ran: decide whether readers should skip them | TODO. Operator |
+
 ## UI revamp (2026-10-28, ADR-102)
 
 Operator: "now i want you to revamp all screen ui don't ask for permission and setup auto start if session credit used".

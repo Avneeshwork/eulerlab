@@ -676,11 +676,12 @@ is above zero, given that `N` attempts were made:
 ```
                    ( SR − SR₀ ) · √(n − 1)
     DSR  =  Φ  ────────────────────────────────────
-                √( 1 − skew·SR + (kurt/4)·SR² )
+             √( 1 − skew·SR + ((kurt + 2)/4)·SR² )
 ```
 
 where `n` is the number of return observations and `SR`, `skew`, `kurt` are in
-**per-period** units.
+**per-period** units, and `kurt` is **excess** kurtosis (0 for a normal). The
+paper writes `(γ₄ − 1)/4` with raw kurtosis `γ₄ = kurt + 3`.
 
 Read it as a probability: **DSR = 0.95** means a 95% chance this is not noise.
 The mandate requires ≥ 0.95.
@@ -717,6 +718,14 @@ search itself, not from the ledger's row count and an assumed 1.0.
    no-edge. No `N` or `σ` is assumed: correlation between strategies is in
    the bootstrap. First reading: critical Sharpe 0.95 over Nifty on
    2016-01-25 to 2026-09-30.
+
+**Every screen shows this bar (2026-11-01, HISTORY #48).** The library's
+"Beats the bar", the dashboard count, backtest caveats, deploy preflight and
+`/api/health` all use `search_bar.shown_bar`: the family bar over the stored
+reports, recomputed when a report is added or rewritten. Only with fewer than
+two stored reports does it fall back to the ledger-count bar, and its note
+says so. The backtest dialog's "bar if recorded" is now an upper bound: every
+new configuration counted as a new family.
 
 The pack records both under `search`; `gates.py` kills a pack whose
 `search.method` is not the mandate's, or whose Romano-Wolf test is missing,

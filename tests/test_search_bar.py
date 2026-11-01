@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -110,3 +111,60 @@ def test_assess_without_stored_strategies_has_no_method() -> None:
     block = sb.assess(_series(5), [], RULES, universe=[], market={})
     assert block["method"] is None
     assert "romano_wolf" not in block
+
+
+# --- the bar the workbench shows is the gate's (HISTORY #48) -------------------
+
+
+def _store(root: Path, strategy: str, returns: dict[date, float]) -> None:
+    import json
+
+    values, level = [100.0], 100.0
+    for r in returns.values():
+        level *= 1.0 + r
+        values.append(level)
+    days = [(DAYS[0] - timedelta(days=1)).isoformat(), *(d.isoformat() for d in returns)]
+    folder = root / "default" / "reports" / strategy
+    folder.mkdir(parents=True, exist_ok=True)
+    report = {
+        "strategy_id": strategy,
+        "configuration": "base",
+        "equity": {"days": days, "values": values},
+    }
+    (folder / "base.json").write_text(json.dumps(report), encoding="utf-8")
+
+
+def test_the_shown_bar_is_the_family_bar_over_stored_reports(tmp_path: Path) -> None:
+    series = [_series(200 + k, drift=0.0004 * k) for k in range(4)]
+    for k, s in enumerate(series):
+        _store(tmp_path, f"s{k}", s)
+    shown = sb.shown_bar(RULES, ledger_bar=9.99, root=tmp_path)
+    assert shown.families is not None
+    expected = sb.family_bar(sb.stored_universe(tmp_path), join_at=0.7)
+    assert expected is not None
+    assert shown.value == expected.bar
+    assert shown.families.strategies == 4
+    assert "idea families" in shown.basis
+
+
+def test_without_stored_reports_the_shown_bar_falls_back_to_the_ledger(tmp_path: Path) -> None:
+    shown = sb.shown_bar(RULES, ledger_bar=1.88, root=tmp_path)
+    assert shown.families is None
+    assert shown.value == 1.88
+    assert "trial count" in shown.basis
+
+
+def test_a_new_report_refreshes_the_cached_bar(tmp_path: Path) -> None:
+    for k in range(3):
+        _store(tmp_path, f"s{k}", _series(300 + k))
+    first = sb.stored_family_bar(join_at=0.7, root=tmp_path)
+    _store(tmp_path, "s3", _series(303, drift=0.002))
+    second = sb.stored_family_bar(join_at=0.7, root=tmp_path)
+    assert first is not None and second is not None
+    assert (first.strategies, second.strategies) == (3, 4)
+
+
+def test_the_forecast_assumes_every_new_configuration_is_a_new_family() -> None:
+    bar = sb.FamilyBar(strategies=30, families=10, sigma=0.5, bar=0.0)
+    assert sb.bar_if_new(bar, 5) == pytest.approx(expected_max_sharpe(15, variance_of_sharpes=0.25))
+    assert sb.bar_if_new(bar, 0) == pytest.approx(expected_max_sharpe(10, variance_of_sharpes=0.25))
