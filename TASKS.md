@@ -75,7 +75,8 @@ Verify: `uv run pytest -q tests/test_idea_lab.py tests/test_agent_trials.py`; th
 | T-4306 | Lab memory of every card tested, lessons that cite it, feedback for research | DONE 2026-11-01. `research/idea_memory.py`, `data/agents/memory/lab_ideas.jsonl` |
 | T-4307 | Lab reads every untested research draft, not only the latest run; research stops marking buildable drafts as waiting for data, takes its topic and lessons from the lab, and skips papers already judged not relevant | DONE 2026-11-01 |
 | T-4308 | `make agents-ideas` every day 17:00 IST; install with `make schedule ACTION=install JOB=agents-ideas` and the `launchctl load -w` line it prints | TODO. Operator |
-| T-4309 | Measure the lab's seconds per card on the full panel after the first `make agents-ideas`; set `max_ideas` and `max_minutes` from it | TODO |
+| T-4309 | Measure the lab's seconds per card on the full panel after the first `make agents-ideas`; set `max_ideas` and `max_minutes` from it | IN PROGRESS. First run 2026-11-01: about 3 minutes per own idea, 5 for a two-feature draft, so 90 minutes covers about 25 to 30 cards |
+| T-4312 | One lab run at a time: a lock so overlapping runs cannot test, and pay for, the same idea twice | DONE 2026-11-01. RUNBOOKS/idea-lab-two-runs-at-once.md |
 | T-4310 | Store the lab's backtest curves where the gate's family count and Romano-Wolf can see them (with T-4301) | TODO |
 | T-4311 | Families need inputs the formula language lacks (fundamentals, sector-relative ranks, calendar); each needs a tested input before a family can use it | TODO |
 

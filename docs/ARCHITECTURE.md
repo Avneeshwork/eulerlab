@@ -2751,6 +2751,7 @@ before its result is read.
 | Lessons | `idea_memory.lessons` | Computed rules, each citing experience ids: survivors, families passing, families dead (4 tries, none through), signals worth reversing |
 | Feedback | `idea_memory.feedback` | Families working / dead / untried, features drafts lacked, paper topics in order |
 
+Only one lab run tests at a time: it holds `data/agents/lab.running` (taken over after 4 hours).
 A family is called dead after 4 cards with none through the screen, and its
 search phrase leaves the topic list. The lab stops starting new cards after
 `max_minutes` (90); what is left is planned again the next day because it is
