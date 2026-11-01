@@ -28,6 +28,8 @@ Operator: "audit test and complete what ever we have done till now ... look over
 | T-4358 | Save chart drawings on the server so they follow the operator between devices | TODO. If the operator wants it |
 | T-4359 | Chart timeframes 1m, 5m, 15m, 30m, 1h, 4h, 1D, 1W, 1M; the embed's own interval buttons hidden for NSE, where they did nothing | DONE — ADR-114; `tests/test_history_intraday.py`, `web/lib/bars.test.ts` |
 | T-4360 | Node on the Mac is 20.11; the chart-maths tests need 22.6 or newer, so `make verify` skips them there | TODO. Operator: `brew upgrade node` |
+| T-4361 | Our chart drew raw daily prices: NIFTYBEES's monthly chart showed its 2019 1:10 unit split as a 90% crash. Now split-adjusted, as backtests read them (A-043); 1h/4h answers kept in memory for the day; candle buttons D/W/M so they no longer read like the 1D/1M ranges | DONE — `tests/test_history_intraday.py` |
+| T-4362 | `npm install` reports 19 known vulnerabilities (1 critical) in `web/` dependencies; review `npm audit` and upgrade what is safe (Next 14.2.5 is the likely source) | TODO |
 | T-4355 | 7–9 Oct cash and F&O bhavcopies landed 2–3 times with different checksums (price panel grade C) | TODO |
 | T-4356 | Fundamentals not fetched since 2026-10-18 | TODO |
 

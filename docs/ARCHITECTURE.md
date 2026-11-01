@@ -1323,6 +1323,10 @@ and a candle is dated by its first trading day (`web/lib/bars.ts`). Drawings
 store times as seconds and land on the candle that holds them in any
 timeframe; a line outside the loaded window is not drawn. Ranges (1D to All)
 are spans of time, not counts of bars.
+Equity daily bars are drawn split-adjusted (`/api/history?adjusted=true`), the
+prices a backtest reads; minute bars are raw. Intraday answers are kept in the
+API's memory for the day (24 at most), because a 4-hour chart reads 400 days
+of minute files and took 7 to 8 seconds.
 
 ## 7.1 The strategy builder
 

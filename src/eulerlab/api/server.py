@@ -2636,6 +2636,14 @@ INTRADAY_MINUTES = (1, 5, 15, 30, 60, 240)
 
 INTRADAY_MAX_DAYS = 400
 
+_INTRADAY_CACHE: dict[tuple[str, int, int, str], dict[str, Any]] = {}
+"""Answers already built today. Reading 400 days of minute files and rolling
+them up took 7 to 8 seconds for 1h and 4h on the operator's Mac (2026-11-01);
+the archive changes once a day, so the date is part of the key. Bounded so a
+long session of browsing symbols cannot grow it without limit."""
+
+_INTRADAY_CACHE_SIZE = 24
+
 
 @app.get("/api/history/intraday")
 def history_intraday(symbol: str, minutes: int = 5, days: int = 30) -> dict[str, Any]:
@@ -2661,7 +2669,11 @@ def history_intraday(symbol: str, minutes: int = 5, days: int = 30) -> dict[str,
     if minutes not in INTRADAY_MINUTES:
         return {"ok": False, "error": f"minutes must be one of {INTRADAY_MINUTES}", "bars": []}
     days = max(1, min(days, INTRADAY_MAX_DAYS))
-    start = (datetime.now(UTC) - timedelta(days=days)).date()
+    today = datetime.now(UTC).date()
+    key = (wanted, minutes, days, today.isoformat())
+    if key in _INTRADAY_CACHE:
+        return _INTRADAY_CACHE[key]
+    start = today - timedelta(days=days)
     try:
         candles = store.resample(store.fetch(wanted, start=start), minutes)
     except Exception as exc:
@@ -2683,7 +2695,7 @@ def history_intraday(symbol: str, minutes: int = 5, days: int = 30) -> dict[str,
         }
         for c in candles
     ]
-    return {
+    answer: dict[str, Any] = {
         "ok": True,
         "symbol": wanted,
         "minutes": minutes,
@@ -2692,6 +2704,12 @@ def history_intraday(symbol: str, minutes: int = 5, days: int = 30) -> dict[str,
         "first": candles[0].ts.strftime("%Y-%m-%d %H:%M"),
         "last": candles[-1].ts.strftime("%Y-%m-%d %H:%M"),
     }
+    # Only answers with bars are kept: a symbol whose files arrive later today
+    # must not stay "no minute bars" until midnight.
+    if len(_INTRADAY_CACHE) >= _INTRADAY_CACHE_SIZE:
+        _INTRADAY_CACHE.pop(next(iter(_INTRADAY_CACHE)))
+    _INTRADAY_CACHE[key] = answer
+    return answer
 
 
 @app.get("/api/paper/{strategy_id}")
