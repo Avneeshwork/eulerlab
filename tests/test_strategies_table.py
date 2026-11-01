@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from eulerlab import results as result_store
 from eulerlab.api import server
 from eulerlab.workspace import resolve
 
@@ -40,3 +41,23 @@ def test_every_listed_strategy_carries_its_table_figures() -> None:
     for row in fleet["strategies"]:
         assert row["table"]["verdict"] in {"beats_bar", "positive", "loses", "not_run"}
         assert "logic" in row
+
+
+def test_the_row_shows_its_latest_run_not_the_ledgers_older_sharpe(
+    monkeypatch: Any,
+) -> None:
+    """One row, one run (HISTORY #52).
+
+    `momentum_12_1` showed the ledger's validated 1.27 and "beats the bar"
+    beside the return and drawdown of its latest run, whose Sharpe is 0.39.
+    """
+    from types import SimpleNamespace
+
+    row = SimpleNamespace(declaration=SimpleNamespace(id="momentum_12_1"), sharpe=1.2667)
+    latest = SimpleNamespace(sharpe=0.385, universe="nifty250", at="2026-10-30")
+    monkeypatch.setattr(result_store, "latest", lambda *a, **k: latest)
+    assert server._headline_sharpe(resolve(None), row, {}) == 0.385
+    assert not server._clears(resolve(None), row, 0.98, {})
+
+    monkeypatch.setattr(result_store, "latest", lambda *a, **k: None)
+    assert server._headline_sharpe(resolve(None), row, {}) == 1.2667

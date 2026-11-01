@@ -145,3 +145,15 @@ def test_a_new_dataset_tree_gets_a_sensible_key_without_code_changes(tmp_path: P
 
     key = _remote_key(tmp_path / "options_chains" / "NIFTY" / "x.parquet", tmp_path, "nse/")
     assert key == "nse/options_chains/NIFTY/x.parquet"
+
+
+def test_the_macro_history_is_never_pruned(tmp_path: Path) -> None:
+    """Its day files are appended to all day (HISTORY #52)."""
+    day = tmp_path / "macro" / "2026-11-01.jsonl"
+    day.parent.mkdir(parents=True)
+    day.write_bytes(b"12345")
+    store = FakeStore({"nse/macro/2026-11-01.jsonl": 5})
+
+    result = plan_and_prune(tmp_path, store, prefix="nse/", dry_run=False)
+    assert day.exists()
+    assert result.deleted == []

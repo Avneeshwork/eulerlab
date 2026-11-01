@@ -171,7 +171,15 @@ def check_web() -> Result:
     name, web = "web", REPO_ROOT / "web"
     if shutil.which("npm") is None or not (web / "node_modules").is_dir():
         return Result(name, True, "SKIP", "web packages not installed (run `make ui` once)", "")
-    for script in ("typecheck", "lint"):
+    # The indicator tests run TypeScript through Node's own test runner, which
+    # needs Node 22.6 or later. On an older Node they are named as not run.
+    scripts = ["typecheck", "lint"]
+    node = subprocess.run(["node", "--version"], capture_output=True, text=True, check=False)
+    found = re.match(r"v(\d+)\.(\d+)", node.stdout.strip())
+    new_enough = found is not None and (int(found.group(1)), int(found.group(2))) >= (22, 6)
+    if new_enough:
+        scripts.append("test")
+    for script in scripts:
         # check=False: a failing gate is a result to report, not an exception.
         proc = subprocess.run(
             ["npm", "run", "--silent", script], cwd=web, capture_output=True, text=True, check=False
@@ -179,7 +187,16 @@ def check_web() -> Result:
         if proc.returncode != 0:
             output = (proc.stdout + proc.stderr).strip()
             return Result(name, False, "FAIL", f"npm run {script} failed", output)
-    return Result(name, True, "PASS", "types and lint clean", "")
+    if not new_enough:
+        version = node.stdout.strip() or "unknown"
+        return Result(
+            name,
+            True,
+            "PASS",
+            f"types and lint clean; chart maths not run (Node {version} < 22.6)",
+            "",
+        )
+    return Result(name, True, "PASS", "types, lint and chart maths clean", "")
 
 
 CHECKS = (

@@ -34,6 +34,20 @@ from eulerlab.ingest.cloud import (
 
 DEFAULT_ROOT = Path("data/landing")
 SKIP_NAMES = frozenset({"manifest.jsonl", "unresolved.jsonl"})
+KEEP_TREES = frozenset({"macro"})
+"""Trees never pruned: day files that are appended to all day (`macro.append`).
+
+A day file pruned at noon was recreated by the next sweep with only the
+afternoon's rows, and the upload then replaced the bucket's fuller copy with
+it. They are a few kilobytes a day (HISTORY #52).
+"""
+
+
+def _kept(path: Path, root: Path) -> bool:
+    if path.name in SKIP_NAMES:
+        return True
+    rel = path.relative_to(root)
+    return bool(rel.parts) and rel.parts[0] in KEEP_TREES
 
 
 def _remote_key(path: Path, root: Path, prefix: str) -> str:
@@ -71,7 +85,7 @@ def plan_and_prune(
     dry_run: bool = True,
 ) -> PruneResult:
     remote = store.list_sizes(prefix)
-    files = [p for p in root.rglob("*") if p.is_file() and p.name not in SKIP_NAMES]
+    files = [p for p in root.rglob("*") if p.is_file() and not _kept(p, root)]
 
     deleted: list[Path] = []
     mismatched: list[Path] = []
@@ -119,7 +133,7 @@ def prune_tree(
     before the next one starts (2026-10-13).
     """
     tree = root / name
-    files = [p for p in tree.rglob("*") if p.is_file() and p.name not in SKIP_NAMES]
+    files = [p for p in tree.rglob("*") if p.is_file() and not _kept(p, root)]
     # The bhavcopy tree's objects sit directly under the prefix, one folder a
     # segment; every other tree is one folder named after itself.
     folders = sorted({_remote_key(p, root, prefix)[len(prefix) :].split("/", 1)[0] for p in files})

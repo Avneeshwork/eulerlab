@@ -989,8 +989,8 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
               <b className={snap.evidence.clearing ? 'up' : ''}>{snap.evidence.clearing}</b>
             </div>
             <div className="tfact">
-              <span>Trials spent</span>
-              <b>{snap.evidence.trials}</b>
+              <span>{snap.evidence.families != null ? 'Idea families tested' : 'Trials spent'}</span>
+              <b>{snap.evidence.families ?? snap.evidence.trials}</b>
             </div>
           </div>
         </div>
