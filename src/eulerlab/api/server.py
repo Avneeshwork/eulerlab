@@ -2000,11 +2000,93 @@ def _credentials_present() -> tuple[bool, str]:
     useful; reporting any part of the key itself would put a secret into an
     HTTP body that the browser will cache.
     """
-    required = ("ZERODHA_API_KEY", "ZERODHA_API_SECRET", "ZERODHA_ACCESS_TOKEN")
+    # The daily access token is not an environment variable: it expires at 6 AM
+    # and lives in the session file `make kite-login` writes (broker/kite_session).
+    # Until 2026-11-02 this asked for ZERODHA_ACCESS_TOKEN in .env, which the
+    # login flow never sets, so the check could not pass.
+    from eulerlab.broker import kite_session
+
+    required = ("ZERODHA_API_KEY", "ZERODHA_API_SECRET")
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
-        return False, f"not set: {', '.join(missing)}"
-    return True, "all three Zerodha variables are set"
+        return False, f"not set in .env: {', '.join(missing)}"
+    if not kite_session.is_fresh(kite_session.load()):
+        return (
+            False,
+            "no Kite session for today: log in (Instruments -> Log in to Kite, or make kite-login)",
+        )
+    return True, "API key and secret are set, and today's Kite session is fresh"
+
+
+def _forward_checks(request: PreflightRequest, check: Any) -> None:
+    """Has the gate promoted it, and is it forward-testing (T-3311)? Blocks live only."""
+    from eulerlab import forward
+
+    gate = forward.verdicts()
+    stage = forward.stage(request.strategy, gate=gate)
+    since = forward.promoted_on(request.strategy, gate)
+    if stage in {"forward_testing", "live"}:
+        detail = f"stage is {stage!r}; the gate promoted it on {since}"
+    elif stage == "promoted":
+        detail = (
+            f"the gate promoted it on {since}; start a paper deployment from the Deploy page "
+            "to begin its forward test (you start it, ADR-117)"
+        )
+    else:
+        detail = (
+            "the gate has not promoted it. mandate.yaml holds that a strategy is dead until "
+            "it clears the gate, and a screened-only strategy has no evidence behind it"
+        )
+    check(
+        "Cleared the gate and is forward-testing",
+        stage in {"forward_testing", "live"},
+        detail,
+        blocking=request.mode == "live",
+    )
+
+
+def _live_checks(request: PreflightRequest, check: Any) -> None:
+    """What only live needs: the forward record, a broker session, a proven adapter."""
+    if request.mode != "live":
+        return
+    from eulerlab import forward
+
+    mine = [r for r in forward.reports() if r.strategy == request.strategy]
+    if mine:
+        best = mine[0]
+        check(
+            "Forward test meets the mandate",
+            best.ready is True,
+            f"{best.days} days, forward Sharpe "
+            f"{'n/a' if best.sharpe is None else f'{best.sharpe:.2f}'}"
+            + (f"; {'; '.join(best.reasons)}" if best.reasons else "; meets forward_test:"),
+        )
+    else:
+        check("Forward test meets the mandate", False, "no forward-testing paper deployment yet")
+    present, detail = _credentials_present()
+    check("Broker credentials configured", present, detail)
+    check(
+        "Broker adapter proven against the live API",
+        False,
+        "KiteBroker has never been run against the real Kite API (T-3336). Its order "
+        "path is covered by tests against a fake client only, so the first live order "
+        "would also be the first real exercise of that code. `make kite-readonly` checks "
+        "the connection without sending anything",
+    )
+
+
+@app.get("/api/deploy/forward")
+def deploy_forward() -> dict[str, Any]:
+    """Every forward-testing paper deployment's record against its backtest (T-3311)."""
+    from dataclasses import asdict
+
+    from eulerlab import forward
+
+    return {
+        "ok": True,
+        "rule": forward.rules(),
+        "reports": [asdict(r) for r in forward.reports()],
+    }
 
 
 @app.post("/api/deploy/preflight")
@@ -2016,18 +2098,40 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
     is a real read of the registry, the ledger, the result store, the
     filesystem or the environment. None of them is assumed.
 
-    Nothing can pass the evidence check today, and that is not a bug in the
-    check. `strategies/__init__.py` derives stage from the ledger and there is
-    no mechanism that promotes a strategy to `forward_testing`, because the
-    forward-test stage is not built (T-3311). A strategy that has only been
-    screened has no business sending orders, so the honest answer is to name
-    the missing stage rather than to let it through.
+    The evidence check passes only for a strategy in `forward_testing` or
+    `live` (`forward.stage`, T-3311): the gate promoted it and the operator
+    started a paper deployment of it on or after that day. A gate-promoted
+    hypothesis (`H-NNNN`) is checked here too; it trades its own card.
     """
+    from eulerlab import forward
+
     tenant = workspace_mod.resolve(request.workspace or None)
     checks: list[dict[str, Any]] = []
 
     def check(name: str, passed: bool, detail: str, *, blocking: bool = True) -> None:
         checks.append({"name": name, "passed": passed, "detail": detail, "blocking": blocking})
+
+    if forward.is_hypothesis(request.strategy):
+        from eulerlab.deploy.runner import paper_blocker
+
+        blocker = paper_blocker(request.strategy)
+        check(
+            "The gate promoted this hypothesis and its card builds",
+            not blocker,
+            blocker or f"{request.strategy} trades its card's one configuration",
+        )
+        _forward_checks(request, check)
+        stop = workspace_mod.halted(tenant)
+        check("Not halted", not stop, stop or "no kill switch is set")
+        _live_checks(request, check)
+        blockers = sum(1 for c in checks if c["blocking"] and not c["passed"])
+        return {
+            "ok": blockers == 0,
+            "mode": request.mode,
+            "strategy": request.strategy,
+            "checks": checks,
+            "blockers": blockers,
+        }
 
     declaration = REGISTRY.get(request.strategy)
     check(
@@ -2078,24 +2182,11 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
         )
     check("Data exists for this asset class and timeframe", has_data, data_detail)
 
-    row = next(
-        (r for r in strategy_fleet(tenant.ledger) if r.declaration.id == request.strategy), None
-    )
-    stage = row.stage.value if row else "unknown"
     # Paper moves no money and is how a strategy earns forward evidence, so
     # for paper the evidence checks are shown but do not block (operator,
     # 2026-10-07). For live they still block.
     evidence_blocks = request.mode == "live"
-    check(
-        "Cleared the gate and is forward-testing",
-        stage in {"forward_testing", "live"},
-        f"stage is {stage!r}. The forward-test stage is not built (T-3311), so nothing "
-        f"can reach it yet — mandate.yaml holds that a strategy is dead until it clears "
-        f"the gate, and a screened-only strategy has no evidence behind it"
-        if stage not in {"forward_testing", "live"}
-        else f"stage is {stage!r}",
-        blocking=evidence_blocks,
-    )
+    _forward_checks(request, check)
 
     bar = _bar()
     top = result_store.best(tenant, request.strategy)
@@ -2118,16 +2209,7 @@ def deploy_preflight(request: PreflightRequest) -> dict[str, Any]:
     stop = workspace_mod.halted(tenant)
     check("Not halted", not stop, stop or "no kill switch is set")
 
-    if request.mode == "live":
-        present, detail = _credentials_present()
-        check("Broker credentials configured", present, detail)
-        check(
-            "Broker adapter proven against the live API",
-            False,
-            "KiteBroker has never been run against the real Kite API (T-3336). Its order "
-            "path is covered by tests against a fake client only, so the first live order "
-            "would also be the first real exercise of that code",
-        )
+    _live_checks(request, check)
 
     blockers = sum(1 for c in checks if c["blocking"] and not c["passed"])
     return {

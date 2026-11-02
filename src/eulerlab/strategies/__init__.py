@@ -7,9 +7,9 @@ and nothing else. It does not run anything.
 **Stage is derived, never stored.** A strategy's lifecycle position is read
 from the trial ledger, the same way the research report reads gate verdicts
 (T-1606): if it has been evaluated it is `backtested`, otherwise `registered`.
-`forward_testing` and `live` are deliberately unreachable today, because no
-mechanism exists to put a strategy into either — and a UI that can display a
-state the system cannot produce is a UI that will eventually display a lie.
+`forward_testing` and `live` are read the same way (`forward.stage`, T-3311):
+forward testing is a gate PROMOTE in the ledger plus a paper deployment the
+operator started on or after it; live is an active live deployment.
 
 The performance figures shown against a strategy come from the ledger too. Most
 strategies have none, and the honest rendering of that is "not measured" rather
@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 from eulerlab.validation.ledger import LEDGER_PATH, sharpe_of
 from eulerlab.validation.ledger import read as read_ledger
@@ -58,7 +59,7 @@ class Timeframe(StrEnum):
 
 
 class Stage(StrEnum):
-    """Lifecycle position. Only the first two are reachable today."""
+    """Lifecycle position, derived from the ledger and the deployments (`forward.stage`)."""
 
     REGISTERED = "registered"
     BACKTESTED = "backtested"
@@ -939,6 +940,17 @@ def _evidence(
     return sharpes, counts, evaluated
 
 
+def _stage(strategy_id: str, ran: int, gate: dict[str, Any], active: list[Any]) -> Stage:
+    from eulerlab import forward
+
+    later = forward.stage(strategy_id, gate=gate, deployments=active)
+    if later == "live":
+        return Stage.LIVE
+    if later == "forward_testing":
+        return Stage.FORWARD_TESTING
+    return Stage.BACKTESTED if ran else Stage.REGISTERED
+
+
 def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
     """Every registered strategy, with its evidence.
 
@@ -946,6 +958,15 @@ def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
     move between refreshes is one nobody can point at.
     """
     sharpes, counts, evaluated = _evidence(path)
+    from eulerlab import forward
+
+    gate = forward.verdicts(path)  # type: ignore[arg-type]
+    try:
+        from eulerlab.deploy import deployments as store
+
+        active = store.all_deployments()
+    except Exception:  # a broken deployment file must not hide the strategy list
+        active = []
     rows: list[FleetRow] = []
     for declaration in REGISTRY.values():
         subjects = declaration.ledger_subjects
@@ -956,10 +977,9 @@ def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
             FleetRow(
                 declaration=declaration,
                 # Backtested requires the STRATEGY to have been run, not a
-                # feature it happens to rank on. Nothing can be further along:
-                # there is no mechanism to promote to forward testing or live,
-                # so those stages are unreachable by design.
-                stage=Stage.BACKTESTED if ran else Stage.REGISTERED,
+                # feature it happens to rank on. Forward testing and live are
+                # read from a gate PROMOTE plus a deployment (forward.stage, T-3311).
+                stage=_stage(declaration.id, ran, gate, active),
                 sharpe=max(measured) if measured else None,
                 trials=trials,
             )

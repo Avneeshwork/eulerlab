@@ -2906,6 +2906,24 @@ before its result is read, so `budget.searches_run` and the noise bar count it.
 the web page refuses to start it; it runs from `make agent NAME=lab` and
 `make agents-ideas`.
 
+### The forward-test stage (ADR-117)
+
+    gate PROMOTE in the ledger (latest gate verdict for the subject)    -> promoted
+    + active paper deployment, start >= promotion day (operator starts it) -> forward_testing
+    + active live deployment                                             -> live
+
+`forward.stage` derives it; `strategies.fleet` and the deploy preflight read it.
+A promoted hypothesis `H-NNNN` deploys to paper as `forward.GatedCard`: its
+card's one configuration built by `codegen.build_one`, with the card's
+rebalance. The version lock fingerprints the card text and the trading code.
+`forward.report` measures each forward deployment from its `state.json` curve:
+days, annualised Sharpe, max drawdown, and the ledger's best backtest Sharpe.
+`ready_for_live` applies `mandate.yaml` `forward_test:` (`min_days`,
+`min_sharpe_ratio_of_backtest`, `max_drawdown`); with no such section it says
+"not set". Live preflight also needs a fresh Kite session and a proven adapter;
+`make kite-readonly` exercises the adapter's read paths through a client whose
+write methods raise.
+
 ### An approved survivor goes to the gate (ADR-116)
 
     Inbox: approve a lab finding ("<card>: N configuration(s) survived")

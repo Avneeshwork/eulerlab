@@ -182,10 +182,14 @@ def paper_blocker(strategy_id: str) -> str:
     deploy route all read, so none can offer what another refuses: until
     2026-10-17 the preflight passed `buy_and_hold`, which the route rejected.
     """
+    from eulerlab import forward
     from eulerlab.backtest.published import BUILDERS
     from eulerlab.deploy import overnight
     from eulerlab.strategies import REGISTRY
 
+    if forward.is_hypothesis(strategy_id):
+        # A gate-promoted hypothesis trades its own card (T-3311, ADR-117).
+        return forward.blocker(strategy_id)
     declaration = REGISTRY.get(strategy_id)
     if declaration is None:
         return f"no strategy named {strategy_id!r}"
@@ -217,7 +221,14 @@ def paper_blocker(strategy_id: str) -> str:
 
 
 def _strategy(strategy_id: str) -> Any:
+    from eulerlab import forward
     from eulerlab.backtest.published import BUILDERS
+
+    if forward.is_hypothesis(strategy_id):
+        try:
+            return forward.build(strategy_id)
+        except ValueError as exc:
+            raise KeyError(str(exc)) from exc
 
     builder = BUILDERS.get(strategy_id)
     if builder is None:

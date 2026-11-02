@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -25,6 +25,7 @@ help:
 	@echo "                    download NSE equity + F&O bhavcopy into data/landing/"
 	@echo "  make check-landing  re-hash every landed file; proves nothing changed"
 	@echo "  make kite-login   obtain a Kite access token (expires 6 AM daily)"
+	@echo "  make kite-readonly  check the Kite connection through the adapter; sends nothing"
 	@echo "  make fyers-auth   log in to FYERS and save today's access token in .env"
 	@echo "  make fyers-expired-fo UNDERLYING=NSE:RELIANCE-EQ FROM=YYYY-MM-DD TO=YYYY-MM-DD"
 	@echo "                    fetch approved expired stock-futures 1-minute candles"
@@ -155,6 +156,9 @@ check-landing:
 
 kite-login:
 	@uv run python -m eulerlab.broker.kite_login
+
+kite-readonly:
+	@uv run python -m eulerlab.broker.kite_check
 
 ingest-oi:
 	@test -n "$(FROM)" || (echo "usage: make ingest-oi FROM=2020-01-01 [TO=2026-08-18]"; exit 2)

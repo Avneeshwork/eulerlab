@@ -32,6 +32,9 @@ what is open is in `TASKS.md`.*
 - **Paper trading** runs forward with operator capital (`make paper-daily`),
   with loss limits that act: reduce-only at 10% drawdown, halt at 20%.
   Live is refused in code until the Kite adapter is proven (S-015).
+  A gate-promoted strategy is forward-testing once you start its paper
+  deployment; leaving that stage waits on `forward_test:` in mandate.yaml
+  (ADR-117, T-4380). `make kite-readonly` checks Kite without sending.
 - **Data.** NSE equities, F&O, indices, delivery, FII/DII, deals and filings,
   Nifty minutes and option chains; about 4.5 GB mirrored to Backblaze B2,
   which is the store of record. `make daily` refreshes, uploads and prunes.
