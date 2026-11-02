@@ -50,6 +50,7 @@ from eulerlab.costs.schedule import Side
 from eulerlab.deploy import deployments as store
 from eulerlab.deploy.deployments import Deployment
 from eulerlab.deploy.sizing import fit_to_capital
+from eulerlab.deploy.sizing_models import fit_by_order
 from eulerlab.features.panel import PanelRow, by_symbol, trading_days
 from eulerlab.oms import ems
 from eulerlab.oms.journal import Journal
@@ -487,15 +488,13 @@ def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
 
 def _intended(strategy: Any, rows: Sequence[PanelRow], day: date, equity: float) -> dict[str, Any]:
     """The names the strategy wants on `day`, and how many the money can buy."""
-    from eulerlab.backtest.strategy import MarketView, long_only, normalise
+    from eulerlab.backtest.strategy import MarketView, decide, normalise
 
     lookback = int(getattr(strategy, "lookback", 0) or 0)
     histories = by_symbol(rows)
     view_history = {s: (h[-lookback:] if lookback else h) for s, h in histories.items()}
     try:
-        longs, _refused = long_only(
-            strategy.target_weights(MarketView(as_of=day, history=view_history))
-        )
+        longs, _refused = decide(strategy, MarketView(as_of=day, history=view_history))
         targets = normalise(longs, gross_cap=GROSS)
     except Exception as exc:  # a preview must never fail the run
         return {"error": str(exc)}
@@ -504,7 +503,7 @@ def _intended(strategy: Any, rows: Sequence[PanelRow], day: date, equity: float)
         targets,
         equity * GROSS,
         closes.get,
-        by_order=bool(getattr(strategy, "ranked_by_order", False)),
+        by_order=fit_by_order(strategy),
     )
     return {
         "wanted": len(targets),

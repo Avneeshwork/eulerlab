@@ -112,6 +112,17 @@ class Strategy(ABC):
     weight kept its calmest stock first, not its strongest trend (ADR-120).
     """
 
+    sizing: str = "equal"
+    """How the money is split over the names `target_weights` returns
+    (`deploy.sizing_models`, ADR-122): ``equal`` (the default: the gross
+    exposure split equally, so a slot strategy's idle cash stays idle),
+    ``strategy`` (these weights as they are: set it when the weights are part
+    of the idea), or a model: ``inverse_vol``, ``hrp``, ``min_variance``.
+    The caps of `deploy.sizing.max_weight` apply to every rule. A model needs
+    `lookback` of at least `sizing_models.HISTORY_NEEDED` rows, else it falls
+    back to equal. Changing a strategy's rule is a new trial for the gate.
+    """
+
     @abstractmethod
     def target_weights(self, view: MarketView) -> dict[str, float]:
         """Desired portfolio weights on `view.as_of`.
@@ -169,3 +180,15 @@ def normalise(weights: Mapping[str, float], *, gross_cap: float = 1.0) -> dict[s
         return clean
     scale = gross_cap / gross
     return {symbol: weight * scale for symbol, weight in clean.items()}
+
+
+def decide(strategy: Strategy, view: MarketView) -> tuple[dict[str, float], list[str]]:
+    """The strategy's longs, split by its declared `sizing`, and the shorts refused.
+
+    The one path from a strategy to its book, shared by Tier A, Tier B and the
+    paper/live runner, so a sizing rule cannot hold in one and not another.
+    """
+    from eulerlab.deploy.sizing_models import rule_of, size_book
+
+    longs, refused = long_only(strategy.target_weights(view))
+    return size_book(longs, view, rule_of(strategy)), refused

@@ -358,6 +358,9 @@ class SandboxedStrategy(Strategy):
     number in the project rather than being a separate world.
     """
 
+    sizing = "strategy"
+    """Typed code returns its own weights, and they are used as typed (ADR-122)."""
+
     def __init__(self, source: str, *, name: str = "sandboxed", lookback: int | None = 300) -> None:
         self.name = name
         self.lookback = lookback
