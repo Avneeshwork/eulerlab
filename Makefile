@@ -372,7 +372,7 @@ build-factors:
 # data/ included (64,323 files), four times a second for changed .py files:
 # a whole CPU core, all day (measured 2026-10-27). src/ is 618 files.
 api:
-	uv run --extra web uvicorn eulerlab.api.server:app --port 8000 --reload --reload-dir src
+	uv run --extra web uvicorn eulerlab.api.server:app --host 127.0.0.1 --port 8000 --reload --reload-dir src
 
 ui:
 	-@uv run python tools/render_metrics_handbook.py

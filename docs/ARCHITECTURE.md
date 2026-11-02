@@ -1751,6 +1751,12 @@ in §5.5:
 |---|---|---|
 | `api/` | the HTTP layer, and three modules that are *not* — panels, intraday runs, and the request shapes both need | `server`, `panels`, `intraday_runs` |
 
+Both servers listen on 127.0.0.1 only: the API (`make api`, uvicorn on :8000)
+and the UI (`next dev` and `next start` on :3000, `-H 127.0.0.1`). `next`
+otherwise listens on every interface, which let any device on the Wi-Fi open
+the workbench and, through its `/api` rewrite, the API. The operator uses it
+from the Mac only (T-4384).
+
 ## Live data and plumbing
 
 The remaining top-level modules. Small, and load-bearing in the way plumbing is:
