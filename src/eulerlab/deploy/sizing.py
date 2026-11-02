@@ -31,7 +31,7 @@ So the book is fitted in three rules:
    skipped and the next-ranked name takes its place, as Clenow skips a stock
    he cannot afford and moves down the list. Before 2026-11-02 the list was
    cut below such a name instead, which put a ₹50,000 Clenow book into one
-   ₹47,589 BOSCHLTD share (HISTORY #58).
+   ₹47,589 BOSCHLTD share (HISTORY #60).
 """
 
 from __future__ import annotations
