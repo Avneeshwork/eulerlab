@@ -1,6 +1,7 @@
 # The knowledge agent (ADR-085). Answers from what the platform holds, with sources.
 name: knowledge
 title: Knowledge agent
+reports_to: research
 job: Answers questions about our papers, idea cards, results and datasets, looks every number up instead of remembering it, and names the source of each one.
 worker: eulerlab.agents.workers.knowledge
 schedule: "on demand; its index rebuilds after the close"

@@ -1,0 +1,39 @@
+# The agent company (ADR-122): who reports to whom.
+#
+# You are the CEO. Each department has a head (a manager agent) and every agent
+# in config/agents/ names its department in `reports_to`. The heads are listed
+# here so the chart and the calendar can show them, but they do not run yet:
+# `running: false` until Phase 3 builds the manager workers.
+#
+# The gate is deliberately not in any department. It answers only to the CEO,
+# and no manager can overrule, retry or tune its verdict (CLAUDE.md, Validation).
+ceo: Operator
+departments:
+  - id: research
+    title: Research
+    head:
+      name: head_research
+      title: Head of Research
+      running: false
+      assigns: research topics, card tests and attacks on survivors
+      passes_up: lab survivors for the gate, page and assumption updates
+  - id: platform
+    title: Data and Platform
+    head:
+      name: head_platform
+      title: Head of Data and Platform
+      running: false
+      assigns: data checks, data requests and code fixes
+      passes_up: fix branches to merge and data fetches
+  - id: portfolio
+    title: Portfolio and Risk
+    head:
+      name: head_portfolio
+      title: Head of Portfolio and Risk
+      running: false
+      assigns: sizing, drift checks and the market brief
+      passes_up: sizes and retirements for deployed books
+outside:
+  - id: gate
+    title: Gate and mandate
+    note: Operator-owned (gates.py, mandate.yaml). Answers only to the CEO; no manager can overrule or retry it.

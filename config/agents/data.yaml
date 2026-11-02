@@ -1,6 +1,7 @@
 # The data agent (ADR-085). No model. Runs at 06:30 and after the close.
 name: data
 title: Data agent
+reports_to: platform
 job: Grades every dataset against the quality contract, flags what is behind, failed or changed format, and answers other agents' data requests.
 worker: eulerlab.agents.workers.data
 schedule: "06:30 and 16:15 on weekdays"

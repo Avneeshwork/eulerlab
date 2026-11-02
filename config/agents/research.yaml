@@ -3,6 +3,7 @@
 # when no brief names one; `topic` below is the fallback.
 name: research
 title: Research agent
+reports_to: research
 job: Finds papers on the brief's topic, or on the topic the idea lab's feedback names that day, drafts idea cards with what the lab has learned in hand, drops repeats of ideas already tried or tested, asks the data agent for data it lacks, and ranks the survivors for you.
 worker: eulerlab.agents.workers.research
 schedule: "Every day 17:00 IST, before the idea lab (make agents-ideas)"

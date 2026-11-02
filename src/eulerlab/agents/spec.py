@@ -39,6 +39,11 @@ class AgentSpec(BaseModel):
 
     name: str = Field(pattern=NAME_PATTERN)
     title: str = Field(min_length=3, max_length=80)
+    reports_to: str = ""
+    """The department in `config/org.yaml` whose head manages it (ADR-122).
+    Empty is allowed here so a test can build a spec; `agents/org.py` refuses
+    a committed definition without one."""
+
     job: str = Field(min_length=10, max_length=400)
     """What it does, in a sentence the operator reads on the control room."""
 
