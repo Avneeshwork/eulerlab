@@ -32,6 +32,7 @@ import type {
   AgentStep,
   DatasetGrade,
   MarketBrief as MarketBriefData,
+  GateFinding,
   Promotion,
 } from '@/lib/api';
 
@@ -314,6 +315,36 @@ function Live({
 // ---------------------------------------------------------------- gate runs
 
 /** Approved idea lab survivors sent to the gate (ADR-116), newest first. */
+function GateRules({ rules }: { rules: GateFinding[] }) {
+  const failed = rules.filter((r) => !r.passed);
+  const passed = rules.filter((r) => r.passed);
+  const row = (r: GateFinding) => (
+    <li key={r.rule}>
+      <Badge tone={r.passed ? 'up' : 'down'}>{r.passed ? 'pass' : 'fail'}</Badge> <b>{r.rule}</b>
+      {r.detail && <span className="tfine"> {r.detail}</span>}
+    </li>
+  );
+  return (
+    <details>
+      <summary className="tfine">
+        View more: {failed.length} failed, {passed.length} passed
+      </summary>
+      {failed.length > 0 && (
+        <>
+          <p className="tfine">Failed</p>
+          <ul>{failed.map(row)}</ul>
+        </>
+      )}
+      {passed.length > 0 && (
+        <>
+          <p className="tfine">Passed</p>
+          <ul>{passed.map(row)}</ul>
+        </>
+      )}
+    </details>
+  );
+}
+
 function GateRuns() {
   const [rows, setRows] = useState<Promotion[]>([]);
   useEffect(() => {
@@ -339,6 +370,7 @@ function GateRuns() {
                 {row.finished ? row.verdict.split(' ')[0] : 'running'}
               </Badge>
               <p className="tfine">{row.finished ? row.verdict : `started ${row.started.slice(0, 16)}`}</p>
+              {row.findings && row.findings.length > 0 && <GateRules rules={row.findings} />}
             </div>
           </li>
         ))}
