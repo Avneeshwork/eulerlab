@@ -1,4 +1,4 @@
-# The company's goals (ADR-122). The CEO sets the company goal and approves
+# The company's goals (ADR-123). The CEO sets the company goal and approves
 # each department's goals; managers turn them into weekly plans (Phase 3).
 #
 # Every goal below is `proposed`: drafted from STATE.md and the mandate, not yet

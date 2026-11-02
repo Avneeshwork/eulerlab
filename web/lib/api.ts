@@ -2602,7 +2602,7 @@ export type ActivityResponse = {
   feed: (AgentStep & { agent: string; title: string })[];
 };
 
-/** The agent company (ADR-122): `/api/agents/org`. */
+/** The agent company (ADR-123): `/api/agents/org`. */
 export type OrgGoal = { id: string; text: string; measure: string; status: 'proposed' | 'approved' | 'retired' };
 export type OrgDepartment = {
   id: string;
@@ -2622,7 +2622,7 @@ export type OrgChart = {
   problems: string[];
 };
 
-/** The company calendar (ADR-122): `/api/agents/calendar`, times in IST. */
+/** The company calendar (ADR-123): `/api/agents/calendar`, times in IST. */
 export type CalendarSlotState = 'ran' | 'partial' | 'due' | 'missed' | 'upcoming' | 'feed';
 export type CalendarSlot = {
   day: string;

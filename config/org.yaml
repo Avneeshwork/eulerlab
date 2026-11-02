@@ -1,4 +1,4 @@
-# The agent company (ADR-122): who reports to whom.
+# The agent company (ADR-123): who reports to whom.
 #
 # You are the CEO. Each department has a head (a manager agent) and every agent
 # in config/agents/ names its department in `reports_to`. The heads are listed

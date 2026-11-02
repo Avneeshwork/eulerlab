@@ -1,4 +1,4 @@
-"""The company calendar: when each agent is scheduled, what it did, and what it missed (ADR-122).
+"""The company calendar: when each agent is scheduled, what it did, and what it missed (ADR-123).
 
     tools/schedule_daily.JOBS ── job: hour, minute, weekdays, `make <target>`
             │

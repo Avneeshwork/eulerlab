@@ -1,4 +1,4 @@
-# 140 — How do Paperclip and similar systems run AI agents as a company, and should eulerlab adopt one?
+# 141 — How do Paperclip and similar systems run AI agents as a company, and should eulerlab adopt one?
 
 **Date:** 2026-11-02 · **Confidence:** high on Paperclip's concepts (its own docs and repo); medium on its data model and weaknesses (one secondary article and one vendor review)
 
@@ -27,7 +27,7 @@ The operator asked for "the Paperclip agent organisation model": agents as emplo
 
 ## Decision
 
-Build natively (ADR-122). The operator chose it on 2026-11-02.
+Build natively (ADR-123). The operator chose it on 2026-11-02.
 
 ## Not found
 

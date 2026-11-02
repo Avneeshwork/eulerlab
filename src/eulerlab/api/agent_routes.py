@@ -177,7 +177,7 @@ def _findings(items: list[runtime.Item]) -> list[dict[str, str]]:
 
 @router.get("/api/agents/org")
 def agents_org() -> dict[str, Any]:
-    """The company: you, the departments and their heads, the agents, the goals (ADR-122)."""
+    """The company: you, the departments and their heads, the agents, the goals (ADR-123)."""
     try:
         chart = org.chart(org.load_org(), load_specs(), org.load_company())
     except (OSError, ValueError) as exc:
@@ -187,7 +187,7 @@ def agents_org() -> dict[str, Any]:
 
 @router.get("/api/agents/calendar")
 def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
-    """Scheduled agent runs, what ran and what was missed, by IST day (ADR-122).
+    """Scheduled agent runs, what ran and what was missed, by IST day (ADR-123).
 
     `start` defaults to this week's Monday; `days` is 1 to 31.
     """

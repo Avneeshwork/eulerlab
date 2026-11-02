@@ -554,6 +554,27 @@ weights, not orders. It does not fetch data (so it cannot reach past `as_of`),
 does not place orders (so the same object works in backtest and live), and does
 not compute costs (so there is exactly one cost path in the system).
 
+**Sizing is declared, not coded (ADR-122).** A strategy says what to hold,
+best first; `Strategy.sizing` says how the money is split, and
+`backtest.strategy.decide` applies it in Tier A, Tier B and the paper/live
+runner alike. `equal`, the default, splits the strategy's gross exposure
+equally, so a slot strategy that fills 4 of 10 slots stays 40% invested.
+`strategy` keeps the weights as returned (Clenow's inverse ATR,
+betting-against-beta, Faber TAA, the Nifty volatility target, sandbox code).
+The models (`deploy/sizing_models.py`) use 126 days of daily returns:
+
+- `inverse_vol`: weight proportional to 1/σ.
+- `hrp`: López de Prado's hierarchical risk parity. Single-linkage clusters on
+  the distance √(½(1 − ρ)), then a top-down split between halves in
+  proportion to 1 − V_left/(V_left + V_right).
+- `min_variance`: minimise wᵀΣw with 0 ≤ w ≤ max_weight(k) and Σw = 1, by
+  projected gradient.
+
+HRP and min-variance use Σ shrunk toward constant correlation,
+Σ̂ = δF + (1 − δ)S, with δ from Ledoit & Wolf (2004). A model's weights are
+capped at `max_weight(k)` before they leave `size_book`, and they fall back to
+equal when fewer than 60 common return days exist.
+
 ## 4.4 The engine self-tests — the most important gate
 
 Before trusting any strategy result, you must trust the engine. `make
@@ -2740,11 +2761,11 @@ it to answer market questions in the same order.
 **Workbench.** The AI tab opens on **Live**: a card per agent with its state
 (working, done, failed, stopped, never run), the step it is on, its last few
 steps and today's model requests, beside a feed of every agent's steps. Then
-the inbox, the org chart and calendar (ADR-122), agents and briefs (switch,
+the inbox, the org chart and calendar (ADR-123), agents and briefs (switch,
 budget, brief, run), ask the knowledge agent, research and skeptic runs, the market brief, data quality and the
 agents' log. The trade desk is on Live & Risk only.
 
-### The agent company (ADR-122)
+### The agent company (ADR-123)
 
 The agents are organised as a company. You are the CEO; three departments each
 have a head (a manager); every agent belongs to one department. The gate and the
@@ -2790,7 +2811,7 @@ A run that matched no slot (the Run button, the after-close brief that `make
 daily` rewrites) shows as run by hand. `GET /api/agents/org` and `GET
 /api/agents/calendar?start=YYYY-MM-DD&days=7` serve them; the AI tab's Org chart
 and Calendar views draw them. Both only read. The heads assign nothing until
-the manager workers exist (T-4395).
+the manager workers exist (T-4399).
 
 ### The knowledge keeper (ADR-104)
 

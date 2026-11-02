@@ -424,6 +424,8 @@ class FaberTAA(Strategy):
     the last ten months, as the repository computes it), else LIQUIDBEES. A
     sleeve whose ETF has under ten months of history sits in LIQUIDBEES."""
 
+    sizing = "strategy"  # fixed sleeve weights are the allocation itself (ADR-122)
+
     def __init__(self, name: str) -> None:
         self.name = name
         self.rebalance_every = MONTH

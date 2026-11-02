@@ -1,4 +1,4 @@
-"""The agent company (ADR-122): the org chart holds together, and the calendar tells the truth."""
+"""The agent company (ADR-123): the org chart holds together, and the calendar tells the truth."""
 
 from __future__ import annotations
 

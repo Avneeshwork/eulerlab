@@ -29,6 +29,8 @@ what is open is in `TASKS.md`.*
   anything. **No capital has ever been traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
+  Each declares its sizing: equal by default, its own weights when it says
+  so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
 - **Paper trading** runs forward with operator capital (`make paper-daily`),
   with loss limits that act: reduce-only at 10% drawdown, halt at 20%.
   Live is refused in code until the Kite adapter is proven (S-015).
@@ -49,7 +51,7 @@ what is open is in `TASKS.md`.*
   survivor registers, validates and gates it; verdicts show under Gate runs
   (ADR-116). The agents are now a company: you are CEO over three
   department heads (on paper until their workers exist), with proposed goals
-  and a calendar of every scheduled run on the AI tab (ADR-122, T-4393 to T-4397).
+  and a calendar of every scheduled run on the AI tab (ADR-123, T-4397 to T-4401).
   Launchd jobs were not loaded until 2026-11-01 (T-4356); on that
   evening the agents, daily feed, fundamentals and idea lab jobs were loaded.
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):

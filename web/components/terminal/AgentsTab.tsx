@@ -6,8 +6,8 @@
  *                   it is on, its last few steps, today's model requests, and a
  *                   feed of every agent's steps, newest first
  *   Inbox           what waits on the operator
- *   Org chart       you as CEO, departments, heads, goals, agents (ADR-122)
- *   Calendar        scheduled agent runs: ran, missed, upcoming (ADR-122)
+ *   Org chart       you as CEO, departments, heads, goals, agents (ADR-123)
+ *   Calendar        scheduled agent runs: ran, missed, upcoming (ADR-123)
  *   Agents & briefs switches, budgets, briefs and a Run button per agent
  *   Ask · Research · Market brief · Data quality · Agent log
  *

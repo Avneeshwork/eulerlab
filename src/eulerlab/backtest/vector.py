@@ -46,7 +46,7 @@ from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from eulerlab.backtest.strategy import MarketView, Strategy, long_only, normalise
+from eulerlab.backtest.strategy import MarketView, Strategy, decide, normalise
 from eulerlab.bitemporal.store import BitemporalStore
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Segment, Side
@@ -474,7 +474,7 @@ def run(
 
         if (index - warmup) % rebalance_every == 0:
             view = MarketView(as_of=today, history=_view_history(today))
-            longs, refused = long_only(strategy.target_weights(view))
+            longs, refused = decide(strategy, view)
             result.refused_shorts += len(refused)
             targets = normalise(longs, gross_cap=gross_cap)
             equity = portfolio_value(today)

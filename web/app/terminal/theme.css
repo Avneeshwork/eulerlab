@@ -503,7 +503,7 @@
 .terminal .tchip[aria-pressed='true'] em,
 .terminal .tchip[aria-pressed='true'] .tfine { color: inherit; opacity: 0.8; }
 
-/* ============================ agent company (ADR-122) ============================ */
+/* ============================ agent company (ADR-123) ============================ */
 
 .org { display: grid; gap: var(--s4); }
 .org-top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--s4); }

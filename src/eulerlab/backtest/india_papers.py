@@ -390,6 +390,7 @@ class LiquidBuilt(Strategy):
         self.name = inner.name
         self.rebalance_every = getattr(inner, "rebalance_every", 1)
         self.hold_unchanged = getattr(inner, "hold_unchanged", False)
+        self.sizing = getattr(inner, "sizing", "equal")
         self.lookback = inner.lookback
 
     def target_weights(self, view: MarketView) -> dict[str, float]:
@@ -412,6 +413,8 @@ class LowBeta(Strategy):
 
     rebalance_every = MONTH
     lookback = 5 * YEAR + 5
+
+    sizing = "strategy"  # beta-based weights are the paper's portfolio (ADR-122)
 
     def __init__(self) -> None:
         self.name = "india_bab_low_beta"

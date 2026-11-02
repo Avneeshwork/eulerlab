@@ -1,4 +1,4 @@
-"""The agent company: departments, their heads, the agents under them, and goals (ADR-122).
+"""The agent company: departments, their heads, the agents under them, and goals (ADR-123).
 
     you (CEO) ──┬── Head of Research ──────────── research, lab, skeptic, ...
                 ├── Head of Data and Platform ─── data, engineering, operations
