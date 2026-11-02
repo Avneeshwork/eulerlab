@@ -3,6 +3,16 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Nightly upload never finishing (2026-11-02, HISTORY #68)
+
+Operator: the automatic data upload stalls and never finishes.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4414 | `make daily` re-fetched US bars and actions from 2016 every night, rewriting ~37,500 files and re-uploading most of them, so the run took 7 hours and its upload did not finish | DONE — nightly window from the first of last month (`Makefile`), pruned months restored from B2 before merging, unchanged bars keep their first `knowledge_time` (`ingest/alpaca.py`, `tests/test_alpaca_landing.py`) |
+| T-4415 | After the next `make daily` on the Mac, the `us:` upload line reports hundreds of files, not tens of thousands, and `[feed] finished` appears | TODO. Check `data/logs/daily.log` on the Mac |
+| T-4416 | Operator: B2's current US bar objects carry re-stamped `knowledge_time`s (HISTORY #68a). Restore the originals from B2's older versions, or accept the stricter stamps | TODO. Operator decision; restoring is an upload |
+
 ## The agent company: departments, managers, goals, calendar (2026-11-02, ADR-123; 2026-11-03, ADR-124)
 
 Operator: "implement paperclick agent organisation model, make each agent employee and above that assign manager which ask for work and i will be ceo who sees final work and approve"; "set goals for agents"; "add calendar of agents work in ui". Built natively, the operator's choice (research 141). On 2026-11-03: "work on organisation structure of agents, so that every agent plan their task properly and define everyday task properly and give option to add on ceo given task to different managers which allot to other agents ... keep ui organisation as family graph and on clicking them it shows their task and todays task. make everything transparent and check if all agents have capability to resolve their respective work issue"; "use both first ai then on fallback fixed"; "use groq api for ai".

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Sixty-seven times this project was wrong
+## Sixty-eight times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -431,6 +431,8 @@ figure produced outside the result store before this date was frictionless.
 **66. "0 drafted" read as "no papers", but the agent was dropping and forgetting them.** (2026-11-03, ADR-126) The research agent's runs on 11-01, 11-02 and 11-03 said "0 drafted" and nothing else. Re-run with every paper's outcome printed (research 144): the most on-topic momentum paper was dropped because gpt-oss-120b wrote one section as an object and the reply check was strict; one was lost to a single Groq timeout; three had no abstract; off-topic hits used read slots. And a run with no draft wrote no `run.json`, so its "not relevant" papers were read again next time. Now replies are parsed tolerantly, a failed request is retried once, reading follows topic overlap, Crossref fills missing abstracts, every judged paper is kept in the library, and the summary counts each outcome. The same topic then drafted 2. No numbers are invalidated: drafts spend no trial.
 
 **67. The lab's hand-off to engineering could never fire.** (2026-11-03, ADR-128) ADR-127 recorded a research card the lab could not build at the step where the lab prices a card (`agent_trials.cost_of`). Since 2026-11-01 the lab drops such cards one step earlier, when it fills its queue, so they never reached the recording step and `data.unbuildable` was always empty: no signal would have been handed to engineering. The tests built that list by hand, so they passed. Found the same day, before any lab run used it. Now the card is recorded where it is skipped, and a test runs the real lab on such a card and checks the engineering task appears. No numbers are invalidated.
+
+**68. The nightly upload never finished because the US step re-fetched ten years every night.** (2026-11-02, operator report: "the automatic data upload stalls") `make daily` fetched S&P 500 daily bars and corporate actions from 2016-01-01 on every run. `prune-local` empties the US tree after each upload, so every night `land_bars` rewrote about 37,500 month files, each with every row restamped with that night's `knowledge_time`. The gzip size moved by a few bytes, so the mirror saw tens of thousands of "changed" files: 26,131 uploads on one night, 30,402 on another, 18,219 plus 8,551 connection failures on 1 Nov. The feed ran 25,101 s and 26,362 s on two nights, and the 1 Nov run never got past the final `upload-tree us DELETE=1`. Two data faults came with it. (a) Each larger re-landed file replaced its B2 object, so B2's current copies of US bars carry the night they were last re-fetched as `knowledge_time`, not the night we first held the bar; the original stamps survive only in B2's older versions. Any as-of read of US bars before 2 Nov sees later knowledge times than the truth, so it is too strict (bars look unknown when they were known), never leaky. (b) A re-landed file a few bytes smaller was refused by the #52 guard and logged as a failure each night, so `daily` exited non-zero for a reason that was not a fault. Fixed: the nightly window starts at the first of last month; a pruned month is restored from B2 before it is merged, and not written if B2 cannot be reached; an unchanged bar keeps its first `knowledge_time`. The Kite login that expired on 29 Oct only made the Kite steps fail fast; it did not slow the run.
 
 ---
 

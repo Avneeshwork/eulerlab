@@ -234,7 +234,13 @@ def bars_path(symbol: str, month: str, *, root: Path = LANDING) -> Path:
 
 
 def _merge(path: Path, rows: list[dict[str, object]], key: str) -> tuple[int, int]:
-    """Merge rows into a file by `key`. Returns (total, new)."""
+    """Merge rows into a file by `key`. Returns (total, new).
+
+    A row already held keeps its `knowledge_time` when nothing else about it
+    has changed. Re-fetching a bar does not mean we learned it again, and
+    restamping every row made every file a few bytes different each night, so
+    the mirror re-uploaded tens of thousands of unchanged files (HISTORY #68).
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     existing: dict[str, dict[str, object]] = {}
     if path.exists():
@@ -249,6 +255,9 @@ def _merge(path: Path, rows: list[dict[str, object]], key: str) -> tuple[int, in
 
     before = len(existing)
     for row in rows:
+        held = existing.get(str(row.get(key, "")))
+        if held is not None and _same_apart_from_knowledge(held, row):
+            continue
         existing[str(row.get(key, ""))] = row
 
     tmp = path.with_suffix(".partial")
@@ -259,19 +268,67 @@ def _merge(path: Path, rows: list[dict[str, object]], key: str) -> tuple[int, in
     return len(existing), len(existing) - before
 
 
+def _same_apart_from_knowledge(old: dict[str, object], new: dict[str, object]) -> bool:
+    strip = "knowledge_time"
+    return {k: v for k, v in old.items() if k != strip} == {
+        k: v for k, v in new.items() if k != strip
+    }
+
+
+def _restore_pruned(paths: list[Path], *, root: Path) -> set[Path]:
+    """Bring back from B2 the month files `prune-local` removed.
+
+    Without this a merge into a pruned month starts empty and writes a file
+    that has lost the bucket copy's rows and their original knowledge times.
+    Returns the paths that are in the bucket but could not be fetched, which
+    the caller must not write: a partial file would replace the full one.
+    Only for the real landing folder; a test's temporary root has no bucket.
+    """
+    if root != LANDING:
+        return set()
+    from eulerlab.ingest import landing_reader
+
+    missing = [p for p in paths if not p.exists()]
+    if not missing or not landing_reader.cloud_enabled():
+        return set()
+    tree = root.name
+    listed = set(landing_reader.available(tree, "bars/*/*.jsonl.gz"))
+    blocked: set[Path] = set()
+    for path in missing:
+        relative = f"{tree}/{path.relative_to(root).as_posix()}"
+        if relative not in listed:
+            continue
+        try:
+            landing_reader.read(relative)
+        except Exception:  # one unreachable file must not stop the rest
+            blocked.add(path)
+    return blocked
+
+
 def land_bars(
     symbols: list[str], *, start: str, end: str = "", root: Path = LANDING
 ) -> tuple[int, int, str]:
     """Fetch and land daily bars. Returns (symbols written, rows new, error)."""
     fetched, error = daily_bars(symbols, start=start, end=end)
-    written = new = 0
+    grouped: dict[str, dict[str, list[dict[str, object]]]] = {}
     for symbol, bars in fetched.items():
-        by_month: dict[str, list[dict[str, object]]] = {}
+        by_month = grouped.setdefault(symbol, {})
         for bar in bars:
             by_month.setdefault(bar.day[:7], []).append(bar.to_row())
+    blocked = _restore_pruned(
+        [bars_path(s, m, root=root) for s, months in grouped.items() for m in months],
+        root=root,
+    )
+    if blocked and not error:
+        error = f"{len(blocked)} month files in B2 could not be fetched; not rewritten"
+    written = new = 0
+    for symbol, by_month in grouped.items():
         touched = False
         for month, rows in sorted(by_month.items()):
-            _, added = _merge(bars_path(symbol, month, root=root), rows, "event_time")
+            path = bars_path(symbol, month, root=root)
+            if path in blocked:
+                continue
+            _, added = _merge(path, rows, "event_time")
             new += added
             touched = True
         written += int(touched)

@@ -1952,6 +1952,14 @@ history → price panel → Nifty options → **paper books** → mutual funds,
 calendar, crypto, FX, news, index levels, option chain, US bars → US panel →
 mirror (uploads only keys B2 lacks or holds at a smaller size) → census.
 
+**US bars are fetched from the first of last month, not 2016.** The history
+is in B2; `make us-bars FROM=2016-01-01` refills it. `alpaca.land_bars` first
+restores from B2 any month file `prune-local` removed, and skips a month whose
+B2 copy it cannot fetch, so it never writes a file with fewer rows than the
+bucket's. A re-fetched bar that has not changed keeps its first
+`knowledge_time`, so an unchanged file keeps its size and is not re-uploaded
+(HISTORY #68, ADR-130).
+
 **Nothing twice.** Every source skips files already in the manifest. Every
 derived table appends only the days it lacks, and reads what it holds *inside*
 its own file lock (`ingest/filelock.py`: `panel`, `us_panel`, `nifty_options`,
