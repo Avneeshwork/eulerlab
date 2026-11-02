@@ -86,4 +86,4 @@ run them to check that they work (T-2609).
 - **Sharpe has no risk-free rate** (A-083, T-4249).
 
 `docs/STUBS.md` lists what is fake; `docs/ASSUMPTIONS.md` what is unverified;
-`docs/HISTORY.md` the 60 times this project has been wrong.
+`docs/HISTORY.md` the 61 times this project has been wrong.

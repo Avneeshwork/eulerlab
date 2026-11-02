@@ -223,15 +223,25 @@ def month_path(symbol: str, year_month: str, *, directory: Path = LANDING) -> Pa
     return directory / symbol / f"{symbol}-1m-{year_month}.jsonl.gz"
 
 
-def land_month(symbol: str, year_month: str, *, directory: Path = LANDING) -> tuple[int, bool]:
+def land_month(
+    symbol: str,
+    year_month: str,
+    *,
+    directory: Path = LANDING,
+    landed: set[str] | None = None,
+) -> tuple[int, bool]:
     """Fetch and land one symbol-month. Returns (candles, was_downloaded).
 
     Idempotent: an existing file is never refetched or rewritten, because the
     landing zone is immutable and a re-download that overwrote it could
-    silently change history.
+    silently change history. `landed` is the set of basenames already landed,
+    on disk or in the bucket (`landed_names`). Checking the disk alone
+    re-downloaded every pruned month on each daily run and uploaded it again
+    with a new `receipt_time`: B2 held 15 versions of BTCUSDT's August 2026
+    month by 2026-11-02 (T-4391).
     """
     path = month_path(symbol, year_month, directory=directory)
-    if path.exists():
+    if path.exists() or (landed is not None and path.name in landed):
         return 0, False
 
     payload = _fetch(f"{ARCHIVE}/{symbol}/1m/{symbol}-1m-{year_month}.zip")
@@ -477,7 +487,7 @@ def without_superseded(names: Iterable[str]) -> list[str]:
     return kept
 
 
-def _landed_names(directory: Path) -> set[str]:
+def landed_names(directory: Path) -> set[str]:
     """Basenames already landed for every symbol, on disk and, for the real
     landing zone, in the bucket as well."""
     names = {p.name for p in directory.glob("*/*.jsonl.gz")} if directory.exists() else set()
@@ -538,7 +548,7 @@ def fill_days(
         days.append(cursor.isoformat())
         cursor += timedelta(days=1)
 
-    have = set(landed) if landed is not None else _landed_names(directory)
+    have = set(landed) if landed is not None else landed_names(directory)
 
     def already(symbol: str, day: str) -> bool:
         return f"{symbol}-1m-{day}.jsonl.gz" in have or f"{symbol}-1m-{day[:7]}.jsonl.gz" in have

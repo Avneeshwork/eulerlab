@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Sixty times this project was wrong
+## Sixty-one times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -417,6 +417,8 @@ figure produced outside the result store before this date was frictionless.
 **59. The (i) popups were drawn inside their cards.** (2026-11-02, operator report, T-4390) ADR-082 put every explanation behind an info button, and the popup was positioned inside the card it belonged to, on the 52%-opaque glass surface. So it was cut off by any card with `overflow: hidden` (the Strategies table's header popups among them), painted under the next card (each glass card is its own stacking layer), ran off the right edge near the window side, and let the card text show through. Now it is drawn above every card in a window-level layer on a solid background and kept inside the screen (ADR-119). No number was affected.
 
 **60. A ₹50,000 Clenow paper book became one BOSCHLTD share.** (2026-11-02, T-4385, ADR-120) The operator asked why "Clenow's Stocks on the Move, top 25" traded so little. The rule was fine: its 2016-2026 backtest made 14,382 fills, and in 523 of 535 weekly decisions 25 or more names passed its filters. The paper deployment was not. `fit_to_capital` ranked names by weight and kept the largest top-ranked set in which every name could buy one share. Clenow weights by inverse volatility, so its largest weight is its calmest stock, not its best trend: BOSCHLTD, 22nd of 25 by momentum, ranked first. At ₹47,589 a share it fitted only in a one-name book, so on 29 Oct the book sold its six names and put 89% of its money into one share; the other 24 were "cut". Now a name its capped weight cannot buy is skipped instead of cutting the list below it, a strategy whose weights are sizes is ranked by its own order (`ranked_by_order`), and no name may exceed the operator's caps (35% of 5 names, 25% of 10, 15% of 20). Replayed on the 29 Oct targets the same ₹53,300 holds 19 names, none above 8%. Every earlier paper deployment that held fewer names than its strategy asked for was sized by the old rule; its fills stand, but its concentration was the fitting's, not the strategy's.
+
+**61. Two cloud reads disagreed with the uploads.** (2026-11-02, audit on the operator's Mac, T-4391, T-4392) (a) `crypto.land_month` checked only the disk, and `prune-local` empties it, so every daily run downloaded each of the last twelve crypto months again and uploaded it with a new `receipt_time`: B2 held 15 versions of BTCUSDT's August 2026 month, 1,260,624 to 1,260,709 bytes. Landing is meant to be immutable; the minutes were Binance's same file each time, but the current object kept changing. It now skips a month the bucket holds. (b) NSE files are uploaded to `{prefix}cm/...`, without the tree name, as `prune_local` documents, but `landing_reader.remote_key` asked for `{prefix}nse/cm/...`, so a read of any pruned NSE file failed as if it had never been uploaded. `market_history` reads bhavcopies this way; which of its outputs missed days is not checked. The reader now makes the same special case.
 
 ---
 

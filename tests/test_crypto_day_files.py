@@ -188,3 +188,18 @@ def test_days_inside_a_landed_month_are_not_asked_for(
     landed = {"BTCUSDT-1m-2026-10.jsonl.gz", "BTCUSDT-1m-2026-11-01.jsonl.gz"}
     crypto.fill_days(["BTCUSDT"], directory=tmp_path, landed=landed)
     assert asked == ["2026-11-02"]
+
+
+def test_a_month_landed_in_the_bucket_is_not_fetched_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Pruned from disk but in B2: no download, no re-upload with a new receipt (T-4391)."""
+
+    def no_fetch(url: str) -> bytes:
+        raise AssertionError(f"fetched {url}")
+
+    monkeypatch.setattr(crypto, "_fetch", no_fetch)
+    count, fetched = crypto.land_month(
+        "BTCUSDT", "2026-08", directory=tmp_path, landed={"BTCUSDT-1m-2026-08.jsonl.gz"}
+    )
+    assert (count, fetched) == (0, False)
