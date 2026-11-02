@@ -88,6 +88,15 @@ forward_evidence:
   # it only from each deployment's start, never earlier, never as warmup.
   holdout_end: 2026-10-17
 
+forward_test:
+  # Added on the operator's instruction, 2026-11-02 ("add it", ADR-117). Read
+  # by forward.ready_for_live: what a gate-promoted strategy's paper
+  # deployment must show before live trading is allowed. The gate's own rules
+  # above are unchanged.
+  min_days: 60                       # trading days on paper since the deployment started
+  min_sharpe_ratio_of_backtest: 0.5  # forward Sharpe at least half the backtest's
+  max_drawdown: 0.25                 # no deeper than -25% from the paper book's peak
+
 notes: >
   A strategy that fails this gate is dead. It is not tuned and resubmitted, and
   the gate is not argued with — that rule exists precisely for the moment when

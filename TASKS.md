@@ -842,7 +842,7 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 | T-3309 | RM/TM as seams between `target_weights()` and order planning | TODO — `Strategy` itself must not change |
 | T-3310 | `EventStrategy` for intraday/bracket shapes (Tweezer is not a `Strategy`) | TODO — T-3209 is the same gap |
 | T-3311 | Forward-test as an explicit per-strategy stage | DONE 2026-11-02 — ADR-117, `forward.py`: gate PROMOTE + a paper deployment started after it; promoted hypotheses deploy as their card; `/api/deploy/forward` |
-| T-4380 | Operator: add `forward_test:` to mandate.yaml (proposed `min_days: 60`, `min_sharpe_ratio_of_backtest: 0.5`, `max_drawdown: 0.25`, ADR-117) | TODO. Operator-owned |
+| T-4380 | Operator: add `forward_test:` to mandate.yaml (`min_days: 60`, `min_sharpe_ratio_of_backtest: 0.5`, `max_drawdown: 0.25`, ADR-117) | DONE 2026-11-02, on the operator's instruction ("add it"); the operator kept 25% over a suggested 10% |
 | T-4381 | A Forward tab on the Deploy page from `/api/deploy/forward` | TODO |
 | T-3312 | `server.py` has no test coverage | OPEN — no test imports it; the type gate was the only check, and it was red in CI for 5 merges |
 | T-3340 | **sync-cloud enumerated the landing root once** | FIXED — a tree created *while the sync ran* was not in the startup listing, so it was never uploaded and the run still exited **0**. A gigabyte of crypto sat unmirrored while the command reported success. The root is now re-scanned after each pass, bounded at 5 sweeps. 4 tests |
