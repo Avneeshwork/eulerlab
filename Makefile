@@ -786,7 +786,11 @@ daily-run:
 	-uv run python -m eulerlab.indices
 	-@$(MAKE) --no-print-directory upload-tree TREES="marketdata" DELETE=1
 	@echo "== US bars, actions, news =="
-	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars([*s, 'SPY'], start='2016-01-01'); alpaca.land_actions(s, start='2016-01-01'); alpaca.land_news(s, start='2026-06-01')"
+	@# From the first of last month, not 2016. Re-fetching ten years every
+	@# night rewrote ~37,000 files and the upload after it ran for hours and
+	@# never finished (HISTORY #63). The history is in B2; `make us-bars
+	@# FROM=2016-01-01` refills it on demand.
+	-uv run python -c "from eulerlab.ingest import alpaca; s=alpaca.sp500_symbols(); alpaca.land_bars([*s, 'SPY'], start='$$(date -v-1m +%Y-%m-01)'); alpaca.land_actions(s, start='$$(date -v-1m +%Y-%m-01)'); alpaca.land_news(s, start='2026-06-01')"
 	-@$(MAKE) --no-print-directory upload-tree TREES="us"
 	@echo "== US panel =="
 	-$(MAKE) --no-print-directory build-us-panel

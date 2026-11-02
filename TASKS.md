@@ -3,6 +3,16 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Nightly upload never finishing (2026-11-02, HISTORY #63)
+
+Operator: the automatic data upload stalls and never finishes.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4394 | `make daily` re-fetched US bars and actions from 2016 every night, rewriting ~37,500 files and re-uploading most of them, so the run took 7 hours and its upload did not finish | DONE — nightly window from the first of last month (`Makefile`), pruned months restored from B2 before merging, unchanged bars keep their first `knowledge_time` (`ingest/alpaca.py`, `tests/test_alpaca_landing.py`) |
+| T-4395 | After the next `make daily` on the Mac, the `us:` upload line reports hundreds of files, not tens of thousands, and `[feed] finished` appears | TODO. Check `data/logs/daily.log` on the Mac |
+| T-4396 | Operator: B2's current US bar objects carry re-stamped `knowledge_time`s (HISTORY #63a). Restore the originals from B2's older versions, or accept the stricter stamps | TODO. Operator decision; restoring is an upload |
+
 ## Capital fit and diversification caps (2026-11-02, ADR-120, HISTORY #60)
 
 Operator: "in top 10 no stock can be more than 25%, similarly in 20 stocks no stocks more than 15% weight, in 5 stocks no stocks more than 35% ... ranking and weight allocation both should be respected while taking trade".
