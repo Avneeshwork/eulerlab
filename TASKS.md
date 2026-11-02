@@ -841,7 +841,9 @@ ADR-035 (PROPOSED). Verify: `uv run pytest tests/test_validation_ledger.py`
 | T-3318 | Result cache, so `cached` is measured not entered | OPEN — the composer's cached count is a what-if control and says so |
 | T-3309 | RM/TM as seams between `target_weights()` and order planning | TODO — `Strategy` itself must not change |
 | T-3310 | `EventStrategy` for intraday/bracket shapes (Tweezer is not a `Strategy`) | TODO — T-3209 is the same gap |
-| T-3311 | Forward-test as an explicit per-strategy stage | TODO — `paper/runner.py` already is the mechanism; the stage is untracked |
+| T-3311 | Forward-test as an explicit per-strategy stage | DONE 2026-11-02 — ADR-117, `forward.py`: gate PROMOTE + a paper deployment started after it; promoted hypotheses deploy as their card; `/api/deploy/forward` |
+| T-4380 | Operator: add `forward_test:` to mandate.yaml (proposed `min_days: 60`, `min_sharpe_ratio_of_backtest: 0.5`, `max_drawdown: 0.25`, ADR-117) | TODO. Operator-owned |
+| T-4381 | A Forward tab on the Deploy page from `/api/deploy/forward` | TODO |
 | T-3312 | `server.py` has no test coverage | OPEN — no test imports it; the type gate was the only check, and it was red in CI for 5 merges |
 | T-3340 | **sync-cloud enumerated the landing root once** | FIXED — a tree created *while the sync ran* was not in the startup listing, so it was never uploaded and the run still exited **0**. A gigabyte of crypto sat unmirrored while the command reported success. The root is now re-scanned after each pass, bounded at 5 sweeps. 4 tests |
 | T-3313 | Schedule `make daily` so data actually updates | DONE — `tools/schedule_daily.py`, launchd not cron (cron does not fire if the laptop slept; launchd catches up on wake). Installed and **loaded**, 19:30 daily. `make schedule` to inspect |
@@ -1370,7 +1372,7 @@ Verify: `make verify` (7 of 7) · `make chaos` (11 of 11) ·
 | T-2603 | State plainly that the residual is an identity, not a measurement | DONE — S-018; both books are ours |
 | T-2604 | Live reality-gap residual under 10% | **NOT DONE — impossible before Sprint 29.** Needs a real counterparty. The machinery exists and is verified against a case where the true answer is known |
 | T-2605 | Live Kite order adapter | DONE (unexercised) — `broker/kite.py`, ported from `~/Documents/Trade`'s working Kite code. Satisfies `BrokerAdapter`, asserted as a typed binding so mypy checks it. 21 tests, all against fakes. **Never run against the live API** |
-| T-3336 | Kite adapter has never met the real API | OPEN — the tests prove contract conformance, not that Kite accepts these calls. Needs a market session and credentials. The riskiest untested part is the rejected/unreachable split: it keys off substrings in Kite's error text |
+| T-3336 | Kite adapter has never met the real API | OPEN — the tests prove contract conformance, not that Kite accepts these calls. Needs a market session and credentials. The riskiest untested part is the rejected/unreachable split: it keys off substrings in Kite's error text. Step 1, read-only: `make kite-readonly` after `make kite-login` (2026-11-02). Step 2, one small supervised order: operator only |
 | T-2606 | `ACKNOWLEDGED` / `PARTIALLY_FILLED` exercised by a real venue | OPEN — modelled and unit-tested, never produced by the paper broker (S-016) |
 | T-2607 | Kill-switch limits set from an observed distribution | OPEN — A-018; needs ~4 weeks of paper history |
 | T-2608 | Decide whether `config/killswitch.yaml` becomes operator-owned | OPEN — operator decision, question 1 in the review |

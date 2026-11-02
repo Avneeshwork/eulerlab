@@ -61,6 +61,15 @@ def sources(strategy_id: str) -> list[str]:
         signal = ALL_SIGNALS[strategy_id]
         detect = getattr(signal, "detect", None)
         return [_source(detect) if detect is not None else "", _source(type(signal)), repr(signal)]
+    from eulerlab import forward
+
+    if forward.is_hypothesis(strategy_id):
+        # A promoted card: its text (what was gated) and the code that trades it.
+        path = forward.card_path(strategy_id)
+        card = path.read_text(encoding="utf-8") if path.exists() else ""
+        from eulerlab.backtest.strategies import RankAndHold
+
+        return [card, _source(RankAndHold), _source(forward.GatedCard)]
     name = study_book.module_of(strategy_id)
     if name is not None:
         import importlib
