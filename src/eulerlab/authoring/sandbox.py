@@ -359,7 +359,7 @@ class SandboxedStrategy(Strategy):
     """
 
     sizing = "strategy"
-    """Typed code returns its own weights, and they are used as typed (ADR-121)."""
+    """Typed code returns its own weights, and they are used as typed (ADR-122)."""
 
     def __init__(self, source: str, *, name: str = "sandboxed", lookback: int | None = 300) -> None:
         self.name = name

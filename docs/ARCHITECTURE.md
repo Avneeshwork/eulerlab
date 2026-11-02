@@ -554,7 +554,7 @@ weights, not orders. It does not fetch data (so it cannot reach past `as_of`),
 does not place orders (so the same object works in backtest and live), and does
 not compute costs (so there is exactly one cost path in the system).
 
-**Sizing is declared, not coded (ADR-121).** A strategy says what to hold,
+**Sizing is declared, not coded (ADR-122).** A strategy says what to hold,
 best first; `Strategy.sizing` says how the money is split, and
 `backtest.strategy.decide` applies it in Tier A, Tier B and the paper/live
 runner alike. `equal`, the default, splits the strategy's gross exposure

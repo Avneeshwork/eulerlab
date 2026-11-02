@@ -461,7 +461,7 @@ class StocksOnTheMove(Strategy):
     """
 
     ranked_by_order = True
-    sizing = "strategy"  # inverse ATR is Clenow's own sizing (ADR-121)
+    sizing = "strategy"  # inverse ATR is Clenow's own sizing (ADR-122)
 
     def __init__(self, name: str, *, hold: int = 25, universe: int = 250) -> None:
         self.name = name
@@ -617,7 +617,7 @@ class VolatilityTarget(Strategy):
     long-run volatility, so no number is chosen (Harvey et al. 2018 target a
     fixed level)."""
 
-    sizing = "strategy"  # the index/cash split is the strategy (ADR-121)
+    sizing = "strategy"  # the index/cash split is the strategy (ADR-122)
 
     def __init__(self, name: str) -> None:
         self.name = name

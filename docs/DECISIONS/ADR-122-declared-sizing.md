@@ -1,4 +1,4 @@
-# ADR-121: Every strategy declares how its money is split; equal is the default
+# ADR-122: Every strategy declares how its money is split; equal is the default
 
 - **Context:** Each of the 68 deployable strategies built its own weights in code: 35 equal, 10 fixed slots, 4 with their own sizes, 13 in one instrument, and 5 that could not be checked without filings, dividends or sector data (research 140). Nothing said which rule a strategy used, so a sizing change was invisible. The operator (2026-11-02): "use equal sizing with maximum limit as default can be according to strategy if explicitly defined else from models we develop."
 - **Options:** (a) Leave sizing inside each strategy. (b) Make inverse volatility the default, as the research note first proposed. (c) Make equal the default, let a strategy keep its own weights by saying so, and offer the models by name.

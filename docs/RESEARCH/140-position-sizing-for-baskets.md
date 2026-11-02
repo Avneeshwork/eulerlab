@@ -42,7 +42,7 @@ At ₹1 lakh (CAGR / Sharpe / max drawdown / one-way turnover a year):
 
 ## Decision
 
-Equal by default, a strategy's own weights when declared, models by name (ADR-121, the operator's choice). The research first proposed inverse volatility as the default; the operator chose equal.
+Equal by default, a strategy's own weights when declared, models by name (ADR-122, the operator's choice). The research first proposed inverse volatility as the default; the operator chose equal.
 
 ## Not found or not done
 

@@ -3,7 +3,7 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
-## Declared sizing (2026-11-02, ADR-121, research 140)
+## Declared sizing (2026-11-02, ADR-122, research 140)
 
 Operator: "use equal sizing with maximum limit as deafault can be according to strategy if explicitily defined else rom models we develop."
 

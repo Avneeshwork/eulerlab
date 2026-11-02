@@ -114,7 +114,7 @@ class Strategy(ABC):
 
     sizing: str = "equal"
     """How the money is split over the names `target_weights` returns
-    (`deploy.sizing_models`, ADR-121): ``equal`` (the default: the gross
+    (`deploy.sizing_models`, ADR-122): ``equal`` (the default: the gross
     exposure split equally, so a slot strategy's idle cash stays idle),
     ``strategy`` (these weights as they are: set it when the weights are part
     of the idea), or a model: ``inverse_vol``, ``hrp``, ``min_variance``.

@@ -1,4 +1,4 @@
-"""How a strategy's money is split across the names it picks (ADR-121).
+"""How a strategy's money is split across the names it picks (ADR-122).
 
 Operator, 2026-11-02: "use equal sizing with maximum limit as default can be
 according to strategy if explicitly defined else from models we develop."

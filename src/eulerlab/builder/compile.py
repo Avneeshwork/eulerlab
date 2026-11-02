@@ -115,7 +115,7 @@ class BuiltStrategy(Strategy):
         self.spec = spec
         self.name = spec.id
         # The builder's own sizing choice: equal slots, or slots scaled to a
-        # volatility target, which are the strategy's weights (ADR-121).
+        # volatility target, which are the strategy's weights (ADR-122).
         self.sizing = "equal" if spec.sizing.method == "equal" else "strategy"
         operands = [*spec.operands(), VOLATILITY, TURNOVER]
         self._operands: dict[str, Operand] = {o.key(): o for o in operands if o.kind == "indicator"}

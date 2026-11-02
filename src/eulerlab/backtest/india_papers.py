@@ -414,7 +414,7 @@ class LowBeta(Strategy):
     rebalance_every = MONTH
     lookback = 5 * YEAR + 5
 
-    sizing = "strategy"  # beta-based weights are the paper's portfolio (ADR-121)
+    sizing = "strategy"  # beta-based weights are the paper's portfolio (ADR-122)
 
     def __init__(self) -> None:
         self.name = "india_bab_low_beta"

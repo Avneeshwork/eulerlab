@@ -1,4 +1,4 @@
-"""Declared sizing (ADR-121): equal by default, the strategy's own weights when
+"""Declared sizing (ADR-122): equal by default, the strategy's own weights when
 it says so, or a model; caps apply after."""
 
 from __future__ import annotations
