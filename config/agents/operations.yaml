@@ -17,3 +17,13 @@ options:
     "feed: price panel": 900
     "feed: paper books": 600
   warn_share: 0.8
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - At 16:15 and 20:30 on weekdays, time every scheduled step against its deadline
+  - Say which step is getting slower
+  - Measure each paper book's gap to its backtest
+can_do:
+  - kind: check_operations
+    what: Time the scheduled steps and measure each paper book's gap to its backtest, now
+    words: [timing, timings, slow, slower, job, jobs, schedule, deadline, launchd, operations, gap, run, runs]

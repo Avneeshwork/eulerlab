@@ -17,3 +17,18 @@ never:
 needs_approval: true
 options:
   max_fixes: 3
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - At 16:15 on weekdays, run lint, types and tests and fix what the doctor queued
+  - On Sundays, review the branch against the house rules
+can_do:
+  - kind: fix_code
+    what: Fix the code problems the doctor queued, one file and its test on its own branch for you to merge
+    fixed: {mode: fix}
+    auto: false   # writes a branch with a paid model; you start it
+    words: [bug, bugs, fix, error, errors, crash, broken, failing, code, test, tests, lint]
+  - kind: review_branch
+    what: Review the files changed on this branch against the house rules
+    auto: false
+    words: [review, branch, rules, diff, change, changes]

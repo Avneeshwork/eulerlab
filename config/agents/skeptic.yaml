@@ -12,3 +12,13 @@ never:
   - read the holdout
   - touch the gate or the mandate
 needs_approval: false
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - Attack the stored result you or a head names, before the gate sees it
+  - Attack each lab survivor on its way to your inbox
+can_do:
+  - kind: attack_result
+    what: Attack one strategy's stored result, or all of them with "all"
+    arg: strategy
+    words: [attack, skeptic, robust, robustness, overfit, overfitting, stress, doubt, fake, lucky, check, result]

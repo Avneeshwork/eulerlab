@@ -21,3 +21,15 @@ options:
   max_minutes: 90
   model_ideas: 6
   cli_only: true
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - Every day at 17:00, write and test about 30 formula cards and every new research draft
+  - Send survivors, attacked by the skeptic, to your inbox
+  - Tell the research agent what to look for next
+can_do:
+  - kind: test_card
+    what: Test one named idea card (IC screen, then a backtest). Spends trials from the weekly allowance
+    arg: card
+    auto: false   # spends trials and runs from the terminal only (cli_only)
+    words: [card, formula, test, backtest, screen]

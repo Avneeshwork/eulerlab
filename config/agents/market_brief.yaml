@@ -13,3 +13,14 @@ never:
 needs_approval: false
 options:
   telegram: true
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - Write the pre-open brief at 08:45 and the after-close brief at 16:15 on weekdays
+  - Write a markets-closed note on closed days
+can_do:
+  - kind: write_brief
+    what: Write the market brief now, pre-open or after-close
+    arg: mode
+    choices: [pre-open, after-close]
+    words: [brief, market, markets, nifty, today, close, open, news, morning, evening, telegram]

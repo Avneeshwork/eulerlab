@@ -167,7 +167,9 @@ JOBS = {
         what="make agents-preopen, Monday to Friday",
         why_then=(
             "08:45 IST is 15 minutes before the pre-open session: the data and operations\n"
-            "agents check last night's run and the market brief goes out before 09:00 (ADR-085)."
+            "agents check last night's run and the market brief goes out before 09:00 (ADR-085).\n"
+            "Then the three heads split and check tasks and plan the day, and the\n"
+            "work runner starts the tasks that may run by themselves (ADR-124)."
         ),
     ),
     "brief-weekend": Job(
@@ -227,7 +229,8 @@ JOBS = {
             "17:00 IST, after india-live (15:31) and agents-close (16:15) have the day's prices,\n"
             "and with the idea lab's 90-minute limit, done before the 19:30 daily run.\n"
             "Research first, so the lab tests the day's drafts; the lab's feedback steers\n"
-            "the next day's research (ADR-111). Weekends too: ideas do not need a session."
+            "the next day's research (ADR-111). Weekends too: ideas do not need a session.\n"
+            "The heads and the work runner go first, so the day's tasks are done (ADR-124)."
         ),
     ),
 }

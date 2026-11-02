@@ -216,6 +216,194 @@ def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
     return {"ok": True, "rows": rows, **built}
 
 
+# ---------------------------------------------------------------- tasks (ADR-124)
+
+
+class TaskRequest(BaseModel):
+    """A task you give a head. The head decides which of its agents does what."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    department: str = Field(min_length=2, max_length=32)
+    title: str = Field(min_length=3, max_length=200)
+    detail: str = Field(default="", max_length=2000)
+    due: str = Field(default="", pattern=r"^$|^\d{4}-\d{2}-\d{2}$")
+
+
+class TaskAction(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["run", "retry", "send_back", "close", "cancel", "assist"]
+    note: str = Field(default="", max_length=300)
+
+
+def _background(key: str, job: Any) -> bool:
+    """Queue `job` on the single agent worker unless `key` is already queued."""
+    with _LOCK:
+        if key in _RUNNING:
+            return False
+        _RUNNING.add(key)
+
+    def work() -> None:
+        try:
+            job()
+        finally:
+            with _LOCK:
+                _RUNNING.discard(key)
+
+    _POOL.submit(work)
+    return True
+
+
+def _wake(department: str) -> bool:
+    """The head splits and checks, then its agents' due tasks run: wake on assignment."""
+    from eulerlab.agents import work
+
+    head = org.head_of(org.load_org(), department)
+
+    def job() -> None:
+        runtime.run(head)
+        work.run_due(departments={department})
+
+    return _background(f"wake:{department}", job)
+
+
+@router.get("/api/agents/tasks")
+def agents_tasks() -> dict[str, Any]:
+    """Every task with its whole history, newest first, and the heads' checklist."""
+    from eulerlab.agents import tasks
+    from eulerlab.agents.workers import manager
+
+    known = sorted(tasks.load().values(), key=lambda t: t.created, reverse=True)
+    with _LOCK:
+        busy = sorted(_RUNNING)
+    return {
+        "ok": True,
+        "tasks": [t.as_dict() for t in known],
+        "checklist": list(manager.CHECKLIST),
+        "max_returns": tasks.MAX_RETURNS,
+        "busy": busy,
+    }
+
+
+@router.post("/api/agents/tasks")
+def agents_task_create(request: TaskRequest) -> dict[str, Any]:
+    """You give a head a task. It is split at once, and the agents that may start do."""
+    from eulerlab.agents import tasks
+
+    try:
+        head = org.head_of(org.load_org(), request.department)
+        made = tasks.create(
+            title=request.title,
+            detail=request.detail,
+            owner=head,
+            department=request.department,
+            created_by="ceo",
+            due=request.due,
+        )
+    except (KeyError, tasks.Refused, OSError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+    started = _wake(request.department)
+    return {"ok": True, "task": made.as_dict(), "woke": started}
+
+
+@router.post("/api/agents/tasks/{task_id}")
+def agents_task_act(task_id: str, request: TaskAction) -> dict[str, Any]:
+    """Your hand on a task: run a waiting one, retry a blocked one, ask AI help for a
+    blocked one, send back, close, cancel."""
+    from eulerlab.agents import tasks, work
+
+    known = tasks.load()
+    task = known.get(task_id)
+    if task is None:
+        return {"ok": False, "error": f"no task {task_id!r}"}
+    note = request.note or f"by you from the page: {request.action.replace('_', ' ')}"
+    try:
+        if request.action == "run":
+            agents = all_effective()
+            skill = work.skill_for(task, agents)
+            if task.status != "assigned" or skill is None:
+                return {
+                    "ok": False,
+                    "error": f"{task_id} is {task.status}; only an assigned agent task can be run",
+                }
+            if agents[task.owner].spec.options.get("cli_only"):
+                args = " ".join(f"{k}={v}" for k, v in work.run_args(task, skill).items())
+                return {
+                    "ok": False,
+                    "error": f"{task.owner} runs from your terminal: make agent NAME={task.owner} ARGS='{args}'",
+                }
+            started = _background(f"task:{task_id}", lambda: work.run_one(task_id, by="ceo"))
+            return {"ok": True, "started": started}
+        if request.action == "assist":
+            # A stuck task gets AI help from its head: the model reads what the
+            # agent returned and fixes the task, or tells you what it needs.
+            stuck = (
+                [task]
+                if task.status == "blocked" and not task.owner.startswith("head_")
+                else [s for s in tasks.children(known, task_id) if s.status == "blocked"]
+            )
+            if not stuck:
+                return {"ok": False, "error": f"{task_id} has no blocked agent task to help with"}
+            for one in stuck:
+                tasks.record(one.id, "help_asked", "ceo", {"note": "you asked for AI help"})
+            return {"ok": True, "asked": [one.id for one in stuck], "woke": _wake(task.department)}
+        if request.action in ("retry", "send_back"):
+            if request.action == "send_back" and task.status != "done":
+                return {"ok": False, "error": "only a task passed up to you can be sent back"}
+            tasks.reopen(task_id, "ceo", note)
+            return {
+                "ok": True,
+                "task": tasks.load()[task_id].as_dict(),
+                "woke": _wake(task.department),
+            }
+        if request.action == "close":
+            return {
+                "ok": True,
+                "task": tasks.record(task_id, "closed", "ceo", {"note": note}).as_dict(),
+            }
+        for sub in tasks.children(known, task_id):
+            if sub.status in ("open", "assigned", "review", "blocked", "done"):
+                tasks.record(sub.id, "cancelled", "ceo", {"note": f"parent {task_id} cancelled"})
+        return {
+            "ok": True,
+            "task": tasks.record(task_id, "cancelled", "ceo", {"note": note}).as_dict(),
+        }
+    except (tasks.Refused, KeyError, OSError) as exc:
+        return {"ok": False, "error": str(exc)}
+
+
+@router.get("/api/agents/plans/today")
+def agents_plans_today() -> dict[str, Any]:
+    """Every agent's and head's plan for today: duties, scheduled runs, tasks (ADR-124)."""
+    from eulerlab.agents import plans, tasks
+
+    now = datetime.now(UTC)
+    known = all_effective()
+    specs = {n: a.spec for n, a in known.items()}
+    slots, note = plans.today_slots(specs, now)
+    loaded = tasks.load()
+    return {
+        "ok": True,
+        "note": note,
+        "plans": {
+            n: plans.for_agent(a.spec, loaded, slots, now, enabled=a.enabled)
+            for n, a in sorted(known.items())
+        },
+    }
+
+
+@router.get("/api/agents/capabilities")
+def agents_capabilities() -> dict[str, Any]:
+    """Whether each agent can do the work it may be given, checked by reading (ADR-124)."""
+    from eulerlab.agents import capabilities
+
+    try:
+        return {"ok": True, **capabilities.report()}
+    except (OSError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+
+
 @router.get("/api/agents/skeptic/targets")
 def skeptic_targets() -> dict[str, Any]:
     """The stored results the skeptic can attack, for the picker on its card."""

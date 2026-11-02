@@ -54,3 +54,95 @@ def test_telegram_instruct_saves_a_brief_and_refuses_an_unknown_agent() -> None:
     assert telegram_words.instruct("").startswith("instruct <agent")
     assert "AGENTS" in telegram_words.agents()
     assert telegram_words.inbox_word() == "Nothing is waiting for you."
+
+
+# --- the agent company's tasks (ADR-124) ------------------------------------
+
+
+def test_you_give_a_head_a_task_and_it_wakes(monkeypatch: pytest.MonkeyPatch) -> None:
+    woke: list[str] = []
+
+    def wake(dept: str) -> bool:
+        woke.append(dept)
+        return True
+
+    monkeypatch.setattr(r, "_wake", wake)
+    made = r.agents_task_create(
+        r.TaskRequest(department="research", title="Papers on low volatility")
+    )
+    assert (
+        made["ok"] and made["task"]["owner"] == "head_research" and made["task"]["status"] == "open"
+    )
+    assert woke == ["research"]
+    listed = r.agents_tasks()
+    assert [t["id"] for t in listed["tasks"]] == [made["task"]["id"]]
+    assert listed["checklist"] and listed["max_returns"] == 2
+
+
+def test_a_task_for_an_unknown_department_is_an_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(r, "_wake", lambda dept: True)
+    assert r.agents_task_create(r.TaskRequest(department="sales", title="Sell more"))["ok"] is False
+
+
+def test_your_actions_on_a_task(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eulerlab.agents import tasks
+
+    monkeypatch.setattr(r, "_wake", lambda dept: True)
+    tid = r.agents_task_create(r.TaskRequest(department="research", title="Look into quality"))[
+        "task"
+    ]["id"]
+    assert r.agents_task_act(tid, r.TaskAction(action="close"))["ok"] is False  # not done yet
+    assert r.agents_task_act(tid, r.TaskAction(action="send_back"))["ok"] is False
+    assert (
+        r.agents_task_act(tid, r.TaskAction(action="run"))["ok"] is False
+    )  # a head's task is not run
+    lab = tasks.create(
+        title="Test card",
+        owner="lab",
+        department="research",
+        created_by="head_research",
+        kind="test_card",
+        args={"card": "hypotheses/c1"},
+    )
+    refused = r.agents_task_act(lab.id, r.TaskAction(action="run"))
+    assert refused["ok"] is False and "make agent NAME=lab" in refused["error"]
+    assert r.agents_task_act(tid, r.TaskAction(action="cancel"))["task"]["status"] == "cancelled"
+    assert r.agents_task_act(tid, r.TaskAction(action="retry"))["task"]["status"] == "open"
+    assert r.agents_task_act("T-none", r.TaskAction(action="close"))["ok"] is False
+
+
+def test_plans_and_capabilities_are_served() -> None:
+    plans = r.agents_plans_today()["plans"]
+    assert {"head_research", "data", "lab"} <= set(plans)
+    assert plans["data"]["duties"]
+    caps = r.agents_capabilities()
+    assert caps["ok"] and caps["gaps"] == []
+
+
+def test_the_org_chart_shows_heads_as_running_people() -> None:
+    chart = r.agents_org()
+    assert chart["ok"] and chart["problems"] == []
+    heads = [d["head"] for d in chart["departments"]]
+    assert all(h["running"] and h["duties"] for h in heads)
+    names = {a["name"] for d in chart["departments"] for a in d["agents"]}
+    assert not any(n.startswith("head_") for n in names)
+
+
+def test_you_can_ask_ai_help_for_a_blocked_task(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eulerlab.agents import tasks
+
+    woke: list[str] = []
+
+    def wake(dept: str) -> bool:
+        woke.append(dept)
+        return True
+
+    monkeypatch.setattr(r, "_wake", wake)
+    t = tasks.create(
+        title="Look", owner="research", department="research", created_by="head_research"
+    )
+    assert r.agents_task_act(t.id, r.TaskAction(action="assist"))["ok"] is False  # not stuck
+    tasks.record(t.id, "blocked", "head_research", {"note": "refused"})
+    done = r.agents_task_act(t.id, r.TaskAction(action="assist"))
+    assert done["ok"] and done["asked"] == [t.id] and woke == ["research"]
+    assert tasks.load()[t.id].help_wanted is True
