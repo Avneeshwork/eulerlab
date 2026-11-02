@@ -48,11 +48,12 @@ from eulerlab.backtest.events import (
     target_quantities,
 )
 from eulerlab.backtest.execution import Executor, SimulatedExecutor
-from eulerlab.backtest.strategy import MarketView, Strategy, long_only, normalise
+from eulerlab.backtest.strategy import MarketView, Strategy, decide, normalise
 from eulerlab.backtest.vector import fund_symbols, fx_spreads
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Side
 from eulerlab.deploy.sizing import fit_to_capital
+from eulerlab.deploy.sizing_models import fit_by_order
 from eulerlab.features.panel import (
     PanelRow,
     assert_adjustable,
@@ -357,7 +358,7 @@ def run(
         if (index - warmup) % rebalance_every == 0 or is_flow_day:
             # --- decide ---
             view = MarketView(as_of=today, history=_view_history(today))
-            longs, refused = long_only(strategy.target_weights(view))
+            longs, refused = decide(strategy, view)
             result.refused_shorts += len(refused)
             targets = normalise(longs, gross_cap=gross_cap)
 
@@ -379,7 +380,7 @@ def run(
                     targets,
                     sizing_equity * gross_cap,
                     marks.get,
-                    by_order=strategy.ranked_by_order,
+                    by_order=fit_by_order(strategy),
                 )
 
             desired = target_quantities(sizing_equity, targets, partial(traded_price, day=fill_day))

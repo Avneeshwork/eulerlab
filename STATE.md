@@ -29,6 +29,8 @@ what is open is in `TASKS.md`.*
   anything. **No capital has ever been traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
+  Each declares its sizing: equal by default, its own weights when it says
+  so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-121).
 - **Paper trading** runs forward with operator capital (`make paper-daily`),
   with loss limits that act: reduce-only at 10% drawdown, halt at 20%.
   Live is refused in code until the Kite adapter is proven (S-015).

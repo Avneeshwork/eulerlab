@@ -554,6 +554,27 @@ weights, not orders. It does not fetch data (so it cannot reach past `as_of`),
 does not place orders (so the same object works in backtest and live), and does
 not compute costs (so there is exactly one cost path in the system).
 
+**Sizing is declared, not coded (ADR-121).** A strategy says what to hold,
+best first; `Strategy.sizing` says how the money is split, and
+`backtest.strategy.decide` applies it in Tier A, Tier B and the paper/live
+runner alike. `equal`, the default, splits the strategy's gross exposure
+equally, so a slot strategy that fills 4 of 10 slots stays 40% invested.
+`strategy` keeps the weights as returned (Clenow's inverse ATR,
+betting-against-beta, Faber TAA, the Nifty volatility target, sandbox code).
+The models (`deploy/sizing_models.py`) use 126 days of daily returns:
+
+- `inverse_vol`: weight proportional to 1/σ.
+- `hrp`: López de Prado's hierarchical risk parity. Single-linkage clusters on
+  the distance √(½(1 − ρ)), then a top-down split between halves in
+  proportion to 1 − V_left/(V_left + V_right).
+- `min_variance`: minimise wᵀΣw with 0 ≤ w ≤ max_weight(k) and Σw = 1, by
+  projected gradient.
+
+HRP and min-variance use Σ shrunk toward constant correlation,
+Σ̂ = δF + (1 − δ)S, with δ from Ledoit & Wolf (2004). A model's weights are
+capped at `max_weight(k)` before they leave `size_book`, and they fall back to
+equal when fewer than 60 common return days exist.
+
 ## 4.4 The engine self-tests — the most important gate
 
 Before trusting any strategy result, you must trust the engine. `make

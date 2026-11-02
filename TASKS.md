@@ -3,6 +3,18 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Declared sizing (2026-11-02, ADR-121, research 140)
+
+Operator: "use equal sizing with maximum limit as deafault can be according to strategy if explicitily defined else rom models we develop."
+
+| ID | Task | Status |
+|---|---|---|
+| T-4391 | `Strategy.sizing`: equal (default), strategy, inverse_vol, hrp, min_variance, applied by one `decide` in Tier A, Tier B and the paper/live runner; own-weight strategies declare `strategy` | DONE — `deploy/sizing_models.py`; `tests/test_sizing_models.py`; all 68 builders gave identical books on five dates of real data |
+| T-4392 | Time-series momentum and betting-against-beta pick over 100 names with no ranking, so at small capital the fit keeps them in listed order. Give each a ranking, or block them below a capital | TODO. Operator decision |
+| T-4393 | Log the 60 sizing-study runs (research 140) in the trial ledger, or record that sizing variants are not trials | TODO. Operator decision |
+| T-4394 | Illiquid winners with `min_variance`: submit to the gate as its own candidate (research 140, finding 4) | TODO. Operator decision |
+| T-4395 | The Nifty volatility target (two names, up to 85% in one) is capped at 84% by the capital fit in paper. Exempt index-and-cash strategies from the caps, or accept it | TODO. Operator decision |
+
 ## Capital fit and diversification caps (2026-11-02, ADR-120, HISTORY #60)
 
 Operator: "in top 10 no stock can be more than 25%, similarly in 20 stocks no stocks more than 15% weight, in 5 stocks no stocks more than 35% ... ranking and weight allocation both should be respected while taking trade".
