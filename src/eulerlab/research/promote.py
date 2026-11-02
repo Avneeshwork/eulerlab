@@ -22,6 +22,7 @@ so the fifteen survivors approved that morning are not gated by this.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
@@ -125,6 +126,25 @@ def _verdict(gate_output: str) -> str:
     return "no verdict printed"
 
 
+_FINDING = re.compile(r"^  (pass|KILL)  (.{38,}?) (.*)$")
+"""`Finding.line`: the rule padded to 38 characters, a space, then the detail."""
+
+
+def findings(gate_output: str) -> list[dict[str, Any]]:
+    """Each rule the gate printed (`gates.Finding.line`), in the gate's order, with its value and threshold.
+
+    Read back from the gate's own output, so the panel shows exactly what the
+    gate judged; nothing is recomputed here.
+    """
+    out: list[dict[str, Any]] = []
+    for line in gate_output.splitlines():
+        match = _FINDING.match(line)
+        if match:
+            mark, rule, detail = match.groups()
+            out.append({"rule": rule.strip(), "passed": mark == "pass", "detail": detail.strip()})
+    return out
+
+
 def gate(
     item_id: str,
     path: Path,
@@ -162,8 +182,10 @@ def results(folder: Path = FOLDER, limit: int = 50) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for path in folder.glob("*.json"):
         try:
-            rows.append(json.loads(path.read_text(encoding="utf-8")))
+            row = json.loads(path.read_text(encoding="utf-8"))
         except ValueError:
             continue
+        row["findings"] = findings(str(row.get("gate_output", "")))
+        rows.append(row)
     rows.sort(key=lambda r: str(r.get("started", "")), reverse=True)
     return rows[:limit]

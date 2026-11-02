@@ -143,3 +143,37 @@ def test_approving_a_survivor_in_the_inbox_sends_it_to_the_gate(
     monkeypatch.setattr(inbox, "find", lambda item_id: ("research", _item(path)))
     assert r._gate_on_approve("research/x/3") == ""
     assert len(sent) == 1
+
+
+def test_results_list_every_rule_the_gate_printed_failed_and_passed(tmp_path: Path) -> None:
+    from eulerlab.gates import Decision, Finding
+
+    decision = Decision(
+        "H-0099",
+        [
+            Finding("deflated sharpe", False, "best 0.512, mandate requires >= 0.95"),
+            Finding("probability of overfitting", True, "12.0%, mandate allows <= 50%"),
+            Finding("trial ledger", True, ""),
+        ],
+    )
+    folder = tmp_path / "promote"
+    folder.mkdir()
+    (folder / "H-0099.json").write_text(
+        json.dumps({"item": "i", "started": "2026-11-02", "gate_output": decision.render()}),
+        encoding="utf-8",
+    )
+    (row,) = promote.results(folder)
+    assert row["findings"] == [
+        {
+            "rule": "deflated sharpe",
+            "passed": False,
+            "detail": "best 0.512, mandate requires >= 0.95",
+        },
+        {
+            "rule": "probability of overfitting",
+            "passed": True,
+            "detail": "12.0%, mandate allows <= 50%",
+        },
+        {"rule": "trial ledger", "passed": True, "detail": ""},
+    ]
+    assert promote.findings("validation stopped") == []

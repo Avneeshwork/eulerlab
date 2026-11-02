@@ -2464,7 +2464,11 @@ export type Promotion = {
   verdict: string;
   started: string;
   finished: string;
+  /** Each rule the gate printed, read back from its own output, failures and passes alike. */
+  findings?: GateFinding[];
 };
+
+export type GateFinding = { rule: string; passed: boolean; detail: string };
 
 export type AgentItem = {
   id: string;
