@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import inspect
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -43,6 +44,16 @@ class Check:
         return self.status == "changed"
 
 
+_ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
+
+
+def _stable(text: str) -> str:
+    """`text` without memory addresses. The repr of a function or object held
+    by a strategy carries one ("<function momentum_12_1 at 0x7f60...>"), which
+    differs every time Python starts, so the fingerprint did too (HISTORY #63)."""
+    return _ADDRESS.sub("", text)
+
+
 def _source(obj: Any) -> str:
     try:
         return inspect.getsource(obj)
@@ -60,7 +71,11 @@ def sources(strategy_id: str) -> list[str]:
     if strategy_id in ALL_SIGNALS:
         signal = ALL_SIGNALS[strategy_id]
         detect = getattr(signal, "detect", None)
-        return [_source(detect) if detect is not None else "", _source(type(signal)), repr(signal)]
+        return [
+            _source(detect) if detect is not None else "",
+            _source(type(signal)),
+            _stable(repr(signal)),
+        ]
     from eulerlab import forward
 
     if forward.is_hypothesis(strategy_id):
@@ -85,7 +100,7 @@ def sources(strategy_id: str) -> list[str]:
         built = builder()
         texts += [
             _source(type(built)),
-            repr(sorted(vars(built).items())) if hasattr(built, "__dict__") else "",
+            _stable(repr(sorted(vars(built).items()))) if hasattr(built, "__dict__") else "",
         ]
     except Exception as exc:  # a builder that fails is reported by the runner itself
         texts.append(f"builder failed: {type(exc).__name__}")

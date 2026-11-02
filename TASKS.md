@@ -24,6 +24,7 @@ Operator: "in top 10 no stock can be more than 25%, similarly in 20 stocks no st
 | T-4385 | The Clenow paper book (₹50,000) held one BOSCHLTD share: the capital fit ranked by weight and cut every name below an unaffordable one. Skip that name instead, rank Clenow by its score, cap weights by book size | DONE — `deploy/sizing.py`; `tests/test_deploy_sizing.py` |
 | T-4386 | After the next `make paper-daily`, the Clenow book's `intended.affordable` is above 15 and no holding is over 8% | TODO. Check on the Mac |
 | T-4387 | Operator: should backtests apply the same caps? Today they run with `fit_capital=False`, so the caps change paper and live only | TODO. Operator decision |
+| T-4396 | The version lock hashed memory addresses, so 40 strategies read "code changed" on every run (HISTORY #63) | DONE — `version_lock._stable`; `tests/test_desk_and_version_lock.py`. Operator: `make relock` each running paper book of those strategies once |
 
 ## Platform audit (2026-11-01, HISTORY #50 to #52)
 
