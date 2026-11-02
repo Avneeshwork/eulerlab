@@ -105,3 +105,28 @@ def test_a_blocked_data_row_says_what_failed() -> None:
         "price panel grade B, ok",
     )
     assert desk.data_check(None)[0] is True
+
+
+def test_fingerprints_do_not_change_between_python_processes() -> None:
+    """A strategy holding a function used to fingerprint its memory address,
+    so its lock read "changed" on every run (HISTORY #62)."""
+    import json
+    import subprocess
+    import sys
+
+    script = (
+        "import json\n"
+        "from eulerlab.backtest.published import BUILDERS\n"
+        "from eulerlab.deploy.version_lock import fingerprint\n"
+        "print(json.dumps({k: fingerprint(k) for k in BUILDERS}))\n"
+    )
+    runs = [
+        json.loads(
+            subprocess.run(
+                [sys.executable, "-c", script], check=True, capture_output=True, text=True
+            ).stdout
+        )
+        for _ in range(2)
+    ]
+    assert runs[0] == runs[1]
+    assert all(runs[0].values())
