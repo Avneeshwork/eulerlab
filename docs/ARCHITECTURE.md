@@ -2740,9 +2740,57 @@ it to answer market questions in the same order.
 **Workbench.** The AI tab opens on **Live**: a card per agent with its state
 (working, done, failed, stopped, never run), the step it is on, its last few
 steps and today's model requests, beside a feed of every agent's steps. Then
-the inbox, agents and briefs (switch, budget, brief, run), ask the knowledge
-agent, research and skeptic runs, the market brief, data quality and the
+the inbox, the org chart and calendar (ADR-122), agents and briefs (switch,
+budget, brief, run), ask the knowledge agent, research and skeptic runs, the market brief, data quality and the
 agents' log. The trade desk is on Live & Risk only.
+
+### The agent company (ADR-122)
+
+The agents are organised as a company. You are the CEO; three departments each
+have a head (a manager); every agent belongs to one department. The gate and the
+mandate sit outside the chart and answer only to you.
+
+```
+you (CEO) ──┬── Head of Research ──────────── research, lab, skeptic, knowledge, knowledge_keeper
+            ├── Head of Data and Platform ─── data, engineering, operations
+            └── Head of Portfolio and Risk ── portfolio, market_brief
+gate and mandate: outside the chart
+```
+
+| File | Holds |
+|---|---|
+| `config/org.yaml` | the CEO's name, each department's id, title and head (`running: false` until its worker exists), and `outside` (the gate) |
+| `config/agents/<name>.yaml` | `reports_to`: the agent's department |
+| `config/company.yaml` | the company goal and each department's goals: text, how it is measured, `proposed`, `approved` or `retired` |
+
+`agents/org.py` loads both files and `problems()` names what is wrong: an agent
+with no department or an unknown one, an agent reporting to the gate, the gate
+inside a department, a head named like an agent, an empty department, goals for
+a department that does not exist. The depth is fixed (agent, head, CEO), so a
+loop or a second manager cannot be written. `tests/test_agent_org.py` fails if
+the committed files have any problem.
+
+**The calendar.** `agents/calendar.py` places each job of
+`tools/schedule_daily.JOBS` on the days its `weekdays` allow, at its hour and
+minute in IST (A-092). Which agents a job runs is read from its Makefile recipe
+(`eulerlab.agents.runtime <name>` lines, or `make agent NAME=<name>`), so the
+calendar shows what launchd really starts. Each agent's saved runs
+(`output.json`) are matched to slots:
+
+| Mark | Meaning |
+|---|---|
+| ran | every agent in the job has a run from 10 minutes before the slot until its next slot that day (launchd runs a slept-through job on wake) |
+| some ran | some agents have one |
+| due | none yet, less than 3 hours after the slot |
+| missed | none, 3 hours or more after the slot |
+| upcoming | the slot is later than now |
+| data job | a job with no agent (`daily`, `india-live`, ...); its result is not read here |
+
+A run that matched no slot (the Run button, the after-close brief that `make
+daily` rewrites) shows as run by hand. `GET /api/agents/org` and `GET
+/api/agents/calendar?start=YYYY-MM-DD&days=7` serve them; the AI tab's Org chart
+and Calendar views draw them. Both only read. The heads assign nothing until
+the manager workers exist (T-4395).
 
 ### The knowledge keeper (ADR-104)
 
