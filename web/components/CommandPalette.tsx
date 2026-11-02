@@ -9,6 +9,7 @@
  * company opens its page.
  */
 
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { companySearch, type CompanyHit, type FleetStrategy } from '@/lib/api';
 
@@ -106,11 +107,13 @@ export function CommandPalette({
     setCursor(0);
   }, [query]);
 
+  const router = useRouter();
   const choose = (entry: Entry | undefined) => {
     if (!entry) return;
     if (entry.kind === 'CO') {
       // A company has its own page; leave the terminal shell for it.
-      window.location.assign(`/terminal/company/${encodeURIComponent(entry.id)}`);
+      router.push(`/terminal/company/${encodeURIComponent(entry.id)}`);
+      onClose();
       return;
     }
     if (entry.kind === 'PAGE') onPage(entry.id);

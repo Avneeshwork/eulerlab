@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import pytest
+
 from eulerlab.ingest.prune_local import plan_and_prune
 
 
@@ -157,3 +159,17 @@ def test_the_macro_history_is_never_pruned(tmp_path: Path) -> None:
     result = plan_and_prune(tmp_path, store, prefix="nse/", dry_run=False)
     assert day.exists()
     assert result.deleted == []
+
+
+def test_the_reader_asks_for_the_key_prune_and_upload_use(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A pruned NSE file is read from `{prefix}cm/...`, the key it was uploaded to (T-4392)."""
+    from eulerlab.ingest import landing_reader
+    from eulerlab.ingest.prune_local import _remote_key
+
+    monkeypatch.setattr(landing_reader, "_store_and_prefix", lambda: (None, "nse/"))
+    for relative in ("nse/cm/2026/11/2026-11-02_udiff.zip", "kite_minute/SBIN/a.parquet"):
+        assert landing_reader.remote_key(relative) == _remote_key(
+            tmp_path / relative, tmp_path, "nse/"
+        )

@@ -71,12 +71,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     downloaded = skipped = missing = 0
     candles = 0
     began = time.time()
+    # Pruned months are in the bucket, not on disk; without this every daily
+    # run fetched and re-uploaded them (T-4391).
+    landed = crypto.landed_names(crypto.LANDING)
 
     for index, pair in enumerate(pairs, start=1):
         got = 0
         for year_month in months:
             try:
-                count, fetched = crypto.land_month(pair, year_month)
+                count, fetched = crypto.land_month(pair, year_month, landed=landed)
             except FileNotFoundError:
                 # The archive has no such month: the symbol was not listed yet,
                 # or the month has not been published. Neither is an error.
