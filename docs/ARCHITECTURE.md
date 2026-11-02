@@ -1220,7 +1220,7 @@ price, here 5 bps worse (A-048), with Indian costs and 1% of equity kept in
 cash for them. Money is marked at raw closes, so a replay cannot re-size a day
 already traded; a split on a held name reads as a loss until S-038 is fixed.
 
-**Capital fit.** Before sizing, `fit_to_capital` (ADR-119) ranks the
+**Capital fit.** Before sizing, `fit_to_capital` (ADR-120) ranks the
 strategy's names (weight, then the strategy's own order; the strategy's order
 alone when it sets `ranked_by_order`, as Clenow's does because its weights are
 sizes). It then finds the largest *k* for which *k* names can each buy at least
@@ -2341,6 +2341,12 @@ only place explanation lives, a tap-to-open button), `Heading`, `Stat`/`Stats`,
 `Bar` (a bar inside a table cell). A page's title carries its description in
 an info button; the Tools cards do the same. Screens move onto the kit one per
 commit on the `ui-revamp` branch (TASKS, UI revamp).
+
+An `Info` popup is portalled to the `.terminal` root and fixed to the window
+(ADR-119), so no card clips or covers it. `web/lib/placePopover.ts` places it:
+below the button, or above when there is more room there; height capped to the
+larger side, with the popup scrolling; slid sideways to stay 8 px inside the
+window. It follows the button on scroll and resize.
 
 ## The overnight book (ADR-066)
 

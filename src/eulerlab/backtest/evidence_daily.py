@@ -457,7 +457,7 @@ class StocksOnTheMove(Strategy):
 
     Names are listed best score first and the weights are sizes, so a
     deployment too small for all 25 keeps them in score order
-    (`ranked_by_order`, ADR-119).
+    (`ranked_by_order`, ADR-120).
     """
 
     ranked_by_order = True

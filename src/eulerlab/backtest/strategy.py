@@ -109,7 +109,7 @@ class Strategy(ABC):
     not ranks. Read when a deployment's capital cannot buy every name
     (`deploy.sizing.fit_to_capital`): the list is ranked by this order, not by
     weight. Clenow's book weights by inverse volatility, so ranking it by
-    weight kept its calmest stock first, not its strongest trend (ADR-119).
+    weight kept its calmest stock first, not its strongest trend (ADR-120).
     """
 
     @abstractmethod

@@ -7,7 +7,7 @@ to cut position in lowest ranked instruments like if strategy say to invest in
 Operator, 2026-11-02: "in top 10 no stock can be more than 25%, similarly in 20
 stocks no stocks more than 15% weight, in 5 stocks no stocks more than 35% ...
 ranking and weight allocation both should be respected while taking trade"
-(ADR-119).
+(ADR-120).
 
 A backtest on ₹10 lakh can hold thirty ₹33,000 positions. A deployment with
 ₹50,000 cannot: a ₹5,000 slice buys nothing of a ₹12,000 share, and the
@@ -41,7 +41,7 @@ from itertools import pairwise
 
 CAPS: tuple[tuple[int, float], ...] = ((1, 1.0), (5, 0.35), (10, 0.25), (20, 0.15))
 """(names held, the most any one may weigh). The 5, 10 and 20 points are the
-operator's (ADR-119); 1 name may hold everything. Between points the cap is
+operator's (ADR-120); 1 name may hold everything. Between points the cap is
 interpolated linearly; above 20 names it is 3/k, which is 15% at 20 and keeps
 every name within three equal shares (12% of 25, 10% of 30)."""
 

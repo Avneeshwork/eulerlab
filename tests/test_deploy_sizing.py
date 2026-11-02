@@ -1,5 +1,5 @@
 """Fitting a strategy's list to the money: ranked, capped, and an unaffordable
-name skipped rather than cutting everything below it (ADR-119)."""
+name skipped rather than cutting everything below it (ADR-120)."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def test_the_lowest_ranked_names_are_cut_first() -> None:
 
 
 def test_an_expensive_top_name_is_skipped_not_the_whole_list() -> None:
-    # Before ADR-119 TOP kept the book to two names, TOP at 50%. Now TOP is
+    # Before ADR-120 TOP kept the book to two names, TOP at 50%. Now TOP is
     # skipped and the three it would have crowded out are held.
     targets = {"TOP": 0.25, "B": 0.25, "C": 0.25, "D": 0.25}
     prices = {"TOP": 30_000.0, "B": 10.0, "C": 10.0, "D": 10.0}

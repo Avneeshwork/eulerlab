@@ -1,4 +1,4 @@
-# ADR-119: The capital fit caps each weight by book size and skips names it cannot buy
+# ADR-120: The capital fit caps each weight by book size and skips names it cannot buy
 
 - **Context:** The ₹50,000 Clenow paper book held one ₹47,589 BOSCHLTD share at 89% (HISTORY #59). `fit_to_capital` ranked by weight, and Clenow's weights are inverse volatility, so the calmest stock ranked first; it then cut every name below one it could not fit. The operator (2026-11-02): "in top 10 no stock can be more than 25%, similarly in 20 stocks no stocks more than 15% weight in 5 stocks no stocks more than 35% ... ranking and weight allocation both should be respected while taking trade".
 - **Options:** (a) Leave the fit alone and tell the operator to add capital. (b) Skip an unaffordable name and take the next one, as Clenow does. (c) (b) plus the operator's caps by book size, plus ranking a strategy by its own order when its weights are sizes.
