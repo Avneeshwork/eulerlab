@@ -6,6 +6,8 @@
  *                   it is on, its last few steps, today's model requests, and a
  *                   feed of every agent's steps, newest first
  *   Inbox           what waits on the operator
+ *   Org chart       you as CEO, departments, heads, goals, agents (ADR-122)
+ *   Calendar        scheduled agent runs: ran, missed, upcoming (ADR-122)
  *   Agents & briefs switches, budgets, briefs and a Run button per agent
  *   Ask · Research · Market brief · Data quality · Agent log
  *
@@ -22,6 +24,7 @@ import { agentsApi } from '@/lib/api';
 import { usePoll } from '@/lib/usePoll';
 import { AGENTS_TAB } from '@/lib/poll';
 import { nowLine } from '@/lib/agentNow';
+import { CalendarView, OrgChartView } from './CompanyViews';
 import MarketBriefView from './MarketBriefView';
 import type {
   ActivityResponse,
@@ -39,6 +42,8 @@ import type {
 const VIEWS = [
   ['live', 'Live'],
   ['inbox', 'Inbox'],
+  ['org', 'Org chart'],
+  ['calendar', 'Calendar'],
   ['agents', 'Agents & briefs'],
   ['ask', 'Ask'],
   ['research', 'Research'],
@@ -858,6 +863,8 @@ export function AgentsTab({ open = '' }: { open?: string }) {
             <GateRuns />
           </>
         )}
+        {view === 'org' && <OrgChartView />}
+        {view === 'calendar' && <CalendarView />}
         {view === 'agents' && <Agents data={data} onChange={read} />}
         {view === 'ask' && <Ask />}
         {view === 'research' && <Research onStarted={read} />}

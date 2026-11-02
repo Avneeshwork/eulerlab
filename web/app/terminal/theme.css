@@ -502,3 +502,57 @@
 /* Muted text inside a pressed (blue) chip: grey on blue could not be read. */
 .terminal .tchip[aria-pressed='true'] em,
 .terminal .tchip[aria-pressed='true'] .tfine { color: inherit; opacity: 0.8; }
+
+/* ============================ agent company (ADR-122) ============================ */
+
+.org { display: grid; gap: var(--s4); }
+.org-top { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: var(--s4); }
+.org-ceo { border-color: var(--brand); }
+.org-outside { border-style: dashed; box-shadow: none; }
+.org-departments {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--s4);
+  align-items: start;
+}
+.org-dept { display: grid; gap: var(--s3); }
+.org-head { background: var(--brand-wash); border-color: color-mix(in srgb, var(--brand) 45%, var(--rule)); }
+.org-agents { list-style: none; margin: 0; padding: 0 0 0 var(--s4); display: grid; gap: var(--s2); border-left: 1px solid var(--rule-2); }
+.org-agents .ai-card { padding: var(--s3) var(--s4); }
+.org-goals { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); font-size: 13px; }
+@media (max-width: 700px) { .org-top { grid-template-columns: minmax(0, 1fr); } }
+
+.cal { display: grid; gap: var(--s3); min-width: 0; }
+.cal-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+.cal-scroll { overflow-x: auto; max-width: 100%; }
+.cal-grid { width: 100%; border-collapse: separate; border-spacing: 4px; table-layout: fixed; min-width: calc(140px + var(--cal-days, 7) * 120px); }
+.cal-grid th { font-size: 12px; font-weight: 650; color: var(--ink-3); text-align: left; vertical-align: top; }
+.cal-grid thead th:first-child, .cal-grid tbody th { width: 140px; }
+.cal-grid tbody th { padding-top: var(--s2); color: var(--ink-2); }
+.cal-grid td { vertical-align: top; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-md); padding: 4px; min-height: 48px; }
+.cal-grid td > * + * { margin-top: 4px; }
+.cal-grid [data-today='true'] { border-color: var(--brand); }
+.cal-day { font: inherit; background: none; border: 0; padding: 2px 0; color: inherit; cursor: pointer; }
+.cal-day:hover { color: var(--brand); }
+.cal-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.35;
+  padding: 4px 6px;
+  border-radius: var(--r-sm, 6px);
+  border: 1px solid var(--rule-2);
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.cal-chip span { display: block; color: var(--ink-3); font-size: 11px; }
+.cal-chip[data-tone='up'] { background: var(--up-wash); border-color: color-mix(in srgb, var(--up) 40%, transparent); }
+.cal-chip[data-tone='down'] { background: var(--down-wash); border-color: color-mix(in srgb, var(--down) 40%, transparent); }
+.cal-chip[data-tone='caveat'] { background: var(--caveat-wash); border-color: color-mix(in srgb, var(--caveat) 40%, transparent); }
+.cal-chip[data-tone='brand'] { background: var(--brand-wash); border-color: color-mix(in srgb, var(--brand) 40%, transparent); }
+.cal-chip[aria-pressed='true'] { outline: 2px solid var(--brand); outline-offset: 1px; }
+.cal-adhoc { border-style: dashed; cursor: default; }
