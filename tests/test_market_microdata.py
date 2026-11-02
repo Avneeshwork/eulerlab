@@ -7,7 +7,7 @@ import io
 import json
 import zipfile
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -273,7 +273,10 @@ def test_an_early_empty_api_answer_is_retried_not_locked_in(tmp_path: Path) -> N
 
 def test_an_empty_file_landed_early_is_fetched_again_beside_it(tmp_path: Path) -> None:
     report = nse_reports.REPORTS["short_selling"]
-    day = date(2026, 10, 30)
+    # The day before today, not a fixed date: `Landing.write` stamps the
+    # file's knowledge time with the real clock, and "landed early" means
+    # within three days of its day. A fixed 30 Oct went stale on 2 Nov.
+    day = datetime.now(IST).date() - timedelta(days=1)
     landing = Landing(tmp_path)
     landing.write(
         trade_date=day,
@@ -290,7 +293,7 @@ def test_an_empty_file_landed_early_is_fetched_again_beside_it(tmp_path: Path) -
     transport = FakeTransport({report.url(day): (200, full)})
     fetcher = Fetcher(transport, FetchPolicy(min_interval_s=0), sleep=lambda _s: None)
     assert (
-        nse_reports.fetch_one(fetcher, Landing(tmp_path), report, day, date(2026, 10, 31))
+        nse_reports.fetch_one(fetcher, Landing(tmp_path), report, day, day + timedelta(days=1))
         == "downloaded"
     )
     entry = Landing(tmp_path).entries()[(day.isoformat(), "short_selling")]
