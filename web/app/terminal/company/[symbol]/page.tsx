@@ -11,6 +11,7 @@
  */
 
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   companyPage,
@@ -602,8 +603,10 @@ const VIEWS: [View, string][] = [
   ['news', 'News'],
 ];
 
-export default function CompanyPageView({ params }: { params: { symbol: string } }) {
-  const symbol = decodeURIComponent(params.symbol).toUpperCase();
+// Read with `useParams`: Next 15 passes a page's `params` prop as a promise (T-4362).
+export default function CompanyPageView() {
+  const params = useParams<{ symbol: string }>();
+  const symbol = decodeURIComponent(params?.symbol ?? '').toUpperCase();
   const [page, setPage] = useState<CompanyPage | null>(null);
   const [error, setError] = useState('');
   const [view, setViewState] = useState<View>('overview');
