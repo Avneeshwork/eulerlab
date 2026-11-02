@@ -1,0 +1,7 @@
+# ADR-119: Info popups draw in a window-level layer, not inside the card
+
+- **Context:** The operator (2026-11-02): the (i) popups were hard to read and went "below card or out of screen at many places". The popup was `position: absolute` inside its card with the glass `--surface` (52% opaque) as background. Cards with `overflow: hidden` cut it off, each glass card's `backdrop-filter` makes its own stacking layer so the next card painted over it, and nothing kept it inside the window.
+- **Options:** (a) Raise z-index and remove `overflow: hidden` card by card. (b) A positioning library (Floating UI). (c) Portal the popup to the `.terminal` root, `position: fixed`, placed by a small pure function.
+- **Choice:** (c). `web/lib/placePopover.ts` opens below the button, flips above when there is more room there, caps the height to the larger side (the popup then scrolls), and slides sideways to stay 8 px inside the window. The popup follows scroll and resize. Background and button are `--surface-solid`.
+- **Why:** One change in the shared `Info` component fixes all 133 uses; (a) is whack-a-mole and breaks again with the next card, (b) is a dependency for 40 lines of maths. The portal targets `.terminal`, not `body`, because the colour tokens live on that element.
+- **Cost if wrong:** A popup is now outside its card in the DOM, so a CSS rule written as `.some-card .info-pop` would no longer match (none exists today).

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Fifty-seven times this project was wrong
+## Fifty-nine times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -413,6 +413,8 @@ figure produced outside the result store before this date was frictionless.
 **57. Crypto days were counted twice, and the newest days were never asked for.** (2026-11-01, measured on the operator's Mac, T-4369) (a) The daily filler lands a month's days while the month is open; Binance's month file for the same days lands later and the day files stay. Every reader read both. For BTCUSDT, 1 Aug to 28 Aug and 1 Sep to 29 Sep 2026 had both; on 15 Sep the panel said volume 43,365.43, the day file alone 21,682.72: exactly doubled, prices right. The minute reader returned two candles a minute for those days. Invalid: crypto daily volume and turnover for those days, so any liquidity filter, volume feature or Amihud figure over them, and every intraday crypto paper or scan that read those days. Fixed: a day file whose month file is landed is not read (`crypto.without_superseded`); the landed files are unchanged. (b) The filler started at the first of the current month, so on 1 Nov it asked for 1 Nov to 31 Oct, no days at all, and 30 and 31 Oct stayed missing until October's month file appears; the newest bar was 29 Oct. It now starts at the first of the previous month and skips days already landed in B2 (before, it downloaded the month's days again every run, because `prune-local` empties the disk). (c) `/api/history` for BTCUSDT downloaded 99 files from B2 per load: 51 to 74 s with an empty local tree, 8.8 s only when an earlier read had refilled the disk. Each file's daily bars are now saved in `data/cache/crypto_daily.json` and missing files are fetched eight at a time without being kept. (d) The Data quality screen graded every source on each visit (2.2 to 3.7 s); one grading now serves it for two minutes.
 
 **58. The live preflight asked for a Kite token where none is ever kept.** (2026-11-02) `_credentials_present` required `ZERODHA_ACCESS_TOKEN` in the environment, but Kite's token expires at 6 AM and `broker/kite_session.py` deliberately keeps it in `.kite_session.json`, never `.env`. So "Broker credentials configured" could not pass however the operator logged in. Now it asks for the API key and secret in `.env` and a fresh session from `make kite-login`. No order was affected: live is still refused.
+
+**59. The (i) popups were drawn inside their cards.** (2026-11-02, operator report, T-4390) ADR-082 put every explanation behind an info button, and the popup was positioned inside the card it belonged to, on the 52%-opaque glass surface. So it was cut off by any card with `overflow: hidden` (the Strategies table's header popups among them), painted under the next card (each glass card is its own stacking layer), ran off the right edge near the window side, and let the card text show through. Now it is drawn above every card in a window-level layer on a solid background and kept inside the screen (ADR-119). No number was affected.
 
 ---
 
