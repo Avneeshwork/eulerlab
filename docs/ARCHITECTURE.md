@@ -1625,6 +1625,11 @@ because the `MarketView` contains no future rows to reach.
   exactly what would let someone burn fifty trials in an afternoon by clicking.
 - **It never promotes anything.** There is no route to the gate.
 - **It never runs unvalidated code.**
+- **It is never reachable from the network.** `next dev` and `next start` listen on
+  127.0.0.1 only (`-H 127.0.0.1` in `web/package.json`; Next's default is 0.0.0.0),
+  and uvicorn's default is already 127.0.0.1. Anyone else on the same Wi-Fi would
+  otherwise reach the whole API through the UI's `/api` proxy, with no login.
+  The operator uses it on the Mac only (ADR-119).
 
 Every result carries its caveats **in the payload**, so the warning travels
 with the number rather than being a paragraph someone can style away.
