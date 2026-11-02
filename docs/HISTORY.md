@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Sixty-two times this project was wrong
+## Sixty-three times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -420,7 +420,9 @@ figure produced outside the result store before this date was frictionless.
 
 **61. ADR-118 said the last npm advisories needed Next 16 and ESLint 9. Neither was true.** (2026-11-02, T-4379, ADR-121) The high PostCSS advisory is in the copy Next 15.5.28 pins exactly; an npm `overrides` entry pinning PostCSS 8.5.32 under Next clears it, and the moderate it put on Next, with no Next upgrade. The 18 minimatch moderates are not cleared by ESLint 9 either: ESLint 9 and the Next lint plugins still require minimatch ^3, and no fixed release exists below 11.0.1. `npm audit` now reports 18 moderate, 0 high. No number was affected.
 
-**62. The version lock fingerprinted memory addresses.** (2026-11-02, T-4396) ADR-087's lock hashes a strategy's source and `repr(vars(strategy))`. For 40 of the 68 deployable strategies that repr held a function, printed as `<function momentum_12_1 at 0x7f60ae7c0900>`, and the address changes every time Python starts. So the fingerprint changed on every run: each of those paper books carried a "code changed" warning every day whether or not its code had changed, and a live book on one would never have passed the lock. Found while checking whether PR #69 would trip the lock. Now addresses are removed before hashing (`version_lock._stable`), and a test compares fingerprints from two separate Python processes. A lock written before the fix still differs once: relock it (`make relock`). No trade was affected: on paper the lock only warns.
+**62. Two cloud reads disagreed with the uploads.** (2026-11-02, audit on the operator's Mac, T-4391, T-4392) (a) `crypto.land_month` checked only the disk, and `prune-local` empties it, so every daily run downloaded each of the last twelve crypto months again and uploaded it with a new `receipt_time`: B2 held 15 versions of BTCUSDT's August 2026 month, 1,260,624 to 1,260,709 bytes. Landing is meant to be immutable; the minutes were Binance's same file each time, but the current object kept changing. It now skips a month the bucket holds. (b) NSE files are uploaded to `{prefix}cm/...`, without the tree name, as `prune_local` documents, but `landing_reader.remote_key` asked for `{prefix}nse/cm/...`, so a read of any pruned NSE file failed as if it had never been uploaded. `market_history` reads bhavcopies this way; which of its outputs missed days is not checked. The reader now makes the same special case.
+
+**63. The version lock fingerprinted memory addresses.** (2026-11-02, T-4396) ADR-087's lock hashes a strategy's source and `repr(vars(strategy))`. For 40 of the 68 deployable strategies that repr held a function, printed as `<function momentum_12_1 at 0x7f60ae7c0900>`, and the address changes every time Python starts. So the fingerprint changed on every run: each of those paper books carried a "code changed" warning every day whether or not its code had changed, and a live book on one would never have passed the lock. Found while checking whether PR #69 would trip the lock. Now addresses are removed before hashing (`version_lock._stable`), and a test compares fingerprints from two separate Python processes. A lock written before the fix still differs once: relock it (`make relock`). No trade was affected: on paper the lock only warns.
 
 ---
 

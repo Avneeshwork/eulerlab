@@ -109,7 +109,7 @@ def test_a_blocked_data_row_says_what_failed() -> None:
 
 def test_fingerprints_do_not_change_between_python_processes() -> None:
     """A strategy holding a function used to fingerprint its memory address,
-    so its lock read "changed" on every run (HISTORY #62)."""
+    so its lock read "changed" on every run (HISTORY #63)."""
     import json
     import subprocess
     import sys

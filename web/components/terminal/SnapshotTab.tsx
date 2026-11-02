@@ -907,7 +907,10 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
             <table className="ttable">
               <tbody>
                 {snap.catalysts.events.map((event) => (
-                  <tr key={`${event.at}-${event.title}`} data-past={event.past}>
+                  // Country in the key: the US and Canada both publish an
+                  // "Unemployment Rate" at 13:30 UTC, and a key of time and
+                  // title alone collided (React warned on 2026-11-02).
+                  <tr key={`${event.country}-${event.at}-${event.title}`} data-past={event.past}>
                     <td style={{ width: 54 }}>
                       <span className="ccy">{event.country}</span>
                     </td>

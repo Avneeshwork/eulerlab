@@ -99,7 +99,20 @@ def remote_key(relative: str) -> str:
     rather than as a bug, which is the quietest possible failure.
     """
     _, prefix = _store_and_prefix()
-    return f"{prefix}{relative}"
+    return f"{prefix}{_bucket_relative(relative)}"
+
+
+def _bucket_relative(relative: str) -> str:
+    """The `nse` tree sits directly under the prefix (`cm/...`, not `nse/cm/...`).
+
+    The same special case `prune_local._remote_key` and the manifest upload
+    (`cloud.object_key`) make. Without it every read of a pruned NSE file
+    asked for `{prefix}nse/cm/...`, which does not exist, and was told the file
+    was never uploaded; `market_history` reads pruned bhavcopies this way
+    (found 2026-11-02, T-4392).
+    """
+    tree, _, rest = relative.partition("/")
+    return rest if tree == "nse" and rest else relative
 
 
 _LISTING_TTL = 300.0

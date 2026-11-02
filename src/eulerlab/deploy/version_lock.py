@@ -50,7 +50,7 @@ _ADDRESS = re.compile(r" at 0x[0-9a-fA-F]+")
 def _stable(text: str) -> str:
     """`text` without memory addresses. The repr of a function or object held
     by a strategy carries one ("<function momentum_12_1 at 0x7f60...>"), which
-    differs every time Python starts, so the fingerprint did too (HISTORY #62)."""
+    differs every time Python starts, so the fingerprint did too (HISTORY #63)."""
     return _ADDRESS.sub("", text)
 
 
