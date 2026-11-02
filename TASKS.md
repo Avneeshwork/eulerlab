@@ -3,6 +3,16 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Capital fit and diversification caps (2026-11-02, ADR-120, HISTORY #60)
+
+Operator: "in top 10 no stock can be more than 25%, similarly in 20 stocks no stocks more than 15% weight, in 5 stocks no stocks more than 35% ... ranking and weight allocation both should be respected while taking trade".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4385 | The Clenow paper book (₹50,000) held one BOSCHLTD share: the capital fit ranked by weight and cut every name below an unaffordable one. Skip that name instead, rank Clenow by its score, cap weights by book size | DONE — `deploy/sizing.py`; `tests/test_deploy_sizing.py` |
+| T-4386 | After the next `make paper-daily`, the Clenow book's `intended.affordable` is above 15 and no holding is over 8% | TODO. Check on the Mac |
+| T-4387 | Operator: should backtests apply the same caps? Today they run with `fit_capital=False`, so the caps change paper and live only | TODO. Operator decision |
+
 ## Platform audit (2026-11-01, HISTORY #50 to #52)
 
 Operator: "audit test and complete what ever we have done till now ... look over codes if they make sense if not remove them or fix them".

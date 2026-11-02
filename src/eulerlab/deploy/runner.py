@@ -500,7 +500,12 @@ def _intended(strategy: Any, rows: Sequence[PanelRow], day: date, equity: float)
     except Exception as exc:  # a preview must never fail the run
         return {"error": str(exc)}
     closes = {s: h[-1].close for s, h in histories.items() if h and h[-1].day == day}
-    fitted = fit_to_capital(targets, equity * GROSS, closes.get)
+    fitted = fit_to_capital(
+        targets,
+        equity * GROSS,
+        closes.get,
+        by_order=bool(getattr(strategy, "ranked_by_order", False)),
+    )
     return {
         "wanted": len(targets),
         "affordable": len(fitted),

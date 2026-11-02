@@ -375,7 +375,12 @@ def run(
             if fit_capital:
                 # A deployment's capital may be too small for every name: keep
                 # the top-ranked ones it can buy at today's close (deploy/sizing).
-                targets = fit_to_capital(targets, sizing_equity * gross_cap, marks.get)
+                targets = fit_to_capital(
+                    targets,
+                    sizing_equity * gross_cap,
+                    marks.get,
+                    by_order=strategy.ranked_by_order,
+                )
 
             desired = target_quantities(sizing_equity, targets, partial(traded_price, day=fill_day))
             if strategy.hold_unchanged and not is_flow_day:
