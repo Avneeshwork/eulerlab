@@ -2,6 +2,7 @@
 # one file at a time on a branch, and drafts code you merge.
 name: engineering
 title: Engineering agent
+reports_to: platform
 job: Fixes code problems the doctor and the daily quality check find, one file and its test on its own branch, proven by lint, types, tests and the engine self-test, for you to merge; reviews branches against the house rules and drafts new primitives.
 worker: eulerlab.agents.workers.engineering
 schedule: "daily 16:15 IST quality check and fixes (agents-close), on demand, and Sunday 07:30"

@@ -1,0 +1,32 @@
+# The company's goals (ADR-123). The CEO sets the company goal and approves
+# each department's goals; managers turn them into weekly plans (Phase 3).
+#
+# Every goal below is `proposed`: drafted from STATE.md and the mandate, not yet
+# set by the operator (STUBS S-058). Change `status` to `approved`, edit the
+# words, or delete a goal; the AI tab's Org chart shows whatever is here.
+name: Euler Lab
+goals:
+  - id: first-strategy
+    text: One strategy passes the gate and completes its forward test
+    measure: gate verdicts and the forward-test record (mandate forward_test, ADR-117)
+    status: proposed
+departments:
+  research:
+    - id: card-coverage
+      text: Test the week's idea cards across at least five signal families
+      measure: the idea lab's log and the trial ledger
+      status: proposed
+  platform:
+    - id: data-before-brief
+      text: Every dataset graded and fresh before the 08:45 brief
+      measure: data quality grades and feed timings
+      status: proposed
+    - id: verify-green
+      text: make verify green every day
+      measure: the daily verify result
+      status: proposed
+  portfolio:
+    - id: books-in-band
+      text: Each paper book stays within its backtest band
+      measure: the operations agent's gap report
+      status: proposed

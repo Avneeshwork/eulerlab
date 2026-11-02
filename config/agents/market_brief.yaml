@@ -1,6 +1,7 @@
 # The market brief agent (ADR-085). Numbers from the data; words labelled as commentary.
 name: market_brief
 title: Market brief agent
+reports_to: portfolio
 job: Writes the pre-open brief at 08:45 and the after-close brief once the day's data is in, and rewrites it whenever the data refreshes.
 worker: eulerlab.agents.workers.market_brief
 schedule: "08:45 and 16:15 on weekdays, and after each data refresh"

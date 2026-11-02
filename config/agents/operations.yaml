@@ -1,6 +1,7 @@
 # The operations agent (ADR-085). No model.
 name: operations
 title: Operations agent
+reports_to: platform
 job: Times every scheduled step against its deadline, says which is getting slower, and measures each paper book's gap to its backtest.
 worker: eulerlab.agents.workers.operations
 schedule: "16:15 and 20:30 on weekdays"

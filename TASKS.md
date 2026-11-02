@@ -3,6 +3,17 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## The agent company: departments, managers, goals, calendar (2026-11-02, ADR-123)
+
+Operator: "implement paperclick agent organisation model, make each agent employee and above that assign manager which ask for work and i will be ceo who sees final work and approve"; "set goals for agents"; "add calendar of agents work in ui". Built natively, the operator's choice (research 141).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4397 | Phase 1: `config/org.yaml`, `reports_to` on every agent, `config/company.yaml`, the Org chart and Calendar views on the AI tab | DONE — `agents/org.py`, `agents/calendar.py`; `tests/test_agent_org.py` |
+| T-4398 | Phase 2: tickets with owner, parent, status and checkout in an append-only log; today's file hand-offs (data requests, doctor to engineering, lab feedback) become tickets; ticket due dates on the calendar | TODO. Five-bullet plan first |
+| T-4399 | Phase 3: rule-based manager workers for the three heads (assign, check against a written checklist, send back at most twice, pass up); department budgets; wake on assignment | TODO. Needs the operator's answers to the design doc's decisions 2 to 6 |
+| T-4400 | Phases 4 and 5: the CEO desk (one packet per department per day, approve, reject, revise), weekly plans and goal reviews on the calendar, then hiring proposals and model-written summaries checked by grounding | TODO |
+| T-4401 | Operator: approve, rewrite or delete the proposed goals in `config/company.yaml` (S-058) | TODO. Operator |
 ## Declared sizing (2026-11-02, ADR-122, research 140)
 
 Operator: "use equal sizing with maximum limit as deafault can be according to strategy if explicitily defined else rom models we develop."

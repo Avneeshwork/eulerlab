@@ -3,6 +3,7 @@
 # feedback the research agent reads the next day.
 name: lab
 title: Idea lab
+reports_to: research
 job: Writes 30 or more formula cards a day from the signal families and its memory of what worked, tests them with every untested research draft (IC screen, then a backtest), sends survivors attacked by the skeptic to your inbox, and tells the research agent what to look for next.
 worker: eulerlab.agents.workers.lab
 schedule: Every day 17:00 IST, after research (make agents-ideas)

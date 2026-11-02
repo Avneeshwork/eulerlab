@@ -11,15 +11,16 @@ from __future__ import annotations
 
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab.agents import briefs, inbox, log, runtime
-from eulerlab.agents.spec import all_effective, write_setting
+from eulerlab.agents import briefs, inbox, log, org, runtime
+from eulerlab.agents import calendar as agent_calendar
+from eulerlab.agents.spec import all_effective, load_specs, write_setting
 
 router = APIRouter()
 
@@ -172,6 +173,47 @@ def _findings(items: list[runtime.Item]) -> list[dict[str, str]]:
         {"kind": i.kind, "severity": i.severity, "title": i.title, "body": i.body, "ref": i.ref}
         for i in ordered
     ]
+
+
+@router.get("/api/agents/org")
+def agents_org() -> dict[str, Any]:
+    """The company: you, the departments and their heads, the agents, the goals (ADR-123)."""
+    try:
+        chart = org.chart(org.load_org(), load_specs(), org.load_company())
+    except (OSError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": True, **chart}
+
+
+@router.get("/api/agents/calendar")
+def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
+    """Scheduled agent runs, what ran and what was missed, by IST day (ADR-123).
+
+    `start` defaults to this week's Monday; `days` is 1 to 31.
+    """
+    # Imported here: `tools/` is importable because the server runs from the
+    # repo root, and the schedule must come from the list that writes the plists.
+    from tools import schedule_daily
+
+    now = datetime.now(UTC)
+    today = now.astimezone(runtime.IST).date()
+    try:
+        first = date.fromisoformat(start) if start else today - timedelta(days=today.weekday())
+    except ValueError:
+        return {"ok": False, "error": f"start must be YYYY-MM-DD, not {start!r}"}
+    span = max(1, min(days, 31))
+    try:
+        makefile = Path("Makefile").read_text(encoding="utf-8")
+        specs = load_specs()
+        chart = org.chart(org.load_org(), specs, org.load_company())
+    except (OSError, ValueError) as exc:
+        return {"ok": False, "error": str(exc)}
+    built = agent_calendar.build(
+        list(schedule_daily.JOBS.values()), makefile, specs, start=first, days=span, now=now
+    )
+    rows = [{"id": d["id"], "title": d["title"]} for d in chart["departments"]]
+    rows.append({"id": "feeds", "title": "Data feeds (no agent)"})
+    return {"ok": True, "rows": rows, **built}
 
 
 @router.get("/api/agents/skeptic/targets")

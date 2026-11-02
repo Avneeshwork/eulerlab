@@ -2602,8 +2602,64 @@ export type ActivityResponse = {
   feed: (AgentStep & { agent: string; title: string })[];
 };
 
+/** The agent company (ADR-123): `/api/agents/org`. */
+export type OrgGoal = { id: string; text: string; measure: string; status: 'proposed' | 'approved' | 'retired' };
+export type OrgDepartment = {
+  id: string;
+  title: string;
+  head: { name: string; title: string; running: boolean; assigns: string; passes_up: string };
+  goals: OrgGoal[];
+  agents: { name: string; title: string; job: string; enabled: boolean }[];
+};
+export type OrgChart = {
+  ok: boolean;
+  error?: string;
+  ceo: string;
+  company: string;
+  goals: OrgGoal[];
+  departments: OrgDepartment[];
+  outside: { id: string; title: string; note: string }[];
+  problems: string[];
+};
+
+/** The company calendar (ADR-123): `/api/agents/calendar`, times in IST. */
+export type CalendarSlotState = 'ran' | 'partial' | 'due' | 'missed' | 'upcoming' | 'feed';
+export type CalendarSlot = {
+  day: string;
+  time: string;
+  job: string;
+  what: string;
+  agents: { name: string; department: string; run_id: string; status: string }[];
+  departments: string[];
+  state: CalendarSlotState;
+};
+export type CalendarRun = {
+  agent: string;
+  department: string;
+  run_id: string;
+  day: string;
+  time: string;
+  status: string;
+  summary: string;
+  scheduled: boolean;
+};
+export type AgentCalendar = {
+  ok: boolean;
+  error?: string;
+  rows: { id: string; title: string }[];
+  start: string;
+  days: string[];
+  today: string;
+  now: string;
+  slots: CalendarSlot[];
+  runs: CalendarRun[];
+};
+
 export const agentsApi = {
   list: () => get<AgentsResponse>('/api/agents'),
+  org: () => get<OrgChart>('/api/agents/org'),
+  calendar: (start = '', days = 7) =>
+    get<AgentCalendar>(`/api/agents/calendar?start=${encodeURIComponent(start)}&days=${days}`),
   activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
   inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
   promotions: () => get<{ ok: boolean; promotions: Promotion[] }>('/api/agents/promotions'),
