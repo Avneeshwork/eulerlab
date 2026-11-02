@@ -2775,7 +2775,9 @@ Each page shows its own agents in a strip under the heading
 | Research | research, knowledge |
 
 The strip reads `/api/agents/activity` and `/api/agents/inbox`. It polls every
-30 s, or every 3 s while one of its agents runs. Run now posts to
+60 s, or every 15 s while one of its agents runs; the AI tab's live view every
+30 s, or 5 s while an agent runs. Neither asks while the browser tab is hidden,
+and both ask once when it is shown again (`web/lib/poll.ts`, T-4373). Run now posts to
 `/api/agents/{name}/run`. The AI tab stays the control room: the inbox, every
 agent live, Ask, settings and the log. Engineering shows only there.
 

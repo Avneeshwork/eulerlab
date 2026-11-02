@@ -19,6 +19,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { agentsApi } from '@/lib/api';
+import { usePoll } from '@/lib/usePoll';
+import { AGENTS_TAB } from '@/lib/poll';
+import { nowLine } from '@/lib/agentNow';
 import MarketBriefView from './MarketBriefView';
 import type {
   ActivityResponse,
@@ -116,6 +119,7 @@ function AgentCard({
   const [open, setOpen] = useState(false);
   const [label, tone] = STATE[agent.state] ?? ['—', undefined];
   const running = agent.state === 'running';
+  const line = nowLine(agent.steps, running);
   const used = row?.used_today ?? 0;
   const budget = row?.daily_requests ?? 0;
   return (
@@ -131,11 +135,19 @@ function AgentCard({
 
       <div className="ai-now">
         <span>{running ? 'Now' : agent.state === 'idle' ? 'Waiting' : 'Last'}</span>
-        <p>{running ? agent.now || 'Starting…' : agent.summary || agent.now || 'Has not run yet.'}</p>
-        {agent.started && <time dateTime={agent.started}>{running ? `started ${ago(agent.started, now)}` : when(agent.started)}</time>}
+        <p>{running ? line.text || agent.now || 'Starting…' : agent.summary || agent.now || 'Has not run yet.'}</p>
+        {running ? (
+          <time dateTime={line.since || agent.started}>
+            {line.since ? `this step began ${ago(line.since, now)}` : ''}
+            {line.since && agent.started ? ' · ' : ''}
+            {agent.started ? `run started ${ago(agent.started, now)}` : ''}
+          </time>
+        ) : (
+          agent.started && <time dateTime={agent.started}>{when(agent.started)}</time>
+        )}
       </div>
 
-      {agent.steps.length > 0 && <Steps steps={agent.steps} now={now} max={open ? 60 : 4} />}
+      {line.before.length > 0 && <Steps steps={line.before} now={now} max={open ? 60 : 4} />}
 
       <footer>
         {agent.uses_model ? (
@@ -149,9 +161,9 @@ function AgentCard({
           <span className="ai-meter-none">No model: plain code</span>
         )}
         <span className="ai-card-acts">
-          {agent.steps.length > 4 && (
+          {line.before.length > 4 && (
             <button type="button" className="tbtn sm" onClick={() => setOpen((v) => !v)}>
-              {open ? 'Fewer steps' : `All ${agent.steps.length} steps`}
+              {open ? 'Fewer steps' : `All ${line.before.length} earlier steps`}
             </button>
           )}
           {agent.cli_only ? (
@@ -207,13 +219,9 @@ function Live({
       .catch((e: unknown) => setError(String(e)));
   }, []);
 
-  // Fast while something runs, slow when nothing does.
+  // Faster while something runs, slow when nothing does, never while hidden.
   const busy = (activity?.running ?? 0) > 0;
-  useEffect(() => {
-    read();
-    const timer = window.setInterval(read, busy ? 2500 : 12000);
-    return () => window.clearInterval(timer);
-  }, [read, busy]);
+  usePoll(read, AGENTS_TAB, busy);
   useEffect(() => {
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(tick);

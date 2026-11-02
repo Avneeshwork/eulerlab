@@ -18,6 +18,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { agentsApi } from '@/lib/api';
+import { usePoll } from '@/lib/usePoll';
+import { AGENT_STRIP } from '@/lib/poll';
 import type { AgentActivity, AgentFinding, AgentItem, MarketBrief, SkepticTarget } from '@/lib/api';
 import { BriefCard } from './MarketBriefView';
 
@@ -246,13 +248,9 @@ export default function AgentStrip({ page, onOpenAI }: { page: string; onOpenAI:
 
   const busy = agents.some((a) => a.state === 'running' && wanted?.some((w) => w.name === a.name));
 
-  useEffect(() => {
-    if (!wanted) return undefined;
-    void load();
-    // Quick while one of this page's agents works, slow otherwise.
-    const timer = window.setInterval(() => void load(), busy ? 3000 : 30000);
-    return () => window.clearInterval(timer);
-  }, [wanted, load, busy]);
+  // Quicker while one of this page's agents works, slow otherwise, never while hidden.
+  const poll = useCallback(() => void load(), [load]);
+  usePoll(poll, AGENT_STRIP, busy, Boolean(wanted));
 
   useEffect(() => {
     if (!wanted?.some((w) => w.name === 'market_brief')) return;
