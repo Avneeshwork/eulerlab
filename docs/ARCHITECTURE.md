@@ -2336,6 +2336,12 @@ only place explanation lives, a tap-to-open button), `Heading`, `Stat`/`Stats`,
 an info button; the Tools cards do the same. Screens move onto the kit one per
 commit on the `ui-revamp` branch (TASKS, UI revamp).
 
+An `Info` popup is portalled to the `.terminal` root and fixed to the window
+(ADR-119), so no card clips or covers it. `web/lib/placePopover.ts` places it:
+below the button, or above when there is more room there; height capped to the
+larger side, with the popup scrolling; slid sideways to stay 8 px inside the
+window. It follows the button on scroll and resize.
+
 ## The overnight book (ADR-066)
 
 `deploy/overnight.py` paper-trades `nifty_calm_rise_overnight`.
