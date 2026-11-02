@@ -1220,10 +1220,16 @@ price, here 5 bps worse (A-048), with Indian costs and 1% of equity kept in
 cash for them. Money is marked at raw closes, so a replay cannot re-size a day
 already traded; a split on a held name reads as a loss until S-038 is fixed.
 
-**Capital fit.** Before sizing, `fit_to_capital` ranks the strategy's names
-(weight, then the strategy's own order) and keeps the largest top-ranked set in
-which every name can buy at least one share at today's close, re-weighted to
-the same exposure. Off in backtests (`fit_capital=False`).
+**Capital fit.** Before sizing, `fit_to_capital` (ADR-119) ranks the
+strategy's names (weight, then the strategy's own order; the strategy's order
+alone when it sets `ranked_by_order`, as Clenow's does because its weights are
+sizes). It then finds the largest *k* for which *k* names can each buy at least
+one share at today's close: take the top *k*, cap every weight at
+`max_weight(k)` and spread the excess over the rest in proportion, and if a
+name still cannot buy a share, skip it and take the next-ranked name. The caps
+are 100% for 1 name, 35% for 5, 25% for 10, 15% for 20, linear between, and
+3/k above 20; every cap is at least 1/k, so the book stays fully invested.
+Gross exposure is unchanged. Off in backtests (`fit_capital=False`).
 
 **Halts.** Each of these trips the deployment's own switch and stops it:
 orders still UNKNOWN after asking the broker; a replayed, already-traded day

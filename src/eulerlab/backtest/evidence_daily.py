@@ -454,7 +454,13 @@ class StocksOnTheMove(Strategy):
     normalised to the whole book. Clenow's book adds an index filter (stop
     buying when the index is under its 200-day average); the repository does
     not, and neither does this.
+
+    Names are listed best score first and the weights are sizes, so a
+    deployment too small for all 25 keeps them in score order
+    (`ranked_by_order`, ADR-119).
     """
+
+    ranked_by_order = True
 
     def __init__(self, name: str, *, hold: int = 25, universe: int = 250) -> None:
         self.name = name

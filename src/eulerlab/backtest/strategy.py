@@ -104,6 +104,14 @@ class Strategy(ABC):
     exits and changed weights trade exactly as before.
     """
 
+    ranked_by_order: bool = False
+    """`target_weights` lists its names best first, and its weights are sizes,
+    not ranks. Read when a deployment's capital cannot buy every name
+    (`deploy.sizing.fit_to_capital`): the list is ranked by this order, not by
+    weight. Clenow's book weights by inverse volatility, so ranking it by
+    weight kept its calmest stock first, not its strongest trend (ADR-119).
+    """
+
     @abstractmethod
     def target_weights(self, view: MarketView) -> dict[str, float]:
         """Desired portfolio weights on `view.as_of`.
