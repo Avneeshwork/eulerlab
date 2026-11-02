@@ -2948,7 +2948,11 @@ write methods raise.
       -> data/agents/promote/H-NNNN.json: the gate's VERDICT line and both outputs
 
 One gate run at a time (`_GATE_POOL`, one worker). `GET /api/agents/promotions`
-lists them; the Inbox shows them under Gate runs. Validation builds a lab card's
+lists them; the Inbox shows them under Gate runs. Each row also carries
+`findings`: every rule the gate printed (`pass`/`KILL`, rule, detail with the
+value and the mandate's threshold), parsed back from the gate's own output by
+`promote.findings`, so "View more" on a KILL lists what failed and what passed
+without recomputing anything. Validation builds a lab card's
 strategy with `codegen.build_one`, so a formula feature and its liquidity floor
 are validated exactly as the lab tested them.
 
