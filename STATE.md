@@ -62,8 +62,11 @@ what is open is in `TASKS.md`.*
   first, then Opus) as a pull request for you; once merged the lab tests it (ADR-127).
   Order is research → lab → engineering; the lab tests only research ideas, and the
   agents' memory goes to B2 every evening (ADR-128, `make agents-restore`).
-  Research searches arXiv, OpenAlex, SSRN and NBER and knows a paper under all its
-  links, so none is read or added twice (ADR-129).
+  Research searches arXiv, OpenAlex, SSRN, NBER, CORE and Semantic Scholar and knows
+  a paper under all its links, so none is read or added twice (ADR-129, ADR-131).
+  The data agent runs every two hours 06–20 IST: re-runs what is behind, uploads,
+  deletes what B2 holds and merges what differs; a watchdog checks every agent's
+  runs, tokens and tasks (ADR-132).
   Launchd jobs were not loaded until 2026-11-01 (T-4356); on that
   evening the agents, daily feed, fundamentals and idea lab jobs were loaded.
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):

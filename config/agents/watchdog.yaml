@@ -1,0 +1,47 @@
+# The watchdog (ADR-132). Checks every agent across runs: failed, stuck or missed runs,
+# model requests and tokens over budget, tasks blocked or sent back. Fixed remedies first;
+# Groq only to say who should fix what is left.
+name: watchdog
+title: Watchdog
+reports_to: platform
+job: Checks every agent's runs, model requests, tokens and tasks across the last day, re-runs a cheap agent that failed or missed its run, and gives what is left to the agent's head or to you.
+worker: eulerlab.agents.workers.watchdog
+schedule: "after the 08:45, 16:15 and 17:00 agent runs"
+uses_model: true
+provider: groq          # one request a run at most, only when problems are left
+daily_requests: 4
+never:
+  - edit code, data, the gate, the trial ledger or the holdout
+  - place, cancel or size an order, or restart a paper book
+  - re-run an agent that spends trials or sends messages (lab, research, market_brief)
+needs_approval: false
+options:
+  window_hours: 26
+  ai_help: true
+  # Hours since an agent's last run after which it has missed one.
+  expect:
+    data: 12
+    market_brief: 14
+    research: 26
+    lab: 26
+    head_research: 26
+    head_platform: 26
+    head_portfolio: 26
+    operations: 26
+    portfolio: 26
+    knowledge_keeper: 26
+    engineering: 26
+  weekdays_only: [operations, portfolio, knowledge_keeper, engineering]
+  rerun_ok: [data, operations, portfolio, knowledge_keeper]
+  tokens_per_agent: 60000     # a day
+  tokens_total: 160000        # a day, all agents: 80% of Groq's free 200,000
+  tokens_per_request: 12000
+
+duties:
+  - After the 08:45, 16:15 and 17:00 agent runs, check every agent's runs, model use and tasks
+  - Re-run once a day a cheap agent whose run failed or was missed
+  - Give what is left to the agent's head, or to you when only you can fix it
+can_do:
+  - kind: check_agents
+    what: Check every agent's runs, model requests, tokens and tasks over the last day, now
+    words: [agent, agents, watchdog, health, errors, tokens, budget, misbehaving, stuck, failing, missed]

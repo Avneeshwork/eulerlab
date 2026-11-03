@@ -336,7 +336,33 @@ def build_rejected(
 
 
 def card_problems(hypothesis: card.Card) -> list[str]:
-    return card.validate(replace(hypothesis, id=VALIDATION_ID)).problems
+    """`card.validate`'s problems, and each signal the lab could never build.
+
+    A formula that does not parse, or a ranked configuration with no feature,
+    is the card's fault: no code can fix it, so the card is incomplete. On
+    2026-11-03 a card marked valid asked for `formula:neg(ret(0))` (windows
+    start at 1) and the lab could only skip it (HISTORY #71). A library name
+    the library lacks is not a problem here: engineering can code it (ADR-127).
+    """
+    from eulerlab.features import formula
+
+    problems = list(card.validate(replace(hypothesis, id=VALIDATION_ID)).problems)
+    for number, config in enumerate(hypothesis.configurations, start=1):
+        if (
+            not isinstance(config, dict)
+            or str(config.get("shape", "rank_and_hold")) != "rank_and_hold"
+        ):
+            continue
+        name = str(config.get("feature") or "").strip()
+        if not name:
+            if "feature" in config or config.get("shape") == "rank_and_hold":
+                problems.append(f"configuration {number} ranks by no feature")
+        elif name.startswith(formula.PREFIX):
+            try:
+                formula.parse(name[len(formula.PREFIX) :])
+            except formula.FormulaError as exc:
+                problems.append(f"configuration {number}: the formula does not parse: {exc}")
+    return problems
 
 
 def card_from_yaml(spec: dict[str, Any]) -> card.Card:

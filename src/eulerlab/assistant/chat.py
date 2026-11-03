@@ -43,7 +43,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from eulerlab.assistant import anthropic_api, redact, tools
-from eulerlab.llm import client
+from eulerlab.llm import client, usage
 
 ALLOWED_HOSTS = frozenset(
     {"openrouter.ai", "api.groq.com", "api.anthropic.com", "localhost", "127.0.0.1"}
@@ -434,7 +434,9 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
     apart from Claude, which goes through Anthropic's SDK with the same scrub."""
     if chosen.api == "anthropic":
         try:
-            return anthropic_api.post(chosen, payload, timeout=TIMEOUT_SECONDS)
+            body = anthropic_api.post(chosen, payload, timeout=TIMEOUT_SECONDS)
+            usage.record(chosen.name, chosen.model, body.get("usage"))
+            return body
         except anthropic_api.Refusal as exc:
             if exc.retryable:
                 raise ModelUnavailable(str(exc)) from exc
@@ -459,6 +461,7 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
                     parsed: dict[str, Any] = json.loads(response.read().decode())
                     sent = getattr(response, "headers", None)
                     settle(chosen, sent.get("x-ratelimit-remaining-tokens") if sent else None)
+                    usage.record(chosen.name, chosen.model, parsed.get("usage"))
                     return parsed
             except urllib.error.HTTPError as first:
                 if attempt == 2:

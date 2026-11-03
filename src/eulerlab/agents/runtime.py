@@ -40,6 +40,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab.agents import briefs, log
 from eulerlab.agents.grounding import prompt_version
 from eulerlab.agents.spec import ROOT, Effective, all_effective, home
+from eulerlab.llm import usage
 
 IST = ZoneInfo("Asia/Kolkata")
 PROGRESS = "progress.jsonl"
@@ -90,6 +91,8 @@ class Output(BaseModel):
     briefs: list[str] = Field(default_factory=list)
     model: str = ""
     requests: int = 0
+    tokens: int = 0
+    """Tokens the run's model requests used, from `llm/usage.py` (ADR-132)."""
     notes: list[str] = Field(default_factory=list)
     """Fallbacks used, budget reached, anything the operator should know."""
     prompts: list[str] = Field(default_factory=list)
@@ -328,9 +331,16 @@ def run(
     else:
         try:
             run_worker = worker or _load_worker(agent.spec.worker)
-            result = run_worker(ctx)
+            with usage.asking(name, run_id):
+                result = run_worker(ctx)
         except BudgetSpent as exc:
             result = WorkerResult(str(exc), status="over_budget")
+        except SystemExit as exc:
+            # A command-line helper's `exit("B2_KEY_ID is not set")` inside a worker
+            # ended the whole process, and with it the watchdog that re-ran it
+            # (2026-11-04). It is the run failing, not the program.
+            ctx.notes.append(traceback.format_exc(limit=-6)[-2500:])
+            result = WorkerResult(f"SystemExit: {str(exc.code)[:300]}", status="failed")
         except Exception as exc:
             ctx.notes.append(traceback.format_exc(limit=-6)[-2500:])
             result = WorkerResult(f"{type(exc).__name__}: {str(exc)[:300]}", status="failed")
@@ -346,6 +356,7 @@ def run(
         briefs=brief_ids,
         model=ctx.model,
         requests=ctx.requests,
+        tokens=usage.run_tokens(name, run_id) if ctx.requests else 0,
         notes=ctx.notes,
         prompts=sorted(set(ctx.prompts)),
         data=result.data,
@@ -360,6 +371,7 @@ def run(
             "status": output.status,
             "items": len(output.items),
             "requests": output.requests,
+            "tokens": output.tokens,
             "model": output.model,
             "prompts": output.prompts,
             "briefs": brief_ids,

@@ -543,6 +543,7 @@ TERMINAL_ONLY: dict[str, str] = {
     "upload-tree": "uploads and removes one folder after its download; the button mirrors once at the end",
     "prune-local": "deleting files is not a side effect of a refresh button",
     "manifest": "the button recounts after its mirror",
+    "data-merge-back": "merging into the bucket and deleting local copies is the nightly job's and the data agent's, not a refresh button's (ADR-132)",
     "eulerlab.agents.runtime": "the after-close note is an agent's run, not a data refresh; the AI tab runs agents",
 }
 """What `make daily` runs that the button deliberately does not, and why."""

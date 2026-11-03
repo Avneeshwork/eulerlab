@@ -1,23 +1,29 @@
-# The data agent (ADR-085). No model. Runs at 08:45 and after the close.
+# The data agent (ADR-085, ADR-132). Every two hours from 06:00 to 20:00 IST, and at 08:45
+# and 16:15. Fixed rules first; Groq only to diagnose what is still wrong after them.
 name: data
 title: Data agent
 reports_to: platform
-job: Grades every dataset against the quality contract, flags what is behind, failed or changed format, and answers other agents' data requests.
+job: Grades every dataset, re-runs the feed steps of anything behind, uploads to B2 and deletes local copies B2 holds, merges files that differ from B2 with no duplicate rows, asks AI help for what is still wrong, and answers other agents' data requests.
 worker: eulerlab.agents.workers.data
-schedule: "08:45 and 16:15 on weekdays"
-uses_model: false
-daily_requests: 0
+schedule: "every two hours from 06:00 to 20:00 IST (make schedule JOB=data-watch), and 08:45 and 16:15 on weekdays"
+uses_model: true
+provider: groq          # the free Groq model; only when a problem is left after the fixed steps
+daily_requests: 8
 never:
-  - edit, move or delete raw data
+  - edit a raw file, or delete a local file the bucket does not hold at the same size (a file that differs is merged into the bucket first, every row kept)
   - add a new data source (it proposes one)
   - change a strategy
 needs_approval: true
 options:
-  auto_rerun: false      # true lets it re-run the allowed feed steps for stale datasets
+  auto_rerun: true       # re-run the allowed feed steps for stale datasets (operator, 2026-11-04)
+  upkeep: true           # upload, delete what B2 holds, merge what differs (ADR-132)
+  ai_help: true          # one Groq diagnosis when problems remain
+  merge_limit: 4000      # files merged a run at most; the rest wait two hours
   restore_sample: 0      # files to download back from B2 each run, to prove the backup restores
 
 # Everyday work and the tasks a head may give it (ADR-124).
 duties:
+  - Every two hours from 06:00 to 20:00, grade every dataset, re-run what is behind, upload and clear local copies
   - At 08:45 and 16:15 on weekdays, grade every dataset against the quality contract
   - Flag what is behind, failed or changed format
   - Answer the research and skeptic agents' data requests

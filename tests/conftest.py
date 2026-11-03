@@ -252,3 +252,13 @@ def _fresh_pacing(monkeypatch: pytest.MonkeyPatch) -> None:
     from eulerlab.assistant import chat
 
     monkeypatch.setattr(chat, "_BUCKETS", {})
+
+
+@pytest.fixture(autouse=True)
+def _private_usage_log(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test appends to the real token log (ADR-132)."""
+    from eulerlab.llm import usage
+
+    monkeypatch.setattr(usage, "LOG", tmp_path_factory.mktemp("usage") / "llm_usage.jsonl")
