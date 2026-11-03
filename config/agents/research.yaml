@@ -16,6 +16,10 @@ never:
 needs_approval: true
 options:
   limit: 5
+  # Where it looks, in this order (ADR-129). SSRN through OpenAlex (its own site
+  # blocks robots), NBER through Crossref. A new source is a function in
+  # research/paper_search.SOURCES and a line here.
+  sources: [arxiv, openalex, ssrn, nber]
   topic: "Indian equities cross-sectional anomalies with low turnover"
   # Research goes first and picks its own topic (ADR-128): one a day from this
   # list, in turn, unless a task or your brief names one. The lab no longer chooses.

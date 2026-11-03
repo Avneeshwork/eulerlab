@@ -19,6 +19,12 @@ Sources, their limits and their terms: research 124.
 - **OpenAlex** (`api.openalex.org/works`): JSON, no key needed for $0.10 of
   calls a day, which is 100 searches. A free key (`OPENALEX_API_KEY`) raises
   that to $1. Abstracts arrive as an inverted index and are rebuilt here.
+- **SSRN** (ADR-129): its own site refuses automated access (HTTP 403
+  "Content Blocked", 2026-11-03), so it is searched through OpenAlex, which
+  indexes it as source `S4210172589` ("SSRN Electronic Journal"). Abstracts are
+  usually missing there and come from Crossref.
+- **NBER working papers** (ADR-129): searched on Crossref by NBER's DOI prefix
+  `10.3386`; Crossref holds no abstracts for them, OpenAlex does (by DOI).
 - **Crossref** (`api.crossref.org/works/<doi>`): no key. Asked only for a paper
   OpenAlex found with no usable abstract, one request each (research 144). Some
   abstracts there are the publisher's copyright, so a fetched abstract is only
@@ -39,7 +45,7 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Any
@@ -49,6 +55,11 @@ ARXIV_HTML = "https://arxiv.org/html/"
 OPENALEX_API = "https://api.openalex.org/works"
 OPENALEX_KEY_ENV = "OPENALEX_API_KEY"
 CROSSREF_API = "https://api.crossref.org/works/"
+CROSSREF_SEARCH = "https://api.crossref.org/works"
+SSRN_SOURCE = "S4210172589"
+"""OpenAlex's id for SSRN (`/sources?search=SSRN`, 2026-11-03: 1,374,524 works)."""
+NBER_PREFIX = "10.3386"
+"""NBER's DOI prefix; working papers are `10.3386/w<number>`."""
 MIN_ABSTRACT = 200
 """Characters below which an abstract is too short to judge a paper from."""
 USER_AGENT = "EulerLab-paper-agent/0.1"
@@ -335,6 +346,92 @@ def topic_score(candidate: Candidate, words: list[str]) -> float:
     return sum(1 for w in words if w in have) / len(words)
 
 
+def search_ssrn(
+    topic: str, *, limit: int = 10, since_year: int = 2015, get: Fetch = fetch
+) -> list[Candidate]:
+    """SSRN papers on the topic, through OpenAlex's index of SSRN (its own site blocks robots)."""
+    params = {
+        "search": topic,
+        "filter": f"primary_location.source.id:{SSRN_SOURCE},publication_year:>{since_year - 1}",
+        "per_page": str(min(limit, MAX_RESULTS)),
+    }
+    key = os.environ.get(OPENALEX_KEY_ENV, "").strip()
+    if key:
+        params["api_key"] = key
+    found = parse_openalex(
+        get(f"{OPENALEX_API}?{urllib.parse.urlencode(params)}"), fetched_at=_now()
+    )
+    return [replace(c, source="ssrn") for c in found]
+
+
+def parse_crossref(body: bytes, *, source: str, fetched_at: str) -> list[Candidate]:
+    try:
+        items = json.loads(body).get("message", {}).get("items", [])
+    except (json.JSONDecodeError, AttributeError) as exc:
+        raise SearchFailed(f"Crossref sent something that is not a work list: {exc}") from exc
+    out: list[Candidate] = []
+    for row in items if isinstance(items, list) else []:
+        doi = str(row.get("DOI") or "").strip()
+        title = _clean(" ".join(row.get("title") or []))
+        if not doi or not title:
+            continue
+        parts = ((row.get("published") or row.get("issued") or {}).get("date-parts") or [[None]])[0]
+        year = parts[0] if parts and isinstance(parts[0], int) else None
+        abstract = _clean(re.sub(r"<[^>]+>", " ", str(row.get("abstract") or "")))
+        out.append(
+            Candidate(
+                source=source,
+                source_id=doi,
+                title=title,
+                authors=[
+                    _clean(f"{a.get('given', '')} {a.get('family', '')}")
+                    for a in row.get("author") or []
+                    if isinstance(a, dict)
+                ][:20],
+                year=year,
+                abstract=re.sub(r"^(abstract|summary)[:.\s]+", "", abstract, flags=re.IGNORECASE),
+                url=f"https://doi.org/{doi}",
+                fetched_at=fetched_at,
+                doi=doi.lower(),
+            )
+        )
+    return out
+
+
+def search_nber(
+    topic: str, *, limit: int = 10, since_year: int = 2015, get: Fetch = fetch
+) -> list[Candidate]:
+    """NBER working papers on the topic, from Crossref by NBER's DOI prefix."""
+    params = {
+        "query.bibliographic": topic,
+        "filter": f"prefix:{NBER_PREFIX},from-pub-date:{since_year}-01-01",
+        "rows": str(min(limit, MAX_RESULTS)),
+        "select": "DOI,title,author,published,issued,abstract",
+    }
+    body = get(f"{CROSSREF_SEARCH}?{urllib.parse.urlencode(params)}")
+    return parse_crossref(body, source="nber", fetched_at=_now())
+
+
+def openalex_abstract(doi: str, *, get: Fetch = fetch) -> str:
+    """The abstract OpenAlex holds for a DOI, or "". Never raises."""
+    if not doi:
+        return ""
+    try:
+        row = json.loads(get(f"{OPENALEX_API}/doi:{urllib.parse.quote(doi)}"))
+    except (SearchFailed, ValueError):
+        return ""
+    return rebuild_abstract(row.get("abstract_inverted_index")) if isinstance(row, dict) else ""
+
+
+def fuller_abstract(doi: str, *, get: Fetch = fetch) -> tuple[str, str]:
+    """A missing abstract from Crossref, else OpenAlex: (text, where it came from)."""
+    for name, look in (("Crossref", crossref_abstract), ("OpenAlex", openalex_abstract)):
+        text = look(doi, get=get)
+        if len(text) >= MIN_ABSTRACT:
+            return text, name
+    return "", ""
+
+
 def search_openalex(
     topic: str, *, limit: int = 10, since_year: int = 2015, get: Fetch = fetch
 ) -> list[Candidate]:
@@ -407,38 +504,146 @@ def normalise_title(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", title.lower()).strip()
 
 
+# --- one paper, many links (ADR-129) ---------------------------------------
+
+TITLE_STOP = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "the",
+        "of",
+        "in",
+        "on",
+        "for",
+        "with",
+        "from",
+        "to",
+        "by",
+        "at",
+        "as",
+        "is",
+        "are",
+        "its",
+        "into",
+        "over",
+        "under",
+        "using",
+        "via",
+        "vs",
+        "versus",
+        "evidence",
+        "study",
+        "analysis",
+        "new",
+    ]
+)
+NEAR_TITLE = 0.85
+"""Word overlap (Jaccard) at which two titles of five or more words are one paper:
+SSRN lists a revision under a new DOI, often with a reworded title (A-099)."""
+
+
+def identities(title: str = "", url: str = "", doi: str = "", arxiv: str = "") -> set[str]:
+    """Every name a paper goes by: DOI, arXiv number without version, SSRN and NBER
+    numbers, and its normalised title. Two records sharing any one are one paper."""
+    out: set[str] = set()
+    text = f"{url} {doi}".lower()
+    found_doi = doi.lower() or doi_of(url).lower()
+    if found_doi:
+        out.add(f"doi:{found_doi.rstrip('/.')}")
+    match = re.search(r"arxiv\.org/(?:abs|pdf|html)/([0-9]{4}\.[0-9]{4,5})", text)
+    if arxiv or match:
+        out.add(f"arxiv:{(arxiv or (match.group(1) if match else '')).split('v')[0]}")
+    match = re.search(r"(?:10\.2139/ssrn\.|abstract_id=)(\d+)", text)
+    if match:
+        out.add(f"ssrn:{match.group(1)}")
+    match = re.search(r"(?:10\.3386/|nber\.org/papers/)(w\d+)", text)
+    if match:
+        out.add(f"nber:{match.group(1)}")
+    if normalise_title(title):
+        out.add(f"title:{normalise_title(title)}")
+    return out
+
+
+def title_words(title: str) -> frozenset[str]:
+    return frozenset(w for w in normalise_title(title).split() if w not in TITLE_STOP)
+
+
+def near_titles(a: frozenset[str], b: frozenset[str]) -> bool:
+    if min(len(a), len(b)) < 5:
+        return False
+    return len(a & b) / len(a | b) >= NEAR_TITLE
+
+
+@dataclass
+class Known:
+    """Papers already held, read or rejected, by every name they go by."""
+
+    ids: set[str] = field(default_factory=set)
+    titles: list[frozenset[str]] = field(default_factory=list)
+
+    def add(self, title: str = "", url: str = "", doi: str = "", arxiv: str = "") -> None:
+        self.ids |= identities(title, url, doi, arxiv)
+        words = title_words(title)
+        if words:
+            self.titles.append(words)
+
+    def add_candidate(self, c: Candidate) -> None:
+        self.add(c.title, c.url, c.doi, c.arxiv_id)
+
+    def holds(self, c: Candidate) -> bool:
+        if identities(c.title, c.url, c.doi, c.arxiv_id) & self.ids:
+            return True
+        words = title_words(c.title)
+        return any(near_titles(words, held) for held in self.titles)
+
+
+Search = Callable[..., list[Candidate]]
+
+SOURCES: dict[str, Search] = {
+    "arxiv": search_arxiv,
+    "openalex": search_openalex,
+    "ssrn": search_ssrn,
+    "nber": search_nber,
+}
+"""Every source the research agent may search, by the name `config/agents/research.yaml`
+lists. A new source is one function here and one line there (ADR-129)."""
+
+DEFAULT_SOURCES = ("arxiv", "openalex", "ssrn", "nber")
+
+
 def search(
     topic: str,
     *,
-    sources: Iterable[str] = ("arxiv", "openalex"),
+    sources: Iterable[str] = DEFAULT_SOURCES,
     limit: int = 10,
     get: Fetch = fetch,
     sleep: Callable[[float], Any] = time.sleep,
 ) -> tuple[list[Candidate], list[str]]:
-    """Every source's results, one per title, and a line for each that failed.
+    """Every source's results, one per paper, and a line for each that failed.
 
     A failed source does not stop the others: a paper found on one is still a
     paper. The failures are returned so the run's record says what was not
-    searched.
+    searched. A paper two sources both return (SSRN through OpenAlex and plain
+    OpenAlex often do) is kept once, from the first source listed.
     """
     found: list[Candidate] = []
     failures: list[str] = []
     for source in sources:
+        look = SOURCES.get(source)
+        if look is None:
+            failures.append(f"{source}: unknown source")
+            continue
         try:
+            found += look(topic, limit=limit, get=get)
             if source == "arxiv":
-                found += search_arxiv(topic, limit=limit, get=get)
                 sleep(ARXIV_SPACING)
-            elif source == "openalex":
-                found += search_openalex(topic, limit=limit, get=get)
-            else:
-                failures.append(f"{source}: unknown source")
         except (SearchFailed, ValueError) as exc:
             failures.append(f"{source}: {exc}")
-    seen: set[str] = set()
+    seen = Known()
     unique: list[Candidate] = []
     for candidate in found:
-        key = normalise_title(candidate.title)
-        if key and key not in seen:
-            seen.add(key)
+        if candidate.title and not seen.holds(candidate):
+            seen.add_candidate(candidate)
             unique.append(candidate)
     return unique, failures

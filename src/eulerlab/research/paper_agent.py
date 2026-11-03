@@ -390,39 +390,75 @@ def _stage(draft: Draft, run_dir: Path, *, years: float) -> Path:
 # --- the run ----------------------------------------------------------------
 
 
-def _keep(paper: library.Paper, root: Path, titles: set[str]) -> None:
-    """Add a paper the agent read to the library, unless it is already there."""
+def _keep(paper: library.Paper, root: Path, known: paper_search.Known) -> None:
+    """Add a paper the agent read to the library, unless it is already there by any name."""
     if library.load(paper.id, root=root) is None:
         library.save(paper, root=root)
-    titles.add(paper_search.normalise_title(paper.title))
+    known.add(paper.title, paper.source_url)
 
 
-def known_papers(drafts: Path = DRAFTS, papers: Path | None = None) -> tuple[set[str], set[str]]:
-    """Titles and links already in the library or already staged."""
-    titles: set[str] = set()
-    urls: set[str] = set()
+def take_turns(
+    scored: list[tuple[float, paper_search.Candidate]],
+) -> list[tuple[float, paper_search.Candidate]]:
+    """Best first within each source, the sources taking turns (ADR-129).
+
+    Seen 2026-11-03: sorted by topic overlap alone, OpenAlex's papers, which come
+    with abstracts, took all five reads, and SSRN's and NBER's, which come without,
+    never got one. Off-topic papers (score 0) still go last."""
+    lanes: dict[str, list[tuple[float, paper_search.Candidate]]] = {}
+    for pair in scored:
+        if pair[0] > 0:
+            lanes.setdefault(pair[1].source, []).append(pair)
+    out: list[tuple[float, paper_search.Candidate]] = []
+    while any(lanes.values()):
+        for lane in lanes.values():
+            if lane:
+                out.append(lane.pop(0))
+    return out + [pair for pair in scored if pair[0] <= 0]
+
+
+def known_papers(drafts: Path = DRAFTS, papers: Path | None = None) -> paper_search.Known:
+    """Every paper already in the library, staged, or read and judged, by every name
+    it goes by: DOI, arXiv, SSRN and NBER numbers, title, and near-identical title
+    (ADR-129). A paper whose read failed is not here, so it is tried again."""
+    known = paper_search.Known()
     for paper in library.all_papers(root=papers):
-        titles.add(paper_search.normalise_title(paper.title))
-        if paper.source_url:
-            urls.add(paper.source_url.rstrip("/"))
+        known.add(paper.title, paper.source_url)
     for manifest in drafts.glob("*/run.json") if drafts.is_dir() else []:
-        # A paper read before and judged not relevant is not read again (2026-11-01:
-        # the same abstracts were read on every run of one topic).
+        # A paper read before and judged is not read again (2026-11-01: the same
+        # abstracts were read on every run of one topic).
         try:
             seen = json.loads(manifest.read_text(encoding="utf-8")).get("papers", [])
         except ValueError:
             continue
         for row in seen:
-            if row.get("outcome") == "not relevant" and row.get("url"):
-                urls.add(str(row["url"]).rstrip("/"))
+            if row.get("outcome") in ("not relevant", "drafted") and row.get("url"):
+                known.add(str(row.get("title") or ""), str(row["url"]))
     for meta_path in drafts.glob("*/*/draft.json") if drafts.is_dir() else []:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        urls.add(str(meta.get("url", "")).rstrip("/"))
         paper_path = meta_path.parent / "paper.yaml"
+        title = ""
         if paper_path.exists():
             spec = yaml.safe_load(paper_path.read_text(encoding="utf-8")) or {}
-            titles.add(paper_search.normalise_title(str(spec.get("title", ""))))
-    return titles, urls
+            title = str(spec.get("title", ""))
+        known.add(title, str(meta.get("url", "")))
+    return known
+
+
+def duplicates(papers: Path | None = None) -> list[tuple[str, str, str]]:
+    """Pairs of library entries that look like one paper: (id, id, why). Deletes nothing."""
+    held = library.all_papers(root=papers)
+    out: list[tuple[str, str, str]] = []
+    for i, a in enumerate(held):
+        ids_a = paper_search.identities(a.title, a.source_url)
+        words_a = paper_search.title_words(a.title)
+        for b in held[i + 1 :]:
+            shared = ids_a & paper_search.identities(b.title, b.source_url)
+            if shared:
+                out.append((a.id, b.id, f"same {min(shared).split(':')[0]}"))
+            elif paper_search.near_titles(words_a, paper_search.title_words(b.title)):
+                out.append((a.id, b.id, "near-identical title"))
+    return out
 
 
 def _default_ask(provider: str, model: str) -> Ask:
@@ -499,7 +535,7 @@ def run(
     topic: str,
     *,
     limit: int = DEFAULT_LIMIT,
-    sources: Sequence[str] = ("arxiv", "openalex"),
+    sources: Sequence[str] = paper_search.DEFAULT_SOURCES,
     years: float | None = None,
     ask: Ask | None = None,
     get: paper_search.Fetch = paper_search.fetch,
@@ -534,10 +570,13 @@ def run(
     # words is not read at all (2026-11-01: a brain-imaging paper was read for
     # "frog in the pan"; research 144). Stable, so the services' order breaks ties.
     words = paper_search.topic_words(topic)
-    scored = sorted(
-        ((paper_search.topic_score(c, words), c) for c in candidates), key=lambda pair: -pair[0]
+    scored = take_turns(
+        sorted(
+            ((paper_search.topic_score(c, words), c) for c in candidates),
+            key=lambda pair: -pair[0],
+        )
     )
-    titles, urls = known_papers(drafts, papers)
+    known = known_papers(drafts, papers)
     library_root = papers or library.ROOT
     made = 0
     for score, candidate in scored:
@@ -545,10 +584,7 @@ def run(
             break
         draft = Draft(candidate=candidate, read="")
         result.drafts.append(draft)
-        if (
-            paper_search.normalise_title(candidate.title) in titles
-            or candidate.url.rstrip("/") in urls
-        ):
+        if known.holds(candidate):
             draft.outcome = "known"
             continue
         if score == 0:
@@ -558,11 +594,11 @@ def run(
         if text:
             sleep(paper_search.ARXIV_SPACING)
         if not text and len(candidate.abstract) < paper_search.MIN_ABSTRACT and candidate.doi:
-            fuller = paper_search.crossref_abstract(candidate.doi, get=get)
-            if len(fuller) >= paper_search.MIN_ABSTRACT:
+            fuller, where = paper_search.fuller_abstract(candidate.doi, get=get)
+            if fuller:
                 candidate = replace(candidate, abstract=fuller)
                 draft.candidate = candidate
-                draft.read = "abstract from Crossref"
+                draft.read = f"abstract from {where}"
         if not text and len(candidate.abstract) < paper_search.MIN_ABSTRACT:
             draft.outcome = "nothing to read"
             continue
@@ -599,7 +635,7 @@ def run(
             draft.outcome = "not relevant"
             try:
                 draft.paper = build_rejected(candidate, reply, read=draft.read, model=answer.model)
-                _keep(draft.paper, library_root, titles)
+                _keep(draft.paper, library_root, known)
             except (ValidationError, ValueError) as exc:
                 log(f"not kept in the library: {str(exc)[:120]}")
             continue
@@ -615,7 +651,7 @@ def run(
         folder.mkdir(parents=True, exist_ok=True)
         draft.path = _stage(draft, folder, years=years)
         draft.outcome = "drafted"
-        _keep(draft.paper, library_root, titles)
+        _keep(draft.paper, library_root, known)
 
     if result.drafts:
         folder.mkdir(parents=True, exist_ok=True)
@@ -727,7 +763,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="paper-agent", description=__doc__)
     parser.add_argument("--topic", default="")
     parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="papers to draft")
-    parser.add_argument("--sources", default="arxiv,openalex")
+    parser.add_argument("--sources", default=",".join(paper_search.DEFAULT_SOURCES))
+    parser.add_argument(
+        "--duplicates", action="store_true", help="list library entries that look like one paper"
+    )
     parser.add_argument("--model", default="", help="an OpenRouter ZDR model id, optional")
     parser.add_argument("--spacing", type=float, default=DEFAULT_SPACING)
     parser.add_argument("--approve", default="", metavar="FOLDER")
@@ -745,6 +784,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"card:  {done.card} ({done.hypothesis_id}, status: draft)")
             print(f"\nNext, when you choose: make research CRITIC={done.hypothesis_id}")
         print("Nothing was backtested, registered or written to the trial ledger.")
+        return 0
+
+    if args.duplicates:
+        pairs = duplicates()
+        for a, b, why in pairs:
+            print(f"{why:<22} {a}\n{'':<22} {b}")
+        print(f"{len(pairs)} possible duplicate(s) in the library. Nothing was changed.")
         return 0
 
     if args.list:

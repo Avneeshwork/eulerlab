@@ -1,0 +1,7 @@
+# ADR-129: The research agent searches SSRN and NBER too, and knows one paper under all its links
+
+- **Context:** The operator asked for more sources of strategy research, "like SSRN", and no duplicate papers. The agent searched arXiv and OpenAlex and matched known papers by exact title or link, so a revision on SSRN (new DOI), an arXiv `v2`, or an SSRN page link against its DOI would be read and added again (research 145).
+- **Options:** (a) Fetch SSRN's site. (b) SSRN through OpenAlex's index of it, NBER through Crossref by DOI prefix, both keyless; identities by DOI, arXiv, SSRN and NBER numbers, title and near title. (c) Paid or keyed services (Semantic Scholar, CORE).
+- **Choice:** (b). `paper_search.SOURCES` holds every source by name; `config/agents/research.yaml` lists which are searched. A missing abstract comes from Crossref, then OpenAlex. `paper_search.Known` holds every name of every paper in the library, staged, or read and judged; a candidate matching any one is "known" and not read, and two sources returning one paper keep it once. Reads take turns across sources. `make papers-duplicates` lists library pairs that look like one paper and changes nothing.
+- **Why:** (a) breaks SSRN's block on robots. (c) needs keys or money for what (b) gives free. Matching every identity is what stops a revision coming in twice.
+- **Cost if wrong:** Two different papers with near-identical titles (85% of significant words, five or more) are taken as one, and the second is not read (A-099). More searches a day count against OpenAlex's free allowance.

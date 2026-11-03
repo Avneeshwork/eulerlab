@@ -112,6 +112,8 @@ def _get(url: str) -> bytes:
         return ARXIV_FEED
     if url.startswith(paper_search.OPENALEX_API):
         return OPENALEX_PAGE
+    if url.startswith(paper_search.CROSSREF_SEARCH + "?"):
+        return json.dumps({"message": {"items": []}}).encode()
     if url.startswith(paper_search.ARXIV_HTML):
         return (
             b"<html><body><nav>menu</nav><p>" + b"Paper body text. " * 300 + b"</p></body></html>"
@@ -507,3 +509,160 @@ def test_the_committed_config_names_an_approved_agent_provider() -> None:
     assert agent.model == "openai/gpt-oss-120b"
     retired = {"llama-3.3-70b-versatile", "meta-llama/llama-3.3-70b-instruct:free", "llama3.2:3b"}
     assert not retired & {p.model for p in config.providers}
+
+
+# --- more sources, and one paper under many names (ADR-129) ---
+
+
+def test_one_paper_under_many_links_is_one_paper() -> None:
+    ids = paper_search.identities
+    assert ids(url="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4163613") & ids(
+        doi="10.2139/ssrn.4163613"
+    )
+    assert ids(url="https://arxiv.org/abs/2501.01234v2") & ids(
+        url="https://arxiv.org/pdf/2501.01234v1"
+    )
+    assert ids(url="https://www.nber.org/papers/w25551") & ids(url="https://doi.org/10.3386/w25551")
+    assert ids(title="Factor Momentum, Versus Price") & ids(title="factor momentum versus price")
+    assert not ids(url="https://doi.org/10.1/a") & ids(url="https://doi.org/10.1/b")
+
+
+def test_a_reworded_revision_is_the_same_paper_but_a_short_title_needs_more() -> None:
+    known = paper_search.Known()
+    known.add("Factor Momentum Versus Stock Price Momentum: A Revisit of the Evidence in India")
+    revision = paper_search.Candidate(
+        "ssrn", "2", "Factor Momentum versus Stock Price Momentum: A Revisit of Evidence in India",
+        [], 2025, "", "https://doi.org/10.2139/ssrn.999", "t",
+    )  # fmt: skip
+    other = paper_search.Candidate(
+        "ssrn", "3", "Momentum in India", [], 2025, "", "https://doi.org/10.2139/ssrn.998", "t"
+    )
+    known.add("Momentum in Indian Stocks")
+    assert known.holds(revision) and not known.holds(other)
+
+
+def test_two_sources_returning_one_paper_keep_it_once() -> None:
+    nber = json.dumps(
+        {
+            "message": {
+                "items": [
+                    {
+                        "DOI": "10.3386/w25551",
+                        "title": ["Overnight Returns and Intraday Reversal in Emerging Markets"],
+                        "author": [{"given": "A.", "family": "Author"}],
+                        "published": {"date-parts": [[2019, 1]]},
+                    },
+                    {
+                        "DOI": "10.3386/w1",
+                        "title": ["Monetary Momentum"],
+                        "issued": {"date-parts": [[2017]]},
+                    },
+                ]
+            }
+        }
+    ).encode()
+
+    def get(url: str) -> bytes:
+        return nber if url.startswith(paper_search.CROSSREF_SEARCH + "?") else _get(url)
+
+    found, failures = paper_search.search(
+        "overnight reversal", sources=["arxiv", "nber"], get=get, sleep=lambda _s: None
+    )
+    assert not failures
+    assert [(c.source, c.title[:16]) for c in found] == [
+        ("arxiv", "Overnight Return"),
+        ("nber", "Monetary Momentu"),
+    ]
+    assert found[1].url == "https://doi.org/10.3386/w1" and found[1].year == 2017
+
+
+def test_ssrn_is_searched_through_openalex_and_named_ssrn() -> None:
+    asked: list[str] = []
+
+    def get(url: str) -> bytes:
+        asked.append(url)
+        return _get(url)
+
+    [*rows] = paper_search.search_ssrn("overnight", get=get)
+    assert "primary_location.source.id%3AS4210172589" in asked[0]
+    assert rows and all(c.source == "ssrn" for c in rows)
+
+
+def test_an_unknown_source_is_reported_not_fatal() -> None:
+    found, failures = paper_search.search("x", sources=["nope"], get=_get, sleep=lambda _s: None)
+    assert found == [] and failures == ["nope: unknown source"]
+
+
+def test_a_missing_abstract_falls_back_to_openalex_when_crossref_has_none() -> None:
+    text = "Momentum profits in factor returns explain stock momentum. " * 5
+    index: dict[str, list[int]] = {}
+    for i, w in enumerate(text.split()):
+        index.setdefault(w, []).append(i)
+
+    def get(url: str) -> bytes:
+        if url.startswith(paper_search.CROSSREF_API) and "?" not in url:
+            return json.dumps({"message": {}}).encode()
+        return json.dumps({"abstract_inverted_index": index}).encode()
+
+    found, where = paper_search.fuller_abstract("10.3386/w25551", get=get)
+    assert where == "OpenAlex" and found.startswith("Momentum profits")
+
+
+def test_a_paper_already_in_the_library_under_another_link_is_not_read(tmp_path: Path) -> None:
+    (tmp_path / "papers").mkdir()
+    library.save(
+        library.Paper(
+            title="A different wording entirely",
+            source_url="https://arxiv.org/pdf/2501.01234v1",
+            summary="s",
+            trade_idea="t",
+            implementation="i",
+        ),
+        root=tmp_path / "papers",
+    )
+    ask = _ask(RELEVANT)
+    result = _run(tmp_path, ask=ask)
+    assert result.drafts[0].outcome == "known"
+    assert all("Overnight" not in call for call in ask.calls)
+
+
+def test_the_duplicate_audit_names_pairs_and_changes_nothing(tmp_path: Path) -> None:
+    root = tmp_path / "papers"
+    for title, url in [
+        (
+            "Conservative formula India",
+            "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4163613",
+        ),
+        ("The Conservative Formula: Evidence from India", "https://doi.org/10.2139/ssrn.4163613"),
+        ("Something else", "https://doi.org/10.1/z"),
+    ]:
+        library.save(
+            library.Paper(
+                title=title, source_url=url, summary="s", trade_idea="t", implementation="i"
+            ),
+            root=root,
+        )
+    before = sorted(p.name for p in root.iterdir())
+    [(a, b, why)] = paper_agent.duplicates(root)
+    assert why == "same ssrn" and {a, b} == {
+        "conservative-formula-india",
+        "the-conservative-formula-evidence-from-india",
+    }
+    assert sorted(p.name for p in root.iterdir()) == before
+
+
+def test_the_committed_research_agent_searches_ssrn_and_nber() -> None:
+    from eulerlab.agents.spec import all_effective
+
+    sources = all_effective()["research"].spec.options["sources"]
+    assert {"ssrn", "nber"} <= set(sources) and set(sources) <= set(paper_search.SOURCES)
+
+
+def test_sources_take_turns_so_one_with_abstracts_cannot_take_every_read() -> None:
+    def c(source: str, n: int) -> paper_search.Candidate:
+        return paper_search.Candidate(source, str(n), f"t{n}", [], 2024, "", f"u{n}", "t")
+
+    scored = [(0.9, c("openalex", 1)), (0.8, c("openalex", 2)), (0.7, c("openalex", 3)),
+              (0.4, c("ssrn", 4)), (0.3, c("nber", 5)), (0.0, c("ssrn", 6))]  # fmt: skip
+    order = [p[1].source_id for p in paper_agent.take_turns(scored)]
+    assert order == ["1", "4", "5", "2", "3", "6"]

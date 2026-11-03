@@ -1558,9 +1558,10 @@ to the one cost path; until 2026-10-07 they charged ETFs the share rate
 `research/paper_search.py`) goes from a topic to drafts the operator reads.
 Cards stop there; papers go into the library (ADR-126).
 
-    price the search -> arXiv (q-fin) + OpenAlex -> closest to the topic first
-      -> drop papers already known, and ones sharing no topic word
-      -> read arXiv HTML (first 16,000 chars), the abstract, or Crossref's abstract
+    price the search -> the sources in research.yaml (arXiv q-fin, OpenAlex, SSRN, NBER)
+      -> one per paper across sources -> closest to the topic first, sources taking turns
+      -> drop papers already known by any name, and ones sharing no topic word
+      -> read arXiv HTML (first 16,000 chars), the abstract, or Crossref's, else OpenAlex's
       -> research_agent model (one retry) -> JSON reply -> library.Paper + Card
       -> research/papers/<id>.yaml for every paper judged, even "not a trading idea"
       -> card.validate + critic.review
@@ -1573,6 +1574,17 @@ trade idea; a drafted one goes in with status `idea`, and approval links its car
 to it. So the library grows with each run and no paper is read twice. The
 abstract itself is never written into the repository (Crossref warns some are
 the publisher's copyright, research 144): only the model's summary.
+
+**Sources and one paper under many links (ADR-129).** `paper_search.SOURCES`:
+`arxiv`, `openalex`, `ssrn` (OpenAlex works whose source is SSRN, `S4210172589`;
+SSRN's own site refuses robots) and `nber` (Crossref works with DOI prefix
+`10.3386`). `config/agents/research.yaml` `sources:` lists which are searched.
+`paper_search.Known` holds every name of every paper in the library, staged, or
+read and judged: DOI, arXiv number without version, SSRN number (page link or
+`10.2139/ssrn.N`), NBER `wN`, normalised title, and the title's significant
+words; a candidate sharing a name, or 85% of a title of five or more words
+(A-099), is `known`. A paper whose read failed is not, so it is tried again.
+`make papers-duplicates` lists library pairs that look like one paper.
 
 **Which papers are read.** Candidates are sorted by the share of the topic's
 content words (first five letters, so "momentum" meets "moment") their title and
