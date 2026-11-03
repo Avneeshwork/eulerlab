@@ -19,6 +19,10 @@ Sources, their limits and their terms: research 124.
 - **OpenAlex** (`api.openalex.org/works`): JSON, no key needed for $0.10 of
   calls a day, which is 100 searches. A free key (`OPENALEX_API_KEY`) raises
   that to $1. Abstracts arrive as an inverted index and are rebuilt here.
+- **Crossref** (`api.crossref.org/works/<doi>`): no key. Asked only for a paper
+  OpenAlex found with no usable abstract, one request each (research 144). Some
+  abstracts there are the publisher's copyright, so a fetched abstract is only
+  sent to the model, never written into the repository.
 
 The network is reached through `fetch`, a single function, so tests replace it
 with recorded responses and never touch the internet (S-040).
@@ -44,6 +48,9 @@ ARXIV_API = "https://export.arxiv.org/api/query"
 ARXIV_HTML = "https://arxiv.org/html/"
 OPENALEX_API = "https://api.openalex.org/works"
 OPENALEX_KEY_ENV = "OPENALEX_API_KEY"
+CROSSREF_API = "https://api.crossref.org/works/"
+MIN_ABSTRACT = 200
+"""Characters below which an abstract is too short to judge a paper from."""
 USER_AGENT = "EulerLab-paper-agent/0.1"
 TIMEOUT_SECONDS = 30
 ARXIV_SPACING = 3.0
@@ -81,6 +88,8 @@ class Candidate:
     """ISO time the service answered: the card's fetch date."""
     pdf_url: str = ""
     categories: list[str] = field(default_factory=list)
+    doi: str = ""
+    """`10.2139/ssrn.123`, when the service gave one. Used to find a missing abstract."""
 
     @property
     def arxiv_id(self) -> str:
@@ -233,9 +242,97 @@ def parse_openalex(body: bytes, *, fetched_at: str) -> list[Candidate]:
                 url=url,
                 fetched_at=fetched_at,
                 pdf_url=str(location.get("pdf_url") or open_access.get("oa_url") or ""),
+                doi=doi_of(str(row.get("doi") or "")),
             )
         )
     return out
+
+
+def doi_of(link: str) -> str:
+    """`10.x/y` from `https://doi.org/10.x/y`, or empty."""
+    match = re.search(r"(10\.\d{4,9}/\S+)", link)
+    return match.group(1) if match else ""
+
+
+def crossref_abstract(doi: str, *, get: Fetch = fetch) -> str:
+    """The abstract Crossref holds for a DOI, as plain text, or "".
+
+    Publishers deposit it as JATS XML (`<jats:p>...`); the tags are dropped.
+    Never raises: a missing abstract is the usual answer, not an error.
+    """
+    if not doi:
+        return ""
+    try:
+        body = json.loads(get(CROSSREF_API + urllib.parse.quote(doi)))
+    except (SearchFailed, ValueError):
+        return ""
+    message = body.get("message") if isinstance(body, dict) else None
+    raw = message.get("abstract") if isinstance(message, dict) else None
+    if not isinstance(raw, str):
+        return ""
+    text = _clean(re.sub(r"<[^>]+>", " ", raw))
+    return re.sub(r"^(abstract|summary)[:.\s]+", "", text, flags=re.IGNORECASE)
+
+
+TOPIC_STOP = frozenset(
+    [
+        "a",
+        "an",
+        "and",
+        "the",
+        "of",
+        "in",
+        "on",
+        "for",
+        "with",
+        "from",
+        "to",
+        "by",
+        "at",
+        "as",
+        "is",
+        "are",
+        "its",
+        "into",
+        "over",
+        "under",
+        "using",
+        "india",
+        "indian",
+        "stock",
+        "stocks",
+        "market",
+        "markets",
+        "equity",
+        "equities",
+        "return",
+        "returns",
+        "evidence",
+        "study",
+        "analysis",
+        "strategy",
+        "strategies",
+        "trading",
+    ]
+)
+"""Words that say nothing about which effect a paper is about."""
+
+
+def topic_words(topic: str) -> list[str]:
+    """The topic's content words, cut to five letters so 'momentum' meets 'moment'."""
+    words = re.findall(r"[a-z][a-z0-9]+", topic.lower())
+    return sorted({w[:5] for w in words if w not in TOPIC_STOP and len(w) > 2})
+
+
+def topic_score(candidate: Candidate, words: list[str]) -> float:
+    """The share of the topic's content words the title and abstract use."""
+    if not words:
+        return 1.0
+    have = {
+        w[:5]
+        for w in re.findall(r"[a-z][a-z0-9]+", f"{candidate.title} {candidate.abstract}".lower())
+    }
+    return sum(1 for w in words if w in have) / len(words)
 
 
 def search_openalex(

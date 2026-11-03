@@ -240,6 +240,13 @@ def run(ctx: Context) -> WorkerResult:
             status="refused" if "affordable" in " ".join(result.failures) else "failed",
         )
 
+    # Every paper's fate, in words (2026-11-03: runs said "0 drafted" and
+    # nothing else, so a reply-shape bug looked like a lack of papers).
+    for d in result.drafts:
+        if d.outcome == "not relevant":
+            ctx.notes.append(f"not a trading idea: {d.candidate.title[:70]} ({d.relevance[:150]})")
+        elif d.outcome.startswith("failed"):
+            ctx.notes.append(f"could not read: {d.candidate.title[:70]} ({d.outcome[8:][:150]})")
     ctx.step(f"Checking {len(result.drafts)} drafts against ideas already tried")
     cards = known_cards()
     lab_tested = idea_memory.tested_features(idea_memory.load(ctx.root))
@@ -327,8 +334,23 @@ def run(ctx: Context) -> WorkerResult:
     items = [item for _, item in ranked] + items + leads
     drafted = len(ranked)
     repeats = sum(1 for _, i in ranked if i.data.get("repeat_of"))
+    counts = result.counts()
+    read = sum(counts.get(k, 0) for k in ("drafted", "not relevant", "failed"))
+    kept = sum(1 for d in result.drafts if d.paper is not None)
+    skipped = ", ".join(
+        f"{counts[k]} {label}"
+        for k, label in (
+            ("known", "already known"),
+            ("nothing to read", "with no abstract"),
+            ("off topic", "off topic"),
+        )
+        if counts.get(k)
+    )
     return WorkerResult(
-        f"{topic}: {drafted} drafted, {repeats} repeats of closed ideas, "
+        f"{topic}: {read} read, {drafted} drafted, "
+        f"{counts.get('not relevant', 0)} not a trading idea, {counts.get('failed', 0)} failed"
+        + (f"; skipped {skipped}" if skipped else "")
+        + f"; {kept} added to the library; {repeats} repeats of closed ideas, "
         f"{sum(1 for i in items if i.kind == 'data_request')} data requests, "
         f"{len(leads)} Quantpedia leads. Nothing registered.",
         items,
@@ -337,5 +359,7 @@ def run(ctx: Context) -> WorkerResult:
             "folder": str(result.folder),
             "bar_now": round(result.cost.bar_now, 3),
             "topic_from_lab": lab is not None and topic in lab.topics,
+            "outcomes": counts,
+            "library": [d.paper.id for d in result.drafts if d.paper is not None],
         },
     )

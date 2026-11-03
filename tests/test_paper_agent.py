@@ -214,10 +214,148 @@ def test_a_relevant_paper_is_staged_with_the_search_link_not_the_models(tmp_path
     assert json.loads((folder / "draft.json").read_text())["card"] == "valid"
 
 
-def test_the_weather_paper_is_judged_by_the_model_not_staged(tmp_path: Path) -> None:
+def test_a_paper_judged_not_relevant_is_kept_in_the_library_not_staged(tmp_path: Path) -> None:
+    """Operator, 2026-11-03: keep adding papers to the library even if a paper is not good."""
     result = _run(tmp_path, reply={"relevant": False, "relevance": "no market effect"})
-    assert {d.outcome for d in result.drafts} <= {"not relevant", "nothing to read"}
+    assert {d.outcome for d in result.drafts} <= {"not relevant", "nothing to read", "off topic"}
     assert not list((tmp_path / "drafts").glob("*/*/paper.yaml"))
+    [kept] = library.all_papers(root=tmp_path / "papers")
+    assert kept.status == "rejected" and kept.trade_idea.endswith("no market effect")
+    assert kept.source_url == "https://arxiv.org/abs/2501.01234v2"
+    assert "Rain falls" not in kept.summary  # never an abstract copied in
+    manifest = json.loads(next((tmp_path / "drafts").glob("*/run.json")).read_text())
+    assert {p["outcome"] for p in manifest["papers"]} >= {"not relevant", "off topic"}
+    again = _run(tmp_path, reply={"relevant": False, "relevance": "no market effect"})
+    assert again.counts().get("not relevant", 0) == 0  # not read twice
+
+
+def test_a_drafted_paper_is_in_the_library_and_approval_links_its_card(tmp_path: Path) -> None:
+    result = _run(tmp_path)
+    [drafted] = [d for d in result.drafts if d.outcome == "drafted"]
+    assert drafted.paper is not None and drafted.path is not None
+    assert library.load(drafted.paper.id, root=tmp_path / "papers") is not None
+    done = paper_agent.approve(
+        drafted.path, hypotheses=tmp_path / "hypotheses", papers=tmp_path / "papers"
+    )
+    linked = library.load(drafted.paper.id, root=tmp_path / "papers")
+    assert linked is not None and linked.hypothesis == done.hypothesis_id
+    assert linked.status == "specified"
+
+
+def test_a_section_written_as_an_object_is_kept_as_text() -> None:
+    """2026-11-03: gpt-oss-120b wrote `implementation` as an object and the draft was lost."""
+    reply = json.loads(json.dumps(RELEVANT))
+    reply["paper"]["implementation"] = {"universe": "NSE 500", "holding": ["1 month", "3 months"]}
+    reply["paper"]["red_flags"] = "Costs are not modelled."
+    reply["hypothesis"]["red_flags"] = [{"flag": f} for f in GOOD_FLAGS]
+    parsed = paper_agent.Reply.parse(json.dumps(reply))
+    assert parsed.paper is not None and parsed.hypothesis is not None
+    assert parsed.paper.implementation == "universe: NSE 500\nholding: - 1 month\n- 3 months"
+    assert parsed.paper.red_flags == ["Costs are not modelled."]
+    assert parsed.hypothesis.red_flags[0].startswith("flag: The paper's 6 bps")
+
+
+def test_a_failed_model_request_is_tried_once_more(tmp_path: Path) -> None:
+    tries: list[int] = []
+
+    def flaky(system: str, user: str, accept: Any) -> FakeAnswer:
+        tries.append(1)
+        if len(tries) == 1:
+            raise RuntimeError("groq did not answer in 60 seconds")
+        return FakeAnswer(text=json.dumps(RELEVANT))
+
+    result = _run(tmp_path, ask=flaky, limit=1)
+    assert len(tries) == 2 and result.counts() == {"drafted": 1}
+
+
+def test_a_spent_budget_is_not_retried(tmp_path: Path) -> None:
+    class BudgetSpent(RuntimeError):
+        pass
+
+    tries: list[int] = []
+
+    def spent(system: str, user: str, accept: Any) -> FakeAnswer:
+        tries.append(1)
+        raise BudgetSpent("used its requests")
+
+    result = _run(tmp_path, ask=spent, limit=1)
+    assert len(tries) == 1 and result.counts() == {"failed": 1}
+
+
+def test_closest_papers_are_read_first_and_ones_sharing_no_topic_word_are_not(
+    tmp_path: Path,
+) -> None:
+    words = paper_search.topic_words("frog in the pan continuous information momentum")
+    assert words == ["conti", "frog", "infor", "momen", "pan"]
+    near = paper_search.Candidate(
+        "openalex", "1", "Frog in the pan momentum", [], 2024, "", "u", "t"
+    )
+    far = paper_search.Candidate(
+        "openalex", "2", "Brain image fusion networks", [], 2024, "", "v", "t"
+    )
+    assert paper_search.topic_score(near, words) == 0.6
+    assert paper_search.topic_score(far, words) == 0
+
+
+def test_a_missing_abstract_is_looked_up_on_crossref_by_doi(tmp_path: Path) -> None:
+    page = json.dumps(
+        {
+            "results": [
+                {
+                    "id": "https://openalex.org/W9",
+                    "doi": "https://doi.org/10.2139/ssrn.7255321",
+                    "display_name": "Overnight reversal in India",
+                    "publication_year": 2025,
+                    "primary_location": {
+                        "landing_page_url": "https://doi.org/10.2139/ssrn.7255321"
+                    },
+                    "authorships": [],
+                }
+            ]
+        }
+    ).encode()
+    abstract = "Overnight winners reverse during the day on the NSE. " * 6
+    fetched: list[str] = []
+
+    def get(url: str) -> bytes:
+        fetched.append(url)
+        if url.startswith(paper_search.CROSSREF_API):
+            return json.dumps(
+                {"message": {"abstract": f"<jats:p>Abstract {abstract}</jats:p>"}}
+            ).encode()
+        if url.startswith(paper_search.OPENALEX_API):
+            return page
+        return _get(url)
+
+    [row] = paper_search.parse_openalex(page, fetched_at="t")
+    assert row.doi == "10.2139/ssrn.7255321"
+    assert paper_search.crossref_abstract(row.doi, get=get).startswith("Overnight winners")
+    ask = _ask(RELEVANT)
+    result = paper_agent.run(
+        "overnight reversal",
+        limit=3,
+        years=11.0,
+        ask=ask,
+        get=get,
+        sources=["openalex"],
+        drafts=tmp_path / "drafts",
+        papers=tmp_path / "papers",
+        spacing=0,
+        sleep=lambda _s: None,
+        log=lambda _m: None,
+    )
+    assert result.drafts[0].read == "abstract from Crossref"
+    assert "Overnight winners reverse" in ask.calls[0]
+    kept = library.all_papers(root=tmp_path / "papers")
+    assert kept and all("Overnight winners reverse during" not in p.summary for p in kept)
+
+
+def test_crossref_trouble_is_no_abstract_not_an_error() -> None:
+    def down(url: str) -> bytes:
+        raise paper_search.SearchFailed("api.crossref.org returned HTTP 503")
+
+    assert paper_search.crossref_abstract("10.1/x", get=down) == ""
+    assert paper_search.crossref_abstract("", get=down) == ""
 
 
 def test_papers_already_in_the_library_are_not_read_again(tmp_path: Path) -> None:
@@ -250,7 +388,8 @@ def test_a_malformed_reply_fails_that_paper_only(tmp_path: Path) -> None:
 
     result = _run(tmp_path, ask=ask)
     assert all(
-        d.outcome.startswith("failed") or d.outcome == "nothing to read" for d in result.drafts
+        d.outcome.startswith("failed") or d.outcome in ("nothing to read", "off topic")
+        for d in result.drafts
     )
 
 

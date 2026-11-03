@@ -1555,14 +1555,32 @@ to the one cost path; until 2026-10-07 they charged ETFs the share rate
 ## 7.1b The paper agent (ADR-084)
 
 `make paper-agent TOPIC="..." [LIMIT=5]` (`research/paper_agent.py`,
-`research/paper_search.py`) goes from a topic to drafts the operator reads. It
-stops there.
+`research/paper_search.py`) goes from a topic to drafts the operator reads.
+Cards stop there; papers go into the library (ADR-126).
 
-    price the search -> arXiv (q-fin) + OpenAlex -> drop papers already known
-      -> read arXiv HTML (first 16,000 chars) or the abstract
-      -> research_agent model -> JSON reply -> library.Paper + Card
+    price the search -> arXiv (q-fin) + OpenAlex -> closest to the topic first
+      -> drop papers already known, and ones sharing no topic word
+      -> read arXiv HTML (first 16,000 chars), the abstract, or Crossref's abstract
+      -> research_agent model (one retry) -> JSON reply -> library.Paper + Card
+      -> research/papers/<id>.yaml for every paper judged, even "not a trading idea"
       -> card.validate + critic.review
       -> research/agent_drafts/<run>/<paper>/{paper,card}.yaml, review.txt, draft.json
+      -> research/agent_drafts/<run>/run.json: every paper's outcome and why
+
+**Every paper read is kept (ADR-126).** A paper the model judged not a testable
+trading idea goes into the library with status `rejected` and the reason in its
+trade idea; a drafted one goes in with status `idea`, and approval links its card
+to it. So the library grows with each run and no paper is read twice. The
+abstract itself is never written into the repository (Crossref warns some are
+the publisher's copyright, research 144): only the model's summary.
+
+**Which papers are read.** Candidates are sorted by the share of the topic's
+content words (first five letters, so "momentum" meets "moment") their title and
+abstract use; one with none is `off topic` and not read (A-097). A paper with
+under 200 characters of abstract and a DOI is looked up on Crossref, one request.
+A model's reply that writes a text section as an object or a list is turned into
+lines, not dropped. A failed model request is tried once more after 10 s, except
+when the budget is spent.
 
 **Order matters.** The search is priced before anything is fetched. An
 unaffordable search (`budget.price_search`) reads nothing. Known papers
@@ -2698,7 +2716,7 @@ definition + operator switches (narrow only) ─────┤
 | knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia, the metrics library, the glossary), through 10 of the assistant's tools; at most 4 requests a question plus 2 for its retry (ADR-125) | answers with sources |
 | knowledge_keeper | held data for normals; SEBI, RBI and NSE circular feeds; the metrics library; `docs/ASSUMPTIONS.md` | refreshed normals; notices linked to pages; gaps; drafted page updates for approval |
 | market_brief | the running API's market context, world prices, the economic calendar, NSE reports (ban list, deals, IPOs), board-meeting intimations, the books | a pre-open brief or after-close note as data (ADR-105); Telegram in eight lines |
-| research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads |
+| research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads; a summary counting papers read, drafted, not a trading idea, failed and skipped, and a note per rejected paper with why |
 | skeptic | a stored backtest's equity curve | attacks: best year, best days, stress windows (A-067), t-stat, costs |
 | engineering | the branch's changed files | review findings: operator-owned files, missing docs or tests, boundary breaks |
 | portfolio | promoted strategies, deployed books | inverse-volatility weights (capped), drift, retirement proposals |
