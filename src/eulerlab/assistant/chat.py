@@ -373,7 +373,7 @@ def pace(
     with _PACE_LOCK:
         t = now()
         bucket = _BUCKETS.setdefault(key, _Bucket(float(limit), t))
-        bucket.left = min(float(limit), bucket.left + (t - bucket.at) * rate)
+        bucket.left = min(float(limit), bucket.left + max(0.0, t - bucket.at) * rate)
         bucket.at = t
         need = float(min(tokens, limit))
         wait = max(0.0, (need - bucket.left) / rate)
@@ -385,7 +385,12 @@ def pace(
         return wait
 
 
-def settle(chosen: client.Provider, remaining: str | None) -> None:
+def settle(
+    chosen: client.Provider,
+    remaining: str | None,
+    *,
+    now: Callable[[], float] = time.monotonic,
+) -> None:
     """Take the host's own count of tokens left, when it sends one."""
     if not chosen.tokens_per_minute or remaining is None:
         return
@@ -397,7 +402,7 @@ def settle(chosen: client.Provider, remaining: str | None) -> None:
         bucket = _BUCKETS.get(f"{chosen.name}:{chosen.model}")
         if bucket is not None:
             bucket.left = left
-            bucket.at = time.monotonic()
+            bucket.at = now()
 
 
 def _retry_after(exc: urllib.error.HTTPError) -> float | None:

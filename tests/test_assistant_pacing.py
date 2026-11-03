@@ -72,9 +72,9 @@ def test_no_limit_means_no_pacing() -> None:
 def test_the_hosts_own_count_corrects_the_guess() -> None:
     clock = Clock()
     chat.pace(PACED, 1000, now=clock.now, sleep=clock.sleep)
-    chat.settle(PACED, "100")  # another process spent the rest
+    chat.settle(PACED, "100", now=clock.now)  # another process spent the rest
     assert chat.pace(PACED, 600, now=clock.now, sleep=clock.sleep) > 0
-    chat.settle(PACED, "not a number")  # ignored
+    chat.settle(PACED, "not a number", now=clock.now)  # ignored
 
 
 def test_the_committed_groq_provider_is_paced() -> None:
