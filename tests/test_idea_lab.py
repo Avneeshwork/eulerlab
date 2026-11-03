@@ -354,10 +354,32 @@ def test_the_lab_tests_every_untested_research_draft_not_only_the_latest(lab_env
             now=datetime(2026, 10, 29 + n, 12, 0, tzinfo=UTC),
             worker=_drafting(folder, needs),
         )
+    (drafts[1] / "draft.json").write_text(json.dumps({"card": "valid"}))
     out = runtime.run("lab", root=root, agents=_lab(max_ideas=0, model_ideas=0), now=NOW)
     assert str(drafts[0] / "card.yaml") in out.data["tested"]
     assert out.data["feedback"]["missing_features"] == ["liquidity_beta"]
     assert any(i.kind == "proposal" and "liquidity_beta" in i.body for i in out.items)
+    # The draft the lab skipped reaches engineering (HISTORY #67: before ADR-128
+    # it was recorded only at a step skipped drafts never reach).
+    from eulerlab.agents import work
+
+    assert out.data["unbuildable"] == [
+        {"card": str(drafts[1] / "card.yaml"), "features": ["liquidity_beta"], "source": "research"}
+    ]
+    [task] = work.coding_handoffs(root, NOW)
+    assert task.owner == "engineering" and task.args == {
+        "feature": "liquidity_beta",
+        "card": str(drafts[1] / "card.yaml"),
+    }
+
+
+def test_the_committed_lab_writes_no_ideas_of_its_own(lab_env: Path) -> None:
+    """Operator, 2026-11-03: "we have to backtest only what research finds"."""
+    assert all_effective()["lab"].spec.options["max_ideas"] == 0
+    assert all_effective()["lab"].spec.options["model_ideas"] == 0
+    out = runtime.run("lab", root=lab_env / "agents", agents=_lab(), now=NOW)
+    assert out.data["planned"] == [] and out.data["tested"] == []
+    assert idea_memory.load(lab_env / "agents") == []
 
 
 def test_the_lab_asks_the_model_for_formulas_and_tests_the_ones_that_parse(lab_env: Path) -> None:
@@ -390,7 +412,7 @@ def test_the_lab_asks_the_model_for_formulas_and_tests_the_ones_that_parse(lab_e
 # --- the research agent's side of the handoff ---
 
 
-def test_research_takes_its_topic_from_the_lab_in_turn() -> None:
+def test_research_takes_one_topic_a_day_in_turn() -> None:
     from eulerlab.agents.workers import research
 
     topics = ["a", "b", "c"]
@@ -398,13 +420,15 @@ def test_research_takes_its_topic_from_the_lab_in_turn() -> None:
     assert sorted(research.todays_topic(topics, d) for d in days) == topics
 
 
-def test_research_uses_the_lab_feedback_and_trusts_the_library_over_abstract_words(
+def test_research_picks_its_own_topic_and_reads_the_lab_only_as_memory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from eulerlab.research import budget, paper_agent, paper_search, quantpedia
 
     root = tmp_path / "agents"
-    fb = idea_memory.Feedback(topics=["frog in the pan momentum"], working=["momentum"])
+    fb = idea_memory.Feedback(
+        topics=["frog in the pan momentum"], working=["momentum"], dead=["small_size"]
+    )
     runtime.run(
         "lab",
         root=root,
@@ -441,14 +465,17 @@ def test_research_uses_the_lab_feedback_and_trusts_the_library_over_abstract_wor
                 worker="eulerlab.agents.workers.research",
                 uses_model=True,
                 daily_requests=5,
+                options={"topics": ["low volatility India", "reversal India"]},
             ),
             None,
         )
     }
     out = runtime.run("research", root=root, agents=agents, now=NOW)
     assert out.status == "ok", out.summary
-    assert seen["topic"] == "frog in the pan momentum"
-    assert "momentum" in seen["guidance"]
+    # Research goes first (ADR-128): its own list, never the lab's topic.
+    assert seen["topic"] in ("low volatility India", "reversal India")
+    assert "small_size" in seen["guidance"]  # what failed: memory
+    assert "passed the idea lab" not in seen["guidance"]  # what worked: not direction
     draft = next(i for i in out.items if i.kind == "draft")
     assert draft.data["needs_data"] == [] and draft.data["unknown_features"] == []
     assert not [i for i in out.items if i.kind == "data_request"]

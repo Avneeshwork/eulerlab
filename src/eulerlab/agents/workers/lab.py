@@ -222,11 +222,23 @@ def _run(ctx: Context) -> WorkerResult:
     # What to test: research drafts first (they carry a paper), then the lab's own ideas.
     queue: list[tuple[Path, str, Source, str]] = []
     missing: set[str] = set()
+    unbuildable: list[dict[str, Any]] = []
     for card_path in candidates(ctx):
         if str(card_path) in tested_before:
             continue
         unknown = [f for f in _card_features(card_path) if not formula.is_known(f)]
         missing.update(unknown)
+        if unknown:
+            # For the engineering agent: the named signals the library lacks (ADR-127).
+            # Recorded here, where the card is skipped (HISTORY #67: it was recorded
+            # only at a later step these cards never reach, so none was handed on).
+            unbuildable.append(
+                {
+                    "card": str(card_path),
+                    "features": [f for f in unknown if not f.startswith(formula.PREFIX)],
+                    "source": "research",
+                }
+            )
         if unknown or not _card_features(card_path):
             # Not buildable: listed once in the feedback, never given a slot (2026-11-01:
             # unbuildable drafts were re-noted every run and could crowd out real ones).
@@ -267,7 +279,6 @@ def _run(ctx: Context) -> WorkerResult:
 
     items: list[Item] = []
     tested: list[str] = []
-    unbuildable: list[dict[str, Any]] = []
     results: list[dict[str, Any]] = []
     digest: list[str] = []
     out_of_time = 0

@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -79,7 +79,9 @@ help:
 	@echo "  make agent NAME=<agent> [ARGS='k=v ...']  run one agent now"
 	@echo "  make agent-brief NAME=<agent|all> TEXT='...'  give an agent standing context"
 	@echo "  make agents-preopen / agents-close / agents-weekly  the scheduled agent batches"
-	@echo "  make agents-ideas             the heads' tasks, research, then the idea lab (daily, 17:00 IST)"
+	@echo "  make agents-ideas             research, then the idea lab, then engineering; memory to B2 (daily, 17:00 IST)"
+	@echo "  make agents-backup            the agents' memory, drafts, papers and trial ledger to B2 (DRY=1 to preview)"
+	@echo "  make agents-restore           download that memory back, only into empty folders"
 	@echo "  make agents-work              heads split and check tasks, then due tasks run (ADR-124)"
 	@echo "  make agents-capabilities      can every agent do the work it may be given?"
 	@echo "  make agent-fix-apply ID=...   merge a fix the engineering agent made and proved"
@@ -328,6 +330,9 @@ agents-weekly:
 
 # Research, then the idea lab, every day (ADR-110). The lab reads the research
 # agent's new drafts; research reads the lab's feedback from the day before.
+# In order (ADR-128): research finds papers and drafts ideas, the lab backtests
+# what it can build, then the work runner hands the rest to engineering and
+# runs it, and the day's memory goes to B2.
 agents-ideas:
 	-@uv run python -m eulerlab.agents.runtime head_research
 	-@uv run python -m eulerlab.agents.runtime head_platform
@@ -335,11 +340,19 @@ agents-ideas:
 	-@uv run python -m eulerlab.agents.work
 	-@uv run python -m eulerlab.agents.runtime research
 	-@uv run python -m eulerlab.agents.runtime lab
+	-@uv run python -m eulerlab.agents.work
+	-@uv run python -m eulerlab.ingest.memory_backup
 
 # The agent company's working day (ADR-124): each head checks finished tasks,
 # splits yours (model first, fixed rules if not) and plans its agents' day;
 # then the work runner turns hand-offs into tasks and runs the ones that may
 # start by themselves. Also inside agents-preopen and agents-ideas.
+agents-backup:
+	@uv run python -m eulerlab.ingest.memory_backup $(if $(DRY),--dry-run,)
+
+agents-restore:
+	@uv run python -m eulerlab.ingest.memory_backup --restore
+
 agents-work:
 	-@uv run python -m eulerlab.agents.runtime head_research
 	-@uv run python -m eulerlab.agents.runtime head_platform

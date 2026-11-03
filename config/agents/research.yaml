@@ -1,10 +1,10 @@
 # The research agent (ADR-085): the paper agent (ADR-084) plus a librarian pass.
-# Since ADR-111 it runs daily and takes its topic from the idea lab's feedback
-# when no brief names one; `topic` below is the fallback.
+# Since ADR-128 it runs first each day (research, then the lab, then engineering)
+# and picks its own topic from `topics` below when no task or brief names one.
 name: research
 title: Research agent
 reports_to: research
-job: Finds papers on the brief's topic, or on the topic the idea lab's feedback names that day, drafts idea cards with what the lab has learned in hand, drops repeats of ideas already tried or tested, asks the data agent for data it lacks, and ranks the survivors for you.
+job: Goes first each day. Finds papers on the brief's topic, or the day's topic from its own list, keeps every paper it reads in the library, drafts idea cards for the idea lab to backtest, drops repeats of ideas already tested, asks the data agent for data it lacks, and ranks the drafts for you.
 worker: eulerlab.agents.workers.research
 schedule: "Every day 17:00 IST, before the idea lab (make agents-ideas)"
 uses_model: true
@@ -17,6 +17,17 @@ needs_approval: true
 options:
   limit: 5
   topic: "Indian equities cross-sectional anomalies with low turnover"
+  # Research goes first and picks its own topic (ADR-128): one a day from this
+  # list, in turn, unless a task or your brief names one. The lab no longer chooses.
+  topics:
+    - "Indian equities cross-sectional anomalies with low turnover"
+    - "price momentum Indian stocks"
+    - "low volatility anomaly Indian stock market"
+    - "short-term reversal Indian equities"
+    - "liquidity premium Indian stocks"
+    - "52-week high momentum India"
+    - "volume and turnover signals Indian equities"
+    - "intraday return patterns NSE stocks"
 
 # Everyday work and the tasks a head may give it (ADR-124).
 duties:
