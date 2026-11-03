@@ -318,6 +318,21 @@ def status(name: str = "", model: str = "") -> dict[str, Any]:
     }
 
 
+RETRY_AFTER_MAX = 20.0
+"""The longest `retry-after` worth waiting for inside one request, in seconds."""
+
+
+def _retry_after(exc: urllib.error.HTTPError) -> float | None:
+    """Seconds to wait before one retry, or None: only a 429 naming a short wait."""
+    if exc.code != 429 or exc.headers is None:
+        return None
+    try:
+        wait = float(exc.headers.get("retry-after", ""))
+    except ValueError:
+        return None
+    return wait if 0 <= wait <= RETRY_AFTER_MAX else None
+
+
 def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
     """Send one request, scrubbed. The only place the assistant opens a connection,
     apart from Claude, which goes through Anthropic's SDK with the same scrub."""
@@ -341,9 +356,21 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-            parsed: dict[str, Any] = json.loads(response.read().decode())
-            return parsed
+        try:
+            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+                parsed: dict[str, Any] = json.loads(response.read().decode())
+                return parsed
+        except urllib.error.HTTPError as first:
+            wait = _retry_after(first)
+            if wait is None:
+                raise
+            # Groq's per-minute token limit (8K for gpt-oss-120b) is hit by an
+            # agent that asks several times in a second; its 429 names the wait
+            # (research 142). Wait once, then try again.
+            time.sleep(wait)
+            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+                again: dict[str, Any] = json.loads(response.read().decode())
+                return again
     except urllib.error.HTTPError as exc:
         if exc.code == 404 and host_of(chosen) in ROUTING:
             raise ModelUnavailable(

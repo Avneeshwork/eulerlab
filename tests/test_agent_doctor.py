@@ -46,6 +46,16 @@ def test_a_crash_becomes_a_code_problem_for_engineering() -> None:
     assert found[0].file == "src/eulerlab/agents/workers/lab.py" and found[0].line == 210
 
 
+def test_a_spent_quota_or_missing_key_is_model_down_not_a_code_error() -> None:
+    # HISTORY #64: a Groq rate limit was queued for the engineering agent as a bug.
+    for summary in (
+        "ModelUnavailable: The free quota is used up for the moment. Try again in a minute.",
+        "Refused: No GROQ_API_KEY in .env.",
+    ):
+        found = doctor.examine(_Out(status="failed", summary=summary, notes=[TRACE, "Refused"]))
+        assert [p.kind for p in found] == ["model_down"], summary
+
+
 def test_too_good_results_are_flagged_and_a_refusal_for_data_goes_to_the_data_agent() -> None:
     lab = _Out(
         data={

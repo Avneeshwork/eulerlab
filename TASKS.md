@@ -3,16 +3,19 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
-## The agent company: departments, managers, goals, calendar (2026-11-02, ADR-123)
+## The agent company: departments, managers, goals, calendar (2026-11-02, ADR-123; 2026-11-03, ADR-124)
 
-Operator: "implement paperclick agent organisation model, make each agent employee and above that assign manager which ask for work and i will be ceo who sees final work and approve"; "set goals for agents"; "add calendar of agents work in ui". Built natively, the operator's choice (research 141).
+Operator: "implement paperclick agent organisation model, make each agent employee and above that assign manager which ask for work and i will be ceo who sees final work and approve"; "set goals for agents"; "add calendar of agents work in ui". Built natively, the operator's choice (research 141). On 2026-11-03: "work on organisation structure of agents, so that every agent plan their task properly and define everyday task properly and give option to add on ceo given task to different managers which allot to other agents ... keep ui organisation as family graph and on clicking them it shows their task and todays task. make everything transparent and check if all agents have capability to resolve their respective work issue"; "use both first ai then on fallback fixed"; "use groq api for ai".
 
 | ID | Task | Status |
 |---|---|---|
 | T-4397 | Phase 1: `config/org.yaml`, `reports_to` on every agent, `config/company.yaml`, the Org chart and Calendar views on the AI tab | DONE — `agents/org.py`, `agents/calendar.py`; `tests/test_agent_org.py` |
-| T-4398 | Phase 2: tickets with owner, parent, status and checkout in an append-only log; today's file hand-offs (data requests, doctor to engineering, lab feedback) become tickets; ticket due dates on the calendar | TODO. Five-bullet plan first |
-| T-4399 | Phase 3: rule-based manager workers for the three heads (assign, check against a written checklist, send back at most twice, pass up); department budgets; wake on assignment | TODO. Needs the operator's answers to the design doc's decisions 2 to 6 |
-| T-4400 | Phases 4 and 5: the CEO desk (one packet per department per day, approve, reject, revise), weekly plans and goal reviews on the calendar, then hiring proposals and model-written summaries checked by grounding | TODO |
+| T-4398 | Phase 2: tickets with owner, parent, status and checkout in an append-only log; today's file hand-offs (data requests, doctor to engineering, lab feedback) become tickets; ticket due dates on the calendar | DONE as tasks (ADR-124): `agents/tasks.py`, `agents/work.py` (doctor code queue, doctor data refusals, research data requests); `tests/test_agent_tasks.py`. Not done: lab feedback stays a file the research agent reads; task due dates are on each agent's plan, not on the calendar grid |
+| T-4399 | Phase 3: manager workers for the three heads (assign, check against a written checklist, send back at most twice, pass up); wake on assignment | DONE (ADR-124): `workers/manager.py`, Groq first and fixed rules on fallback (operator's choice, 2026-11-03); `make agents-work`. Also on 2026-11-03, at the operator's request: a blocked task gets AI help from its head (Groq), which fixes it or writes a diagnosis; Ask AI for help on the page (`unstick` in `workers/manager.py`). Not done: department budgets (each head has its own 12 requests a day) |
+| T-4400 | Phases 4 and 5: the CEO desk (one packet per department per day, approve, reject, revise), weekly plans and goal reviews on the calendar, then hiring proposals and model-written summaries checked by grounding | TODO. Part done in ADR-124: your panel on the Org chart has what needs you, accept and close, send back, retry and cancel |
+| T-4402 | The knowledge agent on Groq failed a live task twice on 2026-11-03: four requests in two seconds hit the 8,000 tokens-a-minute limit, then, after the new `retry-after` wait, gpt-oss-120b wrote a tool call Groq could not parse (HTTP 400 `output_parse_failed`). Make its tool loop fit the free tier (fewer, smaller requests) or give it another provider | TODO. Operator decision if a paid provider |
+| T-4403 | Operator: watch the first week of tasks split by rules (`planned_by: rules`) and say whether the fallback words route well (A-093) | TODO. Operator |
+| T-4404 | Not checked: whether earlier engineering runs spent paid requests on a model failure the doctor had queued as a code error (HISTORY #64) | TODO |
 | T-4401 | Operator: approve, rewrite or delete the proposed goals in `config/company.yaml` (S-058) | TODO. Operator |
 ## Declared sizing (2026-11-02, ADR-122, research 140)
 

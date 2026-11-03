@@ -2604,12 +2604,33 @@ export type ActivityResponse = {
 
 /** The agent company (ADR-123): `/api/agents/org`. */
 export type OrgGoal = { id: string; text: string; measure: string; status: 'proposed' | 'approved' | 'retired' };
+/** One kind of task an agent can be given (ADR-124). `auto: false` waits for you. */
+export type AgentSkill = {
+  kind: string;
+  what: string;
+  arg: string;
+  choices: string[];
+  fixed: Record<string, string>;
+  auto: boolean;
+  words: string[];
+};
+export type OrgPerson = {
+  name: string;
+  title: string;
+  job: string;
+  enabled: boolean;
+  schedule: string;
+  uses_model: boolean;
+  duties: string[];
+  can_do: AgentSkill[];
+  never: string[];
+};
 export type OrgDepartment = {
   id: string;
   title: string;
-  head: { name: string; title: string; running: boolean; assigns: string; passes_up: string };
+  head: OrgPerson & { running: boolean; assigns: string; passes_up: string };
   goals: OrgGoal[];
-  agents: { name: string; title: string; job: string; enabled: boolean }[];
+  agents: OrgPerson[];
 };
 export type OrgChart = {
   ok: boolean;
@@ -2620,6 +2641,79 @@ export type OrgChart = {
   departments: OrgDepartment[];
   outside: { id: string; title: string; note: string }[];
   problems: string[];
+};
+
+/** Tasks (ADR-124): `/api/agents/tasks`. A task's state is the fold of its history. */
+export type TaskStatus = 'open' | 'assigned' | 'doing' | 'review' | 'done' | 'blocked' | 'closed' | 'cancelled';
+export type TaskEvent = { at: string; event: string; by: string; note?: string; summary?: string; [key: string]: unknown };
+export type AgentTask = {
+  id: string;
+  title: string;
+  detail: string;
+  owner: string;
+  department: string;
+  created_by: string;
+  created: string;
+  due: string;
+  kind: string;
+  parent: string;
+  args: Record<string, string>;
+  status: TaskStatus;
+  returns: number;
+  run_id: string;
+  run_status: string;
+  summary: string;
+  planned_by: string;
+  assists: number;
+  help_wanted: boolean;
+  updated: string;
+  history: TaskEvent[];
+};
+export type TasksResponse = {
+  ok: boolean;
+  error?: string;
+  tasks: AgentTask[];
+  checklist: string[];
+  max_returns: number;
+  busy: string[];
+};
+export type TaskAction = 'run' | 'retry' | 'send_back' | 'close' | 'cancel' | 'assist';
+export type PlanTask = {
+  id: string;
+  title: string;
+  kind: string;
+  status: TaskStatus;
+  due: string;
+  parent: string;
+  created_by: string;
+  returns: number;
+  summary: string;
+  run_id: string;
+  auto: boolean;
+  args: Record<string, string>;
+};
+export type PlanSlot = { time: string; job: string; what: string; state: string; run_id: string; status: string };
+export type AgentPlan = {
+  agent: string;
+  title: string;
+  day: string;
+  enabled: boolean;
+  duties: string[];
+  scheduled: PlanSlot[];
+  tasks: PlanTask[];
+  to_check: PlanTask[];
+  done_today: PlanTask[];
+  overdue: number;
+};
+export type PlansResponse = { ok: boolean; note: string; plans: Record<string, AgentPlan> };
+export type CapabilityCheck = { who: string; check: string; ok: boolean; detail: string };
+export type CapabilitiesResponse = {
+  ok: boolean;
+  error?: string;
+  checks: CapabilityCheck[];
+  gaps: string[];
+  accepted: { gap: string; why: string }[];
+  doctor: { kind: string; owner: string; skill: string; how: string }[];
 };
 
 /** The company calendar (ADR-123): `/api/agents/calendar`, times in IST. */
@@ -2658,6 +2752,16 @@ export type AgentCalendar = {
 export const agentsApi = {
   list: () => get<AgentsResponse>('/api/agents'),
   org: () => get<OrgChart>('/api/agents/org'),
+  tasks: () => get<TasksResponse>('/api/agents/tasks'),
+  createTask: (task: { department: string; title: string; detail?: string; due?: string }) =>
+    post<{ ok: boolean; error?: string; task?: AgentTask; woke?: boolean }>('/api/agents/tasks', task),
+  actOnTask: (id: string, action: TaskAction, note = '') =>
+    post<{ ok: boolean; error?: string; task?: AgentTask; started?: boolean }>(
+      `/api/agents/tasks/${encodeURIComponent(id)}`,
+      { action, note },
+    ),
+  plansToday: () => get<PlansResponse>('/api/agents/plans/today'),
+  capabilities: () => get<CapabilitiesResponse>('/api/agents/capabilities'),
   calendar: (start = '', days = 7) =>
     get<AgentCalendar>(`/api/agents/calendar?start=${encodeURIComponent(start)}&days=${days}`),
   activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),

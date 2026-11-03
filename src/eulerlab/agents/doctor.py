@@ -6,7 +6,7 @@
              stalled run      : close it with a failed output, so the card stops saying "running"
              too good to be true : flag it; it never reaches the inbox as a win
              model unavailable : note it; the next run tries again (the runtime already falls back)
-             data refused     : hand it to the data agent as a data request
+             data refused     : log it; the work runner makes it a task for the data agent (ADR-124)
              code error       : queue it for the engineering agent, which fixes one file on a branch
         -> data/agents/doctor/log.jsonl   one line per problem and what was done
 
@@ -52,6 +52,9 @@ REMEDIES: dict[str, Remedy] = {
 }
 """The whole list. A remedy not here is not taken."""
 
+MODEL_ERRORS = ("ModelUnavailable", "Refused", "BudgetSpent")
+"""How a run's summary starts when the model, not the code, failed (`runtime.run`)."""
+
 _RUN = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]{6}")
 """A run folder's name (`runtime._run_id`); anything else under an agent's folder is not a run."""
 _FRAME = re.compile(r'File "(?P<path>[^"]*?(?P<rel>src/eulerlab/[^"]+\.py))", line (?P<line>\d+)')
@@ -84,7 +87,12 @@ def examine(output: Any) -> list[Problem]:
     """Problems visible in one finished run's output."""
     out: list[Problem] = []
     notes = "\n".join(output.notes)
-    if output.status == "failed":
+    model_failed = output.status == "failed" and output.summary.startswith(MODEL_ERRORS)
+    if model_failed:
+        # A spent quota or a missing key is not a bug: the engineering agent
+        # must not be sent to "fix" it (HISTORY #64).
+        out.append(Problem("model_down", output.agent, output.run_id, output.summary[:300]))
+    elif output.status == "failed":
         path, line = suspect_file(notes)
         if path:
             out.append(
@@ -100,7 +108,7 @@ def examine(output: Any) -> list[Problem]:
             )
     if output.status == "refused" and ("grade" in output.summary or "data" in output.summary):
         out.append(Problem("data_refused", output.agent, output.run_id, output.summary[:300]))
-    if "no model ideas today" in notes or "Refused" in notes:
+    if not model_failed and ("no model ideas today" in notes or "Refused" in notes):
         out.append(Problem("model_down", output.agent, output.run_id, "the model did not answer"))
     for result in output.data.get("results", []) if isinstance(output.data, dict) else []:
         for screen in result.get("screens", []):

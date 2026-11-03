@@ -25,3 +25,15 @@ options:
     options: put-call-ratio
     delivery: delivery-percent
     pulse: pulse-trend
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - After the close, recompute what is normal for each metric
+  - Watch SEBI, RBI and NSE for new notices
+  - On Sundays, find gaps in the metrics library and draft page updates
+can_do:
+  - kind: update_pages
+    what: Refresh metric normals and the regulator feed (daily), or also draft page updates (weekly)
+    arg: mode
+    choices: [daily, weekly]
+    words: [metric, metrics, normals, handbook, page, pages, sebi, rbi, notice, notices, circular, regulator]

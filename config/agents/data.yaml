@@ -1,10 +1,10 @@
-# The data agent (ADR-085). No model. Runs at 06:30 and after the close.
+# The data agent (ADR-085). No model. Runs at 08:45 and after the close.
 name: data
 title: Data agent
 reports_to: platform
 job: Grades every dataset against the quality contract, flags what is behind, failed or changed format, and answers other agents' data requests.
 worker: eulerlab.agents.workers.data
-schedule: "06:30 and 16:15 on weekdays"
+schedule: "08:45 and 16:15 on weekdays"
 uses_model: false
 daily_requests: 0
 never:
@@ -15,3 +15,14 @@ needs_approval: true
 options:
   auto_rerun: false      # true lets it re-run the allowed feed steps for stale datasets
   restore_sample: 0      # files to download back from B2 each run, to prove the backup restores
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - At 08:45 and 16:15 on weekdays, grade every dataset against the quality contract
+  - Flag what is behind, failed or changed format
+  - Answer the research and skeptic agents' data requests
+can_do:
+  - kind: check_dataset
+    what: Grade the datasets and say whether a named one is held and usable, or propose getting it
+    arg: dataset
+    words: [data, dataset, datasets, fresh, stale, grade, quality, missing, download, feed, history, prices]

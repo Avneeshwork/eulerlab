@@ -1,14 +1,13 @@
 /**
  * The agent company on the AI tab (ADR-123).
  *
- *   Org chart   you as CEO, the three departments with their heads, goals and
- *               agents, and the gate outside the chart
+ *   Org chart   a family tree of you, the heads and their agents, with tasks
+ *               and today's plans (OrgTree.tsx, ADR-124)
  *   Calendar    a week (or one day) of scheduled agent runs from the launchd
  *               job list, each marked ran, partial, due, missed or upcoming,
  *               plus runs started by hand
  *
- * Both only read. The heads are on paper until their workers exist, and the
- * calendar cannot move a job: changing a launchd job stays `make schedule`.
+ * The calendar only reads: changing a launchd job stays `make schedule`.
  */
 
 'use client';
@@ -16,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { agentsApi } from '@/lib/api';
-import type { AgentCalendar, CalendarRun, CalendarSlot, OrgChart, OrgGoal } from '@/lib/api';
+import type { AgentCalendar, CalendarRun, CalendarSlot } from '@/lib/api';
 
 type Tone = 'brand' | 'up' | 'down' | 'caveat' | undefined;
 
@@ -30,93 +29,8 @@ function Badge({ tone, children }: { tone?: Tone; children: React.ReactNode }) {
 
 // ---------------------------------------------------------------- org chart
 
-const GOAL_TONE: Record<OrgGoal['status'], Tone> = { proposed: 'caveat', approved: 'up', retired: undefined };
-
-function Goals({ goals }: { goals: OrgGoal[] }) {
-  if (goals.length === 0) return <p className="tfine">No goals set.</p>;
-  return (
-    <ul className="org-goals">
-      {goals.map((g) => (
-        <li key={g.id}>
-          <Badge tone={GOAL_TONE[g.status]}>{g.status}</Badge> {g.text}
-          <span className="tfine"> · measured by {g.measure}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-export function OrgChartView() {
-  const [chart, setChart] = useState<OrgChart | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    agentsApi
-      .org()
-      .then((r) => (r.ok ? setChart(r) : setError(r.error ?? 'unknown error')))
-      .catch((e: unknown) => setError(String(e)));
-  }, []);
-  if (error) return <p className="tnote bad">The org chart could not be read: {error}</p>;
-  if (!chart) return <div className="tempty">Reading the org chart…</div>;
-  const proposed = [...chart.goals, ...chart.departments.flatMap((d) => d.goals)].some((g) => g.status === 'proposed');
-  return (
-    <div className="org">
-      {chart.problems.length > 0 && (
-        <p className="tnote bad">The chart has problems: {chart.problems.join('; ')}</p>
-      )}
-      <div className="org-top">
-        <div className="ai-card org-ceo">
-          <div className="ai-card-title">
-            <b>{chart.ceo}, CEO</b>
-            <span>Approves gate runs, merges, data fetches, sizing, hires and budget raises.</span>
-          </div>
-          <Goals goals={chart.goals} />
-        </div>
-        {chart.outside.map((o) => (
-          <div key={o.id} className="ai-card org-outside">
-            <div className="ai-card-title">
-              <b>{o.title}</b>
-              <span>{o.note}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      {proposed && (
-        <p className="tfine">
-          Goals marked proposed were drafted for you and are not yet set. Edit or approve them in{' '}
-          <code>config/company.yaml</code>.
-        </p>
-      )}
-      <div className="org-departments">
-        {chart.departments.map((d) => (
-          <section key={d.id} className="org-dept">
-            <div className="ai-card org-head">
-              <div className="ai-card-title">
-                <b>{d.head.title}</b>
-                <span>Assigns {d.head.assigns}. Passes up {d.head.passes_up}.</span>
-              </div>
-              <div>
-                {d.head.running ? <Badge tone="up">running</Badge> : <Badge>on paper until Phase 3</Badge>}
-              </div>
-              <Goals goals={d.goals} />
-            </div>
-            <ul className="org-agents">
-              {d.agents.map((a) => (
-                <li key={a.name} className="ai-card">
-                  <div className="ai-card-title">
-                    <b>
-                      {a.title} {!a.enabled && <Badge tone="down">off</Badge>}
-                    </b>
-                    <span>{a.job}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </div>
-  );
-}
+// The org chart is a family tree with tasks and today's plans (ADR-124).
+export { OrgChartView } from './OrgTree';
 
 // ---------------------------------------------------------------- calendar
 

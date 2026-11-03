@@ -434,3 +434,52 @@ def test_a_model_that_turned_us_away_is_skipped_next_time(
     assert chat.complete_any("s", "u").model == "good:free"
     assert chat.complete_any("s", "u").model == "good:free"
     assert asked == ["gone:free", "good:free", "good:free"]
+
+
+@pytest.mark.parametrize(
+    ("header", "tries", "slept"), [("2", 2, [2.0]), ("90", 1, []), ("", 1, [])]
+)
+def test_a_429_with_a_short_retry_after_is_waited_out_once(
+    monkeypatch: pytest.MonkeyPatch, header: str, tries: int, slept: list[float]
+) -> None:
+    """Groq names the wait on a 429 (research 142); a short one is worth one retry."""
+    import email.message
+    import io
+    import time
+    import urllib.error
+    import urllib.request
+
+    calls: list[int] = []
+    waits: list[float] = []
+
+    class _Response:
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return b'{"choices": []}'
+
+    def fake_open(request: Any, timeout: float = 0) -> _Response:
+        calls.append(1)
+        if len(calls) == 1:
+            headers = email.message.Message()
+            if header:
+                headers["retry-after"] = header
+            raise urllib.error.HTTPError(
+                "https://api.groq.com", 429, "Too Many", headers, io.BytesIO(b"")
+            )
+        return _Response()
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test_value_for_unit_tests")
+    monkeypatch.setattr(redact, "secrets", lambda path=None: [])
+    monkeypatch.setattr(urllib.request, "urlopen", fake_open)
+    monkeypatch.setattr(time, "sleep", waits.append)
+    if tries == 2:
+        assert chat._post(GROQ, {"messages": []}) == {"choices": []}
+    else:
+        with pytest.raises(chat.ModelUnavailable):
+            chat._post(GROQ, {"messages": []})
+    assert len(calls) == tries and waits == slept

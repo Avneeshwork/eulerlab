@@ -2780,14 +2780,17 @@ gate and mandate: outside the chart
 
 | File | Holds |
 |---|---|
-| `config/org.yaml` | the CEO's name, each department's id, title and head (`running: false` until its worker exists), and `outside` (the gate) |
-| `config/agents/<name>.yaml` | `reports_to`: the agent's department |
+| `config/org.yaml` | the CEO's name, each department's id, title and head, and `outside` (the gate) |
+| `config/agents/head_<dept>.yaml` | each head as an agent: `reports_to: ceo`, worker `workers.manager`, `options.department`, `provider: groq` (ADR-124) |
+| `config/agents/<name>.yaml` | `reports_to`: the agent's department; `duties` (its everyday work) and `can_do` (the task kinds a head may give it) |
 | `config/company.yaml` | the company goal and each department's goals: text, how it is measured, `proposed`, `approved` or `retired` |
 
 `agents/org.py` loads both files and `problems()` names what is wrong: an agent
 with no department or an unknown one, an agent reporting to the gate, the gate
-inside a department, a head named like an agent, an empty department, goals for
-a department that does not exist. The depth is fixed (agent, head, CEO), so a
+inside a department, a head with no definition or one that does not report to
+`ceo`, run the manager worker and name its department, an agent reporting to
+`ceo` that heads nothing, an empty department, goals for a department that
+does not exist. The depth is fixed (agent, head, CEO), so a
 loop or a second manager cannot be written. `tests/test_agent_org.py` fails if
 the committed files have any problem.
 
@@ -2810,8 +2813,102 @@ calendar shows what launchd really starts. Each agent's saved runs
 A run that matched no slot (the Run button, the after-close brief that `make
 daily` rewrites) shows as run by hand. `GET /api/agents/org` and `GET
 /api/agents/calendar?start=YYYY-MM-DD&days=7` serve them; the AI tab's Org chart
-and Calendar views draw them. Both only read. The heads assign nothing until
-the manager workers exist (T-4399).
+and Calendar views draw them.
+
+### Tasks, managers and daily plans (ADR-124)
+
+```
+you ── POST /api/agents/tasks ──▶ task (owner = a head, open)
+        head run: check finished ─▶ roll up ─▶ split new (Groq, else rules) ─▶ plan the day
+        work runner: hand-offs ─▶ run each auto task's agent ─▶ head's checklist ─▶ roll up
+you ◀── passed up (done) ── close it, or send it back
+```
+
+**A task** (`agents/tasks.py`) is the fold of its events in the append-only
+`data/agents/tasks.jsonl`; each event is also a `task` entry in the
+hash-chained agent log. States: open (a head's, to split), assigned, doing,
+review (finished, to check), done, blocked (needs you), closed, cancelled.
+`assisted` (AI help fixed it) moves a blocked task back to assigned.
+`ALLOWED` refuses an event that does not fit the state, and a task is sent
+back at most `MAX_RETURNS = 2` times. `reopen` cancels a parent's unfinished
+subtasks so its head splits it afresh; `children` returns only the subtasks
+made since the last reopen.
+
+**A skill** (`spec.Skill`, an agent's `can_do`) names a task kind, the worker
+argument the task's value fills (`arg`, optional `choices`), `fixed`
+arguments, `auto` (may the runner start it unattended?) and `words` for the
+fallback. A task runs the agent once with `fixed`, `{arg: value}` and
+`task=<id>`. Not `auto`: the lab's `test_card` (spends trials, terminal-only)
+and engineering's `fix_code` and `review_branch` (paid model, writes a branch).
+
+**A head's run** (`workers/manager.py`, `make agents-work`, and inside
+`agents-preopen` and `agents-ideas`):
+
+1. *Check* each `review` task of its department against `CHECKLIST`: the run
+   finished ok, wrote a summary, and the doctor found nothing in it. Pass:
+   done. Fail: sent back, then blocked after two. A refused or switched-off
+   run, or a failed run whose summary starts `Refused`, is blocked at once (a
+   retry would fail the same way). Over budget: assigned again.
+2. *Roll up*: a parent whose current subtasks are all settled with one done is
+   passed up with their summaries; one with a blocked subtask is blocked.
+3. *Split* each open task. Groq is asked first with the roster (agent, kind,
+   what, argument) and must answer JSON; `fit` keeps only subtasks naming an
+   agent on the team and one of its own kinds, at most `max_subtasks`. If
+   Groq has no budget, fails, answers badly or names only agents and kinds off
+   the roster, `by_rules` picks the skill whose `words` the task uses most
+   (A-093). If Groq read the roster and said nothing fits, the task is blocked
+   with its reason and a list of what the team can do; the rules do not
+   override it. The parent records `planned_by: model` or `rules`.
+4. *Unstick* each blocked agent task once (`tasks.MAX_ASSISTS = 1`), or
+   again when you press Ask AI for help (a `help_asked` event). Groq gets
+   the roster, the task, why it is blocked and the agent's last run (summary,
+   last notes, item titles, inside `<untrusted>`), and answers `retry` (same
+   agent and kind, a corrected value), `reassign` (another agent and kind on
+   the roster) or `needs_ceo`. A fix that fits the roster and changes
+   something is an `assisted` event: the task is assigned again with its
+   send-backs reset. Anything else is a diagnosis note for you; the task stays
+   blocked. Without Groq nothing is recorded unless you asked, so it is tried
+   on the next run. A value sent as JSON is unwrapped. The agents that work by
+   fixed rules (data, operations, portfolio) get AI help this way, through
+   their head.
+5. *Plan*: `agents/plans.py` builds each agent's day (duties, today's
+   calendar slots with ran/upcoming/due/missed/not run, open tasks due first,
+   finished tasks for a head to check) and the head writes it to `plans.json`
+   in its run folder. The page computes the same plan live.
+
+**The work runner** (`agents/work.py`) turns hand-offs into tasks with fixed
+keys, so a re-run adds nothing: the doctor's code queue becomes `fix_code` for
+engineering (done when the file leaves the queue), and the doctor's
+`data_refused` lines and the research agent's data requests become
+`check_dataset` for data (HISTORY #64). It then runs every assigned task due
+today or earlier whose skill is `auto` and whose agent is on and not
+terminal-only, and has its head check the result.
+
+**Capabilities** (`agents/capabilities.py`, `make agents-capabilities`,
+`GET /api/agents/capabilities`) check by reading: every agent lists duties and
+skills; each skill's argument and fixed arguments are read by the worker's
+source (`ctx.args.get("<name>")`); an `auto` skill's agent is not
+terminal-only; each skill has fallback words; each head has a model budget; every agent's head can give it AI help when
+it is stuck; each department has a skill the runner may start; and every doctor problem
+kind has an owner (`DOCTOR_OWNERS`). A test fails on any gap not listed in
+`KNOWN_GAPS` (empty). It cannot see a model that fails at run time (T-4402).
+
+**The page.** The Org chart view is a family tree (`web/components/terminal/OrgTree.tsx`):
+you, the gate beside you, the three heads, and their agents, each with today's
+runs and open and blocked counts. Clicking a person shows their job, duties,
+today's plan, the skills they can be given (marked "waits for you" when not
+`auto`), their tasks with every event, what they can never do, and their
+capability checks. Your panel has the task form, what needs you, your tasks
+as trees of subtasks, the checklist and the capability summary. Your buttons:
+run a waiting task, ask AI for help on a blocked one, retry it, accept and
+close or send back what was passed up, cancel. Giving a task wakes its head at once
+(`agent_routes._wake`: the head's run, then that department's due tasks), on
+the API's single agent worker.
+
+**Groq's rate limit.** `assistant/chat._post` waits out a 429's
+`retry-after` once when it is 20 seconds or less (research 142, A-094). The
+doctor treats a failed run whose summary starts `ModelUnavailable`,
+`Refused` or `BudgetSpent` as `model_down`, not as a code error.
 
 ### The knowledge keeper (ADR-104)
 
@@ -3039,8 +3136,8 @@ After every agent run, `runtime.run` calls `agents/doctor.after_run(output)`. It
 |---|---|---|
 | stalled | a run folder (`YYYYMMDDTHHMMSSZ-xxxxxx`) with no `output.json` and no step for 3 hours | write a failed `output.json`, so the card stops saying running |
 | suspicious | a lab result with robust Sharpe above 3 or IC t above 10 | flagged in the doctor log; the lab also adds it as a critical finding, so it cannot survive |
-| model_down | "no model ideas today" or a refusal in the notes | noted; the next run tries again |
-| data_refused | a refused run whose summary names grade or data | logged as a data request |
+| model_down | "no model ideas today" or a refusal in the notes, or a failed run whose summary starts `ModelUnavailable`, `Refused` or `BudgetSpent` | noted; the next run tries again |
+| data_refused | a refused run whose summary names grade or data | logged; the work runner makes it a `check_dataset` task for the data agent (ADR-124) |
 | code_error | a failed run whose traceback has a `src/eulerlab` frame | queued for engineering under the deepest such frame (`data/agents/doctor/code_queue.jsonl`) |
 
 The runtime keeps the last six traceback frames, so the deepest frame is the one that raised.

@@ -12,3 +12,13 @@ never:
   - trade, backtest or register
   - answer from memory when a lookup failed
 needs_approval: false
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - Answer questions on the AI tab from our papers, cards, results and datasets, naming each source
+  - Rebuild its index after the close
+can_do:
+  - kind: answer_question
+    what: Answer one question from what the project holds, with a source for every number
+    arg: question
+    words: [question, why, what, which, how, explain, answer, know, tell, summarise, summary]

@@ -17,3 +17,13 @@ needs_approval: true
 options:
   limit: 5
   topic: "Indian equities cross-sectional anomalies with low turnover"
+
+# Everyday work and the tasks a head may give it (ADR-124).
+duties:
+  - Every day at 17:00, find papers on the day's topic and draft idea cards
+  - Drop ideas already tried, and ask the data agent for data it lacks
+can_do:
+  - kind: research_topic
+    what: Find papers on a topic and draft idea cards from them
+    arg: topic
+    words: [paper, papers, research, topic, idea, ideas, anomaly, literature, study, studies, find, look]

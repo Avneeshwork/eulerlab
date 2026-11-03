@@ -1,0 +1,24 @@
+# The Head of Portfolio and Risk (ADR-124). A manager: it gives work to the agents under it,
+# never does their work itself, and answers to you.
+name: head_portfolio
+title: Head of Portfolio and Risk
+reports_to: ceo
+job: Splits your tasks for portfolio among its agents by what each can do, writes each agent's plan for the day, checks every finished task against a written checklist, sends one back at most twice, and passes the result up to you.
+worker: eulerlab.agents.workers.manager
+schedule: "08:45 on weekdays and 17:00 daily (make agents-work), and whenever you give it a task"
+uses_model: true
+provider: groq          # the free Groq model (config/llm.yaml); fixed rules if it cannot answer
+daily_requests: 12
+never:
+  - do an agent's work itself, or give an agent work it does not list in can_do
+  - run the gate, spend a trial outside the idea lab, or touch the ledger, the holdout or the order path
+  - mark a task done that failed its checklist, or send a task back more than twice
+  - approve anything on your behalf
+needs_approval: false
+duties:
+  - Split each task you give it among its agents, with the model first and fixed rules if the model is unavailable
+  - Write each agent's plan for today, scheduled runs first, then tasks by due date
+  - Check each finished task against the checklist and pass it up, or send it back
+options:
+  department: portfolio
+  max_subtasks: 4

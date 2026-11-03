@@ -26,6 +26,24 @@ def _spec(name: str, reports_to: str) -> AgentSpec:
     )
 
 
+def _head(department: str, **change: object) -> AgentSpec:
+    fields: dict[str, object] = {
+        "name": f"head_{department}",
+        "title": f"Head of {department}",
+        "reports_to": "ceo",
+        "job": "Splits tasks and checks the work.",
+        "worker": "eulerlab.agents.workers.manager",
+        "options": {"department": department},
+    }
+    fields.update(change)
+    return AgentSpec.model_validate(fields)
+
+
+def _staff(**agents: AgentSpec) -> dict[str, AgentSpec]:
+    """The test chart's two heads plus the given agents."""
+    return {"head_research": _head("research"), "head_platform": _head("platform"), **agents}
+
+
 def _org(*, outside: str = "gate") -> org.Org:
     head = {"title": "Head", "assigns": "work", "passes_up": "results"}
     return org.Org.model_validate(
@@ -49,9 +67,13 @@ def test_committed_chart_has_no_problems() -> None:
 
 
 def test_every_committed_agent_names_a_department() -> None:
-    departments = {d.id for d in org.load_org().departments}
+    chart = org.load_org()
+    departments = {d.id for d in chart.departments}
+    heads = {d.head.name for d in chart.departments}
     for name, spec in load_specs().items():
-        assert spec.reports_to in departments, name
+        assert spec.reports_to == ("ceo" if name in heads else spec.reports_to), name
+        if name not in heads:
+            assert spec.reports_to in departments, name
 
 
 def test_the_gate_is_outside_the_chart() -> None:
@@ -60,9 +82,14 @@ def test_the_gate_is_outside_the_chart() -> None:
     assert "gate" not in {d.id for d in chart.departments}
 
 
-def test_no_head_runs_before_its_worker_exists() -> None:
-    # Phase 1 puts the heads on paper only; Phase 3 builds their workers.
-    assert not any(d.head.running for d in org.load_org().departments)
+def test_every_head_is_a_manager_agent_answering_to_the_ceo() -> None:
+    specs = load_specs()
+    for d in org.load_org().departments:
+        spec = specs[d.head.name]
+        assert spec.reports_to == "ceo"
+        assert spec.worker == org.MANAGER
+        assert spec.options["department"] == d.id
+        assert spec.can_do == []  # a head gives work; it takes none
 
 
 def test_every_agent_a_job_runs_is_a_known_agent() -> None:
@@ -76,26 +103,41 @@ def test_every_agent_a_job_runs_is_a_known_agent() -> None:
 
 
 def test_sound_chart_is_clean() -> None:
-    specs = {"alpha": _spec("alpha", "research"), "beta": _spec("beta", "platform")}
+    specs = _staff(alpha=_spec("alpha", "research"), beta=_spec("beta", "platform"))
     assert org.problems(_org(), specs) == []
 
 
 @pytest.mark.parametrize(
     ("specs", "words"),
     [
-        ({"alpha": _spec("alpha", ""), "beta": _spec("beta", "platform")}, "has no reports_to"),
+        (_staff(alpha=_spec("alpha", ""), beta=_spec("beta", "platform")), "has no reports_to"),
         (
-            {"alpha": _spec("alpha", "nowhere"), "beta": _spec("beta", "platform")},
+            _staff(alpha=_spec("alpha", "nowhere"), beta=_spec("beta", "platform")),
             "unknown department",
         ),
-        ({"alpha": _spec("alpha", "gate"), "beta": _spec("beta", "platform")}, "outside the chart"),
-        ({"alpha": _spec("alpha", "research")}, "'platform' has no agents"),
+        (_staff(alpha=_spec("alpha", "gate"), beta=_spec("beta", "platform")), "outside the chart"),
+        (_staff(alpha=_spec("alpha", "research")), "'platform' has no agents"),
+        (
+            {"alpha": _spec("alpha", "research"), "beta": _spec("beta", "platform")},
+            "has no definition",
+        ),
         (
             {
-                "alpha": _spec("alpha", "research"),
-                "head_platform": _spec("head_platform", "platform"),
+                **_staff(alpha=_spec("alpha", "research"), beta=_spec("beta", "platform")),
+                "head_platform": _head("platform", reports_to="platform"),
             },
-            "same name as an agent",
+            "must report to 'ceo'",
+        ),
+        (
+            {
+                **_staff(alpha=_spec("alpha", "research"), beta=_spec("beta", "platform")),
+                "head_platform": _head("platform", options={"department": "research"}),
+            },
+            "must name department 'platform'",
+        ),
+        (
+            _staff(alpha=_spec("alpha", "ceo"), beta=_spec("beta", "platform")),
+            "heads no department",
         ),
     ],
 )
@@ -104,21 +146,23 @@ def test_problems_are_named(specs: dict[str, AgentSpec], words: str) -> None:
 
 
 def test_gate_as_a_department_is_refused() -> None:
-    specs = {"alpha": _spec("alpha", "research"), "beta": _spec("beta", "platform")}
+    specs = _staff(alpha=_spec("alpha", "research"), beta=_spec("beta", "platform"))
     assert any("also a department" in p for p in org.problems(_org(outside="research"), specs))
 
 
 def test_goals_for_an_unknown_department_are_refused() -> None:
-    specs = {"alpha": _spec("alpha", "research"), "beta": _spec("beta", "platform")}
+    specs = _staff(alpha=_spec("alpha", "research"), beta=_spec("beta", "platform"))
     goal = {"id": "g1", "text": "A goal", "measure": "a log"}
     company = org.Company.model_validate({"name": "X", "departments": {"sales": [goal]}})
     assert any("unknown department 'sales'" in p for p in org.problems(_org(), specs, company))
 
 
-def test_chart_lists_agents_under_their_department() -> None:
-    specs = {"alpha": _spec("alpha", "research"), "beta": _spec("beta", "platform")}
+def test_chart_lists_agents_under_their_department_and_heads_as_people() -> None:
+    specs = _staff(alpha=_spec("alpha", "research"), beta=_spec("beta", "platform"))
     drawn = org.chart(_org(), specs, org.Company(name="X"))
     assert [[a["name"] for a in d["agents"]] for d in drawn["departments"]] == [["alpha"], ["beta"]]
+    assert [d["head"]["running"] for d in drawn["departments"]] == [True, True]
+    assert drawn["departments"][0]["head"]["job"] == "Splits tasks and checks the work."
 
 
 # --- the calendar -----------------------------------------------------------
@@ -177,9 +221,23 @@ def test_agents_in_job_reads_the_recipe_and_name() -> None:
     assert calendar.agents_in_job("cd x && make other", FAKE_MAKE) == []
 
 
-def test_real_preopen_job_runs_three_agents() -> None:
+def test_real_preopen_job_runs_three_agents_then_the_three_heads() -> None:
     job = schedule_daily.JOBS["agents-preopen"]
-    assert calendar.agents_in_job(job.command, MAKEFILE) == ["data", "operations", "market_brief"]
+    assert calendar.agents_in_job(job.command, MAKEFILE) == [
+        "data",
+        "operations",
+        "market_brief",
+        "head_research",
+        "head_platform",
+        "head_portfolio",
+    ]
+
+
+def test_every_head_runs_twice_a_day_before_the_work_runner() -> None:
+    for target in ("agents-preopen", "agents-ideas", "agents-work"):
+        recipe = "\n".join(calendar._recipe(MAKEFILE, target))
+        heads = [recipe.index(f"runtime head_{d}") for d in ("research", "platform", "portfolio")]
+        assert max(heads) < recipe.index("eulerlab.agents.work"), target
 
 
 def test_ran_partial_missed_and_feed(tmp_path: Path) -> None:

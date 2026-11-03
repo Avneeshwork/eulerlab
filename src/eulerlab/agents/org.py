@@ -11,8 +11,10 @@ agent's own definition names its department in `reports_to`. The depth is fixed
 can go wrong is a missing or unknown department, a head named like an agent, or
 the gate put inside a department. `problems` lists those, and a test fails on any.
 
-This module only reads. Heads with `running: false` exist on paper until the
-manager workers are built; nothing here assigns work or approves anything.
+Since ADR-124 each head is an agent too (`config/agents/head_<dept>.yaml`,
+`reports_to: ceo`, worker `workers.manager`): it splits your tasks among its
+agents, checks their work and passes it up. This module only reads; tasks live
+in `agents/tasks.py`.
 """
 
 from __future__ import annotations
@@ -23,21 +25,21 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-from eulerlab.agents.spec import NAME_PATTERN, AgentSpec
+from eulerlab.agents.spec import CEO, NAME_PATTERN, AgentSpec
 
 ORG_PATH = Path("config/org.yaml")
 COMPANY_PATH = Path("config/company.yaml")
 ID_PATTERN = r"^[a-z][a-z0-9_-]{1,31}$"
+MANAGER = "eulerlab.agents.workers.manager"
 
 
 class Head(BaseModel):
-    """A department's manager. `running` stays false until it has a worker."""
+    """A department's manager. Its definition is the agent of the same name."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str = Field(pattern=NAME_PATTERN)
     title: str = Field(min_length=3, max_length=80)
-    running: bool = False
     assigns: str = Field(min_length=3, max_length=200)
     passes_up: str = Field(min_length=3, max_length=200)
 
@@ -107,29 +109,48 @@ def problems(org: Org, specs: dict[str, AgentSpec], company: Company | None = No
     """Everything wrong with the chart, in words. Empty means it is sound."""
     found: list[str] = []
     ids = [d.id for d in org.departments]
-    heads = [d.head.name for d in org.departments]
+    heads = {d.head.name: d.id for d in org.departments}
+    head_names = [d.head.name for d in org.departments]
     outside = {o.id for o in org.outside}
-    for label, values in (("department id", ids), ("head name", heads)):
+    for label, values in (("department id", ids), ("head name", head_names)):
         repeats = sorted({v for v in values if values.count(v) > 1})
         if repeats:
             found.append(f"repeated {label}: {', '.join(repeats)}")
-    for head in heads:
-        if head in specs:
-            found.append(f"head {head!r} has the same name as an agent")
+    if CEO in ids:
+        found.append(f"{CEO!r} is reserved for the operator and cannot be a department")
+    for head, dept in sorted(heads.items()):
+        if not head.startswith("head_"):
+            found.append(
+                f"head {head!r} must be named head_<something>, so a task knows it is a head's"
+            )
+        spec = specs.get(head)
+        if spec is None:
+            found.append(f"head {head!r} has no definition in config/agents/")
+            continue
+        if spec.reports_to != CEO:
+            found.append(f"head {head!r} must report to {CEO!r}, not {spec.reports_to!r}")
+        if spec.worker != MANAGER:
+            found.append(f"head {head!r} must run {MANAGER}")
+        if spec.options.get("department") != dept:
+            found.append(f"head {head!r} must name department {dept!r} in its options")
     for name in sorted(outside & set(ids)):
         found.append(f"{name!r} is outside the chart and also a department")
     for name in sorted(outside & set(specs)):
         found.append(f"{name!r} is outside the chart and also an agent")
     for name, spec in sorted(specs.items()):
+        if name in heads:
+            continue
         if not spec.reports_to:
             found.append(f"agent {name!r} has no reports_to")
+        elif spec.reports_to == CEO:
+            found.append(f"agent {name!r} reports to the CEO but heads no department")
         elif spec.reports_to in outside:
             found.append(
                 f"agent {name!r} reports to {spec.reports_to!r}, which is outside the chart"
             )
         elif spec.reports_to not in ids:
             found.append(f"agent {name!r} reports to unknown department {spec.reports_to!r}")
-    staffed = {spec.reports_to for spec in specs.values()}
+    staffed = {spec.reports_to for name, spec in specs.items() if name not in heads}
     for dept in ids:
         if dept not in staffed:
             found.append(f"department {dept!r} has no agents")
@@ -146,8 +167,47 @@ def problems(org: Org, specs: dict[str, AgentSpec], company: Company | None = No
 
 
 def department_of(specs: dict[str, AgentSpec]) -> dict[str, str]:
-    """Agent name → department id."""
-    return {name: spec.reports_to for name, spec in specs.items()}
+    """Agent name → department id. A head maps to the department it runs."""
+    return {
+        name: str(spec.options.get("department") or "")
+        if spec.reports_to == CEO
+        else spec.reports_to
+        for name, spec in specs.items()
+    }
+
+
+def head_of(org: Org, department: str) -> str:
+    """The head's agent name for a department id. Raises on an unknown department."""
+    for d in org.departments:
+        if d.id == department:
+            return d.head.name
+    msg = f"no department {department!r}. Departments: {', '.join(d.id for d in org.departments)}"
+    raise KeyError(msg)
+
+
+def members(org: Org, specs: dict[str, AgentSpec], department: str) -> dict[str, AgentSpec]:
+    """The agents a head manages: every non-head definition reporting to its department."""
+    heads = {d.head.name for d in org.departments}
+    return {
+        name: spec
+        for name, spec in sorted(specs.items())
+        if spec.reports_to == department and name not in heads
+    }
+
+
+def person(spec: AgentSpec, enabled: bool | None = None) -> dict[str, Any]:
+    """One node of the tree: who it is, what it does every day and what it can be given."""
+    return {
+        "name": spec.name,
+        "title": spec.title,
+        "job": spec.job,
+        "enabled": spec.enabled if enabled is None else enabled,
+        "schedule": spec.schedule,
+        "uses_model": spec.uses_model,
+        "duties": list(spec.duties),
+        "can_do": [s.model_dump() for s in spec.can_do],
+        "never": list(spec.never),
+    }
 
 
 def chart(org: Org, specs: dict[str, AgentSpec], company: Company) -> dict[str, Any]:
@@ -164,13 +224,13 @@ def chart(org: Org, specs: dict[str, AgentSpec], company: Company) -> dict[str, 
             {
                 "id": d.id,
                 "title": d.title,
-                "head": d.head.model_dump(),
+                "head": {
+                    **d.head.model_dump(),
+                    **(person(specs[d.head.name]) if d.head.name in specs else {}),
+                    "running": d.head.name in specs and specs[d.head.name].enabled,
+                },
                 "goals": goals(company.departments.get(d.id, [])),
-                "agents": [
-                    {"name": name, "title": spec.title, "job": spec.job, "enabled": spec.enabled}
-                    for name, spec in sorted(specs.items())
-                    if spec.reports_to == d.id
-                ],
+                "agents": [person(spec) for spec in members(org, specs, d.id).values()],
             }
             for d in org.departments
         ],

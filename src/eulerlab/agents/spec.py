@@ -30,6 +30,29 @@ def home(root: Path | None = None) -> Path:
 
 
 NAME_PATTERN = r"^[a-z][a-z0-9_]{1,31}$"
+CEO = "ceo"
+"""`reports_to` for a department head: it answers to the operator (ADR-124)."""
+
+
+class Skill(BaseModel):
+    """One kind of task an agent can be given, and how a task becomes a run (ADR-124).
+
+    A task of this kind runs the agent's worker with `fixed` plus, when `arg` is
+    set, `arg=<the task's value>`. `choices` limits that value. `auto` says the
+    work runner may start it unattended; a skill that spends a trial, writes a
+    branch or must run from the terminal is `auto: false` and waits for you.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: str = Field(pattern=r"^[a-z][a-z0-9_]{2,31}$")
+    what: str = Field(min_length=5, max_length=200)
+    arg: str = Field(default="", pattern=r"^$|^[a-z][a-z_]{1,23}$")
+    choices: list[str] = Field(default_factory=list)
+    fixed: dict[str, str] = Field(default_factory=dict)
+    auto: bool = True
+    words: list[str] = Field(default_factory=list)
+    """Words that point a task at this skill when the head has no model (the fallback)."""
 
 
 class AgentSpec(BaseModel):
@@ -66,6 +89,12 @@ class AgentSpec(BaseModel):
 
     needs_approval: bool = False
     """Whether its items wait in the inbox for the operator."""
+
+    duties: list[str] = Field(default_factory=list)
+    """Its everyday work, in words; today's plan lists these beside its tasks."""
+
+    can_do: list[Skill] = Field(default_factory=list)
+    """The kinds of task a head may give it (ADR-124). Empty means it takes none."""
 
     options: dict[str, Any] = Field(default_factory=dict)
     """Worker-specific settings, validated by the worker itself."""
