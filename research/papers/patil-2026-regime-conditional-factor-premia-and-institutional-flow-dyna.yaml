@@ -1,0 +1,37 @@
+id: patil-2026-regime-conditional-factor-premia-and-institutional-flow-dyna
+title: Regime-Conditional Factor Premia and Institutional Flow Dynamics in Indian Equities
+authors: Yash Patil
+year: 2026
+kind: paper
+source_url: https://doi.org/10.2139/ssrn.6920498
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- Indian equities, 2019‑2025 (factor library) and 2021‑2026 walk‑forward
+summary: The author identifies Bull, Sideways, and Bear regimes in Indian equities (2019‑2025)
+  with a Hidden Markov Model, then measures factor premia (momentum, market, value, etc.)
+  within each regime. Momentum shines in Sideways, market in Bull, value in Bear. Daily foreign
+  institutional investor (FII) gross volume predicts market returns only in Bear regimes,
+  but the result is driven by the COVID period. A regime‑aware factor allocation yields a
+  Sharpe of 0.794 versus 0.733 for a simple buy‑and‑hold over a 2021‑2026 walk‑forward sample.
+trade_idea: Allocate to the factor that has the highest Sharpe in the currently identified
+  regime (momentum in Sideways, market in Bull, value in Bear) and rebalance when the regime
+  switches, expecting higher risk‑adjusted returns than a static portfolio.
+implementation: unspecified
+red_flags:
+- Survivorship‑bias‑adjusted factor library may not reflect live tradable instruments.
+- Bear regime sample is tiny (121 days) and dominated by the COVID crisis, limiting robustness.
+- No transaction‑cost or capacity analysis is provided; Indian intraday costs (~9 bps) could
+  erode the modest Sharpe gain.
+- Regime detection relies on a Hidden Markov Model whose parameters may overfit the 2019‑2025
+  sample.
+- Drafted by the paper agent (groq) from the abstract from Crossref found on ssrn 2026-11-03;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: 'Sharpe ratios: Momentum in Sideways 1.667 (t=3.24); Market in Bull 1.485
+  (t=2.28); Value in Bear 2.26 (t not reported). Regime‑aware allocation Sharpe 0.794 vs.
+  buy‑and‑hold 0.733 (walk‑forward 2021‑2026). Gross FII volume predicts market returns in
+  Bear (F≈5, p≈0.009). DCC correlation mean 0.30 in Bear vs 0.25 in Bull (t=22.9).'
+hypothesis: ''
+strategies: []

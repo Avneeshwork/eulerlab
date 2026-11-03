@@ -1,0 +1,44 @@
+id: borjigin-2025-intertemporal-pricing-of-time-bound-stablecoins-measuring-an
+title: 'Intertemporal Pricing of Time-Bound Stablecoins: Measuring and Controlling the Liquidity-of-Time
+  Premium'
+authors: Ailiya Borjigin, Cong He
+year: 2025
+kind: paper
+source_url: https://www.semanticscholar.org/paper/9c181fa74b17a848bb1d6b8f978c24ef9a2163e0
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- US equities (ADRs) vs foreign home markets
+- Overnight index futures vs cash index
+- Pre‑market vs prior‑close equity prices
+summary: The authors define a Liquidity‑of‑Time Premium (TLP) as the extra return for providing
+  liquidity when a market is closed. They derive a no‑arbitrage band for time‑bound stablecoins
+  and propose a dynamic LTV control. Empirically they suggest measuring TLP with ADR price
+  deviations, overnight index futures vs cash, and pre‑market vs prior‑close gaps, showing
+  TLP rises with closure length and volatility.
+trade_idea: Buy the underlying stock (or sell the ADR) when the ADR trades at a significant
+  premium (or discount) to the last local close after adjusting for FX, expecting the premium
+  to revert at the next market open, thus capturing the TLP.
+implementation: |-
+  universe: Cross‑listed ADRs and their home‑market underlying stocks (e.g., US ADRs of Indian, European, Asian equities).
+  data: ADR intraday prices, home‑market closing prices, FX rates, daily turnover.
+  signal: ADR premium = ADR price – (home‑market close × FX rate).
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing: unspecified
+  costs: unspecified (paper mentions transaction costs but gives no numbers).
+red_flags:
+- The effect is measured on ADRs, which may have limited liquidity and high bid‑ask spreads,
+  especially for smaller foreign issuers.
+- FX conversion introduces additional cost and risk; the paper does not quantify currency‑conversion
+  fees or slippage.
+- No explicit sample period or out‑of‑sample holdout is reported, so regime‑shift risk and
+  survivorship bias are unclear.
+- Drafted by the paper agent (groq) from the first 16,000 characters of the arXiv HTML found
+  on semantic_scholar 2026-11-03; not yet read by the operator, so every number above must
+  be checked against the paper before it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
