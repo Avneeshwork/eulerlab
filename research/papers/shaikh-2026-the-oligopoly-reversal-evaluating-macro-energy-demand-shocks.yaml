@@ -1,0 +1,34 @@
+id: shaikh-2026-the-oligopoly-reversal-evaluating-macro-energy-demand-shocks
+title: 'The Oligopoly Reversal: Evaluating Macro-Energy Demand Shocks and the Corporate J-Curve
+  in India’s Electric Vehicle Sector (2022–2026)'
+authors: Z. Shaikh, Rakhi Gupta, B. P. Sahoo
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/ca8e70ad626c95476acc939e9bb2824238e0fd1e
+pdf: ''
+added: '2026-11-03'
+status: rejected
+markets:
+- Indian equities (auto manufacturers)
+- 2022‑2026
+summary: 'The authors ask how macro‑energy demand shocks and EV market penetration affect
+  Indian automotive firms'' profitability. They use monthly data (2022‑2026) with a Newey‑West
+  time‑series estimator for aggregate demand elasticities, and a fixed‑effects panel on 10
+  major Indian auto manufacturers with clustered SEs. Findings: Brent price changes do not
+  predict domestic retail metrics (F=0.89, p=0.4166) and have no contemporaneous margin impact;
+  higher EV penetration is associated with a negative margin effect (β=‑2.49, p=0.107), suggesting
+  a J‑curve of front‑loaded costs.'
+trade_idea: 'Not a testable trading idea: The paper analyzes corporate profit margins and
+  macro‑energy shocks but does not propose a concrete, testable trading signal or strategy.'
+implementation: unspecified
+red_flags:
+- Only 10 firms studied – limited sample may not generalize to broader market.
+- Results are marginally significant (p≈0.1) and may not be robust out‑of‑sample.
+- No transaction cost or liquidity analysis; Indian equity round‑trip costs (~9 bps) could
+  erode any weak signal.
+- Read by the research agent (openai/gpt-oss-120b) from the abstract only found on semantic_scholar
+  2026-11-03 and judged not a testable trading idea; not read by the operator.
+reported_results: 'Stage 1: F=0.89, p=0.4166 (no predictive power of Brent). Stage 2: β=‑2.49,
+  p=0.107 for EV penetration impact on operating margins.'
+hypothesis: ''
+strategies: []

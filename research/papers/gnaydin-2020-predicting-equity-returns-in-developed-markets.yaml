@@ -1,0 +1,33 @@
+id: gnaydin-2020-predicting-equity-returns-in-developed-markets
+title: Predicting equity returns in developed markets
+authors: A. Doruk Günaydin, Günaydın, Ali Doruk
+year: 2020
+kind: paper
+source_url: https://core.ac.uk/works/89337169
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- equities in 26 developed countries (including US), period unspecified
+summary: 'Question: Which firm‑specific variables predict cross‑sectional equity returns in
+  developed markets? Data: equity returns from 26 developed countries (period not disclosed).
+  Method: Univariate equal‑weighted portfolio sorts and multivariate cross‑sectional regressions.
+  Findings: Low beta, book‑to‑market, and momentum are priced; short‑term reversal and downside
+  beta have opposite signs; momentum emerges as the most robust predictor.'
+trade_idea: Buy stocks with the highest past 12‑month momentum (skipping the most recent month)
+  and hold them, expecting outperformance; No trade idea.
+implementation: 'universe: unspecified; data: unspecified; signal: unspecified; entry: unspecified;
+  exit: unspecified; holding period: unspecified; sizing and costs: unspecified'
+red_flags:
+- The sample period and exact countries are not disclosed, making regime‑dependence assessment
+  impossible.
+- No transaction cost or market impact analysis is provided, yet the effect may be eroded
+  by typical Indian/US trading costs of 5‑10 bps.
+- Potential survivorship bias because the study likely uses only currently listed firms, ignoring
+  delistings.
+- Drafted by the paper agent (openai/gpt-oss-120b) from the abstract only found on core 2026-11-03;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

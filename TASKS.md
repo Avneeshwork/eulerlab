@@ -32,7 +32,7 @@ Operator: "implement paperclick agent organisation model, make each agent employ
 | T-4410 | Check the B2 bucket's lifecycle keeps earlier file versions (A-098), so an overwritten memory file can be got back | TODO |
 | T-4411 | Operator: review research's topic list in `config/agents/research.yaml` (chosen by hand on 2026-11-03) | TODO. Operator |
 | T-4412 | More paper sources and no duplicates (ADR-129): SSRN through OpenAlex, NBER through Crossref, beside arXiv and OpenAlex; one paper known by DOI, arXiv, SSRN, NBER number or near title. Live: all four returned papers; 5 drafted, 2 from SSRN, 1 from NBER; the library had no duplicates | DONE 2026-11-03 |
-| T-4413 | More sources need a free key: OpenAlex (more searches a day), CORE, Semantic Scholar. Operator: create any you want and put them in .env | TODO. Operator |
+| T-4413 | More sources need a free key: OpenAlex (more searches a day), CORE, Semantic Scholar. Operator: create any you want and put them in .env | DONE 2026-11-03: all three keys added; OpenAlex key now read under its `.env` name; CORE and Semantic Scholar searched (ADR-131) |
 | T-4403 | Operator: watch the first week of tasks split by rules (`planned_by: rules`) and say whether the fallback words route well (A-093) | TODO. Operator |
 | T-4404 | Not checked: whether earlier engineering runs spent paid requests on a model failure the doctor had queued as a code error (HISTORY #64) | DONE 2026-11-03: no. Engineering ran twice (11-01, 11-02) with 0 model requests; the doctor's log holds one entry (a stalled lab run, closed) and no code queue was ever written |
 | T-4401 | Operator: approve, rewrite or delete the proposed goals in `config/company.yaml` (S-058) | TODO. Operator |

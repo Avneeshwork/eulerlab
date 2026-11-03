@@ -1558,7 +1558,7 @@ to the one cost path; until 2026-10-07 they charged ETFs the share rate
 `research/paper_search.py`) goes from a topic to drafts the operator reads.
 Cards stop there; papers go into the library (ADR-126).
 
-    price the search -> the sources in research.yaml (arXiv q-fin, OpenAlex, SSRN, NBER)
+    price the search -> the sources in research.yaml (arXiv q-fin, OpenAlex, SSRN, NBER, CORE, Semantic Scholar)
       -> one per paper across sources -> closest to the topic first, sources taking turns
       -> drop papers already known by any name, and ones sharing no topic word
       -> read arXiv HTML (first 16,000 chars), the abstract, or Crossref's, else OpenAlex's
@@ -1577,11 +1577,20 @@ the publisher's copyright, research 144): only the model's summary.
 
 **Sources and one paper under many links (ADR-129).** `paper_search.SOURCES`:
 `arxiv`, `openalex`, `ssrn` (OpenAlex works whose source is SSRN, `S4210172589`;
-SSRN's own site refuses robots) and `nber` (Crossref works with DOI prefix
-`10.3386`). `config/agents/research.yaml` `sources:` lists which are searched.
+SSRN's own site refuses robots), `nber` (Crossref works with DOI prefix
+`10.3386`), `core` (CORE's open-access index, every topic content word required
+in the abstract, 6 s between searches) and `semantic_scholar` (its relevance
+search in economics and business, 1 s apart, a 429 retried twice after 5 s and
+10 s; ADR-131). `config/agents/research.yaml` `sources:` lists which are
+searched. Keys are read by `paper_search.api_key`, which loads `.env` and
+accepts the standard name or the operator's spelling (`OPENALEX_API_KEY` or
+`OPEN_ALEX_API_KEY`, `CORE_API_KEY` or `CORE_API`, `SEMANTIC_SCHOLAR_API_KEY` or
+`Semantic_API`); CORE's goes in an `Authorization: Bearer` header and Semantic
+Scholar's in `x-api-key`, never in the URL.
 `paper_search.Known` holds every name of every paper in the library, staged, or
 read and judged: DOI, arXiv number without version, SSRN number (page link or
-`10.2139/ssrn.N`), NBER `wN`, normalised title, and the title's significant
+`10.2139/ssrn.N`), NBER `wN`, CORE work id, Semantic Scholar paper id,
+normalised title, and the title's significant
 words; a candidate sharing a name, or 85% of a title of five or more words
 (A-099), is `known`. A paper whose read failed is not, so it is tried again.
 `make papers-duplicates` lists library pairs that look like one paper.

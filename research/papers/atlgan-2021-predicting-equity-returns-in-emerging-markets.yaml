@@ -1,0 +1,42 @@
+id: atlgan-2021-predicting-equity-returns-in-emerging-markets
+title: Predicting equity returns in emerging markets
+authors: Atılgan, Yiğit, Demirtaş, Özgür, Günaydın, A. Doruk
+year: 2021
+kind: paper
+source_url: https://core.ac.uk/works/26342029
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- 23 emerging markets (period not specified)
+summary: The authors ask whether firm‑specific attributes predict future returns in 23 emerging
+  markets. They use daily price and accounting data to form equal‑weighted portfolios sorted
+  on characteristics. Univariate regressions show that small size, high idiosyncratic volatility,
+  lottery‑like traits and downside risk predict higher returns, but these vanish in multivariate
+  tests. The only effects that remain significant are short‑term (1‑month) momentum and medium‑term
+  (12‑month) momentum.
+trade_idea: Buy stocks that have the highest recent 1‑month return and the highest 12‑month
+  return (skipping the most recent month); the paper suggests these momentum effects generate
+  excess returns.
+implementation: |-
+  universe: Emerging‑market equities; for testing, Indian large‑cap stocks (unspecified in paper)
+  data: Historical daily prices to compute past returns; accounting data not needed for the momentum signal
+  signal: short‑term momentum (1‑month past return) and medium‑term momentum (12‑month past return, skip last month)
+  entry: Rank stocks by the chosen momentum metric and go long the top N
+  exit: Hold for the next month (or until next rebalance)
+  holding period: 1 month
+  sizing: Equal weight within the selected basket
+  costs: Round‑trip cost ≈9 bps for intraday large‑cap stocks; delivery trades incur 0.1 % STT each side (unspecified in paper)
+red_flags:
+- The effect is reported on equal‑weighted portfolios; value‑weighting weakens it, raising
+  capacity concerns.
+- Transaction costs and STT are not accounted for in the paper, which could erase the modest
+  momentum edge.
+- Sample period and exact market list are omitted, so survivorship bias and regime dependence
+  cannot be assessed.
+- Drafted by the paper agent (openai/gpt-oss-120b) from the abstract only found on core 2026-11-03;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
