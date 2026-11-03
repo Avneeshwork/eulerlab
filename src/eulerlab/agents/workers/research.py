@@ -373,6 +373,12 @@ def run(ctx: Context) -> WorkerResult:
     ranked.sort(key=lambda pair: -pair[0])
     items = [item for _, item in ranked] + items + leads
     drafted = len(ranked)
+    # How many the lab can test: a card research found incomplete is not (HISTORY #73).
+    complete = sum(
+        1
+        for d in result.drafts
+        if d.outcome == "drafted" and d.hypothesis is not None and not d.card_problems
+    )
     repeats = sum(1 for _, i in ranked if i.data.get("repeat_of"))
     counts = result.counts()
     read = sum(counts.get(k, 0) for k in ("drafted", "not relevant", "failed"))
@@ -387,7 +393,7 @@ def run(ctx: Context) -> WorkerResult:
         if counts.get(k)
     )
     return WorkerResult(
-        f"{topic}: {read} read, {drafted} drafted, "
+        f"{topic}: {read} read, {drafted} drafted ({complete} complete), "
         f"{counts.get('not relevant', 0)} not a trading idea, {counts.get('failed', 0)} failed"
         + (f"; skipped {skipped}" if skipped else "")
         + f"; {kept} added to the library; {repeats} repeats of closed ideas, "

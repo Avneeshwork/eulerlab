@@ -48,7 +48,7 @@ CHECKLIST = (
 """What a head checks before it passes a task up. Shown on the page as written."""
 
 DELIVERS: dict[str, re.Pattern[str]] = {
-    "research_topic": re.compile(r"\b0 drafted\b"),
+    "research_topic": re.compile(r"\b0 drafted\b|\(0 complete\)"),
     "test_card": re.compile(r"\b0 card\(s\) tested\b"),
 }
 """A finished run whose summary matches delivered nothing for that kind of task.
