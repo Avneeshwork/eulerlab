@@ -3255,6 +3255,36 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
 
 **Which model (ADR-127).** `options.models` in `config/agents/engineering.yaml`, in order: free Groq, then Claude Opus. A model is skipped when it is unreachable, or when one request (characters / 4) would use more than 80% of its `tokens_per_minute` (`engineering.FIT`). A bug fix carries CLAUDE.md and the module, far past Groq's free 8,000 a minute, so fixes run on Opus; a signal fits. The next model is tried only when the first one's code failed a check. The checks do not change with the model.
 
+### The data agent's routine, the watchdog and the token log (ADR-132)
+
+**The data agent** (`agents/workers/data.py`) runs at 06, 08, 10, 12, 14, 16, 18 and 20 IST (`make schedule JOB=data-watch`, `com.eulerlab.datawatch`) and in the 08:45 and 16:15 agent runs:
+
+    grade every dataset (quality contract)
+      -> freshness: today's data before 21:00 IST is "due tonight", not stale
+      -> re-run the allowed feed steps of stale datasets (`jobs.ALLOWED`, no Kite)
+      -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
+           upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
+           merge-back: each local file that differs from its B2 copy is merged into it
+      -> anything still wrong: one Groq request -> rerun one allowed step | task for head_platform | "Needs you"
+
+**Merge-back** (`ingest/merge_back.py`, also `make data-merge-back` at the end of `make daily`): for a `.jsonl.gz` file whose B2 copy has another size, both copies are read; a row is the same row when every field but `knowledge_time` and `receipt_time` matches (A-101) and is kept once with the earliest `knowledge_time`; B2's rows keep their order and rows only the local copy has follow. A merge that adds nothing means the local file was a duplicate: it is deleted. Otherwise the merged file (gzip `mtime=0`) is uploaded, and the local file is deleted only when a listing taken after shows it at the merged size. Other files that differ, and unreadable ones, are reported and kept. At most 4,000 files a run; `data/derived/merge_back.json` holds the last report.
+
+**The token log** (`llm/usage.py`): `chat._post` appends each reply's `usage` (OpenAI `prompt_tokens`/`completion_tokens`, Anthropic `input_tokens`/`output_tokens`) to `data/derived/llm_usage.jsonl` with the agent and run that asked (`usage.asking`, set by `runtime.run`); the assistant panel is `assistant`. `output.json` and the agents' log carry the run's `tokens`.
+
+**The watchdog** (`agents/workers/watchdog.py`, last in `agents-preopen`, `agents-close` and `agents-ideas`; `make agents-watchdog`) reads the last 26 hours:
+
+| Check | Problem when |
+|---|---|
+| runs | a run failed, was over budget or refused; the last 3 all failed ("stuck") |
+| missed | no run within `expect` hours (weekday-only agents get Saturday to Monday 17:00 off) |
+| requests | an agent defined without a model asked one; an agent used all its `daily_requests` |
+| tokens | an agent over 60,000 a day, an average request over 12,000, all agents over 160,000 (Groq's free 200,000) |
+| tasks | blocked, sent back twice, or open past its due day |
+
+Remedies: re-run once a day an agent in `rerun_ok` (data, operations, portfolio, knowledge_keeper) whose run failed or was missed; never the lab, research or market brief. What is left goes to one Groq request (4 a day), whose answer per problem becomes a task for the agent's head, an alert for the operator, or a note that it will clear.
+
+**Heads check delivery.** `manager.CHECKLIST` has a fourth item: a `research_topic` run that drafted 0, or a `test_card` run that tested 0 cards, is sent back (research then reads papers it has not judged), and after two returns blocked for AI help. Research marks a card incomplete when a `formula:` feature does not parse or a ranked configuration names no feature (`paper_agent.card_problems`), so the lab is never handed a card no code can fix.
+
 ### Coding the signals research cards name (ADR-127)
 
 A research card may name a signal the library lacks (`feature: liquidity_beta`). The lab cannot build it and records it in its output (`data.unbuildable`: card, named features). The work runner (`work.coding_handoffs`) turns each one into a `code_feature` task for engineering when the card was complete when drafted (`draft.json` `card: valid`) and the name is a plain name, one task per signal ever, at most `options.max_features` (2) new a day. The task runs by itself (`auto`), Groq first:

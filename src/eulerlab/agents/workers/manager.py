@@ -43,8 +43,18 @@ CHECKLIST = (
     "the agent's run finished ok (not failed, refused, over budget or switched off)",
     "the run says what it did (a summary is written)",
     "the doctor found no problem in that run",
+    "the run delivered what the task asked for",
 )
 """What a head checks before it passes a task up. Shown on the page as written."""
+
+DELIVERS: dict[str, re.Pattern[str]] = {
+    "research_topic": re.compile(r"\b0 drafted\b"),
+    "test_card": re.compile(r"\b0 card\(s\) tested\b"),
+}
+"""A finished run whose summary matches delivered nothing for that kind of task.
+On 2026-11-03 a head passed up a research task that drafted 0 ideas (ADR-132).
+Sent back, research reads papers it has not judged yet; after two returns the
+task is blocked and the head's AI help can reword it."""
 
 MAX_SUBTASKS = 4
 _WORD = re.compile(r"[a-z0-9]+")
@@ -121,6 +131,9 @@ def check(task: tasks.Task, head: str, root: Path, now: datetime) -> tasks.Task:
     flagged = _doctor_flagged(task.run_id, root)
     if flagged:
         failed.append(f"{CHECKLIST[2]} ({flagged})")
+    empty = DELIVERS.get(task.kind)
+    if status == "ok" and empty is not None and empty.search(task.summary):
+        failed.append(f"{CHECKLIST[3]} ({task.summary[:120].rstrip('.')})")
     if not failed:
         return tasks.record(
             task.id, "accepted", head, {"note": "passed the checklist"}, root=root, now=now

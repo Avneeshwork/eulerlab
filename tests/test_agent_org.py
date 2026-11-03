@@ -230,6 +230,7 @@ def test_real_preopen_job_runs_three_agents_then_the_three_heads() -> None:
         "head_research",
         "head_platform",
         "head_portfolio",
+        "watchdog",
     ]
 
 

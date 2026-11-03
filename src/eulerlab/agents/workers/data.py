@@ -15,23 +15,65 @@ One pass, in this order, cheapest first:
    data we do not hold"): matched against the register. Known and graded →
    answered; unknown → a proposal in the operator's inbox, because acquiring a
    new source is the operator's decision.
-6. **Optional**, off unless switched on in its definition: re-run the allowed
-   feed steps for stale datasets (`agents/jobs.py`), and download a few files
-   back from B2 to prove the backup restores (`quality/restore_check.py`).
+6. **Re-run** the allowed feed steps for stale datasets (`agents/jobs.py`),
+   when `auto_rerun` is on. Today's data before 21:00 IST is "due tonight",
+   not stale: NSE publishes after the close and `make daily` runs at 19:30.
+7. **Upkeep** (`upkeep: true`, ADR-132): under the `feed` lock, upload every
+   landing tree `make daily` uploads, delete the local files the bucket now
+   holds at the same size, then merge each file that differs from the
+   bucket's copy into it, rows once, earliest knowledge time
+   (`ingest/merge_back.py`), and delete it.
+8. **AI help** when something is still wrong after that: one Groq request
+   with the failures; its answer is a diagnosis for the operator, a re-run of
+   one allowed step, or a task for the Head of Data and Platform. The model
+   never runs anything itself.
+9. **Optional**: download a few files back from B2 to prove the backup
+   restores (`quality/restore_check.py`).
 
-No model is needed for any of this, and none is used.
+It runs every two hours from 06:00 to 20:00 IST (`make schedule
+JOB=data-watch`), as well as in the 08:45 and 16:15 agent runs.
 """
 
 from __future__ import annotations
 
+import contextlib
+import io
+import json
+import os
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from eulerlab import timings
 from eulerlab.agents import jobs
-from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output
+from eulerlab.agents.runtime import (
+    BudgetSpent,
+    Context,
+    Item,
+    WorkerResult,
+    latest_output,
+    untrusted,
+)
 from eulerlab.quality import contract
+
+IST = ZoneInfo("Asia/Kolkata")
+DUE_UNTIL = 21
+"""IST hour until which today's missing data is "due tonight": `make daily`
+starts at 19:30 and usually finishes by 20:30."""
+HELP = """You help the data agent of a small quant research platform keep its data
+current and backed up. You get the problems still open after it re-ran the feed steps
+it may run and uploaded to the bucket. For the most important problem, say what most
+likely caused it and what fixes it. Answer only with JSON:
+{"cause": "...", "fix": "...", "action": "rerun" | "head" | "operator" | "wait",
+ "step": "<one of the allowed steps, only for rerun>"}
+- rerun: the step failed for a passing reason (network, a timeout, the source late)
+  and running it once more is likely to work. Only a step from the allowed list.
+- head: code or a configuration must change; the Head of Data and Platform should
+  give it to an agent.
+- operator: only the operator can fix it (a login, a key, a payment, a decision).
+- wait: nothing to do until the next run (the source has not published yet).
+Never suggest deleting data, editing raw files, or changing the validation gate."""
 
 CHECK_WORDS = {
     "registered": "Not in the list of known sources",
@@ -90,7 +132,11 @@ def run(ctx: Context) -> WorkerResult:
         )
 
     stale: list[Any] = []
+    due: list[Any] = []
     for row in rows:
+        if due_tonight(row, ctx.now):
+            due.append(row)
+            continue
         if row.status in ("stale", "missing") or (row.status == "behind" and row.behind > 1):
             stale.append(row)
             items.append(
@@ -154,6 +200,15 @@ def run(ctx: Context) -> WorkerResult:
             )
         )
 
+    upkeep: dict[str, Any] = {}
+    if ctx.options.get("upkeep"):
+        upkeep_items, upkeep = _upkeep(ctx)
+        items.extend(upkeep_items)
+
+    problems = [i for i in items if i.kind == "alert" and i.severity in ("warn", "critical")]
+    if problems and ctx.options.get("ai_help"):
+        items.extend(_ask_for_help(ctx, problems, already=reran))
+
     restored = int(ctx.options.get("restore_sample", 0) or 0)
     if restored:
         from eulerlab.quality import restore_check
@@ -190,7 +245,10 @@ def run(ctx: Context) -> WorkerResult:
         (f"{answer.title}. " if answer is not None else "")
         + f"{len(grades)} datasets graded: {counts['A'] + counts['B']} clean (A or B), "
         f"{counts['C']} usable with a failed check (C), {counts['D']} not usable (D). "
-        f"{len(stale)} behind schedule. "
+        f"{len(stale)} behind schedule"
+        + (f", {len(due)} due tonight" if due else "")
+        + ". "
+        + (f"{upkeep['line']} " if upkeep.get("line") else "")
         + (
             f"Blocking backtests and the trade desk: {', '.join(blocked)}."
             if blocked
@@ -200,8 +258,202 @@ def run(ctx: Context) -> WorkerResult:
     return WorkerResult(
         summary,
         items,
-        data={"grades": [g.as_dict() for g in grades], "reran": reran},
+        data={
+            "grades": [g.as_dict() for g in grades],
+            "reran": reran,
+            "due": [r.name for r in due],
+            "upkeep": upkeep,
+        },
     )
+
+
+def due_tonight(row: Any, now: datetime) -> bool:
+    """Today's data, absent only because the nightly run has not reached it yet."""
+    detail = str(getattr(row, "detail", "") or "")
+    return (
+        getattr(row, "status", "") == "missing"
+        and detail.startswith("today's data not in yet")
+        and now.astimezone(IST).hour < DUE_UNTIL
+    )
+
+
+def _cloud() -> tuple[Any, Any]:
+    """The bucket and its key prefix. Raises when there are no credentials."""
+    from pathlib import Path
+
+    from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
+
+    config = load_storage_config(Path("config/storage.yaml"))
+    return S3ObjectStore(config), config
+
+
+def _upkeep(ctx: Context) -> tuple[list[Item], dict[str, Any]]:
+    """Upload, delete what the bucket holds, merge what differs (ADR-132). Never raises."""
+    from pathlib import Path
+
+    from eulerlab.ingest import filelock, merge_back
+
+    if os.environ.get("EULERLAB_NO_CLOUD", "").strip().lower() in ("1", "true", "yes"):
+        return [], {"line": "Upkeep skipped: offline."}
+    trees = [str(t) for t in ctx.options.get("upkeep_trees") or merge_back.TREES]
+    limit = int(ctx.options.get("merge_limit") or merge_back.DEFAULT_LIMIT)
+    ctx.step(f"Upkeep: uploading {', '.join(trees)}, deleting what B2 holds, merging what differs")
+    try:
+        with filelock.exclusive("feed", wait=False, what="the data agent's upkeep"):
+            store, config = _cloud()
+            from eulerlab.ingest.sync_cloud import mirror_trees
+
+            printed = io.StringIO()
+            root = Path("data/landing")
+            with contextlib.redirect_stdout(printed):
+                mirror_trees(trees, store, config, root / "nse", root, then_delete=True)
+            reports = merge_back.run(
+                store,
+                prefix=config.prefix,
+                trees=trees,
+                root=root,
+                limit=limit,
+                log=ctx.notes.append,
+            )
+            merge_back.save(reports)
+    except filelock.Busy:
+        return [], {"line": "Upkeep waits: the feed is running."}
+    except Exception as exc:  # no credentials, no network: say so, do not fail the grading
+        return [
+            Item(
+                kind="alert",
+                title="upkeep could not run",
+                body=f"{type(exc).__name__}: {str(exc)[:300]}",
+                severity="warn",
+            )
+        ], {"line": "Upkeep failed."}
+    text = printed.getvalue()
+    deleted = sum(int(m) for m in re.findall(r"deleted (\d+) local files", text))
+    uploaded = sum(int(m) for m in re.findall(r"uploaded (\d+),", text))
+    failed_upload = [line.strip() for line in text.splitlines() if line.startswith("    ")]
+    merged = sum(r.merged_uploaded for r in reports)
+    duplicates = sum(r.duplicates_deleted for r in reports)
+    unresolved = [u for r in reports for u in r.unresolved]
+    left = sum(r.left_for_next_run for r in reports)
+    added = sum(r.rows_added for r in reports)
+    summary = {
+        "uploaded": uploaded,
+        "deleted": deleted,
+        "duplicates_deleted": duplicates,
+        "merged": merged,
+        "rows_added": added,
+        "unresolved": unresolved[:50],
+        "left_for_next_run": left,
+        "line": (
+            f"Upkeep: {uploaded} uploaded, {deleted + duplicates + merged} local files deleted "
+            f"({duplicates} duplicates, {merged} merged into B2 with {added} new rows)"
+            + (f", {len(unresolved)} unresolved" if unresolved else "")
+            + (f", {left} for the next run" if left else "")
+            + "."
+        ),
+    }
+    out: list[Item] = []
+    if unresolved:
+        out.append(
+            Item(
+                kind="alert",
+                title=f"{len(unresolved)} local file(s) differ from B2 and could not be merged",
+                body="; ".join(unresolved[:5]),
+                severity="warn",
+            )
+        )
+    shrinking = [f for f in failed_upload if "smaller than the bucket" not in f]
+    if shrinking:
+        out.append(
+            Item(
+                kind="alert",
+                title=f"{len(shrinking)} upload(s) failed",
+                body="; ".join(shrinking[:5]),
+                severity="warn",
+            )
+        )
+    return out, summary
+
+
+def _ask_for_help(ctx: Context, problems: list[Item], *, already: list[str]) -> list[Item]:
+    """One model request about what is still wrong; act only within the allowed list."""
+    if not ctx.can_ask():
+        return []
+    allowed = sorted(jobs.ALLOWED)
+    listed = "\n".join(f"- {p.title}: {p.body[:300]}" for p in problems[:12])
+    user = (
+        f"Allowed steps: {', '.join(allowed)}\nAlready re-run this time: {', '.join(already) or 'none'}\n\n"
+        + untrusted("data-problems", listed, limit=4000)
+    )
+    try:
+        advice = _parse_help(ctx.ask(HELP, user, accept=_parse_help))
+    except BudgetSpent:
+        return []
+    except Exception as exc:  # no model, or an answer that is not the JSON asked for
+        ctx.notes.append(f"AI help failed ({type(exc).__name__})")
+        return []
+    cause = " ".join(str(advice.get("cause") or "").split())[:300]
+    fix = " ".join(str(advice.get("fix") or "").split())[:300]
+    action = str(advice.get("action") or "operator")
+    out = [
+        Item(
+            kind="finding",
+            title=f"AI help: {cause[:120] or 'no cause given'}",
+            body=f"Cause: {cause}. Fix: {fix}. Action: {action}.",
+            severity="info",
+        )
+    ]
+    step = str(advice.get("step") or "")
+    if action == "rerun" and step in jobs.ALLOWED and step not in already:
+        result = jobs.rerun([step])
+        out.append(
+            Item(
+                kind="finding",
+                title=f"re-ran {step} on AI advice: {'ok' if result.ok else 'still failing'}",
+                body=result.detail,
+                severity="info" if result.ok else "warn",
+            )
+        )
+    elif action == "head":
+        from eulerlab.agents import tasks
+
+        task = tasks.create(
+            title=f"Data problem: {problems[0].title}"[:200],
+            owner="head_platform",
+            department="platform",
+            created_by=ctx.name,
+            detail=f"{problems[0].body[:800]}\n\nAI help says. Cause: {cause}. Fix: {fix}",
+            key=f"data-help|{problems[0].title}|{ctx.now.date().isoformat()}",
+            root=ctx.root,
+            now=ctx.now,
+        )
+        out.append(
+            Item(
+                kind="finding",
+                title=f"asked the Head of Data and Platform ({task.id})",
+                body=fix,
+                severity="info",
+            )
+        )
+    elif action == "operator":
+        out[0] = Item(
+            kind="alert",
+            title=f"Needs you: {cause[:120] or problems[0].title}",
+            body=f"{fix}",
+            severity="warn",
+            needs_approval=True,
+        )
+    return out
+
+
+def _parse_help(text: str) -> dict[str, Any]:
+    match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not match:
+        raise ValueError("no JSON object in the answer")
+    body = json.loads(match.group(0))
+    if not isinstance(body, dict) or "action" not in body:
+        raise ValueError("the answer has no action")
+    return body
 
 
 def _words(text: str) -> set[str]:

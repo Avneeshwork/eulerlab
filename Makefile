@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -190,6 +190,15 @@ prune-local:
 # Lists only their part of the bucket. What `make daily` runs after each
 # download. DELETE=1 then removes the local files the bucket holds at the same
 # size. DRY=1 reports and changes nothing.
+# Merge local files that differ from the bucket into it, every row once at its
+# earliest knowledge time, then delete them (ADR-132). DRY=1 changes nothing.
+data-merge-back:
+	@uv run python -m eulerlab.ingest.merge_back $(if $(DRY),--dry-run,) $(if $(LIMIT),--limit $(LIMIT),)
+
+# Every agent's runs, model use and tasks over the last day (ADR-132).
+agents-watchdog:
+	@uv run python -m eulerlab.agents.runtime watchdog
+
 upload-tree:
 	@echo "   upload$(if $(DELETE), then delete local,): $(TREES)"
 	@uv run python -m eulerlab.ingest.sync_cloud --only $(TREES) $(if $(DELETE),--then-delete,) $(if $(DRY),--dry-run,)
@@ -295,6 +304,7 @@ agents-preopen:
 	-@uv run python -m eulerlab.agents.runtime head_platform
 	-@uv run python -m eulerlab.agents.runtime head_portfolio
 	-@uv run python -m eulerlab.agents.work
+	-@uv run python -m eulerlab.agents.runtime watchdog
 
 knowledge-keeper:
 	@uv run python -m eulerlab.agents.runtime knowledge_keeper $(if $(MODE),--arg mode=$(MODE),)
@@ -321,6 +331,7 @@ agents-close:
 	-@uv run python -m eulerlab.agents.runtime knowledge_keeper
 	-@uv run python tools/render_metrics_handbook.py
 	-@uv run python -m eulerlab.agents.runtime engineering --arg mode=quality
+	-@uv run python -m eulerlab.agents.runtime watchdog
 
 agents-weekly:
 	-@uv run python -m eulerlab.agents.evaluate
@@ -342,6 +353,7 @@ agents-ideas:
 	-@uv run python -m eulerlab.agents.runtime research
 	-@uv run python -m eulerlab.agents.runtime lab
 	-@uv run python -m eulerlab.agents.work
+	-@uv run python -m eulerlab.agents.runtime watchdog
 	-@uv run python -m eulerlab.ingest.memory_backup
 
 # The agent company's working day (ADR-124): each head checks finished tasks,
@@ -845,6 +857,11 @@ daily-run:
 	@echo "== sync and prune =="
 	-$(MAKE) sync-cloud
 	$(MAKE) prune-local
+	@# Files that differ from the bucket are merged into it, rows once, and
+	@# deleted (ADR-132). Not ignored: one it cannot merge fails the run, so
+	@# daily_guard.sh sends the failure to Telegram.
+	@echo "== merge what differs from B2 =="
+	$(MAKE) --no-print-directory data-merge-back
 	@echo "== landing census =="
 	-$(MAKE) --no-print-directory manifest
 

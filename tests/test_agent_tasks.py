@@ -462,7 +462,7 @@ def test_the_head_writes_every_plan_into_its_run(tmp_path: Path) -> None:
     saved = json.loads(
         (tmp_path / "head_platform" / out.run_id / "plans.json").read_text(encoding="utf-8")
     )
-    assert sorted(saved) == ["data", "engineering", "head_platform", "operations"]
+    assert sorted(saved) == ["data", "engineering", "head_platform", "operations", "watchdog"]
 
 
 # --- capabilities --------------------------------------------------------------------
@@ -680,7 +680,9 @@ def test_a_rules_only_agent_gets_ai_help_through_its_head(tmp_path: Path) -> Non
     runtime.run("head_platform", root=tmp_path, asker=_asker(json.dumps(answer)), now=_at(2))
     fixed = tasks.load(tmp_path)[t.id]
     assert fixed.status == "assigned" and fixed.args == {"dataset": "bulk_deals"}
-    assert all_effective(tmp_path)["data"].spec.uses_model is False
+    assert (
+        all_effective(tmp_path)["data"].spec.uses_model is all_effective()["data"].spec.uses_model
+    )
 
 
 def test_a_value_sent_as_json_is_unwrapped(tmp_path: Path) -> None:

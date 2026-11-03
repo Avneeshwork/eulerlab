@@ -74,6 +74,8 @@ class Job:
     log: str
     what: str
     why_then: str
+    hours: tuple[int, ...] = ()
+    """When set, one run at `minute` past each of these hours, every day."""
 
     @property
     def plist_path(self) -> Path:
@@ -233,6 +235,22 @@ JOBS = {
             "The heads and the work runner go first, so the day's tasks are done (ADR-124)."
         ),
     ),
+    "data-watch": Job(
+        name="data-watch",
+        label="com.eulerlab.datawatch",
+        command="cd {repo} && make agent NAME=data",
+        hour=6,
+        minute=0,
+        weekdays=(),
+        hours=(6, 8, 10, 12, 14, 16, 18, 20),
+        log="data_watch",
+        what="the data agent, every two hours from 06:00 to 20:00 IST",
+        why_then=(
+            "Every two hours from 06:00 to 20:00 IST, as the operator asked (2026-11-04): grade,\n"
+            "re-run what is behind, upload and clear local copies, merge what differs. The 20:00\n"
+            "run usually finds make daily holding the feed lock and leaves upkeep to the next."
+        ),
+    ),
 }
 
 LABEL = JOBS["daily"].label
@@ -251,6 +269,16 @@ def _when(job: Job, hour: int, minute: int) -> str:
             f"{pad}</dict>\n"
         )
 
+    if job.hours:
+        return (
+            "  <array>\n"
+            + "".join(
+                f"    <dict>\n      <key>Hour</key><integer>{h}</integer>\n"
+                f"      <key>Minute</key><integer>{minute}</integer>\n    </dict>\n"
+                for h in job.hours
+            )
+            + "  </array>\n"
+        )
     if not job.weekdays:
         return entry(None, "  ")
     return "  <array>\n" + "".join(entry(day, "    ") for day in job.weekdays) + "  </array>\n"

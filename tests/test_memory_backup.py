@@ -111,9 +111,10 @@ def test_the_make_targets_exist_and_the_daily_job_backs_up_last(target: str) -> 
     assert f"\n{target}:" in text
     ideas = text.split("\nagents-ideas:", 1)[1].split("\n\n", 1)[0]
     order = [line.split()[-1] for line in ideas.splitlines() if "python -m" in line]
-    assert order[-4:] == [
+    assert order[-5:] == [
         "research",
         "lab",
         "eulerlab.agents.work",
+        "watchdog",
         "eulerlab.ingest.memory_backup",
     ]
