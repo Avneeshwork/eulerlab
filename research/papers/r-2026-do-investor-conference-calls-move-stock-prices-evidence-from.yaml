@@ -1,0 +1,37 @@
+id: r-2026-do-investor-conference-calls-move-stock-prices-evidence-from
+title: Do Investor Conference Calls Move Stock Prices? Evidence from the Indian Equity Market
+authors: Jeblin Bezaleel S. R
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/22d9dec66e648439c643fce82aa374b88f60370f
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- Indian equities (NSE), period not specified
+summary: 'The study asks whether investor conference calls move Indian stock prices. It uses
+  an event‑study on 16 NSE‑listed firms, computing abnormal returns with a mean‑adjusted model
+  over a three‑day window (Day –1 to Day +1). Findings: Day‑0 average abnormal return = +1.5536%
+  (t=3.52, p=0.003); CAAR peaks at +2.0421% at close of Day‑0 then reverses to +0.4739% by
+  Day +1; the three‑day CAAR is not significant.'
+trade_idea: Buy a stock shortly before its scheduled investor conference call and sell at
+  the close of the same day to capture the +1.5% average abnormal return reported.
+implementation: 'universe: NSE‑listed firms that hold a conference call (sample of 16 in paper);
+  data: conference‑call dates and daily close prices; signal: binary indicator of a call on
+  the day; entry: market open on Day 0; exit: market close on Day 0; holding period: 1 day;
+  sizing: unspecified; costs: unspecified (round‑trip intraday cost ≈9 bps for large stocks,
+  but not accounted for in paper).'
+red_flags:
+- Sample size is tiny (16 firms), raising concerns about statistical robustness and survivorship
+  bias.
+- The study does not control for concurrent news releases, so the measured abnormal return
+  may be confounded by other information.
+- Liquidity and capacity are unknown; a strategy that buys every call‑day stock could be limited
+  by market depth and transaction costs.
+- Drafted by the paper agent (openai/gpt-oss-120b) from the abstract only found on semantic_scholar
+  2026-11-03; not yet read by the operator, so every number above must be checked against
+  the paper before it drives a decision.
+reported_results: Day‑0 AAR = +1.5536% (t=3.52); CAAR peak = +2.0421% at close Day‑0; post‑event
+  reversal AAR = –1.5681% (t=–4.06); full three‑day CAAR not significant (t=0.80).
+hypothesis: ''
+strategies: []

@@ -1,0 +1,26 @@
+id: halonenakatwijuka-2015-short-term-long-term-and-continuing-contracts
+title: Short-term, Long-term, and Continuing Contracts
+authors: Maija Halonen-Akatwijuka, Oliver Hart
+year: 2015
+kind: paper
+source_url: https://doi.org/10.3386/w21005
+pdf: ''
+added: '2026-11-03'
+status: rejected
+markets: []
+summary: The authors model a two‑period setting where parties can choose long‑term, short‑term,
+  or "continuing" contracts; they compare renegotiation costs and bargaining outcomes under
+  each contract type.
+trade_idea: 'Not a testable trading idea: The paper is a theoretical contract‑type analysis
+  with no empirical market price or return evidence, so it does not propose a testable trading
+  idea.'
+implementation: unspecified
+red_flags:
+- Purely theoretical model; no data, no empirical validation.
+- No market price or return series examined; cannot map to tradable assets.
+- No discussion of transaction costs, liquidity, or capacity constraints.
+- Read by the research agent (openai/gpt-oss-120b) from the abstract from OpenAlex found on
+  nber 2026-11-03 and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
