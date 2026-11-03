@@ -50,6 +50,10 @@ class Skill(BaseModel):
     arg: str = Field(default="", pattern=r"^$|^[a-z][a-z_]{1,23}$")
     choices: list[str] = Field(default_factory=list)
     fixed: dict[str, str] = Field(default_factory=dict)
+    also: list[str] = Field(default_factory=list)
+    """Other task values passed through when set, as `name=<value>` (ADR-127: a
+    code_feature task carries the card as well as the signal's name)."""
+
     auto: bool = True
     words: list[str] = Field(default_factory=list)
     """Words that point a task at this skill when the head has no model (the fallback)."""

@@ -101,7 +101,7 @@ def audit(specs: dict[str, AgentSpec] | None = None, chart: org.Org | None = Non
         )
         source = _source(spec.worker)
         for skill in spec.can_do:
-            for arg in [*([skill.arg] if skill.arg else []), *skill.fixed]:
+            for arg in [*([skill.arg] if skill.arg else []), *skill.also, *skill.fixed]:
                 out.append(
                     Check(
                         name,

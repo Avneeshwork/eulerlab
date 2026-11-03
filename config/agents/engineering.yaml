@@ -3,7 +3,7 @@
 name: engineering
 title: Engineering agent
 reports_to: platform
-job: Fixes code problems the doctor and the daily quality check find, one file and its test on its own branch, proven by lint, types, tests and the engine self-test, for you to merge; reviews branches against the house rules and drafts new primitives.
+job: Fixes code problems the doctor and the daily quality check find, and codes the signals research cards name that the library lacks, each on its own branch, proven by lint, types, tests and the engine self-test, for you to merge. Tries free Groq first, then Claude Opus. Reviews branches against the house rules.
 worker: eulerlab.agents.workers.engineering
 schedule: "daily 16:15 IST quality check and fixes (agents-close), on demand, and Sunday 07:30"
 uses_model: true
@@ -11,23 +11,38 @@ provider: claude-opus
 daily_requests: 20
 never:
   - merge into your branch, or push anywhere but its own agent-fix branch
-  - change more than the one suspected file and its test
+  - change more than the one suspected file and its test, or, when coding a signal, more than its own file and test under features/coded
   - edit gates.py, mandate.yaml, the order path, broker, deployment, kill switch, validation, config or secrets
-  - fix on a weaker model than Claude Opus, or skip or weaken a test to pass
+  - keep code that fails a check, whichever model wrote it, or skip or weaken a test to pass
 needs_approval: true
 options:
   max_fixes: 3
+  # Free first (operator, 2026-11-03): Groq, then Claude Opus when Groq is
+  # unreachable, its request does not fit Groq's free per-minute limit, or its
+  # code failed the checks. A bug fix is past Groq's limit, so it runs on Opus.
+  models: [groq, claude-opus]
+  # Signals coded for research cards per IST day (ADR-127). Each tries Groq,
+  # then at most 2 Opus requests (about $0.10 each at $4/$20 per million tokens).
+  max_features: 2
 
 # Everyday work and the tasks a head may give it (ADR-124).
 duties:
   - At 16:15 on weekdays, run lint, types and tests and fix what the doctor queued
   - On Sundays, review the branch against the house rules
+  - Code the signal a complete research card names when the idea lab cannot build it, for you to merge
 can_do:
   - kind: fix_code
     what: Fix the code problems the doctor queued, one file and its test on its own branch for you to merge
     fixed: {mode: fix}
     auto: false   # writes a branch with a paid model; you start it
     words: [bug, bugs, fix, error, errors, crash, broken, failing, code, test, tests, lint]
+  - kind: code_feature
+    what: Code a signal a research card names, in features/coded with its test, and open a pull request for you to merge
+    arg: feature
+    also: [card]
+    fixed: {mode: feature}
+    auto: true    # Groq first; at most max_features a day; you merge
+    words: [signal, feature, code, coded, build, primitive, factor]
   - kind: review_branch
     what: Review the files changed on this branch against the house rules
     auto: false

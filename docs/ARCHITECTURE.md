@@ -3184,7 +3184,31 @@ The runtime keeps the last six traceback frames, so the deepest frame is the one
       -> green: commit, push the branch, a proposal "fix ready" with `make agent-fix-apply ID=<id>`
       -> worktree removed in every case
 
-The fixer runs only fixed commands with fixed arguments; the model's text is written to files in the worktree, never to a shell. It refuses to run when Claude Opus is not reachable rather than use a weaker model. `agents/boundaries.fixer_users` holds the fixer to `engineering.py`.
+The fixer runs only fixed commands with fixed arguments; the model's text is written to files in the worktree, never to a shell. `agents/boundaries.fixer_users` holds the fixer to `engineering.py`.
+
+**Which model (ADR-127).** `options.models` in `config/agents/engineering.yaml`, in order: free Groq, then Claude Opus. A model is skipped when it is unreachable, or when one request (characters / 4) would use more than 80% of its `tokens_per_minute` (`engineering.FIT`). A bug fix carries CLAUDE.md and the module, far past Groq's free 8,000 a minute, so fixes run on Opus; a signal fits. The next model is tried only when the first one's code failed a check. The checks do not change with the model.
+
+### Coding the signals research cards name (ADR-127)
+
+A research card may name a signal the library lacks (`feature: liquidity_beta`). The lab cannot build it and records it in its output (`data.unbuildable`: card, named features). The work runner (`work.coding_handoffs`) turns each one into a `code_feature` task for engineering when the card was complete when drafted (`draft.json` `card: valid`) and the name is a plain name, one task per signal ever, at most `options.max_features` (2) new a day. The task runs by itself (`auto`), Groq first:
+
+    devtools/fixer.code_feature(name, card)
+      -> git worktree on agent-feature/<name>-<id> from HEAD
+      -> model: a short prompt (features/base.py, one example feature, the card; fits Groq's free minute)
+         -> JSON {explanation, file, test}, or file null: "cannot be built from one stock's own history"
+      -> mechanical clean-up, not the model: unwrap a code fence or triple-quoted string,
+         typographic dashes and quotes to ASCII, `ruff check --fix`, `ruff format`
+      -> only features/coded/<name>.py and tests/test_coded_<name>.py may appear
+      -> coded.problems (pure), ruff, format, mypy, pytest (its test + tests/test_coded_features.py), engine self-test
+      -> red: one retry with the failures, then the next model, then a finding for you
+      -> green: a line in docs/CODED_FEATURES.md, commit (`--no-verify`: the same checks just
+         ran, and CI runs the whole suite on the PR), push, `gh pr create`
+      -> a failed attempt's branch is deleted with its worktree
+      -> worktree removed in every case
+
+**Why a coded signal cannot look ahead.** It is a function of one stock's own history, handed to it ending at the decision day. It could only see later data by reading something else, so `features/coded.problems` refuses any module that does not compile, imports outside a short list (`math`, `statistics`, `collections.abc`, `itertools`, `features/base`, the panel row, `robust`; never the library, which imports the coded package), calls `open`, `eval`, `exec` or similar, touches a dunder attribute or keeps `global` state. That check runs at load time in every process (a refused module is never imported, and one that raises on import is skipped, so a bad signal cannot stop the library loading) and in `tests/test_coded_features.py`, which also checks every coded feature returns None on short history, only finite floats otherwise, the same answer twice, and leaves its input unchanged.
+
+**After you merge.** `library.BY_NAME` loads `features/coded` at import (seeds first; a coded name cannot replace one), so codegen, the lab, backtests and validation all see it. The card stays on the lab's list while it cannot be built, so the lab's next run tests it, logging its trials first. A signal that needs other stocks, the market or fundamentals is not coded: the task ends with the model's reason, for you.
 
 ## The data quality contract (ADR-086)
 
