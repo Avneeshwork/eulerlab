@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Sixty-four times this project was wrong
+## Sixty-five times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -425,6 +425,8 @@ figure produced outside the result store before this date was frictionless.
 **63. The version lock fingerprinted memory addresses.** (2026-11-02, T-4396) ADR-087's lock hashes a strategy's source and `repr(vars(strategy))`. For 40 of the 68 deployable strategies that repr held a function, printed as `<function momentum_12_1 at 0x7f60ae7c0900>`, and the address changes every time Python starts. So the fingerprint changed on every run: each of those paper books carried a "code changed" warning every day whether or not its code had changed, and a live book on one would never have passed the lock. Found while checking whether PR #69 would trip the lock. Now addresses are removed before hashing (`version_lock._stable`), and a test compares fingerprints from two separate Python processes. A lock written before the fix still differs once: relock it (`make relock`). No trade was affected: on paper the lock only warns.
 
 **64. The doctor's two hand-offs did not reach the right agent.** (2026-11-03, ADR-124) ADR-113's doctor said a refused run "for data" was handed "to the data agent as a data request". It only wrote a line in `data/agents/doctor/log.jsonl`, and nothing read that log: the data agent reads requests from the research and skeptic agents' outputs, never the doctor's. The live log held no such line, so no request was lost. Separately, a run that failed because the model refused or ran out of quota ("ModelUnavailable: The free quota is used up", seen live on Groq while testing ADR-124) has a traceback inside `src/eulerlab`, so the doctor queued it as a code error for the engineering agent, which runs on paid Claude Opus, to "fix" a rate limit. Now a refused-data line becomes a `check_dataset` task for the data agent (`agents/work.py`), and a run whose summary starts `ModelUnavailable`, `Refused` or `BudgetSpent` is `model_down` (`doctor.MODEL_ERRORS`). No numbers are invalidated. Not checked: whether earlier engineering runs spent requests on such a false code error (search `data/agents/doctor/code_queue.jsonl` history in the engineering runs' outputs).
+
+**65. "The last round has no tools, so it must answer" was not true for gpt-oss-120b.** (2026-11-03, ADR-125) The assistant's tool loop (ADR-064) assumed a model offered no tools would answer. On Groq, gpt-oss-120b wrote a tool call anyway (twice, in two live knowledge questions), and Groq refused the reply with HTTP 400 `tool_use_failed`; T-4402 and research 142 had read the first such failure as a one-off parse error. The same loop also sent rounds back to back with all 17 tool descriptions each time, about 18,000 tokens a minute against Groq's 8,000, which was the 429. Now requests are paced to the limit, the knowledge agent is offered 10 tools and 4 rounds, and the last round gets the results as plain text. Any answer the AI tab or Telegram got from Groq after a long tool loop could have failed the same way; no numbers are invalidated, since a failure gave no answer at all.
 
 ---
 

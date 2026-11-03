@@ -54,7 +54,8 @@ what is open is in `TASKS.md`.*
   Org chart (a family tree); it splits the task with Groq, or fixed rules if
   Groq cannot answer, checks each result, asks Groq to unstick a blocked one, and passes it up for you to close
   (ADR-124, `make agents-work`, `make agents-capabilities`). Goals are still
-  proposed (T-4401); the knowledge agent is not yet reliable on Groq (T-4402).
+  proposed (T-4401). Model requests are paced to Groq's free per-minute limit
+  (ADR-125); a knowledge question costs about 4 requests and 9,000 tokens.
   Launchd jobs were not loaded until 2026-11-01 (T-4356); on that
   evening the agents, daily feed, fundamentals and idea lab jobs were loaded.
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):
@@ -94,4 +95,4 @@ run them to check that they work (T-2609).
 - **Sharpe has no risk-free rate** (A-083, T-4249).
 
 `docs/STUBS.md` lists what is fake; `docs/ASSUMPTIONS.md` what is unverified;
-`docs/HISTORY.md` the 64 times this project has been wrong.
+`docs/HISTORY.md` the 65 times this project has been wrong.
