@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Sixty-five times this project was wrong
+## Sixty-six times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -427,6 +427,8 @@ figure produced outside the result store before this date was frictionless.
 **64. The doctor's two hand-offs did not reach the right agent.** (2026-11-03, ADR-124) ADR-113's doctor said a refused run "for data" was handed "to the data agent as a data request". It only wrote a line in `data/agents/doctor/log.jsonl`, and nothing read that log: the data agent reads requests from the research and skeptic agents' outputs, never the doctor's. The live log held no such line, so no request was lost. Separately, a run that failed because the model refused or ran out of quota ("ModelUnavailable: The free quota is used up", seen live on Groq while testing ADR-124) has a traceback inside `src/eulerlab`, so the doctor queued it as a code error for the engineering agent, which runs on paid Claude Opus, to "fix" a rate limit. Now a refused-data line becomes a `check_dataset` task for the data agent (`agents/work.py`), and a run whose summary starts `ModelUnavailable`, `Refused` or `BudgetSpent` is `model_down` (`doctor.MODEL_ERRORS`). No numbers are invalidated. Not checked: whether earlier engineering runs spent requests on such a false code error (search `data/agents/doctor/code_queue.jsonl` history in the engineering runs' outputs).
 
 **65. "The last round has no tools, so it must answer" was not true for gpt-oss-120b.** (2026-11-03, ADR-125) The assistant's tool loop (ADR-064) assumed a model offered no tools would answer. On Groq, gpt-oss-120b wrote a tool call anyway (twice, in two live knowledge questions), and Groq refused the reply with HTTP 400 `tool_use_failed`; T-4402 and research 142 had read the first such failure as a one-off parse error. The same loop also sent rounds back to back with all 17 tool descriptions each time, about 18,000 tokens a minute against Groq's 8,000, which was the 429. Now requests are paced to the limit, the knowledge agent is offered 10 tools and 4 rounds, and the last round gets the results as plain text. Any answer the AI tab or Telegram got from Groq after a long tool loop could have failed the same way; no numbers are invalidated, since a failure gave no answer at all. The first pacing code stamped Groq's remaining count with the real clock while its test paced on a fake one; it passed on this Mac and failed on CI, whose fresh machine's clock read lower. Caught before merge; `settle` now takes the same clock.
+
+**66. "0 drafted" read as "no papers", but the agent was dropping and forgetting them.** (2026-11-03, ADR-126) The research agent's runs on 11-01, 11-02 and 11-03 said "0 drafted" and nothing else. Re-run with every paper's outcome printed (research 144): the most on-topic momentum paper was dropped because gpt-oss-120b wrote one section as an object and the reply check was strict; one was lost to a single Groq timeout; three had no abstract; off-topic hits used read slots. And a run with no draft wrote no `run.json`, so its "not relevant" papers were read again next time. Now replies are parsed tolerantly, a failed request is retried once, reading follows topic overlap, Crossref fills missing abstracts, every judged paper is kept in the library, and the summary counts each outcome. The same topic then drafted 2. No numbers are invalidated: drafts spend no trial.
 
 ---
 

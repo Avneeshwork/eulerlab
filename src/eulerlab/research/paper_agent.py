@@ -7,7 +7,9 @@ approval before any backtest or trial-ledger entry. ADR-084.
     topic -> price the search -> arXiv + OpenAlex -> drop known papers
           -> read (arXiv HTML, else the abstract) -> model drafts JSON
           -> library.Paper + card.validate + critic.review
-          -> research/agent_drafts/<run>/          <- it stops here
+          -> research/papers/<id>.yaml   every paper it read, even one judged
+                                         not a trading idea (status rejected)
+          -> research/agent_drafts/<run>/          <- cards stop here
                          |
           operator: make paper-agent-approve DRAFT=...
                          |
@@ -61,6 +63,8 @@ VALIDATION_ID = "H-0000"
 """Used only to run `card.validate`, which checks the id's shape."""
 
 DEFAULT_LIMIT = 5
+RETRY_WAIT = 10.0
+"""Seconds before the one retry of a paper whose model request failed."""
 DEFAULT_SPACING = 60.0
 """Seconds between drafts. Groq's free tier allows 8,000 tokens a minute on
 `openai/gpt-oss-120b`, and one draft from full text is about 6,000 (research 123)."""
@@ -85,6 +89,28 @@ class _Strict(BaseModel):
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
 
+def _as_text(value: Any) -> Any:
+    """A section the model wrote as an object or a list, as readable lines.
+
+    Seen 2026-11-03: gpt-oss-120b wrote `implementation` as {"universe": ...,
+    "signal": ...} and the whole draft was dropped for it (research 144).
+    """
+    if isinstance(value, dict):
+        return "\n".join(f"{k}: {_as_text(v)}" for k, v in value.items())
+    if isinstance(value, list):
+        return "\n".join(f"- {_as_text(v)}" for v in value)
+    return value
+
+
+def _as_list(value: Any) -> Any:
+    """A list of plain lines: one string becomes a list of one, objects become text."""
+    if isinstance(value, str):
+        return [value] if value.strip() else []
+    if isinstance(value, list):
+        return [_as_text(v) if isinstance(v, dict | list) else v for v in value]
+    return value
+
+
 class PaperFields(_Strict):
     summary: str = Field(min_length=1, max_length=6000)
     trade_idea: str = Field(min_length=1, max_length=6000)
@@ -93,6 +119,16 @@ class PaperFields(_Strict):
     reported_results: str = Field(default="", max_length=6000)
     markets: list[str] = Field(default_factory=list, max_length=10)
 
+    @field_validator("summary", "trade_idea", "implementation", "reported_results", mode="before")
+    @classmethod
+    def _text(cls, value: Any) -> Any:
+        return "" if value is None else _as_text(value)
+
+    @field_validator("red_flags", "markets", mode="before")
+    @classmethod
+    def _lines(cls, value: Any) -> Any:
+        return [] if value is None else _as_list(value)
+
 
 class HypothesisFields(_Strict):
     title: str = Field(min_length=3, max_length=200)
@@ -100,6 +136,16 @@ class HypothesisFields(_Strict):
     rationale: str = Field(default="", max_length=3000)
     configurations: list[dict[str, Any]] = Field(default_factory=list, max_length=12)
     red_flags: list[str] = Field(default_factory=list, max_length=20)
+
+    @field_validator("title", "claim", "rationale", mode="before")
+    @classmethod
+    def _text(cls, value: Any) -> Any:
+        return "" if value is None else _as_text(value)
+
+    @field_validator("red_flags", mode="before")
+    @classmethod
+    def _lines(cls, value: Any) -> Any:
+        return [] if value is None else _as_list(value)
 
     @field_validator("configurations")
     @classmethod
@@ -254,6 +300,41 @@ def build(
     return paper, hypothesis
 
 
+def build_rejected(
+    candidate: paper_search.Candidate, reply: Reply, *, read: str, model: str
+) -> library.Paper:
+    """A library entry for a paper read and judged not a testable trading idea.
+
+    Kept so the library grows with everything read, and so the paper is not
+    read again (operator, 2026-11-03). Status `rejected`, as for a paper whose
+    rule cannot be reconstructed. Never the abstract itself, which may be the
+    publisher's copyright: the model's summary, or a pointer to the link.
+    """
+    why = reply.relevance or "the model gave no reason"
+    fields = reply.paper
+    provenance = (
+        f"Read by the research agent ({model}) from the {read} found on "
+        f"{candidate.source} {candidate.fetched_at[:10]} and judged not a testable "
+        "trading idea; not read by the operator."
+    )
+    return library.Paper(
+        title=candidate.title[:200],
+        authors=", ".join(candidate.authors)[:300],
+        year=candidate.year,
+        kind="paper",
+        source_url=candidate.url,
+        status="rejected",
+        markets=(fields.markets if fields else [])[:10],
+        summary=(fields.summary if fields and fields.summary else "")
+        or "Not summarised. Read the paper at its link.",
+        trade_idea=f"Not a testable trading idea: {why}"[:6000],
+        implementation=(fields.implementation if fields and fields.implementation else "")
+        or "unspecified",
+        red_flags=[*(fields.red_flags[:19] if fields else []), provenance],
+        reported_results=fields.reported_results if fields else "",
+    ).with_id()
+
+
 def card_problems(hypothesis: card.Card) -> list[str]:
     return card.validate(replace(hypothesis, id=VALIDATION_ID)).problems
 
@@ -307,6 +388,13 @@ def _stage(draft: Draft, run_dir: Path, *, years: float) -> Path:
 
 
 # --- the run ----------------------------------------------------------------
+
+
+def _keep(paper: library.Paper, root: Path, titles: set[str]) -> None:
+    """Add a paper the agent read to the library, unless it is already there."""
+    if library.load(paper.id, root=root) is None:
+        library.save(paper, root=root)
+    titles.add(paper_search.normalise_title(paper.title))
 
 
 def known_papers(drafts: Path = DRAFTS, papers: Path | None = None) -> tuple[set[str], set[str]]:
@@ -374,6 +462,14 @@ class Run:
     drafts: list[Draft]
     failures: list[str]
 
+    def counts(self) -> dict[str, int]:
+        """How many papers ended each way: drafted, not relevant, known, failed..."""
+        out: dict[str, int] = {}
+        for d in self.drafts:
+            key = "failed" if d.outcome.startswith("failed") else d.outcome
+            out[key] = out.get(key, 0) + 1
+        return out
+
     def render(self) -> str:
         lines = [self.cost.render(), "", f"topic: {self.topic}"]
         for failure in self.failures:
@@ -434,9 +530,17 @@ def run(
     candidates, result.failures = paper_search.search(
         topic, sources=sources, limit=max(limit * 3, 10), get=get, sleep=sleep
     )
+    # Read the papers closest to the topic first; one that shares none of its
+    # words is not read at all (2026-11-01: a brain-imaging paper was read for
+    # "frog in the pan"; research 144). Stable, so the services' order breaks ties.
+    words = paper_search.topic_words(topic)
+    scored = sorted(
+        ((paper_search.topic_score(c, words), c) for c in candidates), key=lambda pair: -pair[0]
+    )
     titles, urls = known_papers(drafts, papers)
+    library_root = papers or library.ROOT
     made = 0
-    for candidate in candidates:
+    for score, candidate in scored:
         if made >= limit:
             break
         draft = Draft(candidate=candidate, read="")
@@ -447,24 +551,44 @@ def run(
         ):
             draft.outcome = "known"
             continue
+        if score == 0:
+            draft.outcome = "off topic"
+            continue
         text = paper_search.full_text(candidate, get=get)
         if text:
             sleep(paper_search.ARXIV_SPACING)
-        if not text and len(candidate.abstract) < 200:
+        if not text and len(candidate.abstract) < paper_search.MIN_ABSTRACT and candidate.doi:
+            fuller = paper_search.crossref_abstract(candidate.doi, get=get)
+            if len(fuller) >= paper_search.MIN_ABSTRACT:
+                candidate = replace(candidate, abstract=fuller)
+                draft.candidate = candidate
+                draft.read = "abstract from Crossref"
+        if not text and len(candidate.abstract) < paper_search.MIN_ABSTRACT:
             draft.outcome = "nothing to read"
             continue
         draft.read = (
-            f"first {len(text):,} characters of the arXiv HTML" if text else "abstract only"
+            f"first {len(text):,} characters of the arXiv HTML"
+            if text
+            else (draft.read or "abstract only")
         )
         if made:
             sleep(spacing)
         log(f"reading: {candidate.title[:70]} ({draft.read})")
         made += 1
-        try:
-            answer = ask(system, _user_message(candidate, text), Reply.parse)
-            reply = Reply.parse(answer.text)
-        except Exception as exc:
-            draft.outcome = f"failed: {str(exc)[:120]}"
+        reply: Reply | None = None
+        for attempt in (1, 2):
+            try:
+                answer = ask(system, _user_message(candidate, text), Reply.parse)
+                reply = Reply.parse(answer.text)
+                break
+            except Exception as exc:
+                # A timeout or a busy model usually clears; a spent budget does not.
+                if attempt == 2 or type(exc).__name__ == "BudgetSpent":
+                    draft.outcome = f"failed: {str(exc)[:120]}"
+                    break
+                log(f"retrying once: {str(exc)[:100]}")
+                sleep(min(spacing, RETRY_WAIT))
+        if reply is None:
             continue
         draft.provider, draft.model, draft.relevance = (
             answer.provider,
@@ -473,6 +597,11 @@ def run(
         )
         if not reply.relevant or reply.paper is None:
             draft.outcome = "not relevant"
+            try:
+                draft.paper = build_rejected(candidate, reply, read=draft.read, model=answer.model)
+                _keep(draft.paper, library_root, titles)
+            except (ValidationError, ValueError) as exc:
+                log(f"not kept in the library: {str(exc)[:120]}")
             continue
         try:
             draft.paper, draft.hypothesis = build(
@@ -486,8 +615,10 @@ def run(
         folder.mkdir(parents=True, exist_ok=True)
         draft.path = _stage(draft, folder, years=years)
         draft.outcome = "drafted"
+        _keep(draft.paper, library_root, titles)
 
-    if folder.exists():
+    if result.drafts:
+        folder.mkdir(parents=True, exist_ok=True)
         manifest = {
             "topic": topic,
             "started": stamp,
@@ -500,6 +631,9 @@ def run(
                     "title": d.candidate.title,
                     "url": d.candidate.url,
                     "outcome": d.outcome,
+                    "why": d.relevance,
+                    "read": d.read,
+                    "library": d.paper.id if d.paper is not None else "",
                     "folder": d.path.name if d.path else "",
                 }
                 for d in result.drafts
@@ -539,8 +673,13 @@ def approve(
     if not paper_path.exists():
         raise FileNotFoundError(f"no paper.yaml in {folder}")
     paper = library.Paper.model_validate(yaml.safe_load(paper_path.read_text(encoding="utf-8")))
-    if (papers / f"{paper.id}.yaml").exists():
-        raise FileExistsError(f"the library already has {paper.id}; nothing was changed")
+    held = library.load(paper.id, root=papers)
+    # The research agent adds every paper it reads to the library (ADR-126), so
+    # the entry is usually there already; only one with a card of its own stops this.
+    if held is not None and held.hypothesis:
+        raise FileExistsError(
+            f"the library already has {paper.id} with {held.hypothesis}; nothing was changed"
+        )
 
     card_path: Path | None = None
     hypothesis_id = ""
