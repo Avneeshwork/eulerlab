@@ -477,6 +477,7 @@ def test_a_research_task_that_drafted_nothing_goes_back(tmp_path: Path) -> None:
     checked = manager.check(tasks.load(tmp_path)[t.id], "head_research", tmp_path, NOW)
     assert checked.status == "assigned" and checked.returns == 1
     assert "delivered what the task asked for" in str(checked.history[-1])
+    assert manager.DELIVERS["research_topic"].search("x: 5 read, 3 drafted (0 complete), 2 not")
 
 
 def test_a_card_whose_formula_does_not_parse_is_incomplete() -> None:

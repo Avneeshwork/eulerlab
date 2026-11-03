@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventy-two times this project was wrong
+## Seventy-three times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -441,6 +441,8 @@ figure produced outside the result store before this date was frictionless.
 **71. A research card marked "valid" asked for a formula the language refuses.** (2026-11-03, found 2026-11-04 by tracing the lab's skipped cards) The card for "Geopolitical shock-driven mean reversion" ranked by `formula:neg(ret(0))`; `ret` windows start at 1, so the lab could not build it and skipped it as "unknown feature". The research agent checked the card's fields, not whether its formula parsed, so it was staged as complete. Now a formula that does not parse, or a ranked configuration with no feature, makes the card incomplete at drafting. No numbers invalidated: nothing was tested.
 
 **72. A head passed up a research task that delivered nothing.** (2026-11-03) The Head of Research's checklist asked only that the run finished ok, wrote a summary and was not flagged by the doctor. The CEO's task "intraday stock trading strategies" came back "0 drafted" and was passed up as done. Now a research task that drafts nothing, or a lab task that tests nothing, is sent back once, then blocked for AI help.
+
+**73. The lab queued cards research had marked incomplete, and retried unbuildable ones every day.** (2026-11-04, the live daily-flow test) Research drafted 3 cards on "liquidity premium Indian stocks"; one was complete. The lab queued all research drafts regardless of `draft.json`, failed to build the incomplete ones, and listed the same three "unbuildable" cards on every run, two of which no code could fix (a formula that does not parse, no signal named). Research's summary said "3 drafted" with no hint that only one could be tested. Now the lab queues only cards research staged as valid, drops a card an earlier run could not build for a reason no code fixes, and keeps one waiting for engineering to code a named signal; research says "3 drafted (1 complete)", and a head sends back a research task with none complete. No numbers invalidated: nothing unbuildable was tested.
 
 ---
 

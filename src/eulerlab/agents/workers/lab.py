@@ -24,6 +24,7 @@ the web page, which would hold a second copy of the panel in the API's memory.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import statistics
@@ -65,12 +66,19 @@ def candidates(ctx: Context) -> list[Path]:
 
     A draft marked as waiting for data is still a candidate: whether the lab can
     build it is decided by the library (`cost_of`), not by words in its abstract.
+
+    Left out (2026-11-04, HISTORY #73): a card research staged as incomplete
+    (`draft.json` `card` is not `valid`), which is not a pre-registration; and a
+    card an earlier run could not build for a reason no code can fix (it named
+    no missing signal, such as a formula that does not parse). A card waiting
+    for engineering to code a named signal stays, so it is tested once merged.
     """
     given = str(ctx.args.get("card") or "").strip()
     if given:
         path = Path(given)
         return [path / "card.yaml" if path.is_dir() else path]
     out: list[Path] = []
+    dead = never_buildable(ctx)
     for research in outputs("research", ctx.root, limit=50):
         if research.status != "ok":
             continue
@@ -78,8 +86,27 @@ def candidates(ctx: Context) -> list[Path]:
             if item.kind != "draft" or not item.ref or item.data.get("repeat_of"):
                 continue
             card = Path(item.ref) / "card.yaml"
-            if card.exists() and card not in out:
+            if card.exists() and card not in out and str(card) not in dead and staged_valid(card):
                 out.append(card)
+    return out
+
+
+def staged_valid(card: Path) -> bool:
+    """Research's own verdict when it drafted the card; a card without one is let through."""
+    try:
+        meta = json.loads((card.parent / "draft.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True
+    return not isinstance(meta, dict) or meta.get("card", "valid") == "valid"
+
+
+def never_buildable(ctx: Context) -> set[str]:
+    """Cards an earlier run could not build that named no signal to code."""
+    out: set[str] = set()
+    for output in outputs(ctx.name, ctx.root, limit=50):
+        for row in output.data.get("unbuildable") or []:
+            if isinstance(row, dict) and not row.get("features"):
+                out.add(str(row.get("card") or ""))
     return out
 
 
