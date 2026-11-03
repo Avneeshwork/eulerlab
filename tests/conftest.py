@@ -243,3 +243,12 @@ def _private_agent_files(
     monkeypatch.setattr(contract, "GRADES", base / "grades.json")
     monkeypatch.setattr(timings, "PATH", base / "timings.jsonl")
     monkeypatch.setattr(desk, "APPROVALS", base / "approvals.jsonl")
+
+
+@pytest.fixture(autouse=True)
+def _fresh_pacing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test starts with a full tokens-a-minute allowance (research 143),
+    so the suite's fake requests never add up to a real wait."""
+    from eulerlab.assistant import chat
+
+    monkeypatch.setattr(chat, "_BUCKETS", {})

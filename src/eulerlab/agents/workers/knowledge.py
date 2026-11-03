@@ -1,8 +1,9 @@
 """The knowledge agent: precise answers about what Euler Lab holds, each with its source.
 
-It is the assistant (ADR-064) with stricter instructions and three more tools
-(`search_knowledge`, `data_quality`, `agent_outputs`). Same read-only tools,
-same host locks, same redaction. What it adds is the rule that makes an answer
+It is the assistant (ADR-064) with stricter instructions, and only the ten
+read-only tools about what the platform holds (`TOOLS`). Same host locks,
+same redaction. Each question gets at most four requests, plus two for the
+retry below, so it fits Groq's free 8,000 tokens a minute (research 143). What it adds is the rule that makes an answer
 checkable: **every number comes from a tool call made for this question, and
 the answer ends with the files it came from.** When the model leaves the
 sources off, the code appends the tools it actually called, so the operator
@@ -40,6 +41,30 @@ How you answer:
 - You only read. You cannot backtest, register, trade or change anything.
 - Entries of kind "quantpedia" are Quantpedia's catalogue: their numbers come from the paper or from Quantpedia, never from this platform. Say so whenever you quote one.
 - A backtest result is not a forecast. No investment advice."""
+
+
+TOOLS = (
+    "search_knowledge",
+    "read_document",
+    "find_documents",
+    "data_quality",
+    "data_coverage",
+    "explain_metric",
+    "strategies",
+    "strategy_results",
+    "study",
+    "agent_outputs",
+)
+"""The tools it is offered: what the platform holds, not live trading state.
+Every request carries each offered tool's description, so the seven it never
+needs (orders, positions, prices and the like) are left off (research 143)."""
+
+ROUNDS = 4
+"""Requests for the first answer. The last one has no tools, so it must answer."""
+
+RETRY_ROUNDS = 2
+"""Requests for the one retry after the figure check: one lookup, then the answer.
+Worst case per question: six requests, not twelve (T-4402)."""
 
 
 def _sources(used: list[dict[str, Any]]) -> list[str]:
@@ -91,7 +116,9 @@ def run(ctx: Context) -> WorkerResult:
     system = SYSTEM + (f"\n\nThe operator's brief:\n{ctx.brief}" if ctx.brief else "")
     ctx.prompts.append(grounding.prompt_version(system))
     asked = [*turns, {"role": "user", "content": question}]
-    answer = chat.ask(asked, post=counted, chosen=chosen, system=system)
+    answer = chat.ask(
+        asked, post=counted, chosen=chosen, system=system, tool_names=TOOLS, rounds=ROUNDS
+    )
     evidence = list(answer.evidence)
     used = list(answer.used)
     ctx.step(f"Checking every figure in the answer against what {len(used)} tool calls returned")
@@ -120,6 +147,8 @@ def run(ctx: Context) -> WorkerResult:
             post=counted,
             chosen=chosen,
             system=system,
+            tool_names=TOOLS,
+            rounds=RETRY_ROUNDS,
         )
         evidence += again.evidence
         used += again.used

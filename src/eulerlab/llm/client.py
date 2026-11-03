@@ -87,6 +87,11 @@ class Provider(BaseModel):
     """Claude only: re-run a declined request on Anthropic's recommended
     fallback model. Must stay off for Claude Haiku 5.5, which has none."""
 
+    tokens_per_minute: int | None = Field(default=None, gt=0)
+    """The host's tokens-a-minute limit for this model, if it has one. The
+    assistant waits before a request that would go over it, instead of being
+    refused (`assistant/chat.pace`, research 143). Unset: no pacing."""
+
 
 class LLMConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
