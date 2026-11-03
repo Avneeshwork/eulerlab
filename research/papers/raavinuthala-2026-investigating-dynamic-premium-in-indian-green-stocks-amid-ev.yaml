@@ -1,0 +1,35 @@
+id: raavinuthala-2026-investigating-dynamic-premium-in-indian-green-stocks-amid-ev
+title: Investigating dynamic premium in Indian green stocks amid evolving Fama and French
+  factors in tandem with dynamic liquidity considerations
+authors: Satya Krishna Sharma Raavinuthala, Pratap Chandra Biswal, Ramesh Bishetti, Tilak
+  Kumar Vadapalli
+year: 2026
+kind: paper
+source_url: https://doi.org/10.1007/s43621-026-04141-5
+pdf: ''
+added: '2026-11-03'
+status: rejected
+markets:
+- Indian equities (green stocks), sample period includes pre‑COVID and post‑COVID up to at
+  least 2022
+summary: 'Question: Do Indian green stocks earn a premium over market expectations? Data:
+  Indian green‑stock returns, Fama‑French factors, liquidity measures, covering pre‑ and post‑COVID
+  periods. Method: CAPM extended with Fama‑French and liquidity factors; ADCC‑GARCH to model
+  time‑varying covariances; structural break test. Findings: A break on 21 Sep 2020; market
+  betas rise after COVID; green‑stock illiquidity becomes more correlated with market illiquidity;
+  Jensen''s alpha remains insignificant, indicating no abnormal performance.'
+trade_idea: 'Not a testable trading idea: The paper finds no abnormal risk‑adjusted returns
+  (insignificant Jensen''s alpha) for Indian green stocks, so it does not present a testable
+  tradable premium.'
+implementation: unspecified
+red_flags:
+- Focus on a niche subset (green stocks) that may be thinly traded and costly to trade in
+  India.
+- Results hinge on a single structural break date; regime‑specific findings may not generalise.
+- Liquidity effects are described qualitatively; no explicit transaction cost or capacity
+  analysis is provided.
+- Read by the research agent (groq) from the abstract only found on openalex 2026-11-03 and
+  judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

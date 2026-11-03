@@ -1,0 +1,32 @@
+id: bonelli-2025-serbia-equity-risk-premium-decomposition-2015-2025
+title: Serbia Equity Risk Premium Decomposition (2015–2025)
+authors: BONELLI, marco
+year: 2025
+kind: paper
+source_url: https://core.ac.uk/works/363976155
+pdf: ''
+added: '2026-11-03'
+status: rejected
+markets:
+- Serbian equity market (BELEX), quarterly data 2015Q1–2025Q3
+summary: The study asks how Serbia's equity risk premium is built from sovereign, liquidity,
+  behavioral, and institutional quality risks; it uses quarterly data from 2015Q1 to 2025Q3
+  sourced from CEIC, BELEX, Bloomberg, Damodaran, and World Bank; methods include Damodaran's
+  volatility‑adjusted spread, PCA on bid‑ask spreads and Amihud metrics, an EGARCH‑in‑Mean
+  model, and PCA on governance indices; findings are quarterly series showing the contribution
+  of each component to the total ERP.
+trade_idea: 'Not a testable trading idea: The paper only decomposes Serbia''s equity risk
+  premium into components and does not propose a specific, testable trading signal or strategy.'
+implementation: 'universe: unspecified, data: unspecified, signal: unspecified, entry: unspecified,
+  exit: unspecified, holding period: unspecified, sizing and costs: unspecified'
+red_flags:
+- No explicit trading rule or signal is provided, so no backtest can be designed.
+- Results are presented as component percentages without statistical significance or performance
+  metrics.
+- The focus is on Serbia, a frontier market with limited liquidity, making any implied strategy
+  potentially non‑scalable.
+- Read by the research agent (groq) from the abstract only found on core 2026-11-03 and judged
+  not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

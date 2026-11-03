@@ -1,0 +1,40 @@
+id: hardjito-2022-fundamental-stock-market-and-macroeconomic-factors-on-equity
+title: 'Fundamental, stock market, and macroeconomic factors on equity premium : evidence
+  from Indonesia stock exchange'
+authors: Hardjito, Dwipraptono Agus, Basri, Basri, Kusuma, Hadri, Arifin, Zainal
+year: 2022
+kind: paper
+source_url: https://core.ac.uk/works/125370055
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- Indonesia Stock Exchange, Jan 2007‑Dec 2014
+summary: The authors ask which fundamental, market and macro variables explain the equity
+  premium on the Indonesia Stock Exchange. They use a panel of 213 stocks from Jan 2007‑Dec 2014,
+  running semester‑level panel regressions and monthly time‑series regressions. They find
+  debt‑to‑equity, dividend payout, beta, price volatility and the exchange rate positively
+  related to the premium, while inflation is negative; liquidity is insignificant.
+trade_idea: Long stocks with higher debt‑to‑equity ratios, higher dividend payout ratios,
+  higher beta and higher price volatility, and short those with low values, expecting the
+  long side to earn a higher excess return; no explicit timing or cost analysis is provided.
+implementation: |-
+  universe: 213 stocks listed on the Indonesia Stock Exchange (as used in the study)
+  data: Fundamental data (debt/equity, dividend payout), market data (beta, price volatility, liquidity), macro data (inflation, exchange rate) at semester and monthly frequencies
+  signal: unspecified
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified (paper measures effects over semesters)
+  sizing and costs: unspecified
+red_flags:
+- No explicit trading rule or timing horizon is given, making implementation ambiguous.
+- Transaction costs, slippage and market impact are not considered; Indian/US costs could
+  erode the reported premium.
+- Results are based on semester‑level regressions in Indonesia; performance may not transfer
+  to daily/minute Indian or US markets.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-03; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
