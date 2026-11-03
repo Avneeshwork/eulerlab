@@ -2614,8 +2614,19 @@ A floating button on every screen (`web/components/Assistant.tsx`, mounted in
 `assistant/chat.ask` → the provider named `assistant` in `config/llm.yaml`
 (OpenRouter; the model is picked from its live free zero-retention list, ADR-080). The model is sent the conversation and a list of tools. It replies
 either with an answer or with tool calls; `assistant/tools.call` runs each and
-the text goes back. At most `MAX_ROUNDS` (6) requests per question; the last
-has no tools, so it must answer.
+the text goes back. At most `MAX_ROUNDS` (6) requests per question (a caller
+may pass fewer, and only some tools); the last has no tools, so it must
+answer, and it gets every tool result as one plain message rather than the
+tool-call thread, because gpt-oss-120b kept calling tools from that thread
+(research 143).
+
+**Pacing (ADR-125).** Every request re-sends the whole thread, so a tool loop
+grows fast. For a provider with `tokens_per_minute` in `config/llm.yaml`
+(Groq: 8,000), `chat.pace` guesses each request's tokens (JSON characters / 4,
+A-095) and waits only as long as the allowance needs to refill, at the limit's
+rate per second, never more than a minute. After each reply it takes Groq's
+own `x-ratelimit-remaining-tokens`, which also covers other processes. A 400
+`output_parse_failed` is sent once more (A-096).
 
 **What the model can read.** Only `tools.TOOLS`, each capped at 3,500
 characters: deployments, positions, orders, next rebalance, data coverage,
@@ -2684,7 +2695,7 @@ definition + operator switches (narrow only) ─────┤
 | Agent | Reads | Hands on |
 |---|---|---|
 | data | data quality grades, coverage, feed timings, launchd results | alerts, rerun proposals, answers to data requests |
-| knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia, the metrics library, the glossary) | answers with sources |
+| knowledge | the knowledge index (papers, cards, notes, decisions, runbooks, grades, Quantpedia, the metrics library, the glossary), through 10 of the assistant's tools; at most 4 requests a question plus 2 for its retry (ADR-125) | answers with sources |
 | knowledge_keeper | held data for normals; SEBI, RBI and NSE circular feeds; the metrics library; `docs/ASSUMPTIONS.md` | refreshed normals; notices linked to pages; gaps; drafted page updates for approval |
 | market_brief | the running API's market context, world prices, the economic calendar, NSE reports (ban list, deals, IPOs), board-meeting intimations, the books | a pre-open brief or after-close note as data (ADR-105); Telegram in eight lines |
 | research | the paper agent's drafts, Quantpedia leads, the cards already tried | ranked drafts, data requests, leads |
@@ -2891,7 +2902,7 @@ source (`ctx.args.get("<name>")`); an `auto` skill's agent is not
 terminal-only; each skill has fallback words; each head has a model budget; every agent's head can give it AI help when
 it is stuck; each department has a skill the runner may start; and every doctor problem
 kind has an owner (`DOCTOR_OWNERS`). A test fails on any gap not listed in
-`KNOWN_GAPS` (empty). It cannot see a model that fails at run time (T-4402).
+`KNOWN_GAPS` (empty). It cannot see a model that fails at run time (research 143).
 
 **The page.** The Org chart view is a family tree (`web/components/terminal/OrgTree.tsx`):
 you, the gate beside you, the three heads, and their agents, each with today's
@@ -2905,7 +2916,8 @@ close or send back what was passed up, cancel. Giving a task wakes its head at o
 (`agent_routes._wake`: the head's run, then that department's due tasks), on
 the API's single agent worker.
 
-**Groq's rate limit.** `assistant/chat._post` waits out a 429's
+**Groq's rate limit.** Requests are paced to it (ADR-125, above), and
+`assistant/chat._post` waits out a 429's
 `retry-after` once when it is 20 seconds or less (research 142, A-094). The
 doctor treats a failed run whose summary starts `ModelUnavailable`,
 `Refused` or `BudgetSpent` as `model_down`, not as a code error.

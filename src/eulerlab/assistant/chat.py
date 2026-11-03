@@ -31,11 +31,12 @@ import http.client
 import json
 import os
 import re
+import threading
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
@@ -321,6 +322,83 @@ def status(name: str = "", model: str = "") -> dict[str, Any]:
 RETRY_AFTER_MAX = 20.0
 """The longest `retry-after` worth waiting for inside one request, in seconds."""
 
+PARSE_FAILURES = ("output_parse_failed",)
+"""Groq's HTTP 400 when it could not parse what the model wrote. Seen once
+2026-11-03 from gpt-oss-120b (T-4402) and sent once more (ASSUMPTION A-096).
+Not `tool_use_failed` ("model called a tool" with none offered): that came
+back identically on a second try twice, so a retry only spends quota."""
+
+CHARS_PER_TOKEN = 4
+"""For guessing a request's size before it is sent (ASSUMPTION A-095). The
+guess is corrected from the host's own count after every reply."""
+
+
+@dataclass
+class _Bucket:
+    left: float
+    at: float
+
+
+_BUCKETS: dict[str, _Bucket] = {}
+_PACE_LOCK = threading.Lock()
+
+
+def estimate_tokens(payload: dict[str, Any]) -> int:
+    """About how many tokens a request sends: its JSON, four characters a token."""
+    return len(json.dumps(payload)) // CHARS_PER_TOKEN + 1
+
+
+def pace(
+    chosen: client.Provider,
+    tokens: int,
+    *,
+    now: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> float:
+    """Wait until a request of `tokens` fits the model's tokens-a-minute limit.
+
+    Groq refills the allowance continuously, a minute's worth over a minute
+    (its `x-ratelimit-reset-tokens` header, research 143), so this does the
+    same: a request that does not fit waits only for the tokens it lacks. A
+    request bigger than the whole limit waits for a full allowance. Without
+    this, a tool loop sent four requests in two seconds and was refused
+    (T-4402). Returns the seconds waited. The lock makes threads in one
+    process take turns; `settle` corrects for other processes after a reply.
+    """
+    limit = chosen.tokens_per_minute
+    if not limit:
+        return 0.0
+    rate = limit / 60.0
+    key = f"{chosen.name}:{chosen.model}"
+    with _PACE_LOCK:
+        t = now()
+        bucket = _BUCKETS.setdefault(key, _Bucket(float(limit), t))
+        bucket.left = min(float(limit), bucket.left + (t - bucket.at) * rate)
+        bucket.at = t
+        need = float(min(tokens, limit))
+        wait = max(0.0, (need - bucket.left) / rate)
+        if wait:
+            sleep(wait)
+            bucket.left = min(float(limit), bucket.left + wait * rate)
+            bucket.at = t + wait
+        bucket.left -= tokens
+        return wait
+
+
+def settle(chosen: client.Provider, remaining: str | None) -> None:
+    """Take the host's own count of tokens left, when it sends one."""
+    if not chosen.tokens_per_minute or remaining is None:
+        return
+    try:
+        left = float(remaining)
+    except ValueError:
+        return
+    with _PACE_LOCK:
+        bucket = _BUCKETS.get(f"{chosen.name}:{chosen.model}")
+        if bucket is not None:
+            bucket.left = left
+            bucket.at = time.monotonic()
+
 
 def _retry_after(exc: urllib.error.HTTPError) -> float | None:
     """Seconds to wait before one retry, or None: only a 429 naming a short wait."""
@@ -331,6 +409,19 @@ def _retry_after(exc: urllib.error.HTTPError) -> float | None:
     except ValueError:
         return None
     return wait if 0 <= wait <= RETRY_AFTER_MAX else None
+
+
+def _detail(exc: urllib.error.HTTPError) -> str:
+    """The error body, read once, so a retry decision and the message can both see it."""
+    cached = getattr(exc, "eulerlab_detail", None)
+    if isinstance(cached, str):
+        return cached
+    try:
+        text = exc.read().decode(errors="replace")
+    except Exception:  # an unreadable body is an empty one
+        text = ""
+    exc.eulerlab_detail = text  # type: ignore[attr-defined]
+    return text
 
 
 def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
@@ -356,21 +447,27 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
         method="POST",
     )
     try:
-        try:
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-                parsed: dict[str, Any] = json.loads(response.read().decode())
-                return parsed
-        except urllib.error.HTTPError as first:
-            wait = _retry_after(first)
-            if wait is None:
+        for attempt in (1, 2):
+            pace(chosen, estimate_tokens(payload))
+            try:
+                with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+                    parsed: dict[str, Any] = json.loads(response.read().decode())
+                    sent = getattr(response, "headers", None)
+                    settle(chosen, sent.get("x-ratelimit-remaining-tokens") if sent else None)
+                    return parsed
+            except urllib.error.HTTPError as first:
+                if attempt == 2:
+                    raise
+                wait = _retry_after(first)
+                if wait is not None:
+                    # Another process may have spent the allowance; the 429
+                    # names the wait (research 142). Wait once, then try again.
+                    time.sleep(wait)
+                    continue
+                if first.code == 400 and any(m in _detail(first) for m in PARSE_FAILURES):
+                    continue
                 raise
-            # Groq's per-minute token limit (8K for gpt-oss-120b) is hit by an
-            # agent that asks several times in a second; its 429 names the wait
-            # (research 142). Wait once, then try again.
-            time.sleep(wait)
-            with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-                again: dict[str, Any] = json.loads(response.read().decode())
-                return again
+        raise ModelUnavailable(f"{chosen.name} did not answer.")  # not reached
     except urllib.error.HTTPError as exc:
         if exc.code == 404 and host_of(chosen) in ROUTING:
             raise ModelUnavailable(
@@ -384,7 +481,7 @@ def _post(chosen: client.Provider, payload: dict[str, Any]) -> dict[str, Any]:
             ) from exc
         if exc.code >= 500:
             raise ModelUnavailable(f"{chosen.name} returned HTTP {exc.code}.") from exc
-        detail = redact.scrub(exc.read().decode(errors="replace"))[:300]
+        detail = redact.scrub(_detail(exc))[:300]
         if exc.code in (401, 402):
             # A bad key or no credit: every model on this host would fail alike.
             raise Refused(f"{chosen.name} returned HTTP {exc.code}: {detail}") from exc
@@ -583,6 +680,29 @@ def complete_any(
     )
 
 
+LAST_ROUND = (
+    "No more lookups are available. Answer now, in plain text, from the tool results "
+    'above. For anything they do not hold, say "not held". Do not call a tool.'
+)
+"""Opens the last round's final message, which carries no tools."""
+
+
+def _last_round(
+    system: str, turns: list[dict[str, str]], thread: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The conversation, then every tool result so far as one plain message."""
+    found = "\n\n".join(
+        f"[{m.get('name') or 'tool'}]\n{m.get('content') or ''}"
+        for m in thread
+        if m.get("role") == "tool"
+    )
+    return [
+        {"role": "system", "content": system},
+        *turns,
+        {"role": "user", "content": f"{LAST_ROUND}\n\nWhat the lookups returned:\n\n{found}"},
+    ]
+
+
 def _history(messages: Sequence[dict[str, Any]]) -> list[dict[str, str]]:
     """The last few turns, as plain user and assistant text only.
 
@@ -603,20 +723,29 @@ def ask(
     post: Post = _post,
     chosen: client.Provider | None = None,
     system: str = SYSTEM,
+    tool_names: Collection[str] | None = None,
+    rounds: int = MAX_ROUNDS,
 ) -> Answer:
     """Answer the last user message, calling tools as the model asks for them.
 
     `system` replaces the assistant's own instructions; the knowledge agent
     (ADR-085) passes stricter ones that demand a source for every number.
-    The tools, the host locks and the redaction are the same either way."""
+    The host locks and the redaction are the same either way.
+
+    Each round is one request carrying the whole thread so far, so cost grows
+    with every round. `tool_names` offers only those tools (a call to any
+    other is answered "no such tool") and `rounds` caps the requests; the last
+    round gets no tools, so it must answer (research 143)."""
     chosen = chosen or provider()
+    rounds = max(1, rounds)
+    offered = tools.schemas(tool_names)
     turns = _history(messages)
     if not turns or turns[-1]["role"] != "user":
         raise Refused("Ask a question.")
     thread: list[dict[str, Any]] = [{"role": "system", "content": system}, *turns]
     used: list[dict[str, Any]] = []
     evidence: list[str] = []
-    for round_number in range(MAX_ROUNDS):
+    for round_number in range(rounds):
         payload: dict[str, Any] = {
             "model": chosen.model,
             "messages": thread,
@@ -624,8 +753,15 @@ def ask(
             "max_tokens": chosen.max_tokens,
         }
         # The last round gets no tools, so it must answer with what it has.
-        if round_number < MAX_ROUNDS - 1:
-            payload["tools"] = tools.schemas()
+        if round_number < rounds - 1:
+            payload["tools"] = offered
+        elif round_number:
+            # With its own tool calls in the thread, gpt-oss-120b called one
+            # more even with no tools offered and an instruction not to, and
+            # Groq refused the reply (400 tool_use_failed, seen twice
+            # 2026-11-03, research 143). So the last round sees the results
+            # as plain text, with no tool calls to continue from.
+            payload["messages"] = _last_round(system, turns, thread)
         body = post(chosen, payload)
         choices = body.get("choices")
         if not isinstance(choices, list) or not choices:
@@ -655,7 +791,10 @@ def ask(
             function = call.get("function") or {}
             name = str(function.get("name") or "")
             arguments = str(function.get("arguments") or "")
-            result = redact.scrub(tools.call(name, arguments))
+            if tool_names is not None and name not in tool_names:
+                result = f"There is no tool '{name}'. Tools: {', '.join(tool_names)}."
+            else:
+                result = redact.scrub(tools.call(name, arguments))
             used.append({"tool": name, "arguments": arguments[:200], "characters": len(result)})
             evidence.append(result)
             thread.append(

@@ -18,7 +18,7 @@ can reach the hosted model is exactly what these functions return, capped at
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -635,14 +635,18 @@ TOOLS: dict[str, Tool] = {
 """Every tool the model can call. All read-only; see the module docstring."""
 
 
-def schemas() -> list[dict[str, Any]]:
-    """The tools in the shape the chat API takes."""
+def schemas(names: Collection[str] | None = None) -> list[dict[str, Any]]:
+    """The tools in the shape the chat API takes: all of them, or only `names`.
+
+    Every request carries these descriptions, so a caller that needs a few
+    tools sends only those (the knowledge agent, research 143)."""
     return [
         {
             "type": "function",
             "function": {"name": name, "description": t.description, "parameters": t.parameters},
         }
         for name, t in TOOLS.items()
+        if names is None or name in names
     ]
 
 
