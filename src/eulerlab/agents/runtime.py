@@ -154,6 +154,11 @@ def resolve_provider(wanted: str = "") -> str:
     return loaded.assistant or loaded.default
 
 
+def model_asker(provider: str) -> Asker:
+    """One provider's asker, for a worker that tries models in turn (ADR-127)."""
+    return _model_asker(provider)
+
+
 def _model_asker(provider: str) -> Asker:
     def ask(system: str, user: str, accept: Callable[[str], object] | None) -> str:
         from eulerlab.assistant import chat

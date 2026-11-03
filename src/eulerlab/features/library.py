@@ -21,31 +21,14 @@ the value is negated here and the docstring says so.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from collections.abc import Sequence
 from itertools import pairwise
 
+from eulerlab.features.base import TRADING_DAYS_PER_MONTH as TRADING_DAYS_PER_MONTH
+from eulerlab.features.base import Feature as Feature
+from eulerlab.features.base import FeatureFn as FeatureFn
 from eulerlab.features.panel import PanelRow
 from eulerlab.quality.robust import median
-
-FeatureFn = Callable[[Sequence[PanelRow]], float | None]
-
-TRADING_DAYS_PER_MONTH = 21
-"""Approximately. Used only for lookback lengths, where being a day out
-changes nothing; never for annualising, where it would."""
-
-
-@dataclass(frozen=True)
-class Feature:
-    name: str
-    fn: FeatureFn
-    description: str
-    min_history: int
-
-    def __call__(self, history: Sequence[PanelRow]) -> float | None:
-        if len(history) < self.min_history:
-            return None
-        return self.fn(history)
 
 
 def _returns(history: Sequence[PanelRow]) -> list[float]:
@@ -228,3 +211,11 @@ LIBRARY: tuple[Feature, ...] = (
 )
 
 BY_NAME: dict[str, Feature] = {f.name: f for f in LIBRARY}
+"""Every feature a card may name: the ten seeds, then the signals the engineering
+agent coded for research cards and the operator merged (`features/coded`, ADR-127).
+`LIBRARY` stays the seeds, which the tear sheets and reports iterate."""
+
+# Imported last: each coded module imports `Feature` from this one.
+from eulerlab.features import coded as _coded  # noqa: E402
+
+BY_NAME.update(_coded.load(BY_NAME))

@@ -58,6 +58,8 @@ what is open is in `TASKS.md`.*
   (ADR-125); a knowledge question costs about 4 requests and 9,000 tokens.
   The research agent keeps every paper it reads in the library, drafts
   cards from the tradable ones and says why each other was not (ADR-126).
+  A card naming a signal the library lacks is coded by engineering (Groq
+  first, then Opus) as a pull request for you; once merged the lab tests it (ADR-127).
   Launchd jobs were not loaded until 2026-11-01 (T-4356); on that
   evening the agents, daily feed, fundamentals and idea lab jobs were loaded.
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):

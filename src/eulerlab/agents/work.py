@@ -3,7 +3,9 @@
     make agents-work  (also inside agents-preopen and agents-ideas, after the heads)
       1. hand-offs   the doctor's code queue → a fix_code task for engineering;
                      the doctor's data refusals and the research agent's data
-                     requests → a check_dataset task for data.
+                     requests → a check_dataset task for data; a research card
+                     the lab could not build for a named signal → a code_feature
+                     task for engineering, at most `max_features` a day (ADR-127).
                      Same hand-off, same task id, so a re-run adds nothing.
       2. run         every assigned task due today or earlier whose skill is `auto`,
                      whose agent is on and not terminal-only: the agent runs once
@@ -40,10 +42,12 @@ def skill_for(task: tasks.Task, agents: dict[str, Effective]) -> Skill | None:
 
 
 def run_args(task: tasks.Task, skill: Skill) -> dict[str, str]:
-    """What the agent is started with: the skill's fixed arguments, the task's value, the task id."""
+    """What the agent is started with: the skill's fixed arguments, the task's value
+    and any `also` values it carries, and the task id."""
     args = dict(skill.fixed)
-    if skill.arg and task.args.get(skill.arg):
-        args[skill.arg] = task.args[skill.arg]
+    for name in [skill.arg, *skill.also]:
+        if name and task.args.get(name):
+            args[name] = task.args[name]
     args["task"] = task.id
     return args
 
@@ -122,6 +126,7 @@ def handoffs(root: Path | None = None, now: datetime | None = None) -> list[task
                 now=now,
             )
         )
+    made += coding_handoffs(root, now)
     latest = runtime.latest_output("research", root)
     if latest is not None:
         for item in latest.items:
@@ -144,6 +149,76 @@ def handoffs(root: Path | None = None, now: datetime | None = None) -> list[task
                     now=now,
                 )
             )
+    return made
+
+
+MAX_FEATURES = 2
+"""Signals the engineering agent may be asked to code in one IST day, when its
+definition does not say (`options.max_features`)."""
+
+
+def card_passed(card: Path) -> bool:
+    """A research draft whose card was complete when drafted (`draft.json`), so the
+    research agent's checks passed and only the missing signal stops the lab."""
+    meta = card.parent / "draft.json"
+    try:
+        return bool(json.loads(meta.read_text(encoding="utf-8")).get("card") == "valid")
+    except (OSError, ValueError):
+        return False
+
+
+def coding_handoffs(root: Path, now: datetime) -> list[tasks.Task]:
+    """The lab's latest unbuildable research cards as code_feature tasks for engineering.
+
+    Only a complete card with a named signal (an unnamed one would mean changing
+    a pre-registered card). One task per signal, ever, by key. At most
+    `max_features` new ones a day: each may spend paid requests (ADR-127).
+    """
+    from eulerlab.features import coded
+
+    lab = runtime.latest_output("lab", root)
+    if lab is None:
+        return []
+    try:
+        engineering = all_effective(root).get("engineering")
+    except (OSError, ValueError):
+        engineering = None
+    cap = int((engineering.spec.options if engineering else {}).get("max_features", MAX_FEATURES))
+    today = runtime.ist_day(now)
+    existing = tasks.load(root).values()
+    started = sum(
+        1
+        for t in existing
+        if t.kind == "code_feature" and runtime.ist_day(datetime.fromisoformat(t.created)) == today
+    )
+    keys = {t.args.get("feature") for t in existing if t.kind == "code_feature"}
+    made: list[tasks.Task] = []
+    for row in lab.data.get("unbuildable") or []:
+        card = Path(str(row.get("card") or ""))
+        for name in row.get("features") or []:
+            name = str(name)
+            if name in keys or not coded.NAME.match(name) or not card_passed(card):
+                continue
+            if started >= cap:
+                return made
+            made.append(
+                tasks.create(
+                    title=f"Code the signal {name} for a research card",
+                    detail=f"The idea lab could not test {card.parent.name}: the library has no "
+                    f"{name}. Code it in features/coded/ with its test; once you merge it, the "
+                    "lab's next run tests the card.",
+                    owner="engineering",
+                    department="platform",
+                    created_by="lab",
+                    kind="code_feature",
+                    args={"feature": name, "card": str(card)},
+                    key=f"code_feature|{name}",
+                    root=root,
+                    now=now,
+                )
+            )
+            keys.add(name)
+            started += 1
     return made
 
 

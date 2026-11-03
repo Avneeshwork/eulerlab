@@ -1,5 +1,9 @@
 """The engineering agent's hands: fix one file on a branch, prove it, and leave it for the operator (ADR-113).
 
+Since ADR-127 it also codes one new signal for a research card
+(`code_feature`): two new files under `features/coded/` and `tests/`, proven
+the same way plus the purity check, pushed with a pull request opened.
+
     a code problem (doctor queue, or the daily quality check)
         -> refuse a file on the never-touch list
         -> context: CLAUDE.md, the ARCHITECTURE sections that name the module,
@@ -279,6 +283,249 @@ def fix(
         return attempt
     finally:
         run(["git", "worktree", "remove", "--force", str(tree)], repo)
+
+
+# --- coding a new signal for a research card (ADR-127) ---------------------
+
+CODED_DIR = "src/eulerlab/features/coded"
+CODED_LOG = "docs/CODED_FEATURES.md"
+FEATURE_BRANCH_PREFIX = "agent-feature/"
+FEATURE_TESTS = "tests/test_coded_features.py"
+MAX_CARD_CHARS = 4_000
+
+FEATURE_SYSTEM = """You are Euler Lab's engineering agent. You code ONE new stock signal ("feature") that a research card names but the feature library lacks.
+
+A feature is a pure function of ONE stock's own daily history, which ends at the decision day:
+    def fn(history: Sequence[PanelRow]) -> float | None
+PanelRow has: day (date), symbol (str), close (float, raw exchange close), volume (float), turnover (float, rupees), isin (str).
+Nothing else is available: no other stocks, no index, no fundamentals, no files, no network.
+
+Reply with ONE JSON object and nothing else:
+{"explanation": "what the signal measures and how, in two or three plain sentences; or why it cannot be built",
+ "file": "the complete Python module, or null",
+ "test": "the complete pytest file, or null"}
+
+The module must:
+- begin with its docstring on the first line (nothing before it, not even the file name), saying what it measures, the card it is for, and why higher is predicted to be better;
+- put `from __future__ import annotations` right after the docstring;
+- be plain code in the JSON string: no code fence, no surrounding quotes;
+- import only from: __future__, math, statistics, collections.abc, itertools, eulerlab.features.base (Feature, TRADING_DAYS_PER_MONTH), eulerlab.features.panel (PanelRow), eulerlab.quality.robust (median); never eulerlab.features.library;
+- define fn as above, returning None when history is too short or the value is undefined (never NaN or inf);
+- end with FEATURE = Feature("<name>", fn, "<description under 60 characters>", <min_history days>);
+- be Python 3.12, pass mypy --strict and ruff; no global state, no I/O, no eval or exec, no dunder attributes;
+  use itertools.pairwise(window) for successive pairs, never zip(window, window[1:]).
+The test must import FEATURE from eulerlab.features.coded.<name>, build PanelRow histories by hand, and check two or three values worked out by hand (work each one out step by step; keep the cases simple), plus None on short history. Every function in it is annotated, tests with `-> None`.
+If the signal needs anything besides this one stock's own history (other stocks, the market, an index, fundamentals, fund data),
+reply {"explanation": "cannot be built from one stock's own history: <what it needs>", "file": null, "test": null}. Do not substitute a different signal."""
+
+
+def unwrap_code(text: str) -> str:
+    """Code the model wrapped in a fence or a triple-quoted string, unwrapped.
+
+    Seen 2026-11-03: gpt-oss-120b sent the file inside a triple-quoted string,
+    so the module was one string and defined nothing."""
+    body = text.strip()
+    fence = re.fullmatch(r"```[a-zA-Z]*\n(.*?)\n?```", body, flags=re.DOTALL)
+    if fence:
+        return fence.group(1)
+    for quote in ("'''", '"""'):
+        if body.startswith(quote) and body.endswith(quote) and len(body) > 6:
+            inner = body[3:-3]
+            return inner[2:] if inner.startswith("\\\n") else inner.lstrip("\n")
+    return text
+
+
+_PLAIN = str.maketrans(
+    {"\u2010": "-", "\u2011": "-", "\u2012": "-", "\u2013": "-", "\u2014": "-",
+     "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"', "\u00a0": " ",
+     "\u202f": " ", "\u2009": " "}
+)  # fmt: skip
+
+
+def plain(text: str) -> str:
+    """Typographic dashes, quotes and spaces as ASCII. gpt-oss-120b writes U+2011 in
+    comments, which ruff refuses as ambiguous (seen 2026-11-03)."""
+    return text.translate(_PLAIN)
+
+
+def feature_paths(name: str) -> tuple[str, str]:
+    """The module and test an agent-coded feature lives in."""
+    return f"{CODED_DIR}/{name}.py", f"tests/test_coded_{name}.py"
+
+
+def feature_context(name: str, card_text: str, repo: Path = REPO) -> str:
+    """Small on purpose: it must fit Groq's free 8,000 tokens a minute (ADR-127)."""
+    base = (repo / "src/eulerlab/features/base.py").read_text(encoding="utf-8")
+    base = base[base.find("FeatureFn") :]
+    library = (repo / "src/eulerlab/features/library.py").read_text(encoding="utf-8")
+    example = library.find("def illiquidity_amihud")
+    end = library.find("\n\n\ndef ", example + 10)
+    return "\n\n".join(
+        [
+            f'<base path="src/eulerlab/features/base.py">\n{base}\n</base>',
+            f'<example_feature from="src/eulerlab/features/library.py">\n{library[example:end]}\n</example_feature>',
+            f"<name>{name}</name>",
+            f"<card>\n{card_text[:MAX_CARD_CHARS]}\n</card>",
+        ]
+    )
+
+
+def _feature_commands(file: str, test: str, repo: Path = REPO) -> list[tuple[str, list[str]]]:
+    py = _python(repo)
+    return [
+        ("ruff", [*py, "-m", "ruff", "check", file, test]),
+        ("format", [*py, "-m", "ruff", "format", "--check", file, test]),
+        ("mypy", [*py, "-m", "mypy", file, test]),
+        (
+            "pytest",
+            [*py, "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", test, FEATURE_TESTS],
+        ),
+        ("engine", [*py, "-m", "eulerlab.backtest.selftest"]),
+    ]
+
+
+def code_feature(
+    name: str,
+    card_text: str,
+    ask: Ask,
+    *,
+    card: str = "",
+    model: str = "",
+    repo: Path = REPO,
+    run: Runner = _run,
+    push: bool = True,
+    retries: int = 1,
+) -> Attempt:
+    """Write one new feature and its test on a fresh branch, prove them, push, open a PR.
+
+    Only two new files may appear, plus one line in `docs/CODED_FEATURES.md`
+    written by this code, not the model. Never touches the checked-out branch.
+    """
+    from eulerlab.features import coded
+
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
+    file, test = feature_paths(name)
+    attempt = Attempt(id=f"{stamp}-{hashlib.sha256(name.encode()).hexdigest()[:6]}", file=file)
+    attempt.test = test
+    if not coded.NAME.match(name):
+        attempt.outcome = "refused"
+        attempt.explanation = f"{name!r} is not a feature name (lowercase, digits, underscores)"
+        return attempt
+    if (repo / file).exists():
+        attempt.outcome = "refused"
+        attempt.explanation = f"{file} already exists"
+        return attempt
+    attempt.branch = f"{FEATURE_BRANCH_PREFIX}{name}-{stamp}"
+    tree = repo / WORKTREES / attempt.id
+    code, out = run(["git", "worktree", "add", "-b", attempt.branch, str(tree), "HEAD"], repo)
+    if code != 0:
+        attempt.outcome = f"worktree failed: {out[-200:]}"
+        return attempt
+    try:
+        note = feature_context(name, card_text, tree)
+        for _ in range(retries + 1):
+            reply = _parse(ask(FEATURE_SYSTEM, note))
+            attempt.explanation = str(reply.get("explanation", ""))[:600]
+            new_file, new_test = reply.get("file"), reply.get("test")
+            if not isinstance(new_file, str) or not new_file.strip():
+                attempt.outcome = "no fix"
+                return attempt
+            if not isinstance(new_test, str) or not new_test.strip():
+                attempt.outcome = "no test"
+                return attempt
+            new_file, new_test = plain(unwrap_code(new_file)), plain(unwrap_code(new_test))
+            (tree / file).write_text(new_file.rstrip() + "\n", encoding="utf-8")
+            (tree / test).write_text(new_test.rstrip() + "\n", encoding="utf-8")
+            # Mechanical, not the model: safe lint fixes and the house format.
+            py = _python(repo)
+            run([*py, "-m", "ruff", "check", "--fix", "-q", file, test], tree)
+            run([*py, "-m", "ruff", "format", "-q", file, test], tree)
+            new_file = (tree / file).read_text(encoding="utf-8")
+            _, status = run(["git", "status", "--porcelain", "--untracked-files=all"], tree)
+            changed = {line[3:].strip() for line in status.splitlines() if line.strip()}
+            if not changed <= {file, test}:
+                attempt.outcome = f"diff too wide: {sorted(changed)}"
+                return attempt
+            wrong = coded.problems(new_file)
+            attempt.checks = [("pure", not wrong, "; ".join(wrong) or "ok")]
+            if not wrong:
+                for check, cmd in _feature_commands(file, test, repo):
+                    rc, text = run(cmd, tree)
+                    attempt.checks.append((check, rc == 0, text[-1500:]))
+            if attempt.green:
+                break
+            failed = "\n".join(f"{n}: {t}" for n, ok, t in attempt.checks if not ok)
+            note = (
+                feature_context(name, card_text, tree)
+                + f"\n\n<previous_attempt>\n{new_file[:6000]}\n</previous_attempt>"
+                + f"\n\n<failed_checks>\n{failed[-3000:]}\n</failed_checks>"
+            )
+        if not attempt.green:
+            attempt.outcome = "checks failed"
+            return attempt
+        day = datetime.now(UTC).date().isoformat()
+        with (tree / CODED_LOG).open("a", encoding="utf-8") as log:
+            log.write(
+                f"| {day} | `{name}` | {card or 'given by hand'} | {model or 'model'} | {attempt.branch} |\n"
+            )
+        run(["git", "add", file, test, CODED_LOG], tree)
+        rc, text = run(
+            [
+                "git",
+                "commit",
+                "-q",
+                # The same checks just ran on exactly these files, and CI runs the
+                # whole suite on the pull request. The repository's hooks would
+                # re-run all tests with another interpreter (seen 2026-11-03).
+                "--no-verify",
+                "-m",
+                f"feat(features): {name}, coded by the engineering agent for a research card (ADR-127)\n\n"
+                f"{attempt.explanation}\n\nCard: {card or 'given by hand'}\nModel: {model or 'model'}",
+            ],
+            tree,
+        )
+        if rc != 0:
+            attempt.outcome = f"commit failed: {text[-200:]}"
+            attempt.checks.append(("commit", False, text[-1500:]))
+            return attempt
+        if not push:
+            attempt.outcome = "committed"
+            return attempt
+        rc, text = run(["git", "push", "-q", "-u", "origin", attempt.branch], tree)
+        if rc != 0:
+            attempt.outcome = f"committed, push failed: {text[-200:]}"
+            return attempt
+        attempt.outcome = "branch pushed"
+        rc, text = run(
+            [
+                "gh",
+                "pr",
+                "create",
+                "--head",
+                attempt.branch,
+                "--title",
+                f"feat(features): {name}, coded by the engineering agent (ADR-127)",
+                "--body",
+                f"{attempt.explanation}\n\nCard: `{card or 'given by hand'}`\nModel: {model or 'model'}\n\n"
+                "Checks passed on the agent's branch: pure, ruff, format, mypy, its test, "
+                "tests/test_coded_features.py, the engine self-test.\n\n"
+                "Once merged, the idea lab's next run tests the card (trials logged first).",
+            ],
+            tree,
+        )
+        if rc == 0:
+            attempt.outcome = "pull request opened"
+            attempt.explanation += f"\nPR: {text.strip().splitlines()[-1] if text.strip() else ''}"
+        return attempt
+    finally:
+        run(["git", "worktree", "remove", "--force", str(tree)], repo)
+        if not attempt.green or attempt.outcome not in (
+            "pull request opened",
+            "branch pushed",
+            "committed",
+        ):
+            # Nothing worth keeping on it: the branch goes with the worktree.
+            run(["git", "branch", "-D", attempt.branch], repo)
 
 
 def apply(attempt_id: str, *, repo: Path = REPO, run: Runner = _run) -> tuple[bool, str]:

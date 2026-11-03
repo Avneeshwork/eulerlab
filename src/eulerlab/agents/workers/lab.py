@@ -267,6 +267,7 @@ def _run(ctx: Context) -> WorkerResult:
 
     items: list[Item] = []
     tested: list[str] = []
+    unbuildable: list[dict[str, Any]] = []
     results: list[dict[str, Any]] = []
     digest: list[str] = []
     out_of_time = 0
@@ -279,6 +280,18 @@ def _run(ctx: Context) -> WorkerResult:
         except (codegen.UnknownPrimitive, OSError, ValueError) as exc:
             ctx.notes.append(
                 f"{card_path.parent.name}: not buildable from the library: {str(exc)[:160]}"
+            )
+            # For the engineering agent: the named signals the library lacks (ADR-127).
+            unbuildable.append(
+                {
+                    "card": str(card_path),
+                    "features": [
+                        f
+                        for f in _card_features(card_path)
+                        if not f.startswith(formula.PREFIX) and not formula.is_known(f)
+                    ],
+                    "source": source,
+                }
             )
             continue
         ctx.step(f"Testing {card_path.parent.name}: IC screen first, backtest only if it passes")
@@ -460,6 +473,7 @@ def _run(ctx: Context) -> WorkerResult:
         items,
         data={
             "tested": tested,
+            "unbuildable": unbuildable,
             "results": results,
             "allowance": allowance.per_week,
             "planned": [i.feature for i in plan.ideas],
