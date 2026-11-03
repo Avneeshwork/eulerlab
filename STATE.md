@@ -60,6 +60,8 @@ what is open is in `TASKS.md`.*
   cards from the tradable ones and says why each other was not (ADR-126).
   A card naming a signal the library lacks is coded by engineering (Groq
   first, then Opus) as a pull request for you; once merged the lab tests it (ADR-127).
+  Order is research → lab → engineering; the lab tests only research ideas, and the
+  agents' memory goes to B2 every evening (ADR-128, `make agents-restore`).
   Launchd jobs were not loaded until 2026-11-01 (T-4356); on that
   evening the agents, daily feed, fundamentals and idea lab jobs were loaded.
 - **Workbench.** `make workbench` (or `make ui-fast` for the built UI):
@@ -99,4 +101,4 @@ run them to check that they work (T-2609).
 - **Sharpe has no risk-free rate** (A-083, T-4249).
 
 `docs/STUBS.md` lists what is fake; `docs/ASSUMPTIONS.md` what is unverified;
-`docs/HISTORY.md` the 66 times this project has been wrong.
+`docs/HISTORY.md` the 67 times this project has been wrong.

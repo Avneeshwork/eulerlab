@@ -2522,7 +2522,7 @@ waits a day to show the drawdown.
 | `com.eulerlab.briefweekend` | 09:30 Saturday and Sunday | `make agent NAME=market_brief`: the markets-closed note, once per break (ADR-105) |
 | `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, knowledge keeper, handbook). The after-close note runs in `make daily` once the day's data is in (ADR-105) |
 | `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, code review) |
-| `com.eulerlab.agentsideas` | 17:00 every day | `make agents-ideas` (research, then the idea lab; ADR-111) |
+| `com.eulerlab.agentsideas` | 17:00 every day | `make agents-ideas` (research, then the idea lab, then engineering, then memory to B2; ADR-128) |
 
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
@@ -3059,13 +3059,51 @@ Each output records a fingerprint of the prompts it ran under, so a changed
 score can be traced to a prompt change. `make agent-eval` runs weekly in
 `agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
 
+### The agents' memory in B2 (ADR-128)
+
+`make agents-backup` (`ingest/memory_backup.py`, last step of `make agents-ideas`)
+sends what the agents know to the bucket under the storage prefix:
+
+| Local | Bucket key | What |
+|---|---|---|
+| `data/agents/` | `memory/agents/` | every run's output, the lab's memory, tasks, the hash-chained log, plans |
+| `research/agent_drafts/` | `memory/research/agent_drafts/` | drafts and each run's `run.json` |
+| `research/papers/` | `memory/research/papers/` | the library, which research adds to daily |
+| `data/derived/trials.jsonl` | `derived/trials.jsonl` | the trial ledger (same key as `make sync-derived`) |
+
+A file is sent when its MD5 differs from the bucket's ETag (one listing per
+tree), so a rewritten file that shrank is still sent; the raw-data mirror,
+which compares sizes, would refuse it. Locks, partial files and the
+engineering agent's git worktrees are skipped. Nothing in the bucket is
+deleted. `make agents-restore` downloads each tree only into a missing or empty
+folder and skips a key that would land outside it (runbook
+`agent-memory-restore.md`). The first backup, 2026-11-03: 360 files in about
+5 minutes; a second run sent none.
+
 ### The idea lab and the agents' trial allowance (ADR-089, ADR-111)
 
 **No weekly limit since 2026-10-31 (ADR-107).** `per_week: null` in
 `config/agent_trials.yaml`; a number puts a cap back. Every trial is still logged
 before its result is read.
 
-**Daily, with its own ideas and a memory, since 2026-11-01 (ADR-111).**
+**Research first, then the lab, then engineering, since 2026-11-03 (ADR-128).**
+The operator: "order should be research then lab then engineering". Research
+picks its own topic (a task's, the brief's, else one a day from `topics` in
+`config/agents/research.yaml`); the lab's record reaches it only as memory
+(families that failed, features drafts named that the library lacks), never as
+a topic. The lab writes no ideas of its own (`max_ideas: 0`, `model_ideas: 0`):
+it backtests research drafts, and records a draft it cannot build for a named
+signal (`data.unbuildable`), which the work runner run after it hands to
+engineering (ADR-127) the same evening. Raising those two options brings back
+the lab's own ideas described below. Then `make agents-backup` sends the day's
+memory to B2.
+
+```
+ 17:00 IST  make agents-ideas
+   heads, work runner ─► research ─► lab ─► work runner (engineering) ─► agents-backup
+```
+
+**Its own ideas and a memory, 2026-11-01 to 2026-11-03 (ADR-111), now off.**
 
 ```
  17:00 IST  make agents-ideas

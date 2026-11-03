@@ -1,10 +1,10 @@
-# The idea lab (ADR-089, ADR-111): its own ideas from config/idea_families.yaml,
-# every untested research draft, a memory of what each family has shown, and
-# feedback the research agent reads the next day.
+# The idea lab (ADR-089, ADR-111, ADR-128): it backtests what the research agent
+# found, after research and before engineering. It writes no ideas of its own
+# (max_ideas and model_ideas are 0); its memory of every card tested is kept.
 name: lab
 title: Idea lab
 reports_to: research
-job: Writes 30 or more formula cards a day from the signal families and its memory of what worked, tests them with every untested research draft (IC screen, then a backtest), sends survivors attacked by the skeptic to your inbox, and tells the research agent what to look for next.
+job: Comes after research. Backtests every new research draft it can build (IC screen, then a backtest, trials logged first), hands a draft whose signal the library lacks to engineering, and sends survivors attacked by the skeptic to your inbox. Writes no ideas of its own.
 worker: eulerlab.agents.workers.lab
 schedule: Every day 17:00 IST, after research (make agents-ideas)
 uses_model: true
@@ -14,19 +14,21 @@ never:
   - spend more trials than config/agent_trials.yaml allows, or test without logging the trial first
   - read the holdout, run the gate or edit gates.py or mandate.yaml
   - change a card after writing it, or tune a parameter after seeing its result
-  - run model-written code (a model's idea is a formula the formula language parses)
+  - run model-written code you have not merged (a coded signal is used only after your merge)
 options:
-  max_ideas: 30
+  # Research ideas only (operator, 2026-11-03: "we have to backtest only what
+  # research finds"). Raise these to let it write its own formula ideas again.
+  max_ideas: 0
   max_cards: 10
   max_minutes: 90
-  model_ideas: 6
+  model_ideas: 0
   cli_only: true
 
 # Everyday work and the tasks a head may give it (ADR-124).
 duties:
-  - Every day at 17:00, write and test about 30 formula cards and every new research draft
+  - Every day at 17:00, after research, backtest every new research draft it can build
+  - Hand a draft whose signal the library lacks to engineering
   - Send survivors, attacked by the skeptic, to your inbox
-  - Tell the research agent what to look for next
 can_do:
   - kind: test_card
     what: Test one named idea card (IC screen, then a backtest). Spends trials from the weekly allowance

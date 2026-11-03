@@ -186,17 +186,43 @@ def todays_topic(topics: list[str], now: datetime) -> str:
     return topics[day.toordinal() % len(topics)]
 
 
+def memory_of_tests(fb: idea_memory.Feedback) -> str:
+    """What the lab has already tested and seen fail, for the paper agent's prompt.
+
+    Memory, not direction (operator, 2026-11-03: "research then lab then
+    engineering"): research picks its own topics; the lab's record only stops it
+    redrafting an idea that already failed. Which families "work" is left out,
+    so the lab does not steer research.
+    """
+    lines = []
+    if fb.dead:
+        lines.append(
+            f"- Families that failed every test so far (do not redraft them as they are): {', '.join(fb.dead)}."
+        )
+    if fb.missing_features:
+        lines.append(
+            "- Earlier drafts named features the library does not have "
+            f"({', '.join(fb.missing_features[:6])}); a formula, if one fits, is tested sooner."
+        )
+    if not lines:
+        return ""
+    return "What the idea lab has already tested:\n" + "\n".join(lines)
+
+
 def run(ctx: Context) -> WorkerResult:
     from eulerlab.quality import contract
     from eulerlab.research import paper_agent, quantpedia
 
     lab = lab_feedback(ctx)
+    # Research comes first and chooses its own topic (ADR-128): a task's or your
+    # brief's, else the day's from its own list, else its one default. Never the lab's.
     topic = str(ctx.args.get("topic") or "").strip()
     if not topic and ctx.brief:
         topic = ctx.brief.splitlines()[-1].split(": ", 1)[-1][:200]
-    if not topic and lab is not None and lab.topics:
-        topic = todays_topic(lab.topics, ctx.now)
-        ctx.notes.append(f"topic from the idea lab's feedback, in turn: {topic}")
+    listed = [str(t).strip() for t in ctx.options.get("topics") or [] if str(t).strip()]
+    if not topic and listed:
+        topic = todays_topic(listed, ctx.now)
+        ctx.notes.append(f"topic from its own list, in turn: {topic}")
     topic = topic or str(ctx.options.get("topic") or "")
     if not topic:
         return WorkerResult("no topic: give one, or write a brief", status="refused")
@@ -231,7 +257,7 @@ def run(ctx: Context) -> WorkerResult:
         return _Answer(text, ctx.model, ctx.model)
 
     ctx.step(f"Searching arXiv and OpenAlex; drafting up to {limit} cards")
-    guidance = idea_memory.guidance(lab) if lab is not None else ""
+    guidance = memory_of_tests(lab) if lab is not None else ""
     result = paper_agent.run(topic, limit=limit, ask=ask, log=ctx.notes.append, guidance=guidance)
     if result.failures and not result.drafts:
         return WorkerResult(
@@ -358,7 +384,7 @@ def run(ctx: Context) -> WorkerResult:
             "topic": topic,
             "folder": str(result.folder),
             "bar_now": round(result.cost.bar_now, 3),
-            "topic_from_lab": lab is not None and topic in lab.topics,
+            "topic_from_list": topic in listed,
             "outcomes": counts,
             "library": [d.paper.id for d in result.drafts if d.paper is not None],
         },
