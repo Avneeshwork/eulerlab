@@ -1,0 +1,43 @@
+id: zaremba-2019-short-term-momentum-almost-everywhere
+title: Short-term momentum (almost) everywhere
+authors: Adam Zaremba, Huaigang Long, Andreas Karathanasopoulos
+year: 2019
+kind: paper
+source_url: https://doi.org/10.1016/j.intfin.2019.101140
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- Equity indices (global), government bonds, treasury bills, commodities, currencies; sample
+  period roughly 1800‑2019
+summary: 'Question: Does short‑term reversal exist beyond individual stocks? Data: >200 years
+  of monthly returns for equity indices, government bonds, treasury bills, commodities, and
+  currencies. Method: Form portfolios long the assets with positive prior‑month returns and
+  short those with negative returns; compare to standard momentum and other predictors. Findings:
+  A robust short‑term momentum pattern (positive one‑month lag predicts future returns), strongest
+  for high idiosyncratic volatility assets and in high dispersion periods.'
+trade_idea: Go long assets whose most recent month’s return is positive and short those with
+  negative returns, holding for the next month; the effect should generate positive alpha
+  after costs.
+implementation: |-
+  universe: Equity indices, government bonds, treasury bills, commodities, currencies (as in the paper)
+  data: Monthly total returns (price + reinvested cash flows)
+  signal: Prior 1‑month return (simple return over the last 21 trading days)
+  entry: Long if signal > 0, short if signal < 0 (or stay flat if zero)
+  exit: Re‑evaluate and rebalance at the end of each month
+  holding_period: 1 month
+  sizing: Equal‑weight across all selected assets
+  costs: unspecified
+red_flags:
+- Liquidity varies dramatically across asset classes; transaction costs for bonds, commodities
+  and some currencies may erode the reported edge.
+- The sample spans >200 years, covering many regime shifts; the effect may not persist in
+  the current high‑frequency, low‑latency market environment.
+- Capacity constraints are unknown; scaling a long‑short cross‑asset portfolio could be limited
+  by the smallest market (e.g., certain treasury bills).
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-03; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

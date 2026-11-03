@@ -1,0 +1,40 @@
+id: agarwal-2026-geopolitical-shocks-and-short-term-mean-reversion-in-indian
+title: 'Geopolitical Shocks and Short-Term Mean Reversion in Indian Equity Markets: Evidence
+  from Four Event Studies'
+authors: Reyaansh Agarwal
+year: 2026
+kind: paper
+source_url: https://doi.org/10.70917/ijcisim-2026-5394
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- Indian equities (Nifty 50 and sector indices), 2019‑2022
+summary: The author studies four Indian market shock events (Russia‑Ukraine war, COVID‑19
+  declaration, Pulwama attack, Galwan clash). Using a 120‑day estimation window, daily abnormal
+  returns for the Nifty 50 and six sector indices are computed. The study links FII outflows,
+  gold prices and India VIX to the price moves and finds that abnormal returns reverse within
+  15‑30 trading days, indicating short‑term over‑reaction.
+trade_idea: After a geopolitical shock that triggers a negative abnormal return on the Nifty
+  50 (or a sector index), take a long position and hold for roughly 20 trading days to capture
+  the mean‑reversion; conversely, a positive abnormal return would suggest a short position.
+implementation: 'universe: Nifty 50 index (or index futures); data: daily close prices and
+  event dates; signal: sign of the cumulative abnormal return on the event day (negative →
+  long, positive → short); entry: market open on the day after the event; exit: 20 trading
+  days after entry; holding period: 20 days; sizing: 100 % of capital per trade; costs: unspecified
+  (round‑trip costs for index futures not given).'
+red_flags:
+- Only four events are analyzed, limiting statistical power and raising survivorship bias
+  concerns.
+- The timing of the signal relies on ex‑post identification of a shock, which may be ambiguous
+  in real‑time.
+- Transaction costs, slippage and liquidity of index futures are not quantified, potentially
+  eroding the modest mean‑reversion edge.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-03; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Abnormal returns begin reverting within 15‑30 days for all four events;
+  the paper reports cumulative abnormal return curves but does not give explicit numeric returns,
+  t‑statistics or Sharpe ratios.
+hypothesis: ''
+strategies: []
