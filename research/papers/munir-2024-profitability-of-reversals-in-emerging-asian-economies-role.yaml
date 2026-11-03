@@ -1,0 +1,42 @@
+id: munir-2024-profitability-of-reversals-in-emerging-asian-economies-role
+title: 'Profitability of Reversals in Emerging Asian Economies: Role of Industries as Drivers'
+authors: Ali Fayyaz Munir, Iftikhar Ahmad, Asra Jabbar, Naveed UL Hassan, Ijaz Butt
+year: 2024
+kind: paper
+source_url: https://doi.org/10.29145/eer.71.05
+pdf: ''
+added: '2026-11-03'
+status: idea
+markets:
+- India equities (emerging market) – period covering pre‑2008, 2008‑2009 crisis, post‑2009,
+  COVID‑19 era
+- Pakistan equities – same periods
+- Bangladesh equities – same periods
+summary: The authors ask whether industry‑specific factors can predict contrarian returns
+  in South Asian emerging markets (India, Pakistan, Bangladesh). They use daily price data
+  to form industry portfolios, rebalance them periodically, and compare returns across market
+  regimes. They find a short‑term industry contrarian effect that is strongest during the
+  Asian and global financial crises, while an industry momentum effect appears after the global
+  crisis and during COVID‑19.
+trade_idea: Go long stocks in industries that performed worst over the recent short‑term horizon
+  and short stocks in industries that performed best, rebalancing regularly; the paper suggests
+  this contrarian tilt yields higher returns, especially in crisis periods.
+implementation: 'universe: Indian listed equities; data: daily price and industry classification;
+  signal: average past short‑term return of each industry (e.g., 1‑month); entry: long stocks
+  in bottom‑ranked industries, short stocks in top‑ranked industries; exit: rebalance at the
+  chosen frequency; holding period: short‑term (approximately 1 month); sizing: equal‑weight
+  within long and short legs; costs: unspecified (round‑trip intraday cost ~9 bps, delivery
+  STT 0.1 % each side may apply).'
+red_flags:
+- The paper does not disclose the exact look‑back window or rebalance frequency, making the
+  signal definition ambiguous.
+- No transaction‑cost analysis is provided; realistic Indian round‑trip costs (≈9 bps intraday,
+  0.1 % STT) could erode the reported contrarian premium.
+- Results are driven by crisis periods (Asian/Global financial crisis, COVID‑19); regime‑dependence
+  may limit out‑of‑sample performance.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-03; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

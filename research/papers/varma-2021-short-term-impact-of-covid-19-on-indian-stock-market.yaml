@@ -1,0 +1,28 @@
+id: varma-2021-short-term-impact-of-covid-19-on-indian-stock-market
+title: Short-Term Impact of COVID-19 on Indian Stock Market
+authors: Yashraj Varma, Renuka Venkataramani, Parthajit Kayal, Moinak Maiti
+year: 2021
+kind: paper
+source_url: https://doi.org/10.3390/jrfm14110558
+pdf: ''
+added: '2026-11-03'
+status: rejected
+markets:
+- Indian equities (NIFTY‑50 constituents), 2020 COVID‑19 event window
+summary: 'Question: How did the COVID‑19 pandemic affect the Indian equity market and its
+  sectors? Data: NIFTY‑50 index and constituent sector returns around the pandemic onset (early
+  2020). Method: Event‑study using constant return, market, and market‑adjusted models. Findings:
+  All sectors showed temporary impact; financials suffered the most, while pharma, consumer
+  goods, and IT showed neutral or positive short‑term returns.'
+trade_idea: 'Not a testable trading idea: The paper describes historical sector reactions
+  to a one‑off COVID shock and does not propose a repeatable, testable trading rule.'
+implementation: unspecified
+red_flags:
+- One‑off health shock; not a recurring signal
+- No quantitative performance metrics or cost analysis provided
+- Results limited to a narrow sample period (early 2020) and specific to Indian equities
+- Read by the research agent (groq) from the abstract only found on openalex 2026-11-03 and
+  judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

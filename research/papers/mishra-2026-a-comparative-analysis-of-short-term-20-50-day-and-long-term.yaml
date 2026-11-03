@@ -1,0 +1,36 @@
+id: mishra-2026-a-comparative-analysis-of-short-term-20-50-day-and-long-term
+title: A Comparative Analysis of Short-Term (20/50-Day) and Long-Term (50/200-Day) Exponential
+  Moving Average Crossover Strategies Across Indian Equities, Indices, Commodities, and Global
+  Indices
+authors: Debesh Mishra
+year: 2026
+kind: paper
+source_url: https://doi.org/10.2139/ssrn.7197469
+pdf: ''
+added: '2026-11-03'
+status: rejected
+markets:
+- Indian equities (Reliance Industries, HDFC Bank) 2021‑2026
+- Indian indices (Nifty 50, Bank Nifty, Sensex 30, Bankex) 2021‑2026
+- US equities (S&P 500) 2021‑2026
+- Commodities (Gold Futures, Brent Crude Futures) 2021‑2026
+summary: The author back‑tests three strategies—20/50 EMA crossover, 50/200 EMA crossover,
+  and buy‑and‑hold—on two Indian stocks, several Indian indices, the US S&P 500, and two commodity
+  futures over July 2021‑July 2026, using Excel. The main finding is that Gold Futures under
+  the 20/50 EMA strategy outperformed buy‑and‑hold despite a win‑rate below 50%, due to a
+  few large wins and many small losses.
+trade_idea: 'Not a testable trading idea: The paper only reports a qualitative edge for Gold
+  Futures, which is outside the listed target markets, and provides no quantitative, cost‑adjusted
+  performance for Indian or US equities.'
+implementation: unspecified
+red_flags:
+- Only two Indian stocks are examined, limiting generalizability to the broader equity universe.
+- No transaction costs, slippage, or liquidity constraints are incorporated, which are critical
+  for EMA crossover trading.
+- Results are presented qualitatively without statistical significance, t‑stats, or confidence
+  intervals.
+- Read by the research agent (groq) from the abstract from Crossref found on openalex 2026-11-03
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
