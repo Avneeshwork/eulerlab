@@ -168,6 +168,16 @@ def _draft_text(folder: Path) -> tuple[str, dict[str, Any]]:
     return text, spec
 
 
+def by_source(drafts: list[Any]) -> dict[str, dict[str, int]]:
+    """Each source's papers by outcome, so a run shows which sources pay (ADR-129)."""
+    out: dict[str, dict[str, int]] = {}
+    for d in drafts:
+        key = "failed" if d.outcome.startswith("failed") else d.outcome
+        row = out.setdefault(d.candidate.source, {})
+        row[key] = row.get(key, 0) + 1
+    return out
+
+
 def lab_feedback(ctx: Context) -> idea_memory.Feedback | None:
     """The idea lab's latest feedback: topics to search and what its tests have shown."""
     lab = latest_output("lab", ctx.root)
@@ -211,7 +221,7 @@ def memory_of_tests(fb: idea_memory.Feedback) -> str:
 
 def run(ctx: Context) -> WorkerResult:
     from eulerlab.quality import contract
-    from eulerlab.research import paper_agent, quantpedia
+    from eulerlab.research import paper_agent, paper_search, quantpedia
 
     lab = lab_feedback(ctx)
     # Research comes first and chooses its own topic (ADR-128): a task's or your
@@ -258,7 +268,11 @@ def run(ctx: Context) -> WorkerResult:
 
     ctx.step(f"Searching arXiv and OpenAlex; drafting up to {limit} cards")
     guidance = memory_of_tests(lab) if lab is not None else ""
-    result = paper_agent.run(topic, limit=limit, ask=ask, log=ctx.notes.append, guidance=guidance)
+    sources = [str(x) for x in ctx.options.get("sources") or paper_search.DEFAULT_SOURCES]
+    ctx.step(f"Sources: {', '.join(sources)}")
+    result = paper_agent.run(
+        topic, limit=limit, ask=ask, log=ctx.notes.append, guidance=guidance, sources=sources
+    )
     if result.failures and not result.drafts:
         return WorkerResult(
             "; ".join(result.failures)[:300],
@@ -386,6 +400,7 @@ def run(ctx: Context) -> WorkerResult:
             "bar_now": round(result.cost.bar_now, 3),
             "topic_from_list": topic in listed,
             "outcomes": counts,
+            "by_source": by_source(result.drafts),
             "library": [d.paper.id for d in result.drafts if d.paper is not None],
         },
     )
