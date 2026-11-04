@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventy-three times this project was wrong
+## Seventy-four times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -443,6 +443,8 @@ figure produced outside the result store before this date was frictionless.
 **72. A head passed up a research task that delivered nothing.** (2026-11-03) The Head of Research's checklist asked only that the run finished ok, wrote a summary and was not flagged by the doctor. The CEO's task "intraday stock trading strategies" came back "0 drafted" and was passed up as done. Now a research task that drafts nothing, or a lab task that tests nothing, is sent back once, then blocked for AI help.
 
 **73. The lab queued cards research had marked incomplete, and retried unbuildable ones every day.** (2026-11-04, the live daily-flow test) Research drafted 3 cards on "liquidity premium Indian stocks"; one was complete. The lab queued all research drafts regardless of `draft.json`, failed to build the incomplete ones, and listed the same three "unbuildable" cards on every run, two of which no code could fix (a formula that does not parse, no signal named). Research's summary said "3 drafted" with no hint that only one could be tested. Now the lab queues only cards research staged as valid, drops a card an earlier run could not build for a reason no code fixes, and keeps one waiting for engineering to code a named signal; research says "3 drafted (1 complete)", and a head sends back a research task with none complete. No numbers invalidated: nothing unbuildable was tested.
+
+**74. The brief showed an expired option chain's levels as today's.** (2026-11-04) The pre-open brief for 4 November gave "Range to expiry 2026-11-03 from the ATM straddle: 23,179 to 23,484", "Max pain 23,250" and "Nifty options expiry (in -1 days)" when Nifty had closed at 23,811 and that expiry had settled. The age check looked at when the chain was captured (two days, within the limit), not whether its expiry had passed. Now a chain whose expiry is on or before the last close is left out of the levels, the put-call item and the calendar, with a line saying why. No numbers invalidated: the brief feeds no strategy.
 
 ---
 

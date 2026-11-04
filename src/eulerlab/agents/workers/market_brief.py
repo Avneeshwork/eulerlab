@@ -44,6 +44,8 @@ from datetime import date, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import numpy as np
+
 from eulerlab.agents import brief_content, grounding, history_says, trader_read
 from eulerlab.agents.runtime import Context, Item, WorkerResult, latest_output, untrusted
 
@@ -215,6 +217,19 @@ def _books() -> list[dict[str, Any]]:
     return out
 
 
+def _next(now: datetime, closed: frozenset[date], world: list[dict[str, Any]]) -> dict[str, Any]:
+    """The next-session forecast, logged and scored (ADR-133). Never fails the brief."""
+    from eulerlab.forecast import next_session
+
+    spx = next((w.get("change_pct") for w in world if w.get("name") == "S&P 500"), None)
+    try:
+        return next_session.build(
+            now=now, closed=closed, us_live=float(spx) if isinstance(spx, int | float) else None
+        )
+    except (OSError, ValueError, ArithmeticError, IndexError, np.linalg.LinAlgError) as exc:
+        return {"available": False, "reason": f"{type(exc).__name__}: {str(exc)[:120]}"}
+
+
 def _flows() -> dict[str, Any]:
     try:
         from eulerlab.ingest import fii_dii_cash
@@ -357,13 +372,16 @@ def render(
 
 
 QUESTIONS = (
-    "You write an analyst note under one trader's market read for India. Use only the numbers "
-    "in the read. Answer exactly these three, each on its own line starting with its label, one "
-    "or two sentences each:\n"
-    "What matters today: the one or two signals that explain the bottom line, and why.\n"
-    "What to watch: the level or number in the read that decides the session.\n"
-    "What would prove it wrong: which trigger in the read, if hit, flips the bottom line.\n"
-    "No price predictions, no advice to buy or sell, no markdown."
+    "You write an analyst note under one trader's market brief for India. Use only the numbers "
+    "in the brief. Answer exactly these four, each on its own line starting with its label, "
+    "two to four sentences each, explaining the reasons, not just restating numbers:\n"
+    "What happened: what drove the last session, from the brief's account of it, flows and "
+    "breadth, and what that says about who is in control.\n"
+    "What can happen next: what the next-session forecast says and the reasons it gives, "
+    "including how much to trust it from its score.\n"
+    "What to watch: the level or number in the brief that decides the session, and why.\n"
+    "What would prove it wrong: which trigger in the brief, if hit, flips the read.\n"
+    "No advice to buy or sell, no new numbers, no markdown."
 )
 
 
@@ -448,6 +466,8 @@ def run(ctx: Context) -> WorkerResult:
 
     ctx.step("Finding past days like today and what followed (history, not a forecast)")
     history = _history(inputs["books"])
+    ctx.step("Forecasting the next session and scoring the forecasts made so far")
+    upcoming = _next(ctx.now, closed_days, inputs["world"])
     ctx.step("Writing the Trader's read and the brief from the numbers gathered")
     levels = trader_read.levels()
     read = trader_read.build(
@@ -471,6 +491,12 @@ def run(ctx: Context) -> WorkerResult:
     brief["history"] = history.get("lines") or []
     brief["history_rates"] = history.get("rates") or {}
     brief["books_history"] = history.get("books") or []
+    brief["next"] = upcoming
+    if mode == "after-close":
+        brief["review"] = brief_content.forecast_review(upcoming, day) + brief["review"]
+    elif mode == "pre-open":
+        brief["review"] = brief_content.forecast_review(upcoming, "")
+        brief["review_title"] = "The last forecast against what happened"
     sections = compose(mode, inputs)
     detail = render(mode, day, sections, "")
     commentary = ""
@@ -645,13 +671,21 @@ def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
         "",
         brief["headline"],
     ]
+    nxt = brief.get("next") or {}
+    if nxt.get("story"):
+        lines += ["", "WHAT HAPPENED IN THE LAST SESSION", *[f"- {x}" for x in nxt["story"]]]
     if brief.get("review"):
         lines += ["", brief["review_title"].upper(), *[f"- {r}" for r in brief["review"]]]
     lines += ["", "WHAT MATTERS TODAY"]
     for i, m in enumerate(brief["matters"], 1):
         lines += [f"{i}. {m['title']}. {m['fact']}", f"   What it means: {m['meaning']}"]
+        if m.get("why"):
+            lines.append(f"   Why it matters for the next session: {m['why']}")
+        if m.get("watch"):
+            lines.append(f"   What to watch: {m['watch']}")
     if not brief["matters"]:
         lines.append("- Nothing is far from normal today.")
+    lines += brief_content.forecast_lines(nxt)
     if brief.get("history"):
         lines += [
             "",

@@ -2798,6 +2798,55 @@ closed-day run writes and shows the note; Telegram gets it once per break (a
 run whose data date matches the last note's does not resend it). "Open the
 brief" on the agent card opens `#agents/brief`, the AI tab's Market brief view.
 
+### The next-session forecast (ADR-133, research 147)
+
+`forecast/next_session.build` runs inside every brief. From Nifty 50's daily
+bars and India VIX (index history, read up to the run's `as_of` by
+`knowledge_time`; never minute data, so never the holdout), FII cash
+(`fii_dii_cash.rows`) and SPY's closes (US panel), it builds one row per
+session with what was known at that close and what followed on the next:
+
+- **Range.** Weighted least squares of the next session's log(log(high/low))
+  on today's, the last five and the last 22 sessions' values and log VIX
+  (Corsi's cascade on Parkinson's range). The forecast range is
+  exp(fit + residual variance / 2). VIX's own range is
+  VIX/100/sqrt(252) x sqrt(8/pi).
+- **Close band.** z = next log return / exp(fitted log range); the band is
+  the close times exp(z at the 10th and 90th weighted percentiles x the
+  forecast scale).
+- **Odds.** Ridge logistic regressions (IRLS, intercept unpenalised,
+  features standardised) of "close above today's" and "open above today's"
+  on the last session's and five sessions' log moves, VIX's log change and
+  the distance from the 200-day average; then a second stage on FII net
+  over five sessions and the US session's log return, fitted with the first
+  stage's logit as an offset where both are known (at least 120 sessions).
+  Each feature's reason is the probability with it minus without it.
+  Expected open: WLS of the gap on the US session.
+- **Weights.** Session j of n weighs 0.5^((n-1-j)/500).
+- **US session.** The last SPY session after India's last close and before
+  the target; 0 when the US was shut in between; when the panel does not
+  reach it, the live S&P 500 change if read between 02:30 and 09:15 IST.
+
+**Scoring.** `record` appends a forecast made before 09:15 IST on its target
+day, unless it repeats the last one for that day. `live_scores` takes the last
+such forecast per session and scores it once the bar is held: Brier for each
+odds and for the base rate, close inside the band, |log(actual / forecast)|
+for the range and for VIX's. `check` repeats this walk-forward over the last
+500 sessions, refitting every 20 on rows whose outcome is known by then.
+`trust` uses the live card from 20 scored sessions, the check before; if the
+model's Brier is above the base rate's, the brief shows the base rate and
+says so, and below 1% skill it says "close to a coin flip".
+
+The brief carries `story` (the last session in words: gap, open-to-close,
+range against the 20-session median, where it closed in its range, VIX
+against the move, FII that day), `forecast` (titled sections: the forecast
+with reasons, scenarios, the record) and, in the review, the last scored
+forecast against what happened. Each "what matters" item also carries `why`
+(how it bears on the next session) and `watch`. Telegram's range line becomes
+the forecast's range, band and odds. A chain whose expiry is on or before the
+last close (`trader_read.expired`) is left out of levels, the put-call item and
+the calendar.
+
 **The Trader's read (ADR-100).** The brief opens with an answer, not a list.
 `agents/trader_read.py` turns the gathered inputs into, in this order: a bottom
 line; a scorecard of seven rows (trend, breadth, volatility, FII futures, cash

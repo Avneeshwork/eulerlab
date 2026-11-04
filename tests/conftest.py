@@ -262,3 +262,16 @@ def _private_usage_log(
     from eulerlab.llm import usage
 
     monkeypatch.setattr(usage, "LOG", tmp_path_factory.mktemp("usage") / "llm_usage.jsonl")
+
+
+@pytest.fixture(autouse=True)
+def _private_forecasts(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads the real index history or appends to the real forecast log (ADR-133)."""
+    from eulerlab.forecast import next_session
+
+    folder = tmp_path_factory.mktemp("forecasts")
+    monkeypatch.setattr(next_session, "LOG", folder / "next_session.jsonl")
+    monkeypatch.setattr(next_session, "INDEX_HISTORY", folder / "index_history.jsonl")
+    monkeypatch.setattr(next_session, "US_PANEL", folder / "us_panel.jsonl")

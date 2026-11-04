@@ -32,6 +32,10 @@ options:
     - "52-week high momentum India"
     - "volume and turnover signals Indian equities"
     - "intraday return patterns NSE stocks"
+    # For the brief's next-session forecast (ADR-133): papers land in the library
+    # for the forecast's yearly review; any tradable idea goes to the lab as usual.
+    - "forecasting next-day stock index volatility from high-low range"
+    - "overnight returns and opening gaps Indian stock index"
 
 # Everyday work and the tasks a head may give it (ADR-124).
 duties:
