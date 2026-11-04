@@ -15,7 +15,7 @@ still look excellent. That fact shapes nearly every design decision here.
 ## Start here
 
 ```bash
-make install     # once
+make install     # once (includes the news tone model; `make install-lite` without it)
 make verify      # 8 checks, ~2,700 tests — expect all green
 make workbench   # the UI on :3000
 ```

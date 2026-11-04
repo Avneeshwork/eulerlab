@@ -85,6 +85,23 @@ def _news(symbol: str, name: str) -> list[dict[str, str]]:
     return _cached_news(symbol, name, int(time.time() // 300))
 
 
+def _news_tone(symbol: str, items: list[dict[str, str]]) -> dict[str, Any] | None:
+    """The stock's 7-day news tone (ADR-135), and each listed headline's score where held."""
+    from eulerlab.forecast import stock_tone
+
+    got = stock_tone.for_symbol(symbol)
+    if got is None:
+        return None
+    by_title = {str(i["title"]): i for i in got.get("items") or []}
+    for item in items:
+        scored = by_title.get(item["title"])
+        if scored is not None:
+            item["tone"] = f"{scored['score']:+.2f}"
+            if scored.get("rule"):
+                item["rule"] = str(scored["rule"])
+    return {k: got[k] for k in ("days", "as_of", "model", "n", "mean", "positive", "negative")}
+
+
 _PRICE_LOCKS: dict[str, threading.Lock] = {}
 _PRICE_LOCKS_GUARD = threading.Lock()
 
@@ -255,6 +272,7 @@ def company(symbol: str) -> dict[str, Any]:
     _add_provisional(page["price"], wanted)
     try:
         page["news"] = _news(wanted, page["name"])
+        page["news_tone"] = _news_tone(wanted, page["news"])
     except Exception:
         page["news"] = []
     try:
