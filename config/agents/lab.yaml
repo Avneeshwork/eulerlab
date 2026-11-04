@@ -16,12 +16,13 @@ never:
   - change a card after writing it, or tune a parameter after seeing its result
   - run model-written code you have not merged (a coded signal is used only after your merge)
 options:
-  # Research ideas only (operator, 2026-11-03: "we have to backtest only what
-  # research finds"). Raise these to let it write its own formula ideas again.
-  max_ideas: 0
+  # Research ideas only from 2026-11-03 (operator: "we have to backtest only
+  # what research finds"); its own formula ideas back on 2026-11-04 (operator,
+  # T-4458), at the settings before that switch. Research cards are still tested.
+  max_ideas: 30
   max_cards: 10
   max_minutes: 90
-  model_ideas: 0
+  model_ideas: 6
   cli_only: true
 
 # Everyday work and the tasks a head may give it (ADR-124).

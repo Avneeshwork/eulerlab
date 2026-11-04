@@ -74,11 +74,12 @@ what is open is in `TASKS.md`.*
   cards from the tradable ones and says why each other was not (ADR-126).
   A card naming a signal the library lacks is coded by engineering (Groq
   first, then Opus) as a pull request for you; once merged the lab tests it (ADR-127).
-  Order is research → lab → engineering; the lab tests only research ideas, and the
+  Order is research → lab → engineering; the lab tests research's cards and, again
+  since 2026-11-04, up to 30 of its own formula ideas a day, and the
   agents' memory goes to B2 every evening (ADR-128, `make agents-restore`).
   Research searches arXiv, OpenAlex, SSRN, NBER, CORE and Semantic Scholar and knows
   a paper under all its links, so none is read or added twice (ADR-129, ADR-131).
-  The data agent runs every two hours 06–20 IST: re-runs what is behind, uploads,
+  The data agent runs every two hours 06–20 IST and at 22:00: re-runs what is behind, uploads,
   deletes what B2 holds and merges what differs; a watchdog checks every agent's
   runs, tokens and tasks (ADR-132).
   Launchd jobs were not loaded until 2026-11-01 (T-4356); on that

@@ -373,13 +373,13 @@ def test_the_lab_tests_every_untested_research_draft_not_only_the_latest(lab_env
     }
 
 
-def test_the_committed_lab_writes_no_ideas_of_its_own(lab_env: Path) -> None:
-    """Operator, 2026-11-03: "we have to backtest only what research finds"."""
-    assert all_effective()["lab"].spec.options["max_ideas"] == 0
-    assert all_effective()["lab"].spec.options["model_ideas"] == 0
-    out = runtime.run("lab", root=lab_env / "agents", agents=_lab(), now=NOW)
-    assert out.data["planned"] == [] and out.data["tested"] == []
-    assert idea_memory.load(lab_env / "agents") == []
+def test_the_committed_lab_writes_its_own_ideas_beside_research() -> None:
+    """Research-only from 2026-11-03 ("we have to backtest only what research finds");
+    its own ideas back on 2026-11-04 (operator, T-4458), at the settings before that
+    switch. Research's cards are still tested."""
+    options = all_effective()["lab"].spec.options
+    assert options["max_ideas"] == 30
+    assert options["model_ideas"] == 6
 
 
 def test_the_lab_asks_the_model_for_formulas_and_tests_the_ones_that_parse(lab_env: Path) -> None:

@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { Bot } from 'lucide-react';
 import {
   assistantChat,
   assistantStatus,
@@ -162,10 +163,8 @@ export default function Assistant() {
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M5 5h14v10H10l-5 4z" />
-            <path d="M9 9h6M9 12h4" />
-          </svg>
+          // The agents' mark (the AI page's icon), so the assistant reads as one of them.
+          <Bot aria-hidden="true" />
         )}
       </button>
 
@@ -177,6 +176,7 @@ export default function Assistant() {
         >
           <header className="asst-head">
             <div>
+              <Bot className="asst-mark" aria-hidden="true" />
               <strong>Assistant</strong>
               <span className={`asst-where${status && !status.ready ? ' is-off' : ''}`}>
                 {where}
