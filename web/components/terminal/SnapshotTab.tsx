@@ -5,6 +5,8 @@
  *
  * Designed against Finviz, Benzinga Pro and Koyfin (docs/RESEARCH/021), each of
  * which contributes one thing: the map, the why, and the cross-asset context.
+ * The cross-asset counts and the evidence band were removed on the operator's
+ * request (2026-11-04): the dashboard is for the market, not the platform's census.
  *
  * The band order is the design. Most dashboards open with a price, and a price
  * without regime is nearly useless — +0.4% in a calm uptrend and +0.4% inside a
@@ -26,7 +28,9 @@ import {
   IndexContext,
   PositioningContext,
   PulseCards,
+  HighsLows,
   SectorContext,
+  SectorRotation,
   WatchContext,
   useMarketContext,
 } from './MarketContext';
@@ -579,6 +583,8 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           <>
             <PulseCards ctx={ctx} />
             <IndexContext ctx={ctx} />
+            {/* Below valuation, the sectors' rotation (operator, 2026-11-04). */}
+            <SectorRotation ctx={ctx} />
           </>
         ) : (
           <div className="tempty">Reading the market context…</div>
@@ -832,10 +838,12 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           Street closes and while Asia trades, so what happened there is
           already priced into the first minute here. In the US view it is the
           subject, so the heading says which it is. */}
-      {snap.world?.movers?.length && (market === 'IN' || market === 'US') ? (
+      {/* India: new 52-week highs and lows in place of the US movers (operator, 2026-11-04). */}
+      {market === 'IN' && ctx && <HighsLows ctx={ctx} />}
+      {snap.world?.movers?.length && market === 'US' ? (
         <section>
           <h3 className="report-h">
-            {market === 'IN' ? 'Moving elsewhere' : 'Movers'}
+            Movers
             <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
               US · $5+
             </span>
@@ -948,56 +956,6 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
 
       </section>
 
-      {/* --- band 4: cross-asset ------------------------------------------- */}
-      <section>
-        <h3 className="report-h">
-          Across the book of markets
-          <Info>Instruments held for each asset class, and the state of each feed.</Info>
-        </h3>
-        <div className="cross">
-          {snap.cross_asset.map((cell) => (
-            <div className="cross-cell" key={cell.asset_class}>
-              <span>{cell.label}</span>
-              <b>{cell.instruments.toLocaleString('en-IN')}</b>
-              <i>{cell.detail}</i>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* --- band 5: evidence ---------------------------------------------- */}
-      <section>
-        <h3 className="report-h">
-          Is any of it evidence
-          <Info>
-            Every other terminal shows patterns. This one is built to say when a pattern is
-            indistinguishable from luck. Noise bar: the Sharpe ratio a strategy must beat, given how
-            many trials have been run. Clearing it: strategies above that bar.
-            {snap.evidence.clearing_names.length > 0 &&
-              ` Clearing today: ${snap.evidence.clearing_names.join(', ')}.`}
-          </Info>
-        </h3>
-        <div className="tpanel">
-          <div className="tfacts">
-            <div className="tfact">
-              <span>Noise bar</span>
-              <b>{snap.evidence.bar.toFixed(2)}</b>
-            </div>
-            <div className="tfact">
-              <span>Strategies</span>
-              <b>{snap.evidence.strategies}</b>
-            </div>
-            <div className="tfact">
-              <span>Clearing it</span>
-              <b className={snap.evidence.clearing ? 'up' : ''}>{snap.evidence.clearing}</b>
-            </div>
-            <div className="tfact">
-              <span>{snap.evidence.families != null ? 'Idea families tested' : 'Trials spent'}</span>
-              <b>{snap.evidence.families ?? snap.evidence.trials}</b>
-            </div>
-          </div>
-        </div>
-      </section>
 
       </>
       )}

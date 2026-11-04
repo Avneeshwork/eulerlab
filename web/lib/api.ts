@@ -1518,6 +1518,8 @@ export type MarketContext = {
           momentum: number | null;
           rising: boolean;
           phase: 'leading' | 'weakening' | 'lagging' | 'improving' | null;
+          /** Weekly [3M vs Nifty, momentum] points, oldest first; the last is today. */
+          trail?: [number | null, number | null][];
         }[];
         note: string;
       }

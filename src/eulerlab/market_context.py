@@ -269,13 +269,19 @@ def _relative(
     return (now.close / then.close) / (market[now.day] / market[then.day]) - 1.0
 
 
+TRAIL_WEEKS = 6
+"""Points on each sector's rotation trail, one a week, the last being today."""
+
+
 def sector_strength(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any]:
     """Sector indices against Nifty 50 over 1 week, 1 month and 3 months.
 
     Relative return over N sessions: (1 + sector) / (1 + Nifty 50) - 1.
     Direction: the 1-month relative return now against its value 5 sessions
     ago. Phase: 3-month relative return above or below zero, crossed with that
-    direction. This is our own stated rule; a Relative Rotation Graph's
+    direction. Trail: those two coordinates (3-month relative return; change of
+    the 1-month relative return over 5 sessions) at each of the last
+    `TRAIL_WEEKS` weeks, oldest first. This is our own stated rule; a Relative Rotation Graph's
     smoothing is proprietary (research 120 [11]) and is not reproduced.
     """
     bench = series.get(BENCHMARK, ())
@@ -298,9 +304,19 @@ def sector_strength(series: Mapping[str, Sequence[IndexDay]]) -> dict[str, Any]:
             if trend > 0
             else ("improving" if rising else "lagging")
         )
+        # The rotation trail: the same two coordinates a week apart, oldest first,
+        # so the chart shows where each sector came from, not only where it is.
+        trail = []
+        for end in range(5 * (TRAIL_WEEKS - 1), -1, -5):
+            x = _relative(held, by_day, 63, end=end)
+            now_1m = _relative(held, by_day, 21, end=end)
+            then_1m = _relative(held, by_day, 21, end=end + 5)
+            if x is not None and now_1m is not None and then_1m is not None:
+                trail.append([_rounded(x), _rounded(now_1m - then_1m)])
         out.append(
             {
                 "name": name,
+                "trail": trail,
                 "change_1d": _rounded(_change(held, 1)),
                 "relative": {k: _rounded(v) for k, v in rs.items()},
                 "momentum": _rounded(rs["1m"] - before)
