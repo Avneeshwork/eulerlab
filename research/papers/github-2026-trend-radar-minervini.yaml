@@ -31,3 +31,15 @@ strategies:
   id: nse_github_weinstein_stage2
   note: ''
   timeframe: 0
+- kind: registered
+  id: screen_swing_mom_weinstein
+  note: stock screener (ADR-136)
+  timeframe: 0
+- kind: registered
+  id: screen_swing_breakout_weinstein
+  note: stock screener (ADR-136)
+  timeframe: 0
+- kind: registered
+  id: screen_swing_three
+  note: stock screener (ADR-136)
+  timeframe: 0

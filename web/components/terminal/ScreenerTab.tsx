@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { screener } from '@/lib/api';
 import type { Screener, ScreenerList, ScreenerStock } from '@/lib/api';
-import { Chip, Empty, Heading, Seg, Stat, Stats } from '@/components/terminal/ui';
+import { Chip, Empty, Heading, Info, Seg, Stat, Stats } from '@/components/terminal/ui';
 import './screener.css';
 
 type Kind = 'long' | 'swing';
@@ -118,74 +118,106 @@ function StockTable({
   symbols,
   stocks,
   kind,
-  titles,
+  list,
+  details,
 }: {
   symbols: string[];
   stocks: Record<string, ScreenerStock>;
   kind: Kind;
-  titles: Record<string, string>;
+  list: ScreenerList;
+  details: boolean;
 }) {
   if (!symbols.length) return <Empty reason="No stock qualifies today." />;
+  const parts = list.part_picks ? Object.keys(list.part_picks).length : 0;
   return (
     <div className="tscroll">
       <table className="ttable scr-table">
         <thead>
           <tr>
+            <th>#</th>
             <th>Stock</th>
-            <th>Models</th>
-            <th>Close</th>
+            {parts > 0 && (
+              <th>
+                Models agree <Info>How many of the models behind this list pick the stock. More agreement ranks higher.</Info>
+              </th>
+            )}
+            <th>
+              Weight <Info>The stock&rsquo;s share of the book in the backtested strategy, today.</Info>
+            </th>
+            <th>Price</th>
             <th>1 month</th>
-            <th>12-1 mom.</th>
-            <th>To 52w high</th>
-            <th>vs 200d</th>
-            {kind === 'swing' && <th>RSI(2)</th>}
-            {kind === 'long' && (
+            <th>
+              1 year <Info>Price change from 12 months to 1 month ago, the momentum the models use.</Info>
+            </th>
+            <th>
+              Quality <Info>Percentile among the 250 most-traded stocks on ROE, operating profit over assets, low debt and dividend payout, from the last annual results known 90 days after the year end.</Info>
+            </th>
+            <th>
+              P/E <Info>Price over the last known annual earnings per share.</Info>
+            </th>
+            <th>
+              News <Info align="right">Tone of the last 7 days of headlines naming the stock, -1 to +1, corrected by the news rules.</Info>
+            </th>
+            {details && (
               <>
-                <th>Quality</th>
-                <th>Value</th>
+                <th>To 52w high</th>
+                <th>vs 200-day</th>
+                {kind === 'swing' && <th>RSI(2)</th>}
+                <th>Value rank</th>
                 <th>F-score</th>
                 <th>ROE</th>
-                <th>P/E</th>
                 <th>P/B</th>
-                <th>D/E</th>
+                <th>Debt/equity</th>
+                <th>Turnover ₹cr</th>
               </>
             )}
-            <th>News</th>
-            <th>Turnover ₹cr</th>
           </tr>
         </thead>
         <tbody>
-          {symbols.map((sym) => {
+          {symbols.map((sym, i) => {
             const s = stocks[sym];
             if (!s) return null;
-            const mine = s.models.filter((m) => titles[m]);
+            const agreeing = list.part_picks
+              ? Object.entries(list.part_picks)
+                  .filter(([, picks]) => picks.includes(sym))
+                  .map(([id]) => id)
+              : [];
+            const weight = list.weights?.[sym];
             return (
               <tr key={sym}>
+                <td>{i + 1}</td>
                 <td>
                   <a className="tsym" href={`/terminal/company/${encodeURIComponent(sym)}`}>
                     {sym}
                   </a>
                 </td>
-                <td title={mine.map((m) => titles[m]).join(', ')}>{mine.length}</td>
-                <td>{s.close.toLocaleString('en-IN')}</td>
+                {parts > 0 && (
+                  <td title={agreeing.join(', ')}>
+                    {list.votes?.[sym] ?? 0} of {parts}
+                  </td>
+                )}
+                <td>{weight === undefined ? '—' : `${(weight * 100).toFixed(1)}%`}</td>
+                <td>₹{s.close.toLocaleString('en-IN')}</td>
                 <td className={(s.change_1m ?? 0) >= 0 ? 'up' : 'down'}>{pct(s.change_1m)}</td>
-                <td>{pct(s.momentum_12_1, 0)}</td>
-                <td>{s.near_high === null ? '—' : `${((1 - s.near_high) * 100).toFixed(1)}% below`}</td>
-                <td>{pct(s.above_200d)}</td>
-                {kind === 'swing' && <td>{num(s.rsi2)}</td>}
-                {kind === 'long' && (
+                <td className={(s.momentum_12_1 ?? 0) >= 0 ? 'up' : 'down'}>{pct(s.momentum_12_1, 0)}</td>
+                <td title="Percentile among the 250 most-traded stocks: ROE, profit on assets, low debt, payout">
+                  {s.quality_pct === null || s.quality_pct === undefined ? '—' : `${s.quality_pct}/100`}
+                </td>
+                <td>{num(s.pe)}</td>
+                <td>{s.news_tone ? `${s.news_tone.mean >= 0 ? '+' : ''}${s.news_tone.mean.toFixed(2)}` : '—'}</td>
+                {details && (
                   <>
-                    <td>{s.quality_pct ?? '—'}</td>
+                    <td>{s.near_high === null ? '—' : `${((1 - s.near_high) * 100).toFixed(1)}% below`}</td>
+                    <td>{pct(s.above_200d)}</td>
+                    {kind === 'swing' && <td>{num(s.rsi2)}</td>}
                     <td>{s.value_pct ?? '—'}</td>
                     <td>{s.fscore ?? '—'}</td>
                     <td>{pct(s.roe, 0)}</td>
-                    <td>{num(s.pe)}</td>
                     <td>{num(s.pb, 2)}</td>
                     <td>{num(s.debt_equity, 2)}</td>
+                    <td>{num(s.turnover_cr)}</td>
                   </>
                 )}
-                <td>{s.news_tone ? `${s.news_tone.mean >= 0 ? '+' : ''}${s.news_tone.mean.toFixed(2)} (${s.news_tone.n})` : '—'}</td>
-                <td>{num(s.turnover_cr)}</td>
               </tr>
             );
           })}
@@ -195,12 +227,69 @@ function StockTable({
   );
 }
 
+type TopN = '10' | '20' | 'all';
+
+/** The list's stocks, best first: most models agreeing, then largest weight, quality, momentum. */
+function ranked(list: ScreenerList, stocks: Record<string, ScreenerStock>): string[] {
+  return [...list.picks].sort(
+    (a, b) =>
+      (list.votes?.[b] ?? 0) - (list.votes?.[a] ?? 0) ||
+      (list.weights?.[b] ?? 0) - (list.weights?.[a] ?? 0) ||
+      (stocks[b]?.quality_pct ?? -1) - (stocks[a]?.quality_pct ?? -1) ||
+      (stocks[b]?.momentum_12_1 ?? -9) - (stocks[a]?.momentum_12_1 ?? -9) ||
+      a.localeCompare(b),
+  );
+}
+
+function Summary({ list, kind, top, caveats, why }: { list: ScreenerList; kind: Kind; top: string; caveats: string[]; why?: string }) {
+  const bt = list.backtest;
+  const nifty = bt.benchmark?.total_return;
+  return (
+    <Heading
+      title={kind === 'long' ? 'Long-term buy list' : 'Swing buy list'}
+      sub={kind === 'long' ? 'rebalance monthly' : 'rebalance weekly'}
+      info={
+        <>
+          <p>
+            {kind === 'long'
+              ? 'Stocks that at least 3 of our 5 best long-term models pick.'
+              : 'Our most consistent swing blend: volatility-adjusted momentum and Weinstein stage 2.'}
+          </p>
+          <p>
+            Backtest 2016–2026, after costs: Sharpe {num(bt.sharpe, 2)}, return {pct(bt.total_return, 0)}
+            {nifty !== undefined && <> (Nifty {pct(nifty, 0)})</>}, worst fall {pct(bt.max_drawdown, 0)}
+            {list.halves && (
+              <>
+                ; Sharpe {num(list.halves[0] ?? null, 2)} in 2016–2020 and {num(list.halves[1] ?? null, 2)} in 2021–2026
+              </>
+            )}
+            . Not yet passed the gate.
+          </p>
+          <p>
+            Ranked by how many models agree, then weight, then quality. The backtest holds every stock on the list;
+            buying only the top {top === 'all' ? 'few' : top} is more concentrated than what was tested.
+          </p>
+          {why && <p>How the swing list is chosen: {why}.</p>}
+          <ul>
+            {caveats.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+        </>
+      }
+    >
+      <Chip tone="warn">Not gate-promoted</Chip>
+    </Heading>
+  );
+}
+
 export function ScreenerTab() {
   const [data, setData] = useState<Screener | null>(null);
   const [error, setError] = useState('');
   const [kind, setKind] = useState<Kind>('long');
-  const [model, setModel] = useState('');
-  const [minTurnover, setMinTurnover] = useState(0);
+  const [other, setOther] = useState('');
+  const [top, setTop] = useState<TopN>('10');
+  const [details, setDetails] = useState(false);
 
   useEffect(() => {
     screener()
@@ -209,23 +298,17 @@ export function ScreenerTab() {
   }, []);
 
   const lists = useMemo(() => (data?.lists ?? []).filter((l) => l.kind === kind), [data, kind]);
-  const titles = useMemo(() => Object.fromEntries(lists.map((l) => [l.id, l.title])), [lists]);
-  // Each tab opens on its pre-registered list: the 70:30 blend, or the swing blend the rule chose.
-  const preferred = lists.find((l) => (kind === 'long' ? l.main : l.chosen));
-  const chosen = lists.find((l) => l.id === model) ?? (model === '' ? preferred : undefined);
-  const symbols = useMemo(() => {
-    if (!data) return [];
-    const base = chosen
-      ? chosen.picks
-      : Object.keys(data.stocks).filter((s) => data.stocks[s].models.some((m) => titles[m]));
-    return base
-      .filter((s) => (data.stocks[s]?.turnover_cr ?? 0) >= minTurnover)
-      .sort((a, b) => {
-        const ma = data.stocks[a].models.filter((m) => titles[m]).length;
-        const mb = data.stocks[b].models.filter((m) => titles[m]).length;
-        return mb - ma || (data.stocks[b].quality_pct ?? 0) - (data.stocks[a].quality_pct ?? 0) || a.localeCompare(b);
-      });
-  }, [data, chosen, titles, minTurnover]);
+  // One recommended list per tab: the long-term consensus, or the swing blend the rule chose.
+  const main = lists.find((l) => (kind === 'long' ? l.main : l.chosen));
+  const behind = useMemo(() => {
+    if (!main) return [];
+    const ids = new Set([...Object.keys(main.part_picks ?? {}), ...(main.parts ?? []).map((p) => p.id)]);
+    return (data?.lists ?? []).filter((l) => ids.has(l.id));
+  }, [data, main]);
+  const rest = lists.filter((l) => l !== main && !behind.includes(l));
+  const picked = (data?.lists ?? []).find((l) => l.id === other);
+  const order = useMemo(() => (main && data ? ranked(main, data.stocks) : []), [main, data]);
+  const shown = top === 'all' ? order : order.slice(0, Number(top));
 
   if (error) return <p className="scr-warn">{error}</p>;
   if (!data) return <p className="ui-sub">Loading the screener…</p>;
@@ -237,61 +320,76 @@ export function ScreenerTab() {
           label="Holding horizon"
           value={kind}
           options={[
-            ['long', 'Long term · monthly'],
-            ['swing', 'Swing · weekly'],
+            ['long', 'Long term'],
+            ['swing', 'Swing'],
           ]}
           onChange={(k) => {
             setKind(k);
-            setModel('');
+            setOther('');
           }}
         />
-        <label className="scr-filter">
-          Min turnover ₹cr
-          <input
-            type="number"
-            min={0}
-            step={5}
-            value={minTurnover}
-            onChange={(e) => setMinTurnover(Number(e.target.value) || 0)}
-          />
-        </label>
-        <span className="ui-sub">
-          As of {data.as_of} · {data.universe}
-        </span>
-      </div>
-
-      {data.choice && <p className="scr-choice">How the lists are chosen ({data.choice.rule}): {data.choice.why}.</p>}
-
-      <ul className="scr-caveats">
-        {data.caveats.map((c) => (
-          <li key={c}>{c}</li>
-        ))}
-      </ul>
-
-      <div className="scr-models">
-        {lists.map((l) => (
-          <ModelCard key={l.id} list={l} onPick={(id) => setModel(id === (chosen?.id ?? '') ? 'all' : id)} />
-        ))}
-      </div>
-
-      <div className="tpanel">
-        <Heading
-          title={chosen ? `${chosen.title}: today's picks` : 'Stocks picked by at least one model'}
-          sub={`${symbols.length} stocks`}
-          info="Sorted by how many of this tab's models pick the stock, then by quality rank. Click a model's name to see only its picks; click again for all."
+        <Seg<TopN>
+          label="How many to show"
+          value={top}
+          options={[
+            ['10', 'Top 10'],
+            ['20', 'Top 20'],
+            ['all', `All ${order.length}`],
+          ]}
+          onChange={setTop}
         />
-        <StockTable symbols={symbols} stocks={data.stocks} kind={kind} titles={titles} />
+        <label className="scr-filter">
+          <input type="checkbox" checked={details} onChange={(e) => setDetails(e.target.checked)} />
+          Show details
+        </label>
+        <span className="ui-sub">Prices of {data.as_of}</span>
       </div>
 
-      {chosen && (
+      {main ? (
         <div className="tpanel">
-          <Heading
-            title={`${chosen.title}: past selections`}
-            info="Every recorded selection of this model, newest first, measured from the next session's close."
-          />
-          <History list={chosen} />
+          <Summary list={main} kind={kind} top={top} caveats={data.caveats} why={data.choice?.why} />
+          <StockTable symbols={shown} stocks={data.stocks} kind={kind} list={main} details={details} />
+        </div>
+      ) : (
+        <p className="scr-warn">No list is chosen for this tab yet: {data.choice?.why ?? 'the screener has not run'}.</p>
+      )}
+
+      {main && (
+        <details className="tpanel">
+          <summary>How this list has done since we started recording it</summary>
+          <History list={main} />
+        </details>
+      )}
+
+      {behind.length > 0 && (
+        <details className="tpanel">
+          <summary>The {behind.length} models behind this list</summary>
+          <div className="scr-models">
+            {behind.map((l) => (
+              <ModelCard key={l.id} list={l} onPick={(id) => setOther(id === other ? '' : id)} />
+            ))}
+          </div>
+        </details>
+      )}
+
+      {rest.length > 0 && (
+        <details className="tpanel">
+          <summary>Other models we tested ({rest.length}), not used for this list</summary>
+          <div className="scr-models">
+            {rest.map((l) => (
+              <ModelCard key={l.id} list={l} onPick={(id) => setOther(id === other ? '' : id)} />
+            ))}
+          </div>
+        </details>
+      )}
+
+      {picked && picked !== main && (
+        <div className="tpanel">
+          <Heading title={`${picked.title}: today's picks`} sub={`${picked.picks.length} stocks`} />
+          <StockTable symbols={ranked(picked, data.stocks)} stocks={data.stocks} kind={kind} list={picked} details={details} />
         </div>
       )}
+
     </section>
   );
 }

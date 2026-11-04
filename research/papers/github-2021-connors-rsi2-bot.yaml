@@ -30,3 +30,7 @@ strategies:
   id: nse_github_rsi2_daily
   note: ''
   timeframe: 0
+- kind: registered
+  id: screen_trend_pullback
+  note: stock screener (ADR-136)
+  timeframe: 0

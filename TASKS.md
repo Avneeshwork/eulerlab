@@ -162,6 +162,9 @@ Verify: `uv run pytest -q tests/test_screener.py`; `make screener`; open Workben
 | T-4446 | Read Piotroski (2000), Asness et al. (2013) and George and Hwang (2004) in full, and SEBI's text of Regulation 33 | TODO |
 | T-4447 | True publication dates for results (NSE filings) to replace the 90-day rule (A-107) | TODO |
 | T-4448 | Long-term list as a fixed 70:30 blend of quality momentum and tree ranker; three pre-registered swing blends, chosen by the worse of two halves (research 151, ADR-137) | DONE 2026-11-04. Long blend Sharpe 0.98 (+575%); swing A (Sharpe momentum + Weinstein) chosen: 1.01 full, halves 0.73 / 1.18; C 0.91 (0.64 / 0.99); B 0.86 (0.55 / 0.97) |
+| T-4450 | Long-term buy list = consensus of the top 5 long-term models, 3 of 5 (research 152, ADR-138); page shows one list per tab with Top 10 / 20 / All, models behind it, others folded | DONE 2026-11-04. Sharpe 0.89 (+626%, -56%); halves 0.48 / 1.33. Below each part; shown as asked |
+| T-4451 | Every screener model, blend and the consensus linked to its paper in the Research Library; Strategies page lists them | DONE 2026-11-04 |
+| T-4452 | Operator: the consensus's weaker half (0.48) is below the swing floor; choose whether to keep it as the long-term list | TODO. Operator |
 | T-4449 | The "optimised" volatility-adjusted momentum (PBO 0.71) was left out of the blends for the paper's setting; the operator may ask for it instead | Note |
 
 ## News rules that learn, NewsData, and stock news tone (2026-11-04)

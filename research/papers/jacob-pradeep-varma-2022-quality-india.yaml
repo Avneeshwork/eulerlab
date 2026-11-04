@@ -21,4 +21,12 @@ pdf: ''
 added: '2026-11-04'
 status: idea
 hypothesis: ''
-strategies: []
+strategies:
+- kind: registered
+  id: screen_quality_momentum
+  note: stock screener (ADR-136)
+  timeframe: 0
+- kind: registered
+  id: screen_consensus_3of5
+  note: stock screener (ADR-136)
+  timeframe: 0

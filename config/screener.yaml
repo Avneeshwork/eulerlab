@@ -23,7 +23,8 @@ summaries:
 # The pre-registered choice (research 151, ADR-137): the long-term list is the
 # fixed 70:30 blend; the swing list is the candidate with the best Sharpe in its
 # worse half, ties to fewer parts, and none when no worse half reaches the floor.
-main_long: screen_long_blend
+# Changed 2026-11-04 by the operator: the 3-of-5 consensus (research 152).
+main_long: screen_consensus_3of5
 swing_candidates:
   - screen_swing_mom_weinstein
   - screen_swing_breakout_weinstein

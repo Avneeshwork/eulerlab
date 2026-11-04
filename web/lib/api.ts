@@ -2433,6 +2433,11 @@ export type ScreenerList = {
   /** Sharpe in 2016-2020 and 2021-2026, for the pre-registered choice. */
   halves?: (number | null)[];
   parts?: { id: string; share: number }[];
+  /** Each stock's weight in this model's book today. */
+  weights?: Record<string, number>;
+  /** For a consensus: how many parts pick each stock, and each part's picks. */
+  votes?: Record<string, number>;
+  part_picks?: Record<string, string[]>;
   track: {
     selections: ScreenerSelection[];
     complete: number;

@@ -375,6 +375,13 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
         except Exception as exc:  # one model failing must not empty the page
             longs, error = {}, f"{type(exc).__name__}: {str(exc)[:120]}"
         picks = sorted(longs, key=lambda s: (-longs[s], s))
+        votes: dict[str, int] = {}
+        part_picks: dict[str, list[str]] = {}
+        if hasattr(strategy, "picks") and not error:
+            part_picks = strategy.picks(narrowed)
+            for chosen in part_picks.values():
+                for s in chosen:
+                    votes[s] = votes.get(s, 0) + 1
         for s in picks:
             table.setdefault(s, {}).setdefault("models", []).append(mid)
         run = runs.get(mid, {})
@@ -382,6 +389,9 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
             {
                 "id": mid,
                 "kind": kind,
+                "weights": {s: round(float(longs[s]), 4) for s in picks},
+                "votes": votes,
+                "part_picks": part_picks,
                 "title": title,
                 "new": mid in sm.BY_ID,
                 "picks": picks,
@@ -443,9 +453,9 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
             "Fundamentals count from 90 days after each year end (A-107) and carry later restatements; "
             "only companies listed in 2026 have them, so fundamental models pick survivors.",
             "The existing five are all momentum: they are close to one bet (HISTORY #44).",
-            "The long-term list is a fixed 70:30 blend of quality momentum and the tree ranker (operator's weights); "
-            "the swing list is chosen by research 151's pre-registered rule: best Sharpe in the worse of 2016-2020 "
-            "and 2021-2026.",
+            "The long-term list is the consensus of the top 5 long-term models: stocks 3 or more pick "
+            "(research 152). The swing list is chosen by research 151's pre-registered rule: best Sharpe "
+            "in the worse of 2016-2020 and 2021-2026.",
         ],
     }
     p = out or OUT

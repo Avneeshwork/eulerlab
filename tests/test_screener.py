@@ -272,3 +272,34 @@ def test_a_blend_adds_its_parts_weights_at_fixed_shares() -> None:
         ["screen_swing_mom_weinstein", "screen_swing_breakout_weinstein", "screen_swing_three"],
         "swing",
     )
+
+
+def test_the_consensus_holds_what_three_parts_agree_on() -> None:
+    class Fixed(Strategy):
+        lookback = 1
+
+        def __init__(self, names: list[str]) -> None:
+            self.name = "fixed"
+            self.names = names
+
+        def target_weights(self, view: MarketView) -> dict[str, float]:
+            return dict.fromkeys(self.names, 1.0 / len(self.names))
+
+    c = sm.Consensus.__new__(sm.Consensus)
+    c.name, c.min_votes, c.rebalance_every, c.lookback = "c", 3, 21, 1
+    c.parts = [
+        ("p1", Fixed(["AAA", "BBB", "CCC"])),
+        ("p2", Fixed(["AAA", "BBB"])),
+        ("p3", Fixed(["AAA", "CCC"])),
+        ("p4", Fixed(["BBB", "DDD"])),
+        ("p5", Fixed(["EEE"])),
+    ]
+    view = _view({s: [1.0, 1.0] for s in ("AAA", "BBB", "CCC", "DDD", "EEE")})
+    assert c.votes(view) == {"AAA": 3, "BBB": 3, "CCC": 2, "DDD": 1, "EEE": 1}
+    assert c.target_weights(view) == {"AAA": 0.5, "BBB": 0.5}
+    built = sm.BUILDERS["screen_consensus_3of5"]()
+    assert isinstance(built, sm.Consensus) and [p for p, _ in built.parts] == list(
+        sm.CONSENSUS_PARTS
+    )
+    assert built.min_votes == 3 and built.rebalance_every == 21
+    assert sm.KIND["screen_consensus_3of5"] == "long"

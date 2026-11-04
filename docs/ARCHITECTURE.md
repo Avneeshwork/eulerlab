@@ -3533,3 +3533,16 @@ two half-period summaries (`halves`), and marks as chosen the candidate whose
 smaller half-Sharpe is largest (ties: fewer parts), only if that exceeds
 `robust_floor` (0.5). Lists are ordered main, chosen, new, then the rest. Each
 tab of the page opens on its main or chosen list.
+
+### The consensus list (ADR-138, research 152)
+
+`screener_models.Consensus(name, parts, min_votes, rebalance_every)`: `picks(view)`
+runs each part on the view narrowed to its lookback and returns its long names;
+`votes(view)` counts, per stock, the parts picking it; `target_weights` holds the
+stocks with votes ≥ `min_votes`, equally (none: cash). `screen_consensus_3of5`
+uses `CONSENSUS_PARTS` (Stocks on the Move, Sharpe momentum paper setting,
+Weinstein stage 2, quality momentum, physical momentum), 3 votes, 21 sessions,
+and is `main_long` in `config/screener.yaml`. `screener.build` stores, for every
+list, each pick's weight, and for a consensus its votes and each part's picks.
+The page ranks the main list by votes, then weight, quality percentile and 12-1
+momentum, and shows the first 10, 20 or all.
