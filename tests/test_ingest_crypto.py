@@ -386,3 +386,10 @@ def test_a_truncated_file_is_not_mistaken_for_a_landed_one(tmp_path: Path) -> No
 
     assert path.exists()
     assert not crypto.is_readable("TRUNCUSDT", "2024-01", directory=tmp_path)
+
+
+def test_dollar_tokens_found_in_the_top_20_are_excluded() -> None:
+    from eulerlab.ingest import crypto
+
+    # BFUSD reached the top 20 on 2026-11-04 (HISTORY #76).
+    assert {"BFUSD", "USDE", "USDC", "FDUSD"} <= crypto.STABLECOINS

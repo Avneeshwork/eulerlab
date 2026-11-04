@@ -1,0 +1,40 @@
+id: hong-2021-liquidity-and-asset-prices
+title: Liquidity and asset prices.
+authors: Hong, Sanghyun
+year: 2021
+kind: paper
+source_url: https://core.ac.uk/works/113760632
+pdf: ''
+added: '2026-11-04'
+status: idea
+markets:
+- US equities 1964‑2017
+summary: 'Question: Does incorporating transaction costs solve the equity‑premium puzzle?
+  Data: US stock returns 1964‑2017, firm‑level liquidity cost measures, macro and financial
+  shock series. Method: Extend Campbell‑Cochrane habit model with transaction costs; decompose
+  returns into liquidity‑cost covariances; construct six liquidity‑return factors (macro‑shock
+  beta, financial‑shock beta, etc.). Findings: Transaction costs lower required risk aversion
+  but not enough; liquidity‑cost covariances are priced, with macro‑shock component yielding
+  ~3× larger premium than financial‑shock component; liquidity‑augmented factor models improve
+  fit and render SMB insignificant.'
+trade_idea: Long stocks with low exposure to liquidity‑cost shocks (low macro‑shock beta)
+  and short those with high exposure, expecting a positive risk‑adjusted premium from the
+  liquidity‑covariance factor.
+implementation: 'universe: US equities (all NYSE/NASDAQ stocks) 1964‑2017; data: daily returns,
+  daily liquidity‑cost proxy (e.g., bid‑ask spread or Amihud), macro‑shock series, financial‑shock
+  series; signal: rank stocks by estimated macro‑liquidity‑beta (lower rank = lower exposure);
+  entry: go long bottom 30% and short top 30% of the rank each month; exit: rebalance monthly;
+  holding period: 1 month; sizing: equal‑weight within long and short legs; costs: unspecified.'
+red_flags:
+- The paper does not quantify transaction costs or slippage for the proposed long‑short portfolio,
+  which could erode the reported premium.
+- Liquidity‑beta estimates rely on historical covariances that may be unstable in different
+  market regimes, raising model risk.
+- The sample ends in 2017; recent structural changes in market microstructure (e.g., high‑frequency
+  trading) could affect the factor’s capacity and survivorship bias.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-04; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

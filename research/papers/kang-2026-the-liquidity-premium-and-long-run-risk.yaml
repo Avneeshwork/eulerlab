@@ -1,0 +1,39 @@
+id: kang-2026-the-liquidity-premium-and-long-run-risk
+title: The Liquidity Premium and Long-Run Risk
+authors: W. Kang, Nan Li, Hui-Ping Zhang, Yangyang Zhan
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/352b9aaa43ae39b849975a758915cc53641bc86d
+pdf: ''
+added: '2026-11-04'
+status: idea
+markets:
+- US equities, 1964‑2023 (full sample), pre‑2000 and post‑2000 subsamples
+summary: 'Question: Does the liquidity premium change over time due to long‑run risk exposures?
+  Data: US equity returns and liquidity measures from 1964‑2023, split pre‑ and post‑2000.
+  Method: Estimate factor loadings of liquid vs illiquid portfolios to long‑run consumption
+  and investment risk factors. Findings: Illiquid stocks have larger positive exposures to
+  both factors before 2000, generating a positive liquidity premium; after 2000 the consumption‑risk
+  exposure turns negative, reducing the premium.'
+trade_idea: Long the most illiquid stocks (high Amihud illiquidity) to capture a liquidity
+  premium that was historically positive before 2000 and may be weaker or absent after 2000.
+implementation: |-
+  universe: unspecified
+  data: unspecified
+  signal: unspecified
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing and costs: unspecified
+red_flags:
+- No transaction cost or slippage estimates are provided, which could erode the illiquidity
+  premium.
+- The study does not address survivorship bias or the impact of delisted illiquid firms.
+- Liquidity constraints and capacity limits are not discussed, raising doubts about scaling
+  the strategy.
+- Drafted by the paper agent (groq) from the abstract only found on semantic_scholar 2026-11-04;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

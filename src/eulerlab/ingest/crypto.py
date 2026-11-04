@@ -74,6 +74,10 @@ STABLECOINS = frozenset(
         "AEUR",
         "USD1",
         "XUSD",
+        # Found in the top 20 on 2026-11-04 (HISTORY #76): Binance's BFUSD and
+        # Ethena's USDe are dollar tokens too.
+        "BFUSD",
+        "USDE",
         "EURI",
         "EUR",
         "TRY",

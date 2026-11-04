@@ -1,0 +1,28 @@
+id: diamond-2016-liquidity-requirements-liquidity-choice-and-financial-stabil
+title: Liquidity Requirements, Liquidity Choice and Financial Stability
+authors: Douglas Diamond, Anil Kashyap
+year: 2016
+kind: paper
+source_url: https://doi.org/10.3386/w22053
+pdf: ''
+added: '2026-11-04'
+status: rejected
+markets: []
+summary: 'Question: How do liquidity regulations affect banks'' incentives to hold liquid
+  assets and the likelihood of runs? Data/Method: Theoretical extension of the Diamond‑Dybvig
+  model with a liquid asset, sunspot‑driven depositor behavior, and incomplete information.
+  Findings: Regulation similar to LCR/NSFR can reduce run probability, but optimal regulation
+  would differ from current rules.'
+trade_idea: 'Not a testable trading idea: The paper studies bank regulatory incentives and
+  run dynamics, not a market price anomaly that can be directly traded.'
+implementation: unspecified
+red_flags:
+- No empirical asset price or return data presented.
+- Findings are purely theoretical; no back‑testable signal is defined.
+- Applicability to tradable securities (e.g., bank stocks) is not examined, and transaction
+  costs, liquidity, or capacity are not addressed.
+- Read by the research agent (groq) from the abstract from OpenAlex found on nber 2026-11-04
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

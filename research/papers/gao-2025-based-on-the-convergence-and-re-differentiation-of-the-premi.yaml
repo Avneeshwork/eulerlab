@@ -1,0 +1,36 @@
+id: gao-2025-based-on-the-convergence-and-re-differentiation-of-the-premi
+title: Based on the Convergence and Re-Differentiation of the Premium of Hong Kong Stocks
+  in the HSAHP
+authors: Si-Nan Gao, Shaochuan Li, J. Xiang
+year: 2025
+kind: paper
+source_url: https://www.semanticscholar.org/paper/9499e9b70a5953f148b7f4b15f4c23b35b1a74c6
+pdf: ''
+added: '2026-11-04'
+status: idea
+markets:
+- Hong Kong A‑shares and H‑shares, 2016‑2025
+summary: The authors examine the Hang Seng Shanghai‑Hong Kong Stock Connect A/H Premium Index
+  (2016‑2025), linking liquidity, investor composition, and passive fund flows to premium
+  dynamics. They find that higher short‑window A/H trading‑volume ratios often coincide with
+  a widening cross‑sectional premium, and that monitoring Amihud illiquidity, bid‑ask spreads,
+  and volume depth can signal convergence or re‑differentiation phases.
+trade_idea: When the short‑window A/H trading‑volume ratio rises sharply, the cross‑sectional
+  premium tends to widen; a trader could go long the under‑priced side (A‑shares) and short
+  the over‑priced side (H‑shares) to capture the convergence.
+implementation: 'universe: unspecified; data: HSAHP premium, A/H volume ratios, Amihud illiquidity,
+  bid‑ask spreads; signal: increase in short‑window A/H volume ratio combined with widening
+  premium; entry: at the moment the volume‑ratio spike is detected; exit: when premium converges
+  back toward 100; holding period: unspecified; sizing and costs: unspecified'
+red_flags:
+- Effect is observed only on Hong Kong A/H shares; may not translate to Indian or US markets.
+- Potential high transaction costs and slippage when trading cross‑border A/H shares, especially
+  given bid‑ask spread dynamics.
+- The signal relies on short‑window volume spikes, which may be noisy and suffer from look‑ahead
+  bias if not properly defined.
+- Drafted by the paper agent (groq) from the abstract only found on semantic_scholar 2026-11-04;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
