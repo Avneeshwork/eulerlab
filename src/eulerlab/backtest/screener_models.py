@@ -482,6 +482,21 @@ class Blend(Strategy):
         return total
 
 
+class HoldSymbol(Strategy):
+    """Hold one instrument with all the capital this part is given, when it traded today."""
+
+    rebalance_every = MONTH
+    lookback = 5
+
+    def __init__(self, name: str, symbol: str) -> None:
+        self.name = name
+        self.symbol = symbol
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        rows = view.history.get(self.symbol)
+        return {self.symbol: 1.0} if rows and rows[-1].day == view.as_of else {}
+
+
 class Consensus(Strategy):
     """Hold, equal-weighted, the stocks at least `min_votes` of the parts pick (research 152)."""
 
@@ -549,6 +564,13 @@ BLENDS: tuple[tuple[str, str, str, tuple[tuple[str, float], ...], int], ...] = (
             ("india_low_tvol36", 1 / 3),
             ("screen_value_momentum_quality", 1 / 3),
         ),
+        MONTH,
+    ),
+    (
+        "screen_stock_mix_gold",
+        "Stock mix 90% with gold 10%",
+        LONG,
+        (("screen_stock_mix", 0.9), ("screen_hold_goldbees", 0.1)),
         MONTH,
     ),
     (
@@ -717,6 +739,19 @@ SPECS = SPECS + tuple(
 
 SPECS = (
     *SPECS,
+    (
+        PaperStrategy(
+            id="screen_hold_goldbees",
+            title="Hold GOLDBEES (gold ETF)",
+            paper="asness-moskowitz-pedersen-2013-value-momentum-everywhere",
+            citation="A part for the stock mix with gold (research 153)",
+            summary="All of this part's capital in GOLDBEES; used at 10% inside the stock mix with gold.",
+            logic=("Hold GOLDBEES whenever it traded that day.", "Rebalanced every 21 sessions."),
+            lookback=5,
+            build=lambda: HoldSymbol("screen_hold_goldbees", "GOLDBEES"),
+        ),
+        LONG,
+    ),
     (
         PaperStrategy(
             id="screen_consensus_3of5",

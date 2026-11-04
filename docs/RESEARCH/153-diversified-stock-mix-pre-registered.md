@@ -19,3 +19,10 @@ The operator, 2026-11-04: the screener's lists all come from similar strategies;
 ## How it is judged (fixed now)
 
 Calendar-year returns 2016-2025 and the number of losing years; return a year; worst fall; Sharpe on 2016-2026 and on each half (2016-2020, 2021-2026); against NIFTYBEES. Shown whatever the result.
+
+## Addendum, written 2026-11-04 before either configuration's result was read
+
+The operator: "We can add goldbees and silver bees too but keep very less weightage". A second configuration, fixed now:
+
+`screen_stock_mix_gold`: 90% `screen_stock_mix`, 10% GOLDBEES (`screen_hold_goldbees`), rebalanced every 21 sessions. SILVERBEES is left out of the backtest because its prices start on 2022-05-10; it would change the strategy part-way through the test. Judged the same way as the stock mix, and both are shown.
+

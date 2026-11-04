@@ -1,0 +1,26 @@
+id: H-0041
+title: Stock mix 90% with gold 10%
+status: draft
+family: screener_blend
+source_kind: blend
+parent: H-0040
+claim: 90% of the three-category stock mix and 10% GOLDBEES, rebalanced monthly, has fewer losing calendar
+  years and a smaller worst fall than the stock mix alone, after costs.
+rationale: Gold rose in 2018 (+7%) when most stock strategies lost; a small share may soften the bad years
+  (research 153).
+source:
+  research: '153'
+  written_by: Claude, for the stock screener
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  strategy: screen_stock_mix_gold
+  universe: liquid 250 as of each date, plus GOLDBEES
+red_flags:
+- Gold's 10% was set by the operator's 'very less weightage', not fitted.
+- Gold's 2025 (+72%) may flatter the recent half.
+- 'SILVERBEES left out: no prices before 2022-05.'
+- Screening backtest only.
+holdout:
+  starts: '2025-01-01'
+  status: unread
