@@ -147,6 +147,20 @@ Verify: `make microstructure-five`.
 | ID | Task | Status |
 |---|---|---|
 | T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+## News rules that learn, NewsData, and stock news tone (2026-11-04)
+
+Operator: "oil one is one case there can be many case sentiment score can be wrong and if no ai tokens how it will be corrected ... knowledge base increases over time", "use different make function to uninstall", "added newsdata.io api use that if better", "show sentiment on each stock whichever possible"; "keep automatic". ADR-135, research 149.
+Verify: `uv run pytest -q tests/test_news_rules.py`; `make market-news`; read "How the news scores are checked" and "Stock news" in the brief; open a company page's News tab.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4435 | Written news rules (13) that correct tone with no model request; rules read the stories when no judgement is made | DONE 2026-11-04. `config/news_rules.yaml`, `forecast/news_rules.py` |
+| T-4436 | Learned rules from logged judgements, switched on at 3 agreeing and off at 2 against; contested seeds listed; agreement of each score reported | DONE 2026-11-04. Starts empty; grows with each brief |
+| T-4437 | NewsData.io as a second source and a second score | DONE 2026-11-04. Key `News_Data_io` |
+| T-4438 | News tone for each stock, in the brief and on the company page | DONE 2026-11-04. `forecast/stock_tone.py` |
+| T-4439 | `make install` keeps the news model; `install-lite`, `install-news`, `remove-news` (HISTORY #75) | DONE 2026-11-04 |
+| T-4440 | Review the first learned rules after two weeks of briefs | TODO. Operator, about 2026-11-18 |
+
 ## News sentiment and possible impact in the brief (2026-11-04)
 
 Operator: "crashes will be difficult to predict and also we have not take news as input you may miss many important geopolitical and country wide news impact it need to be added in last show news sentiment and possible impact"; "IS CURRENT_NEWS_API NOT USEFUL"; "look over open source FinBert github repo". ADR-134, research 148.

@@ -919,6 +919,14 @@ export default function CompanyPageView() {
                 sub={`${page.news.length} headlines`}
                 info={`Headlines from the news archive tagged ${symbol} in the last three months. Links open the publisher's page.`}
               />
+              {page.news_tone && (
+                <p className="co-news-tone">
+                  News tone over {page.news_tone.days} days: {page.news_tone.mean >= 0 ? '+' : ''}
+                  {page.news_tone.mean.toFixed(2)} from {page.news_tone.n} headlines ({page.news_tone.positive} positive,{' '}
+                  {page.news_tone.negative} negative), on a scale of -1 to +1. Scored by a news-sentiment model and
+                  corrected by the news rules; not a signal.
+                </p>
+              )}
               {page.news.length === 0 ? (
                 <Empty reason={`No headline in the last three months is tagged ${symbol}.`} />
               ) : (
@@ -931,6 +939,8 @@ export default function CompanyPageView() {
                       <small>
                         {item.publisher}
                         {item.time && ` · ${longDate(item.time)}`}
+                        {item.tone && ` · tone ${item.tone}`}
+                        {item.rule && ` (rule ${item.rule})`}
                       </small>
                     </li>
                   ))}

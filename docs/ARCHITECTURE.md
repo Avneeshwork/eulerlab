@@ -2879,6 +2879,40 @@ worst. The check card adds `below_band`. The brief's last sections are "News
 and possible impact" and "Crash risk"; Telegram gets the 24-hour tone and the
 first shock. Neither news nor tone changes the forecast.
 
+### News rules, NewsData and stock tone (ADR-135, research 149)
+
+**Rules.** `news_rules.match(text, rules)` returns the active rule with the
+most `when` patterns that all match (whole words, any case) and whose `unless`
+patterns do not, seeds before learned on a tie. `corrected(tone, rule)` =
+sign(rule) × max(|tone|, 0.5). The brief's summary adds the mean of corrected
+scores; stock tone uses corrected scores throughout.
+
+**Learning.** After each judgement, `record` appends every judged story not
+yet logged (title, tone, NewsData's score, the judged direction, the rule that
+fitted). `learn` rebuilds from the whole log: a story fitted by an active seed
+counts for or against that seed; any other story judged up or down counts
+toward each (subject, movement) pair of `learn` groups it contains. A pair's
+direction is the majority; active when agreeing ≥ 3 and against < 2, off when
+against ≥ 2, proposed otherwise. `update` writes the rules and seed evidence
+and returns what switched. A seed is contested when against ≥ 2 and against >
+for. `agreement` gives, for the last 300 judged stories, how often each score's
+sign (|score| ≥ 0.3) matched the judged direction. With no judgement this run,
+`rule_impacts` lists what the rules say about the stories that would have been
+judged.
+
+**NewsData.** Each search also calls `/api/1/latest` (`q`, `country`, 10
+results); `sentiment_stats` becomes `newsdata_tone.score` = (positive −
+negative) / 100. Google News results are capped at `page_size` so a day's count
+does not depend on which source answered.
+
+**Stock tone.** `stock_tone.build` reads two months of `news/equity` archives,
+keeps headlines from the last seven days that name their stock
+(`news.strong_match`) and are not quote pages, scores each guid once
+(`stock_news_scores.jsonl`), corrects with the rules, and writes per stock the
+count, mean, positives, negatives and up to 30 headlines
+(`stock_news_tone.json`). `market_news.main` and every brief rebuild it. The
+company page adds `news_tone` and each listed headline's tone and rule.
+
 **The Trader's read (ADR-100).** The brief opens with an answer, not a list.
 `agents/trader_read.py` turns the gathered inputs into, in this order: a bottom
 line; a scorecard of seven rows (trend, breadth, volatility, FII futures, cash

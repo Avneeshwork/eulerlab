@@ -17,6 +17,7 @@ help:
 	@echo "  make test         pytest only"
 	@echo "  make lint         ruff check + format check"
 	@echo "  make fmt          apply ruff fixes and formatting"
+	@echo "  make install-lite without the news tone model; make remove-news / install-news"
 	@echo "  make types        mypy --strict"
 	@echo "  make docs-check   fail if src/ changed without docs"
 	@echo "  make state        print where the project is"
@@ -124,10 +125,24 @@ help:
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 	@echo "  make india-live   Indian data from 15:31, retried until in (schedulable)"
 
+# Everything this machine runs, the news tone model included (ADR-135).
 install:
+	uv sync --extra dev --extra web --extra news
+	cd web && npm install
+	uv run pre-commit install
+
+# Without the news tone model (about 1.2 GB): the brief lists headlines unscored.
+install-lite:
 	uv sync --extra dev --extra web
 	cd web && npm install
 	uv run pre-commit install
+
+# Add or remove only the news tone model; nothing else changes.
+install-news:
+	uv sync --inexact --extra news
+
+remove-news:
+	uv pip uninstall transformers torch
 
 verify:
 	@uv run python tools/verify.py

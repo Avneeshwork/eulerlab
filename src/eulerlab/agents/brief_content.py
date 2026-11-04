@@ -817,9 +817,22 @@ def news_sections(found: Mapping[str, Any], nxt: Mapping[str, Any]) -> list[dict
                 )
                 + "."
             )
+        if s.get("corrected"):
+            lines.append(
+                f"Corrected by the news rules where the words mislead ({s['corrected']} "
+                f"{'story' if s['corrected'] == 1 else 'stories'}): {s['corrected_mean']:+.2f}."
+            )
+        if s.get("newsdata_mean") is not None:
+            lines.append(
+                f"NewsData's own score for {s['newsdata_stories']} of them: {s['newsdata_mean']:+.2f}."
+            )
     else:
         lines.append(f"News tone not available: {s.get('reason', 'no stories held')}.")
     impacts = found.get("impacts") or []
+    if found.get("by_rules") and impacts:
+        lines.append(
+            "No model request was left, so the stories below are read by the news rules, not judged."
+        )
     shocks = [x for x in impacts if x["severity"] == "high" and x["direction"] == "down"]
     for x in shocks:
         lines.append(
@@ -839,9 +852,21 @@ def news_sections(found: Mapping[str, Any], nxt: Mapping[str, Any]) -> list[dict
             + (f" Sectors: {', '.join(x['sectors'])}." if x.get("sectors") else "")
             + f" Tone {x['tone']:+.2f}"
             + (
+                f", NewsData {x['newsdata']:+.2f}"
+                if isinstance(x.get("newsdata"), int | float)
+                else ""
+            )
+            + (
                 ": the tone model reads the words the other way; the judgement is about the economics."
                 if clash
                 else "."
+            )
+            + (
+                ""
+                if not x.get("rule") or found.get("by_rules")
+                else f" Rule {x['rule']} agrees."
+                if x.get("rule_direction") == x["direction"]
+                else f" Rule {x['rule']} says {x.get('rule_direction')}: the disagreement is logged."
             )
         )
     if not impacts:
@@ -857,6 +882,28 @@ def news_sections(found: Mapping[str, Any], nxt: Mapping[str, Any]) -> list[dict
         "numbers until a test shows news helps (T-4433)."
     )
     out = [{"title": "News and possible impact", "lines": lines}]
+    rb = found.get("rule_book") or {}
+    if rb:
+        check = [
+            f"News rules: {rb['seeds']} written, {rb['active']} learned and active, "
+            f"{rb['proposed']} proposed, {rb['off']} switched off; {rb['judged']} judged stories logged. "
+            "A learned rule switches on after 3 judgements agree and off after 2 go against it."
+        ]
+        check += [f"{c}." for c in found.get("rule_changes") or []]
+        if rb.get("contested"):
+            check.append(
+                f"Written rules the judgements keep going against (yours to review): {', '.join(rb['contested'])}."
+            )
+        agree = rb.get("agreement") or {}
+        if agree:
+            check.append(
+                "Agreement with the judged direction: "
+                + "; ".join(f"{k} {v['agree'] * 100:.0f}% of {v['n']}" for k, v in agree.items())
+                + ". The best-agreeing score is the one to trust when no judgement is made."
+            )
+        out.append({"title": "How the news scores are checked", "lines": check})
+    if found.get("stocks"):
+        out.append({"title": "Stock news", "lines": list(found["stocks"])})
     tail = nxt.get("tail") or {}
     if tail.get("available"):
         risk = [

@@ -297,3 +297,12 @@ def _offline_market_news(
     monkeypatch.setattr(market_news, "api_key", lambda: "")
     monkeypatch.setattr(market_news, "search_rss", offline)
     monkeypatch.setattr(news_tone, "scorer", lambda: None)
+    monkeypatch.setattr(market_news, "newsdata_key", lambda: "")
+    from eulerlab.features import company_page
+    from eulerlab.forecast import news_rules, stock_tone
+
+    monkeypatch.setattr(news_rules, "LEARNED", folder / "news_rules_learned.json")
+    monkeypatch.setattr(news_rules, "JUDGED", folder / "news_judgements.jsonl")
+    monkeypatch.setattr(stock_tone, "SCORES", folder / "stock_news_scores.jsonl")
+    monkeypatch.setattr(stock_tone, "OUT", folder / "stock_news_tone.json")
+    monkeypatch.setattr(company_page, "news_files", lambda months=3: [])

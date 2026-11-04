@@ -18,6 +18,11 @@ enough:
    line that does not parse, names no story, or uses a figure the story does
    not hold is dropped.
 
+3. **Rules, when there is no model request left** (ADR-135):
+   `forecast/news_rules.py` says what a kind of news means for the market
+   ("crude falls" is up for India), corrects the tone of every story it fits,
+   and grows from the judgements in 2.
+
 Neither feeds the forecast's numbers until a test shows news helps (T-4433):
 the brief shows them beside it. Nothing here trades, logs a trial or reads the
 holdout.
@@ -82,8 +87,15 @@ def known(rows: Sequence[Mapping[str, Any]], as_of: datetime) -> list[Mapping[st
     ]
 
 
-def summary(rows: Sequence[Mapping[str, Any]], as_of: datetime, days: int = 30) -> dict[str, Any]:
-    """The last 24 hours' tone against each day's in the last `days`."""
+def summary(
+    rows: Sequence[Mapping[str, Any]],
+    as_of: datetime,
+    days: int = 30,
+    rules: Sequence[Any] = (),
+) -> dict[str, Any]:
+    """The last 24 hours' tone against each day's in the last `days`; with `rules`, also corrected."""
+    from eulerlab.forecast import news_rules
+
     held = known(rows, as_of)
     recent = [r for r in held if as_of - timedelta(hours=24) <= _when(r, "event_time") <= as_of]
     if not recent:
@@ -102,10 +114,22 @@ def summary(rows: Sequence[Mapping[str, Any]], as_of: datetime, days: int = 30) 
     for r in recent:
         for t in r.get("symbols") or []:
             topics.setdefault(str(t), []).append(float(r["tone"]["score"]))
+    fixed = [
+        news_rules.corrected(
+            float(r["tone"]["score"]),
+            news_rules.match(f"{r['title']} {r.get('description') or ''}", rules),
+        )
+        for r in recent
+    ]
+    nd = [float(r["newsdata_tone"]["score"]) for r in recent if r.get("newsdata_tone")]
     return {
         "available": True,
         "stories": len(recent),
         "mean": round(mean, 3),
+        "corrected_mean": round(sum(fixed) / len(fixed), 3),
+        "corrected": sum(a != b for a, b in zip(fixed, scores, strict=True)),
+        "newsdata_mean": round(sum(nd) / len(nd), 3) if nd else None,
+        "newsdata_stories": len(nd),
         "positive": sum(s > CLEAR for s in scores),
         "negative": sum(s < -CLEAR for s in scores),
         "days": len(daily),
@@ -221,6 +245,8 @@ def parse_impact(answer: str, items: Sequence[Mapping[str, Any]]) -> list[dict[s
         out.append(
             {
                 "title": story["title"],
+                "description": story.get("description") or "",
+                "newsdata": (story.get("newsdata_tone") or {}).get("score"),
                 "publisher": story.get("publisher", ""),
                 "link": story.get("link", ""),
                 "event_time": story["event_time"],
@@ -231,8 +257,35 @@ def parse_impact(answer: str, items: Sequence[Mapping[str, Any]]) -> list[dict[s
                 "why": why,
             }
         )
-    order = {"high": 0, "medium": 1, "low": 2}
+    order = {"high": 0, "medium": 1, "low": 2, "rule": 3}
     return sorted(out, key=lambda x: (order[x["severity"]], x["direction"] == "none"))
+
+
+def rule_impacts(items: Sequence[Mapping[str, Any]], rules: Sequence[Any]) -> list[dict[str, Any]]:
+    """With no model request: what the rules say about the stories that would have been judged."""
+    from eulerlab.forecast import news_rules
+
+    out = []
+    for r in items:
+        rule = news_rules.match(f"{r['title']} {r.get('description') or ''}", rules)
+        if rule is None:
+            continue
+        out.append(
+            {
+                "title": r["title"],
+                "description": r.get("description") or "",
+                "newsdata": (r.get("newsdata_tone") or {}).get("score"),
+                "publisher": r.get("publisher", ""),
+                "link": r.get("link", ""),
+                "event_time": r["event_time"],
+                "tone": float(r["tone"]["score"]),
+                "direction": rule.direction,
+                "severity": "rule",
+                "sectors": [f"except {x}" for x in rule.against],
+                "why": f"{rule.why} (rule {rule.id})",
+            }
+        )
+    return out
 
 
 def shocks(impacts: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
