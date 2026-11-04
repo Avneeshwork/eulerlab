@@ -119,6 +119,24 @@ def backtests(paths: Sequence[str]) -> tuple[dict[str, dict[str, Any]], dict[str
     return runs, bench
 
 
+def parts_of(strategy: Any) -> list[dict[str, Any]]:
+    """A blend's or consensus's parts as ids and shares.
+
+    A `Blend` holds (strategy, share) pairs; a `Consensus` holds (id, strategy)
+    pairs, each part an equal vote.
+    """
+    raw = list(getattr(strategy, "parts", []) or [])
+    out: list[dict[str, Any]] = []
+    for a, b in raw:
+        if isinstance(a, str):
+            out.append({"id": a, "share": round(1 / len(raw), 3)})
+        else:
+            out.append(
+                {"id": str(getattr(a, "name", type(a).__name__)), "share": round(float(b), 3)}
+            )
+    return out
+
+
 def choose(
     lists: list[dict[str, Any]],
     cfg: Mapping[str, Any],
@@ -414,13 +432,7 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
     halves = [backtests([p])[0] for p in cfg.get("halves") or []]
     for item in lists:
         built = next((m for mid_, *_x, m in models if mid_ == item["id"]), None)
-        item["parts"] = [
-            {
-                "id": type(p).__name__ if not hasattr(p, "name") else str(p.name),
-                "share": round(w, 3),
-            }
-            for p, w in getattr(built, "parts", [])
-        ]
+        item["parts"] = parts_of(built)
     choice = choose(lists, cfg, halves)
     added = record(lists, day.isoformat(), now)
     tracked = track(view, history())
