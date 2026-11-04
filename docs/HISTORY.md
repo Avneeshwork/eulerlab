@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventy-five times this project was wrong
+## Seventy-six times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -447,6 +447,8 @@ figure produced outside the result store before this date was frictionless.
 **74. The brief showed an expired option chain's levels as today's.** (2026-11-04) The pre-open brief for 4 November gave "Range to expiry 2026-11-03 from the ATM straddle: 23,179 to 23,484", "Max pain 23,250" and "Nifty options expiry (in -1 days)" when Nifty had closed at 23,811 and that expiry had settled. The age check looked at when the chain was captured (two days, within the limit), not whether its expiry had passed. Now a chain whose expiry is on or before the last close is left out of the levels, the put-call item and the calendar, with a line saying why. No numbers invalidated: the brief feeds no strategy.
 
 **75. `make install` would have removed the news tone model it had just been asked to run.** (2026-11-04) ADR-134 put the model in an optional `news` extra and told the operator to install it with `uv sync --extra news`, but left `make install` as `uv sync --extra dev --extra web`. `uv sync` removes what it is not asked for, so the next `make install` would have uninstalled the model and the brief would have gone back to unscored headlines with only a note. Now `make install` includes it, `make install-lite` leaves it out, and `install-news` and `remove-news` change only it. No numbers invalidated.
+
+**76. A stablecoin entered the crypto universe.** (2026-11-04) The nightly rebuild of `config/universe_crypto.txt` (the top 20 Binance USDT pairs by volume) listed BFUSDUSDT, Binance's BFUSD dollar token, because `ingest/crypto.STABLECOINS` did not name it. A stablecoin's USDT pair is an exchange rate between two claims on the dollar, not a coin, so any crypto backtest or screen run on that day's list held a near-constant price. BFUSD and Ethena's USDe were added and the list rebuilt. That night's backfill had already landed BFUSDUSDT's minute history under `data/landing/crypto/BFUSDUSDT`; it stays (landing is immutable) and no derived file or stored result refers to it.
 
 ---
 

@@ -1,0 +1,42 @@
+id: H-0029
+title: Regime‑aware factor tilt outperforms static allocation in Indian equities
+status: draft
+claim: When daily regimes (Bull, Sideways, Bear) are identified via a Hidden Markov
+  Model on Indian equity returns, a daily allocation that goes long the factor with
+  the highest historical Sharpe in the current regime (momentum in Sideways, market
+  in Bull, value in Bear) and holds a market‑neutral exposure to other factors yields
+  a net Sharpe at least 0.05 higher than a buy‑and‑hold equity portfolio after Indian
+  intraday transaction costs of 9 bps per round‑trip.
+rationale: The paper documents that each factor’s premium is concentrated in a specific
+  regime, and a regime‑aware allocation improves Sharpe from 0.733 to 0.794 in sample,
+  suggesting a systematic edge.
+source:
+  url: https://doi.org/10.2139/ssrn.6920498
+  fetched: '2026-11-03'
+configurations:
+- shape: rank_and_hold
+  feature: momentum_12_1
+  top_n: 30
+  rebalance: 21
+  min_turnover: 10000000
+- shape: rank_and_hold
+  feature: low_volatility
+  top_n: 30
+  rebalance: 21
+  min_turnover: 10000000
+red_flags:
+- The regime classification uses a Hidden Markov Model calibrated on 2019‑2025 data;
+  a different calibration window could change regime timing, creating look‑ahead bias
+  if not properly held‑out.
+- The Sharpe improvement (≈0.06) is modest relative to Indian intraday round‑trip
+  costs (~9 bps) and may be wiped out once realistic slippage and market impact are
+  included.
+- Capacity is unclear because the factor tilts may require large notional exposure
+  to niche factor proxies, and Indian market depth may limit scaling, especially for
+  momentum and value factor constructions.
+- Drafted by the paper agent (groq) from the abstract from Crossref found on ssrn
+  2026-11-03; not yet read by the operator, so every number above must be checked
+  against the paper before it drives a decision.
+holdout:
+  starts: '2025-01-01'
+  status: unread

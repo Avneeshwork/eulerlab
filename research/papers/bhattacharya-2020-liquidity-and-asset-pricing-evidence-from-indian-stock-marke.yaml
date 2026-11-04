@@ -1,0 +1,40 @@
+id: bhattacharya-2020-liquidity-and-asset-pricing-evidence-from-indian-stock-marke
+title: 'Liquidity and Asset Pricing: Evidence from Indian Stock Market'
+authors: Sharad Nath Bhattacharya, Mousumi Bhattacharya, Sumit Kumar Jha
+year: 2020
+kind: paper
+source_url: https://doi.org/10.46281/ijfb.v4i1.604
+pdf: ''
+added: '2026-11-04'
+status: idea
+markets:
+- Indian equities (NSE), period not specified
+summary: 'Question: Does stock illiquidity predict realized returns in India? Data: High‑frequency
+  NSE data on listed stocks (period not specified). Method: Construct a time‑varying illiquidity
+  measure, run cross‑sectional regressions controlling for market direction, volatility and
+  derivatives exposure. Findings: Higher illiquidity is associated with lower subsequent returns;
+  down‑market periods have higher systematic risk and sector‑specific risk differences.'
+trade_idea: Buy the most liquid stocks and sell the most illiquid stocks, expecting the liquidity
+  premium to generate positive net returns.
+implementation: |-
+  universe: Indian equities listed on NSE, unspecified market‑cap filter
+  data: Daily close, volume and turnover to compute Amihud illiquidity (or the paper's high‑frequency illiquidity if available)
+  signal: illiquidity_amihud (negated) – lower values indicate higher liquidity
+  entry: Rank stocks by the signal each rebalance date and go long the top N liquid names, short the bottom N illiquid names
+  exit: Hold positions until the next rebalance
+  holding period: unspecified (paper does not give a horizon; typical would be 21 days)
+  sizing: equal‑weight within long and short legs
+  costs: unspecified in paper; Indian round‑trip intraday cost ~9 bps, delivery STT 0.1 % each side
+red_flags:
+- The paper does not disclose the sample period; results may be driven by a specific regime
+  and may not hold out‑of‑sample.
+- Illiquidity is measured with high‑frequency data, but the implementation uses daily proxies,
+  introducing measurement error and potential look‑ahead bias.
+- No capacity or turnover limits are reported; a strategy that shorts illiquid stocks could
+  face high borrowing costs or market impact.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-04; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
