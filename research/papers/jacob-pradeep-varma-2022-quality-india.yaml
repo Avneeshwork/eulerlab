@@ -1,0 +1,24 @@
+id: jacob-pradeep-varma-2022-quality-india
+title: Performance of Quality Factor in Indian Equity Market
+authors: Jacob, Joshy; Pradeep, K.P.; Varma, Jayanth R.
+year: 2022
+kind: paper
+source_url: https://ideas.repec.org/p/iim/iimawp/14687.html
+markets:
+- Indian stocks (IIMA working paper WP 2022-11-01)
+summary: 'The quality-minus-junk factor matters more in India than in developed markets: four-factor alpha
+  0.92% a month, driven by profitability and payout; a long-only large-cap quality strategy earns 0.69%
+  a month with low churn.'
+trade_idea: Hold profitable, low-leverage, high-payout Indian large caps.
+implementation: Quality composite of ROE, operating profit over assets, low leverage and payout, from
+  annual statements known 90 days after the year end.
+red_flags:
+- Data period not stated on the abstract page.
+- Our composite is simpler than the paper's QMJ (no growth or safety beta terms).
+reported_results: QMJ four-factor alpha 0.92% a month; long-only alpha 0.69% a month (IDEAS abstract,
+  fetched 2026-11-04).
+pdf: ''
+added: '2026-11-04'
+status: idea
+hypothesis: ''
+strategies: []

@@ -1,0 +1,23 @@
+id: asness-moskowitz-pedersen-2013-value-momentum-everywhere
+title: Value and Momentum Everywhere
+authors: Asness, Clifford S.; Moskowitz, Tobias J.; Pedersen, Lasse H.
+year: 2013
+kind: paper
+source_url: https://pages.stern.nyu.edu/~lpederse/papers/ValMomEverywhere.pdf
+markets:
+- Eight markets and asset classes, 1972-2011
+summary: Value and momentum earn premia in every market studied and are negatively correlated with each
+  other, so an equal-weight combination is steadier than either.
+trade_idea: Rank stocks on an equal-weighted blend of value and momentum.
+implementation: Earnings yield and book yield from annual statements known 90 days after the year end;
+  12-1 month price momentum.
+red_flags:
+- Read through the abstract and secondary summaries; the -0.49 correlation is from a summary.
+- Long-only here; the paper's results are long-short.
+reported_results: Negative value-momentum correlation within asset classes (about -0.5 per summaries);
+  combination earns substantial abnormal returns.
+pdf: ''
+added: '2026-11-04'
+status: idea
+hypothesis: ''
+strategies: []

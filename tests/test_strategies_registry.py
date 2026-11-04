@@ -187,10 +187,13 @@ def test_ten_published_strategies_are_registered() -> None:
     from eulerlab.backtest.github_daily import BUILDERS as GITHUB
     from eulerlab.backtest.india_papers import BUILDERS as INDIA
     from eulerlab.backtest.published import BUILDERS
+    from eulerlab.backtest.screener_models import BUILDERS as SCREENER
 
-    # The ten from docs/RESEARCH/017, one per Indian-equity paper (064), and
-    # the daily GitHub rules (113).
-    assert len(BUILDERS) == 10 + len(INDIA) + len(GITHUB) + len(EVIDENCE) + len(EVENTS)
+    # The ten from docs/RESEARCH/017, one per Indian-equity paper (064), the
+    # daily GitHub rules (113) and the screener's models (ADR-136).
+    assert len(BUILDERS) == (
+        10 + len(INDIA) + len(GITHUB) + len(EVIDENCE) + len(EVENTS) + len(SCREENER)
+    )
     for name in BUILDERS:
         assert name in REGISTRY, f"{name} builds but is not declared"
 

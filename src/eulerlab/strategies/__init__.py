@@ -783,6 +783,32 @@ def _india_papers() -> dict[str, Declaration]:
     }
 
 
+def _screener_models() -> dict[str, Declaration]:
+    """The stock screener's long-term and swing models (ADR-136), built by
+    `backtest.screener_models`, on the same engine and universe as the India papers."""
+    from eulerlab.backtest.screener_models import STRATEGIES
+
+    return {
+        s.id: Declaration(
+            id=s.id,
+            title=s.title,
+            summary=s.summary,
+            kind="quant",
+            shape="single-instrument",
+            asset_class=AssetClass.EQUITY,
+            timeframe=Timeframe.DAILY,
+            emits=Emits.TARGET_WEIGHT,
+            lookback=s.lookback,
+            source=f"[paper] {s.citation}",
+            published=s.summary,
+            tested_on="NSE equities",
+            recommended_class=AssetClass.EQUITY,
+            logic=list(s.logic),
+        )
+        for s in STRATEGIES
+    }
+
+
 def _github_daily() -> dict[str, Declaration]:
     """Daily rules from public GitHub repositories (research 113), built by
     `backtest.github_daily`, and the published momentum and reversal
@@ -860,6 +886,7 @@ REGISTRY.update(_crypto_signals())
 REGISTRY.update(_india_signals())
 REGISTRY.update(_india_papers())
 REGISTRY.update(_github_daily())
+REGISTRY.update(_screener_models())
 REGISTRY.update(_studies())
 
 

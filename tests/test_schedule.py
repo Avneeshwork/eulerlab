@@ -58,6 +58,7 @@ def test_fundamentals_runs_on_sunday_morning_and_not_from_the_nightly_job() -> N
     weekly = makefile.split("\nfundamentals-run:\n", 1)[1].split("\n\n", 1)[0]
     assert "fundamentals.backfill" in weekly
     assert 'upload-tree TREES="fundamentals" DELETE=1' in weekly
+    assert "fundamentals-annual" in weekly  # the screener's table, rebuilt after each fetch
     # Its own lock: a ten-hour fetch must not hold up the nightly job or the button.
     assert (
         "filelock fundamentals --" in makefile

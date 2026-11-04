@@ -1,0 +1,22 @@
+id: george-hwang-2004-52-week-high
+title: The 52-Week High and Momentum Investing
+authors: George, Thomas J.; Hwang, Chuan-Yang
+year: 2004
+kind: paper
+source_url: https://econpapers.repec.org/RePEc:bla:jfinan:v:59:y:2004:i:5:p:2145-2176
+markets:
+- US stocks, 1963-2001
+summary: Nearness to the 52-week high explains most momentum profits and dominates past returns as a predictor;
+  its profits do not reverse in the long run.
+trade_idea: Buy stocks closing at a new 52-week high on heavy volume and hold for weeks.
+implementation: 'Swing version: a close at or above the prior 251-session high with volume at least twice
+  its 50-session median; hold 20 sessions.'
+red_flags:
+- The paper ranks monthly; the breakout-with-volume swing rule is our adaptation.
+- Already tested here as fifty_two_week_high and india_52w_high (monthly ranks).
+reported_results: 52-week-high strategy returns exceed those of Jegadeesh-Titman momentum (paper).
+pdf: ''
+added: '2026-11-04'
+status: idea
+hypothesis: ''
+strategies: []

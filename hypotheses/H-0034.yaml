@@ -1,0 +1,29 @@
+id: H-0034
+title: Trend pullback, weekly
+status: draft
+family: screen_trend_pullback
+source_kind: paper
+parent: ''
+claim: 'Decided weekly: liquid stocks above a rising 200-day trend whose RSI(2) closed under 10 in the
+  last 10 sessions and has not closed above 70 since, a tenth of capital each, beat Nifty after costs.'
+rationale: Short dips inside long uptrends tend to recover (Connors RSI(2)); the trend filter avoids catching
+  falling stocks.
+source:
+  paper: github-2021-connors-rsi2-bot
+  written_by: Claude, for the stock screener (ADR-136)
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  rebalance: 5
+  hold_window: 10
+  slots: 10
+  strategy: screen_trend_pullback
+  min_turnover: 0
+  universe: liquid 250 as of each date
+red_flags:
+- Settings fixed on 2026-11-04 before any result was read; changing them after the backtest is a new search.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+- Swing rules pay costs every week; slippage in fast markets may exceed the cost model.
+holdout:
+  starts: '2025-01-01'
+  status: unread

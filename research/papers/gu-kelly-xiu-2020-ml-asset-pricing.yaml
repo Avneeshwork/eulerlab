@@ -1,0 +1,26 @@
+id: gu-kelly-xiu-2020-ml-asset-pricing
+title: Empirical Asset Pricing via Machine Learning
+authors: Gu, Shihao; Kelly, Bryan; Xiu, Dacheng
+year: 2020
+kind: paper
+source_url: https://www.nber.org/papers/w25398
+markets:
+- US stocks, 1957-2016
+summary: Trees and neural networks beat linear models at forecasting stock returns because they capture
+  nonlinear interactions; all methods agree the strongest predictors are momentum, liquidity and volatility;
+  ML forecasts can double the performance of regression-based strategies.
+trade_idea: Rank stocks each month by a gradient-boosted-tree forecast of next-month return from price
+  and fundamental features.
+implementation: HistGradientBoostingRegressor (scikit-learn), fixed settings, refit each month on the
+  previous three years inside the strategy's own view.
+red_flags:
+- 94 features and 30,000 stocks in the paper; ours has 11 features and 250 stocks.
+- Easy to overfit; settings fixed before testing.
+- US sample.
+reported_results: Long-short decile Sharpe around 1.35 (value-weighted, neural net) per the paper; not
+  locally reproduced.
+pdf: ''
+added: '2026-11-04'
+status: idea
+hypothesis: ''
+strategies: []

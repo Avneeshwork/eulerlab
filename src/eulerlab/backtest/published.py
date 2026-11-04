@@ -237,3 +237,8 @@ BUILDERS.update(_EVIDENCE_DAILY)
 from eulerlab.backtest.events_daily import BUILDERS as _EVENTS_DAILY  # noqa: E402
 
 BUILDERS.update(_EVENTS_DAILY)
+
+# The stock screener's long-term and swing models (ADR-136, research 150).
+from eulerlab.backtest.screener_models import BUILDERS as _SCREENER  # noqa: E402
+
+BUILDERS.update(_SCREENER)

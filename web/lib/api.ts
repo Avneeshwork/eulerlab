@@ -2367,6 +2367,73 @@ export type CompanyPage = {
   not_held: string[];
 };
 
+/** One stock's reasons on the screener (ADR-136). */
+export type ScreenerStock = {
+  close: number;
+  change_1m: number | null;
+  momentum_12_1: number | null;
+  near_high: number | null;
+  above_200d: number | null;
+  rsi2: number | null;
+  turnover_cr: number | null;
+  fscore?: number | null;
+  roe?: number | null;
+  pe?: number | null;
+  pb?: number | null;
+  debt_equity?: number | null;
+  quality_pct?: number | null;
+  value_pct?: number | null;
+  news_tone?: { mean: number; n: number };
+  models: string[];
+};
+
+export type ScreenerSelection = {
+  as_of: string;
+  n: number;
+  from: string;
+  to: string;
+  sessions: number;
+  complete: boolean;
+  return: number;
+  nifty: number;
+  excess: number;
+  beat_nifty: number;
+};
+
+export type ScreenerList = {
+  id: string;
+  kind: 'long' | 'swing';
+  title: string;
+  new: boolean;
+  picks: string[];
+  error: string;
+  backtest: {
+    sharpe?: number | null;
+    total_return?: number | null;
+    max_drawdown?: number | null;
+    fills?: number | null;
+    window?: [string, string] | null;
+    benchmark?: { symbol?: string; total_return?: number } | null;
+  };
+  gate: string;
+  track: {
+    selections: ScreenerSelection[];
+    complete: number;
+    mean_excess?: number | null;
+    beat_nifty_share?: number | null;
+  };
+};
+
+export type Screener = {
+  as_of: string;
+  built: string;
+  universe: string;
+  lists: ScreenerList[];
+  stocks: Record<string, ScreenerStock>;
+  caveats: string[];
+  history: { recorded_today: number; since: string };
+};
+
 export type CompanyHit = {
   symbol: string;
   name: string;
@@ -2376,6 +2443,9 @@ export type CompanyHit = {
 
 export const companyPage = (symbol: string) =>
   get<CompanyPage | { ok: false; error: string }>(`/api/company/${encodeURIComponent(symbol)}`);
+
+export const screener = () =>
+  get<({ ok: true } & Screener) | { ok: false; error: string }>('/api/screener');
 export const companySearch = (q: string, limit = 8) =>
   get<{ total: number; rows: CompanyHit[] }>(
     `/api/companies?q=${encodeURIComponent(q)}&limit=${limit}`,

@@ -53,6 +53,7 @@ import {
   PiggyBank,
   BookOpen,
   Bot,
+  Filter,
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
@@ -76,6 +77,7 @@ import { Library } from '@/components/terminal/Library';
 import { LiveTab } from '@/components/terminal/LiveTab';
 import { SipTab } from '@/components/terminal/SipTab';
 import { SnapshotTab } from '@/components/terminal/SnapshotTab';
+import { ScreenerTab } from '@/components/terminal/ScreenerTab';
 import { Info as InfoButton, Move, Stat, Stats } from '@/components/terminal/ui';
 import { agentsApi, api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
@@ -94,13 +96,15 @@ type PageId =
   | 'research'
   | 'report'
   | 'deployment'
-  | 'agents';
+  | 'agents'
+  | 'screener';
 
 type NavItem = { id: PageId; label: string; icon: LucideIcon };
 
 const NAV: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'strategies', label: 'Strategies', icon: Boxes },
+  { id: 'screener', label: 'Screener', icon: Filter },
   { id: 'charts', label: 'Charts', icon: CandlestickChart },
   { id: 'options', label: 'Options', icon: Sigma },
   { id: 'live', label: 'Live & Risk', icon: ShieldCheck },
@@ -153,6 +157,10 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
   strategies: {
     title: 'Strategies',
     sub: 'Every strategy with its full backtest report. Select one or several and press Backtest to run them.',
+  },
+  screener: {
+    title: 'Screener',
+    sub: 'Which liquid stocks each model would hold today, long term (monthly) and swing (weekly), with each model\'s backtest and how its past picks did. Not advice; nothing here has passed the gate.',
   },
   charts: { title: 'Charts', sub: 'Charting, drawing and the macro picture.' },
   options: {
@@ -496,6 +504,7 @@ export default function TerminalPage() {
           ))}
 
         {page === 'agents' && <AgentsTab open={reportId} />}
+        {page === 'screener' && <ScreenerTab />}
         {page === 'charts' && <ChartTab />}
         {page === 'options' && <OptionsTab />}
 

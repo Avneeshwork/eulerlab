@@ -1,0 +1,29 @@
+id: H-0031
+title: Value, momentum and quality blended
+status: draft
+family: screen_value_momentum_quality
+source_kind: paper
+parent: ''
+claim: An equal blend of value (earnings and book yield), quality and 12-1 momentum ranks among the liquid
+  250, top 20, monthly, beats Nifty after costs.
+rationale: Value and momentum are negatively correlated (Asness, Moskowitz and Pedersen 2013) and profitability
+  strengthens value (Novy-Marx 2013).
+source:
+  paper: asness-moskowitz-pedersen-2013-value-momentum-everywhere
+  written_by: Claude, for the stock screener (ADR-136)
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  rebalance: 21
+  top_n: 20
+  strategy: screen_value_momentum_quality
+  min_turnover: 0
+  universe: liquid 250 as of each date
+red_flags:
+- Settings fixed on 2026-11-04 before any result was read; changing them after the backtest is a new search.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+- Fundamentals count from 90 days after each year end and carry later restatements; only companies listed
+  in 2026 have them (survivorship).
+holdout:
+  starts: '2025-01-01'
+  status: unread

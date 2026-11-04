@@ -75,6 +75,7 @@ from eulerlab.api import (
     kite_routes,
     research_routes,
     risk_routes,
+    screener_routes,
 )
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
@@ -177,6 +178,7 @@ app.include_router(research_routes.router)
 app.include_router(deploy_routes.router)
 app.include_router(assistant_routes.router)
 app.include_router(company_routes.router)
+app.include_router(screener_routes.router)
 app.include_router(kite_routes.router)
 app.include_router(fyers_routes.router)
 app.include_router(risk_routes.router)

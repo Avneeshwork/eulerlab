@@ -1,0 +1,29 @@
+id: piotroski-2000-fscore
+title: 'Value Investing: The Use of Historical Financial Statement Information to Separate Winners from
+  Losers'
+authors: Piotroski, Joseph D.
+year: 2000
+kind: paper
+source_url: https://www.jstor.org/stable/2672906
+markets:
+- US stocks, high book-to-market, 1976-1996
+summary: Nine binary accounting signals (profitability, cash flow, accruals, leverage, liquidity, dilution,
+  margin, turnover) sum to an F-score. Among cheap (high book-to-market) stocks, high F-score firms beat
+  low F-score firms by a wide margin.
+trade_idea: Buy cheap stocks whose financial statements are improving (high F-score); avoid cheap stocks
+  whose statements are deteriorating.
+implementation: Annual statements with a reporting lag. Our screener.in data lacks current ratio, so 8
+  of 9 signals are computed; the threshold is scaled to 6 of 8.
+red_flags:
+- Read through secondary sources only (the abstract page returned 404/403 on 2026-11-04); return figures
+  vary by source (13.4% vs 23% a year).
+- Later studies report weaker results after publication.
+- US small-cap sample; India behaviour untested here.
+- 'Our fundamentals cover only companies listed today: survivorship bias.'
+reported_results: High-minus-low F-score among value stocks reported at over 20% a year in the original
+  sample (secondary sources; not locally reproduced).
+pdf: ''
+added: '2026-11-04'
+status: idea
+hypothesis: ''
+strategies: []

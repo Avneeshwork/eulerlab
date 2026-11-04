@@ -147,6 +147,21 @@ Verify: `make microstructure-five`.
 | ID | Task | Status |
 |---|---|---|
 | T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+## Stock screener: long-term and swing models (2026-11-04)
+
+Operator: "build a stock screener page where i can see which stocks we can buy for long term and swing trades. research on papers ... backtest it also"; "while developing models also check our top 5 models"; "weekly fundamental update is fine"; "swing trading as weekly rebalance and long term as monthly rebalance with history stores about past selection performance". ADR-136, research 150.
+Verify: `uv run pytest -q tests/test_screener.py`; `make screener`; open Workbench → Screener.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4441 | Point-in-time annual fundamentals joined on ISIN, per-share values in each date's units; rebuilt after each weekly fetch | DONE 2026-11-04. `fundamentals/annual.py`, `make fundamentals-annual` |
+| T-4442 | Six models from research 150 (H-0030 to H-0035): four long-term (monthly; Piotroski quarterly), two swing (weekly) | DONE 2026-11-04. `backtest/screener_models.py` |
+| T-4443 | Screening backtests of the six, 2016-2026 (Tier B, after costs; NIFTYBEES +221%) | DONE 2026-11-04. Sharpe / return / drawdown: quality momentum 1.01 / +632% / -42%; tree ranker 0.88 / +528% / -56%; 52-week breakout 0.84 / +378% / -39%; value-momentum-quality 0.70 / +282% / -52%; Piotroski 0.61 / +232% / -70%; trend pullback 0.40 / +85% / -53%. Fundamental models carry survivorship bias. No trial spent |
+| T-4444 | Screener page with the five best existing strategies, reasons per stock, and a forward history of every selection against Nifty | DONE 2026-11-04. `screener.py`, Workbench → Screener, in `make daily` |
+| T-4445 | Operator: validate and gate any screener model worth it (`make validate`, `make gate`); none is promoted | TODO. Operator |
+| T-4446 | Read Piotroski (2000), Asness et al. (2013) and George and Hwang (2004) in full, and SEBI's text of Regulation 33 | TODO |
+| T-4447 | True publication dates for results (NSE filings) to replace the 90-day rule (A-107) | TODO |
+
 ## News sentiment and possible impact in the brief (2026-11-04)
 
 Operator: "crashes will be difficult to predict and also we have not take news as input you may miss many important geopolitical and country wide news impact it need to be added in last show news sentiment and possible impact"; "IS CURRENT_NEWS_API NOT USEFUL"; "look over open source FinBert github repo". ADR-134, research 148.
