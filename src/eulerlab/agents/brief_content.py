@@ -28,7 +28,7 @@ from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from eulerlab.agents.trader_read import Read, ReadLevels, averages
+from eulerlab.agents.trader_read import Read, ReadLevels, averages, expired
 
 IST = ZoneInfo("Asia/Kolkata")
 LIBRARY = "docs/METRICS"
@@ -123,6 +123,125 @@ MEANING = {
         "up",
     ): "Nifty is above its long-run averages and its monthly trend rule reads Uptrend.",
 }
+# The longer reasons (operator, 2026-11-04: "detailed reasons in brief instead of 1 liner only").
+# Each says how the signal has tended to bear on the next session and what would confirm or undo it.
+WHY = {
+    (
+        "volatility",
+        "high",
+    ): "High VIX means option sellers demand more to carry risk, and realised moves tend to follow: wide-range days cluster. Expect a larger high-to-low range than usual; stop distances set for a calm market will be hit by noise.",
+    (
+        "volatility",
+        "low",
+    ): "Low VIX means sessions have been narrow and option premium is thin. Ranges stay small until something breaks the calm, and when that happens the first move is often sharp because few hold protection.",
+    (
+        "breadth",
+        "low",
+    ): "When few stocks are above their averages, rallies in the index depend on a handful of heavyweights. Such rallies are fragile: if those names stall, there is little underneath to hold the index.",
+    (
+        "breadth",
+        "high",
+    ): "Broad participation means the move does not rest on a few names, so a single stock's bad news does less damage. Broad markets tend to keep their direction longer than narrow ones.",
+    (
+        "fii_futures",
+        "low",
+    ): "FIIs short index futures are the ones who must buy back if the market rises, which can make up-moves sharp (short covering). If the market falls, they add pressure by pressing the position.",
+    (
+        "fii_futures",
+        "high",
+    ): "FIIs heavily long can sell quickly if news turns, which makes down-moves sharper. While the market holds up, their positioning supports it.",
+    (
+        "flows",
+        "low",
+    ): "Heavy FII selling in cash is supply the market has to absorb, usually by DIIs. When domestic buying keeps pace the index holds; when it slips, the selling shows in the price.",
+    (
+        "flows",
+        "high",
+    ): "Steady FII buying is fresh demand. Large caps, where FIIs own most, benefit first; the effect tends to last while the buying continues, and fades fast when it stops.",
+    (
+        "valuation",
+        "low",
+    ): "A low P/E gives a margin of safety over months. It does not stop a fall tomorrow, but it makes deep, lasting falls less likely without bad earnings news.",
+    (
+        "valuation",
+        "high",
+    ): "A high P/E leaves less room for disappointment. Results that only meet expectations can see selling; the effect shows over weeks, not in one session.",
+    (
+        "options",
+        "up",
+    ): "More puts open usually means writers sold puts at levels they expect to hold, or holders bought protection. Either way the strikes with the largest put open interest act as levels traders watch.",
+    (
+        "options",
+        "down",
+    ): "Puts being closed means less defence below, or less hedging. It shows positioning changing, not a direction.",
+    (
+        "divergence",
+        "large",
+    ): "When large caps rise while small caps fall, money is hiding in the safest names. That usually means caution, not confidence: the index level overstates how healthy the market is.",
+    (
+        "divergence",
+        "small",
+    ): "Small caps leading is what risk appetite looks like. It also means the market is more exposed if sentiment turns, because small caps fall faster.",
+    (
+        "trend",
+        "down",
+    ): "In a downtrend rallies tend to meet selling near the falling averages. Trend rules are slow, so one up day does not change this; a few closes above the averages would.",
+    (
+        "trend",
+        "up",
+    ): "In an uptrend dips tend to be bought near the rising averages. One bad day does not change this; closes below the averages would.",
+}
+WATCH = {
+    (
+        "volatility",
+        "high",
+    ): "India VIX at the open: a fall below its 70th percentile would say the stress is easing.",
+    (
+        "volatility",
+        "low",
+    ): "A jump in VIX of more than 10% in a session: that is the calm breaking.",
+    (
+        "breadth",
+        "low",
+    ): "The advance-decline count: if most stocks rise with the index, the narrow market is widening.",
+    ("breadth", "high"): "Whether breadth holds on a down day: a broad market falls less broadly.",
+    (
+        "fii_futures",
+        "low",
+    ): "FII index futures long share in tonight's participant data: a rise means covering.",
+    ("fii_futures", "high"): "A drop in FII long share tonight: that is the long being unwound.",
+    ("flows", "low"): "Tonight's FII/DII cash figures: whether DIIs keep absorbing the selling.",
+    (
+        "flows",
+        "high",
+    ): "Whether FIIs buy again tonight: one day of selling after a run of buying is common; three is a turn.",
+    (
+        "valuation",
+        "low",
+    ): "Results this week: they decide whether cheap stays cheap or becomes good value.",
+    (
+        "valuation",
+        "high",
+    ): "Results this week: misses get punished more when the market is expensive.",
+    (
+        "options",
+        "up",
+    ): "The put strike with the largest open interest: a close below it would force writers to hedge.",
+    ("options", "down"): "Whether calls are being added instead: that would cap upside.",
+    (
+        "divergence",
+        "large",
+    ): "Smallcap 250 against Nifty: if small caps stop falling, the split is closing.",
+    ("divergence", "small"): "Whether large caps join: a broad rally needs both.",
+    (
+        "trend",
+        "down",
+    ): "The 50-day and 200-day averages in the levels below: closes above them turn the trend.",
+    (
+        "trend",
+        "up",
+    ): "The 50-day average in the levels below: a close under it is the first warning.",
+}
 PAGE = {
     "volatility": "india-vix",
     "breadth": "breadth-above-average",
@@ -142,6 +261,8 @@ def _item(key: str, side: str, score: float, title: str, fact: str) -> dict[str,
         "title": title,
         "fact": fact,
         "meaning": MEANING[(key, side)],
+        "why": WHY.get((key, side), ""),
+        "watch": WATCH.get((key, side), ""),
         "page": f"{LIBRARY}/{PAGE[key]}.md",
     }
 
@@ -248,7 +369,10 @@ def matters(
         )
     options = ctx.get("options") or {}
     pcr, before = _num(options.get("pcr_oi")), _num(options.get("pcr_oi_before"))
-    if pcr is not None and before:
+    nifty_day = next(
+        (str(r.get("as_of")) for r in strip.get("indices") or [] if r.get("name") == "Nifty 50"), ""
+    )
+    if pcr is not None and before and not expired(options, nifty_day):
         change = (pcr / before - 1) * 100
         side = "up" if change > 0 else "down"
         out.append(
@@ -329,13 +453,14 @@ def coming_up(
         try:
             days = (date.fromisoformat(str(options["expiry"])) - today).days
             when = "today" if days == 0 else f"in {days} day{'s' if days != 1 else ''}"
-            items.append(
-                {
-                    "when": str(options["expiry"]),
-                    "what": f"Nifty options expiry ({when})",
-                    "why": "Open interest and straddle prices shift into expiry; VIX rolls 3 trading days before.",
-                }
-            )
+            if days >= 0:
+                items.append(
+                    {
+                        "when": str(options["expiry"]),
+                        "what": f"Nifty options expiry ({when})",
+                        "why": "Open interest and straddle prices shift into expiry; VIX rolls 3 trading days before.",
+                    }
+                )
         except ValueError:
             pass
     for e in sorted(events, key=lambda e: str(e.get("time"))):
@@ -512,6 +637,154 @@ def review(
     return lines
 
 
+# --- the next-session forecast (ADR-133) ------------------------------------------------------
+
+
+def _p(value: Any) -> str:
+    return f"{float(value) * 100:.0f}%"
+
+
+def forecast_review(nxt: Mapping[str, Any], day: str) -> list[str]:
+    """The last scored forecast against what happened. With `day`, only that session's."""
+    last = nxt.get("last_scored")
+    if not nxt.get("available") or not last:
+        return (
+            ["Forecasts are logged from today; each is scored once its session closes."]
+            if nxt.get("available")
+            else []
+        )
+    if day and last["target"] != day:
+        return [
+            f"Today's forecast is scored once today's close is held (latest scored: {last['target']})."
+        ]
+    f = last["forecast"]
+    where = (
+        "inside"
+        if last["in_band"]
+        else "above"
+        if last["close"] > float(f["band_high"])
+        else "below"
+    )
+    called = "higher" if float(f["p_up"]) > 0.5 else "lower"
+    right = (float(f["p_up"]) > 0.5) == bool(last["up"])
+    lines = [
+        f"Forecast for {f['target']} (made {str(f['made_at'])[:16]} UTC): close band "
+        f"{float(f['band_low']):,.0f} to {float(f['band_high']):,.0f}, range {float(f['range_pct']):.2f}%, "
+        f"higher close {_p(f['p_up'])} (base rate {_p(f['base_up'])}), higher open {_p(f['p_gap_up'])}.",
+        f"What happened: opened {last['gap_pct']:+.2f}%, closed at {last['close']:,.1f} ({last['change_pct']:+.2f}%), "
+        f"range {last['range_pct']:.2f}%. The close was {where} the band; the odds leaned {called}, "
+        f"which was {'right' if right else 'wrong'}.",
+    ]
+    if last.get("range_error") is not None:
+        lines.append(
+            "The range forecast was "
+            + ("too narrow" if last["range_pct"] > float(f["range_pct"]) else "too wide")
+            + f" by {abs(last['range_pct'] / float(f['range_pct']) - 1) * 100:.0f}%"
+            + (
+                f"; VIX's range was off by {abs(last['range_pct'] / float(f['vix_range_pct']) - 1) * 100:.0f}%."
+                if f.get("vix_range_pct")
+                else "."
+            )
+        )
+    lines.append(
+        f"Score: Brier {last['brier_up']:.3f} for the close odds against the base rate's "
+        f"{last['brier_up_base']:.3f}; lower is better, and one day proves little. The model refits on this session tonight."
+    )
+    return lines
+
+
+def _card(c: Mapping[str, Any], name: str) -> str:
+    out = f"{name}, {c['n']} sessions ({c['since']} to {c['to']}): close inside the 80% band {_p(c['in_band'])} of days"
+    if c.get("range_error") is not None and c.get("range_error_vix") is not None:
+        out += (
+            f"; range error {c['range_error']:.2f} against VIX's {c['range_error_vix']:.2f}"
+            f" ({'better' if c['range_error'] < c['range_error_vix'] else 'worse'} than VIX)"
+        )
+    out += (
+        f"; higher-close odds Brier {c['brier_up']:.4f} against the base rate's {c['brier_up_base']:.4f}"
+        f", direction right {_p(c['hit_up'])} of days"
+        f"; higher-open odds Brier {c['brier_gap']:.4f} against {c['brier_gap_base']:.4f}."
+    )
+    return out
+
+
+def forecast_sections(nxt: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """The forecast as titled sections of lines, with its reasons and its record."""
+    if not nxt:
+        return []
+    if not nxt.get("available"):
+        return [
+            {
+                "title": "What can happen next session",
+                "lines": [f"Not available: {nxt.get('reason')}"],
+            }
+        ]
+    f = nxt["forecast"]
+    last = float(f["last_close"])
+    points = last * float(f["range_pct"]) / 100
+    lines: list[str] = []
+    if nxt.get("late"):
+        lines.append(
+            f"Made after {f['target']} opened, because the last close held is {f['last_day']}: "
+            "shown, but not logged or scored."
+        )
+    pct = f.get("range_percentile")
+    vix = f.get("vix_range_pct")
+    lines += [
+        f"How big: the range model expects a {float(f['range_pct']):.2f}% high-to-low range, about "
+        f"{points:,.0f} points"
+        + (
+            f", the {_ordinal(float(pct))} percentile of the past year's sessions"
+            if pct is not None
+            else ""
+        )
+        + (
+            f". VIX alone implies {float(vix):.2f}%, but VIX has overstated ranges: option buyers "
+            "pay for protection, so implied moves run above realised ones."
+            if vix and float(vix) > float(f["range_pct"])
+            else f". VIX alone implies {float(vix):.2f}%."
+            if vix
+            else "."
+        ),
+        f"Where it closes: four days in five the close should land between {float(f['band_low']):,.0f} "
+        f"and {float(f['band_high']):,.0f} (last close {last:,.1f}).",
+        f"The open: {_p(nxt['show_gap_up'])} chance of opening above {last:,.0f} "
+        f"(base rate {_p(f['base_gap_up'])}); expected open about {float(f['expected_open']):,.0f} "
+        f"({float(f['gap_pct']):+.2f}%). US session input: {f['us_source']}. {nxt['gap_why']}",
+        *[f"Reason: {r}." for r in nxt.get("gap_reasons") or []],
+        f"The close: {_p(nxt['show_up'])} chance of closing above {last:,.0f} "
+        f"(base rate {_p(f['base_up'])}). {nxt['up_why']}",
+        *[f"Reason: {r}." for r in nxt.get("up_reasons") or []],
+    ]
+    live, walked = nxt.get("live") or {}, nxt.get("check") or {}
+    record = [
+        _card(live, "Live")
+        if live.get("n")
+        else "Live: no session scored yet; the first is scored after its close.",
+    ]
+    if walked.get("n"):
+        record.append(
+            _card(walked, "Walk-forward check, each day forecast from a model fitted before it")
+        )
+    record.append(
+        "Brier score: the squared error of a probability; 0.25 is a coin flip, lower is better. "
+        "The odds shown fall back to the base rate whenever the model trails it."
+    )
+    return [
+        {"title": f"What can happen next session ({f['target']}): {nxt['label']}", "lines": lines},
+        {"title": "Scenarios for the next session", "lines": list(nxt.get("scenarios") or [])},
+        {"title": "How the forecast has done", "lines": record},
+    ]
+
+
+def forecast_lines(nxt: Mapping[str, Any]) -> list[str]:
+    """The forecast sections as brief text."""
+    out: list[str] = []
+    for s in forecast_sections(nxt):
+        out += ["", s["title"].upper(), *[f"- {x}" for x in s["lines"]]]
+    return out
+
+
 # --- weekends and holidays ---------------------------------------------------------------------
 
 
@@ -548,8 +821,15 @@ def telegram(brief: Mapping[str, Any]) -> str:
     lines = [f"{title} · {brief.get('day')}", str(brief.get("headline"))]
     for m in (brief.get("matters") or [])[:3]:
         lines.append(f"• {m['title']}: {m['fact']}")
+    nxt = brief.get("next") or {}
     rng = brief.get("range") or {}
-    if rng.get("low") is not None:
+    if nxt.get("available"):
+        f = nxt["forecast"]
+        lines.append(
+            f"Next session: range ~{float(f['range_pct']):.1f}%, close likely {float(f['band_low']):,.0f}"
+            f"-{float(f['band_high']):,.0f}; higher close {_p(nxt['show_up'])} (base {_p(f['base_up'])})"
+        )
+    elif rng.get("low") is not None:
         lines.append(f"Range if VIX is right: {rng['low']:,.0f} to {rng['high']:,.0f}")
     needs = brief.get("attention") or []
     if needs:

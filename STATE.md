@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token) and the UI revamp (T-4283).
 **Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
-*Last updated: 2026-11-03. One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-04. One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -34,6 +34,8 @@ what is open is in `TASKS.md`.*
 - **Paper trading** runs forward with operator capital (`make paper-daily`),
   with loss limits that act: reduce-only at 10% drawdown, halt at 20%.
   Live is refused in code until the Kite adapter is proven (S-015).
+  Six halted or stopped books were deleted on 2026-11-04 (archived to B2);
+  Nifty calm-rise overnight has no book until you start one.
   A gate-promoted strategy is forward-testing once you start its paper
   deployment; it can go live only after meeting the mandate rule
   (ADR-117; mandate `forward_test:` 60 days, half the backtest Sharpe, -25%).
@@ -43,7 +45,10 @@ what is open is in `TASKS.md`.*
   which is the store of record. `make daily` refreshes, uploads and prunes.
 - **AI agents.** Eight agents on one runtime with budgets, an inbox and a
   hash-chained log; none can reach the order path, gate or ledger. The market
-  brief runs before the open, after the close and on closed days. The idea lab
+  brief runs before the open, after the close and on closed days; it tells
+  the last session, gives reasons for each signal, and forecasts the next
+  session's range, close band and odds, scoring each forecast the day after
+  (ADR-133). The idea lab
   writes and tests about 30 formula cards a day (`make agents-ideas`, ADR-111);
   cards trade only stocks with Rs 1 crore of turnover and a survivor must beat
   Nifty (ADR-112). A doctor checks every agent run and the engineering agent

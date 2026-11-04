@@ -35,7 +35,7 @@ Operator: "implement paperclick agent organisation model, make each agent employ
 | T-4413 | More sources need a free key: OpenAlex (more searches a day), CORE, Semantic Scholar. Operator: create any you want and put them in .env | DONE 2026-11-03: all three keys added; OpenAlex key now read under its `.env` name; CORE and Semantic Scholar searched (ADR-131) |
 | T-4417 | The data agent only graded data; uploads refused 12,107 files every night unseen; two news months held 1,552 rows B2 lacked (HISTORY #70). Fixed by ADR-132: a fixed routine every two hours 06–20 IST (re-run, upload, delete what B2 holds, merge what differs), one Groq diagnosis, `make data-merge-back` in `make daily` | DONE 2026-11-04 |
 | T-4418 | Watchdog agent: failed, stuck and missed runs, requests and tokens over budget, blocked or returned tasks; token log per request (ADR-132) | DONE 2026-11-04 |
-| T-4419 | Operator: five paper books are halted because their history changed (operations agent, 2026-11-03: nse_github_minervini_template, nse_github_stocks_on_the_move, india_illiquid_winners, nifty_calm_rise_overnight, india_sharpe_momentum_opt). Re-arming a book is yours (CLAUDE.md money safety); the watchdog leaves them | TODO. Operator |
+| T-4419 | Operator: five paper books are halted because their history changed (operations agent, 2026-11-03: nse_github_minervini_template, nse_github_stocks_on_the_move, india_illiquid_winners, nifty_calm_rise_overnight, india_sharpe_momentum_opt). Re-arming a book is yours (CLAUDE.md money safety); the watchdog leaves them | DONE 2026-11-04. Operator: "delete all old paper trading stopped strategies". The five halted books and the stopped Nifty calm-rise book (4e8d74) were archived to B2 (`nse/archive/deployments/retired-2026-11-04.tar.gz`, 15 KB) and deleted; the operator will start the calm-rise overnight book again later |
 | T-4420 | arXiv returned nothing for "short-term reversal Indian equities" and "52-week high momentum India" (research 146): its query ANDs every word within q-fin. Try fewer required words | TODO |
 | T-4421 | Crypto, FX and mutual fund NAVs grade D every run: "no landed files recorded", because their ingests write no per-file `manifest.jsonl` (the grader's fingerprint check), though B2 holds them with a SHA-256 in each object's metadata. Have those ingests write a manifest with SHA-256 and knowledge time, as the NSE ingest does; not loosened in the grader, since the grade gates backtests | TODO |
 | T-4422 | Research drafted "ADR premium predicts next-day underlying stock return" from a paper on stablecoin pricing (2026-11-04): the card does not follow from its paper. It was incomplete and never tested; watch for more such drafts in the watchdog's week and tighten the drafting prompt if they recur | TODO |
@@ -147,6 +147,21 @@ Verify: `make microstructure-five`.
 | ID | Task | Status |
 |---|---|---|
 | T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+## Market brief: detailed reasons and a scored next-session forecast (2026-11-04)
+
+Operator: "start working on how market brief can be made better and more detailed, add some forecasting element on next market session behaviour based on data we got, look over good paper which can help, and keep testing earlier day result with actual performance and keep updating model. i want detailed explanation about market and what can happen next"; "i want detailed reasons in brief instead of 1 liner only". ADR-133, research 147.
+Verify: `uv run pytest -q tests/test_next_session.py tests/test_brief_content.py`; `make agent NAME=market_brief ARGS=force=1` and read "What happened in the last session" and "What can happen next session".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4423 | Next-session forecast: range, 80% close band, odds of a higher open and close with reasons, expected open; refitted every run; walk-forward check | DONE 2026-11-04. `forecast/next_session.py`, `config/next_session.yaml`, 12 tests. Check over 500 sessions: range error 0.32 against VIX's 0.52, band 78%, open odds skill +2.9%, close odds +0.1% (a coin flip, and the brief says so) |
+| T-4424 | Every forecast logged before its session and scored after it; yesterday's forecast against the result in the brief; base rate shown when the model trails it | DONE 2026-11-04. `data/derived/forecasts/next_session.jsonl`. First live score after the 2026-11-05 close |
+| T-4425 | Detailed brief: the last session in words, why each signal matters for the next session and what to watch, scenarios, a four-part analyst note; the workbench view draws them | DONE 2026-11-04 |
+| T-4426 | The brief showed an expired option chain's straddle range and max pain (HISTORY #74) | DONE 2026-11-04 |
+| T-4427 | Research agent searches two forecasting topics in its rotation | DONE 2026-11-04. Papers land in the library |
+| T-4428 | Read research 147's sources C and D in full (fetch timed out, PDF unreadable); look for a free GIFT Nifty history for the open | TODO |
+| T-4429 | After 60 live scores, re-read the forecast's card: band coverage, range against VIX, odds against the base rate (A-102) | TODO. About 2027-02 |
+
 ## Market brief: the Trader's read (2026-10-31)
 
 Operator: "current market brief is joke and it doesn't make any sense and not helping a trade at all ... add one more component how to answer which give better clarity to trader". ADR-100.

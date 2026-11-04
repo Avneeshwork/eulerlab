@@ -65,6 +65,7 @@ METALS: tuple[tuple[str, str, str], ...] = (
 RISK: tuple[tuple[str, str, str], ...] = (
     ("TVC:DXY", "DOLLAR INDEX", ""),
     ("CBOE:VIX", "VIX", ""),
+    ("SP:SPX", "S&P 500", ""),
 )
 """Both **402 on FMP's free plan**, which is the reason this module exists."""
 

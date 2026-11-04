@@ -314,6 +314,12 @@ def missing(rows: Sequence[Row]) -> list[str]:
     return [r.signal for r in rows if r.word == "missing"]
 
 
+def expired(options: Mapping[str, Any], as_of: str) -> bool:
+    """The option chain's expiry settled on or before the last close `as_of`: its levels are over."""
+    expiry = str(options.get("expiry") or "")
+    return bool(expiry and as_of and expiry <= as_of)
+
+
 def _map(
     ctx: Mapping[str, Any], close: float | None, avg: Mapping[int, float], lv: ReadLevels, day: str
 ) -> tuple[list[str], list[str]]:
@@ -333,7 +339,12 @@ def _map(
         )
     o = ctx.get("options") or {}
     em = o.get("expected_move") or {}
-    if o.get("available") and _num(em.get("low")) is not None:
+    if expired(o, str(nifty.get("as_of") or "")):
+        gaps.append(
+            f"option chain is for expiry {o.get('expiry')}, which settled by the last close: "
+            "straddle range and max pain left out until the next expiry's chain is held"
+        )
+    elif o.get("available") and _num(em.get("low")) is not None:
         try:
             age = (date.fromisoformat(day) - date.fromisoformat(str(o.get("as_of")))).days
         except ValueError:

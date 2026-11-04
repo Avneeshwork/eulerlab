@@ -1,0 +1,38 @@
+# The next-session forecast in the market brief (ADR-133, research 147). OPERATOR-EDITABLE.
+#
+# These were fixed on 2026-11-04 from the papers in research 147, before any
+# result was looked at. Changing them until the score "looks right" is a search
+# and a search needs a trial count; they are not to be tuned to results (A-102).
+# Nothing here logs a trial, touches the gate or feeds a strategy.
+
+# First session the models learn from. Daily index data only: the minute-data
+# holdout (mandate `forward_evidence.holdout_end`) is never read.
+start: "2015-01-01"
+
+# Recent sessions count more: a session's weight halves every this many
+# sessions back. 500 is about two years.
+half_life: 500
+
+# Ridge penalty on the direction models' standardised coefficients. Large on
+# purpose: next-day direction is close to a coin flip, so the models stay near
+# the base rate unless the data insists.
+ridge: 200.0
+
+# The close band's coverage (0.8: the close should land inside four days in five).
+band: 0.8
+
+# The walk-forward check: the last this many sessions, refitting every
+# `refit_every` sessions on data before each one only.
+check_sessions: 500
+refit_every: 20
+
+# Fewer than this many scored live forecasts: the walk-forward check decides
+# whether the direction model is shown. From this many on, the live score does.
+min_live: 20
+
+# Live score window, in scored forecasts.
+live_window: 60
+
+# Sessions in which flows (FII cash) and the US session must both be known
+# before the second stage that uses them is fitted.
+min_overlap: 120

@@ -6,6 +6,8 @@
  * the read, what is coming up, what in the books needs you, then the
  * scorecard, what is moving underneath and the raw detail, folded away.
  * After the close it opens with this morning's read against the close.
+ * The last session is told first, and the next-session forecast follows what
+ * matters, with its reasons, scenarios and its own score (ADR-133).
  *
  * `BriefCard` is the short form for the agent strip: headline, the three
  * titles and a link to the whole brief.
@@ -78,6 +80,16 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
         <p className="mb-headline">{brief.headline}</p>
       </header>
 
+      {(brief.story?.length ?? 0) > 0 && (
+        <Section title="What happened in the last session">
+          <ul className="mb-list">
+            {brief.story?.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       {brief.review.length > 0 && (
         <Section title={brief.review_title ?? 'This morning vs the close'}>
           <ul className="mb-list">
@@ -98,11 +110,31 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
                 <b>{m.title}</b>
                 <p className="mb-fact">{m.fact}</p>
                 <p className="mb-meaning">{m.meaning}</p>
+                {m.why && (
+                  <p className="mb-meaning">
+                    <b>Why it matters next session:</b> {m.why}
+                  </p>
+                )}
+                {m.watch && (
+                  <p className="mb-meaning">
+                    <b>What to watch:</b> {m.watch}
+                  </p>
+                )}
               </li>
             ))}
           </ol>
         )}
       </Section>
+
+      {brief.forecast?.map((s) => (
+        <Section key={s.title} title={s.title}>
+          <ul className="mb-list">
+            {s.lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </Section>
+      ))}
 
       {(brief.history?.length ?? 0) > 0 && (
         <Section title="What history says">

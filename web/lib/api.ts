@@ -2558,7 +2558,16 @@ export type MarketBrief = {
   headline: string;
   tone: 'weak' | 'supportive' | 'mixed' | 'incomplete';
   missing: string[];
-  matters: { key: string; score: number; title: string; fact: string; meaning: string; page: string }[];
+  matters: {
+    key: string;
+    score: number;
+    title: string;
+    fact: string;
+    meaning: string;
+    why?: string;
+    watch?: string;
+    page: string;
+  }[];
   range: { close?: number; low?: number; high?: number; move?: number };
   levels: string[];
   scenarios: string[];
@@ -2580,6 +2589,8 @@ export type MarketBrief = {
   review_title?: string;
   history?: string[];
   books_history?: string[];
+  story?: string[];
+  forecast?: { title: string; lines: string[] }[];
   left_out: string[];
   note?: string;
   detail: [string, string[]][];
