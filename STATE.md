@@ -79,6 +79,8 @@ what is open is in `TASKS.md`.*
   agents' memory goes to B2 every evening (ADR-128, `make agents-restore`).
   Research searches arXiv, OpenAlex, SSRN, NBER, CORE and Semantic Scholar and knows
   a paper under all its links, so none is read or added twice (ADR-129, ADR-131).
+  The engineering agent fits Groq's free limit: it sends the failing function, not
+  the whole file, and answers with exact edits (HISTORY #78).
   The data agent runs every two hours 06–20 IST and at 22:00: re-runs what is behind, uploads,
   deletes what B2 holds and merges what differs; a watchdog checks every agent's
   runs, tokens and tasks (ADR-132).

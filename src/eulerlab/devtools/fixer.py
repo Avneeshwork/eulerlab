@@ -8,8 +8,11 @@ the same way plus the purity check, pushed with a pull request opened.
         -> refuse a file on the never-touch list
         -> context: CLAUDE.md, the ARCHITECTURE sections that name the module,
            the file, the test that imports it, the error
+           (with a per-minute token budget, as on Groq's free tier: the small
+           context instead, see "Fitting a small model" below)
         -> one model request (the engineering agent's model): the whole new file,
-           and optionally the whole new test file
+           and optionally the whole new test file; or, in the small context,
+           exact find-and-replace edits
         -> a git worktree on branch agent-fix/<id>, never main
         -> the diff may name only that file and its test, or it is thrown away
         -> ruff, ruff format, mypy --strict on the file, pytest on its tests,
@@ -24,6 +27,15 @@ asks for: it runs exactly the commands in `_COMMANDS`, with fixed arguments,
 and nothing a model writes is ever passed to a shell. The model's text is only
 ever written to files inside the worktree and then checked.
 
+**Fitting a small model** (2026-11-05, HISTORY #78). A bug fix used to send
+the whole CLAUDE.md, the module and its test, about 12,000 tokens, past Groq's
+free 8,000 a minute, so every fix fell to a paid model. With a `budget`,
+`fix` sends `small_context`: the hard rules only (`rules_digest`), the module's
+header and the function the error names (`excerpt`), the tests that mention it,
+and the error; the model answers with edits (`EDIT_SYSTEM`) that must each match
+the file exactly once (`apply_edits`). If the checks fail it tries once more with
+the check output and a wider window. The proofs are the same in every mode.
+
 **What it can never change** (`NEVER`): the gate and the mandate, the order
 path and broker, deployment and the kill switch, validation and the trial
 ledger, the agent boundaries, secrets, config, and itself.
@@ -31,6 +43,7 @@ ledger, the agent boundaries, secrets, config, and itself.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import re
@@ -127,6 +140,201 @@ Rules:
 - If the fix changes behaviour, add or adjust a test that would have caught the error.
 - Never weaken, skip or delete a test to make it pass. Never add network calls, subprocess, eval or exec.
 - If the error cannot be fixed inside this one file, reply {"explanation": "why", "file": null, "test": null}."""
+
+
+EDIT_SYSTEM = """You are Euler Lab's engineering agent. You fix ONE Python file in a quant research and trading platform.
+
+You are given the project's hard rules, an EXCERPT of the file (its header and the part the error points at;
+"# ... lines N-M not shown ..." marks what is left out), the tests that use that part, and the error.
+Reply with ONE JSON object and nothing else:
+{"explanation": "what was wrong and what you changed, in two or three plain sentences",
+ "edits": [{"find": "text copied EXACTLY from the excerpt, enough lines to be unique", "replace": "the new text"}],
+ "test_edits": [{"find": "...", "replace": "..."}] or null,
+ "test_append": "new test functions to add at the end of the test file, or null"}
+
+Rules:
+- Each "find" must be copied character for character from the excerpt, whitespace included, and appear once in the file.
+- Change only what the error needs. Keep every public name, signature and behaviour the error does not involve.
+- Python 3.12, type hints that pass mypy --strict, ruff clean. If you add an import, add it with an edit to the header.
+- If the fix changes behaviour, add a test (test_append) that would have caught the error.
+- Never weaken, skip or delete a test to make it pass. Never add network calls, subprocess, eval or exec.
+- If the error cannot be fixed inside this file, reply {"explanation": "why", "edits": []}."""
+
+RULE_SECTIONS = ("### Truth", "### Data integrity", "### Code")
+MAX_RULES_CHARS = 3_500
+OUTPUT_RESERVE = 1_800
+"""Tokens kept free in the budget for the model's answer."""
+
+
+def tokens(text: str) -> int:
+    """About how many tokens `text` is: four characters each, the usual rule of thumb."""
+    return len(text) // 4
+
+
+def rules_digest(repo: Path = REPO, limit: int = MAX_RULES_CHARS) -> str:
+    """The hard rules a code change must keep, from CLAUDE.md: truth, data integrity, code."""
+    doc = repo / "CLAUDE.md"
+    if not doc.exists():
+        return ""
+    text = doc.read_text(encoding="utf-8")
+    parts = re.split(r"(?m)^(?=#{2,3} )", text)
+    kept = [s.strip() for s in parts if s.startswith(RULE_SECTIONS)]
+    return "\n\n".join(kept)[:limit]
+
+
+def error_lines(file: str, error: str) -> list[int]:
+    """Line numbers in `file` that the error names: traceback frames and `path:line:` findings."""
+    name = re.escape(Path(file).name)
+    found = [int(m) for m in re.findall(rf'{name}", line (\d+)', error)]
+    found += [int(m) for m in re.findall(rf"{re.escape(file)}:(\d+)", error)]
+    return sorted(set(found))
+
+
+def _spans(source: str, lines: Sequence[int], pad: int) -> list[tuple[int, int]]:
+    """1-based inclusive line spans to show: the innermost function or class around each line, padded."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        tree = None
+    total = len(source.splitlines())
+    spans: list[tuple[int, int]] = []
+    for line in lines:
+        best: tuple[int, int] | None = None
+        for node in ast.walk(tree) if tree is not None else []:
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+                start = min([node.lineno, *(d.lineno for d in node.decorator_list)])
+                end = node.end_lineno or node.lineno
+                if start <= line <= end and (best is None or end - start < best[1] - best[0]):
+                    best = (start, end)
+        lo, hi = best if best is not None else (line, line)
+        spans.append((max(1, lo - pad), min(total, hi + pad)))
+    spans.sort()
+    merged: list[tuple[int, int]] = []
+    for lo, hi in spans:
+        if merged and lo <= merged[-1][1] + 1:
+            merged[-1] = (merged[-1][0], max(hi, merged[-1][1]))
+        else:
+            merged.append((lo, hi))
+    return merged
+
+
+def _header_end(source: str) -> int:
+    """The last line of the module header: docstring, imports and constants before the first def or class."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return min(40, len(source.splitlines()))
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            return max(0, min([node.lineno, *(d.lineno for d in node.decorator_list)]) - 1)
+    return len(source.splitlines())
+
+
+def excerpt(source: str, lines: Sequence[int], pad: int, header_limit: int = 80) -> str:
+    """The module's header and the spans around `lines`, with markers for what is left out.
+
+    With no line to point at, the whole file is returned: there is nothing to narrow to."""
+    src = source.splitlines()
+    if not lines:
+        return source
+    head = min(_header_end(source), header_limit)
+    chunks: list[str] = []
+    shown = 0
+    for lo, hi in [(1, head), *_spans(source, lines, pad)] if head else _spans(source, lines, pad):
+        lo = max(lo, shown + 1)
+        if lo > hi:
+            continue
+        if lo > shown + 1:
+            chunks.append(f"# ... lines {shown + 1}-{lo - 1} not shown ...")
+        chunks.append("\n".join(src[lo - 1 : hi]))
+        shown = hi
+    if shown < len(src):
+        chunks.append(f"# ... lines {shown + 1}-{len(src)} not shown ...")
+    return "\n".join(chunks)
+
+
+def shown_names(source: str, lines: Sequence[int], pad: int) -> set[str]:
+    """Names of the functions and classes the excerpt shows."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    spans = _spans(source, lines, pad)
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef) and any(
+            lo <= node.lineno <= hi for lo, hi in spans
+        ):
+            out.add(node.name)
+    return out
+
+
+def related_tests(test_source: str, names: set[str], limit: int) -> str:
+    """The test functions that mention any of `names`, up to `limit` characters."""
+    try:
+        tree = ast.parse(test_source)
+    except SyntaxError:
+        return test_source[:limit]
+    src = test_source.splitlines()
+    picked: list[str] = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name.startswith(
+            "test"
+        ):
+            body = "\n".join(src[node.lineno - 1 : node.end_lineno or node.lineno])
+            if not names or any(re.search(rf"\b{re.escape(n)}\b", body) for n in names):
+                picked.append(body)
+    out = "\n\n".join(picked)
+    return out[:limit] if out else "(no test mentions the code shown)"
+
+
+def small_context(
+    file: str, error: str, tests: Sequence[str], budget: int, pad: int = 10, repo: Path = REPO
+) -> str | None:
+    """The smallest useful request for `file`, fitted to `budget` tokens; None if it cannot fit.
+
+    Pieces are dropped in order until it fits: first the tests shrink, then the
+    window narrows, then the error is cut to its last lines."""
+    source = (repo / file).read_text(encoding="utf-8")
+    lines = error_lines(file, error)
+    test_text = (repo / tests[0]).read_text(encoding="utf-8") if tests else ""
+    rules = rules_digest(repo)
+    for test_limit, width, tail in ((6000, pad, 3000), (2500, pad, 2000), (0, 3, 1200)):
+        body = excerpt(source, lines, width)
+        names = shown_names(source, lines, width)
+        related = related_tests(test_text, names, test_limit) if test_text and test_limit else ""
+        text = "\n\n".join(
+            [
+                f"<rules>\n{rules}\n</rules>",
+                f'<file path="{file}" excerpt="true">\n{body}\n</file>',
+                f'<tests path="{tests[0] if tests else ""}">\n{related or "(not shown)"}\n</tests>',
+                f"<error>\n{error[-tail:]}\n</error>",
+            ]
+        )
+        if tokens(EDIT_SYSTEM) + tokens(text) + OUTPUT_RESERVE <= budget:
+            return text
+    return None
+
+
+class EditFailed(ValueError):
+    """A find text did not match the file exactly once."""
+
+
+def apply_edits(text: str, edits: object) -> str:
+    """`text` with each edit applied in order; each `find` must occur exactly once."""
+    if not isinstance(edits, list):
+        raise EditFailed("edits is not a list")
+    for edit in edits:
+        if not isinstance(edit, dict):
+            raise EditFailed("an edit is not an object")
+        find, replace = edit.get("find"), edit.get("replace")
+        if not isinstance(find, str) or not isinstance(replace, str) or not find:
+            raise EditFailed("an edit needs a non-empty find and a replace")
+        count = text.count(find)
+        if count != 1:
+            raise EditFailed(f"find text matched {count} times, not once: {find[:120]!r}")
+        text = text.replace(find, replace, 1)
+    return text
 
 
 @dataclass
@@ -230,8 +438,13 @@ def fix(
     run: Runner = _run,
     push: bool = True,
     retries: int = 1,
+    budget: int | None = None,
 ) -> Attempt:
-    """Try to fix `file` for `error` on a fresh branch. Never touches the checked-out branch."""
+    """Try to fix `file` for `error` on a fresh branch. Never touches the checked-out branch.
+
+    `budget`: the model's tokens per request (its per-minute limit, with a
+    margin). With one, the small context and edits are used, a second try
+    widening the window; without one, the whole file as before."""
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S")
     attempt = Attempt(id=f"{stamp}-{hashlib.sha256(file.encode()).hexdigest()[:6]}", file=file)
     if not allowed(file):
@@ -248,17 +461,51 @@ def fix(
         return attempt
     try:
         note = error
-        for _ in range(retries + 1):
-            reply = _parse(ask(SYSTEM, context(file, note, tests, tree)))
-            attempt.explanation = str(reply.get("explanation", ""))[:600]
-            new_file = reply.get("file")
-            if not isinstance(new_file, str) or not new_file.strip():
-                attempt.outcome = "no fix"
-                return attempt
-            (tree / file).write_text(new_file, encoding="utf-8")
-            new_test = reply.get("test")
-            if attempt.test and isinstance(new_test, str) and new_test.strip():
-                (tree / attempt.test).write_text(new_test, encoding="utf-8")
+        pads = [10, 60][: retries + 1]
+        for round_ in range(retries + 1):
+            if budget is not None:
+                small = small_context(file, note, tests, budget, pad=pads[round_], repo=tree)
+                if small is None:
+                    attempt.outcome = "too big for this model"
+                    attempt.explanation = (
+                        f"even the smallest request does not fit {budget:,} tokens; "
+                        "a model with a larger limit is needed"
+                    )
+                    return attempt
+                reply = _parse(ask(EDIT_SYSTEM, small))
+                attempt.explanation = str(reply.get("explanation", ""))[:600]
+                edits = reply.get("edits")
+                if not edits:
+                    attempt.outcome = "no fix"
+                    return attempt
+                try:
+                    current = (tree / file).read_text(encoding="utf-8")
+                    (tree / file).write_text(apply_edits(current, edits), encoding="utf-8")
+                    if attempt.test:
+                        test_path = tree / attempt.test
+                        test_now = test_path.read_text(encoding="utf-8")
+                        if reply.get("test_edits"):
+                            test_now = apply_edits(test_now, reply.get("test_edits"))
+                        extra = reply.get("test_append")
+                        if isinstance(extra, str) and extra.strip():
+                            test_now = test_now.rstrip("\n") + "\n\n\n" + extra.strip() + "\n"
+                        test_path.write_text(test_now, encoding="utf-8")
+                except EditFailed as exc:
+                    run(["git", "checkout", "--", "."], tree)
+                    attempt.checks = [("edits", False, str(exc))]
+                    note = f"{error}\n\nYour previous edits could not be applied: {exc}"
+                    continue
+            else:
+                reply = _parse(ask(SYSTEM, context(file, note, tests, tree)))
+                attempt.explanation = str(reply.get("explanation", ""))[:600]
+                new_file = reply.get("file")
+                if not isinstance(new_file, str) or not new_file.strip():
+                    attempt.outcome = "no fix"
+                    return attempt
+                (tree / file).write_text(new_file, encoding="utf-8")
+                new_test = reply.get("test")
+                if attempt.test and isinstance(new_test, str) and new_test.strip():
+                    (tree / attempt.test).write_text(new_test, encoding="utf-8")
             _, names = run(["git", "diff", "--name-only"], tree)
             changed = {n.strip() for n in names.splitlines() if n.strip()}
             if not changed <= {file, attempt.test}:
@@ -272,6 +519,9 @@ def fix(
                 break
             failed = "\n".join(f"{n}: {t}" for n, ok, t in attempt.checks if not ok)
             note = f"{error}\n\nYour previous fix failed these checks:\n{failed}"
+            if budget is not None:
+                # The next round starts from the original file, with a wider window.
+                run(["git", "checkout", "--", "."], tree)
         if not attempt.green:
             attempt.outcome = "checks failed"
             return attempt
