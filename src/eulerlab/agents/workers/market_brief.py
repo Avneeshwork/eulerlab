@@ -230,6 +230,32 @@ def _next(now: datetime, closed: frozenset[date], world: list[dict[str, Any]]) -
         return {"available": False, "reason": f"{type(exc).__name__}: {str(exc)[:120]}"}
 
 
+def _news(now: datetime, notes: list[str]) -> dict[str, Any]:
+    """Refresh market news, score new stories' tone, and summarise the last day (ADR-134)."""
+    from eulerlab.forecast import news_tone
+    from eulerlab.ingest import market_news
+
+    s = market_news.setup()
+    tone = news_tone.scorer()
+    if tone is None:
+        notes.append("news tone model not installed (`uv sync --extra news`): headlines unscored")
+    try:
+        got = market_news.refresh(now=now, s=s, scorer=tone, model=news_tone.MODEL_ID)
+    except (OSError, ValueError) as exc:
+        notes.append(f"market news not refreshed: {type(exc).__name__}: {str(exc)[:100]}")
+        got = {"failed": [str(exc)[:100]]}
+    if got.get("failed"):
+        notes.append(f"news searches failed: {'; '.join(got['failed'][:3])}")
+    rows = market_news.held()
+    return {
+        "refresh": got,
+        "summary": news_tone.summary(rows, now),
+        "items": [dict(r) for r in news_tone.to_judge(rows, now, s.judge)],
+        "impacts": [],
+        "model": news_tone.MODEL_ID if tone else "",
+    }
+
+
 def _flows() -> dict[str, Any]:
     try:
         from eulerlab.ingest import fii_dii_cash
@@ -378,7 +404,8 @@ QUESTIONS = (
     "What happened: what drove the last session, from the brief's account of it, flows and "
     "breadth, and what that says about who is in control.\n"
     "What can happen next: what the next-session forecast says and the reasons it gives, "
-    "including how much to trust it from its score.\n"
+    "including how much to trust it from its score, and what the news section adds that the "
+    "forecast cannot see.\n"
     "What to watch: the level or number in the brief that decides the session, and why.\n"
     "What would prove it wrong: which trigger in the brief, if hit, flips the read.\n"
     "No advice to buy or sell, no new numbers, no markdown."
@@ -439,6 +466,10 @@ def run(ctx: Context) -> WorkerResult:
             for g in contract.saved()
         ],
     }
+    ctx.step("Searching market and geopolitical news and scoring its tone")
+    news_found = _news(ctx.now, notes)
+    summary = news_found["summary"]
+    inputs["news"] = {k: summary.get(k) for k in ("stories", "mean", "negative", "positive")}
     stamp = fingerprint(inputs)
     last = latest_output(ctx.name, ctx.root)
     # One Telegram message per break: Sunday shows the note again but does not resend it.
@@ -491,6 +522,23 @@ def run(ctx: Context) -> WorkerResult:
     brief["history"] = history.get("lines") or []
     brief["history_rates"] = history.get("rates") or {}
     brief["books_history"] = history.get("books") or []
+    if news_found["items"] and ctx.can_ask():
+        from eulerlab.forecast import news_tone
+
+        try:
+            answer = ctx.ask(
+                news_tone.QUESTION, untrusted("news", news_tone.numbered(news_found["items"]))
+            )
+            news_found["impacts"] = news_tone.parse_impact(answer, news_found["items"])
+        except Exception as exc:
+            notes.append(f"news impact not judged: {type(exc).__name__}: {str(exc)[:120]}")
+    brief["news"] = brief_content.news_sections(news_found, upcoming)
+    brief["news_summary"] = summary
+    brief["shocks"] = [
+        x["title"]
+        for x in news_found["impacts"]
+        if x["severity"] == "high" and x["direction"] == "down"
+    ]
     brief["next"] = upcoming
     if mode == "after-close":
         brief["review"] = brief_content.forecast_review(upcoming, day) + brief["review"]
@@ -724,6 +772,8 @@ def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
             lines.append(f"- {label}: {'; '.join(u[key])}")
     if u.get("flows"):
         lines.append(f"- Flows: {u['flows']}")
+    for s in brief.get("news") or []:
+        lines += ["", s["title"].upper(), *[f"- {x}" for x in s["lines"]]]
     if brief.get("note"):
         lines += ["", "ANALYST NOTE (model, not data)", brief["note"]]
     lines += ["", read_text]

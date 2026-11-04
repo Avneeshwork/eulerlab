@@ -29,6 +29,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from eulerlab.agents.trader_read import Read, ReadLevels, averages, expired
+from eulerlab.forecast.news_tone import CLEAR
 
 IST = ZoneInfo("Asia/Kolkata")
 LIBRARY = "docs/METRICS"
@@ -785,6 +786,99 @@ def forecast_lines(nxt: Mapping[str, Any]) -> list[str]:
     return out
 
 
+# --- news and crash risk (ADR-134) --------------------------------------------------------------
+
+ARROW = {"up": "▲", "down": "▼", "mixed": "◆", "none": "·"}
+
+
+def news_sections(found: Mapping[str, Any], nxt: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """News tone and its likely impact, then crash risk: the brief's last sections."""
+    s = found.get("summary") or {}
+    lines: list[str] = []
+    if s.get("available"):
+        pct = s.get("percentile")
+        lines.append(
+            f"Tone of {s['stories']} market stories in the last 24 hours: {s['mean']:+.2f} on a scale "
+            f"of -1 to +1 ({s['positive']} positive, {s['negative']} negative)"
+            + (
+                f", the {_ordinal(float(pct))} percentile of the last {s['days']} days (usual {s['usual']:+.2f})."
+                if pct is not None
+                else "; too few days held yet to say what is usual."
+            )
+        )
+        topics = s.get("topics") or {}
+        counts = s.get("topic_counts") or {}
+        if topics:
+            lines.append(
+                "By theme: "
+                + "; ".join(
+                    f"{k.replace('_', ' ')} {v:+.2f} ({counts.get(k, 0)})"
+                    for k, v in sorted(topics.items(), key=lambda kv: kv[1])
+                )
+                + "."
+            )
+    else:
+        lines.append(f"News tone not available: {s.get('reason', 'no stories held')}.")
+    impacts = found.get("impacts") or []
+    shocks = [x for x in impacts if x["severity"] == "high" and x["direction"] == "down"]
+    for x in shocks:
+        lines.append(
+            f"SHOCK RISK: {x['title']} — {x['why']} The forecast's range comes from prices only and "
+            "cannot see this: treat its band as too narrow until the market has priced it."
+        )
+    for x in impacts:
+        if x in shocks:
+            continue
+        clash = (x["direction"] == "up" and x["tone"] < -CLEAR) or (
+            x["direction"] == "down" and x["tone"] > CLEAR
+        )
+        lines.append(
+            f"{ARROW[x['direction']]} {x['severity']} · {x['title']}"
+            + (f" ({x['publisher']})" if x.get("publisher") else "")
+            + f" — {x['why']}"
+            + (f" Sectors: {', '.join(x['sectors'])}." if x.get("sectors") else "")
+            + f" Tone {x['tone']:+.2f}"
+            + (
+                ": the tone model reads the words the other way; the judgement is about the economics."
+                if clash
+                else "."
+            )
+        )
+    if not impacts:
+        for r in (found.get("items") or [])[:6]:
+            lines.append(f"Tone {float(r['tone']['score']):+.2f} · {r['title']}")
+        if found.get("items"):
+            lines.append(
+                "Impact not judged this run (no model request left or the answer did not check out)."
+            )
+    lines.append(
+        f"Tone: {found.get('model') or 'not scored'}, run on this machine, scores the words. Impact: "
+        "the model's judgement of each story, checked against it. Neither changes the forecast's "
+        "numbers until a test shows news helps (T-4433)."
+    )
+    out = [{"title": "News and possible impact", "lines": lines}]
+    tail = nxt.get("tail") or {}
+    if tail.get("available"):
+        risk = [
+            f"At today's VIX level ({tail['vix_band']} band of the past year), Nifty fell 2% or more in the "
+            f"next session on {tail['down2'] * 100:.1f}% of {tail['sessions']:,} sessions since {tail['since']}, "
+            f"and 3% or more on {tail['down3'] * 100:.1f}%. Worst: {tail['worst']:+.2f}% on {tail['worst_day']}. "
+            f"Over all sessions: {tail['all_down2'] * 100:.1f}% and {tail['all_down3'] * 100:.1f}%.",
+        ]
+        walked = nxt.get("check") or {}
+        if walked.get("below_band") is not None:
+            risk.append(
+                f"In the walk-forward check the close fell below the forecast band on "
+                f"{walked['below_band'] * 100:.0f}% of {walked['n']} sessions (it should be about 10%)."
+            )
+        risk.append(
+            "No model here sees a crash coming: falls of that size follow news the data does not hold "
+            "yet. A shock above, a VIX jump at the open or a gap below the band is the sign to cut risk."
+        )
+        out.append({"title": "Crash risk (history, not a forecast)", "lines": risk})
+    return out
+
+
 # --- weekends and holidays ---------------------------------------------------------------------
 
 
@@ -819,7 +913,8 @@ def telegram(brief: Mapping[str, Any]) -> str:
         str(brief.get("mode")), "MARKETS CLOSED"
     )
     lines = [f"{title} · {brief.get('day')}", str(brief.get("headline"))]
-    for m in (brief.get("matters") or [])[:3]:
+    news = brief.get("news_summary") or {}
+    for m in (brief.get("matters") or [])[: 2 if news.get("available") else 3]:
         lines.append(f"• {m['title']}: {m['fact']}")
     nxt = brief.get("next") or {}
     rng = brief.get("range") or {}
@@ -831,6 +926,12 @@ def telegram(brief: Mapping[str, Any]) -> str:
         )
     elif rng.get("low") is not None:
         lines.append(f"Range if VIX is right: {rng['low']:,.0f} to {rng['high']:,.0f}")
+    if news.get("available"):
+        shock = (brief.get("shocks") or [""])[0]
+        lines.append(
+            f"News tone {news['mean']:+.2f} ({news['negative']} negative of {news['stories']})"
+            + (f"; shock risk: {shock[:90]}" if shock else "")
+        )
     needs = brief.get("attention") or []
     if needs:
         lines.append(f"Needs you: {needs[0]['book']} {needs[0]['why']}")

@@ -38,6 +38,13 @@ research-ml = [
     "pandas>=2.2",
     "scikit-learn>=1.5",
 ]
+# News tone for the market brief (ADR-134): a financial-news sentiment model run
+# locally. Optional because it adds about 1.2 GB (PyTorch); without it the brief
+# lists headlines unscored. `uv sync --extra news`.
+news = [
+    "transformers>=4.46,<5",
+    "torch>=2.5",
+]
 # Angel One's authenticated history endpoint is only needed for its data
 # backfill and live broker paths. Keep the SDK out of non-Angel installs.
 angel = [
@@ -128,7 +135,7 @@ plugins = ["pydantic.mypy"]
 # that has not installed the `crypto` extra. Ignored here rather than silenced
 # at each import, so the exemption is visible in one place.
 [[tool.mypy.overrides]]
-module = ["ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect", "sklearn.*", "sklearn", "logzero", "logzero.*", "pyotp", "pyotp.*", "SmartApi", "SmartApi.*"]
+module = ["transformers", "transformers.*", "torch", "torch.*", "ccxt.*", "ccxt", "kiteconnect.*", "kiteconnect", "sklearn.*", "sklearn", "logzero", "logzero.*", "pyotp", "pyotp.*", "SmartApi", "SmartApi.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

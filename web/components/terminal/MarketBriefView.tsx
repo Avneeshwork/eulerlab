@@ -7,7 +7,8 @@
  * scorecard, what is moving underneath and the raw detail, folded away.
  * After the close it opens with this morning's read against the close.
  * The last session is told first, and the next-session forecast follows what
- * matters, with its reasons, scenarios and its own score (ADR-133).
+ * matters, with its reasons, scenarios and its own score (ADR-133). News tone,
+ * its likely impact and crash risk come last, before the analyst note (ADR-134).
  *
  * `BriefCard` is the short form for the agent strip: headline, the three
  * titles and a link to the whole brief.
@@ -249,6 +250,16 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
           )}
         </dl>
       </Section>
+
+      {brief.news?.map((s) => (
+        <Section key={s.title} title={s.title}>
+          <ul className="mb-list">
+            {s.lines.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </Section>
+      ))}
 
       {brief.note && (
         <Section title="Analyst note (model, not data)">

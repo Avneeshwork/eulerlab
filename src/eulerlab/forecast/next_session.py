@@ -523,6 +523,7 @@ def outcome(
         "up": bool(up),
         "gap_up": bool(gap_up),
         "in_band": float(f["band_low"]) <= close <= float(f["band_high"]),
+        "below_band": close < float(f["band_low"]),
         "hit_up": float((float(f["p_up"]) > 0.5) == bool(up)),
         "brier_up": (float(f["p_up"]) - up) ** 2,
         "brier_up_base": (float(f["base_up"]) - up) ** 2,
@@ -548,6 +549,7 @@ class Card:
     brier_gap: float | None = None
     brier_gap_base: float | None = None
     in_band: float | None = None
+    below_band: float | None = None
     range_error: float | None = None
     range_error_vix: float | None = None
     hit_up: float | None = None
@@ -571,6 +573,7 @@ def card(scored: Sequence[Mapping[str, Any]]) -> Card:
         brier_gap=mean("brier_gap"),
         brier_gap_base=mean("brier_gap_base"),
         in_band=mean("in_band"),
+        below_band=mean("below_band"),
         range_error=mean("range_error"),
         range_error_vix=mean("range_error_vix"),
         hit_up=mean("hit_up"),
@@ -673,6 +676,54 @@ def live_scores(history: Sequence[Bar], path: Path | None = None) -> list[dict[s
             one["forecast"] = f
             out.append(one)
     return out
+
+
+# --- crash risk ---------------------------------------------------------------------------------
+
+
+def tail_risk(history: Sequence[Bar], window: int = 251) -> dict[str, Any]:
+    """How often Nifty has fallen 2% and 3% in the next session, overall and at today's VIX level.
+
+    VIX's level is its percentile against the previous `window` closes, in the
+    bands `history_says` uses (below 30, 30 to 70, 70 and above). History, not
+    a forecast: no model here sees a shock coming.
+    """
+
+    def band(p: float) -> str:
+        return "low" if p < 30 else "high" if p >= 70 else "middle"
+
+    rows: list[tuple[str, float, date]] = []
+    for i in range(window, len(history) - 1):
+        v = history[i].vix
+        past = [b.vix for b in history[i - window : i] if b.vix]
+        if not v or not past:
+            continue
+        p = sum(x <= v for x in past) / len(past) * 100
+        rows.append((band(p), history[i + 1].close / history[i].close - 1, history[i + 1].day))
+    last = history[-1].vix
+    past = [b.vix for b in history[-window - 1 : -1] if b.vix]
+    if not rows or not last or not past:
+        return {"available": False}
+    now = band(sum(x <= last for x in past) / len(past) * 100)
+    same = [r for r in rows if r[0] == now]
+    worst = min(same, key=lambda r: r[1])
+
+    def share(group: Sequence[tuple[str, float, date]], cut: float) -> float:
+        return round(sum(r[1] <= cut for r in group) / len(group), 4)
+
+    return {
+        "available": True,
+        "vix_band": now,
+        "since": rows[0][2].isoformat(),
+        "sessions": len(same),
+        "down2": share(same, -0.02),
+        "down3": share(same, -0.03),
+        "all_sessions": len(rows),
+        "all_down2": share(rows, -0.02),
+        "all_down3": share(rows, -0.03),
+        "worst": round(worst[1] * 100, 2),
+        "worst_day": worst[2].isoformat(),
+    }
 
 
 # --- what happened, in words ----------------------------------------------------------------------
@@ -849,5 +900,6 @@ def build(
         "check": asdict(walked),
         "last_scored": scored[-1] if scored else None,
         "story": last_session(history, fii),
+        "tail": tail_risk(history),
         "late": not before_open(shown),
     }

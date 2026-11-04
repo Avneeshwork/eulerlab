@@ -164,6 +164,14 @@ def _news() -> str:
     return "per-instrument headlines"
 
 
+def _market_news() -> str:
+    """Market-wide and geopolitical news with its tone, for the brief (ADR-134)."""
+    from eulerlab.ingest import market_news
+
+    market_news.main()
+    return "market-wide headlines and tone"
+
+
 class PartialSource(RuntimeError):
     """Some sub-sources of a step landed and some did not."""
 
@@ -458,6 +466,7 @@ STEPS: tuple[tuple[str, Callable[..., str]], ...] = (
     ("board meetings", _board_meetings),
     ("crypto gap", _crypto_gap),
     ("FX", _fx),
+    ("market news", _market_news),
     ("news", _news),
     ("index levels", _indices),
     ("option chain", _option_chain),
@@ -494,6 +503,7 @@ STEP_MODULES: dict[str, str] = {
     "board meetings": "eulerlab.ingest.board_meetings",
     "crypto gap": "eulerlab.ingest.crypto_fill",
     "FX": "eulerlab.ingest.fx_bulk_backfill",
+    "market news": "eulerlab.ingest.market_news",
     "news": "eulerlab.ingest.news",
     "index levels": "eulerlab.indices",
     "option chain": "eulerlab.ingest.nse_chain",

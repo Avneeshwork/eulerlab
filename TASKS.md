@@ -147,6 +147,19 @@ Verify: `make microstructure-five`.
 | ID | Task | Status |
 |---|---|---|
 | T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+## News sentiment and possible impact in the brief (2026-11-04)
+
+Operator: "crashes will be difficult to predict and also we have not take news as input you may miss many important geopolitical and country wide news impact it need to be added in last show news sentiment and possible impact"; "IS CURRENT_NEWS_API NOT USEFUL"; "look over open source FinBert github repo". ADR-134, research 148.
+Verify: `uv run pytest -q tests/test_market_news.py`; `uv sync --extra news`; `make market-news`; `make agent NAME=market_brief ARGS=force=1` and read the last two sections.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4430 | Market-wide and geopolitical news from Currents (Google News fallback), landed and kept in a derived table | DONE 2026-11-04. `ingest/market_news.py`, `config/market_news.yaml`, `make market-news`, in `make daily` |
+| T-4431 | Tone for every relevant story from a local financial-news model (Apache-2.0, pinned); impact judged for up to 12 stories per brief, each line checked | DONE 2026-11-04. `forecast/news_tone.py`, `uv sync --extra news` |
+| T-4432 | "News and possible impact" and "Crash risk" at the end of the brief, Telegram line, workbench view | DONE 2026-11-04 |
+| T-4433 | Test whether news tone helps the forecast, with GDELT's tone history fetched politely or after 60 sessions of our own log; one test, rule fixed first | TODO |
+| T-4434 | Optional: a NewsData.io key for a second sentiment score (48 hours, free) | TODO. Operator |
+
 ## Market brief: detailed reasons and a scored next-session forecast (2026-11-04)
 
 Operator: "start working on how market brief can be made better and more detailed, add some forecasting element on next market session behaviour based on data we got, look over good paper which can help, and keep testing earlier day result with actual performance and keep updating model. i want detailed explanation about market and what can happen next"; "i want detailed reasons in brief instead of 1 liner only". ADR-133, research 147.

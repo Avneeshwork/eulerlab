@@ -275,3 +275,25 @@ def _private_forecasts(
     monkeypatch.setattr(next_session, "LOG", folder / "next_session.jsonl")
     monkeypatch.setattr(next_session, "INDEX_HISTORY", folder / "index_history.jsonl")
     monkeypatch.setattr(next_session, "US_PANEL", folder / "us_panel.jsonl")
+
+
+@pytest.fixture(autouse=True)
+def _offline_market_news(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test calls Currents or Google News, loads the tone model, or writes the real news table (ADR-134)."""
+    import urllib.error
+
+    from eulerlab.forecast import news_tone
+    from eulerlab.ingest import market_news
+
+    folder = tmp_path_factory.mktemp("market_news")
+
+    def offline(*_a: object, **_k: object) -> list[dict[str, object]]:
+        raise urllib.error.URLError("offline in tests")
+
+    monkeypatch.setattr(market_news, "DERIVED", folder / "market_news.jsonl")
+    monkeypatch.setattr(market_news, "LANDING", folder / "landing")
+    monkeypatch.setattr(market_news, "api_key", lambda: "")
+    monkeypatch.setattr(market_news, "search_rss", offline)
+    monkeypatch.setattr(news_tone, "scorer", lambda: None)
