@@ -78,6 +78,8 @@ ignore:
   - bollywood
   - movie
   - wedding
+  # "RBI" also finds Raiffeisen Bank International's results (2026-11-04).
+  - raiffeisen
 
 # How many of the most relevant stories the model is asked to judge for impact.
 judge: 12

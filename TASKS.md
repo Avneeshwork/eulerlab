@@ -161,6 +161,19 @@ Verify: `uv run pytest -q tests/test_screener.py`; `make screener`; open Workben
 | T-4445 | Operator: validate and gate any screener model worth it (`make validate`, `make gate`); none is promoted | TODO. Operator |
 | T-4446 | Read Piotroski (2000), Asness et al. (2013) and George and Hwang (2004) in full, and SEBI's text of Regulation 33 | TODO |
 | T-4447 | True publication dates for results (NSE filings) to replace the 90-day rule (A-107) | TODO |
+## News rules that learn, NewsData, and stock news tone (2026-11-04)
+
+Operator: "oil one is one case there can be many case sentiment score can be wrong and if no ai tokens how it will be corrected ... knowledge base increases over time", "use different make function to uninstall", "added newsdata.io api use that if better", "show sentiment on each stock whichever possible"; "keep automatic". ADR-135, research 149.
+Verify: `uv run pytest -q tests/test_news_rules.py`; `make market-news`; read "How the news scores are checked" and "Stock news" in the brief; open a company page's News tab.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4435 | Written news rules (13) that correct tone with no model request; rules read the stories when no judgement is made | DONE 2026-11-04. `config/news_rules.yaml`, `forecast/news_rules.py` |
+| T-4436 | Learned rules from logged judgements, switched on at 3 agreeing and off at 2 against; contested seeds listed; agreement of each score reported | DONE 2026-11-04. Starts empty; grows with each brief |
+| T-4437 | NewsData.io as a second source and a second score | DONE 2026-11-04. Key `News_Data_io` |
+| T-4438 | News tone for each stock, in the brief and on the company page | DONE 2026-11-04. `forecast/stock_tone.py` |
+| T-4439 | `make install` keeps the news model; `install-lite`, `install-news`, `remove-news` (HISTORY #75) | DONE 2026-11-04 |
+| T-4440 | Review the first learned rules after two weeks of briefs | TODO. Operator, about 2026-11-18 |
 
 ## News sentiment and possible impact in the brief (2026-11-04)
 

@@ -53,7 +53,9 @@ what is open is in `TASKS.md`.*
   the last session, gives reasons for each signal, and forecasts the next
   session's range, close band and odds, scoring each forecast the day after
   (ADR-133). It ends with market and geopolitical news, its tone (a local
-  model) and judged impact, and crash odds from history (ADR-134). The idea lab
+  model) and judged impact, and crash odds from history (ADR-134); news rules
+  correct the tone and learn from each judgement, and each stock has a news
+  tone (ADR-135). The idea lab
   writes and tests about 30 formula cards a day (`make agents-ideas`, ADR-111);
   cards trade only stocks with Rs 1 crore of turnover and a survivor must beat
   Nifty (ADR-112). A doctor checks every agent run and the engineering agent

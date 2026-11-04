@@ -1,0 +1,103 @@
+# What news means for Indian equities, where the words mislead (ADR-135). OPERATOR-EDITABLE.
+#
+# The tone model scores words: "crude falls" reads negative although cheaper
+# oil helps India (research 148). A rule here says what a kind of news means
+# for the market, so the brief can correct the tone with no model request.
+#
+# A rule matches when every `when` pattern is found in the title or summary
+# (whole words, any case) and no `unless` pattern is. `direction` is the push
+# on Indian equities: up or down. `against` lists sectors where it runs the
+# other way. These seeds are yours: the learning in `learn` below adds rules to
+# data/derived/news_rules_learned.json and never edits this file.
+
+rules:
+  - id: crude-down
+    when: ["crude|oil|brent|wti", "falls?|fell|slips?|slipped|drops?|dropped|eases?|eased|declines?|declined|lower|softer|cheaper|tumbles?|plunges?"]
+    unless: ["output|production cut|opec\\+? cuts?"]
+    direction: up
+    against: [Oil & Gas producers]
+    why: India imports most of its oil; cheaper crude cuts the import bill and inflation.
+  - id: crude-up
+    when: ["crude|oil|brent|wti", "rises?|rose|jumps?|jumped|surges?|surged|climbs?|climbed|higher|spikes?|soars?|rallies|rally"]
+    direction: down
+    against: [Oil & Gas producers]
+    why: Dearer crude widens India's import bill and lifts inflation.
+  - id: rate-hike
+    when: ["rate hikes?|hikes? rates?|raises? rates?|repo rate (?:hike|increase)|tightening"]
+    direction: down
+    against: [Banks]
+    why: Higher rates raise borrowing costs and lower what future profits are worth.
+  - id: rate-cut
+    when: ["rate cuts?|cuts? rates?|lowers? rates?|repo rate cut|easing cycle"]
+    direction: up
+    why: Lower rates cut borrowing costs and lift what future profits are worth.
+  - id: rupee-weak
+    when: ["rupee", "falls?|fell|slips?|weakens?|weaker|record low|depreciates?|slumps?|drops?"]
+    direction: down
+    against: [IT, Pharma exporters]
+    why: A weaker rupee lifts import costs and often comes with foreign selling.
+  - id: rupee-strong
+    when: ["rupee", "gains?|rises?|strengthens?|stronger|firms?|appreciates?|recovers?"]
+    direction: up
+    against: [IT, Pharma exporters]
+    why: A firmer rupee eases import costs and often comes with foreign buying.
+  - id: fii-selling
+    when: ["fiis?|fpis?|foreign investors|foreign funds", "sell|sells|selling|sold|outflows?|pull out|offload"]
+    direction: down
+    why: Foreign selling is supply the market has to absorb.
+  - id: fii-buying
+    when: ["fiis?|fpis?|foreign investors|foreign funds", "buy|buys|buying|bought|inflows?"]
+    direction: up
+    why: Foreign buying is fresh demand, mostly for large caps.
+  - id: war-near
+    when: ["war|attack|attacks|airstrikes?|missile|strikes? on|military|invasion|conflict|nuclear", "india|pakistan|china|border|iran|israel|gulf|middle east|red sea|hormuz"]
+    unless: ["ceasefire|peace|truce|talks"]
+    direction: down
+    against: [Defence]
+    why: Conflict near India or the Gulf threatens oil supply and drives money out of risk.
+  - id: ceasefire
+    when: ["ceasefire|truce|peace deal|peace talks|de-escalat"]
+    direction: up
+    why: Easing conflict lowers oil risk and brings money back to risk assets.
+  - id: tariff-on-india
+    when: ["tariffs?|duties|sanctions", "india|indian"]
+    unless: ["cuts?|removes?|lifts?|eases?|exempts?"]
+    direction: down
+    why: Tariffs or sanctions on India hit exporters and growth.
+  - id: inflation-up
+    when: ["inflation|cpi|wpi", "rises?|rose|jumps?|higher|accelerates?|surges?|spikes?"]
+    direction: down
+    why: Rising inflation makes rate cuts less likely.
+  - id: inflation-down
+    when: ["inflation|cpi|wpi", "eases?|eased|falls?|fell|cools?|lower|slows?"]
+    direction: up
+    why: Cooling inflation makes rate cuts more likely.
+
+# How rules are learned (ADR-135). Every story the model judges up or down is
+# logged with its tone. A candidate rule is one subject word group and one
+# movement word group found together. It becomes active after `activate`
+# judgements agreeing on its direction with none against, and is switched off
+# when `deactivate` judgements go against it. Fixed 2026-11-04 (A-105).
+learn:
+  activate: 3
+  deactivate: 2
+  subjects:
+    gold: "gold|bullion"
+    yields: "bond yields?|treasury yields?|g-sec yields?"
+    dollar: "dollar|dxy"
+    gdp: "gdp|growth"
+    pmi: "pmi"
+    earnings: "profit|earnings|net income|results"
+    ipo: "ipo|listing"
+    fed: "fed|federal reserve|fomc|powell"
+    china: "china|chinese"
+    us_market: "wall street|s&p 500|nasdaq|dow"
+    asia: "nikkei|hang seng|asian markets|asia"
+    monsoon: "monsoon|rainfall"
+    gst: "gst collections?|tax collections?"
+    crude: "crude|oil|brent|wti"
+    rupee: "rupee"
+    inflation: "inflation|cpi|wpi"
+  moves:
+    up: "rises?|rose|jumps?|jumped|surges?|surged|climbs?|climbed|gains?|higher|rallies|rally|beats?|record high|strong|stronger|soars?"
+    down: "falls?|fell|slips?|slipped|drops?|dropped|declines?|declined|lower|weaker|weak|misses?|plunges?|tumbles?|slumps?|cuts?"

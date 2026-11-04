@@ -230,15 +230,15 @@ def _next(now: datetime, closed: frozenset[date], world: list[dict[str, Any]]) -
         return {"available": False, "reason": f"{type(exc).__name__}: {str(exc)[:120]}"}
 
 
-def _news(now: datetime, notes: list[str]) -> dict[str, Any]:
-    """Refresh market news, score new stories' tone, and summarise the last day (ADR-134)."""
-    from eulerlab.forecast import news_tone
+def _news(now: datetime, notes: list[str], books: list[dict[str, Any]]) -> dict[str, Any]:
+    """Refresh market news, score new stories, apply the news rules, and score each stock (ADR-134, ADR-135)."""
+    from eulerlab.forecast import news_rules, news_tone, stock_tone
     from eulerlab.ingest import market_news
 
     s = market_news.setup()
     tone = news_tone.scorer()
     if tone is None:
-        notes.append("news tone model not installed (`uv sync --extra news`): headlines unscored")
+        notes.append("news tone model not installed (`make install`): headlines unscored")
     try:
         got = market_news.refresh(now=now, s=s, scorer=tone, model=news_tone.MODEL_ID)
     except (OSError, ValueError) as exc:
@@ -246,14 +246,59 @@ def _news(now: datetime, notes: list[str]) -> dict[str, Any]:
         got = {"failed": [str(exc)[:100]]}
     if got.get("failed"):
         notes.append(f"news searches failed: {'; '.join(got['failed'][:3])}")
+    book = news_rules.seeds()
+    rules = news_rules.all_rules(book)
     rows = market_news.held()
+    held = sorted(
+        {str(x) for b in books if b.get("status") == "active" for x in b.get("symbols") or []}
+    )
+    try:
+        stocks = stock_tone.lines(
+            stock_tone.build(now=now, scorer=tone, model=news_tone.MODEL_ID, rules=rules), held
+        )
+    except (OSError, ValueError, KeyError) as exc:
+        notes.append(f"stock news tone not built: {type(exc).__name__}: {str(exc)[:100]}")
+        stocks = []
     return {
         "refresh": got,
-        "summary": news_tone.summary(rows, now),
+        "summary": news_tone.summary(rows, now, rules=rules),
         "items": [dict(r) for r in news_tone.to_judge(rows, now, s.judge)],
         "impacts": [],
+        "by_rules": False,
         "model": news_tone.MODEL_ID if tone else "",
+        "stocks": stocks,
+        "book": book,
+        "rules": rules,
     }
+
+
+def _learn(found: dict[str, Any], now: datetime) -> None:
+    """Log the judged stories and rebuild the learned rules; or, with no judgement, use the rules."""
+    from eulerlab.forecast import news_rules, news_tone
+
+    book, rules = found["book"], found["rules"]
+    if found["impacts"]:
+        news_rules.record(found["impacts"], rules, now)
+        found["rule_changes"] = news_rules.update(book, now=now)
+    elif found["items"]:
+        found["impacts"] = news_tone.rule_impacts(found["items"], rules)
+        found["by_rules"] = True
+    learned = news_rules.load_learned()
+    found["rule_book"] = {
+        "seeds": len(book.rules),
+        "active": sum(r.get("status") == "active" for r in learned.get("rules") or []),
+        "proposed": sum(r.get("status") == "proposed" for r in learned.get("rules") or []),
+        "off": sum(r.get("status") == "off" for r in learned.get("rules") or []),
+        "contested": news_rules.contested(
+            learned.get("seed_evidence") or {}, book.learn.deactivate
+        ),
+        "agreement": news_rules.agreement(news_rules.judged()[-300:]),
+        "judged": len(news_rules.judged()),
+    }
+    for x in found["impacts"]:
+        rule = news_rules.match(f"{x['title']} {x.get('description') or ''}", rules)
+        x["rule"] = rule.id if rule else None
+        x["rule_direction"] = rule.direction if rule else None
 
 
 def _flows() -> dict[str, Any]:
@@ -467,7 +512,7 @@ def run(ctx: Context) -> WorkerResult:
         ],
     }
     ctx.step("Searching market and geopolitical news and scoring its tone")
-    news_found = _news(ctx.now, notes)
+    news_found = _news(ctx.now, notes, inputs["books"])
     summary = news_found["summary"]
     inputs["news"] = {k: summary.get(k) for k in ("stories", "mean", "negative", "positive")}
     stamp = fingerprint(inputs)
@@ -532,6 +577,10 @@ def run(ctx: Context) -> WorkerResult:
             news_found["impacts"] = news_tone.parse_impact(answer, news_found["items"])
         except Exception as exc:
             notes.append(f"news impact not judged: {type(exc).__name__}: {str(exc)[:120]}")
+    try:
+        _learn(news_found, ctx.now)
+    except (OSError, ValueError) as exc:
+        notes.append(f"news rules not updated: {type(exc).__name__}: {str(exc)[:120]}")
     brief["news"] = brief_content.news_sections(news_found, upcoming)
     brief["news_summary"] = summary
     brief["shocks"] = [

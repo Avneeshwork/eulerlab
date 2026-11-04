@@ -5,7 +5,9 @@ Indian market, policy, geopolitics, the Fed, crude and the rupee, from the
 fixed list in `config/market_news.yaml`. Currents API (key `CURRENT_NEWS_API`)
 returns a title, a description of up to 300 characters, categories and a
 publication time; Google News RSS is the fallback when the key is missing or
-a search fails, and gives titles only.
+a search fails, and gives titles only. NewsData.io (key `News_Data_io`) runs
+the same searches as a second source (ADR-135): its free plan carries its own
+sentiment per story, kept as `newsdata_tone` beside ours.
 
 **Landing.** Rows land in `data/landing/news/market/<month>.jsonl.gz`, merged
 by `guid` with `news._merge` (the first sighting's `knowledge_time` wins; the
@@ -46,6 +48,8 @@ from eulerlab.ingest import news
 
 CURRENTS = "https://api.currentsapi.services/v1/search"
 KEY_NAMES = ("CURRENT_NEWS_API", "CURRENTS_API_KEY")
+NEWSDATA = "https://newsdata.io/api/1/latest"
+NEWSDATA_KEYS = ("News_Data_io", "NEWSDATA_API_KEY")
 LANDING = news.LANDING
 DERIVED = Path("data/derived/market_news.jsonl")
 CLASS = "market"
@@ -84,6 +88,12 @@ def api_key() -> str:
     from eulerlab.research.paper_search import api_key as first
 
     return first(KEY_NAMES)
+
+
+def newsdata_key() -> str:
+    from eulerlab.research.paper_search import api_key as first
+
+    return first(NEWSDATA_KEYS)
 
 
 def _words(words: Iterable[str]) -> re.Pattern[str]:
@@ -161,6 +171,71 @@ def search_currents(
     return parse_currents(body, search, s, now)
 
 
+def parse_newsdata(
+    body: Mapping[str, Any], search: Search, s: Setup, now: datetime
+) -> list[dict[str, Any]]:
+    """NewsData.io's latest results; its sentiment percentages become a score from -1 to +1."""
+    out: list[dict[str, Any]] = []
+    results = body.get("results")
+    for a in results if isinstance(results, list) else []:
+        title = str(a.get("title") or "").strip()
+        try:
+            when = (
+                datetime.strptime(str(a.get("pubDate") or ""), "%Y-%m-%d %H:%M:%S")
+                .replace(tzinfo=UTC)
+                .isoformat()
+            )
+        except ValueError:
+            continue
+        if not title:
+            continue
+        description = str(a.get("description") or "").strip()[:300]
+        url = str(a.get("link") or "")
+        row: dict[str, Any] = {
+            "guid": guid(url, title),
+            "title": title,
+            "description": description,
+            "link": url,
+            "publisher": str(a.get("source_name") or a.get("source_id") or ""),
+            "symbols": [search.topic],
+            "provider": "newsdata",
+            "matched": relevant(title, description, s),
+            "event_time": when,
+            "knowledge_time": now.isoformat(),
+            "receipt_time": now.isoformat(),
+        }
+        stats = a.get("sentiment_stats")
+        if isinstance(stats, dict) and all(
+            isinstance(stats.get(k), int | float) for k in ("positive", "negative")
+        ):
+            pos, neg = float(stats["positive"]) / 100, float(stats["negative"]) / 100
+            row["newsdata_tone"] = {
+                "positive": round(pos, 4),
+                "negative": round(neg, 4),
+                "score": round(pos - neg, 4),
+                "label": str(a.get("sentiment") or ""),
+            }
+        out.append(row)
+    return out
+
+
+def search_newsdata(search: Search, key: str, s: Setup, now: datetime) -> list[dict[str, Any]]:
+    """One search on NewsData's latest news (the free plan holds 48 hours, 10 results a credit)."""
+    params = {"apikey": key, "q": search.keywords, "language": "en", "size": "10"}
+    if search.country:
+        params["country"] = search.country.lower()
+    request = urllib.request.Request(
+        f"{NEWSDATA}?{urllib.parse.urlencode(params)}", headers={"User-Agent": news.USER_AGENT}
+    )
+    with urllib.request.urlopen(request, timeout=30) as response:
+        body = json.loads(response.read().decode("utf-8"))
+    if not isinstance(body, dict) or body.get("status") != "success":
+        # The body can echo the request; never the key.
+        msg = f"newsdata answered status {body.get('status') if isinstance(body, dict) else '?'}"
+        raise ValueError(msg)
+    return parse_newsdata(body, search, s, now)
+
+
 def parse_rss(payload: bytes, search: Search, s: Setup, now: datetime) -> list[dict[str, Any]]:
     """Google News RSS: titles only, the publisher trimmed from the end."""
     try:
@@ -199,7 +274,10 @@ def parse_rss(payload: bytes, search: Search, s: Setup, now: datetime) -> list[d
 def search_rss(search: Search, s: Setup, now: datetime) -> list[dict[str, Any]]:
     where = "&gl=IN&ceid=IN:en&hl=en-IN" if search.country == "IN" else "&gl=US&ceid=US:en&hl=en-US"
     q = urllib.parse.quote(f"{search.keywords} when:1d")
-    return parse_rss(news._open(f"https://news.google.com/rss/search?q={q}{where}"), search, s, now)
+    # Google returns up to 100 a search; Currents 20. The same cap keeps a day's count
+    # comparable whichever source answered (2026-11-04: 556 Google stories in one day).
+    rows = parse_rss(news._open(f"https://news.google.com/rss/search?q={q}{where}"), search, s, now)
+    return rows[: s.page_size]
 
 
 def windows(start: datetime, end: datetime) -> list[tuple[datetime, datetime]]:
@@ -235,6 +313,8 @@ def merge(
         if not prior.get("description") and row.get("description"):
             prior["description"] = row["description"]
             prior.pop("tone", None)
+        if "newsdata_tone" in row and "newsdata_tone" not in prior:
+            prior["newsdata_tone"] = row["newsdata_tone"]
     return sorted(by.values(), key=lambda r: (str(r["event_time"]), str(r["guid"])))
 
 
@@ -284,6 +364,8 @@ def refresh(
     # Currents refuses a search reaching past 30 days ("Max lookback is 30 days"): an hour's margin.
     start = max(start, now - timedelta(days=min(s.backfill_days, 30)) + timedelta(hours=1))
     key = api_key()
+    nd_key = newsdata_key()
+    nd_requests = 0
     found: list[dict[str, Any]] = []
     failed: list[str] = []
     requests = 0
@@ -305,6 +387,15 @@ def refresh(
                 got = search_rss(search, s, now)
             except (urllib.error.URLError, TimeoutError, OSError):
                 failed.append(f"{search.topic}/{search.keywords}: google news failed too")
+        if nd_key:
+            nd_requests += 1
+            try:
+                got += search_newsdata(search, nd_key, s, now)
+            except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+                code = getattr(exc, "code", "")
+                failed.append(
+                    f"newsdata {search.topic}/{search.keywords}: {type(exc).__name__} {code}".strip()
+                )
         found += got
     by_month: dict[str, list[dict[str, object]]] = {}
     for row in found:
@@ -322,6 +413,7 @@ def refresh(
         "landed": landed,
         "scored": scored,
         "requests": requests,
+        "newsdata_requests": nd_requests,
         "failed": failed,
         "provider": "currents" if key else "google_news",
         "held": len(merged),
@@ -329,13 +421,24 @@ def refresh(
 
 
 def main() -> int:
-    from eulerlab.forecast import news_tone
+    from eulerlab.forecast import news_rules, news_tone, stock_tone
 
     scorer = news_tone.scorer()
     out = refresh(scorer=scorer, model=news_tone.MODEL_ID if scorer else "")
+    try:
+        table = stock_tone.build(
+            now=datetime.now(UTC),
+            scorer=scorer,
+            model=news_tone.MODEL_ID,
+            rules=news_rules.all_rules(),
+        )
+        print(f"stock news: {len(table['stocks'])} stocks with headlines in {table['days']} days")
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"stock news: not built ({type(exc).__name__}: {str(exc)[:100]})")
     print(
         f"market-news: {out['found']} found, {out['new']} new, {out['scored']} scored, "
-        f"{out['requests']} {out['provider']} requests, {out['held']} held"
+        f"{out['requests']} {out['provider']} and {out['newsdata_requests']} newsdata requests, "
+        f"{out['held']} held"
         + (f"; failed: {'; '.join(out['failed'])}" if out["failed"] else "")
         + ("" if scorer else "; tone model not installed (`uv sync --extra news`)")
     )

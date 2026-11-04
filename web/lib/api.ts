@@ -2361,7 +2361,17 @@ export type CompanyPage = {
       source: string;
     };
   };
-  news: { title: string; link: string; publisher: string; time: string }[];
+  news: { title: string; link: string; publisher: string; time: string; tone?: string; rule?: string }[];
+  /** The last week's news tone for this stock (ADR-135); absent when none is held. */
+  news_tone?: {
+    days: number;
+    as_of: string;
+    model: string;
+    n: number;
+    mean: number;
+    positive: number;
+    negative: number;
+  } | null;
   fair_value?: FairValue;
   /** What a stock page usually shows and no landed file holds. */
   not_held: string[];
