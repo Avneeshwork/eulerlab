@@ -2426,6 +2426,18 @@ export type ScreenerList = {
     benchmark?: { symbol?: string; total_return?: number } | null;
   };
   gate: string;
+  /** The fixed 70:30 long-term blend (ADR-137). */
+  main?: boolean;
+  /** The swing blend research 151's rule chose. */
+  chosen?: boolean;
+  /** Sharpe in 2016-2020 and 2021-2026, for the pre-registered choice. */
+  halves?: (number | null)[];
+  parts?: { id: string; share: number }[];
+  /** Each stock's weight in this model's book today. */
+  weights?: Record<string, number>;
+  /** For a consensus: how many parts pick each stock, and each part's picks. */
+  votes?: Record<string, number>;
+  part_picks?: Record<string, string[]>;
   track: {
     selections: ScreenerSelection[];
     complete: number;
@@ -2442,6 +2454,7 @@ export type Screener = {
   stocks: Record<string, ScreenerStock>;
   caveats: string[];
   history: { recorded_today: number; since: string };
+  choice?: { main_long: string; chosen_swing: string; why: string; rule: string };
 };
 
 export type CompanyHit = {

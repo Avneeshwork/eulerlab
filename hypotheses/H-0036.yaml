@@ -1,0 +1,24 @@
+id: H-0036
+title: 'Long-term blend: quality momentum 70%, tree ranker 30%'
+status: draft
+family: screener_blend
+source_kind: blend
+parent: ''
+claim: A book of 70% quality momentum and 30% tree ranker, rebalanced monthly, beats Nifty after costs.
+rationale: Blending parts that are partly independent smooths returns; shares are operator-set weights
+  after research 150's results, not fitted (research 151).
+source:
+  research: '151'
+  written_by: Claude, for the stock screener (ADR-137)
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  strategy: screen_long_blend
+  universe: liquid 250 as of each date
+red_flags:
+- The 70:30 weights were set after seeing the parts' results.
+- 'Parts overlap: momentum, Weinstein and breakout all buy rising stocks (HISTORY #44).'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2025-01-01'
+  status: unread

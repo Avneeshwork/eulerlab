@@ -1,0 +1,25 @@
+id: H-0037
+title: 'Swing A: Sharpe momentum (paper setting) and Weinstein stage 2, half each, weekly'
+status: draft
+family: screener_blend
+source_kind: blend
+parent: ''
+claim: Half Sharpe momentum (top 30), half Weinstein stage 2 with Mansfield RS, decided weekly, beats
+  Nifty after costs in both halves of 2016-2026.
+rationale: Blending parts that are partly independent smooths returns; shares are equal shares, not fitted
+  (research 151).
+source:
+  research: '151'
+  written_by: Claude, for the stock screener (ADR-137)
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  strategy: screen_swing_mom_weinstein
+  universe: liquid 250 as of each date
+red_flags:
+- One of three swing blends; the choice rule is fixed in research 151 before running.
+- 'Parts overlap: momentum, Weinstein and breakout all buy rising stocks (HISTORY #44).'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2025-01-01'
+  status: unread

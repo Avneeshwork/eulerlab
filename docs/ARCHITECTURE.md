@@ -3518,3 +3518,35 @@ the latest close, on today's adjusted view, equal-weighted, against NIFTYBEES
 over the same sessions; `track` summarises complete ones: mean excess and the
 share beating Nifty. `/api/screener` serves `screener.json`; Workbench →
 Screener draws it.
+
+### Blends and the pre-registered choice (ADR-137, research 151)
+
+`screener_models.Blend(name, parts, rebalance_every)` builds each part from
+`published.BUILDERS`, lets each decide on the view narrowed to its own lookback
+(`decide`), and returns Σ share × weight per stock; its lookback is the longest
+part's. Four are declared: `screen_long_blend` (quality momentum 0.7, tree
+ranker 0.3; 21 sessions) and three swing blends at 5 sessions: A = Sharpe
+momentum (paper setting, `india_sharpe_momentum`) + Weinstein stage 2, B =
+52-week breakout + Weinstein, C = all three in thirds. `screener.choose` marks
+`main_long` from `config/screener.yaml`, reads each candidate's Sharpe from the
+two half-period summaries (`halves`), and marks as chosen the candidate whose
+smaller half-Sharpe is largest (ties: fewer parts), only if that exceeds
+`robust_floor` (0.5). Lists are ordered main, chosen, new, then the rest. Each
+tab of the page opens on its main or chosen list.
+
+### The consensus list (ADR-138, research 152)
+
+`screener_models.Consensus(name, parts, min_votes, rebalance_every)`: `picks(view)`
+runs each part on the view narrowed to its lookback and returns its long names;
+`votes(view)` counts, per stock, the parts picking it; `target_weights` holds the
+stocks with votes ≥ `min_votes`, equally (none: cash). `screen_consensus_3of5`
+uses `CONSENSUS_PARTS` (Stocks on the Move, Sharpe momentum paper setting,
+Weinstein stage 2, quality momentum, physical momentum), 3 votes, 21 sessions,
+and is `main_long` in `config/screener.yaml`. `screener.build` stores, for every
+list, each pick's weight, and for a consensus its votes and each part's picks.
+The page ranks the main list by votes, then weight, quality percentile and 12-1
+momentum, and shows the first 10, 20 or all.
+`screener.parts_of` reads both kinds of combined strategy: a `Blend`'s
+(strategy, share) pairs and a `Consensus`'s (id, strategy) pairs, each part an
+equal vote (the first build read only the first kind and failed on the
+consensus, 2026-11-04).

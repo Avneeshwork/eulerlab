@@ -1,0 +1,7 @@
+# ADR-138: The long-term buy list is the consensus of the top 5 long-term models (3 of 5)
+
+- **Context:** On 2026-11-04 the operator saw that several stored strategies score above the 70:30 blend (ADR-137) and asked to "select top 5 models and recommend minimum 3 model common suggestion as list", and asked how to pick the top 10 or 20 to buy today.
+- **Options:** (a) Keep the 70:30 blend. (b) Use the highest-Sharpe model (the optimised momentum, PBO 0.71). (c) A consensus: stocks at least 3 of the top 5 single long-term models pick, backtested as one strategy.
+- **Choice:** (c), fixed in research 152 before it was run: `screener_models.Consensus` over Stocks on the Move, Sharpe momentum (paper setting), Weinstein stage 2, quality momentum and physical momentum; held equally, rebalanced every 21 sessions. The page's long-term tab shows only this list, ranked by votes, then quality percentile, then 12-1 momentum, with Top 10 / Top 20 / All; the five models behind it show their own records; every other model is folded under "Other models". The swing tab shows only swing A.
+- **Why:** (a) scored below its own part. (b) is the model most likely to be luck. (c) needs several independent-ish rules to agree, is one configuration, and is backtested as it is shown.
+- **Cost if wrong:** Four of the five parts are momentum and move together, so agreement is partly one signal counted again. The parts were picked for their backtests. Buying only the top 10 or 20 is a concentration the backtest did not test; the page says so.

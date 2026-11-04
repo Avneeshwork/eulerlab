@@ -44,6 +44,8 @@ from eulerlab.fundamentals import annual
 
 TOP = 20
 SLOTS = 10
+LONG = "long"
+SWING = "swing"
 
 
 # --- corporate-action units -----------------------------------------------------------------------
@@ -445,10 +447,133 @@ class BreakoutVolume(Strategy):
         return dict.fromkeys(held, 1.0 / max(len(held), SLOTS)) if held else {}
 
 
+# --- blends (ADR-137) ----------------------------------------------------------------------------
+
+
+class Blend(Strategy):
+    """Fixed-weight blend of registered strategies, decided together at one cadence.
+
+    Each part decides on the view narrowed to its own lookback, as the engine
+    would give it; the blend's weights are the parts' long weights times their
+    shares, summed. The shares are fixed when the blend is declared, never fitted.
+    """
+
+    def __init__(self, name: str, parts: Sequence[tuple[str, float]], rebalance_every: int) -> None:
+        from eulerlab.backtest.published import BUILDERS
+
+        self.name = name
+        self.parts = [(BUILDERS[pid](), share) for pid, share in parts]
+        self.rebalance_every = rebalance_every
+        self.lookback = max(int(getattr(s, "lookback", 0) or 0) for s, _ in self.parts)
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        from eulerlab.backtest.strategy import decide
+
+        total: dict[str, float] = {}
+        for strategy, share in self.parts:
+            lookback = int(getattr(strategy, "lookback", 0) or 0)
+            narrowed = MarketView(
+                as_of=view.as_of,
+                history={s: h[-lookback:] if lookback else h for s, h in view.history.items()},
+            )
+            longs, _ = decide(strategy, narrowed)
+            for symbol, weight in longs.items():
+                total[symbol] = total.get(symbol, 0.0) + share * weight
+        return total
+
+
+class Consensus(Strategy):
+    """Hold, equal-weighted, the stocks at least `min_votes` of the parts pick (research 152)."""
+
+    def __init__(
+        self, name: str, parts: Sequence[str], min_votes: int, rebalance_every: int
+    ) -> None:
+        from eulerlab.backtest.published import BUILDERS
+
+        self.name = name
+        self.parts = [(pid, BUILDERS[pid]()) for pid in parts]
+        self.min_votes = min_votes
+        self.rebalance_every = rebalance_every
+        self.lookback = max(int(getattr(s, "lookback", 0) or 0) for _, s in self.parts)
+
+    def picks(self, view: MarketView) -> dict[str, list[str]]:
+        """Each part's picks on this view, by part id."""
+        from eulerlab.backtest.strategy import decide
+
+        out: dict[str, list[str]] = {}
+        for pid, strategy in self.parts:
+            lookback = int(getattr(strategy, "lookback", 0) or 0)
+            narrowed = MarketView(
+                as_of=view.as_of,
+                history={s: h[-lookback:] if lookback else h for s, h in view.history.items()},
+            )
+            longs, _ = decide(strategy, narrowed)
+            out[pid] = sorted(s for s, w in longs.items() if w > 0)
+        return out
+
+    def votes(self, view: MarketView) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for chosen in self.picks(view).values():
+            for s in chosen:
+                counts[s] = counts.get(s, 0) + 1
+        return counts
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        held = sorted(s for s, n in self.votes(view).items() if n >= self.min_votes)
+        return dict.fromkeys(held, 1.0 / len(held)) if held else {}
+
+
+CONSENSUS_PARTS = (
+    "nse_github_stocks_on_the_move",
+    "india_sharpe_momentum",
+    "nse_github_weinstein_stage2",
+    "screen_quality_momentum",
+    "india_physical_momentum",
+)
+
+
+BLENDS: tuple[tuple[str, str, str, tuple[tuple[str, float], ...], int], ...] = (
+    (
+        "screen_long_blend",
+        "Long-term blend: quality momentum 70%, tree ranker 30%",
+        LONG,
+        (("screen_quality_momentum", 0.7), ("screen_tree_ranker", 0.3)),
+        MONTH,
+    ),
+    (
+        "screen_swing_mom_weinstein",
+        "Swing A: volatility-adjusted momentum + Weinstein stage 2",
+        SWING,
+        (("india_sharpe_momentum", 0.5), ("nse_github_weinstein_stage2", 0.5)),
+        5,
+    ),
+    (
+        "screen_swing_breakout_weinstein",
+        "Swing B: 52-week breakout + Weinstein stage 2",
+        SWING,
+        (("screen_52w_breakout", 0.5), ("nse_github_weinstein_stage2", 0.5)),
+        5,
+    ),
+    (
+        "screen_swing_three",
+        "Swing C: momentum, breakout and Weinstein, a third each",
+        SWING,
+        (
+            ("india_sharpe_momentum", 1 / 3),
+            ("screen_52w_breakout", 1 / 3),
+            ("nse_github_weinstein_stage2", 1 / 3),
+        ),
+        5,
+    ),
+)
+
+
+def _blend_builder(bid: str, parts: tuple[tuple[str, float], ...], every: int) -> Any:
+    return lambda: Blend(bid, parts, every)
+
+
 # --- the registry ---------------------------------------------------------------------------------
 
-LONG = "long"
-SWING = "swing"
 
 SPECS: tuple[tuple[PaperStrategy, str], ...] = (
     (
@@ -553,6 +678,50 @@ SPECS: tuple[tuple[PaperStrategy, str], ...] = (
             build=BreakoutVolume,
         ),
         SWING,
+    ),
+)
+
+LONG_LOOKBACK = 3 * YEAR + 30
+SPECS = SPECS + tuple(
+    (
+        PaperStrategy(
+            id=bid,
+            title=title,
+            paper="gu-kelly-xiu-2020-ml-asset-pricing"
+            if kind == LONG
+            else "github-2026-trend-radar-minervini",
+            citation="Fixed-weight blend of registered strategies (ADR-137)",
+            summary=f"{title}; one book, rebalanced every {every} sessions.",
+            logic=(
+                *(f"{pid}: {share:.0%} of capital" for pid, share in parts),
+                f"Rebalanced every {every} sessions; shares fixed, not fitted.",
+            ),
+            lookback=LONG_LOOKBACK,
+            build=_blend_builder(bid, parts, every),
+        ),
+        kind,
+    )
+    for bid, title, kind, parts, every in BLENDS
+)
+
+SPECS = (
+    *SPECS,
+    (
+        PaperStrategy(
+            id="screen_consensus_3of5",
+            title="Consensus: stocks 3 of the top 5 long-term models pick",
+            paper="jacob-pradeep-varma-2022-quality-india",
+            citation="Consensus of five stored strategies (research 152)",
+            summary="Every 21 sessions, hold equally the stocks that at least 3 of the top 5 long-term models pick.",
+            logic=(
+                *(f"Part: {pid}" for pid in CONSENSUS_PARTS),
+                "A stock is held when 3 or more parts pick it; equal weights; none means cash.",
+                "Rebalanced every 21 sessions.",
+            ),
+            lookback=LONG_LOOKBACK,
+            build=lambda: Consensus("screen_consensus_3of5", CONSENSUS_PARTS, 3, MONTH),
+        ),
+        LONG,
     ),
 )
 

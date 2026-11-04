@@ -9,3 +9,17 @@
 .scr-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline; }
 .scr-warn { color: var(--down, #c0392b); }
 .scr-table td, .scr-table th { white-space: nowrap; }
+.scr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.scr-choice { margin: 0; font-size: 13px; }
+.scr-summary { margin: 0 0 10px; line-height: 1.5; }
+.scr-note { margin: 8px 0 0; }
+details.tpanel > summary { cursor: pointer; font-weight: 600; }
+/* Sticky, solid header: rows scroll under it, never through it. */
+.scr .tscroll { max-height: 70vh; overflow: auto; }
+.terminal .scr-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-solid);
+  box-shadow: inset 0 -1px 0 var(--rule);
+}

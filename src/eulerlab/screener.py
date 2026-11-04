@@ -119,6 +119,63 @@ def backtests(paths: Sequence[str]) -> tuple[dict[str, dict[str, Any]], dict[str
     return runs, bench
 
 
+def parts_of(strategy: Any) -> list[dict[str, Any]]:
+    """A blend's or consensus's parts as ids and shares.
+
+    A `Blend` holds (strategy, share) pairs; a `Consensus` holds (id, strategy)
+    pairs, each part an equal vote.
+    """
+    raw = list(getattr(strategy, "parts", []) or [])
+    out: list[dict[str, Any]] = []
+    for a, b in raw:
+        if isinstance(a, str):
+            out.append({"id": a, "share": round(1 / len(raw), 3)})
+        else:
+            out.append(
+                {"id": str(getattr(a, "name", type(a).__name__)), "share": round(float(b), 3)}
+            )
+    return out
+
+
+def choose(
+    lists: list[dict[str, Any]],
+    cfg: Mapping[str, Any],
+    halves: Sequence[Mapping[str, Mapping[str, Any]]],
+) -> dict[str, Any]:
+    """Apply research 151's rule: mark the main long list and the swing candidate with the best worse half."""
+    main = str(cfg.get("main_long") or "")
+    floor = float(cfg.get("robust_floor", 0.5))
+    candidates = [str(x) for x in cfg.get("swing_candidates") or []]
+    worse: dict[str, float] = {}
+    for item in lists:
+        item["main"] = item["id"] == main
+        got = [h.get(item["id"], {}).get("sharpe") for h in halves]
+        if any(isinstance(g, int | float) for g in got):
+            item["halves"] = got
+        if (
+            item["id"] in candidates
+            and halves
+            and len(got) == len(halves)
+            and all(isinstance(g, int | float) for g in got)
+        ):
+            worse[item["id"]] = min(float(g) for g in got if isinstance(g, int | float))
+    parts = {item["id"]: len(item.get("parts") or []) for item in lists}
+    ranked = sorted(worse, key=lambda k: (-worse[k], parts.get(k, 9), k))
+    chosen = ranked[0] if ranked and worse[ranked[0]] > floor else ""
+    for item in lists:
+        item["chosen"] = item["id"] == chosen
+    if not worse:
+        why = "the half-period runs are not held yet"
+    elif not chosen:
+        why = f"no swing blend's worse half reached Sharpe {floor} (best {worse[ranked[0]]:.2f})"
+    else:
+        why = f"{chosen}: worse-half Sharpe {worse[chosen]:.2f}, the best of " + ", ".join(
+            f"{k} {worse[k]:.2f}" for k in ranked
+        )
+    lists.sort(key=lambda x: (not x["main"], not x["chosen"], not x.get("new"), x["id"]))
+    return {"main_long": main, "chosen_swing": chosen, "why": why, "rule": "research 151"}
+
+
 def _rank_pct(values: Mapping[str, float]) -> dict[str, float]:
     order = sorted(values, key=lambda s: (values[s], s))
     n = len(order)
@@ -336,6 +393,13 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
         except Exception as exc:  # one model failing must not empty the page
             longs, error = {}, f"{type(exc).__name__}: {str(exc)[:120]}"
         picks = sorted(longs, key=lambda s: (-longs[s], s))
+        votes: dict[str, int] = {}
+        part_picks: dict[str, list[str]] = {}
+        if hasattr(strategy, "picks") and not error:
+            part_picks = strategy.picks(narrowed)
+            for chosen in part_picks.values():
+                for s in chosen:
+                    votes[s] = votes.get(s, 0) + 1
         for s in picks:
             table.setdefault(s, {}).setdefault("models", []).append(mid)
         run = runs.get(mid, {})
@@ -343,6 +407,9 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
             {
                 "id": mid,
                 "kind": kind,
+                "weights": {s: round(float(longs[s]), 4) for s in picks},
+                "votes": votes,
+                "part_picks": part_picks,
                 "title": title,
                 "new": mid in sm.BY_ID,
                 "picks": picks,
@@ -362,6 +429,11 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
                 "gate": "not promoted: screening backtest only; the gate decides (`make validate`, `make gate`)",
             }
         )
+    halves = [backtests([p])[0] for p in cfg.get("halves") or []]
+    for item in lists:
+        built = next((m for mid_, *_x, m in models if mid_ == item["id"]), None)
+        item["parts"] = parts_of(built)
+    choice = choose(lists, cfg, halves)
     added = record(lists, day.isoformat(), now)
     tracked = track(view, history())
     for item in lists:
@@ -378,6 +450,7 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
         "lists": lists,
         "stocks": dict(sorted(table.items())),
         "benchmark": bench,
+        "choice": choice,
         "history": {
             "recorded_today": added,
             "since": min((str(r["as_of"]) for r in history()), default=""),
@@ -392,6 +465,9 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
             "Fundamentals count from 90 days after each year end (A-107) and carry later restatements; "
             "only companies listed in 2026 have them, so fundamental models pick survivors.",
             "The existing five are all momentum: they are close to one bet (HISTORY #44).",
+            "The long-term list is the consensus of the top 5 long-term models: stocks 3 or more pick "
+            "(research 152). The swing list is chosen by research 151's pre-registered rule: best Sharpe "
+            "in the worse of 2016-2020 and 2021-2026.",
         ],
     }
     p = out or OUT
