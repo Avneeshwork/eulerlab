@@ -2847,6 +2847,38 @@ the forecast's range, band and odds. A chain whose expiry is on or before the
 last close (`trader_read.expired`) is left out of levels, the put-call item and
 the calendar.
 
+### News, its tone and possible impact; crash risk (ADR-134, research 148)
+
+Every brief first calls `ingest/market_news.refresh`: ten fixed searches from
+`config/market_news.yaml` against Currents API (`CURRENT_NEWS_API`), from 30
+days back on the first run (in windows under 7 days, starting an hour inside
+the 30-day limit) and from six hours before the newest story after that.
+A search with no window answering falls back to Google News RSS (titles only).
+Stories land in `data/landing/news/market/<month>.jsonl.gz` via `news._merge`
+(first `knowledge_time` wins; searches that found a story unioned into
+`symbols`) and in `data/derived/market_news.jsonl`, with `matched` (a whole
+word from `relevant`, none from `ignore`) and, once, `tone`.
+
+Tone (`forecast/news_tone.scorer`): the pinned distilroberta financial-news
+model on "title. description", truncated to 128 tokens; score = P(positive) −
+P(negative). `summary` gives the mean over relevant stories of the last 24
+hours known at `as_of`, counts past ±0.3, the mean by theme, and its percentile
+against each of the last 30 days' means (days with three stories or more; from
+ten such days). `to_judge` drops market recaps (`RECAP`), takes one story per
+six-word stem, and draws in turn from geopolitics, policy, global, commodities,
+currency and the Indian market, strongest tone first, up to 12. One model
+request (`QUESTION`) returns a JSON line per story; `parse_impact` keeps a line
+only if its story number exists and is unused, its direction and severity are
+from the fixed words, and every figure in its "why" appears in the story.
+High severity and "down" is a shock.
+
+`next_session.tail_risk` sorts every session since 2016 by VIX's percentile
+against its previous 251 closes (below 30, 30–70, 70 and above) and gives the
+share of next sessions down 2% and 3% in today's band and overall, and the
+worst. The check card adds `below_band`. The brief's last sections are "News
+and possible impact" and "Crash risk"; Telegram gets the 24-hour tone and the
+first shock. Neither news nor tone changes the forecast.
+
 **The Trader's read (ADR-100).** The brief opens with an answer, not a list.
 `agents/trader_read.py` turns the gathered inputs into, in this order: a bottom
 line; a scorecard of seven rows (trend, breadth, volatility, FII futures, cash

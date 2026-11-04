@@ -1,0 +1,83 @@
+# Market-wide news for the brief (ADR-134, research 148). OPERATOR-EDITABLE.
+#
+# Each search runs against Currents API (key `CURRENT_NEWS_API` in .env; free
+# plan: 250 requests a day, 20 results each, 30 days back, at most 7 days per
+# search). Google News RSS is the fallback when the key is missing or a search
+# fails. Ten searches a refresh, about four refreshes a day: ~40 requests.
+
+searches:
+  - {topic: india_market, keywords: "Nifty", country: IN}
+  - {topic: india_market, keywords: "Sensex", country: IN}
+  - {topic: policy, keywords: "RBI", country: IN}
+  - {topic: policy, keywords: "budget tax government", country: IN}
+  - {topic: geopolitics, keywords: "geopolitical", country: IN}
+  - {topic: geopolitics, keywords: "war", country: IN}
+  - {topic: geopolitics, keywords: "sanctions tariff", country: ""}
+  - {topic: global, keywords: "Federal Reserve", country: ""}
+  - {topic: commodities, keywords: "crude oil", country: IN}
+  - {topic: currency, keywords: "rupee", country: IN}
+
+page_size: 20
+# On the first run, search this many days back in 7-day windows.
+backfill_days: 30
+
+# A story counts for sentiment only when its title or description has one of
+# these words (whole words, any case) and none of `ignore`. Chosen 2026-11-04
+# from the 39-headline test in research 148 (A-103); not tuned to results.
+relevant:
+  - nifty
+  - sensex
+  - stock
+  - stocks
+  - market
+  - markets
+  - shares
+  - equities
+  - investors
+  - rbi
+  - repo
+  - inflation
+  - gdp
+  - rupee
+  - crude
+  - oil
+  - brent
+  - bond
+  - bonds
+  - yield
+  - yields
+  - fii
+  - fiis
+  - fpi
+  - fpis
+  - fed
+  - tariff
+  - tariffs
+  - sanctions
+  - war
+  - attack
+  - strike
+  - border
+  - election
+  - elections
+  - budget
+  - tax
+  - gst
+  - policy
+  - rate
+  - rates
+  - recession
+  - geopolitical
+  - nuclear
+  - ceasefire
+ignore:
+  - otp
+  - recipe
+  - horoscope
+  - cricket
+  - bollywood
+  - movie
+  - wedding
+
+# How many of the most relevant stories the model is asked to judge for impact.
+judge: 12

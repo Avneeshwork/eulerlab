@@ -2591,6 +2591,7 @@ export type MarketBrief = {
   books_history?: string[];
   story?: string[];
   forecast?: { title: string; lines: string[] }[];
+  news?: { title: string; lines: string[] }[];
   left_out: string[];
   note?: string;
   detail: [string, string[]][];

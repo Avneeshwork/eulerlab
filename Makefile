@@ -833,6 +833,8 @@ daily-run:
 	@echo "== FX (FXCM weekly candles) =="
 	-uv run python -m eulerlab.ingest.fx_bulk_backfill --from-year $$(date +%Y)
 	-@$(MAKE) --no-print-directory upload-tree TREES="fx" DELETE=1
+	@echo "== market-wide news and its tone (uploaded with the news below) =="
+	-uv run python -m eulerlab.ingest.market_news
 	@echo "== per-instrument news (equity, crypto, FX) =="
 	-uv run python -m eulerlab.ingest.news
 	-@$(MAKE) --no-print-directory upload-tree TREES="news names" DELETE=1
@@ -896,6 +898,10 @@ calendar:
 
 news:
 	@uv run python -m eulerlab.ingest.news
+
+# Market-wide and geopolitical news for the brief, with its tone (ADR-134).
+market-news:
+	@uv run python -m eulerlab.ingest.market_news
 
 # Counts every landing tree once, so the capability matrix never lists the
 # bucket to render. Runs at the end of `daily`, after the sync has settled.
