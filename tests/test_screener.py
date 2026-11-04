@@ -303,3 +303,15 @@ def test_the_consensus_holds_what_three_parts_agree_on() -> None:
     )
     assert built.min_votes == 3 and built.rebalance_every == 21
     assert sm.KIND["screen_consensus_3of5"] == "long"
+
+
+def test_parts_are_read_from_blends_and_consensus_alike() -> None:
+    blend = sm.BUILDERS["screen_long_blend"]()
+    consensus = sm.BUILDERS["screen_consensus_3of5"]()
+    assert screener.parts_of(blend) == [
+        {"id": "screen_quality_momentum", "share": 0.7},
+        {"id": "screen_tree_ranker", "share": 0.3},
+    ]
+    assert [p["id"] for p in screener.parts_of(consensus)] == list(sm.CONSENSUS_PARTS)
+    assert {p["share"] for p in screener.parts_of(consensus)} == {0.2}
+    assert screener.parts_of(sm.QualityMomentum()) == []

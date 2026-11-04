@@ -3546,3 +3546,7 @@ and is `main_long` in `config/screener.yaml`. `screener.build` stores, for every
 list, each pick's weight, and for a consensus its votes and each part's picks.
 The page ranks the main list by votes, then weight, quality percentile and 12-1
 momentum, and shows the first 10, 20 or all.
+`screener.parts_of` reads both kinds of combined strategy: a `Blend`'s
+(strategy, share) pairs and a `Consensus`'s (id, strategy) pairs, each part an
+equal vote (the first build read only the first kind and failed on the
+consensus, 2026-11-04).
