@@ -541,6 +541,17 @@ BLENDS: tuple[tuple[str, str, str, tuple[tuple[str, float], ...], int], ...] = (
         MONTH,
     ),
     (
+        "screen_stock_mix",
+        "Stock mix: momentum, low volatility, value and quality, a third each",
+        LONG,
+        (
+            ("nse_github_stocks_on_the_move", 1 / 3),
+            ("india_low_tvol36", 1 / 3),
+            ("screen_value_momentum_quality", 1 / 3),
+        ),
+        MONTH,
+    ),
+    (
         "screen_swing_mom_weinstein",
         "Swing A: volatility-adjusted momentum + Weinstein stage 2",
         SWING,

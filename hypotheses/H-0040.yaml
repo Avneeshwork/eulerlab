@@ -1,0 +1,26 @@
+id: H-0040
+title: 'Stock mix across categories: momentum, low volatility, value and quality, a third each'
+status: draft
+family: screener_blend
+source_kind: blend
+parent: ''
+claim: A third each of Stocks on the Move, low total volatility and value-momentum-quality, always invested
+  and rebalanced monthly, has fewer losing calendar years and a smaller worst year than each part, and
+  beats Nifty after costs.
+rationale: Different stock strategy categories fail in different years; equal thirds avoid fitting weights
+  (research 153).
+source:
+  research: '153'
+  written_by: Claude, for the stock screener
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  strategy: screen_stock_mix
+  universe: liquid 250 as of each date
+red_flags:
+- 'The parts correlate 0.6 to 0.85: all are long Indian stocks.'
+- The parts were chosen with their records in view.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2025-01-01'
+  status: unread
