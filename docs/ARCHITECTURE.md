@@ -3557,3 +3557,23 @@ momentum, and shows the first 10, 20 or all.
 (strategy, share) pairs and a `Consensus`'s (id, strategy) pairs, each part an
 equal vote (the first build read only the first kind and failed on the
 consensus, 2026-11-04).
+
+### The engineering agent on a small model (HISTORY #78)
+
+`engineering.budget(name)` = 0.8 × the model's `tokens_per_minute` in
+`config/llm.yaml` (Groq: 6,400), or None. With a budget, `fixer.fix` builds
+`small_context`: `rules_digest` (CLAUDE.md's Truth, Data integrity and Code
+sections, at most 3,500 characters); `excerpt` (the module header up to the
+first def or class, at most 80 lines, then the innermost function or class
+around each line `error_lines` finds in the traceback or `path:line:` findings,
+padded by 10 lines, with `# ... lines N-M not shown ...` markers); the test
+functions that mention a name shown (`related_tests`); and the error's tail. If
+`EDIT_SYSTEM` + context + 1,800 reserved tokens exceed the budget it shrinks the
+tests, then the window, then the error, and if nothing fits returns "too big for
+this model" without asking. The answer's `edits` and `test_edits` are applied by
+`apply_edits` (each `find` exactly once, else `EditFailed`, the tree reset and a
+second try told why); `test_append` adds tests. A failed check resets the tree and
+retries with the check output and a 60-line window. Then the next model in
+`options.models`; one with no limit gets the whole file (`context`, `SYSTEM`), as
+before. Requests are paced to the per-minute limit by `assistant/chat.pace`
+(ADR-125).

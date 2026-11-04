@@ -161,12 +161,29 @@ def _use(ctx: Context, provider: str) -> None:
 
 
 def _fix_size(problem: Any, fixer: Any) -> int:
-    """About how many tokens a fix request sends; 0 when the file cannot be read."""
+    """About how many tokens the smallest fix request sends; 0 when the file cannot be read.
+
+    The small context (`fixer.small_context`), not the whole file: a model
+    with a per-minute limit is sent the small one (HISTORY #78)."""
     try:
         tests = fixer.tests_for(problem.file)
-        return int(len(fixer.context(problem.file, problem.error or problem.detail, tests)) // 4)
+        small = fixer.small_context(problem.file, problem.error or problem.detail, tests, 10**9)
+        if small is None:
+            return 0
+        return int(fixer.tokens(fixer.EDIT_SYSTEM) + fixer.tokens(small) + fixer.OUTPUT_RESERVE)
     except OSError:
         return 0
+
+
+def budget(name: str) -> int | None:
+    """Tokens a fix request to `name` may use: `FIT` of its per-minute limit, or None for no limit."""
+    from eulerlab.llm import client
+
+    try:
+        limit = client.load_config().get(name).tokens_per_minute
+    except Exception:  # an unreadable config or an unknown name: no limit known
+        return None
+    return int(FIT * limit) if limit else None
 
 
 def fixes(ctx: Context, *, limit: int) -> list[Item]:
@@ -198,7 +215,12 @@ def fixes(ctx: Context, *, limit: int) -> list[Item]:
         for provider in order:
             if not injected:
                 _use(ctx, provider)
-            attempt = fixer.fix(problem.file, problem.error or problem.detail, ctx.ask)
+            attempt = fixer.fix(
+                problem.file,
+                problem.error or problem.detail,
+                ctx.ask,
+                budget=None if injected else budget(provider),
+            )
             if attempt.green or not ctx.can_ask():
                 break
         doctor.done(problem.file, attempt.outcome, ctx.root)

@@ -158,7 +158,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4454 | Nifty options also lists freshly landed local F&O files (`nse/fo/`) | DONE 2026-11-04 |
 | T-4455 | Engineering agent: a check past its time limit is a failed check, not a crashed run; full suite 2,400 s | DONE 2026-11-04 |
 | T-4456 | Data watch also at 22:00 IST: NSE sometimes publishes F&O after the 19:30 run | DONE 2026-11-04 (operator). `make schedule ACTION=install JOB=data-watch` reloads it |
-| T-4457 | Engineering agent: a fix request of about 12,000 tokens does not fit Groq's free 8,000 a minute and is skipped; trim the prompt or allow a paid model for big fixes | TODO. Operator decides on the paid model |
+| T-4457 | Engineering agent fits Groq's free limit: small context (rules digest, the failing function, its tests, the error) and exact edits; wider second try; then the next model | DONE 2026-11-05 (HISTORY #78). 8,600-12,600 tokens became 1,800-4,200 |
 | T-4458 | The lab writes its own formula ideas again (`max_ideas: 30`, `model_ideas: 6`, the settings before 2026-11-03), beside research's cards | DONE 2026-11-04 (operator). Each idea spends trials as before |
 
 ## Stock screener: long-term and swing models (2026-11-04)
