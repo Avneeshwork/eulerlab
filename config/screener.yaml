@@ -1,0 +1,21 @@
+# The stock screener (ADR-136). OPERATOR-EDITABLE.
+#
+# Long-term and swing lists from models that have a stored backtest on the
+# common engine. The six new models are in `backtest/screener_models.py`;
+# `existing` are the platform's best stored daily strategies by Sharpe over
+# 2016-2026 (strategy map, 2026-11-04), one per idea where they repeat.
+# None has passed the gate; the page says so on every list.
+
+existing:
+  - {id: india_sharpe_momentum_opt, kind: long, title: "Sharpe momentum (tuned)"}
+  - {id: nse_github_stocks_on_the_move, kind: long, title: "Stocks on the Move"}
+  - {id: nse_github_weinstein_stage2, kind: long, title: "Weinstein stage 2"}
+  - {id: india_physical_momentum, kind: long, title: "Physical momentum"}
+  - {id: india_frog_in_the_pan, kind: long, title: "Frog in the pan"}
+
+# Where each strategy's stored screening backtest is read from, in order.
+summaries:
+  - data/derived/screener_models.json
+  - data/derived/india_papers.json
+  - data/derived/github_daily.json
+  - data/derived/evidence_daily.json

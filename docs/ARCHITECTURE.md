@@ -3465,3 +3465,56 @@ strategy details a run under `data/landing/quantpedia/<day>/`, with a SHA-256
 manifest; nothing landed is fetched again. Needs `QUANTPEDIA_USERNAME` and
 `QUANTPEDIA_API_KEY` in `.env`. Their Sharpe ratios are their own, shown as
 prior evidence only.
+
+## The stock screener (ADR-136, research 150)
+
+**Point-in-time fundamentals.** `fundamentals/annual.build` takes each ticker's
+newest screener.in snapshot (consolidated first), keeps the annual rows it
+needs (sales, operating and net profit, EPS, payout, equity capital, reserves,
+borrowings, total assets, operating cash flow, ROCE) and dates each year
+`known_from = fy_end + 90 days` (FY2020: 1 August 2020). Tickers resolve to the
+ISIN on their latest panel row. Only changed snapshots are re-read. `known(years,
+day)` returns the years with `known_from <= day`.
+
+**Units.** screener.in back-adjusts EPS for later splits and bonuses. A decision
+on `day` sees prices adjusted only for actions up to `day`, so per-share values
+are multiplied by `units(isin, day)`, the product of the factors of every action
+after `day`: earnings yield = EPS × units / close; book yield = (equity capital
++ reserves) / (net profit / EPS) × units / close.
+
+**Signals.** Quality = mean of the cross-sectional rank (−1..+1) of ROE,
+operating profit / total assets, −borrowings / equity and payout (a stock needs
+half of them). Value = mean rank of earnings and book yield. F-score = 8 of
+Piotroski's 9 (ROA > 0, CFO > 0, ΔROA > 0, CFO > profit, Δ(borrowings/assets)
+< 0, equity capital not up, Δ operating margin > 0, Δ asset turnover > 0).
+
+**Models** (liquid 250 as of each date; equal weights):
+
+| Id | Rebalance | Rule |
+|---|---|---|
+| `screen_quality_momentum` | 21 | Better half on quality; top 20 by 252-day return / volatility |
+| `screen_value_momentum_quality` | 21 | Top 20 by mean of value, quality and 12-1 momentum ranks |
+| `screen_piotroski` | 63 | Cheapest 30% on book yield with F-score ≥ 6; up to 30 |
+| `screen_tree_ranker` | 21 | HistGradientBoosting (200 trees, 15 leaves, 0.05, seed 0) fit at each decision on the previous 24 month-ends' 11 features → next-month return rank; top 20 |
+| `screen_trend_pullback` | 5 | Close > SMA200, SMA50 > SMA200, RSI(2) < 10 within 10 sessions and no close with RSI(2) > 70 since; 1/10 each |
+| `screen_52w_breakout` | 5 | Close ≥ prior 251-session high on volume ≥ 2 × 50-session median, within 20 sessions; 1/10 each |
+
+The tree model needs `scikit-learn` (`research-ml` extra) and holds nothing
+without it.
+
+**Today's lists.** `screener.build` builds the view for the panel's last day
+with `adjusted_view` (the engine's `_view_history` rule: each row divided by
+the factors of actions after it and on or before the day), runs the six and the
+five in `config/screener.yaml` through `decide`, and records per liquid stock:
+1-month and 12-1 returns, distance to the 52-week high and the 200-day average,
+RSI(2), median turnover, quality and value percentiles, F-score, ROE, P/E, P/B,
+debt/equity, news tone (ADR-135) and which models pick it. Each list carries its
+stored screening run (`screener_models.json`, `india_papers.json`, …).
+
+**History.** `record` appends each model's picks once per `as_of` to
+`screener_history.jsonl`. `outcome` measures a selection from the first session
+after `as_of` (the engine's fill) for `HOLD` sessions (5 swing, 21 long) or to
+the latest close, on today's adjusted view, equal-weighted, against NIFTYBEES
+over the same sessions; `track` summarises complete ones: mean excess and the
+share beating Nifty. `/api/screener` serves `screener.json`; Workbench →
+Screener draws it.

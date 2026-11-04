@@ -1,0 +1,29 @@
+id: H-0035
+title: 52-week breakout on volume, weekly
+status: draft
+family: screen_52w_breakout
+source_kind: paper
+parent: ''
+claim: 'Decided weekly: liquid stocks that closed at a new 52-week high on at least twice their median
+  volume within the last 20 sessions, a tenth of capital each, beat Nifty after costs.'
+rationale: Nearness to the 52-week high predicts returns (George and Hwang 2004); volume marks breakouts
+  with real demand behind them.
+source:
+  paper: george-hwang-2004-52-week-high
+  written_by: Claude, for the stock screener (ADR-136)
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  rebalance: 5
+  hold_window: 20
+  slots: 10
+  strategy: screen_52w_breakout
+  min_turnover: 0
+  universe: liquid 250 as of each date
+red_flags:
+- Settings fixed on 2026-11-04 before any result was read; changing them after the backtest is a new search.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+- Swing rules pay costs every week; slippage in fast markets may exceed the cost model.
+holdout:
+  starts: '2025-01-01'
+  status: unread

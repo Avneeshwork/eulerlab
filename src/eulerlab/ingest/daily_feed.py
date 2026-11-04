@@ -554,6 +554,8 @@ TERMINAL_ONLY: dict[str, str] = {
     "prune-local": "deleting files is not a side effect of a refresh button",
     "manifest": "the button recounts after its mirror",
     "data-merge-back": "merging into the bucket and deleting local copies is the nightly job's and the data agent's, not a refresh button's (ADR-132)",
+    "screener": "loads the whole price panel to build today's lists; nightly, after the panel (ADR-136)",
+    "fundamentals-annual": "rebuilt after each weekly fundamentals fetch, not by a refresh button",
     "eulerlab.agents.runtime": "the after-close note is an agent's run, not a data refresh; the AI tab runs agents",
 }
 """What `make daily` runs that the button deliberately does not, and why."""

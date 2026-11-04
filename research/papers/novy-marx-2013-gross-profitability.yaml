@@ -1,0 +1,21 @@
+id: novy-marx-2013-gross-profitability
+title: 'The Other Side of Value: The Gross Profitability Premium'
+authors: Novy-Marx, Robert
+year: 2013
+kind: paper
+source_url: https://www.nber.org/papers/w15940
+markets:
+- US stocks, 1963-2010
+summary: Gross profits over assets predict returns about as well as book-to-market; profitable firms earn
+  more despite looking expensive, and controlling for profitability strengthens value strategies.
+trade_idea: 'Combine profitability with value: buy cheap and profitable firms.'
+implementation: Screener.in has no gross profit; operating profit over total assets is the proxy.
+red_flags:
+- 'Operating profit is not gross profit: a weaker proxy.'
+- US sample; India untested here.
+reported_results: Profitability premium comparable to the value premium (NBER abstract, fetched 2026-11-04).
+pdf: ''
+added: '2026-11-04'
+status: idea
+hypothesis: ''
+strategies: []

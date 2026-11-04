@@ -1,0 +1,11 @@
+/* The stock screener (ADR-136). Uses the terminal's tokens; no new colours. */
+.scr { display: grid; gap: 16px; }
+.scr-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.scr-filter { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.scr-filter input { width: 72px; }
+.scr-caveats { margin: 0; padding-left: 18px; font-size: 12px; opacity: 0.8; }
+.scr-models { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.scr-model { display: grid; gap: 8px; }
+.scr-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline; }
+.scr-warn { color: var(--down, #c0392b); }
+.scr-table td, .scr-table th { white-space: nowrap; }

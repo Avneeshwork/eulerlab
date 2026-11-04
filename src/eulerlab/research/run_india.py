@@ -25,16 +25,24 @@ OUT = Path("data/derived/india_papers.json")
 GITHUB_OUT = Path("data/derived/github_daily.json")
 EVIDENCE_OUT = Path("data/derived/evidence_daily.json")
 EVENTS_OUT = Path("data/derived/events_daily.json")
+SCREENER_OUT = Path("data/derived/screener_models.json")
 START, END = "2016-01-01", "2026-09-30"
 
 
 def run_one(strategy_id: str, *, start: str, end: str, tier: str) -> dict[str, Any]:
     from eulerlab.api import server
     from eulerlab.api.requests import BatchRunRequest
-    from eulerlab.backtest import events_daily, evidence_daily, github_daily, india_papers
+    from eulerlab.backtest import (
+        events_daily,
+        evidence_daily,
+        github_daily,
+        india_papers,
+        screener_models,
+    )
 
     spec = {
         **india_papers.BY_ID,
+        **screener_models.BY_ID,
         **github_daily.BY_ID,
         **evidence_daily.BY_ID,
         **events_daily.BY_ID,
@@ -105,13 +113,19 @@ def benchmark(start: str, end: str) -> dict[str, Any]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    from eulerlab.backtest import events_daily, evidence_daily, github_daily, india_papers
+    from eulerlab.backtest import (
+        events_daily,
+        evidence_daily,
+        github_daily,
+        india_papers,
+        screener_models,
+    )
 
     parser = argparse.ArgumentParser(prog="india-papers")
     parser.add_argument("--only", default="", help="comma-separated strategy ids")
     parser.add_argument(
         "--set",
-        choices=("papers", "github", "evidence", "events"),
+        choices=("papers", "github", "evidence", "events", "screener"),
         default="papers",
         help="papers: backtest.india_papers; github / evidence: research 113's batches",
     )
@@ -124,12 +138,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         "github": github_daily.STRATEGIES,
         "evidence": evidence_daily.STRATEGIES,
         "events": events_daily.STRATEGIES,
+        "screener": screener_models.STRATEGIES,
     }[args.set]
     out_path = {
         "papers": OUT,
         "github": GITHUB_OUT,
         "evidence": EVIDENCE_OUT,
         "events": EVENTS_OUT,
+        "screener": SCREENER_OUT,
     }[args.set]
     # The event strategies' data covers 2021-07 to 2024 only (`events_daily`).
     window = events_daily.EVENTS_WINDOW if args.set == "events" else (START, END)

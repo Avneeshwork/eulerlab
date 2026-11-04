@@ -1,0 +1,29 @@
+id: H-0032
+title: 'Piotroski value: cheap stocks with improving statements'
+status: draft
+family: screen_piotroski
+source_kind: paper
+parent: ''
+claim: The cheapest 30% of the liquid 250 on book yield with an F-score of 6 or more of 8, held equally
+  and rebalanced quarterly, beats Nifty after costs.
+rationale: Among cheap stocks, those whose statements are improving outperform those deteriorating (Piotroski
+  2000).
+source:
+  paper: piotroski-2000-fscore
+  written_by: Claude, for the stock screener (ADR-136)
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  rebalance: 63
+  max_names: 30
+  strategy: screen_piotroski
+  min_turnover: 0
+  universe: liquid 250 as of each date
+red_flags:
+- Settings fixed on 2026-11-04 before any result was read; changing them after the backtest is a new search.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+- Fundamentals count from 90 days after each year end and carry later restatements; only companies listed
+  in 2026 have them (survivorship).
+holdout:
+  starts: '2025-01-01'
+  status: unread

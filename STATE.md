@@ -31,6 +31,10 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
+- **Screener.** Workbench → Screener lists what six new models (quality,
+  value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
+  five best stored strategies would hold today, each with its backtest and a
+  forward record of past picks; none is gate-promoted (ADR-136).
 - **Paper trading** runs forward with operator capital (`make paper-daily`),
   with loss limits that act: reduce-only at 10% drawdown, halt at 20%.
   Live is refused in code until the Kite adapter is proven (S-015).
