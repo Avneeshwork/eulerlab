@@ -497,6 +497,36 @@ class HoldSymbol(Strategy):
         return {self.symbol: 1.0} if rows and rows[-1].day == view.as_of else {}
 
 
+class WithMetals(Strategy):
+    """A stock book with gold and silver funds held like stocks: one average position each (research 153)."""
+
+    METALS = ("GOLDBEES", "SILVERBEES")
+
+    def __init__(self, name: str, base: str, rebalance_every: int) -> None:
+        from eulerlab.backtest.published import BUILDERS
+
+        self.name = name
+        self.base = BUILDERS[base]()
+        self.rebalance_every = rebalance_every
+        self.lookback = int(getattr(self.base, "lookback", 0) or 0)
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        from eulerlab.backtest.strategy import decide
+
+        longs, _ = decide(self.base, view)
+        stocks = {s: w for s, w in longs.items() if w > 0}
+        metals = [
+            m for m in self.METALS if (rows := view.history.get(m)) and rows[-1].day == view.as_of
+        ]
+        n, k = len(stocks), len(metals)
+        if n + k == 0:
+            return {}
+        out = {s: w * n / (n + k) for s, w in stocks.items()}
+        for m in metals:
+            out[m] = out.get(m, 0.0) + 1 / (n + k)
+        return out
+
+
 class Consensus(Strategy):
     """Hold, equal-weighted, the stocks at least `min_votes` of the parts pick (research 152)."""
 
@@ -739,6 +769,23 @@ SPECS = SPECS + tuple(
 
 SPECS = (
     *SPECS,
+    (
+        PaperStrategy(
+            id="screen_stock_mix_metals",
+            title="Stock mix with gold and silver held like stocks",
+            paper="asness-moskowitz-pedersen-2013-value-momentum-everywhere",
+            citation="Stock mix with GOLDBEES and SILVERBEES as average positions (research 153)",
+            summary="The stock mix's book plus GOLDBEES and SILVERBEES, each at the weight of an average stock position; monthly.",
+            logic=(
+                "Book: a third each of Stocks on the Move, low total volatility, value-momentum-quality.",
+                "Add GOLDBEES and SILVERBEES (from 2022-05) as one position each at 1/(stocks + metals).",
+                "Rebalanced every 21 sessions.",
+            ),
+            lookback=3 * YEAR + 30,
+            build=lambda: WithMetals("screen_stock_mix_metals", "screen_stock_mix", MONTH),
+        ),
+        LONG,
+    ),
     (
         PaperStrategy(
             id="screen_hold_goldbees",

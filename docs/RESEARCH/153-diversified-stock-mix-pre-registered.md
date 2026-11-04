@@ -26,3 +26,9 @@ The operator: "We can add goldbees and silver bees too but keep very less weight
 
 `screen_stock_mix_gold`: 90% `screen_stock_mix`, 10% GOLDBEES (`screen_hold_goldbees`), rebalanced every 21 sessions. SILVERBEES is left out of the backtest because its prices start on 2022-05-10; it would change the strategy part-way through the test. Judged the same way as the stock mix, and both are shown.
 
+## Second addendum, written 2026-11-04 before any result was read
+
+The operator: "look Goldbees as stock only and keep like stock weightages". A third configuration, fixed now; the 90/10 one above still runs and is reported:
+
+`screen_stock_mix_metals`: the stock mix's book, plus GOLDBEES and SILVERBEES each held as one more position at the weight of an average stock position. With n stock positions and k metal funds that traded that day, each metal gets 1/(n + k) and the stocks are scaled by n/(n + k). SILVERBEES enters when its prices start (2022-05-10), as a newly listed stock would. Rebalanced every 21 sessions.
+

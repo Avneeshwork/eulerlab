@@ -1,0 +1,26 @@
+id: H-0042
+title: Stock mix with gold and silver held like stocks
+status: draft
+family: screener_blend
+source_kind: blend
+parent: H-0040
+claim: The stock mix with GOLDBEES and SILVERBEES each held as one average-weight position, rebalanced
+  monthly, has fewer losing calendar years and a smaller worst fall than the stock mix alone, after costs.
+rationale: Metals rose in some years stocks fell; as single positions they add a little without changing
+  the stock book much (research 153).
+source:
+  research: '153'
+  written_by: Claude, for the stock screener
+  day: '2026-11-04'
+configurations:
+- shape: screen_model
+  strategy: screen_stock_mix_metals
+  universe: liquid 250 as of each date, plus GOLDBEES and SILVERBEES
+red_flags:
+- The metals' weight follows the operator's instruction, not a fit.
+- SILVERBEES only from 2022-05.
+- Gold's 2025 (+72%) may flatter the recent half.
+- Screening backtest only.
+holdout:
+  starts: '2025-01-01'
+  status: unread
