@@ -41,6 +41,7 @@ import io
 import json
 import os
 import re
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -101,6 +102,16 @@ def _jobs_text() -> str:
     return telegram_words.jobs()
 
 
+def _behind(row: Any) -> bool:
+    return bool(row.status in ("stale", "missing") or (row.status == "behind" and row.behind > 1))
+
+
+def caught_up(before: Sequence[Any], after: Sequence[Any]) -> list[tuple[str, str]]:
+    """(name, old status) of each dataset that was behind before a re-run and is not now."""
+    now = {r.name: r for r in after}
+    return [(r.name, str(r.status)) for r in before if r.name in now and not _behind(now[r.name])]
+
+
 def run(ctx: Context) -> WorkerResult:
     items: list[Item] = []
     ctx.step("Reading data coverage and grading every dataset")
@@ -137,7 +148,7 @@ def run(ctx: Context) -> WorkerResult:
         if due_tonight(row, ctx.now):
             due.append(row)
             continue
-        if row.status in ("stale", "missing") or (row.status == "behind" and row.behind > 1):
+        if _behind(row):
             stale.append(row)
             items.append(
                 Item(
@@ -199,6 +210,24 @@ def run(ctx: Context) -> WorkerResult:
                 severity="info" if result.ok else "warn",
             )
         )
+        # Re-read freshness: a dataset the re-run brought up to date is not a
+        # problem, and must not be described to the model as one (2026-11-04,
+        # HISTORY #77: the model was told F&O was missing after it had landed).
+        caught = caught_up(stale, _coverage_rows())
+        if caught:
+            items = [
+                i
+                for i in items
+                if not (i.kind == "alert" and any(i.title == f"{n} is {s}" for n, s in caught))
+            ]
+            items.append(
+                Item(
+                    kind="finding",
+                    title=f"caught up after the re-run: {', '.join(n for n, _ in caught)}",
+                    body="fresh again; not sent for diagnosis",
+                    severity="info",
+                )
+            )
 
     upkeep: dict[str, Any] = {}
     if ctx.options.get("upkeep"):

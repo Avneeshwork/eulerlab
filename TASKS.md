@@ -147,6 +147,20 @@ Verify: `make microstructure-five`.
 | ID | Task | Status |
 |---|---|---|
 | T-4285 | Code and evaluate repeated institutional flow, algo timing, signed order flow, five-level book pressure, and single-stock futures lead-cash | **IN PROGRESS (operator token needed)** — five fixed rule primitives and a resumable FYERS auth/fetch/normalize/backtest path are coded. The operator reports written permission for local storage/backtesting; the app ID and secret are present but today's access token is absent, so there has been no API request, futures download, or P&L result. Log in from Instruments -> FYERS (or run `make fyers-auth`), then `make microstructure-five-futures`. Strategies 1–4 still lack event/book data; micro-01 also lacks a stable institution ID in NSE's schema. The operator trades CM only and is an individual, so the NSE commercial-entity trial is unavailable. See research 123 and 125. |
+## Agent faults of 2026-11-04 (HISTORY #77)
+
+Operator: "check issue with 4 data not updating by data agent and issue faces by engineering agent now and in last 2 day no strategy passed why?"
+Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAME=data` after a late NSE day shows "caught up after the re-run".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4453 | Data agent re-checks freshness after its re-runs; only what is still behind goes to the model | DONE 2026-11-04 |
+| T-4454 | Nifty options also lists freshly landed local F&O files (`nse/fo/`) | DONE 2026-11-04 |
+| T-4455 | Engineering agent: a check past its time limit is a failed check, not a crashed run; full suite 2,400 s | DONE 2026-11-04 |
+| T-4456 | Operator: the data watch's last run is 20:00 IST (your setting); NSE sometimes publishes F&O later. Add a 22:00 run? | TODO. Operator |
+| T-4457 | Engineering agent: a fix request of about 12,000 tokens does not fit Groq's free 8,000 a minute and is skipped; trim the prompt or allow a paid model for big fixes | TODO. Operator decides on the paid model |
+| T-4458 | The lab tests only research cards since 2026-11-03 (`max_ideas: 0`, operator: "we have to backtest only what research finds"); research yields about 1 complete card a day, so few survivors | Note. Raise `max_ideas` in `config/agents/lab.yaml` to let it write its own ideas again |
+
 ## Stock screener: long-term and swing models (2026-11-04)
 
 Operator: "build a stock screener page where i can see which stocks we can buy for long term and swing trades. research on papers ... backtest it also"; "while developing models also check our top 5 models"; "weekly fundamental update is fine"; "swing trading as weekly rebalance and long term as monthly rebalance with history stores about past selection performance". ADR-136, research 150.

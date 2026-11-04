@@ -145,10 +145,23 @@ class Attempt:
         return bool(self.checks) and all(ok for _, ok, _ in self.checks)
 
 
-def _run(cmd: Sequence[str], cwd: Path) -> tuple[int, str]:
-    done = subprocess.run(
-        list(cmd), cwd=cwd, capture_output=True, text=True, check=False, timeout=900
-    )
+RUN_TIMEOUT = 900
+"""Seconds one check may take: ruff, mypy or a fix's own tests."""
+SUITE_TIMEOUT = 2400
+"""Seconds the daily quality check's full test suite may take. The suite took
+10-11 minutes on 2026-11-04 and more on a busy machine, so the old 900 s cut it
+off and crashed the engineering agent's run (HISTORY #77)."""
+
+
+def _run(cmd: Sequence[str], cwd: Path, timeout: int = RUN_TIMEOUT) -> tuple[int, str]:
+    """Return code and the output's tail. A command past `timeout` is a failed check
+    (code 124, as `timeout(1)` reports), never an exception that ends the run."""
+    try:
+        done = subprocess.run(
+            list(cmd), cwd=cwd, capture_output=True, text=True, check=False, timeout=timeout
+        )
+    except subprocess.TimeoutExpired:
+        return 124, f"did not finish in {timeout} s: {' '.join(cmd)[:200]}"
     return done.returncode, (done.stdout + done.stderr)[-4000:]
 
 
@@ -547,7 +560,14 @@ def quality(repo: Path = REPO, run: Runner = _run) -> list[tuple[str, int, str]]
     _, text = run([*py, "-m", "mypy"], repo)
     for m in re.finditer(r"(?m)^(src/eulerlab/\S+\.py):(\d+): error: (.+)$", text):
         out.append((m.group(1), int(m.group(2)), f"mypy: {m.group(3)}"))
-    _, text = run([*py, "-m", "pytest", "-q", "--tb=line", "-p", "no:cacheprovider"], repo)
+    if run is _run:
+        rc, text = _run(
+            [*py, "-m", "pytest", "-q", "--tb=line", "-p", "no:cacheprovider"], repo, SUITE_TIMEOUT
+        )
+    else:
+        rc, text = run([*py, "-m", "pytest", "-q", "--tb=line", "-p", "no:cacheprovider"], repo)
+    if rc == 124:
+        out.append(("tests", 0, f"pytest: {text}"))
     for m in re.finditer(r"(?m)^\S*?(src/eulerlab/\S+\.py):(\d+): (.+)$", text):
         out.append((m.group(1), int(m.group(2)), f"pytest: {m.group(3)}"))
     first: dict[str, tuple[str, int, str]] = {}

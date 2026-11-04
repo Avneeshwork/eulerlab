@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventy-six times this project was wrong
+## Seventy-seven times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -449,6 +449,8 @@ figure produced outside the result store before this date was frictionless.
 **75. `make install` would have removed the news tone model it had just been asked to run.** (2026-11-04) ADR-134 put the model in an optional `news` extra and told the operator to install it with `uv sync --extra news`, but left `make install` as `uv sync --extra dev --extra web`. `uv sync` removes what it is not asked for, so the next `make install` would have uninstalled the model and the brief would have gone back to unscored headlines with only a note. Now `make install` includes it, `make install-lite` leaves it out, and `install-news` and `remove-news` change only it. No numbers invalidated.
 
 **76. A stablecoin entered the crypto universe.** (2026-11-04) The nightly rebuild of `config/universe_crypto.txt` (the top 20 Binance USDT pairs by volume) listed BFUSDUSDT, Binance's BFUSD dollar token, because `ingest/crypto.STABLECOINS` did not name it. A stablecoin's USDT pair is an exchange rate between two claims on the dollar, not a coin, so any crypto backtest or screen run on that day's list held a near-constant price. BFUSD and Ethena's USDe were added and the list rebuilt. That night's backfill had already landed BFUSDUSDT's minute history under `data/landing/crypto/BFUSDUSDT`; it stays (landing is immutable) and no derived file or stored result refers to it.
+
+**77. Three agent faults behind "4 datasets not updating" and a failed engineering run.** (2026-11-04) (a) NSE published the 4 November F&O bhavcopy after the 19:30 nightly run and after the data agent's last check (20:00), so F&O bhavcopy, participant OI, Nifty futures and Nifty options all stopped on 3 November. When the data agent was run at 22:59 it re-ran the downloads and the file landed, but (b) it then described the problems it had found *before* the re-run to Groq, which answered that NSE had not published, after the file was on disk; and (c) Nifty options still did not pick it up, because `options.nifty_history` listed the bucket's `fo/` and a local `fo/` that holds only cached reads, not `data/landing/nse/fo/` where the ingest lands new files, so a file not yet uploaded was invisible. Separately, (d) the engineering agent's daily quality check ran the whole test suite under a 900 s limit; the suite takes 10-11 minutes and more on a busy machine, and the `TimeoutExpired` ended the run as failed. Fixed: the data agent re-reads freshness after a re-run and sends only what is still behind; `nifty_history.archives` also lists local `nse/fo/`; `fixer._run` returns code 124 on a timeout instead of raising, and the full suite gets 2,400 s. No stored numbers invalidated; the four datasets were brought to 4 November by hand the same night.
 
 ---
 

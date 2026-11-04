@@ -30,7 +30,7 @@ import csv
 import io
 import json
 import zipfile
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -113,6 +113,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _main(argv)
 
 
+def archives(available: Callable[..., list[str]]) -> dict[str, str]:
+    """Every F&O archive by trade day: the bucket's `fo/`, and the local `nse/fo/` too.
+
+    The bucket keeps the NSE tree at its root (`fo/...`) while the ingest lands
+    new files under `data/landing/nse/fo/`. Listing `fo` alone found the bucket
+    and old cached copies but not a file landed tonight and not yet uploaded, so
+    the options history stopped a day short whenever NSE published late
+    (2026-11-04, HISTORY #77). A local file is preferred when both exist.
+    """
+    out: dict[str, str] = {}
+    for path in available("fo", "**/*.zip", allow_cloud=True):
+        out[path.rsplit("/", 1)[-1].split("_")[0]] = path
+    for path in available("nse", "fo/**/*.zip", allow_cloud=False):
+        out[path.rsplit("/", 1)[-1].split("_")[0]] = path
+    return out
+
+
 def _main(argv: Sequence[str] | None) -> int:
     import boto3
 
@@ -124,8 +141,7 @@ def _main(argv: Sequence[str] | None) -> int:
     parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args(argv)
 
-    found = landing_reader.available("fo", "**/*.zip", allow_cloud=True)
-    by_day = {p.rsplit("/", 1)[-1].split("_")[0]: p for p in found}
+    by_day = archives(landing_reader.available)
     have = done_days()
     todo = sorted(d for d in by_day if d >= args.start and d not in have)
     print(f"{len(by_day)} archives, {len(have)} days stored, {len(todo)} to read", flush=True)
