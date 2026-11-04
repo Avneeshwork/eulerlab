@@ -242,13 +242,16 @@ JOBS = {
         hour=6,
         minute=0,
         weekdays=(),
-        hours=(6, 8, 10, 12, 14, 16, 18, 20),
+        hours=(6, 8, 10, 12, 14, 16, 18, 20, 22),
         log="data_watch",
-        what="the data agent, every two hours from 06:00 to 20:00 IST",
+        what="the data agent, every two hours from 06:00 to 20:00 IST, and at 22:00",
         why_then=(
             "Every two hours from 06:00 to 20:00 IST, as the operator asked (2026-11-04): grade,\n"
             "re-run what is behind, upload and clear local copies, merge what differs. The 20:00\n"
-            "run usually finds make daily holding the feed lock and leaves upkeep to the next."
+            "run usually finds make daily holding the feed lock and leaves upkeep to the next.\n"
+            "22:00 added the same day (HISTORY #77): NSE sometimes publishes the F&O bhavcopy\n"
+            "after the 19:30 nightly run, and the 22:00 run, past the 21:00 'due tonight' cut,\n"
+            "re-runs it the same night instead of waiting for 06:00."
         ),
     ),
 }

@@ -299,7 +299,7 @@ def test_the_data_watch_job_runs_every_two_hours_from_six_to_eight() -> None:
     job = schedule_daily.JOBS["data-watch"]
     text = schedule_daily.plist(Path("/repo"), hour=job.hour, minute=job.minute, job=job)
     hours = [int(x.split("</integer>")[0]) for x in text.split("<key>Hour</key><integer>")[1:]]
-    assert hours == [6, 8, 10, 12, 14, 16, 18, 20] and "make agent NAME=data" in text
+    assert hours == [6, 8, 10, 12, 14, 16, 18, 20, 22] and "make agent NAME=data" in text
 
 
 # --- the token log -----------------------------------------------------------
