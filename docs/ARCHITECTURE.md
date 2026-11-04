@@ -2297,7 +2297,7 @@ show. The whole answer is kept 60 s once complete.
 | Indices | `index_history.jsonl` (FileMemo, 20 indices of 146 parsed) | Close and change over 1, 5, 21, 63 and 252 sessions. India VIX ranked against the previous 251 closes |
 | Valuation | the same file | NSE's PE, PB and dividend yield, each ranked against its own history. PE only from 1 April 2021 (A-062): NSE moved it to consolidated earnings and Nifty 50's fell from about 40 to 33 overnight |
 | Breadth | the price panel, last 520 sessions | Split- and bonus-adjusted closes in a days x stocks grid (`price_grid`, the factors `build_adjusted_index` uses). % of stocks above their 20, 50 and 200-day averages (90% of the window present). New 52-week closing highs and lows against the previous 251 closes. High-Low Index = 10-day mean of highs / (highs + lows) x 100. Stocks only: ISINs starting `INF` (funds, ETFs) are dropped. Lists show names with a 20-day median turnover of Rs 10 crore or more |
-| Sector strength | `index_history.jsonl` | 20 NSE sector indices. Relative return = (1 + sector) / (1 + Nifty 50) - 1 over 5, 21, 63 sessions. Rising: 1-month relative now above its value 5 sessions ago. Phase: 3-month relative above or below zero crossed with rising |
+| Sector strength | `index_history.jsonl` | 20 NSE sector indices. Relative return = (1 + sector) / (1 + Nifty 50) - 1 over 5, 21, 63 sessions. Rising: 1-month relative now above its value 5 sessions ago. Phase: 3-month relative above or below zero crossed with rising. Trail: the same two coordinates (3-month relative; change of the 1-month relative over 5 sessions) at each of the last `TRAIL_WEEKS` (6) weeks, oldest first; the overview draws it as the sector rotation chart below Valuation |
 | F&O positioning | NSE participant-wise OI, last 260 files | Long share = index futures long / (long + short), per FII, DII, Pro, Client; changes over 1 and 5 files; percentile against the earlier files. Options shown as raw net contracts. Parsed days kept in `data/cache/participant_positions.jsonl`; files only in the bucket are read in one background thread |
 | Nifty options | `options_history("NIFTY", 6)` | PCR by open interest, max pain, ATM IV and straddle of the nearest open expiry, against 5 sessions earlier |
 | Delivery spikes | last 21 lines of `delivery.jsonl` (read from the end of the 194 MB file) | Today's delivery % at least 1.5x its mean over the previous 20 sessions (75% of them present), among names with Rs 10 crore median turnover |
@@ -2415,6 +2415,13 @@ An `Info` popup is portalled to the `.terminal` root and fixed to the window
 below the button, or above when there is more room there; height capped to the
 larger side, with the popup scrolling; slid sideways to stay 8 px inside the
 window. It follows the button on scroll and resize.
+
+
+On the Dashboard's India overview (2026-11-04, operator): Valuation is followed
+by the sector rotation chart (`SectorRotation`); the US "Moving elsewhere" band
+is replaced by NSE's new 52-week highs and lows (`HighsLows`, the Watch tab's
+list); the cross-asset counts and the evidence band are gone. The US view keeps
+its movers.
 
 ## The overnight book (ADR-066)
 

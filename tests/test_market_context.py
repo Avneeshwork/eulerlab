@@ -120,6 +120,18 @@ def test_a_sector_behind_but_gaining_is_improving() -> None:
     assert row["phase"] == "improving"
 
 
+def test_each_sector_carries_a_weekly_rotation_trail_ending_today() -> None:
+    days = _days(120)
+    nifty = [mc.IndexDay(d, 100.0, None, None, None) for d in days]
+    fmcg = [mc.IndexDay(d, 100.0 * (0.999**i), None, None, None) for i, d in enumerate(days)]
+    row = mc.sector_strength({"Nifty 50": nifty, "Nifty FMCG": fmcg})["sectors"][0]
+    assert len(row["trail"]) == mc.TRAIL_WEEKS
+    # The last point is today's: the same 3-month lead and momentum the row reports.
+    assert row["trail"][-1] == [row["relative"]["3m"], row["momentum"]]
+    # A steady fall: every week's 3-month lead is the same, below zero.
+    assert all(x == pytest.approx(0.999**63 - 1, abs=1e-4) for x, _ in row["trail"])
+
+
 # --- breadth ------------------------------------------------------------------
 
 

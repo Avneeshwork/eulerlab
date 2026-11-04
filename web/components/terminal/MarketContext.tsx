@@ -560,8 +560,19 @@ function SectorBars({ rows, span }: { rows: SectorRow[]; span: Span }) {
  *  that strength has grown over the last week. Four quadrants, four phases. */
 function SectorQuadrant({ rows }: { rows: SectorRow[] }) {
   const placed = rows.filter((r) => r.relative['3m'] !== null && r.momentum !== null);
-  const xs = Math.max(0.02, ...placed.map((r) => Math.abs(r.relative['3m'] ?? 0)));
-  const ys = Math.max(0.005, ...placed.map((r) => Math.abs(r.momentum ?? 0)));
+  const trailOf = (r: SectorRow) =>
+    (r.trail ?? []).filter((p): p is [number, number] => p[0] !== null && p[1] !== null);
+  // The scale takes the trails in too, so a sector's past never runs off the chart.
+  const xs = Math.max(
+    0.02,
+    ...placed.map((r) => Math.abs(r.relative['3m'] ?? 0)),
+    ...placed.flatMap((r) => trailOf(r).map((p) => Math.abs(p[0]))),
+  );
+  const ys = Math.max(
+    0.005,
+    ...placed.map((r) => Math.abs(r.momentum ?? 0)),
+    ...placed.flatMap((r) => trailOf(r).map((p) => Math.abs(p[1]))),
+  );
   const x = (v: number) => 50 + (v / xs) * 44;
   const y = (v: number) => 50 - (v / ys) * 42;
   // A label that would sit on a neighbour's goes to the dot's other side; if
@@ -596,6 +607,20 @@ function SectorQuadrant({ rows }: { rows: SectorRow[] }) {
       <span className="mc-quad-label br">Weakening</span>
       <span className="mc-quad-axis x" />
       <span className="mc-quad-axis y" />
+      <svg className="mc-quad-trails" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        {placed.map((row) => {
+          const pts = trailOf(row);
+          if (pts.length < 2) return null;
+          return (
+            <polyline
+              key={row.name}
+              className={row.phase ?? ''}
+              points={pts.map((p) => `${x(p[0])},${y(p[1])}`).join(' ')}
+              vectorEffect="non-scaling-stroke"
+            />
+          );
+        })}
+      </svg>
       {labelled.map(({ row, left, top, side, shift }) => (
         <span
           key={row.name}
@@ -614,6 +639,32 @@ function SectorQuadrant({ rows }: { rows: SectorRow[] }) {
       <span className="mc-quad-caption x">3M vs Nifty →</span>
       <span className="mc-quad-caption y">Gaining ↑</span>
     </div>
+  );
+}
+
+/** The rotation chart on its own, with each sector's last six weeks as a trail. */
+export function SectorRotation({ ctx }: { ctx: MarketContext }) {
+  const s = ctx.sectors;
+  if (!s.available) return <Missing title="Sector rotation" reason={s.reason} />;
+  return (
+    <section>
+      <Heading
+        title="Sector rotation"
+        sub="vs Nifty 50, last 6 weeks"
+        info={
+          <>
+            Each dot is a sector today; its line is where it was each of the last six weeks. To the
+            right it is ahead of Nifty over 3 months; higher up, its 1-month lead grew over the last
+            week. Sectors tend to move round the chart clockwise: Improving (top left), Leading (top
+            right), Weakening (bottom right), Lagging (bottom left). Our own stated rule, not a
+            Relative Rotation Graph, whose smoothing is proprietary. {s.note}
+          </>
+        }
+      />
+      <div className="tpanel">
+        <SectorQuadrant rows={s.sectors} />
+      </div>
+    </section>
   );
 }
 
@@ -946,12 +997,10 @@ function NameList({
   );
 }
 
-/** New highs and lows and delivery spikes, beside the movers on the same tab. */
-export function WatchContext({ ctx }: { ctx: MarketContext }) {
+/** NSE stocks at new 52-week highs and lows today, among names trading ₹10 crore a day. */
+export function HighsLows({ ctx }: { ctx: MarketContext }) {
   const b = ctx.breadth;
-  const d = ctx.delivery;
   const liquid = 'Listed when the stock trades ₹10 crore a day or more (20-day median). The figure after the title is listed / all.';
-  const top = d.available ? Math.max(1.5, ...d.stocks.map((r) => r.ratio)) : 1;
   return (
     <>
       {b.available ? (
@@ -975,6 +1024,17 @@ export function WatchContext({ ctx }: { ctx: MarketContext }) {
       ) : (
         <Missing title="52-week highs and lows" reason={b.reason} />
       )}
+    </>
+  );
+}
+
+/** New highs and lows and delivery spikes, beside the movers on the same tab. */
+export function WatchContext({ ctx }: { ctx: MarketContext }) {
+  const d = ctx.delivery;
+  const top = d.available ? Math.max(1.5, ...d.stocks.map((r) => r.ratio)) : 1;
+  return (
+    <>
+      <HighsLows ctx={ctx} />
       {d.available ? (
         <section>
           <Heading

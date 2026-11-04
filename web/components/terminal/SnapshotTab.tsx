@@ -28,7 +28,9 @@ import {
   IndexContext,
   PositioningContext,
   PulseCards,
+  HighsLows,
   SectorContext,
+  SectorRotation,
   WatchContext,
   useMarketContext,
 } from './MarketContext';
@@ -581,6 +583,8 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           <>
             <PulseCards ctx={ctx} />
             <IndexContext ctx={ctx} />
+            {/* Below valuation, the sectors' rotation (operator, 2026-11-04). */}
+            <SectorRotation ctx={ctx} />
           </>
         ) : (
           <div className="tempty">Reading the market context…</div>
@@ -834,10 +838,12 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
           Street closes and while Asia trades, so what happened there is
           already priced into the first minute here. In the US view it is the
           subject, so the heading says which it is. */}
-      {snap.world?.movers?.length && (market === 'IN' || market === 'US') ? (
+      {/* India: new 52-week highs and lows in place of the US movers (operator, 2026-11-04). */}
+      {market === 'IN' && ctx && <HighsLows ctx={ctx} />}
+      {snap.world?.movers?.length && market === 'US' ? (
         <section>
           <h3 className="report-h">
-            {market === 'IN' ? 'Moving elsewhere' : 'Movers'}
+            Movers
             <span className="tfine" style={{ marginLeft: 10, fontWeight: 400 }}>
               US · $5+
             </span>
