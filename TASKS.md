@@ -161,6 +161,9 @@ Verify: `uv run pytest -q tests/test_screener.py`; `make screener`; open Workben
 | T-4445 | Operator: validate and gate any screener model worth it (`make validate`, `make gate`); none is promoted | TODO. Operator |
 | T-4446 | Read Piotroski (2000), Asness et al. (2013) and George and Hwang (2004) in full, and SEBI's text of Regulation 33 | TODO |
 | T-4447 | True publication dates for results (NSE filings) to replace the 90-day rule (A-107) | TODO |
+| T-4448 | Long-term list as a fixed 70:30 blend of quality momentum and tree ranker; three pre-registered swing blends, chosen by the worse of two halves (research 151, ADR-137) | DONE 2026-11-04. Long blend Sharpe 0.98 (+575%); swing A (Sharpe momentum + Weinstein) chosen: 1.01 full, halves 0.73 / 1.18; C 0.91 (0.64 / 0.99); B 0.86 (0.55 / 0.97) |
+| T-4449 | The "optimised" volatility-adjusted momentum (PBO 0.71) was left out of the blends for the paper's setting; the operator may ask for it instead | Note |
+
 ## News rules that learn, NewsData, and stock news tone (2026-11-04)
 
 Operator: "oil one is one case there can be many case sentiment score can be wrong and if no ai tokens how it will be corrected ... knowledge base increases over time", "use different make function to uninstall", "added newsdata.io api use that if better", "show sentiment on each stock whichever possible"; "keep automatic". ADR-135, research 149.

@@ -1,0 +1,7 @@
+# ADR-137: The screener's long-term list is a fixed 70:30 blend; the swing list is chosen among three pre-registered blends by their worse half
+
+- **Context:** On 2026-11-04 the operator chose quality momentum and the tree ranker at 70:30 for the long-term list and asked for a swing combination from volatility-adjusted momentum, Weinstein stage 2 and the new models, without overfitting. The optimised momentum setting is itself the winner of a 64-setting sweep with PBO 0.71.
+- **Options:** (a) Optimise blend weights on the backtest. (b) Pick the blend with the best full-period Sharpe. (c) Fix a few blends with equal or operator-given shares before running, use the paper's momentum setting, and choose by the worse of two halves.
+- **Choice:** (c), as written in research 151 before any run: `screener_models.Blend` holds fixed shares of registered strategies, decided together; four blends (H-0036 to H-0039); the swing list is the blend with the best worse-half Sharpe, or none if no worse half reaches 0.5.
+- **Why:** (a) fits noise. (b) rewards one lucky period. (c) spends three configurations, says how the choice is made before seeing results, and rewards consistency across two halves.
+- **Cost if wrong:** Two halves are a weak test; a blend can be consistent by luck. The gate is still the judge (T-4445). Using the paper's momentum setting, not the operator's named "optimised" one, may give up some in-sample return; that is the point.

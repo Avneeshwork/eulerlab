@@ -132,6 +132,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--from", dest="start", default=None)
     parser.add_argument("--to", dest="end", default=None)
     parser.add_argument("--tier", default="B")
+    parser.add_argument(
+        "--out", default="", help="write the summary here instead of the set's file"
+    )
     args = parser.parse_args(argv)
     STRATEGIES = {
         "papers": india_papers.STRATEGIES,
@@ -147,6 +150,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         "events": EVENTS_OUT,
         "screener": SCREENER_OUT,
     }[args.set]
+    if args.out:
+        out_path = Path(args.out)
     # The event strategies' data covers 2021-07 to 2024 only (`events_daily`).
     window = events_daily.EVENTS_WINDOW if args.set == "events" else (START, END)
     args.start = args.start or window[0]

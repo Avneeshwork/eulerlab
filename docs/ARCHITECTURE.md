@@ -3518,3 +3518,18 @@ the latest close, on today's adjusted view, equal-weighted, against NIFTYBEES
 over the same sessions; `track` summarises complete ones: mean excess and the
 share beating Nifty. `/api/screener` serves `screener.json`; Workbench →
 Screener draws it.
+
+### Blends and the pre-registered choice (ADR-137, research 151)
+
+`screener_models.Blend(name, parts, rebalance_every)` builds each part from
+`published.BUILDERS`, lets each decide on the view narrowed to its own lookback
+(`decide`), and returns Σ share × weight per stock; its lookback is the longest
+part's. Four are declared: `screen_long_blend` (quality momentum 0.7, tree
+ranker 0.3; 21 sessions) and three swing blends at 5 sessions: A = Sharpe
+momentum (paper setting, `india_sharpe_momentum`) + Weinstein stage 2, B =
+52-week breakout + Weinstein, C = all three in thirds. `screener.choose` marks
+`main_long` from `config/screener.yaml`, reads each candidate's Sharpe from the
+two half-period summaries (`halves`), and marks as chosen the candidate whose
+smaller half-Sharpe is largest (ties: fewer parts), only if that exceeds
+`robust_floor` (0.5). Lists are ordered main, chosen, new, then the rest. Each
+tab of the page opens on its main or chosen list.

@@ -44,6 +44,8 @@ from eulerlab.fundamentals import annual
 
 TOP = 20
 SLOTS = 10
+LONG = "long"
+SWING = "swing"
 
 
 # --- corporate-action units -----------------------------------------------------------------------
@@ -445,10 +447,83 @@ class BreakoutVolume(Strategy):
         return dict.fromkeys(held, 1.0 / max(len(held), SLOTS)) if held else {}
 
 
+# --- blends (ADR-137) ----------------------------------------------------------------------------
+
+
+class Blend(Strategy):
+    """Fixed-weight blend of registered strategies, decided together at one cadence.
+
+    Each part decides on the view narrowed to its own lookback, as the engine
+    would give it; the blend's weights are the parts' long weights times their
+    shares, summed. The shares are fixed when the blend is declared, never fitted.
+    """
+
+    def __init__(self, name: str, parts: Sequence[tuple[str, float]], rebalance_every: int) -> None:
+        from eulerlab.backtest.published import BUILDERS
+
+        self.name = name
+        self.parts = [(BUILDERS[pid](), share) for pid, share in parts]
+        self.rebalance_every = rebalance_every
+        self.lookback = max(int(getattr(s, "lookback", 0) or 0) for s, _ in self.parts)
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        from eulerlab.backtest.strategy import decide
+
+        total: dict[str, float] = {}
+        for strategy, share in self.parts:
+            lookback = int(getattr(strategy, "lookback", 0) or 0)
+            narrowed = MarketView(
+                as_of=view.as_of,
+                history={s: h[-lookback:] if lookback else h for s, h in view.history.items()},
+            )
+            longs, _ = decide(strategy, narrowed)
+            for symbol, weight in longs.items():
+                total[symbol] = total.get(symbol, 0.0) + share * weight
+        return total
+
+
+BLENDS: tuple[tuple[str, str, str, tuple[tuple[str, float], ...], int], ...] = (
+    (
+        "screen_long_blend",
+        "Long-term blend: quality momentum 70%, tree ranker 30%",
+        LONG,
+        (("screen_quality_momentum", 0.7), ("screen_tree_ranker", 0.3)),
+        MONTH,
+    ),
+    (
+        "screen_swing_mom_weinstein",
+        "Swing A: volatility-adjusted momentum + Weinstein stage 2",
+        SWING,
+        (("india_sharpe_momentum", 0.5), ("nse_github_weinstein_stage2", 0.5)),
+        5,
+    ),
+    (
+        "screen_swing_breakout_weinstein",
+        "Swing B: 52-week breakout + Weinstein stage 2",
+        SWING,
+        (("screen_52w_breakout", 0.5), ("nse_github_weinstein_stage2", 0.5)),
+        5,
+    ),
+    (
+        "screen_swing_three",
+        "Swing C: momentum, breakout and Weinstein, a third each",
+        SWING,
+        (
+            ("india_sharpe_momentum", 1 / 3),
+            ("screen_52w_breakout", 1 / 3),
+            ("nse_github_weinstein_stage2", 1 / 3),
+        ),
+        5,
+    ),
+)
+
+
+def _blend_builder(bid: str, parts: tuple[tuple[str, float], ...], every: int) -> Any:
+    return lambda: Blend(bid, parts, every)
+
+
 # --- the registry ---------------------------------------------------------------------------------
 
-LONG = "long"
-SWING = "swing"
 
 SPECS: tuple[tuple[PaperStrategy, str], ...] = (
     (
@@ -554,6 +629,29 @@ SPECS: tuple[tuple[PaperStrategy, str], ...] = (
         ),
         SWING,
     ),
+)
+
+LONG_LOOKBACK = 3 * YEAR + 30
+SPECS = SPECS + tuple(
+    (
+        PaperStrategy(
+            id=bid,
+            title=title,
+            paper="gu-kelly-xiu-2020-ml-asset-pricing"
+            if kind == LONG
+            else "github-2026-trend-radar-minervini",
+            citation="Fixed-weight blend of registered strategies (ADR-137)",
+            summary=f"{title}; one book, rebalanced every {every} sessions.",
+            logic=(
+                *(f"{pid}: {share:.0%} of capital" for pid, share in parts),
+                f"Rebalanced every {every} sessions; shares fixed, not fitted.",
+            ),
+            lookback=LONG_LOOKBACK,
+            build=_blend_builder(bid, parts, every),
+        ),
+        kind,
+    )
+    for bid, title, kind, parts, every in BLENDS
 )
 
 STRATEGIES = tuple(s for s, _ in SPECS)

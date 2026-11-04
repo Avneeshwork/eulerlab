@@ -63,7 +63,16 @@ function ModelCard({ list, onPick }: { list: ScreenerList; onPick: (id: string) 
           info="Each recorded selection, equal-weighted, from the next session's close over the model's holding period (5 sessions swing, 21 long-term), minus NIFTYBEES over the same days, before costs."
         />
       </Stats>
-      <Chip tone="warn">Not gate-promoted</Chip>
+      {list.halves && (
+        <p className="ui-sub">
+          Sharpe 2016-2020 {num(list.halves[0] ?? null, 2)} · 2021-2026 {num(list.halves[1] ?? null, 2)}
+        </p>
+      )}
+      <div className="scr-chips">
+        {list.main && <Chip tone="up">Main long-term list</Chip>}
+        {list.chosen && <Chip tone="up">Chosen by the pre-registered rule</Chip>}
+        <Chip tone="warn">Not gate-promoted</Chip>
+      </div>
     </div>
   );
 }
@@ -201,7 +210,9 @@ export function ScreenerTab() {
 
   const lists = useMemo(() => (data?.lists ?? []).filter((l) => l.kind === kind), [data, kind]);
   const titles = useMemo(() => Object.fromEntries(lists.map((l) => [l.id, l.title])), [lists]);
-  const chosen = lists.find((l) => l.id === model);
+  // Each tab opens on its pre-registered list: the 70:30 blend, or the swing blend the rule chose.
+  const preferred = lists.find((l) => (kind === 'long' ? l.main : l.chosen));
+  const chosen = lists.find((l) => l.id === model) ?? (model === '' ? preferred : undefined);
   const symbols = useMemo(() => {
     if (!data) return [];
     const base = chosen
@@ -249,6 +260,8 @@ export function ScreenerTab() {
         </span>
       </div>
 
+      {data.choice && <p className="scr-choice">How the lists are chosen ({data.choice.rule}): {data.choice.why}.</p>}
+
       <ul className="scr-caveats">
         {data.caveats.map((c) => (
           <li key={c}>{c}</li>
@@ -257,7 +270,7 @@ export function ScreenerTab() {
 
       <div className="scr-models">
         {lists.map((l) => (
-          <ModelCard key={l.id} list={l} onPick={(id) => setModel(id === model ? '' : id)} />
+          <ModelCard key={l.id} list={l} onPick={(id) => setModel(id === (chosen?.id ?? '') ? 'all' : id)} />
         ))}
       </div>
 

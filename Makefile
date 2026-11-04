@@ -125,9 +125,10 @@ help:
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 	@echo "  make india-live   Indian data from 15:31, retried until in (schedulable)"
 
-# Everything this machine runs, the news tone model included (ADR-135).
+# Everything this machine runs: the news tone model (ADR-135) and scikit-learn for
+# the screener's tree ranker (ADR-136), which holds nothing without it.
 install:
-	uv sync --extra dev --extra web --extra news
+	uv sync --extra dev --extra web --extra news --extra research-ml
 	cd web && npm install
 	uv run pre-commit install
 

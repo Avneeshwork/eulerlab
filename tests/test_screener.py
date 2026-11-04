@@ -11,7 +11,7 @@ import pytest
 
 from eulerlab import screener
 from eulerlab.backtest import screener_models as sm
-from eulerlab.backtest.strategy import MarketView
+from eulerlab.backtest.strategy import MarketView, Strategy
 from eulerlab.features.panel import PanelRow
 from eulerlab.fundamentals import annual
 
@@ -225,3 +225,50 @@ def test_history_records_once_and_scores_from_the_next_close_against_nifty(tmp_p
     assert sel["return"] == round((60 / 50 - 1 + 9 / 10 - 1) / 2, 4)
     assert sel["nifty"] == round(105 / 100 - 1, 4) and sel["beat_nifty"] == 0.5
     assert got["complete"] == 1 and got["mean_excess"] == sel["excess"]
+
+
+def test_the_swing_blend_is_chosen_by_its_worse_half_not_its_best_result() -> None:
+    cfg = {"main_long": "L", "swing_candidates": ["A", "B", "C"], "robust_floor": 0.5}
+    lists: list[dict[str, Any]] = [
+        {"id": "L", "kind": "long", "parts": [1, 2]},
+        {"id": "A", "kind": "swing", "parts": [1, 2]},
+        {"id": "B", "kind": "swing", "parts": [1, 2]},
+        {"id": "C", "kind": "swing", "parts": [1, 2, 3]},
+    ]
+    # A has the best single half (2.0) but a weak other half; B is steadier.
+    halves = [
+        {"A": {"sharpe": 2.0}, "B": {"sharpe": 0.9}, "C": {"sharpe": 0.9}},
+        {"A": {"sharpe": 0.3}, "B": {"sharpe": 0.8}, "C": {"sharpe": 0.8}},
+    ]
+    got = screener.choose(lists, cfg, halves)
+    assert got["chosen_swing"] == "B"  # tie with C on the worse half goes to fewer parts
+    assert [x["id"] for x in lists][:2] == ["L", "B"]
+    assert next(x for x in lists if x["id"] == "A")["halves"] == [2.0, 0.3]
+    weak = [{"A": {"sharpe": 0.4}, "B": {"sharpe": 0.4}, "C": {"sharpe": 0.4}}] * 2
+    assert screener.choose(lists, cfg, weak)["chosen_swing"] == ""
+    assert screener.choose(lists, cfg, [])["why"] == "the half-period runs are not held yet"
+
+
+def test_a_blend_adds_its_parts_weights_at_fixed_shares() -> None:
+    class Fixed(Strategy):
+        lookback = 1
+
+        def __init__(self, w: dict[str, float]) -> None:
+            self.name, self.w = "fixed", w
+
+        def target_weights(self, view: MarketView) -> dict[str, float]:
+            return self.w
+
+    blend = sm.Blend.__new__(sm.Blend)
+    blend.name, blend.rebalance_every, blend.lookback = "b", 21, 1
+    blend.parts = [(Fixed({"AAA": 0.5, "BBB": 0.5}), 0.7), (Fixed({"BBB": 1.0}), 0.3)]
+    view = _view({"AAA": [1.0, 1.0], "BBB": [1.0, 1.0]})
+    got = blend.target_weights(view)
+    assert got == pytest.approx({"AAA": 0.35, "BBB": 0.65})
+    built = sm.BUILDERS["screen_long_blend"]()
+    assert isinstance(built, sm.Blend)
+    assert [round(s, 2) for _, s in built.parts] == [0.7, 0.3] and built.rebalance_every == 21
+    assert {k: sm.KIND[k] for k in sm.KIND if k.startswith("screen_swing_")} == dict.fromkeys(
+        ["screen_swing_mom_weinstein", "screen_swing_breakout_weinstein", "screen_swing_three"],
+        "swing",
+    )

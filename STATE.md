@@ -34,7 +34,9 @@ what is open is in `TASKS.md`.*
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a
-  forward record of past picks; none is gate-promoted (ADR-136).
+  forward record of past picks; none is gate-promoted (ADR-136). The long-term
+  list is a fixed 70:30 blend; the swing list is chosen among three
+  pre-registered blends by their worse half (ADR-137).
 - **Paper trading** runs forward with operator capital (`make paper-daily`),
   with loss limits that act: reduce-only at 10% drawdown, halt at 20%.
   Live is refused in code until the Kite adapter is proven (S-015).

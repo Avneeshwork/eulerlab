@@ -9,3 +9,5 @@
 .scr-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline; }
 .scr-warn { color: var(--down, #c0392b); }
 .scr-table td, .scr-table th { white-space: nowrap; }
+.scr-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.scr-choice { margin: 0; font-size: 13px; }

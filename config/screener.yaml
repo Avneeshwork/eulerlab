@@ -19,3 +19,16 @@ summaries:
   - data/derived/india_papers.json
   - data/derived/github_daily.json
   - data/derived/evidence_daily.json
+
+# The pre-registered choice (research 151, ADR-137): the long-term list is the
+# fixed 70:30 blend; the swing list is the candidate with the best Sharpe in its
+# worse half, ties to fewer parts, and none when no worse half reaches the floor.
+main_long: screen_long_blend
+swing_candidates:
+  - screen_swing_mom_weinstein
+  - screen_swing_breakout_weinstein
+  - screen_swing_three
+halves:
+  - data/derived/screener_blends_2016_2020.json
+  - data/derived/screener_blends_2021_2026.json
+robust_floor: 0.5
