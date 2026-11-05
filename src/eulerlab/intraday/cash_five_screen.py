@@ -506,7 +506,12 @@ def main() -> int:
     parser.add_argument("--part", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args()
     if args.batch:
-        extract_batch(args.batch, args.part)
+        # Through the module, not `__main__`, so the pickled classes can be read by others.
+        import importlib
+
+        importlib.import_module("eulerlab.intraday.cash_five_screen").extract_batch(
+            args.batch, args.part
+        )
         return 0
     result = run(args.output)
     for one in result["runs"]:
