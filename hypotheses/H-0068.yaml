@@ -1,6 +1,6 @@
 id: H-0068
 title: 'Past-month winners keep winning in the daytime: long the top decile of 20-day returns, short the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -27,3 +27,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 55,746 trades, -4.64 bps gross and -16.91 net a trade, net Sharpe -5.80 (research 159). Dead.'

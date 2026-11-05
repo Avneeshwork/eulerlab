@@ -1,6 +1,6 @@
 id: H-0066
 title: 'Momentum winners give back in the daytime: short the top decile of 12-1 month momentum, buy the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -27,3 +27,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 38,596 trades, 1.77 bps gross and -10.50 net a trade, net Sharpe -3.38 (research 159). Dead.'

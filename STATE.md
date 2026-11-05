@@ -42,6 +42,8 @@ what is open is in `TASKS.md`.*
   (research 156, 157): every effect found is smaller than a 12.24 bps round trip.
   Research 158: overnight winners' daytime reversal (H-0065) beat the cost gross
   (13.9 bps) but lost in 2024; untested on fresh data (T-4468).
+  Research 159: H-0070 (Nifty tug of war in NIFTYBEES) is the first to pass the
+  screen's both-halves rule, on 100 trades and t of about 0.8 (T-4469).
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a

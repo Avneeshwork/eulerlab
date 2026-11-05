@@ -53,3 +53,35 @@ trial spent.
 
 Low. The stock rules rest on the one family that has shown a gross edge
 larger than the cost here; the index rules have small sources.
+
+## Results (run 2026-11-06, after the rules were committed in `85cde1b`)
+
+`make tug-of-war` → `data/derived/tug_of_war.json`. No stock minute file
+opened; 1x; no trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0066 momentum daytime reversal | 38,596 | 1.77 bps | -10.50 bps | -3.38 | -4.50 / -2.52 |
+| H-0067 tug-of-war intensity | 55,677 | -9.55 bps | -21.81 bps | -10.67 | -10.66 / -10.71 |
+| H-0068 past-month winners in the daytime | 55,746 | -4.64 bps | -16.91 bps | -5.80 | -6.78 / -3.95 |
+| H-0069 Nifty overnight extremes, NIFTYBEES | 159 | -9.64 bps | -17.64 bps | -2.38 | -2.60 / -2.58 |
+| H-0070 Nifty tug of war, NIFTYBEES | 100 | **12.08 bps** | **+4.08 bps** | **0.49** | **0.07 / 1.07** |
+
+- **H-0070 is the first rule in research 153-159 that is positive net in both
+  halves**, so it passes the screen's rule. It is weak evidence. The signal
+  needs 270 sessions of history, so its first trade is in 2023: the "before
+  2024" half is 2023 alone, where it made +0.24% (Sharpe 0.07, about zero), and
+  almost all of its +4.0% came in 2024 (67 trades, Sharpe 1.07). One hundred
+  trades over two years give a t-statistic of about 0.8 (0.49 x the square root of 2.9 years); the gate asks for 3.
+  Akbas et al. call the market-level effect economically very small.
+- **The stock rules are dead.** Momentum does not reverse by day here (1.8
+  bps gross). The tug-of-war intensity rule lost 9.6 bps gross, the opposite
+  of the US finding (and of the null found in China and five developed
+  markets). Past-month winners lost 4.6 bps in the daytime.
+- **Nifty overnight extremes** lost 9.6 bps gross: after a run of strong
+  overnight gains, the next daytime did not give them back.
+
+**What H-0070 needs next** (T-4469, operator): nothing here can confirm it.
+Its rule is fixed; the evidence that could is new sessions: a paper book from
+today, or the holdout read, which the mandate allows only after the gate, and
+at t of about 0.8 it would not pass the gate.
