@@ -1,0 +1,29 @@
+id: H-0052
+title: 'Buy NIFTYBEES for the session before a market holiday'
+status: rejected
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'On each session followed by a weekday market holiday, buying NIFTYBEES at the 09:20 open and selling at 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Ariel (1990, J. Finance): pre-holiday returns are several times normal. Indian evidence is split: a 2025 FIIB Business Review study finds a persistent pre-holiday anomaly in Indian indices; a 2002-2014 NSE/BSE study finds none. Research 156.'
+source:
+  research: '156'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: niftybees_pre_holiday
+  event: a session whose next weekday is not a session (a weekday holiday); holidays are announced in advance (A-110)
+  entry: 09:20 open, long
+  exit: 15:10
+  sizing: ₹10 lakh, 1x
+  costs: cash intraday as for a share plus 2 bps a side
+red_flags:
+- 'About 40-50 days: a result is fragile.'
+- 'The papers measure close to close; the intraday part of the effect is unknown.'
+- 'Indian evidence disagrees with itself.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-05: 47 trades, 16.54 bps gross and +8.54 net a trade, net Sharpe 0.52; positive before 2024 (0.86), negative in 2024 (-1.16) (research 156). Fails the both-halves rule.'
