@@ -160,6 +160,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4456 | Data watch also at 22:00 IST: NSE sometimes publishes F&O after the 19:30 run | DONE 2026-11-04 (operator). `make schedule ACTION=install JOB=data-watch` reloads it |
 | T-4457 | Engineering agent fits Groq's free limit: small context (rules digest, the failing function, its tests, the error) and exact edits; wider second try; then the next model | DONE 2026-11-05 (HISTORY #78). 8,600-12,600 tokens became 1,800-4,200 |
 | T-4458 | The lab writes its own formula ideas again (`max_ideas: 30`, `model_ideas: 6`, the settings before 2026-11-03), beside research's cards | DONE 2026-11-04 (operator). Each idea spends trials as before |
+| T-4463 | Five minute-level cash rules for stocks and the Nifty at 1x, no derivatives (operator, 2026-11-05) | DONE 2026-11-05 — all five dead after costs: in-play ORB 6.32 bps gross, 52-week-high break -7.02, panic-day laggards -21.44, NIFTYBEES panic reversal -10.80, NIFTYBEES premium 4.55; a ₹1 lakh round trip is 12.24 bps (research 155) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

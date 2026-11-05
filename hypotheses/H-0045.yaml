@@ -1,6 +1,6 @@
 id: H-0045
 title: Opening-range breakout on the day's 20 stocks in play
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -31,3 +31,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 12,946 trades, 6.32 bps gross and -5.95 net a trade, net Sharpe -1.31, negative in both halves (research 155). Dead.'

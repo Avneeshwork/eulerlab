@@ -67,3 +67,41 @@ halves (before 2024, and 2024). Screening only: no trial spent.
 
 Low to medium for H-0045 (the strongest source, never tested across NSE
 stocks); low for the rest.
+
+## Results (run 2026-11-05, after the rules were committed in `6ab607c`)
+
+`make cash-five` → `data/derived/cash_five.json`. 416 stocks; stock window
+2021-08-20 to 2024-11-29, index window from 2021-11-01. 1x. No trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0045 in-play ORB | 12,946 (904 stopped) | 6.32 bps | -5.95 bps | -1.31 | -1.04 / -1.96 |
+| H-0046 52-week-high break | 4,579 | -7.02 bps | -19.30 bps | -2.35 | -1.58 / -3.81 |
+| H-0047 panic-day laggards | 970 on 97 days | -21.44 bps | -33.70 bps | -2.09 | -2.21 / -1.76 |
+| H-0048 panic reversal, NIFTYBEES | 97 | -10.80 bps | -18.80 bps | -1.96 | -2.02 / -1.77 |
+| H-0049 NIFTYBEES premium | 538 | 4.55 bps | -3.45 bps | -1.00 | -1.08 / -0.77 |
+
+**All five are dead**, negative net in both halves.
+
+- **In-play ORB.** The US paper's selection does not carry over: 6.3 bps
+  gross, half the cost. Choosing stocks by opening volume does not rescue the
+  opening-range breakout on NSE.
+- **52-week-high break.** The stock falls back after the break on the day
+  (-7 bps gross), which matches Della Vedova et al.'s finding of heavy
+  household selling on the day of the high, not the continuation that comes
+  later.
+- **Panic reversal, both forms.** On a Nifty ±1% day at 12:15, the move
+  continues into the close rather than reversing: the faded stocks lost 21 bps
+  gross and the faded index 11. Grant, Wolf and Yu's reversal, measured from
+  large opening moves in US futures, does not appear here at midday. The
+  opposite rule (follow a midday 1% move) is **not** run: choosing it now would
+  be choosing on this result. If it is wanted it needs its own source,
+  registration, and evidence this window cannot give (the holdout, read
+  once).
+- **NIFTYBEES premium.** Real but small: 4.6 bps gross against a 7.99 bps
+  round trip.
+
+With research 153 and 154, that is nine intraday cash rules screened today and
+none alive after costs. The pattern holds: effects that exist (shock
+reversal 7.7 bps, in-play ORB 6.3, ETF premium 4.6) are all smaller than the
+round trip.

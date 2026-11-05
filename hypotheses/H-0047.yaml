@@ -1,6 +1,6 @@
 id: H-0047
 title: On a Nifty panic day, buy the large caps that fell most; on a spike, short those that rose most
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -29,3 +29,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 970 trades on 97 days, -21.44 bps gross and -33.70 net a trade, net Sharpe -2.09; the move continued (research 155). Dead; the opposite rule is not run.'

@@ -1,6 +1,6 @@
 id: H-0049
 title: Trade NIFTYBEES back toward the Nifty when it strays 16 bps from fair value
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -29,3 +29,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 538 trades, 4.55 bps gross and -3.45 net a trade, net Sharpe -1.00 (research 155). Dead.'

@@ -1,6 +1,6 @@
 id: H-0046
 title: Buy the first intraday break of the 52-week high, hold to the close
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -30,3 +30,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 4,579 trades, -7.02 bps gross and -19.30 net a trade, net Sharpe -2.35 (research 155). Dead.'

@@ -1,6 +1,6 @@
 id: H-0048
 title: On a Nifty panic day, trade NIFTYBEES against the move from 12:16 to the close
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 97 trades, -10.80 bps gross and -18.80 net a trade, net Sharpe -1.96 (research 155). Dead.'
