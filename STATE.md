@@ -31,6 +31,11 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
+  Day trading: about twenty intraday rules have died after costs; the one alive
+  screen is selling the Nifty straddle at the open on expiry day (H-0041,
+  net Sharpe 0.95, worst day -3.1% of notional; research 153). Not gated.
+  Minute scalps do not pay at retail costs: a ₹1 lakh stock round trip is
+  12.24 bps, NIFTYBEES moves 8 bps in 15 minutes; two stock scalps died (research 154).
   Five more minute-signalled cash rules at 1x (in-play ORB, 52-week-high break,
   panic reversal in stocks and NIFTYBEES, NIFTYBEES premium) all died after costs (research 155).
   Five more (drift bursts, pre-holiday, turn of month, results day) also fail (research 156).
@@ -114,7 +119,8 @@ run them to check that they work (T-2609).
 1. **T-906** — copy `config/contract_notes.example.json` to
    `contract_notes.json` with 20 real contract notes, to check every cost rate.
 2. **T-4292** — seven decisions on judging books instead of single rules.
-3. **T-4250** — the mandate's `min_t_statistic` is never checked by the gate.
+3. **T-4459** — gate H-0041 (expiry-day straddle), check its fills on minute data first, or leave it.
+4. **T-4250** — the mandate's `min_t_statistic` is never checked by the gate.
 
 ## Known to be wrong, right now
 

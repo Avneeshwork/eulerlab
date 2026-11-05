@@ -1,0 +1,41 @@
+id: H-0041
+title: Sell the at-the-money Nifty straddle at the open on weekly expiry day
+status: draft
+family: options_expiry_day
+source_kind: practitioner
+parent: ''
+claim: On each weekly Nifty expiry day, selling the call and put at the strike nearest the Nifty open, at
+  their opening prices, and holding to settlement earns more than costs in both halves of 2019-02 to
+  2024-11, with a worst day the operator can survive.
+rationale: Same-day options price more movement than the index delivers on average (FlashAlpha, 193 SPY
+  sessions, realized moves about 13% below fair); the variance premium is the oldest options effect.
+  Popular in India, never tested here; research 070 tested monthly strangles only (research 153).
+source:
+  research: '153'
+  written_by: Claude, for the operator's day-trading request
+  day: '2026-11-05'
+configurations:
+- shape: options_day
+  strategy: nifty_expiry_day_short_straddle
+  underlying: Nifty 50 weekly options, expiring that day
+  strike: Nifty 50 open, rounded to the nearest 50
+  entry: each leg's opening price (F&O bhavcopy OPEN), less 1 index point of slippage a leg
+  exit: held to the exchange settlement price, no stop
+  sizing: one unit of the straddle per unit of Nifty notional, ₹10 lakh notional (continuous units, S-039)
+  costs: costs.schedule options rates on the day; a short leg pays no exercise STT
+  skip: a day where either leg did not trade (no OPEN)
+  window: 2019-02-14 to 2024-11-28
+red_flags:
+- 'No stop and no hedge: one gap day can wipe out months. Worst day and drawdown are reported first.'
+- 'The bhavcopy OPEN is the first trade, which may be seconds after 09:15 and at a wide spread; the
+  index open and the option opens are not the same instant.'
+- 'Settlement-only exit: the path inside the day is unseen, so the margin call a real seller meets
+  mid-day is not modelled.'
+- 'SEBI''s October 2024 measures (larger lots from 2024-11-20, expiry-day margin) change the trade at
+  the very end of the window; the window stops before they matter.'
+- 'Source evidence is a vendor study of SPY, not a paper on Nifty.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-05: 299 expiries, 8.79 bps gross and 6.96 bps net of notional a trade, net Sharpe 0.95 (0.87 before 2024, 1.38 in 2024), worst -307 bps on 2020-03-12, drawdown -3.8% of notional (research 153). Not gated.'
