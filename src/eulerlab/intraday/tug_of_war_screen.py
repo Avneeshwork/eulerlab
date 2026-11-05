@@ -188,7 +188,10 @@ def run_daily(output: Path = DAILY_OUT) -> dict[str, Any]:
         "nifty_tug_of_war_niftybees_daily",
         trades,
         sessions,
-        params={"bars": "Nifty 50 daily open to close, costed as NIFTYBEES", "slippage_bps_per_side": cs.SLIPPAGE_BPS},
+        params={
+            "bars": "Nifty 50 daily open to close, costed as NIFTYBEES",
+            "slippage_bps_per_side": cs.SLIPPAGE_BPS,
+        },
         capital=five.ETF_CAPITAL,
     )
     daily = [(date.fromisoformat(d), r) for d, r in run.pop("daily")]
