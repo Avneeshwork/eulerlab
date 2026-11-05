@@ -1,0 +1,26 @@
+id: H-0076
+title: 'Buy a stock on the day it announces a buyback, hold to the close'
+status: draft
+family: intraday_news
+source_kind: paper
+parent: ''
+claim: 'When a stock''s buyback announcement reaches NSE between 09:20 and 14:30, buying at the next minute''s open, and when it arrives outside market hours buying at the next session''s 09:20 open, and selling at 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Indian buyback studies find significant abnormal returns on the announcement day (tender offers, NSE, pre- and post-pandemic; IMFI 2024 and others). Research 160.'
+source:
+  research: '160'
+  written_by: Claude, for the operator's request for five more intraday strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  events: 'NSE corporate announcements (data/landing/nse_announcements, all categories), dissemination time exchdisstime, F&O stocks with Kite minute bars'
+  category: 'Buyback'
+  rule: 'disclosed 09:20-14:30 -> next minute''s open; disclosed after the close or before the open -> next session''s 09:20 open; exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; ₹1 lakh a trade, 1x, at most ten a day, earliest disclosure first'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'Few events among F&O stocks: perhaps 30-60.'
+- 'An overnight announcement is mostly priced in the opening gap, before 09:20.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
