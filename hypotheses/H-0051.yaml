@@ -1,0 +1,31 @@
+id: H-0051
+title: 'Buy a stock after a drift burst down, hold to the close'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'When a stock''s minute close is 3% or more below its highest close of the previous 30 minutes, on 30-minute volume at least three times its 14-session norm, between 09:45 and 14:10, buying at the next open and selling at 15:10 earns more than costs in both halves of 2021-09 to 2024-11.'
+rationale: 'Christensen, Oomen and Renò (2022, J. Econometrics 227(2)): short explosive trends are common and most reverse, more so negative bursts on large volume. Research 156.'
+source:
+  research: '156'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_drift_burst_reversal
+  universe: F&O stocks with Kite minute bars, prior close >= ₹100
+  signal: close <= 0.97 x the highest close of the previous 30 minutes, minutes 30-295 (09:45-14:10)
+  volume: the 30 minutes' volume >= 3 x (mean daily volume of the prior 14 sessions / 375 x 30)
+  side: down bursts only, bought
+  entry: next minute's open; first signal a stock a day
+  exit: 15:10
+  sizing: ₹1 lakh a trade, 1x, ten a day, earliest first
+  costs: cash intraday plus 2 bps a side
+red_flags:
+- 'Cousin of H-0042 (one-minute 1% shock, 15-minute hold: 7.69 bps gross, dead). This needs a larger, slower fall and holds to the close.'
+- 'A 3% fall in 30 minutes is often news; news falls need not reverse.'
+- '3%, 30 minutes and 3x are fixed here, not fitted.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

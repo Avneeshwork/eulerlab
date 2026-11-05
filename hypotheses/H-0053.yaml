@@ -1,0 +1,27 @@
+id: H-0053
+title: 'Buy NIFTYBEES intraday on the four turn-of-the-month sessions'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'On the last session of each month and the first three of the next, buying NIFTYBEES at the 09:20 open and selling at 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'McConnell and Xu (2008, Financial Analysts Journal 64(2)): returns concentrate in the four-day turn of the month in 31 of 35 countries; 0.15% a day in the US against about zero on other days. Research 156.'
+source:
+  research: '156'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: niftybees_turn_of_month
+  event: the last session of a month and the first three sessions of the next
+  entry: 09:20 open, long
+  exit: 15:10
+  sizing: ₹10 lakh, 1x
+  costs: cash intraday as for a share plus 2 bps a side
+red_flags:
+- 'The effect is measured close to close; much of it may come overnight, which an intraday trade does not hold.'
+- 'Whether India is among the 31 countries was not confirmed from the paper.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

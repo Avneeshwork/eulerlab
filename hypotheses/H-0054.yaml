@@ -1,0 +1,28 @@
+id: H-0054
+title: 'Buy a stock intraday on the day its results are due after the close'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'On a session whose evening (15:30 or later) brings the stock''s results to NSE, buying it at the 09:20 open and selling at 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Barber, De George, Lehavy and Trueman (2013, JFE 108(1)): stocks earn a premium in earnings-announcement periods around the world, driven by uncertainty before the news. The board-meeting date is announced days ahead (A-111), so the day is known that morning. Research 156.'
+source:
+  research: '156'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_results_day_premium
+  event: the stock's first results disclosure on NSE on that calendar day at 15:30 or later
+  entry: 09:20 open, long
+  exit: 15:10
+  sizing: ₹1 lakh a trade, 1x, at most ten a day, by symbol name
+  excluded: 2022-07-01 to 2022-12-31 (results not labelled)
+  costs: cash intraday plus 2 bps a side
+red_flags:
+- 'The premium is measured over announcement windows of days, mostly including the reaction; the pre-announcement intraday part may be tiny.'
+- 'Using the actual disclosure to date the meeting assumes the date was announced in advance; a surprise meeting would be look-ahead.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
