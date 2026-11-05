@@ -1,6 +1,6 @@
 id: H-0073
 title: 'Follow the first five minutes after an acquisition or merger announcement during market hours'
-status: draft
+status: rejected
 family: intraday_news
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 12 trades, 26.75 bps gross and +14.43 net a trade; negative before 2024 (research 160). Too few, and fails the both-halves rule.'

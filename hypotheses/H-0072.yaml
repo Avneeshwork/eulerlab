@@ -1,6 +1,6 @@
 id: H-0072
 title: 'Follow the first five minutes after a press release during market hours, to the close'
-status: draft
+status: rejected
 family: intraday_news
 source_kind: paper
 parent: ''
@@ -24,3 +24,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 206 trades, -29.80 bps gross and -42.06 net a trade, net Sharpe -1.22; news moves reversed (research 160). Dead.'

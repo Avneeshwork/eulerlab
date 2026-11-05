@@ -169,8 +169,9 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4465 | Five more minute-level cash rules (operator, 2026-11-05) | DONE 2026-11-05 — none passes: drift burst -13.02 bps gross; pre-holiday NIFTYBEES +8.54 net over 47 trades but negative in 2024; turn of month +0.29 net; results day -20.47 gross; Nifty burst 14 trades (research 156) |
 | T-4466 | Five more cash rules on intraday persistence, volume and attention (operator, 2026-11-05) | DONE 2026-11-05 — all dead: persistence deciles 5.22 bps gross, quiet volume shock -7.71, attention at +5% 7.83, big day by volume -3.78, Nifty big day 64 trades (research 157) |
 | T-4467 | Five more cash rules: Nifty expiry pinning and gamma momentum, put-call contrarian, same half-hour, overnight winners (operator, 2026-11-05) | DONE 2026-11-05 — none passes; overnight winners' daytime reversal (H-0065) made 13.86 bps gross, +1.59 net, positive before 2024 and negative in 2024 (research 158) |
-| T-4468 | H-0065 is the only intraday rule whose gross edge beat the round trip. Test it as written on fresh data (holdout, read once, or forward paper), or leave it | OPEN (operator) |
+| T-4468 | H-0065 is the only intraday rule whose gross edge beat the round trip; test it on fresh data? | CLOSED 2026-11-06 — the operator chose gate first; on its existing numbers it fails three gate rules (t about 1.0 against 3; deflated Sharpe; negative at 2x costs), so no validation path was built and the holdout stays unread |
 | T-4469 | H-0070 passed the screen weakly (100 trades, t about 0.8); retested on daily bars from 2016 (H-0071) | DONE 2026-11-06 — dead: -7.80 bps gross a trade, negative in eight of nine years (research 159) |
+| T-4470 | Five intraday news rules from NSE corporate announcements (operator, 2026-11-06) | DONE 2026-11-06 — none passes: press-release follow -29.80 bps gross (news moves reverse), acquisitions 12 trades, credit ratings 3, dividend day 5.39 gross, buyback day 28 trades (research 160) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

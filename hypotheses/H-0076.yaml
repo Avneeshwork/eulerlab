@@ -1,6 +1,6 @@
 id: H-0076
 title: 'Buy a stock on the day it announces a buyback, hold to the close'
-status: draft
+status: rejected
 family: intraday_news
 source_kind: paper
 parent: ''
@@ -24,3 +24,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 28 trades, 12.54 bps gross and +0.26 net a trade; negative in 2024 (research 160). Fails the both-halves rule.'

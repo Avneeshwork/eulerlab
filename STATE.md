@@ -31,19 +31,10 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
-  Day trading: about twenty intraday rules have died after costs; the one alive
-  screen is selling the Nifty straddle at the open on expiry day (H-0041,
-  net Sharpe 0.95, worst day -3.1% of notional; research 153). Not gated.
-  Minute scalps do not pay at retail costs: a ₹1 lakh stock round trip is
-  12.24 bps, NIFTYBEES moves 8 bps in 15 minutes; two stock scalps died (research 154).
-  Five more minute-signalled cash rules at 1x (in-play ORB, 52-week-high break,
-  panic reversal in stocks and NIFTYBEES, NIFTYBEES premium) all died after costs (research 155).
-  Ten more (bursts, calendar days, intraday persistence, volume, attention) also fail
-  (research 156, 157): every effect found is smaller than a 12.24 bps round trip.
-  Research 158: overnight winners' daytime reversal (H-0065) beat the cost gross
-  (13.9 bps) but lost in 2024; untested on fresh data (T-4468).
-  Research 159: H-0070 (Nifty tug of war) passed the screen on 100 trades but
-  lost in eight of nine years when run from 2016 on daily bars (H-0071). Dead.
+  Intraday (research 153-160): 36 tests of minute-bar rules, none passes.
+  A ₹1 lakh stock round trip costs 12.24 bps; the largest gross edge was 13.9 bps
+  (H-0065, lost in 2024). Alive as a screen only: the expiry-day Nifty straddle
+  (H-0041, options, net Sharpe 0.95; T-4459). Company news reverses within the day.
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a

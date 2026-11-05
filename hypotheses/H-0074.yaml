@@ -1,6 +1,6 @@
 id: H-0074
 title: 'Follow the first five minutes after a credit-rating announcement during market hours'
-status: draft
+status: rejected
 family: intraday_news
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 3 trades (research 160). Too few to judge; dead as registered.'

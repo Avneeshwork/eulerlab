@@ -61,3 +61,36 @@ trial spent.
 
 Low to medium for H-0072, which has a large sample and a source that reports
 profits after costs; low for the rest.
+
+## Results (run 2026-11-06, after the rules were committed in `51ef8a7`)
+
+`make news-intraday` → `data/derived/news_intraday.json`. Among the 416 F&O
+stocks, 2021-08 to 2024-11: 3,271 press releases, 322 credit ratings, 267
+acquisitions or mergers, 301 dividends and 5 buybacks were filed between 09:20
+and 14:30 (29 buybacks in all). 1x; no trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0072 press release follow | 206 | **-29.80 bps** | -42.06 bps | -1.22 | -0.70 / -2.39 |
+| H-0073 acquisition follow | 12 | 26.75 bps | +14.43 bps | 0.14 | -0.13 / 0.80 |
+| H-0074 credit rating follow | 3 | -154.53 bps | -166.78 bps | -0.85 | too few |
+| H-0075 dividend day | 260 | 5.39 bps | -6.91 bps | -0.20 | -0.67 / 0.78 |
+| H-0076 buyback day | 28 | 12.54 bps | +0.26 bps | 0.00 | 0.51 / -1.52 |
+
+**None passes.**
+
+- **News does not drift here; it reverses.** Of 3,271 in-hours press
+  releases, 206 moved the stock 1% within five minutes, and following them lost
+  30 bps gross a trade by 15:10. That is the opposite of Jiang, Li and Wang's
+  underreaction, and the same as the results-in-hours rule (H-0022, -17 bps).
+  On NSE's large stocks, a fast move on company news overshoots within the day.
+- **Credit ratings and acquisitions rarely move these stocks** at all: 3 and 12
+  filings reached the 1% bar.
+- **Dividend and buyback days** earned 5 and 13 bps gross, below or at the
+  cost; the buyback sample is 28 trades.
+
+The fading of news moves is the one consistent pattern in research 153-160:
+results in hours (-17 bps for following), the results-morning gap (+6.5 for
+fading), press releases (-30 for following). It is not tested here as a rule,
+because choosing its direction now would be choosing on these results; it would
+need its own registration and data the rule has not seen.

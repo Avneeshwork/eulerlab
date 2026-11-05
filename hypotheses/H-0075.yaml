@@ -1,6 +1,6 @@
 id: H-0075
 title: 'Buy a stock when a dividend is announced during market hours, hold to the close'
-status: draft
+status: rejected
 family: intraday_news
 source_kind: paper
 parent: ''
@@ -24,3 +24,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 260 trades, 5.39 bps gross and -6.91 net a trade, net Sharpe -0.20 (research 160). Dead.'
