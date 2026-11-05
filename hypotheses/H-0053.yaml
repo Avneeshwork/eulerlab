@@ -1,6 +1,6 @@
 id: H-0053
 title: 'Buy NIFTYBEES intraday on the four turn-of-the-month sessions'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -25,3 +25,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 156 trades, 8.29 bps gross and +0.29 net a trade, net Sharpe 0.03; negative in 2024 (research 156). Dead.'

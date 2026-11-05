@@ -1,6 +1,6 @@
 id: H-0051
 title: 'Buy a stock after a drift burst down, hold to the close'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -29,3 +29,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 3,707 trades, -13.02 bps gross and -25.28 net a trade, net Sharpe -1.91; the fall continued (research 156). Dead.'

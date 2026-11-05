@@ -162,6 +162,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4458 | The lab writes its own formula ideas again (`max_ideas: 30`, `model_ideas: 6`, the settings before 2026-11-03), beside research's cards | DONE 2026-11-04 (operator). Each idea spends trials as before |
 | T-4463 | Five minute-level cash rules for stocks and the Nifty at 1x, no derivatives (operator, 2026-11-05) | DONE 2026-11-05 — all five dead after costs: in-play ORB 6.32 bps gross, 52-week-high break -7.02, panic-day laggards -21.44, NIFTYBEES panic reversal -10.80, NIFTYBEES premium 4.55; a ₹1 lakh round trip is 12.24 bps (research 155) |
 | T-4464 | Reduce the in-play ORB's trades to make it profitable (operator, 2026-11-05) | DONE 2026-11-05 — eight pre-registered filters (H-0050), all negative on 2021-2023; the best (top 10, volume >= 3x) lost 14.04 bps net a trade in 2024. Closed (research 155) |
+| T-4465 | Five more minute-level cash rules (operator, 2026-11-05) | DONE 2026-11-05 — none passes: drift burst -13.02 bps gross; pre-holiday NIFTYBEES +8.54 net over 47 trades but negative in 2024; turn of month +0.29 net; results day -20.47 gross; Nifty burst 14 trades (research 156) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

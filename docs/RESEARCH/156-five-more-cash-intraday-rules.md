@@ -57,3 +57,40 @@ only if positive net in both halves (before 2024, and 2024). No trial spent.
 
 Low. H-0051 has the strongest source; the calendar rules rest on close-to-close
 evidence of which the intraday share is unknown.
+
+## Results (run 2026-11-05, after the rules were committed in `b40172e`)
+
+`make cash-events` → `data/derived/cash_events.json`. 416 stocks; 1x; no
+trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0051 drift burst, stocks | 3,707 | -13.02 bps | -25.28 bps | -1.91 | -2.11 / -1.70 |
+| H-0052 pre-holiday, NIFTYBEES | 47 | 16.54 bps | **+8.54 bps** | 0.52 | **0.86 / -1.16** |
+| H-0053 turn of the month, NIFTYBEES | 156 | 8.29 bps | +0.29 bps | 0.03 | 0.36 / -0.78 |
+| H-0054 results day, stocks | 1,920 on 305 days | -20.47 bps | -32.73 bps | -2.16 | -2.16 / -2.25 |
+| H-0055 drift burst, Nifty | 14 | 2.30 bps | -5.69 bps | -0.17 | -0.44 / 0.40 |
+
+**All five fail the rule set before running (positive net in both halves).**
+
+- **Pre-holiday** is the only one that cleared costs overall: 16.5 bps gross,
+  8.5 net a trade over 47 sessions, but 2024 was negative. Forty-seven trades
+  cannot tell an effect from luck (a Sharpe of 0.52 over three years is well
+  inside noise), and the Indian literature disagrees with itself. Not
+  pursued; it is cheap to re-check later on the holdout or forward data, since
+  the rule is fixed.
+- **Turn of the month** made 8.3 bps gross intraday, the cost of the trade and
+  no more. The effect McConnell and Xu measure is close to close; the
+  intraday part is about a round trip.
+- **Drift bursts kept falling.** A stock 3% down in 30 minutes on heavy
+  volume lost another 13 bps to the close on average; the reversal the paper
+  finds in US and other markets is not seen here at this size. The Nifty
+  version fired 14 times in three years, too few to judge.
+- **Results day:** stocks fell 20 bps on average between 09:20 and 15:10 on the
+  day their results came out that evening, the opposite of an announcement
+  premium. The opposite rule is not run (choosing it now would be choosing on
+  this result).
+
+Across research 153-156, fourteen intraday cash rules and one filter search
+were screened today. One is net positive over the whole window (pre-holiday,
+47 trades, negative in 2024); none passes.

@@ -1,6 +1,6 @@
 id: H-0054
 title: 'Buy a stock intraday on the day its results are due after the close'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 1,920 trades, -20.47 bps gross and -32.73 net a trade, net Sharpe -2.16 (research 156). Dead; the opposite rule is not run.'

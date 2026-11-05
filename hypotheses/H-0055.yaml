@@ -1,6 +1,6 @@
 id: H-0055
 title: 'Buy NIFTYBEES after the Nifty drift-bursts down, hold to the close'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -25,3 +25,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 14 trades, 2.30 bps gross and -5.69 net a trade (research 156). Too few to judge; dead as registered.'

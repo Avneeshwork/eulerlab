@@ -1,6 +1,6 @@
 id: H-0052
 title: 'Buy NIFTYBEES for the session before a market holiday'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 47 trades, 16.54 bps gross and +8.54 net a trade, net Sharpe 0.52; positive before 2024 (0.86), negative in 2024 (-1.16) (research 156). Fails the both-halves rule.'
