@@ -1,0 +1,27 @@
+id: H-0075
+title: 'Buy a stock when a dividend is announced during market hours, hold to the close'
+status: rejected
+family: intraday_news
+source_kind: paper
+parent: ''
+claim: 'When a stock''s dividend announcement reaches NSE between 09:20 and 14:30, buying at the next minute''s open and selling at 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Indian event studies find positive abnormal returns on the day of a cash dividend announcement (Global Business Review 2021; Kumar 2017 for increases), with exceptions by sector. Research 160.'
+source:
+  research: '160'
+  written_by: Claude, for the operator's request for five more intraday strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  events: 'NSE corporate announcements (data/landing/nse_announcements, all categories), dissemination time exchdisstime, F&O stocks with Kite minute bars'
+  category: 'Dividend'
+  rule: 'disclosed 09:20-14:30; buy at the next minute''s open; exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; ₹1 lakh a trade, 1x, at most ten a day, earliest disclosure first'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'The category does not say whether the dividend rose or fell; cuts are followed by price falls (Kumar 2017).'
+- 'Much of a dividend''s news may already be in the board-meeting results released alongside it.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-06: 260 trades, 5.39 bps gross and -6.91 net a trade, net Sharpe -0.20 (research 160). Dead.'

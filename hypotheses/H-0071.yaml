@@ -1,0 +1,31 @@
+id: H-0071
+title: 'H-0070 on daily bars from 2016: buy NIFTYBEES open to close after a month of frequent overnight-up, daytime-down Nifty days'
+status: rejected
+family: intraday_cash
+source_kind: paper
+parent: H-0070
+claim: 'H-0070''s rule, unchanged, run on daily bars over 2016-01-01 to 2024-11-29, is positive net in both 2016-2020 and 2021-2024 and in most single years.'
+rationale: 'Operator, 2026-11-06: "backtest last one on data from 2016". Kite minute bars start in 2021, but H-0070''s signal needs only the Nifty''s daily open and close (index_history, from 2015), and its trade is a daytime hold that daily NIFTYBEES open and close bars approximate. 2016-2021 is data the rule has not seen. Research 159.'
+source:
+  research: '159'
+  written_by: Claude, for the operator
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash_daily_bars
+  strategy: nifty_tug_of_war_niftybees_daily
+  signal: 'H-0070 exactly: count of the previous 20 sessions with Nifty 50 overnight (prior close to open) > 0 and daytime (open to close) < 0, from data/derived/index_history.jsonl; rank among the previous 250 counts; >= 80th -> long'
+  trade: 'NIFTYBEES daily open to daily close (data/derived/price_panel.jsonl), standing in for 09:20 to 15:10'
+  sizing: '₹10 lakh, 1x'
+  costs: 'cash intraday as for a share plus 2 bps a side'
+  window: '2016-01-01 to 2024-11-29'
+  judged: 'net per trade and Sharpe; 2016-2020 against 2021-2024; each year'
+amended: '2026-11-06, before any valid result: the first run (NIFTYBEES daily open to close) lost 107 bps a trade because NIFTYBEES daily opens are bad first prints (median 43 bps away from the Nifty''s open-to-close, 199 bps in 2021; research 075). The trade return is now the Nifty 50 index open to close, net of the same NIFTYBEES costs; the rule is unchanged.'
+red_flags:
+- 'The daily open is the 09:15 auction price and the close is the 15:30 closing price, not 09:20 and 15:10 fills; the minute run (H-0070) showed the rule on true fills.'
+- 'NIFTYBEES traded about ₹1 crore a day in 2015-2017; a ₹10 lakh order then would move it more than 2 bps.'
+- 'Overlaps H-0070 for 2023-2024, the years it was found in; only 2016-2022 is new evidence.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2025-01-01'
+  status: unread
+result: 'Screen 2026-11-06, Nifty daily open to close from 2016: 340 trades, -7.80 bps gross and -15.79 net a trade, net Sharpe -1.27; negative in eight of nine years (research 159). H-0070 is dead.'

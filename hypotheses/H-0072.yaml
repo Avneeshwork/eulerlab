@@ -1,0 +1,27 @@
+id: H-0072
+title: 'Follow the first five minutes after a press release during market hours, to the close'
+status: rejected
+family: intraday_news
+source_kind: paper
+parent: ''
+claim: 'When a stock''s press release reaches NSE between 09:20 and 14:30 and the stock moves 1% or more in the next five minutes, following that move from the next open to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Jiang, Li and Wang (2021, JFE 141(2)): prices underreact to firm news; a strategy on the post-news drift earns abnormal returns after transaction costs, more when investors are distracted. The results-in-hours version was dead here (H-0022); press releases are a different, much larger set of news. Research 160.'
+source:
+  research: '160'
+  written_by: Claude, for the operator's request for five more intraday strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  events: 'NSE corporate announcements (data/landing/nse_announcements, all categories), dissemination time exchdisstime, F&O stocks with Kite minute bars'
+  category: 'Press Release'
+  rule: 'disclosed 09:20-14:30; the move over the five minutes after disclosure, from the close of the minute before, of 1% or more is followed at the next open; exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; ₹1 lakh a trade, 1x, at most ten a day, earliest disclosure first'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'H-0022 (results in hours, the same five-minute follow) lost 17 bps gross a trade.'
+- 'A press release can repeat news already public (a results summary); those carry no new information.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-06: 206 trades, -29.80 bps gross and -42.06 net a trade, net Sharpe -1.22; news moves reversed (research 160). Dead.'

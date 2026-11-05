@@ -1,0 +1,26 @@
+id: H-0073
+title: 'Follow the first five minutes after an acquisition or merger announcement during market hours'
+status: rejected
+family: intraday_news
+source_kind: paper
+parent: ''
+claim: 'When a stock''s acquisition or amalgamation/merger announcement reaches NSE between 09:20 and 14:30 and the stock moves 1% or more in the next five minutes, following it from the next open to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Jiang, Li and Wang (2021): underreaction to firm news; corporate-control news is among the most price-relevant. Research 160.'
+source:
+  research: '160'
+  written_by: Claude, for the operator's request for five more intraday strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  events: 'NSE corporate announcements (data/landing/nse_announcements, all categories), dissemination time exchdisstime, F&O stocks with Kite minute bars'
+  category: 'Acquisition, or Amalgamation/Merger'
+  rule: 'disclosed 09:20-14:30; the move over the five minutes after disclosure, from the close of the minute before, of 1% or more is followed at the next open; exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; ₹1 lakh a trade, 1x, at most ten a day, earliest disclosure first'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'Many acquisition filings are small (a subsidiary, a stake); most will not move the price 1%.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-06: 12 trades, 26.75 bps gross and +14.43 net a trade; negative before 2024 (research 160). Too few, and fails the both-halves rule.'

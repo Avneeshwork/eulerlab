@@ -1,0 +1,26 @@
+id: H-0074
+title: 'Follow the first five minutes after a credit-rating announcement during market hours'
+status: rejected
+family: intraday_news
+source_kind: paper
+parent: ''
+claim: 'When a stock''s credit-rating announcement reaches NSE between 09:20 and 14:30 and the stock moves 1% or more in the next five minutes, following it from the next open to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Jiang, Li and Wang (2021): underreaction to firm news. A rating change is information the stock price does not yet hold when it is filed. Research 160.'
+source:
+  research: '160'
+  written_by: Claude, for the operator's request for five more intraday strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  events: 'NSE corporate announcements (data/landing/nse_announcements, all categories), dissemination time exchdisstime, F&O stocks with Kite minute bars'
+  category: 'Credit Rating'
+  rule: 'disclosed 09:20-14:30; the move over the five minutes after disclosure, from the close of the minute before, of 1% or more is followed at the next open; exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; ₹1 lakh a trade, 1x, at most ten a day, earliest disclosure first'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'Most rating filings are reaffirmations; the direction of a change is not in the category.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-06: 3 trades (research 160). Too few to judge; dead as registered.'
