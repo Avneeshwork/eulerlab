@@ -1,0 +1,31 @@
+id: H-0047
+title: On a Nifty panic day, buy the large caps that fell most; on a spike, short those that rose most
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'When the Nifty 50 is 1% or more from the prior close at 12:15, trading against the move in the 10 stocks (of the day''s 50 largest by prior-day turnover) that moved most with it, from 12:16 to 15:10, earns more than costs in both halves of 2021-11 to 2024-11.'
+rationale: 'Large index moves reverse within the day, more after rises (Grant, Wolf and Yu 2005); on NSE, patient funds buy fast crashes back (Jagannathan et al. 2022). Replaces a fade of n-day highs whose source could not be confirmed. Research 155.'
+source:
+  research: '155'
+  written_by: Claude, for the operator's request for five minute-level cash strategies (1x, no derivatives)
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_panic_day_laggards
+  signal: Nifty 50 index (kite_index_minute) 12:15 close against the prior session's last close, |move| >= 1%
+  universe: the 50 stocks with the highest prior-session turnover that day
+  chosen: index down - the 10 with the lowest return prior close to 12:15, bought; index up - the 10 highest, sold short
+  entry: 12:16 open
+  exit: 15:10
+  sizing: ₹1 lakh a trade, 1x, ten a day
+  costs: cash intraday plus 2 bps a side
+  window: 2021-11-01 to 2024-11-29
+red_flags:
+- 'Few days: perhaps 30-60 qualify; a result is fragile.'
+- 'Cousins are dead: overnight reversal (H-0020) and end-of-day reversal (H-0007). This is conditioned on market-wide stress and starts at midday.'
+- 'The 1% and 12:15 are fixed here, not fitted; no other setting is run.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

@@ -1,0 +1,31 @@
+id: H-0049
+title: Trade NIFTYBEES back toward the Nifty when it strays 16 bps from fair value
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'When NIFTYBEES trades 16 bps or more above (below) its fair value from the Nifty 50 minute price and the prior close''s ratio, selling (buying) it and closing when the gap changes sign, or at 15:10, earns more than costs in both halves of 2021-11 to 2024-11.'
+rationale: 'ETF prices deviate from value and the lagged premium reverses (iShares evidence); Nifty BeES divergences take days to close (pricing-efficiency study, 2011). 16 bps is twice the round trip. Research 155.'
+source:
+  research: '155'
+  written_by: Claude, for the operator's request for five minute-level cash strategies (1x, no derivatives)
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: niftybees_premium_reversion
+  fair_value: Nifty 50 minute close x (NIFTYBEES prior close / Nifty prior close)
+  premium: NIFTYBEES minute close / fair value - 1, only in a minute NIFTYBEES traded
+  window_of_day: signals 09:30 to 15:00
+  entry: next minute's open, against the premium, when |premium| >= 16 bps
+  exit: next minute's open after the premium changes sign, or 15:10; one position at a time, several a day allowed
+  sizing: ₹10 lakh, 1x
+  costs: cash intraday as for a share plus 2 bps a side
+  window: 2021-11-01 to 2024-11-29
+red_flags:
+- 'The prior close ratio carries yesterday''s premium and any dividend; a stale NIFTYBEES minute looks like a premium.'
+- 'A minute close is the last trade, on either side of the spread; a 16 bps gap may be mostly bid-ask bounce.'
+- 'The fair value uses the index, which NIFTYBEES holders cannot trade into without futures; the gap closes only if others arbitrage it.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

@@ -1,0 +1,28 @@
+id: H-0048
+title: On a Nifty panic day, trade NIFTYBEES against the move from 12:16 to the close
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'When the Nifty 50 is 1% or more from the prior close at 12:15, trading NIFTYBEES against the move from 12:16 to 15:10 earns more than costs in both halves of 2021-11 to 2024-11.'
+rationale: 'The index form of H-0047 (Grant, Wolf and Yu 2005; Jagannathan et al. 2022). Research 155.'
+source:
+  research: '155'
+  written_by: Claude, for the operator's request for five minute-level cash strategies (1x, no derivatives)
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nifty_panic_reversal_niftybees
+  signal: Nifty 50 index 12:15 close against the prior session's last close, |move| >= 1%
+  instrument: NIFTYBEES, ₹10 lakh, 1x, one trade a day
+  entry: 12:16 open, against the move
+  exit: 15:10
+  costs: cash intraday as for a share plus 2 bps a side (7.99 bps a ₹10 lakh round trip)
+  window: 2021-11-01 to 2024-11-29
+red_flags:
+- 'Few days, as H-0047; a fast trending crash day (March 2020 is outside the window) is exactly the loser.'
+- 'Charged STT as a share; ETF intraday STT may be lower, which a fail would not be rescued by.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

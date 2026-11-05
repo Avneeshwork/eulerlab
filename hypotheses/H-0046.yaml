@@ -1,0 +1,32 @@
+id: H-0046
+title: Buy the first intraday break of the 52-week high, hold to the close
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'Buying a stock at the open of the minute after it first trades above its 52-week high during the session (not at the open) and selling at 15:10 earns more than costs in both halves of 2022-08 to 2024-11.'
+rationale: 'Volume spikes and returns continue after a 52-week high, from anchoring (Della Vedova, Grant and Westerholm; George and Hwang 2004; Huddart, Lang and Yetman 2009). Research 155.'
+source:
+  research: '155'
+  written_by: Claude, for the operator's request for five minute-level cash strategies (1x, no derivatives)
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_52_week_high_break
+  universe: F&O stocks with Kite minute bars, prior close >= ₹100
+  level: the highest minute high of the previous 250 sessions
+  skip: a day that opens (09:15) at or above the level
+  signal: the first minute from 09:20 whose high is above the level
+  entry: the next minute's open, long
+  exit: 15:10
+  sizing: ₹1 lakh a trade, 1x, ten a day, earliest first
+  costs: cash intraday plus 2 bps a side
+  window: 2022-08 (after 250 sessions) to 2024-11-29
+red_flags:
+- 'The sources are daily-to-monthly; Della Vedova et al. also find heavy selling on the day of the high itself, which argues for the opposite on the day.'
+- 'The 52-week high is of minute highs in this archive, not the exchange''s daily high; they can differ by a tick.'
+- 'Survivorship: stocks still in F&O today, which rose to get there.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

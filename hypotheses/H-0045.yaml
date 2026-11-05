@@ -1,0 +1,33 @@
+id: H-0045
+title: Opening-range breakout on the day's 20 stocks in play
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'Trading the 5-minute opening-range breakout of the 20 stocks with the highest opening volume against their own 14-day norm, exit at 15:10 or a 1.4 ATR stop, earns more than costs in both halves of 2021-09 to 2024-11.'
+rationale: 'Zarattini, Barbon and Aziz (2024, SSRN 4729284): on US stocks the in-play selection turns a weak ORB into Sharpe 2.81 after costs. Never run across NSE stocks here, only on NIFTYBEES (research 019). Research 155.'
+source:
+  research: '155'
+  written_by: Claude, for the operator's request for five minute-level cash strategies (1x, no derivatives)
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_in_play_orb
+  universe: F&O stocks with Kite minute bars, prior close >= ₹100
+  opening_range: minutes 09:16-09:20 (the 09:15 print is not a price, research 075)
+  in_play: volume 09:16-09:20 over its mean on the prior 14 sessions, > 1; the top 20 a day
+  direction: up if the 09:20 close is above the 09:16 open, down if below, none if equal
+  entry: stop order at the range high (up) or low (down) from 09:21; fill at the level or the minute's open if it gaps through
+  stop: 1.4 x ATR(14, daily, true range), checked from the minute after entry; fill at the stop or the minute's open if worse
+  exit: 15:10
+  sizing: ₹1 lakh a trade, 1x, up to 20 a day (₹20 lakh)
+  costs: cash intraday on the day plus 2 bps a side (12.24 bps a ₹1 lakh round trip)
+  window: 2021-09 (after 14 sessions of history) to 2024-11-29
+red_flags:
+- 'The paper is US stocks 2016-2023; the ORB alone is dead here (research 076). The question is only whether the in-play selection rescues it.'
+- 'A ₹1 lakh fill at the 09:21 breakout of a stock in play is often worse than its level; slippage beyond 2 bps is not modelled.'
+- 'Paper settings (5 minutes, 14 days, top 20, 1.4 ATR) are taken as written; no other setting is run.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
