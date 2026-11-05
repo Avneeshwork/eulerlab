@@ -105,3 +105,36 @@ With research 153 and 154, that is nine intraday cash rules screened today and
 none alive after costs. The pattern holds: effects that exist (shock
 reversal 7.7 bps, in-play ORB 6.3, ETF premium 4.6) are all smaller than the
 round trip.
+
+## Fewer trades: the in-play ORB filter search (H-0050)
+
+Operator, 2026-11-05: "check we can reduce no of trades in first strategy and
+make it profitable", then "first optimize then talk". Eight filters were fixed
+in H-0050 (committed `3e42756` before running): top 5 or 10 a day, relative
+opening volume at least 2 or 3, entry by 10:15 or any time. Chosen on
+2021-08-20 to 2023-12-31 only; the chosen one alone run on 2024.
+`make in-play-variants` → `data/derived/in_play_variants.json`. No minute
+file opened (the H-0045 run stored every stock-day's candidate).
+
+| Variant (2021-08 to 2023-12) | Trades | Gross a trade | Net a trade | Net Sharpe |
+|---|---|---|---|---|
+| top 5, volume ≥ 2×, by 10:15 | 2,095 | 6.46 | -5.81 | -0.62 |
+| top 5, ≥ 2×, any time | 2,315 | 6.43 | -5.84 | -0.66 |
+| top 5, ≥ 3×, by 10:15 | 2,090 | 6.41 | -5.86 | -0.62 |
+| top 5, ≥ 3×, any time | 2,309 | 6.22 | -6.04 | -0.69 |
+| top 10, ≥ 2×, by 10:15 | 4,204 | 7.81 | -4.46 | -0.67 |
+| top 10, ≥ 2×, any time | 4,634 | 8.49 | -3.78 | -0.60 |
+| top 10, ≥ 3×, by 10:15 | 4,032 | 8.93 | -3.34 | -0.49 |
+| **top 10, ≥ 3×, any time (chosen)** | 4,442 | 9.48 | -2.78 | -0.43 |
+
+**2024, the chosen variant only:** 1,802 trades, **-14.04 bps net a trade**,
+net Sharpe -2.31, against a bar of 0.13 (expected best of nine worthless
+variants). **Dead.**
+
+- No filter made the rule profitable even on the data it was chosen on: the
+  best kept 9.5 bps a trade, still below the 12.24 bps round trip.
+- Fewer trades did not mean better trades: top 5 earned *less* a trade than
+  top 10. The strongest in-play stocks are not the best breakouts here.
+- The best-looking filter on 2021-2023 was the worst on 2024, the usual sign
+  that the differences between variants were noise.
+- H-0045 and H-0050 are closed. No further filters are tried.

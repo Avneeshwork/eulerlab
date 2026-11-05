@@ -165,6 +165,8 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4461 | Minute-level scalping on NSE stocks and the Nifty (operator, 2026-11-05): move-vs-cost map and two pre-registered scalps | DONE 2026-11-05 — both dead: shock fade 7.69 bps gross, -4.57 net; round-number cross -2.26 gross. Index scalps cannot pay: NIFTYBEES moves 8.3 bps in 15 minutes (research 154) |
 | T-4462 | Zerodha's charges page (operator, 2026-11-05) lists NSE equity transaction at 0.00307%; `costs/schedule.py` uses 0.00297% from 2024-10-01 (0.01 bps a side). Confirm with T-906's contract notes and add a dated schedule entry if NSE changed it | OPEN |
 | T-4463 | Five minute-level cash rules for stocks and the Nifty at 1x, no derivatives (operator, 2026-11-05) | DONE 2026-11-05 — all five dead after costs: in-play ORB 6.32 bps gross, 52-week-high break -7.02, panic-day laggards -21.44, NIFTYBEES panic reversal -10.80, NIFTYBEES premium 4.55; a ₹1 lakh round trip is 12.24 bps (research 155) |
+| T-4464 | Reduce the in-play ORB's trades to make it profitable (operator, 2026-11-05) | DONE 2026-11-05 — eight pre-registered filters (H-0050), all negative on 2021-2023; the best (top 10, volume >= 3x) lost 14.04 bps net a trade in 2024. Closed (research 155) |
+| T-4465 | Five more minute-level cash rules (operator, 2026-11-05) | DONE 2026-11-05 — none passes: drift burst -13.02 bps gross; pre-holiday NIFTYBEES +8.54 net over 47 trades but negative in 2024; turn of month +0.29 net; results day -20.47 gross; Nifty burst 14 trades (research 156) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

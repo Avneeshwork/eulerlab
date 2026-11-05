@@ -1,0 +1,28 @@
+id: H-0055
+title: 'Buy NIFTYBEES after the Nifty drift-bursts down, hold to the close'
+status: rejected
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'When the Nifty 50 minute close is 1% or more below its highest close of the previous 30 minutes, between 09:45 and 14:10, buying NIFTYBEES at the next open and selling at 15:10 earns more than costs in both halves of 2021-11 to 2024-11.'
+rationale: 'The index form of H-0051 (Christensen, Oomen and Renò 2022: drift bursts, found in equity indices too, mostly reverse). Research 156.'
+source:
+  research: '156'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nifty_drift_burst_niftybees
+  signal: Nifty 50 index close <= 0.99 x the highest close of the previous 30 minutes, minutes 30-295
+  entry: next minute's open, NIFTYBEES long; first signal a day
+  exit: 15:10
+  sizing: ₹10 lakh, 1x
+  costs: cash intraday as for a share plus 2 bps a side
+red_flags:
+- 'Written after H-0048 found that a 1% midday Nifty move continued into the close; this signal is faster (30 minutes) but overlaps.'
+- 'Few days qualify.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-05: 14 trades, 2.30 bps gross and -5.69 net a trade (research 156). Too few to judge; dead as registered.'
