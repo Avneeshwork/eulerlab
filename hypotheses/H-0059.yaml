@@ -1,0 +1,28 @@
+id: H-0059
+title: 'After a stock''s big day, fade it if volume was light, follow it if volume was heavy'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'For a stock whose previous session moved 4% or more close to close, trading against that move from 09:20 to 15:10 when its volume was below its 14-session mean, and with it when volume was at least twice that mean, earns more than costs in both halves of 2021-09 to 2024-11.'
+rationale: 'Parthasarathy (2019, Review of Behavioral Finance), on Indian stocks: large one-day price changes on low volume reverse and those on high volume continue over the next 20 days. Research 157.'
+source:
+  research: '157'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_big_day_volume_split
+  universe: F&O stocks with Kite minute bars, prior close >= ₹100, 14 prior sessions
+  signal: previous session close-to-close |return| >= 4%; its volume < 1x the 14-session mean -> fade; >= 2x -> follow; between -> none
+  entry: '09:20 open; exit: 15:10'
+  sizing: ₹1 lakh a trade, 1x, ten a day, largest moves first
+  costs: cash intraday plus 2 bps a side
+  window: 2021-09 to 2024-11-29
+red_flags:
+- 'The effect is measured over 20 days; one session is a small part of it.'
+- 'Cousin of the overnight reversal (H-0020, dead), which used the overnight gap, not yesterday''s whole day.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

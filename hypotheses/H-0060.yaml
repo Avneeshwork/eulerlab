@@ -1,0 +1,27 @@
+id: H-0060
+title: 'After a big Nifty day, fade it in NIFTYBEES if volume was light, follow it if heavy'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'When the Nifty 50 moved 1.5% or more close to close the previous session, trading NIFTYBEES against the move from 09:20 to 15:10 when NIFTYBEES volume that day was below its 14-session mean, and with it when at least that mean, earns more than costs in both halves of 2021-09 to 2024-11.'
+rationale: 'The index form of H-0059 (Parthasarathy 2019); index thresholds scaled to the Nifty''s lower volatility. Research 157.'
+source:
+  research: '157'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nifty_big_day_volume_split_niftybees
+  signal: 'Nifty 50 previous session close-to-close |return| >= 1.5% (kite_index_minute closes); NIFTYBEES volume that session vs its 14-session mean: below -> fade, at or above -> follow'
+  entry: '09:20 open; exit: 15:10'
+  sizing: NIFTYBEES ₹10 lakh, 1x
+  costs: cash intraday as for a share plus 2 bps a side
+  window: 2021-11 to 2024-11-29
+red_flags:
+- 'Few days: perhaps 40-60.'
+- 'The source studies stocks, not the index.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

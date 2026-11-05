@@ -1,0 +1,28 @@
+id: H-0056
+title: 'Daytime winners keep winning in the daytime: long the top decile, short the bottom, 09:20 to 15:10'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'Ranking stocks each morning on their mean 09:20-15:10 return over the previous 20 sessions, buying the top decile and shorting the bottom decile from 09:20 to 15:10 earns more than costs in both halves of 2021-09 to 2024-11.'
+rationale: 'Lou, Polk and Skouras (2019, JFE 134(1)): intraday returns continue firm by firm for years, and a stock''s past-month intraday winners keep earning intraday. Research 157.'
+source:
+  research: '157'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_intraday_return_persistence
+  universe: F&O stocks with Kite minute bars, prior close >= ₹100, 20 prior sessions
+  signal: mean of the previous 20 sessions' 09:20-open to 15:10 return
+  long: 'top decile; short: bottom decile; equal ₹1 lakh each, 1x'
+  entry: '09:20 open; exit: 15:10'
+  costs: cash intraday plus 2 bps a side
+  window: 2021-09 to 2024-11-29
+red_flags:
+- 'Two round trips a day per name in the book: the effect must exceed 12 bps a stock a day.'
+- 'The paper''s portfolios are monthly, value-weighted US stocks; this is daily and equal-weighted.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
