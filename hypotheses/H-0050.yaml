@@ -1,0 +1,31 @@
+id: H-0050
+title: 'In-play ORB, restricted: the best of eight fixed filters, chosen on 2021-2023, tested on 2024'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: H-0045
+claim: 'Of eight fixed filters on H-0045 (top 5 or 10 a day; relative opening volume at least 2 or 3; entry by 10:15 or any time), the one with the best net Sharpe on 2021-08-20 to 2023-12-31 is positive net in 2024 and beats the expected best Sharpe of nine worthless variants.'
+rationale: 'Operator, 2026-11-05: reduce the number of trades in the in-play ORB and make it profitable, then "first optimize then talk". Each filter follows the source''s logic that a stronger in-play signal is better (Zarattini, Barbon and Aziz 2024). Selection and test are split in time; the search is charged for. Research 155.'
+source:
+  research: '155'
+  written_by: Claude, for the operator
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_in_play_orb_restricted
+  base: H-0045 exactly (09:16-09:20 range, 1.4 ATR stop, 15:10 exit, ₹1 lakh a trade, 1x, cash costs plus 2 bps a side)
+  grid:
+    top_n: [5, 10]
+    min_relative_volume: [2.0, 3.0]
+    latest_entry: ['10:15', '15:09']
+  selection: highest net Sharpe on 2021-08-20 to 2023-12-31; ties to fewer trades
+  test: the chosen variant alone on 2024-01-01 to 2024-11-29
+  bar: Bailey-Lopez de Prado expected maximum Sharpe of 9 trials (H-0045 plus 8), variance of the 8 selection-window Sharpes
+red_flags:
+- 'Post hoc: H-0045 failed and 2024 was seen to be negative in aggregate before this grid was written.'
+- 'Fewer trades, wider error: top 5 is about a quarter of H-0045''s trades.'
+- 'If the chosen variant passes, it still needs the gate (one trial) and the holdout; it is a lead, not a strategy.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
