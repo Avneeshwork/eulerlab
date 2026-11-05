@@ -1,6 +1,6 @@
 id: H-0060
 title: 'After a big Nifty day, fade it in NIFTYBEES if volume was light, follow it if heavy'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -25,3 +25,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 64 trades, -5.09 bps gross and -13.09 net a trade (research 157). Dead.'

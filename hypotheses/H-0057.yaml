@@ -1,6 +1,6 @@
 id: H-0057
 title: 'Buy a stock whose first hour traded three times its normal volume without moving much, hold to the close'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -27,3 +27,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 1,226 trades, -7.71 bps gross and -19.98 net a trade, net Sharpe -1.87 (research 157). Dead.'

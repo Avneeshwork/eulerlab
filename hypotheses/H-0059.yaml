@@ -1,6 +1,6 @@
 id: H-0059
 title: 'After a stock''s big day, fade it if volume was light, follow it if volume was heavy'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 7,362 trades, -3.78 bps gross and -16.04 net a trade, net Sharpe -1.90 (research 157). Dead.'

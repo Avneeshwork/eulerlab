@@ -61,3 +61,33 @@ trial spent.
 ## Confidence
 
 Low. H-0059 is the only rule with Indian evidence behind it.
+
+## Results (run 2026-11-05, after the rules were committed in `710964a`)
+
+`make cash-volume` → `data/derived/cash_volume.json`. 416 stocks; 1x; no trial
+spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0056 intraday persistence (deciles) | 46,985 | 5.22 bps | -7.04 bps | -2.83 | -3.44 / -1.64 |
+| H-0057 quiet volume shock | 1,226 | -7.71 bps | -19.98 bps | -1.87 | -1.87 / -1.86 |
+| H-0058 attention at +5% | 6,809 | 7.83 bps | -4.44 bps | -0.53 | -0.27 / -1.14 |
+| H-0059 big day split by volume | 7,362 | -3.78 bps | -16.04 bps | -1.90 | -1.42 / -2.81 |
+| H-0060 big Nifty day split, NIFTYBEES | 64 | -5.09 bps | -13.09 bps | -0.70 | -0.44 / -1.30 |
+
+**All five are dead**, negative net in both halves.
+
+- **Intraday persistence is real but small:** a stock's past daytime winners
+  did beat its losers the next day, by 5.2 bps a position, against a 12.24 bps
+  round trip. Lou, Polk and Skouras's effect exists here at about the size of
+  every other intraday effect found today.
+- **Attention at +5%** made 7.8 bps gross, also below the cost.
+- **A heavy, quiet first hour** was followed by a fall (-7.7 bps), not the
+  visibility premium; that premium is measured over a month.
+- **Yesterday's big day, split by volume**, lost before costs; Parthasarathy's
+  20-day pattern is not visible in the next session.
+
+Across research 153-157, twenty intraday cash rules and one filter search were
+screened on 2026-11-05. The largest gross edge of any stock rule was 9.5 bps a
+trade (the in-play filter on its selection window); a ₹1 lakh round trip costs
+12.24.

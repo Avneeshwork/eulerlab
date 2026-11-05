@@ -1,6 +1,6 @@
 id: H-0056
 title: 'Daytime winners keep winning in the daytime: long the top decile, short the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 46,985 trades, 5.22 bps gross and -7.04 net a trade, net Sharpe -2.83 (research 157). Dead.'
