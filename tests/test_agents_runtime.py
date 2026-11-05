@@ -174,3 +174,11 @@ def test_the_boundary_check_catches_a_forbidden_import(tmp_path: Path) -> None:
     bad = tmp_path / "bad.py"
     bad.write_text("from eulerlab.oms import ems\nimport subprocess\n")
     assert len(boundaries.violations(bad)) == 3
+
+
+def test_the_latest_run_ignores_folders_that_are_not_runs(tmp_path: Path) -> None:
+    # The engineering agent keeps its worktrees beside its runs (HISTORY #79).
+    for name in ("20261104T160033Z-f8a973", "20261105T060505Z-2a18c7", "worktrees"):
+        (tmp_path / "engineering" / name).mkdir(parents=True)
+    latest = runtime.latest_run_dir("engineering", tmp_path)
+    assert latest is not None and latest.name == "20261105T060505Z-2a18c7"

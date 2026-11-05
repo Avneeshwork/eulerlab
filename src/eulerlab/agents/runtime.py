@@ -27,6 +27,7 @@ import argparse
 import hashlib
 import importlib
 import json
+import re
 import traceback
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -264,6 +265,9 @@ def ist_day(now: datetime) -> str:
     return now.astimezone(IST).date().isoformat()
 
 
+RUN_ID = re.compile(r"\d{8}T\d{6}Z-[0-9a-f]{6}")
+
+
 def _run_id(name: str, now: datetime) -> str:
     stamp = now.strftime("%Y%m%dT%H%M%SZ")
     return f"{stamp}-{hashlib.sha256(f'{name}{now.isoformat()}'.encode()).hexdigest()[:6]}"
@@ -427,11 +431,18 @@ def progress(run_dir: Path, limit: int = 60) -> list[dict[str, str]]:
 
 
 def latest_run_dir(name: str, root: Path | None = None) -> Path | None:
-    """The newest run folder for an agent, finished or not. Run ids sort by time."""
+    """The newest run folder for an agent, finished or not. Run ids sort by time.
+
+    Only folders named like a run id count: the engineering agent keeps its
+    `worktrees` folder here too, and it sorts after every date (HISTORY #79).
+    """
     folder = home(root) / name
     if not folder.is_dir():
         return None
-    runs = sorted((p for p in folder.iterdir() if p.is_dir()), key=lambda p: p.name)
+    runs = sorted(
+        (p for p in folder.iterdir() if p.is_dir() and RUN_ID.fullmatch(p.name)),
+        key=lambda p: p.name,
+    )
     return runs[-1] if runs else None
 
 
