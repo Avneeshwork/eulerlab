@@ -1,0 +1,43 @@
+id: H-0040
+title: Fade the opening gap on the morning after results
+status: rejected
+family: intraday_event
+source_kind: paper
+parent: ''
+claim: When a stock's results reach NSE after one close and before the next open, and the stock opens at
+  least 2% away from the prior close (09:19 close), trading against the gap from 09:20 to 15:10 earns more
+  than costs in both halves of 2021-08 to 2024-11.
+rationale: Liu, Hope and Hu (2023) find the overnight period carries the reaction to earnings and the
+  following session trades against it; Lou, Polk and Skouras (2019) find overnight and intraday returns
+  pull in opposite directions (research 153).
+source:
+  research: '153'
+  written_by: Claude, for the operator's day-trading request
+  day: '2026-11-05'
+configurations:
+- shape: intraday_event
+  strategy: nse_results_gap_fade
+  universe: F&O stocks with Kite minute bars (the india-five universe)
+  event: first NSE disclosure of results after the prior session's 15:30 and before 09:15
+  signal: prior close to 09:19 close
+  threshold: 0.02
+  direction: against the gap
+  entry: 09:20 open
+  exit: 15:10
+  sizing: ₹1 lakh a trade, at most 10 a day, earliest disclosure first
+  slippage_bps_per_side: 2
+  excluded: 2022-07-01 to 2022-12-31 (results not labelled on NSE)
+  window: 2021-08-20 to 2024-11-29
+red_flags:
+- 'The source market is China, where the trading mechanism differs (T+1, no short selling): the
+  reason the paper gives for the fade may not exist in India.'
+- 'Close cousin of H-0020 (overnight reversal on every stock-day: 8 bps gross, -6.5 net, dead). This is
+  the results-day subset, chosen from a different source before looking; if it passes, ask whether it
+  is the same effect with fewer days.'
+- 'The 2% threshold is fixed here, not chosen on data; no other threshold will be run.'
+- 'A cash short must be squared off the same day; 15:10 is before brokers'' auto square-off.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-05: 1,249 trades, 6.47 bps gross and -5.79 bps net a trade, net Sharpe -0.32, years alternate in sign (research 153). Dead; not re-run with another threshold.'
