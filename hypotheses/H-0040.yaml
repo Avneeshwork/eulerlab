@@ -1,6 +1,6 @@
 id: H-0040
 title: Fade the opening gap on the morning after results
-status: draft
+status: rejected
 family: intraday_event
 source_kind: paper
 parent: ''
@@ -40,3 +40,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 1,249 trades, 6.47 bps gross and -5.79 bps net a trade, net Sharpe -0.32, years alternate in sign (research 153). Dead; not re-run with another threshold.'

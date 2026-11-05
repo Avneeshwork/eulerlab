@@ -108,3 +108,41 @@ H-0041 rests on a vendor study of SPY and on the general variance premium.
   archive `fo/sec_ban/fo_secban_DDMMYYYY.csv` is the source `nse_reports`
   already uses)?
 - The full Liu-Hope-Hu paper, for the exact intraday window they measure.
+
+## Results (run 2026-11-05, after the rules were committed in `a4548e9`)
+
+`make results-gap-fade` → `data/derived/results_gap_fade.json`;
+`make expiry-straddle` → `data/derived/expiry_straddle.json`. No trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Worst trade | Max drawdown | Net before 2024 / 2024 |
+|---|---|---|---|---|---|---|---|
+| H-0040 results-gap fade | 1,249 (of 16,012 results mornings) | 6.47 bps | **-5.79 bps** | -0.32 | — | -14.5% | 2021 +, 2022 -, 2023 +, 2024 - (Sharpe 1.82, -1.22, 0.70, -1.18) |
+| H-0041 expiry-day straddle | 299 expiries, none skipped | 8.79 bps of notional | **+6.96 bps** | **0.95** | -307 bps (2020-03-12) | -3.8% of notional | +6.53 bps, Sharpe 0.87 / +9.22 bps, Sharpe 1.38 |
+
+**H-0040 is dead.** Fading a results gap earns 6.5 bps gross, the same size
+as the dead overnight reversal (8 bps) and below the cost of a cash round trip.
+The years alternate in sign. The Chinese result does not carry over at a
+size that pays for the trade. Rejected; not re-run with another threshold.
+
+**H-0041 is alive as a screen, not as a strategy.**
+- Positive net in both halves, 64% of expiries won; it sold on average 108.5
+  points of premium and paid back 96.5.
+- The return is small on notional: 6.96 bps a week is about 3.6% a year on
+  ₹10 lakh of Nifty exposure, with a Sharpe (0.95) just under the gate's noise
+  bar of 0.98. Return on margin would be several times larger, and so would
+  the loss on a bad day; margin is not modelled.
+- The worst days are crash days: 12 Mar 2020 (-307 bps, Nifty 460 points
+  below the strike), 16 Jun 2022 (-216), 15 Oct 2020 (-183). One such day takes
+  about 44 average weeks to earn back.
+- Fill risk is the main doubt. Each extra index point of slippage a leg costs
+  1.31 bps, so the result survives up to about 5 more points a leg than the
+  1 assumed. The bhavcopy OPEN is the first trade, not a price anyone was
+  sure to get at 09:15.
+
+**What it would take to go further** (operator decisions, nothing run):
+1. Gate it as a strategy: one trial, judged on the gate's own bar.
+2. Before that, check fills with minute option prices (FYERS expired-contract
+   history, T-4285's login) for a sample of expiries.
+3. Since 2024-11-20, lots are larger and expiry-day margins higher; from
+   2025-09 the expiry moved to Tuesday. The holdout (from 2024-12-01) is the
+   only test of whether it survived those changes, and it can be read once.
