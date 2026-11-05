@@ -1,0 +1,39 @@
+id: H-0043
+title: Follow a stock's first crossing of a round price level, for 15 minutes
+status: rejected
+family: intraday_minute
+source_kind: paper
+parent: ''
+claim: A stock's first one-minute close from 09:20 across a round level (multiples of ₹100 for a stock at
+  ₹1,000-10,000, ₹10 for ₹100-1,000), followed at the next open and closed 15 minutes later, earns more than
+  a cash-intraday round trip in both halves of 2021-08 to 2024-11.
+rationale: Stop orders cluster just beyond round numbers, so a crossing triggers them and runs on (Osler
+  2003, currency markets). Research 154.
+source:
+  research: '154'
+  written_by: Claude, for the operator's minute-level scalping request
+  day: '2026-11-05'
+configurations:
+- shape: intraday_minute
+  strategy: nse_round_number_cross
+  universe: F&O stocks with Kite minute bars
+  level: multiples of ₹100 (prior close ₹1,000-10,000) or ₹10 (₹100-1,000)
+  signal: the first one-minute close from 09:20 on the other side of a level
+  direction: with the crossing
+  entry: next minute's open
+  exit: 15 minutes later or 15:10
+  sizing: ₹1 lakh a trade, one a stock a day, ten a day, earliest first
+  slippage_bps_per_side: 2
+  window: 2021-08-20 to 2024-11-29
+red_flags:
+- 'Osler''s evidence is from currencies, with bank order books; Indian stocks may not hold the same stops.'
+- 'A ₹10 step on a ₹120 stock is 8%, on a ₹950 stock 1%: crossings are far more common for the dearer
+  names in each band.'
+- 'The move map (research 154) says a 15-minute trade must be right about 72-80% of the time to pay
+  12.24 bps; nothing in the source suggests a crossing is that reliable. Expected to fail.'
+- 'The level bands are fixed here, not fitted; no other bands are run.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-05: 8,060 trades, -2.26 bps gross and -14.53 bps net a trade, net Sharpe -6.64 (research 154). Dead; the reverse rule is not run.'
