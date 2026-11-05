@@ -1,6 +1,6 @@
 id: H-0070
 title: 'After a month of frequent overnight-up, daytime-down Nifty days, buy NIFTYBEES for the day'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -25,3 +25,4 @@ holdout:
   starts: '2024-12-01'
   status: unread
 result: 'Screen 2026-11-06: 100 trades (2023-2024), 12.08 bps gross and +4.08 net a trade, net Sharpe 0.49; 2023 Sharpe 0.07, 2024 Sharpe 1.07 (research 159). Passes the screen''s both-halves rule; t about 0.8, far below the gate''s 3. Not gated (T-4469).'
+retest: 'H-0071, 2026-11-06: the same rule on daily bars 2016-2024 lost 7.80 bps gross a trade, negative in eight of nine years. Dead.'

@@ -170,7 +170,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4466 | Five more cash rules on intraday persistence, volume and attention (operator, 2026-11-05) | DONE 2026-11-05 — all dead: persistence deciles 5.22 bps gross, quiet volume shock -7.71, attention at +5% 7.83, big day by volume -3.78, Nifty big day 64 trades (research 157) |
 | T-4467 | Five more cash rules: Nifty expiry pinning and gamma momentum, put-call contrarian, same half-hour, overnight winners (operator, 2026-11-05) | DONE 2026-11-05 — none passes; overnight winners' daytime reversal (H-0065) made 13.86 bps gross, +1.59 net, positive before 2024 and negative in 2024 (research 158) |
 | T-4468 | H-0065 is the only intraday rule whose gross edge beat the round trip. Test it as written on fresh data (holdout, read once, or forward paper), or leave it | OPEN (operator) |
-| T-4469 | H-0070 (buy NIFTYBEES for the day after a month of frequent overnight-up, daytime-down Nifty days) passed the screen's both-halves rule: 100 trades, +4.08 bps net, 2023 Sharpe 0.07, 2024 1.07, t about 0.8 (research 159). Paper-trade it forward as written, or leave it | OPEN (operator) |
+| T-4469 | H-0070 passed the screen weakly (100 trades, t about 0.8); retested on daily bars from 2016 (H-0071) | DONE 2026-11-06 — dead: -7.80 bps gross a trade, negative in eight of nine years (research 159) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

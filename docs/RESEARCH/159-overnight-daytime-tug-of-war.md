@@ -85,3 +85,36 @@ opened; 1x; no trial spent.
 Its rule is fixed; the evidence that could is new sessions: a paper book from
 today, or the holdout read, which the mandate allows only after the gate, and
 at t of about 0.8 it would not pass the gate.
+
+## H-0070 from 2016 on daily bars (H-0071, run 2026-11-06)
+
+Operator: "backtest last one on data from 2016". Kite minute bars start in
+2021, so H-0071 (pre-registered `fb0710c`) runs H-0070's rule unchanged on
+daily bars. `make tug-of-war DAILY=1` → `data/derived/tug_of_war_daily.json`.
+
+**First run invalid.** Trading NIFTYBEES from its daily open to its close lost
+107 bps a trade: NIFTYBEES daily opens are bad first prints (on 2020-03-05 it
+"opened" at 142.95 and closed at 119.75 on a normal day). Against the Nifty's
+own open-to-close, NIFTYBEES's daily open-to-close is off by a median 43 bps a
+day, 199 bps in 2021 (research 075 found the same for the opening print). The
+trade return was switched to the Nifty 50 index's open to close, costed as
+NIFTYBEES (amended in `5347b3b` before a valid result existed); the rule was
+not changed.
+
+| | Trades | Gross a trade | Net a trade | Net Sharpe |
+|---|---|---|---|---|
+| 2016-2024, daily bars | 340 | -7.80 bps | -15.79 bps | -1.27 |
+| 2016-2020 | | | | -0.99 |
+| 2021-2024 | | | | -1.65 |
+
+Net Sharpe by year: 2016 -1.61, 2017 +0.25, 2018 -1.52, 2019 -1.06, 2020 -0.82,
+2021 -2.50, 2022 -1.15, 2023 -1.24, 2024 -1.36. **Negative in eight of nine
+years. H-0070 is dead.**
+
+The daily version also disagrees with the minute version on 2023-2024 itself
+(-4.0% and -5.6% against +0.2% and +3.8%). The daily file's Nifty open is not
+the 09:15 minute open, so the two pick different days: 66 of H-0070's 100 trade
+days are in common, and on those the returns roughly agree (+8.5 against +2.6
+bps). A rule whose trade days shift by a third when the opening price is
+measured slightly differently has no robust edge; H-0070's minute result was
+luck in the choice of days.

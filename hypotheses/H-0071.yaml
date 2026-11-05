@@ -1,6 +1,6 @@
 id: H-0071
 title: 'H-0070 on daily bars from 2016: buy NIFTYBEES open to close after a month of frequent overnight-up, daytime-down Nifty days'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: H-0070
@@ -28,3 +28,4 @@ red_flags:
 holdout:
   starts: '2025-01-01'
   status: unread
+result: 'Screen 2026-11-06, Nifty daily open to close from 2016: 340 trades, -7.80 bps gross and -15.79 net a trade, net Sharpe -1.27; negative in eight of nine years (research 159). H-0070 is dead.'
