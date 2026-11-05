@@ -98,7 +98,7 @@ daily bars. `make tug-of-war DAILY=1` → `data/derived/tug_of_war_daily.json`.
 own open-to-close, NIFTYBEES's daily open-to-close is off by a median 43 bps a
 day, 199 bps in 2021 (research 075 found the same for the opening print). The
 trade return was switched to the Nifty 50 index's open to close, costed as
-NIFTYBEES (amended in `5347b3b` before a valid result existed); the rule was
+NIFTYBEES (amended in `35e0498` before a valid result existed); the rule was
 not changed.
 
 | | Trades | Gross a trade | Net a trade | Net Sharpe |

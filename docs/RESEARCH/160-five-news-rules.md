@@ -62,7 +62,7 @@ trial spent.
 Low to medium for H-0072, which has a large sample and a source that reports
 profits after costs; low for the rest.
 
-## Results (run 2026-11-06, after the rules were committed in `51ef8a7`)
+## Results (run 2026-11-06, after the rules were committed in `3be3d84`)
 
 `make news-intraday` → `data/derived/news_intraday.json`. Among the 416 F&O
 stocks, 2021-08 to 2024-11: 3,271 press releases, 322 credit ratings, 267
