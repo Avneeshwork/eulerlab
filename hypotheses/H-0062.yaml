@@ -1,6 +1,6 @@
 id: H-0062
 title: 'On weekly expiry day, follow the Nifty''s move so far into the last half hour'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -24,3 +24,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 154 trades, 1.75 bps gross and -6.25 net a trade, net Sharpe -2.16 (research 158). Dead.'

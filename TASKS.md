@@ -168,6 +168,8 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4464 | Reduce the in-play ORB's trades to make it profitable (operator, 2026-11-05) | DONE 2026-11-05 — eight pre-registered filters (H-0050), all negative on 2021-2023; the best (top 10, volume >= 3x) lost 14.04 bps net a trade in 2024. Closed (research 155) |
 | T-4465 | Five more minute-level cash rules (operator, 2026-11-05) | DONE 2026-11-05 — none passes: drift burst -13.02 bps gross; pre-holiday NIFTYBEES +8.54 net over 47 trades but negative in 2024; turn of month +0.29 net; results day -20.47 gross; Nifty burst 14 trades (research 156) |
 | T-4466 | Five more cash rules on intraday persistence, volume and attention (operator, 2026-11-05) | DONE 2026-11-05 — all dead: persistence deciles 5.22 bps gross, quiet volume shock -7.71, attention at +5% 7.83, big day by volume -3.78, Nifty big day 64 trades (research 157) |
+| T-4467 | Five more cash rules: Nifty expiry pinning and gamma momentum, put-call contrarian, same half-hour, overnight winners (operator, 2026-11-05) | DONE 2026-11-05 — none passes; overnight winners' daytime reversal (H-0065) made 13.86 bps gross, +1.59 net, positive before 2024 and negative in 2024 (research 158) |
+| T-4468 | H-0065 is the only intraday rule whose gross edge beat the round trip. Test it as written on fresh data (holdout, read once, or forward paper), or leave it | OPEN (operator) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

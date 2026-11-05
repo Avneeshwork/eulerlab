@@ -1,6 +1,6 @@
 id: H-0064
 title: 'Same half-hour tomorrow: long yesterday''s best 14:40-15:10 stocks and short the worst in that half-hour'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 48,127 trades, 3.27 bps gross and -9.01 net a trade, net Sharpe -13.89 (research 158). Dead.'

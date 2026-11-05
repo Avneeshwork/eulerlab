@@ -55,3 +55,34 @@ trial spent.
 
 Low. H-0061 and H-0062 have the strongest sources and the fewest days (about
 150 expiries).
+
+## Results (run 2026-11-05, after the rules were committed in `00942c7`)
+
+`make option-signals` → `data/derived/option_signals.json`. 154 weekly
+expiries in the index window; 416 stocks; 1x; no trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0061 expiry pinning, NIFTYBEES | 117 | 2.65 bps | -5.34 bps | -0.91 | -1.08 / -0.49 |
+| H-0062 expiry gamma momentum, NIFTYBEES | 154 | 1.75 bps | -6.25 bps | -2.16 | -2.47 / -1.60 |
+| H-0063 put-call contrarian, NIFTYBEES | 240 | 9.66 bps | +1.66 bps | 0.18 | 0.58 / -0.54 |
+| H-0064 same half-hour, stocks | 48,127 | 3.27 bps | -9.01 bps | -13.89 | -15.15 / -11.55 |
+| H-0065 overnight winners reverse, stocks | 55,734 | **13.86 bps** | **+1.59 bps** | 0.55 | **1.07 / -0.56** |
+
+**None passes** (positive net in both halves).
+
+- **H-0065 is the first stock rule here whose gross edge exceeds the cost of
+  the trade:** shorting the stocks with the strongest 20-day overnight returns
+  and buying the weakest earned 13.9 bps a position in the daytime against a
+  12.24 bps round trip. Lou, Polk and Skouras's cross-period reversal is the
+  largest intraday effect found in research 153-158. Net it is thin (+1.6
+  bps), positive before 2024 (Sharpe 1.07) and negative in 2024 (-0.56), so it
+  fails the rule. Its settings are not changed. If it is to be taken further,
+  the honest test is fresh data with the rule as written: the holdout (read
+  once, by the operator) or forward paper trading.
+- **Put-call contrarian** cleared costs overall (+1.7 bps net over 240 days)
+  but lost in 2024.
+- **Expiry-day pinning and gamma momentum** are not visible in NIFTYBEES:
+  2.7 and 1.8 bps gross.
+- **Same half-hour** repeats at 3.3 bps, a quarter of the cost; with two
+  trades a name a day the loss compounds (Sharpe -13.9).

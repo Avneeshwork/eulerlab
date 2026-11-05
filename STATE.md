@@ -40,6 +40,8 @@ what is open is in `TASKS.md`.*
   panic reversal in stocks and NIFTYBEES, NIFTYBEES premium) all died after costs (research 155).
   Ten more (bursts, calendar days, intraday persistence, volume, attention) also fail
   (research 156, 157): every effect found is smaller than a 12.24 bps round trip.
+  Research 158: overnight winners' daytime reversal (H-0065) beat the cost gross
+  (13.9 bps) but lost in 2024; untested on fresh data (T-4468).
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a

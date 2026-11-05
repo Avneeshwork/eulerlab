@@ -1,6 +1,6 @@
 id: H-0065
 title: 'Overnight winners lose in the daytime: short the top decile of past overnight returns, buy the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 55,734 trades, 13.86 bps gross and +1.59 net a trade, net Sharpe 0.55; positive before 2024 (1.07), negative in 2024 (-0.56) (research 158). Fails the both-halves rule; the largest gross intraday edge found in research 153-158.'

@@ -1,6 +1,6 @@
 id: H-0063
 title: 'Trade NIFTYBEES against an extreme Nifty put-call ratio, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -24,3 +24,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 240 trades, 9.66 bps gross and +1.66 net a trade, net Sharpe 0.18; positive before 2024 (0.58), negative in 2024 (-0.54) (research 158). Fails the both-halves rule.'

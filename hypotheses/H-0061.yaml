@@ -1,6 +1,6 @@
 id: H-0061
 title: 'On weekly expiry day, trade NIFTYBEES toward the Nifty strike with the most open interest, 13:01 to 15:10'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: ''
@@ -26,3 +26,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 117 trades, 2.65 bps gross and -5.34 net a trade, net Sharpe -0.91 (research 158). Dead.'
