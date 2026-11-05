@@ -38,7 +38,8 @@ what is open is in `TASKS.md`.*
   12.24 bps, NIFTYBEES moves 8 bps in 15 minutes; two stock scalps died (research 154).
   Five more minute-signalled cash rules at 1x (in-play ORB, 52-week-high break,
   panic reversal in stocks and NIFTYBEES, NIFTYBEES premium) all died after costs (research 155).
-  Five more (drift bursts, pre-holiday, turn of month, results day) also fail (research 156).
+  Ten more (bursts, calendar days, intraday persistence, volume, attention) also fail
+  (research 156, 157): every effect found is smaller than a 12.24 bps round trip.
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a

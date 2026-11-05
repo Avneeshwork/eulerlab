@@ -1,0 +1,29 @@
+id: H-0058
+title: 'Buy a stock the first time it is up 5% on the day, hold to the close'
+status: rejected
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'The first minute from 09:30 at which a stock''s close is 5% or more above the prior close, buying at the next open and selling at 15:10 earns more than costs in both halves of 2021-09 to 2024-11.'
+rationale: 'Seasholes and Wu (2007, J. Empirical Finance 14(5)): a big up move draws individual investors'' attention and buying; traders who buy during the event profit from the buying that follows. Research 157.'
+source:
+  research: '157'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: nse_attention_five_percent
+  universe: F&O stocks with Kite minute bars, prior close >= ₹100
+  signal: the first minute from 09:30 whose close is >= 1.05 x the prior close; not a day that opened at or above it
+  entry: 'next minute''s open, long; exit: 15:10'
+  sizing: ₹1 lakh a trade, 1x, ten a day, earliest first
+  costs: cash intraday plus 2 bps a side
+  window: 2021-09 to 2024-11-29
+red_flags:
+- 'The source is Shanghai''s 10% upper limit, with much of the profit on the next day, which an intraday trade does not hold.'
+- 'Today''s other results here: a 52-week-high break fell back on the day (H-0046).'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Screen 2026-11-05: 6,809 trades, 7.83 bps gross and -4.44 net a trade, net Sharpe -0.53, negative in both halves (research 157). Dead.'
