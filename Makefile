@@ -701,7 +701,7 @@ option-signals:
 
 # Research 159 (H-0066 to H-0070): overnight-daytime tug-of-war cash rules, 1x.
 tug-of-war:
-	@uv run python -m eulerlab.intraday.tug_of_war_screen
+	@uv run python -m eulerlab.intraday.tug_of_war_screen $(if $(DAILY),--daily,)
 
 # Five paper-driven microstructure rules: inspect the required data and save a
 # readiness report before spending any strategy trials.

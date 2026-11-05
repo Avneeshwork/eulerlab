@@ -19,6 +19,7 @@ configurations:
   costs: 'cash intraday as for a share plus 2 bps a side'
   window: '2016-01-01 to 2024-11-29'
   judged: 'net per trade and Sharpe; 2016-2020 against 2021-2024; each year'
+amended: '2026-11-06, before any valid result: the first run (NIFTYBEES daily open to close) lost 107 bps a trade because NIFTYBEES daily opens are bad first prints (median 43 bps away from the Nifty''s open-to-close, 199 bps in 2021; research 075). The trade return is now the Nifty 50 index open to close, net of the same NIFTYBEES costs; the rule is unchanged.'
 red_flags:
 - 'The daily open is the 09:15 auction price and the close is the 15:30 closing price, not 09:20 and 15:10 fills; the minute run (H-0070) showed the rule on true fills.'
 - 'NIFTYBEES traded about ₹1 crore a day in 2015-2017; a ₹10 lakh order then would move it more than 2 bps.'

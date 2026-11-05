@@ -18,7 +18,10 @@ side, to 2024-11-29.
 - **H-0070** a top-fifth count of overnight-up, daytime-down Nifty days: buy
   NIFTYBEES for the day.
 
-`make tug-of-war` writes `data/derived/tug_of_war.json`.
+`make tug-of-war` writes `data/derived/tug_of_war.json`. `make tug-of-war
+DAILY=1` runs H-0071, H-0070's rule unchanged on daily bars from 2016 (the
+Nifty's daily open and close; NIFTYBEES bought at the open, sold at the close),
+and writes `data/derived/tug_of_war_daily.json`.
 """
 
 from __future__ import annotations
@@ -41,6 +44,9 @@ from eulerlab.intraday import option_signal_screen as sig
 from eulerlab.intraday import research_screen as rs
 
 OUT = Path("data/derived/tug_of_war.json")
+DAILY_OUT = Path("data/derived/tug_of_war_daily.json")
+PANEL = Path("data/derived/price_panel.jsonl")
+DAILY_START = date(2016, 1, 1)
 MOMENTUM_FROM, MOMENTUM_TO = 252, 21
 MONTH = 20
 HISTORY = 250
@@ -129,6 +135,81 @@ def index_signals(index: Sequence[ip.Day]) -> tuple[dict[date, int], dict[date, 
     )
 
 
+def daily_signals(bars: Mapping[date, tuple[float, float]]) -> dict[date, int]:
+    """H-0070's signal from daily Nifty bars: {session: +1} on a top-fifth count."""
+    days = sorted(bars)
+    overnight, daytime = [], []
+    for i in range(1, len(days)):
+        opened, closed = bars[days[i]]
+        overnight.append(opened / bars[days[i - 1]][1] - 1.0)
+        daytime.append(closed / opened - 1.0)
+    counts: list[float | None] = [
+        None
+        if i < MONTH
+        else float(sum(1 for k in range(i - MONTH, i) if overnight[k] > 0 and daytime[k] < 0))
+        for i in range(len(overnight))
+    ]
+    return _extreme_signals(days[1:], counts, high=1, low=0)
+
+
+def etf_daily_bars(path: Path = PANEL) -> dict[date, tuple[float, float]]:
+    out = {}
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if f'"{five.ETF}"' not in line:
+                continue
+            row = json.loads(line)
+            if row["s"] == five.ETF and row.get("o") and row.get("c"):
+                out[date.fromisoformat(row["d"])] = (float(row["o"]), float(row["c"]))
+    return out
+
+
+def run_daily(output: Path = DAILY_OUT) -> dict[str, Any]:
+    from eulerlab.options import expiry_straddle_screen as straddle
+
+    index = straddle.index_days()
+    signals = daily_signals(index)
+    # The trade return is the Nifty's own open to close: NIFTYBEES daily opens are
+    # bad first prints (median 43 bps off the index's open-to-close; research 075).
+    etf = etf_daily_bars()
+    bars = {d: index[d] for d in etf if d in index}
+    sessions = sorted(d for d in bars if DAILY_START <= d <= cs.DATA_END)
+    trades = []
+    for day in sessions:
+        if signals.get(day) != 1:
+            continue
+        opened, closed = bars[day]
+        quantity = cs.sized(five.ETF_CAPITAL, opened)  # index units: charges scale with notional
+        if quantity:
+            trades.append(
+                cs.Trade(five.ETF, day, 1, quantity, 0, opened, ip.MINUTES - 1, closed, "close")
+            )
+    run = cs.report(
+        "nifty_tug_of_war_niftybees_daily",
+        trades,
+        sessions,
+        params={"bars": "Nifty 50 daily open to close, costed as NIFTYBEES", "slippage_bps_per_side": cs.SLIPPAGE_BPS},
+        capital=five.ETF_CAPITAL,
+    )
+    daily = [(date.fromisoformat(d), r) for d, r in run.pop("daily")]
+    from eulerlab.intraday import screen_common as sc
+
+    run["net_halves"] = {
+        "2016_2020": sc.daily_stats([r for d, r in daily if d.year <= 2020]),
+        "2021_2024": sc.daily_stats([r for d, r in daily if d.year >= 2021]),
+    }
+    run["trade_log"] = run.get("trade_log", [])[:200]
+    result = {
+        "hypothesis": "H-0071",
+        "research": "docs/RESEARCH/159-overnight-daytime-tug-of-war.md",
+        "spent_trials": 0,
+        **run,
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=1), encoding="utf-8")
+    return result
+
+
 def run(output: Path = OUT) -> dict[str, Any]:
     cache = {}
     for symbol in cs.universe():
@@ -185,9 +266,17 @@ def run(output: Path = OUT) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="tug-of-war")
-    parser.add_argument("--output", type=Path, default=OUT)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--daily", action="store_true", help="H-0071: daily bars from 2016")
     args = parser.parse_args()
-    result = run(args.output)
+    if args.daily:
+        daily = run_daily(args.output or DAILY_OUT)
+        print(
+            f"H-0071: {daily['trades']} trades; {daily['per_trade_bps']['gross_mean']} bps gross, "
+            f"{daily['per_trade_bps']['net_mean']} net a trade; net Sharpe {daily['net']['sharpe']}"
+        )
+        return 0
+    result = run(args.output or OUT)
     for one in result["runs"]:
         print(
             f"{one['hypothesis']} {one['id']}: {one['trades']} trades; "

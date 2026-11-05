@@ -63,3 +63,9 @@ first bar would help.
 
 - Should `opening_range_breakout` refuse an ETF, or start its range at the
   second bar for one? A change to a coded rule; needs its own hypothesis.
+
+**Addendum, 2026-11-06 (research 159, H-0071).** The same holds for the daily
+bars: NIFTYBEES's daily open in `price_panel.jsonl` is often a bad first print
+(2020-03-05 "opened" at 142.95 and closed at 119.75). Its daily open-to-close
+differs from the Nifty's by a median 43 bps a day (199 bps in 2021), so a
+daily-bar NIFTYBEES trade must use the index's open and close instead.
