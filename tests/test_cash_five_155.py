@@ -87,3 +87,20 @@ def test_the_premium_trade_sells_a_rich_etf_and_closes_when_it_turns() -> None:
     ((day, fill),) = five.premium_trades([nifty_prior, nifty], [etf_prior, etf])
     assert day == date(2023, 5, 4) and fill.direction == -1
     assert fill.entry_minute == 21 and fill.exit_minute == 26
+
+
+def test_the_variant_filter_keeps_the_strongest_and_drops_late_entries() -> None:
+    from eulerlab.intraday import in_play_variants as variants
+
+    day = date(2023, 5, 4)
+    early = five.Fill(5, 1, 30, 100.0, 355, 101.0)
+    late = five.Fill(5, 1, 200, 100.0, 355, 101.0)
+    marks = {
+        "A": {day: five.InPlay(5.0, early)},
+        "B": {day: five.InPlay(4.0, late)},
+        "C": {day: five.InPlay(2.5, early)},
+        "D": {day: five.InPlay(1.5, early)},
+    }
+    kept = variants.trades(marks, top_n=2, min_relative_volume=2.0, latest_entry=60, days={day})
+    # A and B are the top two; B entered after 10:15; C and D are not in the top two.
+    assert [t.symbol for t in kept] == ["A"]

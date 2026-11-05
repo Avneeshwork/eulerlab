@@ -1,6 +1,6 @@
 id: H-0050
 title: 'In-play ORB, restricted: the best of eight fixed filters, chosen on 2021-2023, tested on 2024'
-status: draft
+status: rejected
 family: intraday_cash
 source_kind: paper
 parent: H-0045
@@ -29,3 +29,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: all eight variants negative net on 2021-08 to 2023-12 (best top 10, volume >= 3x, any time: 9.48 bps gross, -2.78 net, Sharpe -0.43); on 2024 it made -14.04 bps net a trade, Sharpe -2.31 against a bar of 0.13 (research 155). Dead.'
