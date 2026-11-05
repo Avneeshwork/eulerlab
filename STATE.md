@@ -31,6 +31,8 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
+  Minute scalps do not pay at retail costs: a ₹1 lakh stock round trip is
+  12.24 bps, NIFTYBEES moves 8 bps in 15 minutes; two stock scalps died (research 154).
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a

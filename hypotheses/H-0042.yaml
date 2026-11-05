@@ -1,6 +1,6 @@
 id: H-0042
 title: Fade a one-minute shock on heavy volume, for 15 minutes
-status: draft
+status: rejected
 family: intraday_minute
 source_kind: paper
 parent: ''
@@ -35,3 +35,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 8,035 trades, 7.69 bps gross and -4.57 bps net a trade, gross Sharpe 2.85, net -1.70; net negative in both halves (research 154). Dead.'

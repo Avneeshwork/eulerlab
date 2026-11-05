@@ -1,6 +1,6 @@
 id: H-0043
 title: Follow a stock's first crossing of a round price level, for 15 minutes
-status: draft
+status: rejected
 family: intraday_minute
 source_kind: paper
 parent: ''
@@ -29,10 +29,11 @@ red_flags:
 - 'Osler''s evidence is from currencies, with bank order books; Indian stocks may not hold the same stops.'
 - 'A ₹10 step on a ₹120 stock is 8%, on a ₹950 stock 1%: crossings are far more common for the dearer
   names in each band.'
-- 'The move map (research 154) says a 15-minute trade must be right about 76-86% of the time to pay
-  14.5 bps; nothing in the source suggests a crossing is that reliable. Expected to fail.'
+- 'The move map (research 154) says a 15-minute trade must be right about 72-80% of the time to pay
+  12.24 bps; nothing in the source suggests a crossing is that reliable. Expected to fail.'
 - 'The level bands are fixed here, not fitted; no other bands are run.'
 - 'Screening backtest only: no trial spent, not judged by the gate.'
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-05: 8,060 trades, -2.26 bps gross and -14.53 bps net a trade, net Sharpe -6.64 (research 154). Dead; the reverse rule is not run.'

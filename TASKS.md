@@ -160,6 +160,8 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4456 | Data watch also at 22:00 IST: NSE sometimes publishes F&O after the 19:30 run | DONE 2026-11-04 (operator). `make schedule ACTION=install JOB=data-watch` reloads it |
 | T-4457 | Engineering agent fits Groq's free limit: small context (rules digest, the failing function, its tests, the error) and exact edits; wider second try; then the next model | DONE 2026-11-05 (HISTORY #78). 8,600-12,600 tokens became 1,800-4,200 |
 | T-4458 | The lab writes its own formula ideas again (`max_ideas: 30`, `model_ideas: 6`, the settings before 2026-11-03), beside research's cards | DONE 2026-11-04 (operator). Each idea spends trials as before |
+| T-4461 | Minute-level scalping on NSE stocks and the Nifty (operator, 2026-11-05): move-vs-cost map and two pre-registered scalps | DONE 2026-11-05 — both dead: shock fade 7.69 bps gross, -4.57 net; round-number cross -2.26 gross. Index scalps cannot pay: NIFTYBEES moves 8.3 bps in 15 minutes (research 154) |
+| T-4462 | Zerodha's charges page (operator, 2026-11-05) lists NSE equity transaction at 0.00307%; `costs/schedule.py` uses 0.00297% from 2024-10-01 (0.01 bps a side). Confirm with T-906's contract notes and add a dated schedule entry if NSE changed it | OPEN |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 
