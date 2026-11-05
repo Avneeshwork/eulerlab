@@ -1,0 +1,37 @@
+id: H-0042
+title: Fade a one-minute shock on heavy volume, for 15 minutes
+status: draft
+family: intraday_minute
+source_kind: paper
+parent: ''
+claim: A one-minute move of 1% or more on volume at least five times the prior 30 minutes' mean, from
+  09:45, faded at the next open and closed 15 minutes later, earns more than a cash-intraday round trip in
+  both halves of 2021-08 to 2024-11.
+rationale: Large moves in index futures reverse within the day (Grant, Wolf and Yu 2005; Fung, Mok and
+  Lam 2000); on NSE, slow liquidity providers buy fast crashes back (Jagannathan et al. 2022). Research
+  154.
+source:
+  research: '154'
+  written_by: Claude, for the operator's minute-level scalping request
+  day: '2026-11-05'
+configurations:
+- shape: intraday_minute
+  strategy: nse_minute_shock_fade
+  universe: F&O stocks with Kite minute bars
+  signal: one-minute close-to-close move >= 1%, volume >= 5x the mean of the prior 30 minutes, 09:45 onward
+  direction: against the move
+  entry: next minute's open
+  exit: 15 minutes later or 15:10
+  sizing: ₹1 lakh a trade, one a stock a day, ten a day, earliest first
+  slippage_bps_per_side: 2
+  window: 2021-08-20 to 2024-11-29
+red_flags:
+- 'Cousins are dead: volume surge in the move''s direction and the fade at the open (research 076).
+  This fades a single minute later in the day; if it passes, check it is not the same effect.'
+- 'The sources are index futures; a single stock''s 1% minute may be news, which does not reverse.'
+- 'The fill is the next minute''s open after a violent minute: the real spread then is wider than 2 bps.'
+- 'Thresholds (1%, 5x, 30 minutes, 15-minute hold) are fixed here, not fitted; no other setting is run.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
