@@ -1,0 +1,29 @@
+id: H-0066
+title: 'Momentum winners give back in the daytime: short the top decile of 12-1 month momentum, buy the bottom, 09:20 to 15:10'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'Ranking stocks each morning on their compounded return from 252 to 21 sessions ago, shorting the top decile and buying the bottom decile from 09:20 to 15:10 earns more than costs in both halves of 2022-08 to 2024-11.'
+rationale: 'Lou, Polk and Skouras (2019, JFE 134(1)): all of momentum''s abnormal return is earned overnight; momentum returns reverse during the trading day, as institutions trade against momentum in the daytime. Research 159.'
+source:
+  research: '159'
+  written_by: Claude, for the operator's request for five more strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  strategy: 'nse_momentum_daytime_reversal'
+  universe: 'F&O stocks in the india-five cache with 252 prior sessions'
+  daily return: '(1 + prior close to 09:19 close) x (09:20 open to 15:10 open) - 1, from the india-five cache'
+  signal: 'compounded daily return over sessions t-252 to t-21'
+  short: 'top decile; long: bottom decile; at least 100 ranked'
+  entry: '09:20 open; exit: 15:10'
+  costs: 'cash intraday plus 2 bps a side; ₹1 lakh a position, 1x'
+  window: '2022-08 to 2024-11-29'
+red_flags:
+- 'The paper says the average intraday part of momentum is insignificant; the reversal is conditional (low momentum activity, institutional rebalancing).'
+- 'The daily return misses 15:10 to the close; the ranking is a proxy for close-to-close momentum.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
