@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventy-eight times this project was wrong
+## Seventy-nine times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -453,6 +453,8 @@ figure produced outside the result store before this date was frictionless.
 **77. Three agent faults behind "4 datasets not updating" and a failed engineering run.** (2026-11-04) (a) NSE published the 4 November F&O bhavcopy after the 19:30 nightly run and after the data agent's last check (20:00), so F&O bhavcopy, participant OI, Nifty futures and Nifty options all stopped on 3 November. When the data agent was run at 22:59 it re-ran the downloads and the file landed, but (b) it then described the problems it had found *before* the re-run to Groq, which answered that NSE had not published, after the file was on disk; and (c) Nifty options still did not pick it up, because `options.nifty_history` listed the bucket's `fo/` and a local `fo/` that holds only cached reads, not `data/landing/nse/fo/` where the ingest lands new files, so a file not yet uploaded was invisible. Separately, (d) the engineering agent's daily quality check ran the whole test suite under a 900 s limit; the suite takes 10-11 minutes and more on a busy machine, and the `TimeoutExpired` ended the run as failed. Fixed: the data agent re-reads freshness after a re-run and sends only what is still behind; `nifty_history.archives` also lists local `nse/fo/`; `fixer._run` returns code 124 on a timeout instead of raising, and the full suite gets 2,400 s. No stored numbers invalidated; the four datasets were brought to 4 November by hand the same night.
 
 **78. The engineering agent could not use the free model it was given.** (2026-11-05) ADR-127 let the engineering agent try Groq first, but a bug-fix request carried the whole CLAUDE.md, the module's architecture sections, the whole file and its whole test file and asked for the whole file back: 8,600 to 12,600 tokens for the modules measured, past Groq's free 8,000 a minute (6,400 after the margin). Every fix skipped Groq and went to a paid model, or to nothing. Now, for a model with a per-minute limit, `fixer.small_context` sends the hard rules only, the module header and the function the error names, the tests that use it and the error (1,800 to 4,200 tokens for the same modules), and the model answers with find-and-replace edits that must each match the file exactly once. A first live request (1,559 tokens) was accepted by Groq; its edit misquoted the code and was refused, as designed. The checks a fix must pass are unchanged. No numbers invalidated.
+
+**79. The agents page showed the engineering agent "Working… Starting…" when nothing ran.** (2026-11-05) `runtime.latest_run_dir` took an agent's newest folder by name as its latest run. The engineering agent keeps its fix worktrees in `data/agents/engineering/worktrees`, and "worktrees" sorts after every run id, so the page read that folder as a run with no output and no steps, called it running, and showed "Starting…" forever. The operator asked to stop a "stuck" agent that was not running. Now only folders named like a run id (`YYYYMMDDTHHMMSSZ-xxxxxx`) count. No numbers invalidated.
 
 ---
 
