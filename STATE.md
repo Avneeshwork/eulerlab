@@ -34,6 +34,8 @@ what is open is in `TASKS.md`.*
   Day trading: about twenty intraday rules have died after costs; the one alive
   screen is selling the Nifty straddle at the open on expiry day (H-0041,
   net Sharpe 0.95, worst day -3.1% of notional; research 153). Not gated.
+  Minute scalps do not pay at retail costs: a ₹1 lakh stock round trip is
+  12.24 bps, NIFTYBEES moves 8 bps in 15 minutes; two stock scalps died (research 154).
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the
   five best stored strategies would hold today, each with its backtest and a

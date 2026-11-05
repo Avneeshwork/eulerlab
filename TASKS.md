@@ -162,6 +162,8 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4458 | The lab writes its own formula ideas again (`max_ideas: 30`, `model_ideas: 6`, the settings before 2026-11-03), beside research's cards | DONE 2026-11-04 (operator). Each idea spends trials as before |
 | T-4459 | H-0041, selling the Nifty straddle at the open on expiry day, screened alive: 6.96 bps net of notional a week, net Sharpe 0.95 (both halves positive), worst day -307 bps (research 153). Decide: check fills on minute option prices, gate it (one trial), or leave it | OPEN (operator) |
 | T-4460 | Backfill NSE's F&O ban list (`fo_secban`) for 2021-2024 so ban entry can be screened (research 153, idea 4); held only from 2025-10-30 today | OPEN (operator: backfill or not) |
+| T-4461 | Minute-level scalping on NSE stocks and the Nifty (operator, 2026-11-05): move-vs-cost map and two pre-registered scalps | DONE 2026-11-05 — both dead: shock fade 7.69 bps gross, -4.57 net; round-number cross -2.26 gross. Index scalps cannot pay: NIFTYBEES moves 8.3 bps in 15 minutes (research 154) |
+| T-4462 | Zerodha's charges page (operator, 2026-11-05) lists NSE equity transaction at 0.00307%; `costs/schedule.py` uses 0.00297% from 2024-10-01 (0.01 bps a side). Confirm with T-906's contract notes and add a dated schedule entry if NSE changed it | OPEN |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 
