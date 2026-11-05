@@ -1,0 +1,28 @@
+id: H-0061
+title: 'On weekly expiry day, trade NIFTYBEES toward the Nifty strike with the most open interest, 13:01 to 15:10'
+status: draft
+family: intraday_cash
+source_kind: paper
+parent: ''
+claim: 'On each weekly Nifty expiry day, when the Nifty at 13:00 is 0.3% or more away from the expiring series'' strike with the most call-plus-put open interest at the prior close, trading NIFTYBEES toward that strike from 13:01 to 15:10 earns more than costs in both halves of 2021-11 to 2024-11.'
+rationale: 'Golez and Jackwerth (2012, JFE 106(3)): S&P 500 futures finish near strike prices on option expiry days, from market makers rebalancing delta hedges; Ni, Pearson and Poteshman (2005) tie pinning to large open interest. Stock-option pinning was dead here (H-0021); this is the index, with far larger open interest. Research 158.'
+source:
+  research: '158'
+  written_by: Claude, for the operator's request for five more minute-level cash strategies
+  day: '2026-11-05'
+configurations:
+- shape: intraday_cash
+  strategy: 'nifty_expiry_pin_niftybees'
+  pin: 'strike of the series expiring that day with the largest call plus put open interest at the prior close (nifty_options.jsonl)'
+  signal: 'Nifty 50 index close at 13:00 (minute 225) at least 0.3% above (short) or below (long) the pin'
+  entry: '13:01 open; exit: 15:10'
+  costs: 'cash intraday as for a share plus 2 bps a side; NIFTYBEES ₹10 lakh, 1x'
+  window: '2021-11-01 to 2024-11-29'
+red_flags:
+- 'Weekly expiry moved from Thursday to Tuesday in September 2025, outside this window; the effect may differ after.'
+- 'The exit at 15:10 misses the last 20 minutes, when pinning should be strongest.'
+- '0.3% and 13:00 are fixed here, not fitted.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
