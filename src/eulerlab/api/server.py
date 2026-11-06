@@ -694,8 +694,10 @@ def _fleet_payload(
     from eulerlab import forward
     from eulerlab.deploy import rule_book
     from eulerlab.deploy.runner import paper_blocker
+    from eulerlab.research import full_history
 
     gate = forward.verdicts(tenant.ledger)
+    settings = full_history.load_recommended()
     measured: dict[str, list[strategy_results.Row]] = {}
     for result in strategy_results.load():
         measured.setdefault(result.strategy_id, []).append(result)
@@ -741,6 +743,9 @@ def _fleet_payload(
                 # The latest gate verdict for a hypothesis (PROMOTE, PAPER or
                 # KILL), empty for everything else (ADR-141).
                 "gate_verdict": (gate.get(row.declaration.id) or ("", None))[0],
+                # The backtest setting the console fills in when this strategy
+                # is opened (`make full-history`, ADR-143); null for the rest.
+                "recommended": settings.get(row.declaration.id),
                 "engine": (
                     "intraday"
                     if row.declaration.id in INTRADAY_RUNNABLE

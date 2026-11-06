@@ -189,11 +189,20 @@ def overnight_trades(
     """Rank on the mean of the previous 20 overnight moves; short the top decile, buy the bottom."""
     from eulerlab.intraday import overnight_reversal_screen as overnight
 
-    ranked: dict[date, list[tuple[float, str, Any]]] = {}
     sessions: set[date] = set()
+    marks: dict[str, dict[date, Any]] = {}
     for symbol, days in days_by_symbol.items():
         sessions.update(d.day for d in days)
-        marks = overnight.extract(symbol, days)
+        marks[symbol] = overnight.extract(symbol, days)
+    return overnight_trades_from_marks(marks, start=start, capital=capital), sorted(sessions)
+
+
+def overnight_trades_from_marks(
+    marks_by_symbol: dict[str, dict[date, Any]], *, start: date, capital: float
+) -> list[Trade]:
+    """H-0065's trades from each stock's overnight marks (`overnight_reversal_screen.extract`)."""
+    ranked: dict[date, list[tuple[float, str, Any]]] = {}
+    for symbol, marks in marks_by_symbol.items():
         ordered = sorted(marks)
         for i in range(LOOKBACK, len(ordered)):
             day = ordered[i]
@@ -216,7 +225,7 @@ def overnight_trades(
                     trades.append(
                         _trade(day, symbol, direction, quantity, mark.entry, mark.exit, ENTRY)
                     )
-    return trades, sorted(sessions)
+    return trades
 
 
 def h0065(

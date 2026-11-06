@@ -467,6 +467,14 @@ export default function TerminalPage() {
               startingCash={startingCash}
               pendingRun={pendingRun}
               onRan={() => setPendingRun([])}
+              onRecommend={(setting) => {
+                setDateRange({ start: setting.start, end: setting.end });
+                setDays(setting.window_days);
+                setUniverse(setting.universe);
+                setTier(setting.tier);
+                setAssetClass(setting.asset_class);
+                setStartingCash(setting.capital);
+              }}
             />
           </>
         )}

@@ -28,7 +28,7 @@ import { Bar, Info, Move } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
-import type { Fleet, FleetStrategy, OptimizeRow, StrategyVerdict } from '@/lib/api';
+import type { Fleet, FleetStrategy, OptimizeRow, Recommended, StrategyVerdict } from '@/lib/api';
 import './strategies.css';
 
 type Sort = 'verdict' | 'name' | 'annual' | 'drawdown' | 'sharpe' | 'win' | 'trades';
@@ -104,6 +104,7 @@ export function Library({
   startingCash,
   pendingRun,
   onRan,
+  onRecommend,
 }: {
   fleet: Fleet | null;
   problem: string;
@@ -126,6 +127,8 @@ export function Library({
   startingCash: number;
   pendingRun: string[];
   onRan: () => void;
+  /** Fills the backtest controls with a strategy's own setting when it is opened (ADR-143). */
+  onRecommend?: (setting: Recommended) => void;
 }) {
   const [query, setQuery] = useState('');
   const [assetClass, setAssetClass] = useState('');
@@ -273,6 +276,15 @@ export function Library({
     () => (open ? (fleet?.strategies.find((s) => s.id === open) ?? null) : null),
     [open, fleet]
   );
+
+  // Opening a strategy with a recommended setting fills the backtest controls
+  // with it, so a run from here repeats the stored full-history run.
+  const recommendedFor = openStrategy?.recommended;
+  useEffect(() => {
+    if (recommendedFor && onRecommend) onRecommend(recommendedFor);
+    // Only when a different strategy opens, not on every fleet refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openStrategy?.id]);
 
   const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter((s) => s.archived).length, [fleet]);
   // Leaving the archive view when the last one is restored, so the page does

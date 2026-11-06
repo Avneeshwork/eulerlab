@@ -1402,6 +1402,14 @@ PAPER (`strategies.gated_hypotheses`, read at request time), at stage
 listed but cannot deploy: choosing one after the gate is a selection it never
 priced.
 
+**Full history and recommended settings (ADR-143).** `make full-history`
+backtests the fifteen gated strategies from 2016 (daily) or 2021-08-20
+(minute) to the holdout end, after recording one holdout read per strategy:
+the operator chose to spend the holdout on them. Each run is stored in the
+result store; each strategy's setting (dates, universe, tier, asset class,
+timeframe, capital) is served as `recommended` and fills the library's
+backtest controls when the strategy is opened.
+
 ---
 
 # Part V — The workbench

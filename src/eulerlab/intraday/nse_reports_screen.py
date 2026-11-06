@@ -57,7 +57,9 @@ Events = dict[str, dict[date, float]]
 # --- reading the reports ---------------------------------------------------------------
 
 
-def report_files(segment: str, first: date = FIRST_DAY) -> Iterator[tuple[date, str]]:
+def report_files(
+    segment: str, first: date = FIRST_DAY, through: date | None = None
+) -> Iterator[tuple[date, str]]:
     """(trade date, landing path) for each landed file of one report, in the window."""
     from eulerlab.ingest import landing_reader
 
@@ -67,7 +69,7 @@ def report_files(segment: str, first: date = FIRST_DAY) -> Iterator[tuple[date, 
         if entry.get("segment") != segment or entry["path"] in seen:
             continue
         day = date.fromisoformat(entry["trade_date"])
-        if first <= day <= cs.DATA_END:
+        if first <= day <= (through or cs.DATA_END):
             seen.add(entry["path"])
             yield (
                 day,
@@ -322,9 +324,9 @@ def run_daily(output: Path = DAILY_OUT) -> dict[str, Any]:
 
 
 def _parsed(
-    segment: str, parse: Callable[[str], Any], first: date = FIRST_DAY
+    segment: str, parse: Callable[[str], Any], first: date = FIRST_DAY, through: date | None = None
 ) -> list[tuple[date, Any]]:
-    return sorted((day, parse(text)) for day, text in report_files(segment, first))
+    return sorted((day, parse(text)) for day, text in report_files(segment, first, through))
 
 
 def run(output: Path = OUT) -> dict[str, Any]:

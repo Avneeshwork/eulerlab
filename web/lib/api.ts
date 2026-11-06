@@ -453,6 +453,17 @@ export type RiskBookResponse =
   | { ok: true; empty: true; reason: string }
   | { ok: false; error: string };
 
+export type Recommended = {
+  start: string;
+  end: string;
+  window_days: number;
+  universe: string;
+  tier: 'A' | 'B';
+  asset_class: string;
+  timeframe: string;
+  capital: number;
+};
+
 export type FleetStrategy = {
   /** The run on the parameters this strategy actually uses, on the market its
    *  paper tested. Null when no recorded sweep has covered it. */
@@ -500,6 +511,8 @@ export type FleetStrategy = {
   published: string;
   /** The latest gate verdict for a hypothesis (PROMOTE, PAPER or KILL); empty otherwise (ADR-141). */
   gate_verdict?: string;
+  /** The backtest setting filled in when this strategy is opened (ADR-143). */
+  recommended?: Recommended | null;
   stage: Stage;
   // null means never measured. It is NOT zero and must never render as zero.
   sharpe: number | null;
