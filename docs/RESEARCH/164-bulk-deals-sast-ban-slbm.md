@@ -120,3 +120,35 @@ The rest:
 3. **Fills.** 09:20 entry and 15:10 exit at the minute open, plus 2 bps a side
    slippage, as every screen here. Banned stocks are volatile at the open.
 4. **2025 onward** is the holdout and has not been read.
+
+## The gate (2026-11-06, operator's instruction)
+
+The operator asked for H-0096 to be gated, and for the holdout to October
+2026 to be read only if it passed. `make validate` gained an intraday route
+for this (ADR-139). Validation (ledger #64) then the gate (ledger #65):
+**KILL, 3 of 12 rules failed.**
+
+| Rule | Result | Mandate |
+|---|---|---|
+| Deflated Sharpe | 0.784 | >= 0.95 — **fail** |
+| Romano-Wolf over Nifty | -0.51 vs critical 1.73 | **fail** |
+| Stress: drop best 5 names | 44% of Sharpe kept (1.49 -> 0.66) | >= 60% — **fail** |
+| Search bar | 28 families, bar Sharpe 1.05 | pass |
+| Backtest length | 3.2 years vs 0.5 needed | pass |
+| Stress: 2x costs | 64% kept | pass |
+| Stress: worst regime | first half 1.13, second 1.78 (76%) | pass |
+| Entry 5 minutes late | 72% kept | (reported) |
+| Costs x3 | 27% kept, still positive | (reported) |
+
+The holdout was **not read**. Under CLAUDE.md the strategy is dead and is not
+tuned or resubmitted.
+
+Two things for the operator, not arguments with the gate:
+
+- **Romano-Wolf measures return over the Nifty with beta 1.** For a rule that
+  is short a few stocks on 47% of days and flat otherwise, that subtracts the
+  whole index's rise from a strategy with little market exposure. Whether the
+  mandate should use the strategy's own beta for intraday rules is a mandate
+  question (proposal only).
+- **The concentration failure is real.** Five stocks (NATIONALUM, ZEEL, IRCTC,
+  RBLBANK, HINDCOPPER), bans that recur, carry over half the Sharpe.

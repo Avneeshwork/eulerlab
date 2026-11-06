@@ -177,7 +177,8 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4473 | Five cash rules read from stock options: skew, call-put IV spread, IV changes, put-call volume, realised minus implied volatility (operator, 2026-11-06) | DONE 2026-11-06 — none passes and none has a gross edge (-4.32 to 0.00 bps a position); put-call volume has the wrong sign (research 163) |
 | T-4474 | Backfill NSE bulk deals, SAST, F&O ban and SLBM from 2021-07 and screen five cash rules on them (operator, 2026-11-06) | DONE 2026-11-06 — H-0096 (short on the first F&O ban day) passes the screen: 45.46 bps gross, +33.22 net, t 4.22, positive every year; the other four fail (research 164) |
 | T-4475 | H-0096 needs the ban list before 09:20. Confirm by fetching `fo_secban` for the next trade date on a trading morning before 09:15 IST (A-114) | OPEN |
-| T-4476 | H-0096 screened alive: short on the first F&O ban day, 09:20-15:10, +33 bps net a trade, net Sharpe 1.49 (research 164). Decide: confirm timing (T-4475), check intraday shortability at the broker, then gate it (one trial) or paper-trade it | OPEN (operator) |
+| T-4476 | H-0096 (short on the first F&O ban day) screened alive; operator asked for the gate, then the holdout to Oct 2026 only if it passed | DONE 2026-11-06 — gate KILL (ledger #64, #65): deflated Sharpe 0.784 < 0.95, Romano-Wolf fails, best-5-names stress keeps 44% < 60%. Holdout not read. 2015-2024 daily-bar run still to report (T-4477) |
+| T-4477 | Run H-0096's rule on daily bars 2015-2024 (open to close) once the ban list is backfilled to 2015, as the operator asked ("backtest it for all years"). Information only: a killed strategy is not resubmitted | OPEN |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

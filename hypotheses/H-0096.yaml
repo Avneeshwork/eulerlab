@@ -1,6 +1,6 @@
 id: H-0096
 title: 'Short a stock on its first F&O ban day, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_nse_reports
 source_kind: paper
 parent: ''
@@ -23,4 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: 'Screen 2026-11-06: 567 trades, 45.46 bps gross and +33.22 net a trade, t 4.22; net Sharpe 1.49 (1.26 before 2024, 1.97 in 2024); every year positive; drawdown -2.6% (research 164). Passes the screen. Not gated; ban-list timing unconfirmed (A-114, T-4475).'
+result: 'Screen 2026-11-06: 567 trades, 45.46 bps gross and +33.22 net a trade, t 4.22, net Sharpe 1.49, every year positive (research 164). Gate 2026-11-06 (validate ledger #64, gate #65): KILL, 3 of 12 rules failed: deflated Sharpe 0.784 < 0.95; Romano-Wolf over Nifty -0.51 vs critical 1.73; dropping the best 5 names keeps 44% of Sharpe < 60%. Holdout not read.'
