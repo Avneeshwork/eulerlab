@@ -185,9 +185,12 @@ def paper_blocker(strategy_id: str) -> str:
     """
     from eulerlab import forward
     from eulerlab.backtest.published import BUILDERS
-    from eulerlab.deploy import overnight
+    from eulerlab.deploy import overnight, rule_book
     from eulerlab.strategies import REGISTRY
 
+    if rule_book.is_rule(strategy_id):
+        # A gated intraday rule trades through its own book (ADR-142).
+        return rule_book.blocker(strategy_id)
     if forward.is_hypothesis(strategy_id):
         # A gate-promoted hypothesis trades its own card (T-3311, ADR-117).
         return forward.blocker(strategy_id)
@@ -266,11 +269,13 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
     # The overnight future has its own book (ADR-066): the equity engine fills
     # once a day at the close and cannot hold from one close to the next open.
     # Same OMS, journal, kill switch and state file either way.
-    from eulerlab.deploy import intraday_book, study_book
+    from eulerlab.deploy import intraday_book, rule_book, study_book
     from eulerlab.intraday.paper_scan import ALL_SIGNALS
 
     if deployment.strategy_id in overnight.STRATEGIES:
         state = overnight.run(deployment)
+    elif rule_book.is_rule(deployment.strategy_id):
+        state = rule_book.run(deployment)
     elif deployment.strategy_id in ALL_SIGNALS:
         state = intraday_book.run(deployment)
     elif study_book.module_of(deployment.strategy_id) is not None:

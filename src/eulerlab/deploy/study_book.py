@@ -336,7 +336,12 @@ def replay(
     }
 
 
-def run(deployment: Deployment, *, trades_for: Callable[..., Any] | None = None) -> dict[str, Any]:
+def run(
+    deployment: Deployment,
+    *,
+    trades_for: Callable[..., Any] | None = None,
+    block: Callable[[str], str] | None = None,
+) -> dict[str, Any]:
     """Bring one study deployment up to yesterday's minute bars. Returns the state written."""
     from eulerlab.deploy.runner import _halt, make_oms
 
@@ -359,7 +364,7 @@ def run(deployment: Deployment, *, trades_for: Callable[..., Any] | None = None)
         store.write_state(deployment, state)
         return state
     end = intraday_book.holdout_end()
-    if (why := blocker(deployment.strategy_id)) or end is None:
+    if (why := (block or blocker)(deployment.strategy_id)) or end is None:
         state.update(status="waiting", reason=why)
         store.write_state(deployment, state)
         return state

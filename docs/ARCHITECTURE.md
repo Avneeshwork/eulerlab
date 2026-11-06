@@ -1381,6 +1381,21 @@ charges on the paper fill. Not yet: the India and stock session papers, the
 gold-stock screen, the stock candidates, the FII screen, the cost-aware ML
 study, MCX gold and the option structures (each a different engine).
 
+**Gated intraday rules on paper (`deploy/rule_book.py`, ADR-142).** H-0052,
+H-0065, H-0096 and H-0098 passed the gate (PROMOTE or PAPER) but are not
+rank-and-hold cards. Each has a generator that re-applies its rule to minute
+files starting after the holdout end and returns `study_book`'s trade shape;
+`study_book.run(trades_for=..., block=...)` then trades them unchanged.
+H-0096 shorts each stock on its first F&O ban day (the nightly `fo_ban`
+report) 09:20-15:10, ten slots of the capital. H-0098 shorts the same stocks
+at the 09:15 auction print and covers at 15:15: a variant, because its
+backtest's closing-auction exit is out of reach of an intraday short, and the
+state says so. H-0065 ranks every F&O stock on its 20-session mean overnight
+move and trades the two deciles 09:20-15:10, capital spread evenly; it waits
+21 sessions after the holdout end. H-0052 buys NIFTYBEES on a session whose
+next weekday is in NSE's holiday list (`make holidays`). Deploying needs a
+PROMOTE or PAPER verdict; the live preflight still needs PROMOTE.
+
 ---
 
 # Part V — The workbench

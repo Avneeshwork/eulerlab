@@ -31,7 +31,8 @@ what is open is in `TASKS.md`.*
 - **Under the simple gate (research 165):** PROMOTE H-0096, H-0098 (F&O
   ban-day short), H-0001, H-0020, H-0021, H-0022, H-0029; PAPER H-0023 to
   H-0028, H-0065, H-0052. The daily ones are mostly one momentum bet. All go
-  to paper first (T-4480). The single holdout read is unspent. **No capital
+  to paper first (T-4480); the intraday ones deploy through `rule_book`
+  (ADR-142). The single holdout read is unspent. **No capital
   has ever been traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).

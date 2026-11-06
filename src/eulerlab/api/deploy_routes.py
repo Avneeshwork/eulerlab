@@ -187,9 +187,22 @@ def preview(request: PreviewRequest) -> dict[str, Any]:
 
     if request.strategy in overnight.STRATEGIES:
         return _overnight_preview(request.capital)
-    from eulerlab.deploy import intraday_book, study_book
+    from eulerlab.deploy import intraday_book, rule_book, study_book
     from eulerlab.intraday.paper_scan import ALL_SIGNALS
 
+    if rule_book.is_rule(request.strategy):
+        if why := rule_book.blocker(request.strategy):
+            return {"ok": False, "error": why}
+        first = intraday_book.first_session(
+            datetime.now(UTC).date(), intraday_book.holdout_end() or datetime.now(UTC).date()
+        )
+        note = rule_book.VARIANT.get(request.strategy, "")
+        return {
+            "ok": False,  # no names to count; the sentence below is the preview
+            "error": f"Applies {request.strategy}'s rule to each session's minute bars from "
+            f"{first}, sized to this capital; flat at every close."
+            + (f" Note: {note}." if note else ""),
+        }
     if (module := study_book.module_of(request.strategy)) and intraday_book.holdout_end():
         first = intraday_book.first_session(
             datetime.now(UTC).date(), intraday_book.holdout_end() or datetime.now(UTC).date()
@@ -244,10 +257,14 @@ def deploy(request: DeployRequest) -> dict[str, Any]:
 
     if blocker := paper_blocker(request.strategy):
         return {"ok": False, "error": f"cannot paper-trade: {blocker}"}
-    from eulerlab.deploy import intraday_book, study_book
+    from eulerlab.deploy import intraday_book, rule_book, study_book
     from eulerlab.intraday.paper_scan import ALL_SIGNALS
 
-    if request.strategy in ALL_SIGNALS or study_book.module_of(request.strategy):
+    if (
+        request.strategy in ALL_SIGNALS
+        or study_book.module_of(request.strategy)
+        or rule_book.is_rule(request.strategy)
+    ):
         end = intraday_book.holdout_end()
         assert end is not None  # `paper_blocker` refuses without it
         deployment = store.create(
