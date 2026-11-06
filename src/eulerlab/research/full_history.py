@@ -153,6 +153,21 @@ def as_trades(rows: Sequence[dict[str, Any]]) -> list[Any]:
     ]
 
 
+def leg_fills(trades: Sequence[Any]) -> list[Any]:
+    """Each same-day trade as its two fills, for the report: in, then out, costs split."""
+    from eulerlab.backtest.events import Fill
+    from eulerlab.costs.schedule import Side
+
+    out = []
+    for t in trades:
+        opening = Side.BUY if t.direction > 0 else Side.SELL
+        closing = Side.SELL if opening is Side.BUY else Side.BUY
+        half = t.costs / 2.0
+        out.append(Fill("", t.day, t.symbol, opening, t.quantity, t.entry, half))
+        out.append(Fill("", t.day, t.symbol, closing, t.quantity, t.exit, half))
+    return out
+
+
 # --- each kind of strategy ---------------------------------------------------------------
 
 
@@ -187,6 +202,7 @@ def daily_card(
                 **summarise(days, equity),
                 "curve_days": days,
                 "curve": equity,
+                "_fills": list(result.fills),
             }
         )
     return out
@@ -242,6 +258,7 @@ def ban_short(end: date, capital: float, *, daily: bool) -> dict[str, Any]:
         **summarise(days, equity),
         "curve_days": days,
         "curve": equity,
+        "_fills": leg_fills(trades),
     }
 
 
@@ -264,6 +281,7 @@ def overnight_reversal(end: date, capital: float, sessions: Sequence[date]) -> d
         **summarise(days, equity),
         "curve_days": days,
         "curve": equity,
+        "_fills": leg_fills(trades),
     }
 
 
@@ -290,39 +308,69 @@ def pre_holiday(end: date, capital: float, calendar: Sequence[date]) -> dict[str
         **summarise(days, equity),
         "curve_days": days,
         "curve": equity,
+        "_fills": leg_fills(trades),
     }
 
 
 # --- running -------------------------------------------------------------------------------
 
 
-def store(hypothesis: str, run: dict[str, Any], setting: dict[str, Any], label: str = "") -> None:
-    from eulerlab import results, workspace
+def store(
+    hypothesis: str,
+    run: dict[str, Any],
+    setting: dict[str, Any],
+    label: str = "",
+    marks: dict[str, float] | None = None,
+) -> None:
+    """The run in the result store, and its full report beside it (`reports.save`)."""
+    from eulerlab import reports, results, workspace
 
     tenant = workspace.resolve(None)
-    results.record(
+    params = {
+        "start": setting["start"],
+        "end": setting["end"],
+        "capital": setting["capital"],
+        "configuration": label,
+        "holdout": "read (operator, 2026-11-06)",
+    }
+    # The configuration label is in the data version so each of a card's
+    # configurations is its own stored result, not a recomputation of one.
+    version = f"full-history {setting['start']}..{setting['end']} {label}".strip()
+    stored = results.Run(
+        strategy_id=hypothesis,
+        sharpe=float(run["sharpe"]),
+        total_return=float(run["total_return"]),
+        max_drawdown=float(run["max_drawdown"]),
+        fills=int(run["fills"]),
+        days=len(run["curve"]),
+        tier=setting["tier"],
+        window_days=int(setting["window_days"]),
+        data_version=version,
+        asset_class=setting["asset_class"],
+        universe=setting["universe"],
+        symbols=int(run["symbols"]),
+        params=params,
+        curve=results.downsample(list(run["curve"])),
+    )
+    results.record(tenant, stored)
+    reports.save(
         tenant,
-        results.Run(
+        reports.build(
             strategy_id=hypothesis,
-            sharpe=float(run["sharpe"]),
-            total_return=float(run["total_return"]),
-            max_drawdown=float(run["max_drawdown"]),
-            fills=int(run["fills"]),
-            days=len(run["curve"]),
-            tier=setting["tier"],
-            window_days=int(setting["window_days"]),
-            data_version=f"full-history {setting['start']}..{setting['end']}",
-            asset_class=setting["asset_class"],
+            configuration=stored.configuration,
             universe=setting["universe"],
-            symbols=int(run["symbols"]),
-            params={
-                "start": setting["start"],
-                "end": setting["end"],
-                "capital": setting["capital"],
-                "configuration": label,
-                "holdout": "read (operator, 2026-11-06)",
-            },
-            curve=results.downsample(list(run["curve"])),
+            instruments=[],
+            tier=setting["tier"],
+            asset_class=setting["asset_class"],
+            window_days=int(setting["window_days"]),
+            equity=list(run["curve"]),
+            days=list(run["curve_days"]),
+            fills=list(run.get("_fills") or []),
+            rejections=[],
+            marks=marks or {},
+            starting_cash=float(setting["capital"]),
+            params=params,
+            data_version=version,
         ),
     )
 
@@ -338,11 +386,17 @@ def run(operator: str, only: Sequence[str] = (), output: Path = OUT) -> dict[str
         raise SystemExit(msg)
     from eulerlab import forward
 
-    wanted = [h for h in (*DAILY_CARDS, *INTRADAY) if not only or h in only]
+    order = ("H-0096", "H-0098", "H-0052", *DAILY_CARDS, "H-0065")
+    wanted = [h for h in order if not only or h in only]
+    already = {r.hypothesis for r in gates.holdout_reads()}
     for hypothesis in wanted:
-        gates.record_holdout_read(hypothesis, authorised_by=operator)
+        if hypothesis not in already:  # one read per strategy, however often it runs
+            gates.record_holdout_read(hypothesis, authorised_by=operator)
 
     rows = [r for r in read_panel() if WARMUP_FROM <= r.day <= end]
+    marks: dict[str, float] = {}
+    for row in sorted(rows, key=lambda r: r.day):
+        marks[row.symbol] = row.close
     calendar = trading_days([r for r in rows if r.symbol == "NIFTYBEES"]) or trading_days(rows)
     minute_sessions = [d for d in trading_days(rows) if MINUTE_FIRST <= d <= end]
     settings = {h: recommended(h, end) for h in (*DAILY_CARDS, *INTRADAY)}
@@ -370,9 +424,10 @@ def run(operator: str, only: Sequence[str] = (), output: Path = OUT) -> dict[str
         else:
             found = [{"configuration": "as registered", **pre_holiday(end, capital, calendar)}]
         for one in found:
-            store(hypothesis, one, settings[hypothesis], one["configuration"])
+            store(hypothesis, one, settings[hypothesis], one["configuration"], marks)
         out["runs"][hypothesis] = [
-            {k: v for k, v in one.items() if k not in ("curve", "curve_days")} for one in found
+            {k: v for k, v in one.items() if k not in ("curve", "curve_days", "_fills")}
+            for one in found
         ]
     # A run of some hypotheses keeps the others' earlier results.
     if output.exists():

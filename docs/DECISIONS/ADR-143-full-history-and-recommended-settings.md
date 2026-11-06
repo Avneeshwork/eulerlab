@@ -9,3 +9,5 @@
 **Why.** The operator owns the holdout and chose to spend it, knowingly; recording the reads keeps that visible. Storing the runs means the library shows them without pressing Run.
 
 **Cost if wrong.** No unseen data is left to test any of these strategies, or any later one, before money; forward paper trading is the only remaining out-of-sample evidence.
+
+**Addendum, 2026-11-06.** The first runs stored only each run's summary, so the Report page said "no report stored". Each run now also saves `reports.build` from its equity, days and fills (an intraday trade as two fills, its costs split), each configuration of a card is its own stored result, and a holdout read is recorded once per hypothesis however often it runs.
