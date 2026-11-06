@@ -63,6 +63,10 @@ class Stage(StrEnum):
 
     REGISTERED = "registered"
     BACKTESTED = "backtested"
+    PROMOTED = "promoted"
+    """The gate said PROMOTE; no paper deployment yet."""
+    PAPER_CANDIDATE = "paper_candidate"
+    """The gate said PAPER; no paper deployment yet (ADR-141)."""
     PAPER_EVALUATION = "paper_evaluation"
     """Paper-trading on a gate PAPER verdict: more evidence, never live (ADR-141)."""
     FORWARD_TESTING = "forward_testing"
@@ -979,7 +983,61 @@ def _stage(strategy_id: str, ran: int, gate: dict[str, Any], active: list[Any]) 
         return Stage.FORWARD_TESTING
     if later == "paper_evaluation":
         return Stage.PAPER_EVALUATION
+    if later == "promoted":
+        return Stage.PROMOTED
+    if later == "paper_candidate":
+        return Stage.PAPER_CANDIDATE
     return Stage.BACKTESTED if ran else Stage.REGISTERED
+
+
+def gated_hypotheses(gate: dict[str, Any], root: object = None) -> list[Declaration]:
+    """A declaration for each hypothesis whose latest gate verdict is PROMOTE or PAPER.
+
+    So the console lists what the gate passed and its Deploy button can start
+    a paper book (`forward.build` for rank-and-hold cards, `deploy/rule_book.py`
+    for the intraday rules). Built at read time because verdicts change.
+    """
+    from pathlib import Path
+
+    import yaml
+
+    from eulerlab import forward
+    from eulerlab.deploy import rule_book
+
+    folder = Path(str(root)) if root is not None else forward.HYPOTHESES
+    out: list[Declaration] = []
+    for hypothesis, (verdict, _) in sorted(gate.items()):
+        verdict = verdict.upper()
+        if not forward.is_hypothesis(hypothesis) or not verdict.startswith(("PROMOTE", "PAPER")):
+            continue
+        path = folder / f"{hypothesis}.yaml"
+        try:
+            card = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        intraday = rule_book.is_rule(hypothesis)
+        rules = [
+            str(c.get("rule") or c.get("feature") or "") for c in card.get("configurations") or []
+        ]
+        out.append(
+            Declaration(
+                id=hypothesis,
+                title=f"{hypothesis} · {card.get('title', '')}",
+                summary=str(card.get("claim") or ""),
+                kind="quant",
+                shape="event" if intraday else "cross-section",
+                asset_class=AssetClass.EQUITY,
+                timeframe=Timeframe.MINUTE if intraday else Timeframe.DAILY,
+                emits=Emits.CONDITIONAL_ENTRY if intraday else Emits.TARGET_WEIGHT,
+                lookback=1,
+                is_strategy_subclass=not intraday,
+                source=f"research {(card.get('source') or {}).get('research', '')}".strip(),
+                published=f"gate verdict {verdict}",
+                logic=[r for r in rules if r],
+                ledger_subjects=[hypothesis],
+            )
+        )
+    return out
 
 
 def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
@@ -999,7 +1057,8 @@ def fleet(path: object = LEDGER_PATH) -> list[FleetRow]:
     except Exception:  # a broken deployment file must not hide the strategy list
         active = []
     rows: list[FleetRow] = []
-    for declaration in REGISTRY.values():
+    gated = [d for d in gated_hypotheses(gate) if d.id not in REGISTRY]
+    for declaration in [*REGISTRY.values(), *gated]:
         subjects = declaration.ledger_subjects
         trials = sum(counts.get(s, 0) for s in subjects)
         ran = sum(evaluated.get(s, 0) for s in subjects)

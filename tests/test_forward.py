@@ -81,7 +81,7 @@ def test_the_strategy_list_shows_forward_testing() -> None:
     gate = {"H-0030": ("PROMOTE", DAY)}
     got = strategies._stage("H-0030", 1, gate, [_deployment("H-0030", DAY)])
     assert got is strategies.Stage.FORWARD_TESTING
-    assert strategies._stage("H-0030", 1, gate, []) is strategies.Stage.BACKTESTED
+    assert strategies._stage("H-0030", 1, gate, []) is strategies.Stage.PROMOTED
     assert strategies._stage("H-0030", 0, {}, []) is strategies.Stage.REGISTERED
 
 
@@ -202,3 +202,19 @@ def test_a_paper_verdict_can_be_paper_deployed(tmp_path: Path) -> None:
     _card(tmp_path, "H-0040")
     ledger.append(kind="gate", subject="H-0040", params={}, outcome={"verdict": "PAPER"}, path=path)
     assert forward.blocker("H-0040", ledger=path, root=tmp_path) == ""
+
+
+def test_gated_hypotheses_are_listed_for_the_console(tmp_path: Path) -> None:
+    from eulerlab import strategies
+
+    _card(tmp_path, "H-0030")
+    _card(tmp_path, "H-0031")
+    _card(tmp_path, "H-0096")
+    gate = {"H-0030": ("PROMOTE", DAY), "H-0031": ("KILL", DAY), "H-0096": ("PAPER", DAY)}
+    found = {d.id: d for d in strategies.gated_hypotheses(gate, root=tmp_path)}
+    assert set(found) == {"H-0030", "H-0096"}
+    assert found["H-0030"].timeframe is strategies.Timeframe.DAILY
+    assert found["H-0096"].timeframe is strategies.Timeframe.MINUTE
+    assert found["H-0030"].ledger_subjects == ["H-0030"]
+    assert strategies._stage("H-0030", 1, gate, []) is strategies.Stage.PROMOTED
+    assert strategies._stage("H-0096", 1, gate, []) is strategies.Stage.PAPER_CANDIDATE

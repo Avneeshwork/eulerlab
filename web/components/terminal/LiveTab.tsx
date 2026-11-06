@@ -33,7 +33,11 @@ export function LiveTab({
 }) {
   const [reports, setReports] = useState<Record<string, Preflight>>({});
   const live = fleet.filter((s) => s.stage === 'live');
-  const forward = fleet.filter((s) => s.stage === 'forward_testing');
+  const forward = fleet.filter(
+    (s) => s.stage === 'forward_testing' || s.stage === 'paper_evaluation'
+  );
+  // Passed the gate (PROMOTE or PAPER, ADR-141) and not yet paper-traded.
+  const gated = fleet.filter((s) => s.stage === 'promoted' || s.stage === 'paper_candidate');
   const candidates = fleet.filter((s) => s.clears_bar && s.runnable);
 
   useEffect(() => {
@@ -81,6 +85,56 @@ export function LiveTab({
           </div>
         </div>
       </section>
+
+      <div className="tpanel">
+        <h3>Passed the gate: start a paper book</h3>
+        {gated.length === 0 ? (
+          <div className="tempty">Nothing is waiting: every strategy the gate passed is already on paper.</div>
+        ) : (
+          <table className="ttable">
+            <thead>
+              <tr>
+                <th>Strategy</th>
+                <th>Verdict</th>
+                <th className="r">Sharpe</th>
+                <th>Runs on</th>
+                <th className="r" />
+              </tr>
+            </thead>
+            <tbody>
+              {gated.map((strategy) => (
+                <tr key={strategy.id}>
+                  <td>
+                    <b>{strategy.title}</b>
+                    <div className="tfine">{strategy.summary}</div>
+                  </td>
+                  <td>
+                    <b>{strategy.gate_verdict || '—'}</b>
+                    <div className="tfine">
+                      {strategy.gate_verdict === 'PAPER' ? 'paper only, never live' : 'paper, then live'}
+                    </div>
+                  </td>
+                  <td className="r">{strategy.sharpe?.toFixed(2) ?? '—'}</td>
+                  <td className="tfine">
+                    {strategy.timeframe === '1m' ? 'minute bars, flat every close' : 'daily close'}
+                  </td>
+                  <td className="r">
+                    {strategy.deploy_blocker ? (
+                      <span className="tfine" title={strategy.deploy_blocker}>
+                        blocked
+                      </span>
+                    ) : (
+                      <button className="tbtn sm" type="button" onClick={() => onDeploy(strategy)}>
+                        Paper trade
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       <div className="tpanel">
         <h3>Closest to deployable</h3>

@@ -691,8 +691,11 @@ def _fleet_payload(
     us_all_results: dict[str, dict[str, Any]],
     walks: dict[str, Any],
 ) -> dict[str, Any]:
+    from eulerlab import forward
+    from eulerlab.deploy import rule_book
     from eulerlab.deploy.runner import paper_blocker
 
+    gate = forward.verdicts(tenant.ledger)
     measured: dict[str, list[strategy_results.Row]] = {}
     for result in strategy_results.load():
         measured.setdefault(result.strategy_id, []).append(result)
@@ -733,10 +736,15 @@ def _fleet_payload(
                     row.declaration.is_strategy_subclass
                     or row.declaration.id in INTRADAY_RUNNABLE
                     or row.declaration.id in STUDY_RUNNABLE
+                    or rule_book.is_rule(row.declaration.id)
                 ),
+                # The latest gate verdict for a hypothesis (PROMOTE, PAPER or
+                # KILL), empty for everything else (ADR-141).
+                "gate_verdict": (gate.get(row.declaration.id) or ("", None))[0],
                 "engine": (
                     "intraday"
                     if row.declaration.id in INTRADAY_RUNNABLE
+                    or rule_book.is_rule(row.declaration.id)
                     else "overnight"
                     if row.declaration.id in STUDY_RUNNABLE
                     # A paper run by its own make target; the library shows

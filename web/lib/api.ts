@@ -258,7 +258,15 @@ export type StrategyInput = {
 
 // --- the fleet ------------------------------------------------------------
 
-export type Stage = 'registered' | 'backtested' | 'forward_testing' | 'live' | 'retired';
+export type Stage =
+  | 'registered'
+  | 'backtested'
+  | 'promoted'
+  | 'paper_candidate'
+  | 'paper_evaluation'
+  | 'forward_testing'
+  | 'live'
+  | 'retired';
 
 export type StrategyResult = {
   sharpe: number | null;
@@ -490,6 +498,8 @@ export type FleetStrategy = {
   archived?: boolean;
   source: string;
   published: string;
+  /** The latest gate verdict for a hypothesis (PROMOTE, PAPER or KILL); empty otherwise (ADR-141). */
+  gate_verdict?: string;
   stage: Stage;
   // null means never measured. It is NOT zero and must never render as zero.
   sharpe: number | null;

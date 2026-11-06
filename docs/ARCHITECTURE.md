@@ -1395,6 +1395,12 @@ move and trades the two deciles 09:20-15:10, capital spread evenly; it waits
 21 sessions after the holdout end. H-0052 buys NIFTYBEES on a session whose
 next weekday is in NSE's holiday list (`make holidays`). Deploying needs a
 PROMOTE or PAPER verdict; the live preflight still needs PROMOTE.
+The console lists every hypothesis whose latest gate verdict is PROMOTE or
+PAPER (`strategies.gated_hypotheses`, read at request time), at stage
+`promoted` or `paper_candidate` until a paper book starts; the Live tab's
+"Passed the gate" table deploys them. A card with several configurations is
+listed but cannot deploy: choosing one after the gate is a selection it never
+priced.
 
 ---
 
