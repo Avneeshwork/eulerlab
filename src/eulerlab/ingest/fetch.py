@@ -19,6 +19,7 @@ struggling, the correct behaviour is to stop and report, not to push harder.
 
 from __future__ import annotations
 
+import http.client
 import random
 import time
 import urllib.error
@@ -105,7 +106,9 @@ class UrllibTransport:
                 return status, response.read()
         except urllib.error.HTTPError as exc:
             return exc.code, exc.read()
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+            # HTTPException covers a body cut short (IncompleteRead), which once
+            # crashed a whole backfill instead of being retried (RUNBOOKS/nse-backfill-cut-short).
             raise TransportError(str(exc)) from exc
 
 
