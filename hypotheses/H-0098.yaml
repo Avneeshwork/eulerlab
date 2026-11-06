@@ -21,5 +21,7 @@ red_flags:
 - 'Screening backtest only: no trial spent, not judged by the gate.'
 holdout:
   starts: '2024-12-01'
-  status: unread
+  status: read
+  read_on: '2026-11-06'
+  read_by: 'operator (Avneesh Kumar): backtest 2016-2026, ADR-143'
 result: 'Screen 2026-11-06: 1,617 trades 2015-2024, 81.45 bps gross and +69.22 net a trade, t 7.81, net Sharpe 1.91, drawdown -14.1%; positive in eight of ten years (2018, 2019 flat). Open to close earns more than H-0096''s 09:20-15:10 on the same days (research 164). Does not change H-0096''s gate verdict. Re-gated 2026-11-06 under the simple mandate (ADR-140, ADR-141), on the operator''s request to re-check the good rejected strategies: PROMOTE. 2015-2024 daily bars: net Sharpe 1.90 (1.10 / 2.95), PSR 1.000, 9 of 10 years positive, 1.58 at 2x costs. Research 165.'

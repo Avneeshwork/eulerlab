@@ -25,5 +25,7 @@ red_flags:
 - 'Screening backtest only: no trial spent, not judged by the gate.'
 holdout:
   starts: '2024-12-01'
-  status: unread
+  status: read
+  read_on: '2026-11-06'
+  read_by: 'operator (Avneesh Kumar): backtest 2016-2026, ADR-143'
 result: 'Screen 2026-11-05: 55,734 trades, 13.86 bps gross and +1.59 net a trade, net Sharpe 0.55; positive before 2024 (1.07), negative in 2024 (-0.56) (research 158). Fails the both-halves rule; the largest gross intraday edge found in research 153-158. Re-gated 2026-11-06 under the simple mandate (ADR-140, ADR-141), on the operator''s request to re-check the good rejected strategies: PAPER. net Sharpe 0.55 (1.62 / -0.40), PSR 0.841, 2 of 4 years; -3.63 at 2x costs: cost-fragile. Research 165.'

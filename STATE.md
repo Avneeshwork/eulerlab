@@ -30,10 +30,12 @@ what is open is in `TASKS.md`.*
   Ledger: 95 entries.
 - **Under the simple gate (research 165):** PROMOTE H-0096, H-0098 (F&O
   ban-day short), H-0001, H-0020, H-0021, H-0022, H-0029; PAPER H-0023 to
-  H-0028, H-0065, H-0052. The daily ones are mostly one momentum bet. All go
-  to paper first (T-4480); the intraday ones deploy through `rule_book`
-  (ADR-142). The single holdout read is unspent. **No capital
-  has ever been traded.**
+  H-0028, H-0065, H-0052. All deploy to paper from Live → Deploy (ADR-142).
+- **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to
+  2026-10 for these fifteen. 2016-2026: H-0001 Sharpe 1.28-1.55 (drawdown
+  -44% to -63%), H-0098 1.72 (drawdown -10%), the other momentum cards
+  0.57-1.12 with drawdowns of 35-60%. H-0065 skipped. No unseen data is left;
+  paper trading is the only out-of-sample test. **No capital traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
