@@ -1,6 +1,6 @@
 id: H-0089
 title: 'Expensive calls beat expensive puts: buy the top decile of ATM call IV minus put IV, short the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_option_signal
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 19,893 trades, 0.00 bps gross and -12.29 net a trade; net Sharpe -5.32 before 2024, -5.99 in 2024 (research 163). No gross edge. Fails.'

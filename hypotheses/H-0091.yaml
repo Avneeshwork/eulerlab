@@ -1,6 +1,6 @@
 id: H-0091
 title: 'High put-call volume predicts a weak day: short the top decile of put share of option volume, buy the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_option_signal
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 26,929 trades, -4.32 bps gross and -16.63 net a trade; net Sharpe -8.76 before 2024, -9.53 in 2024 (research 163). No gross edge. Fails.'

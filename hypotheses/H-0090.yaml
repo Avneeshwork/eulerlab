@@ -1,6 +1,6 @@
 id: H-0090
 title: 'Follow implied-volatility news: buy the top decile of the change in call IV minus the change in put IV, short the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_option_signal
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 19,227 trades, -1.03 bps gross and -13.34 net a trade; net Sharpe -5.99 before 2024, -7.05 in 2024 (research 163). No gross edge. Fails.'

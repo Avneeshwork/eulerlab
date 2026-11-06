@@ -1,6 +1,6 @@
 id: H-0092
 title: 'Realised volatility above implied predicts a weak day: short the top decile of RV minus IV, buy the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_option_signal
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 19,678 trades, -0.32 bps gross and -12.60 net a trade; net Sharpe -5.19 before 2024, -6.51 in 2024 (research 163). No gross edge. Fails.'

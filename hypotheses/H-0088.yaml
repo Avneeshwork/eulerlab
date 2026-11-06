@@ -1,6 +1,6 @@
 id: H-0088
 title: 'Steep option skew predicts a weak day: short the top decile of OTM put IV minus ATM call IV, buy the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_option_signal
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 19,650 trades, -0.59 bps gross and -12.88 net a trade; net Sharpe -5.66 before 2024, -6.10 in 2024 (research 163). No gross edge. Fails.'

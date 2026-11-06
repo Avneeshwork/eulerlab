@@ -61,3 +61,30 @@ Low to moderate. These are the largest daily effects in the literature, but
 from US data in 1996-2005, and three papers say the effect has weakened. The
 option close is the last trade, which may be hours before the stock's close.
 About 180 stocks have options; the 100-name floor may drop days.
+
+## Results (run 2026-11-06, after the rules were committed in `fe9ed26`)
+
+`make option-iv` → `data/derived/option_iv.json`; each stock's chosen expiry
+for 844 sessions in `data/derived/stock_options_daily.jsonl`. About 790 of the
+807 sessions had 100 names with a signal. 1x; no trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0088 skew | 19,650 | -0.59 bps | -12.88 bps | -5.75 | -5.66 / -6.10 |
+| H-0089 call-put IV spread | 19,893 | 0.00 bps | -12.29 bps | -5.50 | -5.32 / -5.99 |
+| H-0090 IV changes | 19,227 | -1.03 bps | -13.34 bps | -6.29 | -5.99 / -7.05 |
+| H-0091 put-call volume | 26,929 | -4.32 bps | -16.63 bps | -8.98 | -8.76 / -9.53 |
+| H-0092 realised minus implied | 19,678 | -0.32 bps | -12.60 bps | -5.58 | -5.19 / -6.51 |
+
+**None passes; none has a gross edge.** Every year of every rule lost.
+
+- **The US option signals carry nothing into the next Indian trading day.**
+  Skew, the call-put spread, IV changes and the volatility spread each earn
+  between -1 and 0 bps a position before costs, against 40-100 bps a week
+  in the US papers (1996-2005).
+- **Put-call volume has the wrong sign** (-4.3 bps): stocks with a high put
+  share did better the next day. Indian option volume is dominated by
+  writers, so a high put share more likely means puts are being sold.
+- What could not be tested: the option close is the last trade, sometimes
+  hours before the stock's close; and the papers' horizons are a week or a
+  month, not 09:20 to 15:10.
