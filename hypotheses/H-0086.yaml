@@ -1,6 +1,6 @@
 id: H-0086
 title: 'On monthly stock-option expiry, trade a stock toward its largest open-interest strike from 13:01 to 15:10'
-status: draft
+status: rejected
 family: intraday_expiry
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 378 trades, 1.38 bps gross and -10.92 net a trade; net Sharpe -1.11 before 2024, -1.31 in 2024 (research 162). Fails.'

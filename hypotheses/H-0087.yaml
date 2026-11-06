@@ -1,6 +1,6 @@
 id: H-0087
 title: 'Follow yesterday''s futures open-interest build-up: price and open interest both up, buy; price down and open interest up, short; 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_futures_signal
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 2,314 trades, -4.23 bps gross and -16.51 net a trade; net Sharpe -2.01 before 2024, -1.04 in 2024 (research 162). Fails.'

@@ -1,6 +1,6 @@
 id: H-0085
 title: 'Illiquid stocks gain in the last half-hour: long the lowest decile of traded value, short the highest, 14:41 to 15:10'
-status: draft
+status: rejected
 family: intraday_cross_section
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 55,854 trades, 0.77 bps gross and -11.49 net a trade; net Sharpe -18.30 before 2024, -14.25 in 2024 (research 162). Fails.'

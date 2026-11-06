@@ -70,3 +70,33 @@ about 40 monthly expiries. H-0087 has no academic support.
   some of those days.
 - Beta and MAX use the minute data's own closes, so the first 60 sessions
   (2021) are lost to H-0083.
+
+## Results (run 2026-11-06, after the rules were committed in `e1aa443`)
+
+`make stock-fo` → `data/derived/stock_fo.json`; F&O open interest for 844
+sessions in `data/derived/stock_fo_daily.jsonl`. 416 stocks; 1x; no trial
+spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0083 low beta beats high beta by day | 48,742 | 4.29 bps | -7.98 bps | -2.17 | -2.78 / -1.23 |
+| H-0084 lottery stocks lose by day | 55,955 | 7.70 bps | -4.58 bps | -1.39 | -1.14 / -1.92 |
+| H-0085 illiquid stocks, last half-hour | 55,854 | 0.77 bps | -11.49 bps | -17.03 | -18.30 / -14.25 |
+| H-0086 stock option pinning | 378 | 1.38 bps | -10.92 bps | -1.11 | -1.11 / -1.31 |
+| H-0087 futures OI build-up | 2,314 | -4.23 bps | -16.51 bps | -1.74 | -2.01 / -1.04 |
+
+**None passes** (positive net in both halves). No year is positive for any
+rule except 2021's partial months.
+
+- **The two day-night papers have the right sign in India.** High-beta stocks
+  lag low-beta ones during the day (4.3 bps a position) and last month's
+  lottery stocks lag the calmest (7.7 bps). Both are smaller than the 12.24
+  bps round trip, and both are paid every day on every name, so the loss is
+  steady.
+- **No last-half-hour illiquidity premium** among F&O stocks: 0.8 bps.
+  These are all large, liquid stocks; the paper's premium is in small ones.
+- **Stocks do not pin to their largest strike by 15:10** (1.4 bps over 378
+  trades). Indian stock options settle on the closing price, after the exit.
+- **Futures open-interest build-up reverses**: following it lost 4.2 bps
+  before costs. The trader rule is wrong in sign, and too small to trade in
+  reverse.

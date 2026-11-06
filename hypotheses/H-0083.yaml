@@ -1,6 +1,6 @@
 id: H-0083
 title: 'Low-beta stocks beat high-beta stocks in the daytime: long the lowest-beta decile, short the highest, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cross_section
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 48,742 trades, 4.29 bps gross and -7.98 net a trade; net Sharpe -2.78 before 2024, -1.23 in 2024 (research 162). Right sign, smaller than costs. Fails.'

@@ -1,6 +1,6 @@
 id: H-0084
 title: 'Lottery stocks lose in the daytime: short the top decile of last month''s largest daily return, buy the bottom, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_cross_section
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 55,955 trades, 7.70 bps gross and -4.58 net a trade; net Sharpe -1.14 before 2024, -1.92 in 2024 (research 162). Right sign, smaller than costs. Fails.'
