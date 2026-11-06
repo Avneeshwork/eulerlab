@@ -1,0 +1,24 @@
+id: H-0083
+title: 'Low-beta stocks beat high-beta stocks in the daytime: long the lowest-beta decile, short the highest, 09:20 to 15:10'
+status: draft
+family: intraday_cross_section
+source_kind: paper
+parent: ''
+claim: 'Buying the lowest decile of 60-session beta and shorting the highest from 09:20 to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Hendershott, Livdan and Rosch (2020, JFE): returns fall with beta during the day. Research 162.'
+source:
+  research: '162'
+  written_by: Claude, for the operator's request to research the next five intraday rules
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  rule: 'beta of close-to-close daily returns on the Nifty''s over the previous 60 sessions (at least 50; returns beyond 20% dropped); bottom decile long, top decile short; 09:20 to 15:10'
+  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'The US day-night split need not hold in India.'
+- 'Two deciles a day: about 80 trades a day at 12 bps each.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
