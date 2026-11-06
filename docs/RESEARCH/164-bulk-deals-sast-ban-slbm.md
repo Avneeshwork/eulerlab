@@ -187,3 +187,22 @@ of the gross.
   part again after 15:10. The official open is the pre-open auction price; a
   rule entering there would be a new hypothesis, and under CLAUDE.md a killed
   strategy is not tuned and resubmitted.
+
+## Re-gated under the simple mandate (2026-11-06)
+
+The operator then changed the gate to its simple mode (ADR-140): net positive
+overall, in each half and at 2x costs, probabilistic Sharpe >= 0.95, and
+positive in >= 60% of years. H-0096 was validated again (ledger #66; the new
+pack carries PSR and yearly results) and gated (#67): **PROMOTE, 9 of 9.**
+
+| Check | H-0096 |
+|---|---|
+| Net Sharpe overall / first half / second half | 1.49 / 1.13 / 1.78 |
+| Net Sharpe at 2x costs | 0.95 |
+| Probabilistic Sharpe | 0.996 |
+| Years net positive | 4 of 4 (2021 partial) |
+
+The strict-mode failures still stand as facts: deflated Sharpe 0.784 after
+the search, Romano-Wolf over Nifty, and 44% of Sharpe without the five best
+names. The mandate permits one holdout read for the whole project; the
+operator chose to keep it unread and paper trade H-0096 instead.

@@ -31,9 +31,10 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
-  Intraday (research 153-164): 57 tests of minute-bar rules; one passed the
-  screen (H-0096, short on the first F&O ban day, +33 bps net a trade) and
-  was killed by the gate: deflated Sharpe 0.78, Romano-Wolf, concentration.
+  Intraday (research 153-164): 57 tests of minute-bar rules; one passed:
+  H-0096, short on the first F&O ban day (+33 bps net a trade, 2015-2024 daily
+  version positive 8 of 10 years). Killed by the strict gate, PROMOTE under
+  the simple gate (ADR-140, 2026-11-06); holdout unread; to paper (T-4478).
   A ₹1 lakh stock round trip costs 12.24 bps; no price-only rule cleared it.
   Also alive as a screen: the expiry-day Nifty straddle (H-0041, options,
   net Sharpe 0.95; T-4459). NSE reports were backfilled to 2021 for this.

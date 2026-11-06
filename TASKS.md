@@ -179,6 +179,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4475 | H-0096 needs the ban list before 09:20. Confirm by fetching `fo_secban` for the next trade date on a trading morning before 09:15 IST (A-114) | OPEN |
 | T-4476 | H-0096 (short on the first F&O ban day) screened alive; operator asked for the gate, then the holdout to Oct 2026 only if it passed | DONE 2026-11-06 — gate KILL (ledger #64, #65): deflated Sharpe 0.784 < 0.95, Romano-Wolf fails, best-5-names stress keeps 44% < 60%. Holdout not read. 2015-2024 daily-bar run still to report (T-4477) |
 | T-4477 | Run H-0096's rule on daily bars 2015-2024 (H-0098), as the operator asked | DONE 2026-11-06 — 1,617 trades, 81.45 bps gross, +69.22 net, net Sharpe 1.91, eight of ten years positive; most of the move is before 09:20 (research 164). Information only |
+| T-4478 | H-0096 PROMOTE under the simple gate (ADR-140; ledger #66, #67). Holdout kept unread (one read for the whole project). Paper trade it: short on the first F&O ban day, 09:20-15:10, Rs 1 lakh a name, at most ten a day; confirm the ban list is out before 09:15 first (T-4475) | OPEN (operator) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 
