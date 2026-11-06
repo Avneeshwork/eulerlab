@@ -21,12 +21,13 @@ what is open is in `TASKS.md`.*
 
 ## What is true today
 
-- **The bar.** The gate and every screen use the same bar: the best of
-  **27 idea families**, measured spread 0.48, **Sharpe 0.98** (ADR-108). A
-  candidate must also beat Nifty under Romano-Wolf (critical about 0.95).
-  The ledger holds 19 validated trials.
-- **The gate has killed everything it has seen.** It has never promoted
-  anything. **No capital has ever been traded.**
+- **The gate (ADR-140, 2026-11-06).** The operator switched it to `simple`:
+  net positive overall, in each half and at 2x costs; probabilistic Sharpe
+  >= 0.95; positive in >= 60% of years. The strict bar (deflated Sharpe
+  against 28 idea families, Romano-Wolf over Nifty, stress retention) is kept
+  in `mandate.yaml` as `mode: strict`. Ledger: 67 entries.
+- **One promotion so far:** H-0096 (intraday), under the simple gate. The
+  single holdout read is unspent. **No capital has ever been traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
