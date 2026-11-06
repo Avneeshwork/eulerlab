@@ -27,9 +27,12 @@ what is open is in `TASKS.md`.*
   against 28 idea families, Romano-Wolf over Nifty, stress retention) is kept
   in `mandate.yaml` as `mode: strict`. A strategy that misses that but is
   profitable (PSR >= 0.80) gets **PAPER**: paper trading only (ADR-141).
-  Ledger: 67 entries.
-- **One promotion so far:** H-0096 (intraday), under the simple gate. The
-  single holdout read is unspent. **No capital has ever been traded.**
+  Ledger: 95 entries.
+- **Under the simple gate (research 165):** PROMOTE H-0096, H-0098 (F&O
+  ban-day short), H-0001, H-0020, H-0021, H-0022, H-0029; PAPER H-0023 to
+  H-0028, H-0065, H-0052. The daily ones are mostly one momentum bet. All go
+  to paper first (T-4480). The single holdout read is unspent. **No capital
+  has ever been traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
