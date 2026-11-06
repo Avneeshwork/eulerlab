@@ -183,3 +183,22 @@ def test_broker_credentials_mean_key_secret_and_todays_session(
     monkeypatch.setattr(kite_session, "is_fresh", lambda *a, **k: True)
     ok, detail = server._credentials_present()
     assert ok, detail
+
+
+def test_a_paper_verdict_reaches_only_the_paper_stages() -> None:
+    gate = {"H-0040": ("PAPER", DAY)}
+    assert forward.promoted_on("H-0040", gate) is None
+    assert forward.paper_on("H-0040", gate) == DAY
+    assert forward.stage("H-0040", gate=gate, deployments=[]) == "paper_candidate"
+    started = _deployment("H-0040", DAY)
+    assert forward.stage("H-0040", gate=gate, deployments=[started]) == "paper_evaluation"
+    from eulerlab import strategies
+
+    assert strategies._stage("H-0040", 1, gate, [started]) is strategies.Stage.PAPER_EVALUATION
+
+
+def test_a_paper_verdict_can_be_paper_deployed(tmp_path: Path) -> None:
+    path = tmp_path / "ledger.jsonl"
+    _card(tmp_path, "H-0040")
+    ledger.append(kind="gate", subject="H-0040", params={}, outcome={"verdict": "PAPER"}, path=path)
+    assert forward.blocker("H-0040", ledger=path, root=tmp_path) == ""

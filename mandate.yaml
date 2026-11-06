@@ -42,6 +42,18 @@ simple:
   min_positive_year_fraction: 0.6
   stability_min_days_in_year: 60
 
+# The paper bar (ADR-141). Operator, 2026-11-06: "make gate less strict so that
+# profitable strategies get a chance for paper trading and more evaluation
+# instead of rejecting directly". A strategy that misses the promotion bar above
+# but clears this one gets verdict PAPER: it may be paper-traded for forward
+# evidence and re-gated with it. It may not read the holdout or trade live.
+# Process rules still apply: a PAPER needs sound, pre-registered evidence.
+paper:
+  # Net of costs, the full-sample Sharpe must be above this.
+  min_full_sample_sharpe: 0.0
+  # The chance the true Sharpe is above zero, from the sample alone.
+  min_probabilistic_sharpe: 0.80
+
 # --- strict mode only (mode: strict) ---
 
 statistical:

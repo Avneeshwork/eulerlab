@@ -43,6 +43,9 @@ HOLDOUT_STATE = Path("data/derived/holdout_reads.jsonl")
 
 class Verdict(StrEnum):
     PROMOTE = "PROMOTE"
+    PAPER = "PAPER"
+    """Missed the promotion bar but cleared `paper:` in the mandate: forward paper
+    trading for more evidence, no holdout read, no live money (ADR-141)."""
     KILL = "KILL"
 
 
@@ -62,6 +65,9 @@ class Finding:
 class Decision:
     hypothesis: str
     findings: list[Finding] = field(default_factory=list)
+    paper_findings: list[Finding] = field(default_factory=list)
+    """The `paper:` bar, checked only when promotion failed (empty otherwise)."""
+    process_failed: bool = False
 
     @property
     def failures(self) -> list[Finding]:
@@ -69,8 +75,17 @@ class Decision:
 
     @property
     def verdict(self) -> Verdict:
-        """Anything red kills it. There is no partial credit and no override."""
-        return Verdict.KILL if self.failures else Verdict.PROMOTE
+        """All green promotes. Otherwise PAPER if the evidence is sound and clears
+        the paper bar, else KILL. There is no override."""
+        if not self.failures:
+            return Verdict.PROMOTE
+        if (
+            not self.process_failed
+            and self.paper_findings
+            and all(f.passed for f in self.paper_findings)
+        ):
+            return Verdict.PAPER
+        return Verdict.KILL
 
     def render(self) -> str:
         lines = [f"\ngate: {self.hypothesis}", ""]
@@ -81,9 +96,21 @@ class Decision:
                 f"VERDICT: KILL — {len(self.failures)} of {len(self.findings)} rules failed"
             )
             lines.append(
-                "\nCLAUDE.md: a strategy that fails the gate is dead. It is not tuned\n"
+                "\nCLAUDE.md: a strategy the gate kills is dead. It is not tuned\n"
                 "and resubmitted. Resubmitting it under a new hypothesis id is visible\n"
                 "in the trial ledger, which is what that ledger is for."
+            )
+        elif self.verdict is Verdict.PAPER:
+            lines.append("  -- the paper bar --")
+            lines.extend(f.line() for f in self.paper_findings)
+            lines.append("")
+            lines.append(
+                f"VERDICT: PAPER — {len(self.failures)} of {len(self.findings)} promotion rules "
+                "failed; the paper bar passed"
+            )
+            lines.append(
+                "\nForward paper trading only, for more evidence (ADR-141). It may not\n"
+                "read the holdout and may not trade live. Re-gate it with paper results."
             )
         else:
             lines.append(f"VERDICT: PROMOTE — all {len(self.findings)} rules passed")
@@ -327,15 +354,55 @@ def decide(
     """
     rules = mandate or load_mandate()
     decision = Decision(hypothesis=str(pack.get("hypothesis", "unknown")))
-    decision.findings.extend(
-        _check_process(pack, rules["process"], hypothesis_path=hypothesis_path)
-    )
+    process = _check_process(pack, rules["process"], hypothesis_path=hypothesis_path)
+    decision.findings.extend(process)
+    decision.process_failed = not all(f.passed for f in process)
     if rules.get("mode", "strict") == "simple":
         decision.findings.extend(_check_simple(pack, rules["simple"]))
     else:
         decision.findings.extend(_check_statistics(pack, rules["statistical"]))
         decision.findings.extend(_check_robustness(pack, rules["robustness"]))
+    if decision.failures and "paper" in rules:
+        decision.paper_findings = _check_paper(pack, rules["paper"])
     return decision
+
+
+def _check_paper(pack: dict[str, Any], rules: dict[str, Any]) -> list[Finding]:
+    """The bar for forward paper trading (ADR-141): profitable after costs, and not
+    obviously luck. A missing figure fails, as everywhere in the gate."""
+    out: list[Finding] = []
+    configs = [c for c in (_get(pack, "configurations") or []) if isinstance(c, dict)]
+    sharpes = [
+        float(c["full_sample_sharpe"]) for c in configs if c.get("full_sample_sharpe") is not None
+    ]
+    floor = float(rules["min_full_sample_sharpe"])
+    best = max(sharpes) if sharpes else None
+    out.append(
+        Finding(
+            "paper: net profitable",
+            best is not None and best > floor,
+            "no full-sample Sharpe in the evidence pack"
+            if best is None
+            else f"full-sample net Sharpe {best:.2f}, must be > {floor}",
+        )
+    )
+    psr_floor = float(rules["min_probabilistic_sharpe"])
+    psrs = [
+        float(c["probabilistic_sharpe"])
+        for c in configs
+        if c.get("probabilistic_sharpe") is not None
+    ]
+    psr = max(psrs) if psrs else None
+    out.append(
+        Finding(
+            "paper: probabilistic sharpe",
+            psr is not None and psr >= psr_floor,
+            "no probabilistic Sharpe in the evidence pack"
+            if psr is None
+            else f"{psr:.3f}, paper bar requires >= {psr_floor}",
+        )
+    )
+    return out
 
 
 def _check_simple(pack: dict[str, Any], rules: dict[str, Any]) -> list[Finding]:
@@ -463,7 +530,9 @@ def may_read_holdout(
     """
     rules = (mandate or load_mandate())["process"]
     if decision.verdict is not Verdict.PROMOTE:
-        return False, "the gate returned KILL; the holdout is not read for a failed strategy"
+        return False, (
+            f"the gate returned {decision.verdict}; the holdout is read only after a PROMOTE"
+        )
     used = len(holdout_reads(path))
     permitted = int(rules["holdout_reads_permitted"])
     if used >= permitted:

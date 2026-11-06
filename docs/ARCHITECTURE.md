@@ -935,10 +935,10 @@ Three more properties:
 1. **The default answer is no.** A check that cannot be evaluated *fails*. A
    missing field fails. Wrongly killing a good strategy costs an opportunity;
    wrongly promoting a bad one costs money.
-2. **The verdict is binary.** PROMOTE or KILL. There is no "pass with
+2. **The verdict is one word.** PROMOTE, PAPER (ADR-141) or KILL. There is no "pass with
    concerns", because a gate that can express reservations will be overruled by
    whoever reads them.
-3. **A strategy that fails is dead.** It is not tuned and resubmitted.
+3. **A strategy the gate kills is dead.** It is not tuned and resubmitted.
    Resubmitting under a new ID is visible in the ledger, which is what the
    ledger is for.
 
@@ -955,6 +955,15 @@ correction for how many things were tried), and net positive in at least 60%
 of calendar years with 60 or more sessions. `strict` applies 5.3-5.3a and the stress retention thresholds
 below, which are kept unchanged. The process rules (pre-registration, signed
 evidence, intact ledger, one holdout read) apply in both.
+
+**Three verdicts (ADR-141).** PROMOTE, PAPER, KILL. A strategy that misses
+the promotion bar but has sound evidence (process rules pass) and clears
+`paper:` in the mandate (net full-sample Sharpe above 0, probabilistic Sharpe
+at least 0.80) gets PAPER: it may be paper-traded for forward evidence and
+re-gated with it. A PAPER never reads the holdout and never reaches live: in
+`forward.stage` it has its own stages, `paper_candidate` and
+`paper_evaluation`, which the live preflight does not accept. Anything else is
+KILL.
 
 **Acceptance:** three deliberately overfit strategies are fed to the gate; all
 three must die. They do under the strict bar — killed on deflated Sharpe, PBO

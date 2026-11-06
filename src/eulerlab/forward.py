@@ -75,6 +75,22 @@ def promoted_on(strategy_id: str, gate: dict[str, tuple[str, date]]) -> date | N
     return min(days) if days else None
 
 
+def paper_on(strategy_id: str, gate: dict[str, tuple[str, date]]) -> date | None:
+    """The day the gate allowed paper trading: a PROMOTE or a PAPER verdict (ADR-141)."""
+    subjects = [strategy_id]
+    if not is_hypothesis(strategy_id):
+        from eulerlab.strategies import REGISTRY
+
+        declaration = REGISTRY.get(strategy_id)
+        subjects += list(declaration.ledger_subjects) if declaration else []
+    days = [
+        gate[s][1]
+        for s in subjects
+        if s in gate and gate[s][0].upper().startswith(("PROMOTE", "PAPER"))
+    ]
+    return min(days) if days else None
+
+
 # --- a promoted hypothesis as a strategy ----------------------------------------
 
 
@@ -132,8 +148,8 @@ def blocker(
     if hypothesis not in gate:
         return f"{hypothesis} has never been through the gate (make gate H={hypothesis})"
     verdict, _ = gate[hypothesis]
-    if not verdict.upper().startswith("PROMOTE"):
-        return f"the gate's verdict on {hypothesis} is {verdict}; a strategy that fails the gate is dead"
+    if not verdict.upper().startswith(("PROMOTE", "PAPER")):
+        return f"the gate's verdict on {hypothesis} is {verdict}; a strategy the gate kills is dead"
     try:
         build(hypothesis, root)
     except ValueError as exc:
@@ -150,7 +166,11 @@ def stage(
     gate: dict[str, tuple[str, date]] | None = None,
     deployments: Iterable[Any] | None = None,
 ) -> str:
-    """`live`, `forward_testing`, `promoted`, or "" when none of these applies."""
+    """`live`, `forward_testing`, `promoted`, `paper_evaluation`, `paper_candidate`, or "".
+
+    A PAPER verdict (ADR-141) reaches only the `paper_` stages, which the live
+    preflight does not accept: paper trading, never live money.
+    """
     from eulerlab.deploy import deployments as store
 
     gate = verdicts() if gate is None else gate
@@ -163,7 +183,12 @@ def stage(
         return "live"
     since = promoted_on(strategy_id, gate)
     if since is None:
-        return ""
+        paper = paper_on(strategy_id, gate)
+        if paper is None:
+            return ""
+        if any(d.mode == "paper" and d.start >= paper for d in mine):
+            return "paper_evaluation"
+        return "paper_candidate"
     if any(d.mode == "paper" and d.start >= since for d in mine):
         return "forward_testing"
     return "promoted"
@@ -297,7 +322,7 @@ def reports(*, ledger: Path = LEDGER_PATH) -> list[Report]:
     for d in every:
         if d.mode != "paper" or d.status != "active":
             continue
-        since = promoted_on(d.strategy_id, gate)
+        since = paper_on(d.strategy_id, gate)
         if since is None or d.start < since:
             continue
         out.append(

@@ -77,7 +77,7 @@ If a piece of work can't be verified that way, it isn't finished.
 ### Validation
 - `gates.py` and `mandate.yaml` are operator-owned. You may propose changes in a review; you may not edit them without an explicit instruction in that session.
 - Every strategy configuration evaluated increments the trial counter in the append-only log. Never bypass it, never reset it.
-- A strategy that fails the gate is dead. Do not tune it and resubmit. Do not argue with the gate.
+- A strategy the gate KILLs is dead. Do not tune it and resubmit. Do not argue with the gate. A PAPER verdict (ADR-141) allows forward paper trading for more evidence, never the holdout or live money.
 - The holdout dataset is read exactly once, by the operator's action. Never read it to "check something".
 
 ### Money safety (from the OMS sprint onward)

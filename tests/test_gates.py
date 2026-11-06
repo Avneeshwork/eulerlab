@@ -330,3 +330,57 @@ def test_short_years_do_not_count_toward_stability() -> None:
     assert isinstance(stability, dict)
     stability["2024"] = {"days": 10.0, "net_return": -0.5, "sharpe": -1.0}
     assert all(f.passed for f in gates._check_simple(pack, SIMPLE["simple"]))
+
+
+PAPER_RULES = {**SIMPLE}
+
+
+def test_a_signed_profitable_pack_that_misses_promotion_gets_paper(tmp_path: Path) -> None:
+    spec = tmp_path / "H-TEST.yaml"
+    spec.write_text("id: H-TEST\ntitle: t\nclaim: c\nconfigurations: [{a: 1}]\nred_flags: [f]\n")
+    pack = _simple_pack(0.4, -0.2, 0.1, psr=0.90)  # second half negative: promotion fails
+    pack["configurations"] = [{"full_sample_sharpe": 0.8, "probabilistic_sharpe": 0.90}]
+    body = json.dumps(pack, indent=2, sort_keys=True)
+    pack["signature"] = ledger.compute_hash({"body": body})
+    decision = gates.decide(pack, hypothesis_path=spec, mandate=PAPER_RULES)
+    assert decision.verdict is gates.Verdict.PAPER, decision.render()
+    unregistered = gates.decide(pack, hypothesis_path=tmp_path / "absent.yaml", mandate=PAPER_RULES)
+    assert unregistered.verdict is gates.Verdict.KILL
+
+
+def test_paper_needs_profit_and_the_paper_psr() -> None:
+    rules = MANDATE["paper"]
+    good = gates._check_paper(
+        {"configurations": [{"full_sample_sharpe": 0.8, "probabilistic_sharpe": 0.9}]}, rules
+    )
+    losing = gates._check_paper(
+        {"configurations": [{"full_sample_sharpe": -0.1, "probabilistic_sharpe": 0.4}]}, rules
+    )
+    lucky = gates._check_paper(
+        {"configurations": [{"full_sample_sharpe": 0.3, "probabilistic_sharpe": 0.6}]}, rules
+    )
+    assert all(f.passed for f in good)
+    assert not any(f.passed for f in losing)
+    assert [f.rule for f in lucky if not f.passed] == ["paper: probabilistic sharpe"]
+
+
+def test_paper_verdict_when_process_is_sound() -> None:
+    decision = gates.Decision(hypothesis="H-0999")
+    decision.findings = [
+        gates.Finding("pre-registration", True, ""),
+        gates.Finding("stability", False, ""),
+    ]
+    decision.paper_findings = [gates.Finding("paper: net profitable", True, "")]
+    assert decision.verdict is gates.Verdict.PAPER
+    killed = gates.Decision(hypothesis="H-0999", process_failed=True)
+    killed.findings = decision.findings
+    killed.paper_findings = decision.paper_findings
+    assert killed.verdict is gates.Verdict.KILL
+
+
+def test_paper_never_reads_the_holdout(tmp_path: Path) -> None:
+    decision = gates.Decision(hypothesis="H-0999")
+    decision.findings = [gates.Finding("stability", False, "")]
+    decision.paper_findings = [gates.Finding("paper: net profitable", True, "")]
+    allowed, reason = gates.may_read_holdout(decision, mandate=MANDATE, path=tmp_path / "h.jsonl")
+    assert not allowed and "PAPER" in reason

@@ -63,6 +63,8 @@ class Stage(StrEnum):
 
     REGISTERED = "registered"
     BACKTESTED = "backtested"
+    PAPER_EVALUATION = "paper_evaluation"
+    """Paper-trading on a gate PAPER verdict: more evidence, never live (ADR-141)."""
     FORWARD_TESTING = "forward_testing"
     LIVE = "live"
     RETIRED = "retired"
@@ -975,6 +977,8 @@ def _stage(strategy_id: str, ran: int, gate: dict[str, Any], active: list[Any]) 
         return Stage.LIVE
     if later == "forward_testing":
         return Stage.FORWARD_TESTING
+    if later == "paper_evaluation":
+        return Stage.PAPER_EVALUATION
     return Stage.BACKTESTED if ran else Stage.REGISTERED
 
 

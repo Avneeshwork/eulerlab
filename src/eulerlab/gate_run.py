@@ -57,6 +57,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         },
     )
     print(f"ledger entry #{entry.seq} {entry.entry_hash[:16]}...")
+    if decision.verdict is gates.Verdict.PAPER:
+        return 3
     return 0 if decision.verdict is gates.Verdict.PROMOTE else 1
 
 

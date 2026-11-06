@@ -25,7 +25,9 @@ what is open is in `TASKS.md`.*
   net positive overall, in each half and at 2x costs; probabilistic Sharpe
   >= 0.95; positive in >= 60% of years. The strict bar (deflated Sharpe
   against 28 idea families, Romano-Wolf over Nifty, stress retention) is kept
-  in `mandate.yaml` as `mode: strict`. Ledger: 67 entries.
+  in `mandate.yaml` as `mode: strict`. A strategy that misses that but is
+  profitable (PSR >= 0.80) gets **PAPER**: paper trading only (ADR-141).
+  Ledger: 67 entries.
 - **One promotion so far:** H-0096 (intraday), under the simple gate. The
   single holdout read is unspent. **No capital has ever been traded.**
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
