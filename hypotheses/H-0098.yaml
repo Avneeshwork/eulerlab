@@ -1,0 +1,24 @@
+id: H-0098
+title: 'H-0096 on daily bars from 2015: short a stock at the open on its first F&O ban day, cover at the close'
+status: draft
+family: intraday_nse_reports
+source_kind: paper
+parent: 'H-0096'
+claim: 'Shorting a stock at the official open on its first trade date in the NSE F&O ban list and covering at the official close earned more than costs in 2015-01 to 2024-11, with the same sign every year as H-0096.'
+rationale: 'Operator, 2026-11-06: "backtest it for all years" after H-0096 (2021-2024, minute bars) was killed by the gate. Information only: a killed strategy is not resubmitted, and this does not change the verdict. Research 164.'
+source:
+  research: '164'
+  written_by: Claude, for the operator's request to backtest H-0096 for all years
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash_daily_bars
+  rule: 'in data/landing/nse_reports/fo_ban for trade date t and not for the previous file; short at the NSE cash open on t, cover at the NSE cash close on t (data/derived/price_panel.jsonl); price >= Rs 10; at most ten a day by symbol'
+  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
+  window: '2015-01-01 to 2024-11-29'
+red_flags:
+- 'The official open is the pre-open auction price, not a 09:20 fill; the close is the closing-auction price, not 15:10.'
+- 'Information only, not a resubmission: H-0096 stays killed whatever this shows.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
