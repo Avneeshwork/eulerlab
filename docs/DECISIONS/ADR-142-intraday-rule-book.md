@@ -4,7 +4,7 @@
 
 **Options.** A new engine; extend `intraday_book`; or generators that feed `study_book.run`, which already sends multi-symbol, two-sided intraday trades through the OMS.
 
-**Choice.** `deploy/rule_book.py`: one generator per hypothesis, re-applying the gated rule to minute files after the holdout end, returning `study_book`'s trade shape. `study_book.run` gained `block=` so the book's own check (gate verdict PROMOTE or PAPER, holdout end set) replaces the study check. Routed in `runner.paper_blocker`, `runner.run`, the deploy preview and create routes, and `version_lock.sources`. Operator's choices on the plan: H-0098 runs as a variant (09:15 auction print in, 15:15 out, because an intraday short cannot reach the closing auction); H-0065 at its natural size (capital spread over about 80 positions a day).
+**Choice.** `deploy/rule_book.py`: one generator per hypothesis, re-applying the gated rule to minute files after the holdout end, returning `study_book`'s trade shape. `study_book.run` gained `block=` so the book's own check (gate verdict PROMOTE or PAPER, holdout end set) replaces the study check. Routed in `runner.paper_blocker`, `runner.run`, the deploy preview and create routes, and `version_lock.sources`. Operator's choices on the plan: H-0098 runs as a variant (09:15 auction print in, out at 15:10, because an intraday short cannot reach the closing auction; 15:15 was planned, but these stocks' minute data ends at 15:14); H-0065 at its natural size (capital spread over about 80 positions a day).
 
 **Why.** The order path, kill switch, recovery, history-change halt and state file are the ones every paper book already uses; only the trades are new.
 

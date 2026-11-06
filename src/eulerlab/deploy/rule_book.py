@@ -10,7 +10,7 @@ when a past day's history changes, the equity curve and the state file.
 
 - **H-0096** short each stock on its first F&O ban day, 09:20 to 15:10.
 - **H-0098** the same stocks, short at the 09:15 opening-auction print, cover
-  at 15:15. Its backtest covered at the closing auction, which an intraday
+  at 15:10 (the stocks' minute data ends at 15:14, so 15:15 does not exist). Its backtest covered at the closing auction, which an intraday
   (MIS) short cannot reach: the broker squares off about 15:20, and an
   overnight cash short is not allowed. So this paper book is a variant of
   the gated rule, and says so in its state.
@@ -42,8 +42,6 @@ SLOTS = 10
 """Positions a day for the ban rules: the backtest's ten ₹1 lakh slots."""
 ENTRY, EXIT = 5, 355
 """09:20 and 15:10, as minutes after 09:15."""
-AUCTION_EXIT = 360
-"""15:15: the variant's cover, before the broker's MIS square-off."""
 LOOKBACK = 20
 MIN_NAMES = 100
 MIN_PRICE = 10.0
@@ -124,7 +122,7 @@ def ban_trades(
     *,
     auction: bool,
 ) -> tuple[list[Trade], list[date]]:
-    """Shorts on first ban days: 09:20-15:10, or the auction variant 09:15-15:15."""
+    """Shorts on first ban days: 09:20-15:10, or the auction variant 09:15-15:10."""
     slot = capital / SLOTS
     by_symbol: dict[str, list[date]] = {}
     for day, names in entries.items():
@@ -141,7 +139,7 @@ def ban_trades(
                 continue
             if auction:
                 opened = bars.open_[0]
-                leave = bars.fill_at(AUCTION_EXIT)
+                leave = bars.fill_at(EXIT)
                 prices = (opened, leave[1]) if opened is not None and leave is not None else None
                 minute = 0
             else:
@@ -273,7 +271,7 @@ def h0052(
 RULES: dict[str, Generator] = {"H-0052": h0052, "H-0065": h0065, "H-0096": h0096, "H-0098": h0098}
 
 VARIANT = {
-    "H-0098": "variant: covers at 15:15, not the closing auction its backtest used "
+    "H-0098": "variant: covers at 15:10, not the closing auction its backtest used "
     "(an intraday short cannot be held to the close)"
 }
 

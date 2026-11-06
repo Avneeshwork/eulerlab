@@ -1388,7 +1388,7 @@ files starting after the holdout end and returns `study_book`'s trade shape;
 `study_book.run(trades_for=..., block=...)` then trades them unchanged.
 H-0096 shorts each stock on its first F&O ban day (the nightly `fo_ban`
 report) 09:20-15:10, ten slots of the capital. H-0098 shorts the same stocks
-at the 09:15 auction print and covers at 15:15: a variant, because its
+at the 09:15 auction print and covers at 15:10: a variant, because its
 backtest's closing-auction exit is out of reach of an intraday short, and the
 state says so. H-0065 ranks every F&O stock on its 20-session mean overnight
 move and trades the two deciles 09:20-15:10, capital spread evenly; it waits

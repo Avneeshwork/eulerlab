@@ -181,7 +181,8 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4477 | Run H-0096's rule on daily bars 2015-2024 (H-0098), as the operator asked | DONE 2026-11-06 — 1,617 trades, 81.45 bps gross, +69.22 net, net Sharpe 1.91, eight of ten years positive; most of the move is before 09:20 (research 164). Information only |
 | T-4478 | H-0096 PROMOTE under the simple gate (ADR-140; ledger #66, #67). Holdout kept unread (one read for the whole project). Paper trade it: short on the first F&O ban day, 09:20-15:10, Rs 1 lakh a name, at most ten a day; confirm the ban list is out before 09:15 first (T-4475) | OPEN (operator) |
 | T-4479 | Re-gate the good strategies found and rejected so far under the simple gate (operator, 2026-11-06) | DONE 2026-11-06 — 14 re-gated (ledger #68-#95): PROMOTE H-0001, H-0020, H-0021, H-0022, H-0029, H-0098; PAPER H-0023 to H-0028, H-0065, H-0052; none killed (research 165) |
-| T-4480 | Paper-trade the gate's PROMOTE and PAPER strategies. Daily cards (H-0001, H-0020 to H-0029) deploy from the Deploy page; the intraday rules H-0096, H-0098 (15:15 variant), H-0065 and H-0052 now do too (`deploy/rule_book.py`, ADR-142). Mostly one momentum bet: choose a few | OPEN (operator: start the deployments) |
+| T-4480 | Paper-trade the gate's PROMOTE and PAPER strategies. Daily cards (H-0001, H-0020 to H-0029) deploy from the Deploy page; the intraday rules H-0096, H-0098 (auction-entry variant), H-0065 and H-0052 now do too (`deploy/rule_book.py`, ADR-142). Mostly one momentum bet: choose a few | OPEN (operator: start the deployments) |
+| T-4481 | H-0065's paper book loads every F&O stock's minute files on each run: 34 minutes in the 2026-11-06 dry run. Cache the overnight moves per stock-day so a run reads only new days | OPEN |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

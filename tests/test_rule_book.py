@@ -130,3 +130,13 @@ def test_the_version_lock_covers_the_rule_code() -> None:
 
     texts = version_lock.sources("H-0096")
     assert len(texts) == 3 and "def h0096" in texts[1]
+
+
+def test_the_auction_variant_exits_when_the_data_ends_at_1514() -> None:
+    """These stocks' minute files end at 15:14 (last bar 359); the cover must exist."""
+    bars = _day(MON, 100.0, 95.0)
+    short = ip.Day(
+        MON, bars.open_[:360] + (None,) * 15, bars.high, bars.low, bars.close, bars.volume, 359
+    )
+    trades, _ = rule_book.ban_trades({MON: ["A"]}, lambda s: [short], 1_000_000.0, auction=True)
+    assert len(trades) == 1 and trades[0]["exit"] == 95.0
