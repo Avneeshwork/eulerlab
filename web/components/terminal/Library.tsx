@@ -692,8 +692,9 @@ export function Library({
             <section className="st-rules">
               <h3>The rules</h3>
               <ol>
-                {openStrategy.logic.map((line) => (
-                  <li key={line}>{line}</li>
+                {openStrategy.logic.map((line, index) => (
+                  // Position in the key: two configurations can share a line.
+                  <li key={`${index}-${line}`}>{line}</li>
                 ))}
               </ol>
             </section>

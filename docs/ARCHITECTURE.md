@@ -1400,7 +1400,8 @@ PAPER (`strategies.gated_hypotheses`, read at request time), at stage
 `promoted` or `paper_candidate` until a paper book starts; the Live tab's
 "Passed the gate" table deploys them. A card with several configurations is
 listed but cannot deploy: choosing one after the gate is a selection it never
-priced.
+priced. Each configuration is listed as its own step (feature, top N,
+rebalance), so a card whose configurations share a feature still reads clearly.
 
 **Full history and recommended settings (ADR-143).** `make full-history`
 backtests the fifteen gated strategies from 2016 (daily) or 2021-08-20

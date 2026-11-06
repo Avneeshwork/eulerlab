@@ -218,3 +218,14 @@ def test_gated_hypotheses_are_listed_for_the_console(tmp_path: Path) -> None:
     assert found["H-0030"].ledger_subjects == ["H-0030"]
     assert strategies._stage("H-0030", 1, gate, []) is strategies.Stage.PROMOTED
     assert strategies._stage("H-0096", 1, gate, []) is strategies.Stage.PAPER_CANDIDATE
+
+
+def test_a_cards_configurations_read_as_different_lines() -> None:
+    from eulerlab import strategies
+
+    lines = [
+        strategies._config_line({"feature": "momentum_12_1", "top_n": n, "rebalance": 21})
+        for n in (20, 50)
+    ]
+    assert lines[0] != lines[1] and "top 20" in lines[0]
+    assert strategies._config_line({"rule": "short at 09:20"}) == "short at 09:20"

@@ -990,6 +990,19 @@ def _stage(strategy_id: str, ran: int, gate: dict[str, Any], active: list[Any]) 
     return Stage.BACKTESTED if ran else Stage.REGISTERED
 
 
+def _config_line(config: dict[str, Any]) -> str:
+    """One configuration in words: the rule, or the feature with its settings, so a card's
+    configurations that share a feature still read as different lines."""
+    if config.get("rule"):
+        return str(config["rule"])
+    parts = [str(config.get("feature") or "")]
+    if config.get("top_n"):
+        parts.append(f"top {config['top_n']}")
+    if config.get("rebalance"):
+        parts.append(f"rebalance every {config['rebalance']} days")
+    return ", ".join(p for p in parts if p)
+
+
 def gated_hypotheses(gate: dict[str, Any], root: object = None) -> list[Declaration]:
     """A declaration for each hypothesis whose latest gate verdict is PROMOTE or PAPER.
 
@@ -1016,9 +1029,7 @@ def gated_hypotheses(gate: dict[str, Any], root: object = None) -> list[Declarat
         except (OSError, yaml.YAMLError):
             continue
         intraday = rule_book.is_rule(hypothesis)
-        rules = [
-            str(c.get("rule") or c.get("feature") or "") for c in card.get("configurations") or []
-        ]
+        rules = [_config_line(c) for c in card.get("configurations") or []]
         out.append(
             Declaration(
                 id=hypothesis,
