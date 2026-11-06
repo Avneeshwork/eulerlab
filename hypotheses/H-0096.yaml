@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 567 trades, 45.46 bps gross and +33.22 net a trade, t 4.22; net Sharpe 1.49 (1.26 before 2024, 1.97 in 2024); every year positive; drawdown -2.6% (research 164). Passes the screen. Not gated; ban-list timing unconfirmed (A-114, T-4475).'

@@ -1,6 +1,6 @@
 id: H-0095
 title: 'Buy a stock on the first session after a promoter''s SAST acquisition disclosure, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_nse_reports
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 331 trades, -25.38 bps gross and -37.65 net a trade; net Sharpe -1.69 before 2024, -2.16 in 2024 (research 164). Fails.'

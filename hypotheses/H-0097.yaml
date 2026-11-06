@@ -1,6 +1,6 @@
 id: H-0097
 title: 'Short a stock the session after heavy stock borrowing in SLBM, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_nse_reports
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 6,949 trades, 5.98 bps gross and -6.37 net a trade; net Sharpe -0.99 before 2024, -1.38 in 2024 (research 164). Fails.'

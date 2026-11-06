@@ -198,30 +198,69 @@ def main(argv: Sequence[str] | None = None) -> int:
     hypothesis = holdout_mod.load(path)
     print(f"hypothesis     : {hypothesis.id} — {hypothesis.title}")
 
-    rows = read_panel()
-    if not rows:
-        print("no panel. Run `make build-panel` first.")
-        return 2
+    from eulerlab.validation import intraday
 
-    # --- 2. the holdout is removed once, at the top ---
-    rows, dropped = holdout_mod.truncate(rows, hypothesis.holdout)
-    days = trading_days(rows)
-    print(
-        f"holdout        : {hypothesis.holdout.starts} onward withheld "
-        f"({dropped:,} rows), status={hypothesis.holdout.status}"
-    )
-    print(f"in-sample      : {len(days):,} days, {days[0]} to {days[-1]}")
+    intraday_run = intraday.SOURCES[hypothesis.id]() if intraday.supported(hypothesis.id) else None
+    if intraday_run is not None:
+        # An intraday rule is scored from its own trades (ADR-139).
+        cut = hypothesis.holdout.starts
+        days = [d for d in intraday_run.sessions if d < cut]
+        dropped = len(intraday_run.sessions) - len(days)
+        intraday_run = intraday.IntradayRun(
+            [t for t in intraday_run.trades if t.day < cut],
+            [t for t in intraday_run.late_trades if t.day < cut],
+            days,
+            intraday_run.capital,
+        )
+        print(
+            f"holdout        : {hypothesis.holdout.starts} onward withheld "
+            f"({dropped:,} sessions), status={hypothesis.holdout.status}"
+        )
+        print(f"in-sample      : {len(days):,} sessions, {days[0]} to {days[-1]} (intraday)")
+        print("\nrunning purged CPCV on the rule's daily returns...")
+        args.horizon = 1  # every trade opens and closes the same session
+        scored, notes = intraday.evaluate(
+            intraday_run,
+            n_blocks=args.blocks,
+            test_blocks=args.test_blocks,
+            horizon=args.horizon,
+            embargo=args.embargo,
+        )
+        results: list[ConfigResult] = [
+            ConfigResult(
+                label=r.label,
+                in_sample=r.in_sample,
+                out_of_sample=r.out_of_sample,
+                full_returns=r.full_returns,
+                dated_returns=r.dated_returns,
+            )
+            for r in scored
+        ]
+    else:
+        rows = read_panel()
+        if not rows:
+            print("no panel. Run `make build-panel` first.")
+            return 2
 
-    # --- 3. CPCV ---
-    print("\nrunning purged CPCV...")
-    results, notes = evaluate(
-        rows,
-        hypothesis.configurations,
-        n_blocks=args.blocks,
-        test_blocks=args.test_blocks,
-        horizon=args.horizon,
-        embargo=args.embargo,
-    )
+        # --- 2. the holdout is removed once, at the top ---
+        rows, dropped = holdout_mod.truncate(rows, hypothesis.holdout)
+        days = trading_days(rows)
+        print(
+            f"holdout        : {hypothesis.holdout.starts} onward withheld "
+            f"({dropped:,} rows), status={hypothesis.holdout.status}"
+        )
+        print(f"in-sample      : {len(days):,} days, {days[0]} to {days[-1]}")
+
+        # --- 3. CPCV ---
+        print("\nrunning purged CPCV...")
+        results, notes = evaluate(
+            rows,
+            hypothesis.configurations,
+            n_blocks=args.blocks,
+            test_blocks=args.test_blocks,
+            horizon=args.horizon,
+            embargo=args.embargo,
+        )
 
     # --- 4. the statistics ---
     in_sample = [list(col) for col in zip(*[r.in_sample for r in results], strict=True)]
@@ -300,7 +339,20 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     # --- 4b. stress tests: not "is this significant" but "when does it break" ---
     stress_rows: list[dict[str, object]] = []
-    if not args.no_stress:
+    if not args.no_stress and intraday_run is not None:
+        stressed_runs = intraday.stresses(intraday_run)
+        print(stress.render(stressed_runs))
+        stress_rows = [
+            {
+                "test": r.name,
+                "base_sharpe": round(r.base, 4),
+                "stressed_sharpe": round(r.stressed, 4),
+                "survives": r.survives,
+                "detail": r.detail,
+            }
+            for r in stressed_runs
+        ]
+    elif not args.no_stress:
         best_config = max(
             hypothesis.configurations,
             key=lambda c: next(

@@ -66,3 +66,57 @@ trial spent.
 Low. The bulk-deal studies find most of the move before the deal, which a
 next-day trade cannot catch. H-0096 has no academic support. SLBM is also used
 for arbitrage and around dividends, not only to short.
+
+## Results (run 2026-11-06, after the rules were committed in `6ef07fe`)
+
+Backfill: bulk deals, SAST, F&O ban and SLBM landed for every session from
+2021-07-01 (6,375 manifest lines, all parse). The ban list has a file for
+each of the 807 sessions in the window. `make nse-reports-intraday` →
+`data/derived/nse_reports_intraday.json`. 1x; no trial spent.
+
+| Rule | Trades (events) | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0093 bulk-deal buyers | 144 (4,237) | -23.52 bps | -35.77 bps | -0.83 | -0.70 / -1.16 |
+| H-0094 bulk-deal sellers | 298 (6,465) | 14.75 bps | +2.49 bps | 0.08 | -0.00 / 0.32 |
+| H-0095 promoter buying | 331 (3,590) | -25.38 bps | -37.65 bps | -1.78 | -1.69 / -2.16 |
+| **H-0096 F&O ban entry, short** | **567 (664)** | **45.46 bps** | **+33.22 bps** | **1.49** | **1.26 / 1.97** |
+| H-0097 heavy borrowing | 6,949 (9,514) | 5.98 bps | -6.37 bps | -1.11 | -0.99 / -1.38 |
+
+(Events are F&O stocks and others; trades need a Kite minute file and are
+capped at ten a day.)
+
+**H-0096 passes the screen**, the first of 57 intraday rules in research
+153-164 to do so. Shorting a stock on its first day in the F&O ban, 09:20 to
+15:10:
+
+| Check | Result |
+|---|---|
+| Per trade | mean 45.5 bps gross, median 50.3, t = 4.22 (567 trades) |
+| Minus the Nifty's 09:20-15:10 move the same day | 37.9 bps, t = 3.67 |
+| By year (mean gross, trades) | 2021 94.0 (59), 2022 31.6 (83), 2023 31.5 (167), 2024 47.8 (258) |
+| Net, by year | every year positive; max drawdown -2.6% of ₹10 lakh |
+| Breadth | 55 stocks on 377 days; the largest contributor (NATIONALUM) is 6% of the total |
+| Without the 10 best trades | 31.3 bps gross; without the best 5%, 14.6 |
+| Multiple testing | t 4.22 survives a Bonferroni correction for 57 tests (p ≈ 0.001) |
+
+The rest:
+
+- **Bulk-deal buys and promoter buying are followed by falls** (-24 and -25
+  bps): the buying is done and the price has already moved, as the bulk-deal
+  studies found (front-running before the deal).
+- **Bulk-deal sells** fall a little further next day (14.8 bps), too little.
+- **Heavy SLBM borrowing** is 6 bps, below costs; SLBM is mostly arbitrage.
+
+**What is not yet known about H-0096.**
+
+1. **When the ban list is public.** The rule needs the list for trade date t
+   before 09:20 on t. The ban is set from end-of-day open interest and applies
+   from the next session, and news sites publish "stocks in F&O ban today"
+   before the open, but this project has never fetched the file before the
+   open: its collector fetches each day after 21:00 (A-114, T-4475).
+2. **Shorting.** The trade is an intraday cash short (MIS), squared off the
+   same day, which needs the stock to be shortable intraday at the broker.
+   F&O stocks are; a banned stock's cash segment trades normally.
+3. **Fills.** 09:20 entry and 15:10 exit at the minute open, plus 2 bps a side
+   slippage, as every screen here. Banned stocks are volatile at the open.
+4. **2025 onward** is the holdout and has not been read.

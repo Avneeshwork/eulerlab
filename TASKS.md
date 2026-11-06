@@ -175,6 +175,9 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4471 | Six minute-level cash rules: industry and market laggards, intraday pairs, ex-dates, VWAP stretch (operator, 2026-11-06) | DONE 2026-11-06 — none passes: market-move laggards 16.68 bps gross, +4.42 net, but all of it in 2022 and negative in 2024; pairs 5.87 gross against two round trips; ex-dividend day -18.16 gross (research 161) |
 | T-4472 | Five cash rules on beta, lottery stocks, the last half-hour, stock option pinning and futures OI build-up (operator, 2026-11-06) | DONE 2026-11-06 — none passes: low-minus-high beta 4.29 bps gross and MAX 7.70 by day (right sign, below the 12.24 bps cost); illiquid last half-hour 0.77; pinning 1.38; OI build-up -4.23 (research 162) |
 | T-4473 | Five cash rules read from stock options: skew, call-put IV spread, IV changes, put-call volume, realised minus implied volatility (operator, 2026-11-06) | DONE 2026-11-06 — none passes and none has a gross edge (-4.32 to 0.00 bps a position); put-call volume has the wrong sign (research 163) |
+| T-4474 | Backfill NSE bulk deals, SAST, F&O ban and SLBM from 2021-07 and screen five cash rules on them (operator, 2026-11-06) | DONE 2026-11-06 — H-0096 (short on the first F&O ban day) passes the screen: 45.46 bps gross, +33.22 net, t 4.22, positive every year; the other four fail (research 164) |
+| T-4475 | H-0096 needs the ban list before 09:20. Confirm by fetching `fo_secban` for the next trade date on a trading morning before 09:15 IST (A-114) | OPEN |
+| T-4476 | H-0096 screened alive: short on the first F&O ban day, 09:20-15:10, +33 bps net a trade, net Sharpe 1.49 (research 164). Decide: confirm timing (T-4475), check intraday shortability at the broker, then gate it (one trial) or paper-trade it | OPEN (operator) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 
