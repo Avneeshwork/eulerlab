@@ -31,9 +31,9 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
-  Intraday (research 153-160): 36 tests of minute-bar rules, none passes.
-  A ₹1 lakh stock round trip costs 12.24 bps; the largest gross edge was 13.9 bps
-  (H-0065, lost in 2024). Alive as a screen only: the expiry-day Nifty straddle
+  Intraday (research 153-161): 42 tests of minute-bar rules, none passes.
+  A ₹1 lakh stock round trip costs 12.24 bps; the largest gross edges were 16.7
+  bps (H-0078, all from 2022) and 13.9 bps (H-0065); both lost in 2024. Alive as a screen only: the expiry-day Nifty straddle
   (H-0041, options, net Sharpe 0.95; T-4459). Company news reverses within the day.
 - **Screener.** Workbench → Screener lists what six new models (quality,
   value, F-score, a tree ranker monthly; pullback and breakout weekly) and the

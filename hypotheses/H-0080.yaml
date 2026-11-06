@@ -1,6 +1,6 @@
 id: H-0080
 title: 'Buy a stock at 09:20 on its bonus or split ex-date, sell at 15:10'
-status: draft
+status: rejected
 family: intraday_corporate_action
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 64 trades, 2.95 bps gross and -9.30 net a trade; net Sharpe -0.17 before 2024, 0.00 in 2024 (research 161). Fails.'

@@ -1,6 +1,6 @@
 id: H-0079
 title: 'Intraday pairs within an industry: open at a 2-sigma spread on 5-minute closes, close at zero or 15:10'
-status: draft
+status: rejected
 family: intraday_pairs
 source_kind: paper
 parent: ''
@@ -23,3 +23,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 4,126 legs, 5.87 bps gross and -6.40 net a leg; net Sharpe -0.88 before 2024, -4.04 in 2024 (research 161). Fails.'

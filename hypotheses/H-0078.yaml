@@ -1,6 +1,6 @@
 id: H-0078
 title: 'When the Nifty moves 0.5% by 10:30, trade the ten thinly traded stocks that lagged it, in its direction, to 15:10'
-status: draft
+status: rejected
 family: intraday_cross_stock
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 980 trades on 98 days, 16.68 bps gross and +4.42 net a trade; net Sharpe 0.44 before 2024, -0.60 in 2024; 2022 alone +15.6%, every other year negative (research 161). Fails the both-halves rule.'

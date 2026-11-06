@@ -1,6 +1,6 @@
 id: H-0081
 title: 'Buy a stock at 09:20 on its ex-dividend date when the dividend is at least 1% of price, sell at 15:10'
-status: draft
+status: rejected
 family: intraday_corporate_action
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 561 trades, -18.16 bps gross and -30.40 net a trade; net Sharpe -1.57 before 2024, -3.34 in 2024 (research 161). Fails.'

@@ -82,3 +82,33 @@ few events among F&O stocks. The VWAP rule has no academic support.
 - Industries come from today's NSE classification, not the one at the time.
 - Turnover in Chordia and Swaminathan is volume over shares outstanding; this
   uses traded value, which also tracks size (Lo and MacKinlay's version).
+
+## Results (run 2026-11-06, after the rules were committed in `32b89ad`)
+
+`make minute-six` → `data/derived/minute_six.json`. 416 stocks, 322 with an
+industry; 98 sessions with a 0.5% Nifty move by 10:30; 1x; no trial spent.
+
+| Rule | Trades | Gross a trade | Net a trade | Net Sharpe | Before 2024 / 2024 (net Sharpe) |
+|---|---|---|---|---|---|
+| H-0077 industry laggards | 40,587 | -1.27 bps | -13.53 bps | -8.13 | -8.07 / -8.35 |
+| H-0078 market-move laggards | 980 | **16.68 bps** | **+4.42 bps** | 0.21 | **0.44 / -0.60** |
+| H-0079 intraday pairs (per leg) | 4,126 | 5.87 bps | -6.40 bps | -1.71 | -0.88 / -4.04 |
+| H-0080 bonus or split ex-date | 64 | 2.95 bps | -9.30 bps | -0.11 | -0.17 / 0.00 |
+| H-0081 ex-dividend day | 561 | -18.16 bps | -30.40 bps | -1.96 | -1.57 / -3.34 |
+| H-0082 VWAP stretch | 8,070 | 1.31 bps | -10.95 bps | -1.95 | -2.15 / -1.42 |
+
+**None passes** (positive net in both halves).
+
+- **Market-move laggards has the largest gross edge in research 153-161**
+  (16.7 bps against a 12.24 bps round trip), but it is one year: 2022 earned
+  +15.6%, and 2021, 2023 and 2024 all lost. 2022 had the most big Nifty
+  mornings. Its settings are not changed.
+- **Industry laggards do not catch up within the day.** The spread is -1.3 bps
+  gross: stocks ahead of their industry at 11:15 stay ahead.
+- **Intraday pairs converge, but not enough to pay two round trips:** 5.9 bps
+  gross a leg, as Bowen et al. warned. Worse in 2024.
+- **Ex-dividend stocks fall after the open**, -18 bps gross from 09:20 to
+  15:10. The Indian ex-day gain (close to close) is not available intraday.
+  This is an observation, not a short rule: a short would be a new hypothesis.
+- **Bonus and split ex-dates** are flat after costs on 64 events.
+- **VWAP stretch** reverts by 1.3 bps, a tenth of the cost.

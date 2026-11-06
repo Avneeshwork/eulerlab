@@ -1,6 +1,6 @@
 id: H-0077
 title: 'Industry laggards catch up: long stocks behind their industry''s morning move, short those ahead, 11:16 to 15:10'
-status: draft
+status: rejected
 family: intraday_cross_stock
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 40,587 trades, -1.27 bps gross and -13.53 net a trade; net Sharpe -8.07 before 2024, -8.35 in 2024 (research 161). Fails.'

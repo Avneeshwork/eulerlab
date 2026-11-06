@@ -172,6 +172,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4468 | H-0065 is the only intraday rule whose gross edge beat the round trip; test it on fresh data? | CLOSED 2026-11-06 — the operator chose gate first; on its existing numbers it fails three gate rules (t about 1.0 against 3; deflated Sharpe; negative at 2x costs), so no validation path was built and the holdout stays unread |
 | T-4469 | H-0070 passed the screen weakly (100 trades, t about 0.8); retested on daily bars from 2016 (H-0071) | DONE 2026-11-06 — dead: -7.80 bps gross a trade, negative in eight of nine years (research 159) |
 | T-4470 | Five intraday news rules from NSE corporate announcements (operator, 2026-11-06) | DONE 2026-11-06 — none passes: press-release follow -29.80 bps gross (news moves reverse), acquisitions 12 trades, credit ratings 3, dividend day 5.39 gross, buyback day 28 trades (research 160) |
+| T-4471 | Six minute-level cash rules: industry and market laggards, intraday pairs, ex-dates, VWAP stretch (operator, 2026-11-06) | DONE 2026-11-06 — none passes: market-move laggards 16.68 bps gross, +4.42 net, but all of it in 2022 and negative in 2024; pairs 5.87 gross against two round trips; ex-dividend day -18.16 gross (research 161) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

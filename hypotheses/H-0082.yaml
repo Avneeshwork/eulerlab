@@ -1,6 +1,6 @@
 id: H-0082
 title: 'Fade a 1.5% stretch from VWAP between 10:00 and 14:30, exit at VWAP or 15:10'
-status: draft
+status: rejected
 family: intraday_mean_reversion
 source_kind: paper
 parent: ''
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 8,070 trades, 1.31 bps gross and -10.95 net a trade; net Sharpe -2.15 before 2024, -1.42 in 2024 (research 161). Fails.'
