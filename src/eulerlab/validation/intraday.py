@@ -53,7 +53,77 @@ def _h0096() -> IntradayRun:
     return nse_reports_screen.ban_short_run()
 
 
-SOURCES: dict[str, Callable[[], IntradayRun]] = {"H-0096": _h0096}
+def _h0098() -> IntradayRun:
+    """H-0096's rule on daily bars, 2015-2024: official open to close (research 164)."""
+    from eulerlab.intraday import cash_five_screen as five
+    from eulerlab.intraday import nse_reports_screen as rep
+
+    bans = rep.ban_events(dict(rep._parsed("fo_ban", rep.ban_list, rep.DAILY_FIRST)))
+    bars = rep.daily_bars(set(bans))
+    sessions = sorted(
+        {d for days in bars.values() for d in days if rep.DAILY_FIRST <= d <= cs.DATA_END}
+    )
+    return IntradayRun(rep.daily_ban_trades(bans, bars), [], sessions, five.TRADE * five.MAX_OPEN)
+
+
+def _h0065() -> IntradayRun:
+    """Short the top decile of 20-session mean overnight moves, buy the bottom (research 158)."""
+    import pickle
+
+    from eulerlab.intraday import cash_five_screen as five
+    from eulerlab.intraday import india_five_screen as india_five
+    from eulerlab.intraday import option_signal_screen as sig
+    from eulerlab.intraday import stock_fo_screen as fo
+
+    cache = {}
+    for symbol in cs.universe():
+        cached = india_five._cached(symbol)
+        if cached.exists():
+            cache[symbol] = pickle.loads(cached.read_bytes())["marks"]["overnight"]
+    _, window = fo.load_snaps()
+    trades, widest = [], 1
+    for day, ranked in sig.overnight_ranks(cache).items():
+        if len(ranked) < sig.MIN_NAMES:
+            continue
+        ranked.sort(key=lambda item: (item[0], item[1]))
+        decile = len(ranked) // 10
+        widest = max(widest, decile)
+        for direction, chosen in ((-1, ranked[-decile:]), (1, ranked[:decile])):
+            for _, symbol, fill in chosen:
+                trade = five._trade(symbol, day, fill, direction, five.TRADE)
+                if trade:
+                    trades.append(trade)
+    return IntradayRun(trades, [], list(window), five.TRADE * 2 * widest)
+
+
+def _h0052() -> IntradayRun:
+    """Buy NIFTYBEES 09:20-15:10 on the session before a market holiday (research 156)."""
+    from eulerlab.intraday import cash_events_screen as events
+    from eulerlab.intraday import cash_five_screen as five
+    from eulerlab.intraday import research_screen as rs
+    from eulerlab.intraday import stock_fo_screen as fo
+
+    _, window = fo.load_snaps()
+    holidays = set(events.pre_holiday_days(window))
+    etf = rs.load_days(five.ETF, cache=False)
+    trades = []
+    for day in etf:
+        if day.day in holidays and day.day <= cs.DATA_END:
+            fill = events.day_trade(day)
+            if fill is not None and (
+                t := five._trade(five.ETF, day.day, fill, 1, five.ETF_CAPITAL)
+            ):
+                trades.append(t)
+    sessions = sorted(d.day for d in etf if d.day <= cs.DATA_END)
+    return IntradayRun(trades, [], sessions, five.ETF_CAPITAL)
+
+
+SOURCES: dict[str, Callable[[], IntradayRun]] = {
+    "H-0052": _h0052,
+    "H-0065": _h0065,
+    "H-0096": _h0096,
+    "H-0098": _h0098,
+}
 
 
 def supported(hypothesis_id: str) -> bool:
@@ -110,15 +180,16 @@ def stresses(run: IntradayRun) -> list[StressResult]:
             stressed,
         )
     )
-    late = sharpe_on(daily_returns(run.late_trades, run.sessions, run.capital), run.sessions)
-    out.append(
-        StressResult(
-            "entry 5 minutes late",
-            f"entered from 09:26 instead of 09:20: Sharpe {base:.2f} -> {late:.2f}",
-            base,
-            late,
+    if run.late_trades:
+        late = sharpe_on(daily_returns(run.late_trades, run.sessions, run.capital), run.sessions)
+        out.append(
+            StressResult(
+                "entry 5 minutes late",
+                f"entered from 09:26 instead of 09:20: Sharpe {base:.2f} -> {late:.2f}",
+                base,
+                late,
+            )
         )
-    )
     middle = len(run.sessions) // 2
     for label, days in (
         ("first half", run.sessions[:middle]),

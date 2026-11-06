@@ -740,8 +740,8 @@ moments is penalised, correctly.
 ## 5.2b Validating an intraday rule (ADR-139)
 
 `make validate H=...` re-runs a daily `rank_and_hold` strategy on each path.
-For an intraday rule registered in `validation/intraday.py` (`SOURCES`; so far
-H-0096) it scores the battery from the rule's own trades instead: daily net
+For an intraday rule registered in `validation/intraday.py` (`SOURCES`: H-0052,
+H-0065, H-0096, H-0098) it scores the battery from the rule's own trades instead: daily net
 return on the rule's capital for every session (zero on a day without a
 trade), CPCV paths over those sessions with a one-session purge, the same
 deflated Sharpe, search bar and Romano-Wolf test, and the stresses the gate

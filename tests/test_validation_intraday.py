@@ -47,3 +47,13 @@ def test_cpcv_scores_every_path_without_leakage() -> None:
 
 def test_only_registered_hypotheses_are_supported() -> None:
     assert intraday.supported("H-0096") and not intraday.supported("H-0001")
+    assert all(intraday.supported(h) for h in ("H-0052", "H-0065", "H-0098"))
+
+
+def test_late_entry_stress_is_skipped_without_late_trades() -> None:
+    run = _run()
+    names = {
+        s.name
+        for s in intraday.stresses(intraday.IntradayRun(run.trades, [], run.sessions, run.capital))
+    }
+    assert "entry 5 minutes late" not in names and "costs x2" in names
