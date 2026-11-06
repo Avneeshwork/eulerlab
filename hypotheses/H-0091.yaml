@@ -1,0 +1,25 @@
+id: H-0091
+title: 'High put-call volume predicts a weak day: short the top decile of put share of option volume, buy the bottom, 09:20 to 15:10'
+status: draft
+family: intraday_option_signal
+source_kind: paper
+parent: ''
+claim: 'Shorting the top decile and buying the bottom decile of yesterday''s put volume / (put + call volume) in the chosen expiry from 09:20 to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Pan and Poteshman (2006, RFS): low put-call ratios beat high by 40 bps the next day. Research 163.'
+source:
+  research: '163'
+  written_by: Claude, for the operator's request for another five strategies
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  rule: 'ratio = put volume / (put + call volume), all strikes of the nearest expiry >= 7 days; top decile short, bottom long; next session 09:20-15:10'
+  signals: 'NSE F&O bhavcopy stock options, Black-Scholes IV from traded closes, S = last cash close, r = 6.5% (A-113)'
+  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'The paper''s ratio is buyer-opened volume only; the public total is much weaker in the paper itself.'
+- 'Much of Indian option volume is selling.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
