@@ -138,3 +138,16 @@ def test_a_single_configuration_cannot_be_overfit_by_selection() -> None:
     """With nothing to choose between, there is no selection to indict."""
     result = probability_of_backtest_overfitting([[1.0]] * 5, [[1.0]] * 5)
     assert result.n_paths == 0
+
+
+def test_probabilistic_sharpe_matches_deflated_sharpe_with_one_trial() -> None:
+    from eulerlab.validation.statistics import (
+        SharpeStats,
+        deflated_sharpe,
+        probabilistic_sharpe,
+    )
+
+    stats = SharpeStats(1.2, 800, -0.3, 2.0)
+    # One trial: the expected best of one worthless strategy is a Sharpe of 0.
+    assert abs(probabilistic_sharpe(stats) - deflated_sharpe(stats, n_trials=1)) < 1e-9
+    assert probabilistic_sharpe(stats, benchmark_sharpe=2.0) < 0.5 < probabilistic_sharpe(stats)

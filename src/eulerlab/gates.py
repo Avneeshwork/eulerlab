@@ -330,9 +330,104 @@ def decide(
     decision.findings.extend(
         _check_process(pack, rules["process"], hypothesis_path=hypothesis_path)
     )
-    decision.findings.extend(_check_statistics(pack, rules["statistical"]))
-    decision.findings.extend(_check_robustness(pack, rules["robustness"]))
+    if rules.get("mode", "strict") == "simple":
+        decision.findings.extend(_check_simple(pack, rules["simple"]))
+    else:
+        decision.findings.extend(_check_statistics(pack, rules["statistical"]))
+        decision.findings.extend(_check_robustness(pack, rules["robustness"]))
     return decision
+
+
+def _check_simple(pack: dict[str, Any], rules: dict[str, Any]) -> list[Finding]:
+    """The simple bar (ADR-140): net positive overall, in each half, and at 2x costs.
+
+    Still default-no: a figure missing from the evidence pack fails its check.
+    """
+    out: list[Finding] = []
+    by_name = {
+        t.get("test", ""): t for t in (_get(pack, "stress_tests") or []) if isinstance(t, dict)
+    }
+    if rules.get("require_positive_full_sample", True):
+        sharpes = [
+            float(c["full_sample_sharpe"])
+            for c in (_get(pack, "configurations") or [])
+            if isinstance(c, dict) and c.get("full_sample_sharpe") is not None
+        ]
+        best = max(sharpes) if sharpes else None
+        out.append(
+            Finding(
+                "net positive overall",
+                best is not None and best > 0,
+                "no full-sample Sharpe in the evidence pack"
+                if best is None
+                else f"full-sample net Sharpe {best:.2f}, must be > 0",
+            )
+        )
+    if rules.get("require_positive_each_half", True):
+        for half in ("first half", "second half"):
+            entry = by_name.get(f"regime: {half}")
+            value = entry.get("stressed_sharpe") if entry else None
+            out.append(
+                Finding(
+                    f"net positive, {half}",
+                    value is not None and value > 0,
+                    f"'regime: {half}' was not run"
+                    if value is None
+                    else f"net Sharpe {value:.2f}, must be > 0",
+                )
+            )
+    if "min_probabilistic_sharpe" in rules:
+        floor = float(rules["min_probabilistic_sharpe"])
+        values = [
+            float(c["probabilistic_sharpe"])
+            for c in (_get(pack, "configurations") or [])
+            if isinstance(c, dict) and c.get("probabilistic_sharpe") is not None
+        ]
+        psr = max(values) if values else None
+        out.append(
+            Finding(
+                "probabilistic sharpe",
+                psr is not None and psr >= floor,
+                "no probabilistic Sharpe in the evidence pack"
+                if psr is None
+                else f"{psr:.3f}, mandate requires >= {floor}",
+            )
+        )
+    if "min_positive_year_fraction" in rules:
+        floor = float(rules["min_positive_year_fraction"])
+        min_days = float(rules["stability_min_days_in_year"])
+        years = [
+            y
+            for y in (_get(pack, "stability") or {}).values()
+            if isinstance(y, dict) and float(y.get("days", 0)) >= min_days
+        ]
+        share = (
+            sum(1 for y in years if float(y.get("net_return", 0)) > 0) / len(years)
+            if years
+            else None
+        )
+        out.append(
+            Finding(
+                "stability: positive years",
+                share is not None and share >= floor,
+                "no yearly results in the evidence pack"
+                if share is None
+                else f"{share:.0%} of {len(years)} years net positive, mandate requires >= {floor:.0%}",
+            )
+        )
+    if rules.get("require_positive_at_2x_costs", True):
+        entry = by_name.get("costs x2")
+        value = entry.get("stressed_sharpe") if entry else None
+        out.append(
+            Finding(
+                "net positive at 2x costs",
+                value is not None and value > 0,
+                "'costs x2' was not run"
+                if value is None
+                else f"net Sharpe {value:.2f}, must be > 0",
+            )
+        )
+    return out
 
 
 # --- the holdout: readable exactly once ---

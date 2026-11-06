@@ -13,9 +13,36 @@
 # is a missed opportunity, and the cost of wrongly promoting a bad one is
 # money. Those are not symmetric and the numbers should not pretend they are.
 
-version: 1
+version: 2
 owner: operator
-last_reviewed: 2026-10-31
+last_reviewed: 2026-11-06
+
+# Which bar the gate applies. Changed on the operator's instruction, 2026-11-06
+# (ADR-140): "gate is too hard, make it simple". `simple` checks only the
+# `simple` block below; `strict` checks `statistical` and `robustness`. The
+# strict thresholds are kept unchanged so switching back is one word. The
+# `process` rules apply in both modes.
+mode: simple
+
+simple:
+  # Net of costs, the full-sample Sharpe must be above zero.
+  require_positive_full_sample: true
+  # Each half of the history, split at the midpoint, must be net positive.
+  require_positive_each_half: true
+  # Still net positive with every charge and slippage doubled.
+  require_positive_at_2x_costs: true
+  # Added on the operator's instruction, 2026-11-06 ("test other metrics, if
+  # the backtest is really profitable, like probabilistic Sharpe, stable").
+  # Probabilistic Sharpe ratio: the chance the true Sharpe is above zero given
+  # the sample's length, skew and tails. Not corrected for how many strategies
+  # were tried; that is the deflated Sharpe, which strict mode uses.
+  min_probabilistic_sharpe: 0.95
+  # Stability: the share of calendar years (with at least this many trading
+  # days in the backtest) whose net return was positive.
+  min_positive_year_fraction: 0.6
+  stability_min_days_in_year: 60
+
+# --- strict mode only (mode: strict) ---
 
 statistical:
   # Probability the true Sharpe exceeds zero, after correcting for how many

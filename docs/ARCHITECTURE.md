@@ -917,7 +917,8 @@ The validation battery **refuses to report anything** if the chain is broken.
 ## 5.8 The promotion gate
 
 `gates.py` and `mandate.yaml` are **operator-owned**. The AI that built this
-system may propose changes in a review; it may not edit them.
+system may propose changes in a review; it may not edit them without the
+operator's instruction in that session (given 2026-11-06, ADR-140).
 
 The separation is structural:
 
@@ -945,8 +946,20 @@ Three more properties:
 action, only after a PROMOTE. There is no un-spend function. A KILL verdict
 refuses the read entirely.
 
+**Two modes (ADR-140).** `mandate.yaml` `mode:` picks the bar. Since
+2026-11-06, on the operator's instruction, it is `simple`: full-sample net
+Sharpe above zero, each half of the history net positive, still positive at
+2x costs, probabilistic Sharpe ratio at least 0.95 (the chance the true Sharpe
+is above zero given the sample's length, skew and tails, without the
+correction for how many things were tried), and net positive in at least 60%
+of calendar years with 60 or more sessions. `strict` applies 5.3-5.3a and the stress retention thresholds
+below, which are kept unchanged. The process rules (pre-registration, signed
+evidence, intact ledger, one holdout read) apply in both.
+
 **Acceptance:** three deliberately overfit strategies are fed to the gate; all
-three must die. They do — killed on deflated Sharpe, PBO and worst-regime.
+three must die. They do under the strict bar — killed on deflated Sharpe, PBO
+and worst-regime. `make gate-acceptance` checks the strict bar only, so it
+does not test the simple bar now in use.
 
 ## 5.9 The strategy map: how many different bets do we hold? (ADR-106)
 

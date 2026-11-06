@@ -43,6 +43,7 @@ from eulerlab.validation.cpcv import cpcv_splits, leakage_check
 from eulerlab.validation.statistics import (
     deflated_sharpe,
     min_backtest_length,
+    probabilistic_sharpe,
     probability_of_backtest_overfitting,
     sharpe_stats,
 )
@@ -162,6 +163,24 @@ def _dated_returns_of(rows: Sequence[PanelRow], config: dict[str, object]) -> di
         for (_, before), (day, after) in pairwise(zip(run.days, run.equity, strict=True))
         if before > 0
     }
+
+
+def yearly(returns: dict[date, float]) -> dict[str, dict[str, float]]:
+    """Each calendar year's days, compounded net return and Sharpe, for the gate's stability check."""
+    by_year: dict[int, list[float]] = {}
+    for day, value in sorted(returns.items()):
+        by_year.setdefault(day.year, []).append(value)
+    out = {}
+    for year, values in by_year.items():
+        growth = 1.0
+        for value in values:
+            growth *= 1.0 + value
+        out[str(year)] = {
+            "days": float(len(values)),
+            "net_return": round(growth - 1.0, 6),
+            "sharpe": round(sharpe_stats(values).sharpe, 4),
+        }
+    return out
 
 
 def _label(config: dict[str, object]) -> str:
@@ -317,6 +336,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "skew": round(stats.skew, 4),
                 "excess_kurtosis": round(stats.kurtosis, 4),
                 "deflated_sharpe_probability": round(dsr, 4),
+                "probabilistic_sharpe": round(probabilistic_sharpe(stats), 4),
             }
         )
 
@@ -424,6 +444,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "min_backtest_length_years": round(min_years, 2),
         "available_years": round(have_years, 2),
         "stress_tests": stress_rows,
+        "stability": yearly(best_result.dated_returns),
         "notes": notes,
         "ledger_entry": entry.entry_hash,
     }

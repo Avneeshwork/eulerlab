@@ -261,3 +261,72 @@ def test_a_missing_romano_wolf_test_kills() -> None:
     pack = _passing_pack()
     del pack["search"]["romano_wolf"]
     assert _decide(pack).verdict is gates.Verdict.KILL
+
+
+SIMPLE = {**MANDATE, "mode": "simple"}
+
+
+def _simple_pack(
+    first: float,
+    second: float,
+    doubled: float,
+    psr: float = 0.99,
+    years: tuple[float, ...] = (0.1, 0.05, -0.02),
+) -> dict[str, object]:
+    return {
+        "configurations": [{"full_sample_sharpe": 1.0, "probabilistic_sharpe": psr}],
+        "stress_tests": [
+            {"test": "regime: first half", "stressed_sharpe": first},
+            {"test": "regime: second half", "stressed_sharpe": second},
+            {"test": "costs x2", "stressed_sharpe": doubled},
+        ],
+        "stability": {
+            str(2021 + i): {"days": 250.0, "net_return": r, "sharpe": 1.0}
+            for i, r in enumerate(years)
+        },
+    }
+
+
+def test_simple_mode_passes_positive_halves_and_double_costs() -> None:
+    found = gates._check_simple(_simple_pack(0.4, 0.2, 0.1), SIMPLE["simple"])
+    assert all(f.passed for f in found) and len(found) == 6
+
+
+def test_simple_mode_kills_a_negative_half_or_double_costs() -> None:
+    assert not all(
+        f.passed for f in gates._check_simple(_simple_pack(0.4, -0.1, 0.1), SIMPLE["simple"])
+    )
+    assert not all(
+        f.passed for f in gates._check_simple(_simple_pack(0.4, 0.2, -0.1), SIMPLE["simple"])
+    )
+
+
+def test_simple_mode_still_kills_missing_evidence() -> None:
+    assert not any(f.passed for f in gates._check_simple({}, SIMPLE["simple"]))
+
+
+def test_simple_mode_keeps_the_process_rules(tmp_path: Path) -> None:
+    decision = gates.decide(
+        _simple_pack(1.0, 1.0, 1.0), hypothesis_path=tmp_path / "absent.yaml", mandate=SIMPLE
+    )
+    assert decision.verdict is gates.Verdict.KILL
+    assert any(f.rule == "pre-registration" and not f.passed for f in decision.findings)
+
+
+def test_simple_mode_kills_a_low_probabilistic_sharpe() -> None:
+    found = gates._check_simple(_simple_pack(0.4, 0.2, 0.1, psr=0.80), SIMPLE["simple"])
+    assert [f.rule for f in found if not f.passed] == ["probabilistic sharpe"]
+
+
+def test_simple_mode_kills_too_few_positive_years() -> None:
+    pack = _simple_pack(0.4, 0.2, 0.1, years=(0.1, -0.05, -0.02))
+    found = gates._check_simple(pack, SIMPLE["simple"])
+    assert [f.rule for f in found if not f.passed] == ["stability: positive years"]
+
+
+def test_short_years_do_not_count_toward_stability() -> None:
+    pack = _simple_pack(0.4, 0.2, 0.1, years=(0.1, 0.05))
+    stability = pack["stability"]
+    assert isinstance(stability, dict)
+    stability["2024"] = {"days": 10.0, "net_return": -0.5, "sharpe": -1.0}
+    assert all(f.passed for f in gates._check_simple(pack, SIMPLE["simple"]))

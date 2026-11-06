@@ -141,6 +141,24 @@ def deflated_sharpe(
     return _norm_cdf(z)
 
 
+def probabilistic_sharpe(
+    stats: SharpeStats, *, benchmark_sharpe: float = 0.0, periods_per_year: int = 252
+) -> float:
+    """Probability the true Sharpe exceeds `benchmark_sharpe` (annualised), from one sample.
+
+    Bailey and López de Prado's PSR: the deflated Sharpe with the bar set by
+    hand instead of by the number of trials. It allows for the sample's length,
+    skew and fat tails, but not for how many strategies were tried.
+    """
+    if stats.n < 3 or stats.sharpe == 0.0:
+        return 0.0
+    sr = stats.sharpe / math.sqrt(periods_per_year)
+    sr0 = benchmark_sharpe / math.sqrt(periods_per_year)
+    raw_minus_one = stats.kurtosis + 2.0
+    denominator = math.sqrt(max(1e-12, 1.0 - stats.skew * sr + (raw_minus_one / 4.0) * sr**2))
+    return _norm_cdf(((sr - sr0) * math.sqrt(stats.n - 1)) / denominator)
+
+
 def min_backtest_length(
     n_trials: int, *, target_sharpe: float = 1.0, variance_of_sharpes: float = 1.0
 ) -> float:
