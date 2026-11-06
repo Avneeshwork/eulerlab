@@ -1,0 +1,24 @@
+id: H-0077
+title: 'Industry laggards catch up: long stocks behind their industry''s morning move, short those ahead, 11:16 to 15:10'
+status: draft
+family: intraday_cross_stock
+source_kind: paper
+parent: ''
+claim: 'At 11:15, ranking stocks by their industry''s mean 09:20-11:15 return (without the stock) minus their own, buying the top decile and shorting the bottom decile from 11:16 to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Hou (2007, RFS): the lead-lag between stocks is mostly within industries, from slow diffusion of industry news. Research 161.'
+source:
+  research: '161'
+  written_by: Claude, for the operator's request for six more minute-level intraday tests
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  rule: '11:15 score = industry mean return 09:20-11:15 excluding the stock minus the stock''s return; industries with at least 4 members measured; top decile long, bottom decile short; fill 11:16, exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'Hou''s horizon is weekly; within a day the catch-up may be too small for a 12 bps round trip.'
+- 'Industries are today''s NSE classification (A-112).'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread

@@ -1,0 +1,24 @@
+id: H-0078
+title: 'When the Nifty moves 0.5% by 10:30, trade the ten thinly traded stocks that lagged it, in its direction, to 15:10'
+status: draft
+family: intraday_cross_stock
+source_kind: paper
+parent: ''
+claim: 'On sessions when the Nifty moved 0.5% or more from 09:20 to 10:30, trading the ten stocks (among the half with the lowest 20-session mean traded value) that moved least in the Nifty''s direction, in that direction, from 10:31 to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Chordia and Swaminathan (2000) and Lo and MacKinlay (1990): low-volume and small stocks follow the market late. Research 161.'
+source:
+  research: '161'
+  written_by: Claude, for the operator's request for six more minute-level intraday tests
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  rule: 'Nifty move 09:20 close to 10:30 close >= 0.5% in absolute value; universe = bottom half by 20-session mean traded value; lag = sign x (stock return - Nifty return) from 09:20 fill to 10:30 close; ten most negative lags traded in the Nifty''s direction; fill 10:31, exit 15:10'
+  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'The papers'' horizon is a day or a week; F&O stocks are all liquid, so lags may be minutes.'
+- 'Traded value, not turnover, tracks size.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
