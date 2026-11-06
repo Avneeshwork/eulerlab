@@ -1,0 +1,25 @@
+id: H-0096
+title: 'Short a stock on its first F&O ban day, 09:20 to 15:10'
+status: draft
+family: intraday_nse_reports
+source_kind: paper
+parent: ''
+claim: 'Shorting F&O stocks on the first trade date they enter the F&O ban list, 09:20 to 15:10, earns more than costs in both halves of 2021-08 to 2024-11.'
+rationale: 'Broker explainers call the ban bearish because no new longs can be opened. Research 164.'
+source:
+  research: '164'
+  written_by: Claude, for the operator's request for more strategies on backfilled NSE reports
+  day: '2026-11-06'
+configurations:
+- shape: intraday_cash
+  rule: 'in the fo_secban list for trade date t, not for t-1; short t 09:20-15:10; at most ten'
+  data: 'data/landing/nse_reports (bulk_deals, sast, fo_ban, slbm), backfilled from 2021-07-01'
+  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
+  window: '2021-08-20 to 2024-11-29'
+red_flags:
+- 'No academic support.'
+- 'Bans follow heavy open interest in either direction.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
