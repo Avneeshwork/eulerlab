@@ -93,3 +93,11 @@ def test_trades_take_at_most_ten_a_day_highest_score_first() -> None:
     found = rep.trades(snaps, events, -1)
     assert len(found) == 10 and {s for _, s, _ in found} == {f"S{i:02d}" for i in range(2, 12)}
     assert all(f.direction == -1 for _, _, f in found)
+
+
+def test_daily_ban_trades_short_open_to_close() -> None:
+    day = SESSIONS[1]
+    bans = {"A": {day: 1.0}, "B": {day: 1.0}}
+    bars = {"A": {day: (200.0, 190.0)}, "B": {day: (5.0, 4.0)}}
+    (trade,) = rep.daily_ban_trades(bans, bars)
+    assert trade.symbol == "A" and trade.direction == -1 and trade.gross > 0

@@ -152,3 +152,38 @@ Two things for the operator, not arguments with the gate:
   question (proposal only).
 - **The concentration failure is real.** Five stocks (NATIONALUM, ZEEL, IRCTC,
   RBLBANK, HINDCOPPER), bans that recur, carry over half the Sharpe.
+
+## H-0098: the same rule on daily bars, 2015-2024 (information only)
+
+The operator asked for "all years". The ban list was backfilled to 2015-01-01
+(1,600 more files; every session present). H-0098 (pre-registered in
+`416ac57`) shorts at the NSE official open of the first ban day and covers at
+the official close, ₹1 lakh, same costs. `python -m
+eulerlab.intraday.nse_reports_screen --daily` →
+`data/derived/nse_ban_short_daily.json`. It cannot change H-0096's verdict.
+
+| Year | Trades | Gross mean (bps) | Minus Nifty open-close | Net return on ₹10 lakh | Net Sharpe |
+|---|---|---|---|---|---|
+| 2015 | 64 | 48.3 | 28.5 | +2.3% | 0.74 |
+| 2016 | 132 | 94.9 | 78.9 | +11.4% | 2.62 |
+| 2017 | 286 | 92.3 | 81.6 | +25.4% | 3.45 |
+| 2018 | 162 | 7.0 | -1.0 | -1.2% | -0.10 |
+| 2019 | 84 | 17.6 | 10.1 | +0.1% | 0.06 |
+| 2020 | 167 | 79.1 | 61.9 | +11.6% | 1.70 |
+| 2021 | 157 | 160.7 | 149.2 | +26.0% | 4.72 |
+| 2022 | 99 | 70.1 | 57.1 | +5.8% | 1.83 |
+| 2023 | 192 | 84.9 | 83.5 | +14.8% | 3.04 |
+| 2024 | 274 | 92.7 | 80.0 | +24.3% | 3.84 |
+| **All** | **1,617** | **81.5 (median 90.0), t 7.81** | | net 69.2 bps a trade | **1.91**, drawdown -14.1% |
+
+125 stocks; the five largest (SAIL, NATIONALUM, BHEL, PNB, IBULHSGFIN) are 27%
+of the gross.
+
+- **The effect is ten years old, not three.** It is positive in eight of ten
+  years; 2018 and 2019 were flat after costs.
+- **Most of it happens before 09:20.** On the same 2021-2024 days the open to
+  close earned 70-160 bps a year against H-0096's 32-94 from 09:20 to 15:10:
+  the stock falls in the first five minutes after the opening auction, and
+  part again after 15:10. The official open is the pre-open auction price; a
+  rule entering there would be a new hypothesis, and under CLAUDE.md a killed
+  strategy is not tuned and resubmitted.

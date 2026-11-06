@@ -1,6 +1,6 @@
 id: H-0098
 title: 'H-0096 on daily bars from 2015: short a stock at the open on its first F&O ban day, cover at the close'
-status: draft
+status: rejected
 family: intraday_nse_reports
 source_kind: paper
 parent: 'H-0096'
@@ -22,3 +22,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
+result: 'Screen 2026-11-06: 1,617 trades 2015-2024, 81.45 bps gross and +69.22 net a trade, t 7.81, net Sharpe 1.91, drawdown -14.1%; positive in eight of ten years (2018, 2019 flat). Open to close earns more than H-0096''s 09:20-15:10 on the same days (research 164). Does not change H-0096''s gate verdict.'

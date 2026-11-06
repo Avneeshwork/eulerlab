@@ -57,7 +57,7 @@ Events = dict[str, dict[date, float]]
 # --- reading the reports ---------------------------------------------------------------
 
 
-def report_files(segment: str) -> Iterator[tuple[date, str]]:
+def report_files(segment: str, first: date = FIRST_DAY) -> Iterator[tuple[date, str]]:
     """(trade date, landing path) for each landed file of one report, in the window."""
     from eulerlab.ingest import landing_reader
 
@@ -67,7 +67,7 @@ def report_files(segment: str) -> Iterator[tuple[date, str]]:
         if entry.get("segment") != segment or entry["path"] in seen:
             continue
         day = date.fromisoformat(entry["trade_date"])
-        if FIRST_DAY <= day <= cs.DATA_END:
+        if first <= day <= cs.DATA_END:
             seen.add(entry["path"])
             yield (
                 day,
@@ -252,11 +252,79 @@ def ban_short_run() -> IntradayRun:
     return IntradayRun(on_time, late, list(window), five.TRADE * five.MAX_OPEN)
 
 
+DAILY_FIRST = date(2015, 1, 1)
+DAILY_OUT = Path("data/derived/nse_ban_short_daily.json")
+PANEL = Path("data/derived/price_panel.jsonl")
+
+
+def daily_bars(symbols: set[str], path: Path = PANEL) -> dict[str, dict[date, tuple[float, float]]]:
+    """{symbol: {day: (official open, official close)}} for the named symbols."""
+    out: dict[str, dict[date, tuple[float, float]]] = defaultdict(dict)
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            row = json.loads(line)
+            if row["s"] in symbols and row.get("o") and row.get("c"):
+                out[row["s"]][date.fromisoformat(row["d"])] = (float(row["o"]), float(row["c"]))
+    return out
+
+
+def daily_ban_trades(
+    bans: Mapping[str, Mapping[date, float]], bars: Mapping[str, Mapping[date, tuple[float, float]]]
+) -> list[cs.Trade]:
+    """H-0098: short at the official open of the first ban day, cover at the close."""
+    by_day: dict[date, list[cs.Trade]] = defaultdict(list)
+    for symbol, days in bans.items():
+        for day in days:
+            bar = bars.get(symbol, {}).get(day)
+            if bar is None or bar[0] < cs.MIN_PRICE:
+                continue
+            quantity = cs.sized(five.TRADE, bar[0])
+            if quantity:
+                trade = cs.Trade(symbol, day, -1, quantity, 0, bar[0], 374, bar[1], "close")
+                by_day[day].append(trade)
+    out: list[cs.Trade] = []
+    for day in sorted(by_day):
+        out.extend(sorted(by_day[day], key=lambda t: t.symbol)[: five.MAX_OPEN])
+    return out
+
+
+def run_daily(output: Path = DAILY_OUT) -> dict[str, Any]:
+    lists = dict(_parsed("fo_ban", ban_list, DAILY_FIRST))
+    bans = ban_events(lists)
+    bars = daily_bars(set(bans))
+    sessions = sorted(
+        {d for days in bars.values() for d in days if DAILY_FIRST <= d <= cs.DATA_END}
+    )
+    found = daily_ban_trades(bans, bars)
+    run = cs.report(
+        "nse_fo_ban_entry_short_daily",
+        found,
+        sessions,
+        params={"bars": "NSE official open to close", "slippage_bps_per_side": cs.SLIPPAGE_BPS},
+        capital=five.TRADE * five.MAX_OPEN,
+    )
+    run.pop("daily", None)
+    run["trade_log"] = run.get("trade_log", [])[:200]
+    result = {
+        "hypothesis": "H-0098",
+        "research": "docs/RESEARCH/164-bulk-deals-sast-ban-slbm.md",
+        "ban_files": len(lists),
+        "events": sum(len(v) for v in bans.values()),
+        "spent_trials": 0,
+        **run,
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=1), encoding="utf-8")
+    return result
+
+
 # --- running ---------------------------------------------------------------------------
 
 
-def _parsed(segment: str, parse: Callable[[str], Any]) -> list[tuple[date, Any]]:
-    return sorted((day, parse(text)) for day, text in report_files(segment))
+def _parsed(
+    segment: str, parse: Callable[[str], Any], first: date = FIRST_DAY
+) -> list[tuple[date, Any]]:
+    return sorted((day, parse(text)) for day, text in report_files(segment, first))
 
 
 def run(output: Path = OUT) -> dict[str, Any]:
@@ -298,7 +366,16 @@ def run(output: Path = OUT) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="nse-reports-intraday")
     parser.add_argument("--output", type=Path, default=OUT)
+    parser.add_argument("--daily", action="store_true", help="H-0098: daily bars from 2015")
     args = parser.parse_args()
+    if args.daily:
+        daily = run_daily()
+        print(
+            f"H-0098: {daily['trades']} trades of {daily['events']} events; "
+            f"{daily['per_trade_bps']['gross_mean']} bps gross, "
+            f"{daily['per_trade_bps']['net_mean']} net a trade; net Sharpe {daily['net']['sharpe']}"
+        )
+        return 0
     result = run(args.output)
     for one in result["runs"]:
         print(
