@@ -56,4 +56,33 @@ a pass among them is weaker evidence than one among the other seven.
 
 ## Results
 
-(Added after the runs.)
+Screen 2026-11-07 (`make onex-screen`), no trial spent; then the gate for
+the one rule that passed. Bps a trade at ₹1 lakh, 1x; cost 12.25-12.27.
+
+| Card | Trades a day | Gross | Net | Net Sharpe | Halves | At 2x costs | Verdict |
+|---|---|---|---|---|---|---|---|
+| H-0141 | 7.89 | 17.52 | 5.26 | 0.468 | -0.012 / 0.904 | -0.629 | screen fail |
+| H-0142 | 3.46 | 4.66 | -7.59 | -0.564 | 0.448 / -1.347 | -1.493 | screen fail |
+| H-0143 | 8.08 | 6.93 | -5.33 | -0.43 | -1.239 / 0.223 | -1.428 | screen fail |
+| H-0144 | 3.64 | -0.13 | -12.39 | -0.786 | 0.143 / -1.502 | -1.558 | screen fail |
+| H-0145 | 6.0 | 22.75 | 10.49 | 1.435 | 2.639 / 0.186 | -0.243 | screen fail |
+| H-0146 | 6.6 | 27.53 | 15.26 | 1.567 | 2.374 / 0.625 | 0.311 | **PROMOTE** |
+| H-0147 | 2.71 | -1.46 | -13.71 | -1.003 | -0.188 / -1.45 | -1.889 | screen fail |
+| H-0148 | 0.55 | 30.64 | 18.38 | 0.392 | 1.255 / -0.553 | 0.131 | screen fail |
+| H-0149 | 2.13 | 10.81 | -1.46 | -0.112 | 0.07 / -0.322 | -1.097 | screen fail |
+| H-0150 | 1.57 | -6.67 | -18.93 | -0.849 | -0.525 / -1.08 | -1.396 | screen fail |
+
+1. **H-0146 PROMOTE (ledger #112, #113)**: the tug of war only where today's
+   gap agrees. 27.5 bps gross a trade, the largest of any stock rule here
+   with more than a trade a day. 2022 +52%, 2023 +41%, 2024 to October -4%;
+   drawdown -14%. It is H-0132 made stricter after H-0132 passed, so it adds
+   confidence in the effect only through its larger per-trade edge, not as a
+   second discovery. Strict bar: fails (deflated Sharpe 0.768, Romano-Wolf).
+2. **Chan's news/no-news split shows, but not enough to trade.** Fading no-news
+   gaps made 17.5 bps gross, following news gaps 4.7; fading no-news moves next
+   day 6.9, following news moves -0.1. The no-news gap fade had a flat first
+   half (Sharpe -0.01).
+3. Shorting every ban day after the first loses (-1.5 bps gross): the ban
+   effect is the first day (H-0096), not the ban.
+4. High-beta stocks before holidays made 30.6 bps gross on 400 trades but lost
+   in the second half.

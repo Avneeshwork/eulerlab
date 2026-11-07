@@ -1,6 +1,6 @@
 id: H-0141
 title: Fade a 2% opening gap that came with no NSE filing, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: ''
@@ -35,4 +35,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 5743 trades (7.89 a day), 17.52 bps gross and 5.26 net a trade at Rs 1 lakh,
+  1x (cost 12.26); net Sharpe 0.468, halves -0.012 / 0.904, at 2x costs -0.629; drawdown -25%; by year
+  2021 +7%, 2022 -6%, 2023 +11%, 2024 +12% (research 171). Fails research 170''s screen (both halves and
+  2x costs net positive); not gated.'

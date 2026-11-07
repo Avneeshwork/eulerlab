@@ -1,6 +1,6 @@
 id: H-0149
 title: 'Monday: fade Friday''s five biggest gainers and losers among liquid stocks, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: ''
@@ -32,4 +32,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1550 trades (2.13 a day), 10.81 bps gross and -1.46 net a trade at Rs 1 lakh,
+  1x (cost 12.27); net Sharpe -0.112, halves 0.07 / -0.322, at 2x costs -1.097; drawdown -13%; by year
+  2021 +0%, 2022 +2%, 2023 -5%, 2024 +1% (research 171). Fails research 170''s screen (both halves and
+  2x costs net positive); not gated.'

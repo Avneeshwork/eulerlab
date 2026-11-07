@@ -1,6 +1,6 @@
 id: H-0144
 title: Follow yesterday's 4% move that came with an NSE filing, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: ''
@@ -32,4 +32,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2648 trades (3.64 a day), -0.13 bps gross and -12.39 net a trade at Rs 1 lakh,
+  1x (cost 12.26); net Sharpe -0.786, halves 0.143 / -1.502, at 2x costs -1.558; drawdown -39%; by year
+  2021 -0%, 2022 +6%, 2023 -10%, 2024 -27% (research 171). Fails research 170''s screen (both halves and
+  2x costs net positive); not gated.'

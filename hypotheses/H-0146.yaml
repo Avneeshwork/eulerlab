@@ -36,4 +36,9 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 4802 trades (6.6 a day), 27.53 bps gross and 15.26 net a trade at Rs 1 lakh,
+  1x (cost 12.26); net Sharpe 1.567, halves 2.374 / 0.625, at 2x costs 0.311; drawdown -14%; by year 2021
+  -3%, 2022 +52%, 2023 +41%, 2024 -4% (research 171). Gate 2026-11-07 (validate #112, gate #113), simple
+  mandate: PROMOTE, 9 of 9 (PSR 0.997, 2 of 3 full years positive, Sharpe 0.31 at 2x costs). Strict-mode
+  figures: deflated Sharpe 0.768, Romano-Wolf fails. 2024 to October -4%. Built from H-0132 after it passed:
+  the same bet, stricter. Holdout unread; none left to read.'

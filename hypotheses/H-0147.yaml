@@ -1,6 +1,6 @@
 id: H-0147
 title: Short a stock on each F&O ban day after the first, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: H-0096
@@ -32,4 +32,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1970 trades (2.71 a day), -1.46 bps gross and -13.71 net a trade at Rs 1 lakh,
+  1x (cost 12.25); net Sharpe -1.003, halves -0.188 / -1.45, at 2x costs -1.889; drawdown -28%; by year
+  2021 +5%, 2022 -5%, 2023 -9%, 2024 -16% (research 171). Fails research 170''s screen (both halves and
+  2x costs net positive); not gated.'

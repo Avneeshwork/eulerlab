@@ -1,6 +1,6 @@
 id: H-0143
 title: Fade yesterday's 4% move that came with no NSE filing, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: ''
@@ -34,4 +34,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 5880 trades (8.08 a day), 6.93 bps gross and -5.33 net a trade at Rs 1 lakh,
+  1x (cost 12.26); net Sharpe -0.43, halves -1.239 / 0.223, at 2x costs -1.428; drawdown -59%; by year
+  2021 +4%, 2022 -33%, 2023 +0%, 2024 -3% (research 171). Fails research 170''s screen (both halves and
+  2x costs net positive); not gated.'

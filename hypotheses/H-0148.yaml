@@ -1,6 +1,6 @@
 id: H-0148
 title: Buy the ten highest-beta liquid stocks on the session before an NSE holiday, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: ''
@@ -32,4 +32,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 400 trades (0.55 a day), 30.64 bps gross and 18.38 net a trade at Rs 1 lakh,
+  1x (cost 12.27); net Sharpe 0.392, halves 1.255 / -0.553, at 2x costs 0.131; drawdown -8%; by year 2021
+  +0%, 2022 +8%, 2023 -0%, 2024 -1% (research 171). Fails research 170''s screen (both halves and 2x costs
+  net positive); not gated.'

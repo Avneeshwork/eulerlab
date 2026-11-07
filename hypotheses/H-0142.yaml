@@ -1,6 +1,6 @@
 id: H-0142
 title: Follow a 2% opening gap that came with an NSE filing, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_stock_1x
 source_kind: paper
 parent: ''
@@ -35,4 +35,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2521 trades (3.46 a day), 4.66 bps gross and -7.59 net a trade at Rs 1 lakh,
+  1x (cost 12.26); net Sharpe -0.564, halves 0.448 / -1.347, at 2x costs -1.493; drawdown -28%; by year
+  2021 -2%, 2022 +10%, 2023 -13%, 2024 -13% (research 171). Fails research 170''s screen (both halves
+  and 2x costs net positive); not gated.'

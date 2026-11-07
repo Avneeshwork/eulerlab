@@ -27,7 +27,7 @@ what is open is in `TASKS.md`.*
   against 28 idea families, Romano-Wolf over Nifty, stress retention) is kept
   in `mandate.yaml` as `mode: strict`. A strategy that misses that but is
   profitable (PSR >= 0.80) gets **PAPER**: paper trading only (ADR-141).
-  Ledger: 111 entries.
+  Ledger: 113 entries.
 - **Under the simple gate (research 165):** PROMOTE H-0096, H-0098 (F&O
   ban-day short), H-0001, H-0020, H-0021, H-0022, H-0029; PAPER H-0023 to
   H-0028, H-0065, H-0052. All deploy to paper from Live → Deploy (ADR-142).
@@ -41,7 +41,9 @@ what is open is in `TASKS.md`.*
   PROMOTE **H-0132**, the tug of war at MIS size (short the five liquid
   stocks with the highest 20-session overnight return, long the five lowest,
   09:20-15:10): net Sharpe 1.44, but 2024 lost 37% on margin (research 170).
-  All five have paper books (`deploy/mis_book.py`, ADR-147); none started
+  At 1x, PROMOTE **H-0146** (the tug of war only where today's gap agrees,
+  ₹1 lakh a position): net Sharpe 1.57, 2024 -4% (research 171).
+  The five MIS rules have paper books (`deploy/mis_book.py`, ADR-147); none started
   yet (T-4495). Since 2026-11-07 the operator's scope is NSE cash stocks only.
 - **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to
   2026-10 for these fifteen. 2016-2026: H-0001 Sharpe 1.28-1.55 (drawdown
@@ -52,8 +54,8 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
-  Intraday (research 153-169): 104 tests of minute-bar rules; H-0096, the
-  BankNifty straddle H-0103 and the MIS tug of war H-0132 PROMOTE; four MIS stock scalps PAPER. Research 166-167 found Nifty
+  Intraday (research 153-169): 114 tests of minute-bar rules; H-0096, the
+  BankNifty straddle H-0103, the tug of war H-0132 (5x) and H-0146 (1x) PROMOTE; four MIS stock scalps PAPER. Research 166-167 found Nifty
   and BankNifty futures rules make 1-6 bps gross against 4.4 bps cost, and
   stock fades after NSE queries have no edge. Before that, one passed:
   H-0096, short on the first F&O ban day (+33 bps net a trade, 2015-2024 daily

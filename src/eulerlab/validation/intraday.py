@@ -171,6 +171,15 @@ def _quant(hypothesis: str) -> Callable[[], IntradayRun]:
     return run
 
 
+def _onex(hypothesis: str) -> Callable[[], IntradayRun]:
+    def run() -> IntradayRun:
+        from eulerlab.intraday import onex_screen
+
+        return onex_screen.validation_run(hypothesis)
+
+    return run
+
+
 def _h0106() -> IntradayRun:
     from eulerlab.intraday import nse_reports_screen
 
@@ -183,6 +192,7 @@ SOURCES: dict[str, Callable[[], IntradayRun]] = {
     "H-0106": _h0106,
     **{f"H-0{n}": _mft(f"H-0{n}") for n in range(111, 131)},
     **{f"H-0{n}": _quant(f"H-0{n}") for n in range(131, 141)},
+    **{f"H-0{n}": _onex(f"H-0{n}") for n in range(141, 151)},
     "H-0052": _h0052,
     "H-0065": _h0065,
     "H-0096": _h0096,

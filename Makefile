@@ -679,6 +679,10 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
+# Research 171: ten stock day trades at 1x (H-0141 to H-0150).
+onex-screen:
+	@uv run python -m eulerlab.intraday.onex_screen
+
 # Research 170: ten paper-backed, market-neutral stock day trades (H-0131 to H-0140).
 quant-screen:
 	@uv run python -m eulerlab.intraday.quant_screen

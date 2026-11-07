@@ -364,3 +364,43 @@ def test_the_stricter_screen_needs_both_halves_and_2x_costs() -> None:
         "net_at_2x_costs": {"sharpe": -0.2},
     }
     assert qs.passes_screen(ok) and not qs.passes_screen(bad)
+
+
+# --- research 171: 1x rules ------------------------------------------------------------------
+
+from datetime import datetime  # noqa: E402
+
+from eulerlab.intraday import onex_screen as onex  # noqa: E402
+
+
+def test_news_excludes_administrative_filings() -> None:
+    rows = [
+        {"symbol": "ABC", "desc": "Trading Window", "exchdisstime": "02-Jan-2023 20:00:00"},
+        {"symbol": "ABC", "desc": "Press Release", "exchdisstime": "02-Jan-2023 21:00:00"},
+        {"symbol": "XYZ", "desc": "Press Release", "exchdisstime": "02-Jan-2023 21:00:00"},
+    ]
+    found = onex.news_times(rows, {"ABC"})
+    assert list(found) == ["ABC"] and len(found["ABC"]) == 1
+    assert found["ABC"][0].hour == 21
+
+
+def test_no_news_gap_is_faded_and_news_gap_followed() -> None:
+    d0, d1 = _weekdays(date(2023, 1, 2), 2)
+    mk = mft.Market(
+        snaps={"ABC": {d0: _path_snap([100.0], last_close=100.0), d1: _path_snap([103.0])}},
+        sessions=[d1],
+        nifty={d1: [20_000.0] * 375},
+        nifty_prev={d1: 20_000.0},
+        beta={},
+        liquid={d1: ["ABC"]},
+        industry={},
+        previous={d1: d0},
+    )
+    quiet = onex.Context(mk, {}, {}, frozenset())
+    (fade,) = list(onex.RULES["H-0141"][1](quiet, d1))
+    assert fade.direction == -1
+    assert list(onex.RULES["H-0142"][1](quiet, d1)) == []
+    news = {"ABC": [datetime(2023, 1, 2, 20, 0, tzinfo=onex.IST)]}
+    loud = onex.Context(mk, news, {}, frozenset())
+    (follow,) = list(onex.RULES["H-0142"][1](loud, d1))
+    assert follow.direction == 1
