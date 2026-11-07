@@ -689,7 +689,7 @@ trade-for-trade:
 
 # Research 173: research 172's PROMOTEs on every liquid NSE stock, daily bars (H-0161, H-0162).
 daily-universe:
-	@uv run python -m eulerlab.intraday.daily_universe_screen
+	@uv run python -m eulerlab.intraday.daily_universe_screen $(ARGS)
 
 # Research 172: five swing and five intraday rules on non-price data (H-0151 to H-0160).
 other-data-screen:

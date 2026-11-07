@@ -1,0 +1,34 @@
+id: H-0171
+title: Buy at the open the day after a 3% fall on half the usual delivery and hold five sessions
+status: draft
+family: stock_swing_daily_all_nse
+source_kind: paper
+parent: ''
+claim: 'Buy at the open the day after a 3% fall on half the usual delivery and hold five sessions: earns
+  more than costs in both halves of 2016-01-01 to 2024-11-29 and at twice the costs.'
+rationale: As H-0164, at a few days' horizon.
+source:
+  research: '176'
+  written_by: Claude, for the operator's request to keep researching (half intraday, half swing, other
+    data, 1x)
+  day: '2026-11-07'
+configurations:
+- shape: daily_cash
+  rule: as H-0164, held five sessions
+  universe: the 500 most traded NSE stocks by 20-session traded value each day (price panel, research
+    173); stocks in series BE/BZ the previous session skipped (research 174)
+  costs: delivery charges plus 2 bps a side (26.2 bps a round trip); Rs 1 lakh a position, 1x, long only,
+    at most ten open; in at the official open, out at the official close of the exit session
+  window: 2016-01-01 to 2024-11-29
+  data: price_panel.jsonl, delivery.jsonl, nse_reports (bulk_deals), nse_earnings_announcements
+red_flags:
+- Built as the mirror of H-0161 after it passed.
+- 'Daily bars: the official open and close are auction prices standing in for 09:20 and 15:10 fills.'
+- Raw prices; a window with a close ratio outside 0.6-1.6 is dropped as a likely corporate action (A-119).
+- Seventy-three rules were tried before these; the simple gate does not correct for that search.
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -158,6 +158,70 @@ def h0162_positions(
     return od.cap_swings(found)
 
 
+TOW_TOP = 100
+TOW_SIDE = 5
+TOW_DAYS = 20
+
+
+def h0163_trades(
+    panel: Mapping[str, Mapping[date, Bar]],
+    sessions: Sequence[date],
+    liquid_ranked: Mapping[date, list[str]],
+    *,
+    notional: float,
+) -> list[cs.Trade]:
+    """H-0163 (research 175): H-0132's tug of war on daily bars, open to close."""
+    index = {d: i for i, d in enumerate(sessions)}
+    overnight: dict[str, dict[date, float]] = {}
+    for symbol, bars in panel.items():
+        days = sorted(bars)
+        found = {}
+        for a, b in pairwise(days):
+            ratio = bars[b].open / bars[a].close if bars[a].close > 0 else 0.0
+            if index.get(b, 0) - index.get(a, 0) == 1 and SPLIT_LOW <= ratio <= SPLIT_HIGH:
+                found[b] = ratio - 1.0
+        overnight[symbol] = found
+    out: list[cs.Trade] = []
+    for i, day in enumerate(sessions):
+        if day < FIRST_0161 or i < TOW_DAYS:
+            continue
+        before = sessions[i - TOW_DAYS : i]
+        scored = []
+        for symbol in liquid_ranked.get(day, [])[:TOW_TOP]:
+            moves = overnight.get(symbol, {})
+            bar = panel[symbol].get(day)
+            values = [moves[d] for d in before if d in moves]
+            if bar is None or len(values) < 15 or bar.open < cs.MIN_PRICE:
+                continue
+            if not SPLIT_LOW <= bar.close / bar.open <= SPLIT_HIGH:
+                continue
+            scored.append((statistics.fmean(values), symbol, bar))
+        if len(scored) < 20:
+            continue
+        scored.sort(key=lambda x: (x[0], x[1]))
+        for side, chosen in ((1, scored[:TOW_SIDE]), (-1, scored[-TOW_SIDE:])):
+            for _, symbol, bar in chosen:
+                quantity = cs.sized(notional, bar.open)
+                if quantity:
+                    out.append(
+                        cs.Trade(symbol, day, side, quantity, 0, bar.open, 374, bar.close, "close")
+                    )
+    return out
+
+
+def liquid_ranked(panel: Mapping[str, Mapping[date, Bar]]) -> dict[date, list[str]]:
+    """Each day's stocks by mean traded value over their previous 20 sessions, largest first."""
+    ranked: dict[date, list[tuple[float, str]]] = defaultdict(list)
+    for symbol, bars in panel.items():
+        days = sorted(bars)
+        prefix = [0.0]
+        for d in days:
+            prefix.append(prefix[-1] + bars[d].value)
+        for k in range(VALUE_DAYS, len(days)):
+            ranked[days[k]].append((-(prefix[k] - prefix[k - VALUE_DAYS]) / VALUE_DAYS, symbol))
+    return {d: [s for _, s in sorted(r)[:TOP]] for d, r in ranked.items()}
+
+
 class Context:
     def __init__(self) -> None:
         from eulerlab.intraday import nse_reports_screen as rep
@@ -174,12 +238,14 @@ def _window(ctx: Context, first: date) -> list[date]:
     return [d for d in ctx.sessions if first <= d <= END]
 
 
-def _summary(pieces: Sequence[Any], sessions: Sequence[date]) -> dict[str, Any]:
+def _summary(
+    pieces: Sequence[Any], sessions: Sequence[date], capital: float = CAPITAL
+) -> dict[str, Any]:
     net: dict[date, float] = defaultdict(float)
     twice: dict[date, float] = defaultdict(float)
     for p in pieces:
-        net[p.day] += (p.gross - p.costs) / CAPITAL
-        twice[p.day] += (p.gross - 2 * p.costs) / CAPITAL
+        net[p.day] += (p.gross - p.costs) / capital
+        twice[p.day] += (p.gross - 2 * p.costs) / capital
     daily = [net.get(d, 0.0) for d in sessions]
     middle = len(daily) // 2
     years: dict[int, list[float]] = defaultdict(list)
@@ -224,10 +290,43 @@ def evaluate(ctx: Context) -> list[dict[str, Any]]:
     ]
 
 
+def evaluate_h0163(ctx: Context) -> list[dict[str, Any]]:
+    ranked = liquid_ranked(ctx.panel)
+    out = []
+    for label, notional, capital in (("5x MIS", 500_000.0, CAPITAL), ("1x", TRADE, CAPITAL)):
+        trades = h0163_trades(ctx.panel, ctx.sessions, ranked, notional=notional)
+        net = [(t.gross - t.costs) / t.notional * 1e4 for t in trades]
+        legs = {
+            side: round(
+                statistics.fmean(t.gross / t.notional * 1e4 for t in trades if t.direction == d), 2
+            )
+            for side, d in (("long_gross", 1), ("short_gross", -1))
+        }
+        out.append(
+            {
+                "hypothesis": "H-0163",
+                "size": label,
+                "trades": len(trades),
+                "per_trade_bps": {
+                    "gross_mean": round(
+                        statistics.fmean(t.gross / t.notional * 1e4 for t in trades), 2
+                    ),
+                    "net_mean": round(statistics.fmean(net), 2),
+                    **legs,
+                },
+                **_summary(trades, _window(ctx, FIRST_0161), capital),
+            }
+        )
+    return out
+
+
 def validation_run(hypothesis: str) -> IntradayRun:
     from eulerlab.validation.intraday import IntradayRun
 
     ctx = Context()
+    if hypothesis == "H-0163":
+        trades = h0163_trades(ctx.panel, ctx.sessions, liquid_ranked(ctx.panel), notional=500_000.0)
+        return IntradayRun(trades, [], _window(ctx, FIRST_0161), CAPITAL)
     if hypothesis == "H-0161":
         trades = h0161_trades(ctx.panel, ctx.sessions, ctx.liquid, ctx.delivery)
         return IntradayRun(trades, [], _window(ctx, FIRST_0161), CAPITAL)
@@ -240,7 +339,19 @@ def validation_run(hypothesis: str) -> IntradayRun:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="daily-universe")
     parser.add_argument("--output", type=Path, default=OUT)
+    parser.add_argument("--tug-of-war", action="store_true", help="H-0163 only (research 175)")
     args = parser.parse_args()
+    if args.tug_of_war:
+        found = evaluate_h0163(Context())
+        Path("data/derived/tug_of_war_daily_all_nse.json").write_text(json.dumps(found, indent=1))
+        for one in found:
+            print(
+                f"H-0163 {one['size']}: {one['trades']} trades; {one['per_trade_bps']}; net Sharpe "
+                f"{one['net']['sharpe']}; halves {one['halves']['first']['sharpe']} / "
+                f"{one['halves']['second']['sharpe']}; 2x {one['net_at_2x_costs']['sharpe']}; "
+                f"years { {y: round(v['total_return'], 3) for y, v in one['net_by_year'].items()} }"
+            )
+        return 0
     runs = evaluate(Context())
     args.output.write_text(
         json.dumps({"research": "173", "spent_trials": 0, "runs": runs}, indent=1)

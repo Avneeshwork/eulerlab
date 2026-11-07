@@ -1,0 +1,36 @@
+id: H-0168
+title: Fade a 3% opening gap on the morning after results, open to close
+status: draft
+family: stock_intraday_daily_all_nse
+source_kind: paper
+parent: ''
+claim: 'Fade a 3% opening gap on the morning after results, open to close: earns more than costs in both
+  halves of 2021-07-01 to 2024-11-29 and at twice the costs.'
+rationale: 'Liu, Hope and Hu (2023): the intraday session trades against the overnight earnings reaction.
+  H-0040 tested F&O stocks with minute fills (6.5 bps gross, dead).'
+source:
+  research: '176'
+  written_by: Claude, for the operator's request to keep researching (half intraday, half swing, other
+    data, 1x)
+  day: '2026-11-07'
+configurations:
+- shape: daily_cash
+  rule: results disclosed after the previous 15:30 and before 09:15 (nse_earnings_announcements); gap
+    = open / previous close - 1, |gap| >= 3%; trade against the gap from the open to the close; largest
+    gap first
+  universe: the 500 most traded NSE stocks by 20-session traded value each day (price panel, research
+    173); stocks in series BE/BZ the previous session skipped (research 174)
+  costs: cash intraday charges plus 2 bps a side; Rs 1 lakh a position, 1x, at most ten a day; official
+    open to official close
+  window: 2021-07-01 to 2024-11-29
+  data: price_panel.jsonl, delivery.jsonl, nse_reports (bulk_deals), nse_earnings_announcements
+red_flags:
+- 'Daily bars: the official open and close are auction prices standing in for 09:20 and 15:10 fills.'
+- Raw prices; a window with a close ratio outside 0.6-1.6 is dropped as a likely corporate action (A-119).
+- Seventy-three rules were tried before these; the simple gate does not correct for that search.
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -441,3 +441,23 @@ def test_participant_report_is_read_per_category() -> None:
     found = od.parse_participants(text)
     assert od.net_futures(found["Client"]) == 60 and od.net_puts(found["FII"]) == 25
     assert "TOTAL" not in found
+
+
+# --- research 175: tug of war on daily bars ---------------------------------------------------
+
+from eulerlab.intraday import daily_universe_screen as dus  # noqa: E402
+
+
+def test_daily_tug_of_war_shorts_high_overnight_and_buys_low() -> None:
+    days = _weekdays(date(2016, 1, 1), 26)
+    panel: dict[str, dict[date, dus.Bar]] = {}
+    for i in range(20):
+        gap = 1.0 + (i - 10) / 1000.0  # stock i opens (i-10) bps x10 above yesterday's close
+        panel[f"S{i:02d}"] = {d: dus.Bar(100.0 * gap, 100.0, 1e8) for d in days}
+    ranked = {d: sorted(panel) for d in days}
+    trades = dus.h0163_trades(panel, days, ranked, notional=100_000.0)
+    last = [t for t in trades if t.day == days[-1]]
+    shorts = {t.symbol for t in last if t.direction < 0}
+    longs = {t.symbol for t in last if t.direction > 0}
+    assert shorts == {f"S{i:02d}" for i in range(15, 20)}
+    assert longs == {f"S{i:02d}" for i in range(5)}
