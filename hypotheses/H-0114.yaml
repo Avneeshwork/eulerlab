@@ -1,6 +1,6 @@
 id: H-0114
 title: At 14:30, follow the five biggest movers that agree with the Nifty's day, to 15:10
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: paper
 parent: ''
@@ -37,4 +37,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2275 trades (3.12 a day), 7.24 bps gross and -1.23 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -0.249, halves 0.016 / -0.538, drawdown -26% of margin; by year on margin 2021
+  +8%, 2022 +1%, 2023 -19%, 2024 -8% (research 168). Fails the screen; not gated.'

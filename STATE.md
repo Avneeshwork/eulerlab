@@ -27,14 +27,17 @@ what is open is in `TASKS.md`.*
   against 28 idea families, Romano-Wolf over Nifty, stress retention) is kept
   in `mandate.yaml` as `mode: strict`. A strategy that misses that but is
   profitable (PSR >= 0.80) gets **PAPER**: paper trading only (ADR-141).
-  Ledger: 97 entries.
+  Ledger: 103 entries.
 - **Under the simple gate (research 165):** PROMOTE H-0096, H-0098 (F&O
   ban-day short), H-0001, H-0020, H-0021, H-0022, H-0029; PAPER H-0023 to
   H-0028, H-0065, H-0052. All deploy to paper from Live → Deploy (ADR-142).
   Added 2026-11-07: PROMOTE **H-0103**, selling the BankNifty ATM straddle at
   the open on expiry day (net Sharpe 1.79, 6 of 6 years positive, research
   166, ADR-145); no paper book yet, and BankNifty expiries are monthly now
-  (T-4486).
+  (T-4486). PAPER **H-0118** (noon trend-day pullback) and **H-0115** (gap
+  fade after a 15-minute turn): stock scalps at Zerodha 5x MIS size, ₹5 lakh
+  a trade, net Sharpe 0.84 each (research 168, ADR-146); no paper book yet
+  (T-4489). Since 2026-11-07 the operator's scope is NSE cash stocks only.
 - **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to
   2026-10 for these fifteen. 2016-2026: H-0001 Sharpe 1.28-1.55 (drawdown
   -44% to -63%), H-0098 1.72 (drawdown -10%), the other momentum cards
@@ -44,8 +47,8 @@ what is open is in `TASKS.md`.*
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says
   so, or a model (inverse-vol, HRP, min-variance); caps always apply (ADR-122).
-  Intraday (research 153-167): 74 tests of minute-bar rules; two passed
-  (H-0096 and the BankNifty straddle H-0103). Research 166-167 found Nifty
+  Intraday (research 153-168): 84 tests of minute-bar rules; H-0096 and the
+  BankNifty straddle H-0103 PROMOTE, H-0118 and H-0115 PAPER. Research 166-167 found Nifty
   and BankNifty futures rules make 1-6 bps gross against 4.4 bps cost, and
   stock fades after NSE queries have no edge. Before that, one passed:
   H-0096, short on the first F&O ban day (+33 bps net a trade, 2015-2024 daily

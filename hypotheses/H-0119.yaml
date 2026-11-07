@@ -1,6 +1,6 @@
 id: H-0119
 title: Buy a large cap after an idiosyncratic 1.2% five-minute drop, hold 20 minutes
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: paper
 parent: ''
@@ -36,4 +36,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1404 trades (1.93 a day), 5.79 bps gross and -2.68 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -0.275, halves 0.591 / -0.846, drawdown -35% of margin; by year on margin 2021
+  -0%, 2022 +12%, 2023 -8%, 2024 -25% (research 168). Fails the screen; not gated.'

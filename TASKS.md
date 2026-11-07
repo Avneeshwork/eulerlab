@@ -185,10 +185,10 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4481 | H-0065's paper book loads every F&O stock's minute files on each run: 34 minutes in the 2026-11-06 dry run. Cache the overnight moves per stock-day so a run reads only new days | OPEN |
 | T-4482 | Full-history backtests (ADR-143) | DONE 2026-11-06 — reports stored for H-0001, H-0020 to H-0029, H-0052 and H-0098. H-0065 and H-0096 skipped on the operator's instruction (their runs download every needed stock's minute data from B2 and took hours). Both holdout reads were recorded before the skip, so the ledger shows them read though their 2025-26 results were never computed; H-0096's 2021-2024 result is in research 164 |
 
-## Day trades on Indian stocks and indexes (2026-11-07, research 166-167, ADR-145)
+## Day trades on Indian stocks and indexes (2026-11-07, research 166-168, ADR-145, ADR-146)
 
-Operator: "research more on the minute level strategies ... closed at day end. set a goal to find 5 strategies if profitable register in library and generate report"; "we only have to research for indian stocks and indexes"; "keep 1st strategy only and research on stocks trading"; then "build strategies like [MFT/HFT] ... minute level trades and take 5-10 trades a day ... research on such 10 strategies".
-Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `make index-expiry`, `make nse-queries`; read research 166 and 167.
+Operator: "research more on the minute level strategies ... closed at day end. set a goal to find 5 strategies if profitable register in library and generate report"; "we only have to research for indian stocks and indexes"; "keep 1st strategy only and research on stocks trading"; then "build strategies like [MFT/HFT] ... minute level trades and take 5-10 trades a day ... research on such 10 strategies"; "remember no option/ futures only stock scalping on leverage of 4-5x read from zerodha".
+Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `make index-expiry`, `make nse-queries`, `make mft-screen`; read research 166, 167 and 168.
 
 | ID | Task | Status |
 |---|---|---|
@@ -197,7 +197,10 @@ Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `ma
 | T-4485 | Four stock fades after NSE clarification queries (H-0107 to H-0110) | DONE 2026-11-07 — all dead, no gross edge (-35 to +1.4 bps a trade) (research 167) |
 | T-4486 | H-0103 cannot be paper-traded yet: no rule-book generator for options, and BankNifty has only monthly expiries since 2024-11-20. Build a monthly-expiry book, or leave it as a record | OPEN (operator) |
 | T-4487 | Check H-0103's bhavcopy opening fills against minute option prices once FYERS history is fetched (T-4285) | OPEN |
-| T-4488 | Ten MFT-style minute rules, 5-10 trades a day: judge at retail cost only, or also report at member-level (statutory-only) cost, or wait for futures/option minute data | OPEN (operator) |
+| T-4488 | Ten MFT-style stock scalps on 5-minute closes at Zerodha MIS size, ₹5 lakh a trade (operator: stocks only, 4-5x) | DONE 2026-11-07 — H-0118 (noon trend pullback) and H-0115 (gap fade after a 15-minute turn) PAPER (ledger #98-#101); H-0117 KILL (#102, #103); seven fail the screen (research 168, ADR-146) |
+| T-4489 | Paper books for H-0118 and H-0115: `deploy/rule_book.py` generators at ₹5 lakh a trade, ten open, from the holdout end | OPEN (operator: build them?) |
+| T-4490 | Measure slippage on a ₹5 lakh MIS order in the 100 most traded stocks (depth snapshots or the first paper fills): H-0118 dies if it is about 4 bps a side | OPEN |
+| T-4491 | H-0103 is an option strategy; the operator's rule since 2026-11-07 is stocks only. Keep it as a record or mark it out of scope | OPEN (operator) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 

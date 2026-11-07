@@ -219,3 +219,64 @@ def test_a_small_move_is_not_traded_and_in_hours_events_skip_next_session_rules(
     assert (
         q.candidates(q.BY_ID["H-0108"], [q.Event("ABC", "news", days[1], 100)], snaps, days) == []
     )
+
+
+# --- research 168: MFT scalps on 5-minute closes -----------------------------------------
+
+from eulerlab.intraday import mft_screen as mft  # noqa: E402
+
+
+def _path_snap(closes: list[float], last_close: float = 100.0) -> six.Snap:
+    """A snapshot whose checkpoint closes follow `closes`; fills at the close."""
+    n = len(six.CHECKPOINTS)
+    closes = closes + [closes[-1]] * (n - len(closes))
+    return six.Snap(
+        5,
+        closes[0],
+        355,
+        closes[-1],
+        array("d", closes),
+        array("d", closes),
+        array("h", [m + 1 for m in six.CHECKPOINTS]),
+        last_close,
+        1e7,
+        None,
+    )
+
+
+def test_held_exits_after_its_holding_time() -> None:
+    s = _path_snap([100.0] * 10 + [101.0] * 10)
+    sig = mft.held(s, date(2023, 1, 2), "ABC", 1, 15, hold=30)
+    assert sig is not None
+    assert (sig.entry_minute, sig.exit_minute, sig.reason) == (16, 46, "time")
+
+
+def test_held_stops_on_a_close() -> None:
+    s = _path_snap([100.0] * 5 + [98.0] * 20)
+    sig = mft.held(s, date(2023, 1, 2), "ABC", 1, 5, stop=lambda c: c < 99.0)
+    assert sig is not None and sig.reason == "stop" and sig.exit == 98.0
+
+
+def test_book_caps_open_positions_at_ten_and_one_per_stock() -> None:
+    d = date(2023, 1, 2)
+    sigs = [mft.Signal(d, f"S{i}", 1, 5, 6 + i, 100.0, 300, 101.0, "time") for i in range(12)]
+    sigs.append(mft.Signal(d, "S0", 1, 5, 20, 100.0, 300, 101.0, "time"))
+    kept = mft.book(sigs)
+    assert len(kept) == 10 and [s.symbol for s in kept] == [f"S{i}" for i in range(10)]
+
+
+def test_noon_pullback_buys_a_trend_stock_below_its_high() -> None:
+    d0, d1 = _weekdays(date(2023, 1, 2), 2)
+    path = [103.0] * 20 + [104.0] * 10 + [103.3] * 10  # up 3.3%, 0.7% off the high at 12:00
+    mk = mft.Market(
+        snaps={"ABC": {d0: _path_snap([100.0]), d1: _path_snap(path)}},
+        sessions=[d1],
+        nifty={d1: [20_000.0] * 375},
+        nifty_prev={d1: 19_900.0},
+        beta={},
+        liquid={d1: ["ABC"]},
+        industry={},
+        previous={d1: d0},
+    )
+    (sig,) = list(mft.h0118(mk, d1))
+    assert (sig.direction, sig.decided, sig.exit_minute) == (1, 165, 355)

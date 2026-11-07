@@ -1,6 +1,6 @@
 id: H-0116
 title: Follow a 1.5% opening drive that agrees with the Nifty, 09:45 to 11:15
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -36,4 +36,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2226 trades (3.06 a day), -3.24 bps gross and -11.7 net a trade at Rs 5 lakh
+  (cost 8.46), net Sharpe -1.303, halves -1.319 / -1.306, drawdown -79% of margin; by year on margin 2021
+  -20%, 2022 -4%, 2023 -47%, 2024 -44% (research 168). Fails the screen; not gated.'

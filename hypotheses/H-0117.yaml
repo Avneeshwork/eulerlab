@@ -1,6 +1,6 @@
 id: H-0117
 title: Midday break of the morning range in the Nifty's direction, stop at the range middle, to 15:10
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -37,4 +37,8 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 8444 trades (11.6 a day), 10.01 bps gross and 1.54 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe 0.433, halves 0.686 / 0.18, drawdown -63% of margin; by year on margin 2021
+  +11%, 2022 +71%, 2023 -36%, 2024 +7% (research 168). Gate 2026-11-07 (validate #102, gate #103): KILL.
+  Negative at 2x costs (-1.93) and probabilistic Sharpe below the paper bar. Dead: not to be tuned or
+  resubmitted.'

@@ -67,4 +67,40 @@ here: changing the size after seeing the results would be choosing on them.
 
 ## Results
 
-(Added after the runs.)
+Screen 2026-11-07 (`make mft-screen`), then the gate for the three whose
+halves were both net positive. Bps a trade at ₹5 lakh; cost 8.46-8.47 bps a
+trade; Sharpe and drawdown on the ₹10 lakh of margin.
+
+| Card | Trades a day | Gross | Net | Net Sharpe | Halves | Drawdown | Verdict |
+|---|---|---|---|---|---|---|---|
+| H-0111 | 3.01 | -1.26 | -9.73 | -2.25 | -3.744 / -0.74 | -71% | screen fail |
+| H-0112 | 5.7 | -0.37 | -8.84 | -2.421 | -2.617 / -2.21 | -87% | screen fail |
+| H-0113 | 4.47 | 7.5 | -0.96 | -0.202 | -1.798 / 0.316 | -48% | screen fail |
+| H-0114 | 3.12 | 7.24 | -1.23 | -0.249 | 0.016 / -0.538 | -26% | screen fail |
+| H-0115 | 6.02 | 13.3 | 4.84 | 0.84 | 0.343 / 1.326 | -32% | **PAPER** |
+| H-0116 | 3.06 | -3.24 | -11.7 | -1.303 | -1.319 / -1.306 | -79% | screen fail |
+| H-0117 | 11.6 | 10.01 | 1.54 | 0.433 | 0.686 / 0.18 | -63% | KILL |
+| H-0118 | 3.26 | 17.23 | 8.77 | 0.842 | 0.833 / 0.85 | -29% | **PAPER** |
+| H-0119 | 1.93 | 5.79 | -2.68 | -0.275 | 0.591 / -0.846 | -35% | screen fail |
+| H-0120 | 12.16 | 4.66 | -3.81 | -0.866 | -0.496 / -1.221 | -95% | screen fail |
+
+1. **Two PAPER, no PROMOTE.** H-0118 (noon pullback on a trend day) and
+   H-0115 (gap fade after the first 15 minutes turn) are the first stock price
+   rules here to clear costs. Both missed promotion on probabilistic Sharpe
+   (0.921 and 0.928 against 0.95) over 2.9 years; H-0115 also turns negative at
+   2x costs. Under ADR-141 they may be paper-traded, not traded live.
+2. **The size did it.** At ₹1 lakh (12.24 bps) both would be near zero net, from gross less cost
+   (H-0118 +5.0, H-0115 +1.1 bps). At 2x costs H-0118 keeps a Sharpe of 0.03.
+   So the result rests on the 2 bps slippage assumption; H-0118 survives only
+   if real slippage is not much worse.
+3. **Both are against the morning move or with the trend after a pause, and
+   both cut their losses**: H-0115 targets the previous close with a 1% stop;
+   H-0118 enters after a 0.5% pullback.
+4. **The lead-lag and reversal ideas from the MFT literature have no gross edge
+   on NSE 5-minute closes** (H-0111 -1.26, H-0112 -0.37 bps). Industry and
+   late-day momentum make 7-7.5 bps gross, under cost.
+5. H-0117 (midday range break) KILL: negative at 2x costs, below the paper
+   bar's probabilistic Sharpe. Dead.
+6. With ten rules tried and no search correction in simple mode, two
+   survivors at Sharpe 0.84 are consistent with luck. Paper trading is the
+   test that can tell.

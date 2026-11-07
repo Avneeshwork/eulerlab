@@ -37,4 +37,8 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 4385 trades (6.02 a day), 13.3 bps gross and 4.84 net a trade at Rs 5 lakh
+  (cost 8.46), net Sharpe 0.84, halves 0.343 / 1.326, drawdown -32% of margin; by year on margin 2021
+  -9%, 2022 +23%, 2023 +29%, 2024 +53% (research 168). Gate 2026-11-07 (validate #100, gate #101): PAPER.
+  Failed promotion on 2x costs (net Sharpe -0.63) and probabilistic Sharpe 0.928; paper bar passed. Strict-mode
+  figures: deflated Sharpe 0.334, Romano-Wolf fails.'

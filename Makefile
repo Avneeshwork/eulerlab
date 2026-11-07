@@ -679,6 +679,10 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
+# Research 168: ten MFT-style stock scalps on 5-minute closes at Zerodha MIS size (H-0111 to H-0120).
+mft-screen:
+	@uv run python -m eulerlab.intraday.mft_screen
+
 # Research 167: four stock fades after NSE clarification queries (H-0107 to H-0110).
 nse-queries:
 	@uv run python -m eulerlab.intraday.nse_query_screen

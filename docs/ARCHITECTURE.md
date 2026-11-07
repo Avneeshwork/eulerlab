@@ -750,6 +750,18 @@ removed, each half of the sessions, entry five minutes late). With one
 configuration the probability of overfitting has nothing to choose between
 and is 0 over 0 paths.
 
+From 2026-11-07 (ADR-145, ADR-146) the battery reads any trade through the
+`DayTrade` protocol (symbol, day, gross, costs), so `SOURCES` also holds
+index-option straddles (`options/index_expiry_screen.py`, H-0041, H-0103 to
+H-0105), index-futures rules on index minutes (`intraday/index_futures_screen.py`,
+H-0099 to H-0102), the F&O ban exit (H-0106) and the MFT stock scalps
+(`intraday/mft_screen.py`, H-0111 to H-0120). The scalps decide on the
+5-minute closes of research 161's snapshots, fill at the next minute's open,
+trade ₹5 lakh (₹1 lakh of margin at 5x MIS), at most ten open, and return on
+₹10 lakh of margin; their late-entry stress fills five minutes after the
+decision. For a one-underlying straddle, "drop best 5 names" removes
+everything and reads 0% kept.
+
 ## 5.3a The bar from what was searched (ADR-108, research 138)
 
 From 2026-10-31, by operator decision, `N` and `σ_SR` in 5.3 come from the

@@ -1,7 +1,7 @@
 id: H-0113
 title: When an industry's largest stock moves 1% in 15 minutes, trade its slowest peer the same way, hold
   30 minutes
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: paper
 parent: ''
@@ -39,4 +39,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 3255 trades (4.47 a day), 7.5 bps gross and -0.96 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -0.202, halves -1.798 / 0.316, drawdown -48% of margin; by year on margin 2021
+  +11%, 2022 -30%, 2023 -18%, 2024 +23% (research 168). Fails the screen; not gated.'

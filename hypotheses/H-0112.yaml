@@ -1,7 +1,7 @@
 id: H-0112
 title: Every half hour, fade the most extreme 30-minute move against the Nifty among liquid stocks, hold
   30 minutes
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: paper
 parent: ''
@@ -37,4 +37,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 4153 trades (5.7 a day), -0.37 bps gross and -8.84 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -2.421, halves -2.617 / -2.21, drawdown -87% of margin; by year on margin 2021
+  +5%, 2022 -44%, 2023 -54%, 2024 -47% (research 168). Fails the screen; not gated.'

@@ -1,7 +1,7 @@
 id: H-0120
 title: Break of the previous session's high close after 10:00 on a Nifty-up day (low on a down day), to
   15:10
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -38,4 +38,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 8855 trades (12.16 a day), 4.66 bps gross and -3.81 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -0.866, halves -0.496 / -1.221, drawdown -95% of margin; by year on margin 2021
+  -2%, 2022 -34%, 2023 -68%, 2024 -54% (research 168). Fails the screen; not gated.'

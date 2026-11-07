@@ -1,6 +1,6 @@
 id: H-0111
 title: 'Nifty 15-minute burst: trade the two high-beta stocks that lagged it, hold 30 minutes'
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: paper
 parent: ''
@@ -38,4 +38,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2192 trades (3.01 a day), -1.26 bps gross and -9.73 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -2.25, halves -3.744 / -0.74, drawdown -71% of margin; by year on margin 2021
+  -1%, 2022 -53%, 2023 -23%, 2024 -7% (research 168). Fails the screen; not gated.'
