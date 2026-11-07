@@ -412,3 +412,70 @@ def test_engine_reproduces_research_176() -> None:
         assert out["count"] == legacy[h].get("trades", legacy[h].get("positions"))
         assert out["net"] == legacy[h]["net"]
         assert out["halves"] == legacy[h]["halves"]
+
+
+def test_a_pass_reaches_the_inbox_as_a_decision(
+    folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.research import autopilot
+
+    def fake_screen(self: engine.Engine, spec: engine.RuleSpec) -> dict[str, Any]:
+        return {
+            "clean": True,
+            "passes_screen": True,
+            "kind": spec.kind,
+            "rule": spec.describe(),
+            "count": 500,
+            "first": "2016-01-01",
+            "per_bps": {"net_mean": 10.0},
+            "net": {"sharpe": 1.0},
+            "halves": {"first": {"sharpe": 1.0}, "second": {"sharpe": 1.0}},
+            "net_at_2x_costs": {"sharpe": 0.5},
+            "checks": [],
+        }
+
+    monkeypatch.setattr(engine.Engine, "screen", fake_screen)
+    monkeypatch.setattr(autopilot, "same_bet", lambda *a: None)
+    monkeypatch.setattr(autopilot, "peers", lambda *a: {})
+    monkeypatch.setattr(
+        autopilot, "gate_one", lambda h, d: {"hypothesis": h, "verdict": "PROMOTE", "entries": 2}
+    )
+    monkeypatch.setattr(autopilot, "keep", lambda h: {"report": "stored", "paper": "paper book x"})
+    monkeypatch.setattr("eulerlab.agents.runtime.outputs", lambda *a, **k: [])
+    ctx = _Ctx(folder / "agents", _answer())
+    result = autopilot.pipeline(ctx, run_git=lambda a: (0, ""), data=_gappy())  # type: ignore[arg-type]
+    decisions = [i for i in result.items if i.needs_approval]
+    assert [i.title.split()[0] for i in decisions] == ["H-0174", "H-0175"]
+
+
+def test_correlation_of_identical_and_opposite_returns() -> None:
+    from eulerlab.research import autopilot
+
+    days = _sessions(80)
+    a = {d: float(i % 5 - 2) for i, d in enumerate(days)}
+    assert autopilot.correlation(a, a) == pytest.approx(1.0)
+    assert autopilot.correlation(a, {d: -v for d, v in a.items()}) == pytest.approx(-1.0)
+    assert autopilot.correlation(a, dict(list(a.items())[:10])) is None
+
+
+def test_a_rule_that_moves_with_a_pass_is_not_gated() -> None:
+    from eulerlab.research import autopilot
+
+    data = _gappy()
+    eng = engine.Engine(data)
+    spec = engine.RuleSpec.model_validate(GAP_FADE)
+    screen = eng.screen(spec)
+    screen["clean"] = True
+    returns = engine.daily(eng.pieces(spec), eng.window(spec))
+    screens = {"H-0999": screen}
+    import eulerlab.intraday.rule_engine as re_mod
+
+    original = re_mod.card_spec
+    re_mod.card_spec = lambda h, root=None: spec  # type: ignore[assignment]
+    try:
+        autopilot.same_bet(eng, screens, {"H-0161": returns})
+    finally:
+        re_mod.card_spec = original
+    check = screens["H-0999"]["checks"][-1]
+    assert check["check"] == "a new bet" and check["flag"] and check["with"] == "H-0161"
+    assert not screens["H-0999"]["clean"]

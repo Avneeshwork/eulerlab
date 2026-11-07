@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighty-four times this project was wrong
+## Eighty-five times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -465,6 +465,8 @@ figure produced outside the result store before this date was frictionless.
 **83. A gated strategy had no report to open.** (2026-11-07) The operator could not see H-0161's and H-0162's results in the library: `make validate` and `make gate` write an evidence pack and ledger entries but no stored result, and only `make full-history` (ADR-143) stored reports, for fifteen named cards. Every research 166-173 PROMOTE and PAPER showed a verdict with nothing behind it. `make library-reports` now stores each one's research-window run and report. No numbers invalidated.
 
 **84. H-0168 was gated on a rule that skipped most results.** (2026-11-07) `daily_more_screen._results_mornings` was meant to find results disclosed after the previous 15:30 and before 09:15. It skipped any disclosure on a session day at or after 09:15, which threw away every evening disclosure, the common case, and kept only pre-open and holiday ones. H-0168 was screened and gated PROMOTE on that (176 trades, +90.21 bps net; ledger #122, #123). Found while writing its test. Fixed and re-run: 1,077 trades, +48.09 bps net, Sharpe 1.91, PROMOTE again (ledger #124, #125). Numbers invalidated: H-0168's first screen and gate; H-0172's "no events" was re-checked and holds.
+
+**85. The autopilot's first three passes were one bet, already held.** (2026-11-08) The first nightly batch (research 177) gated H-0174, H-0175 and H-0178 PROMOTE (ledger entries for each: validate, then gate). Each shorts a stock that rose on thin delivery, as H-0161 does. Their daily returns correlate 0.63 (H-0174) and 0.73 (H-0178) with H-0161's, and 0.47-0.73 with each other. The engine's bias checks looked at each rule alone, and the repeat check matched only identical specs. So "three new strategies" was one strategy counted four times. Fixed: a "new bet" check (`research/autopilot.same_bet`, A-122) now flags a clean rule whose daily returns correlate 0.5 or more with any pass, or with a better rule from the same night, and it is not gated. Under it, H-0174 and H-0178 would not have been gated; H-0175 (correlation 0.39 with H-0161) would. The verdicts stand in the ledger. The two duplicate paper books were stopped, and the cards say why.
 
 ---
 

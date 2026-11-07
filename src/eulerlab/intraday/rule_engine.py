@@ -627,6 +627,15 @@ class Engine:
         return out
 
 
+def daily(pieces: Sequence[Any], window: Sequence[date]) -> dict[date, float]:
+    """Net return on the screen's capital for each session of `window` (0 with no trade)."""
+    out = dict.fromkeys(window, 0.0)
+    for p in pieces:
+        if p.day in out:
+            out[p.day] += (p.gross - p.costs) / dm.CAPITAL
+    return out
+
+
 # --- bias checks ------------------------------------------------------------------------
 
 

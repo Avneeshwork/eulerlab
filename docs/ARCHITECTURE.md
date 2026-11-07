@@ -801,6 +801,8 @@ end only) take an engine card with no new code.
       -> parse; drop repeats by fingerprint (every engine card and research 176's ten)
       -> hypotheses/H-NNNN.yaml, committed alone: the pre-registration
       -> one screen pass (no trial) -> bias checks
+      -> "a new bet": daily returns correlating 0.5 or more with any pass (H-0161,
+         H-0162, H-0168, the autopilot's own) or a better rule that night -> not gated
       -> clean survivors, and older ones waiting: validate + gate while the week's
          allowance of ledger entries lasts (gate_entries_per_week, 10)
       -> PROMOTE or PAPER: library report + paper deployment

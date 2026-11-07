@@ -163,12 +163,100 @@ def keep(hypothesis: str) -> dict[str, str]:
     return done
 
 
+# --- one bet or a new one -------------------------------------------------------------
+
+SAME_BET = 0.5
+"""Correlation of daily net returns at which a rule is called the same bet as a pass.
+ASSUMPTION: A-122 — chosen by hand on 2026-11-08, after the first batch's three
+passes all moved with H-0161."""
+
+
+def correlation(a: dict[date, float], b: dict[date, float]) -> float | None:
+    days = sorted(set(a) & set(b))
+    if len(days) < 60:
+        return None
+    x, y = [a[d] for d in days], [b[d] for d in days]
+    mx, my = sum(x) / len(x), sum(y) / len(y)
+    sx = sum((v - mx) ** 2 for v in x) ** 0.5
+    sy = sum((v - my) ** 2 for v in y) ** 0.5
+    if not sx or not sy:
+        return None
+    return float(sum((p - mx) * (q - my) for p, q in zip(x, y, strict=True)) / (sx * sy))
+
+
+def peers(engine: rule_engine.Engine, root: Path) -> dict[str, dict[date, float]]:
+    """Daily net returns of every daily-bar stock rule that passed the gate.
+
+    H-0161 and H-0162 are research 173's own code; H-0168 and every engine card the
+    autopilot gated PROMOTE or PAPER run through the engine.
+    """
+    from eulerlab.intraday import daily_universe_screen as du
+
+    data = engine.data
+    out: dict[str, dict[date, float]] = {}
+    window = [d for d in data.sessions if rule_engine.FIRST <= d <= data.end]
+    out["H-0161"] = rule_engine.daily(
+        du.h0161_trades(data.panel, data.sessions, data.liquid, data.delivery), window
+    )
+    swings = du.h0162_positions(data.panel, data.sessions, data.liquid, data.promoters)
+    out["H-0162"] = rule_engine.daily([p for s in swings for p in s.pieces()], window)
+    passed = {"H-0168"}
+    path = gate_log(root)
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            row = json.loads(line)
+            if row.get("verdict") in ("PROMOTE", "PAPER"):
+                passed.add(row["hypothesis"])
+    for h in sorted(passed):
+        spec = rule_engine.card_spec(h) or rule_engine.reference_specs().get(h)
+        if spec is not None:
+            out[h] = rule_engine.daily(engine.pieces(spec), engine.window(spec))
+    return out
+
+
+def same_bet(
+    engine: rule_engine.Engine,
+    screens: dict[str, dict[str, Any]],
+    known: dict[str, dict[date, float]],
+) -> None:
+    """Flag each clean rule that moves with a pass, or with a better clean rule tonight."""
+    taken = dict(known)
+    order = sorted(
+        (h for h, s in screens.items() if s["clean"]),
+        key=lambda h: -(screens[h]["net"]["sharpe"] or 0.0),
+    )
+    for h in order:
+        spec = rule_engine.card_spec(h)
+        assert spec is not None
+        mine = rule_engine.daily(engine.pieces(spec), engine.window(spec))
+        found = [(c, p) for p, r in taken.items() if (c := correlation(mine, r)) is not None]
+        worst = max(found, default=(None, ""))
+        flag = worst[0] is not None and worst[0] >= SAME_BET
+        screens[h]["checks"].append(
+            {
+                "check": "a new bet",
+                "value": round(worst[0], 3) if worst[0] is not None else None,
+                "with": worst[1],
+                "flag": flag,
+                "why": f"daily returns correlate {SAME_BET} or more with a pass",
+            }
+        )
+        if flag:
+            screens[h]["clean"] = False
+        else:
+            taken[h] = mine
+
+
 # --- the write-up ------------------------------------------------------------------------
 
 
 def result_line(screen: dict[str, Any], gate: dict[str, Any] | None, day: date) -> str:
     per = screen["per_bps"]
-    flags = [c["check"] for c in screen["checks"] if c["flag"]]
+    flags = [
+        c["check"] + (f" (moves with {c['with']}, {c['value']})" if c.get("with") else "")
+        for c in screen["checks"]
+        if c["flag"]
+    ]
     text = (
         f"Autopilot screen {day.isoformat()}: {screen['count']} "
         f"{'trades' if screen['kind'] == 'intraday' else 'positions'} "
@@ -228,7 +316,14 @@ def note(
         if s is None:
             lines.append(f"| {h} | {c['kind']} | {c['rule']} | | | | | | | not screened |")
             continue
-        flags = ", ".join(x["check"] for x in s["checks"] if x["flag"]) or "none"
+        flags = (
+            ", ".join(
+                x["check"] + (f" ({x['with']} {x['value']})" if x.get("with") else "")
+                for x in s["checks"]
+                if x["flag"]
+            )
+            or "none"
+        )
         verdict = (
             gates[h]["verdict"]
             if h in gates
@@ -309,6 +404,9 @@ def pipeline(
             assert spec is not None
             ctx.step(f"Screening {c['id']}: {c['rule'][:150]}")
             screens[c["id"]] = engine.screen(spec)
+        if any(s["clean"] for s in screens.values()):
+            ctx.step("Checking each clean rule against the bets already passed")
+            same_bet(engine, screens, peers(engine, ctx.root))
     survivors = [h for h in ids if screens[h]["clean"]]
 
     allowance = int(ctx.options.get("gate_entries_per_week", DEFAULT_ENTRIES_PER_WEEK))
@@ -393,7 +491,7 @@ def _items(
                 title=f"{h} {gates[h]['verdict']}: paper book and library report"[:200],
                 body=f"{screens.get(h, {}).get('rule', '')}\n{v.get('report')}; {v.get('paper')}. "
                 "Live money stays your decision.",
-                severity="warning",
+                severity="warn",
                 needs_approval=True,
                 ref=f"hypotheses/{h}.yaml",
             )

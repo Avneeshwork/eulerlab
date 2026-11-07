@@ -101,7 +101,10 @@ what is open is in `TASKS.md`.*
   bias checks. It gates clean survivors within 10 ledger entries a week, and
   stores a report and starts a paper book for each pass. It writes one
   research note. `intraday/rule_engine.py` reproduces research 176 exactly.
-  Run it alone: `make agents-autopilot`.
+  Run it alone: `make agents-autopilot`. First batch (research 177): H-0174,
+  H-0175, H-0178 PROMOTE, but H-0174 and H-0178 are H-0161's bet again
+  (HISTORY #85; their paper books stopped); H-0175 paper-trades. A "new bet"
+  check now keeps such repeats from the gate.
 - **AI agents.** Eight agents on one runtime with budgets, an inbox and a
   hash-chained log; none can reach the order path, gate or ledger. The market
   brief runs before the open, after the close and on closed days; it tells
