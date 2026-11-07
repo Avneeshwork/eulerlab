@@ -1,9 +1,11 @@
 name: ci
 
+# CI runs once per push to main, or by hand (ADR-144). Branch pushes and
+# pull requests do not run it: `make verify` is run locally before every push.
 on:
   push:
-    branches: ["**"]
-  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
 
 jobs:
   verify:
