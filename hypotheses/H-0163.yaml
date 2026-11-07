@@ -1,0 +1,37 @@
+id: H-0163
+title: 'Tug of war on daily bars, every liquid NSE stock: short the five with the highest 20-session mean
+  overnight return, long the five lowest, open to close'
+status: draft
+family: intraday_stock_quant
+source_kind: paper
+parent: H-0132
+claim: H-0132's rule on daily bars over 2016-2024 and the 100 most traded NSE stocks each day earns more
+  than costs at Rs 5 lakh a position in both halves and at twice the costs.
+rationale: 'Lou, Polk and Skouras (2019). H-0132 PROMOTE on 2021-2024 minute bars of today''s F&O stocks,
+  but fell to +0.6 bps net on stocks in F&O at the time (research 173). Daily bars give nine years and
+  a universe free of today''s lists. Operator, 2026-11-07: ''can we backtest this for 10 years''.'
+source:
+  research: '175'
+  written_by: Claude, for the operator's request to backtest H-0132 over ten years
+  day: '2026-11-07'
+configurations:
+- shape: daily_cash
+  rule: 'overnight return = official open / previous official close - 1; score = mean over the previous
+    20 sessions; each day among the 100 most traded NSE stocks by 20-session traded value: short the five
+    highest, buy the five lowest at the official open, close at the official close'
+  data: data/derived/price_panel.jsonl (every NSE EQ stock, 2015 on)
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a position (Rs 1 lakh margin at 5x MIS, as
+    H-0132), ten open on Rs 10 lakh; the 1x cost (Rs 1 lakh a position) also reported
+  window: 2016-01-01 to 2024-11-29
+red_flags:
+- A daily-bar relative of H-0132, written after it passed and after the survivorship check cut it.
+- The official open is the pre-open auction price, not the 09:20 price H-0132 used; the close is the auction
+  an MIS position cannot reach.
+- 'Raw prices: a window with a close ratio outside 0.6-1.6 is dropped as a likely corporate action (A-119).'
+- 'Ten years means 2016-2024 here: 2024-12 onward is the holdout, which needs the operator''s read.'
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
