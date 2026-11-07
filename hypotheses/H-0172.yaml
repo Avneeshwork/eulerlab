@@ -1,7 +1,7 @@
 id: H-0172
 title: Buy the session after a results-morning gap up of 3% on 1.5 times the usual delivery, hold twenty
   sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: no events. On results reaction days the delivery percentage falls (volume
+  rises faster than delivery), so a 1.5x delivery ratio never occurred with a 3% gap up and an up close
+  (0 of 99 such days; research 176). Dead by construction.'

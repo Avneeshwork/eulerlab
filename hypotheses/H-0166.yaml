@@ -1,6 +1,6 @@
 id: H-0166
 title: Buy at the open the day after one-sided bulk-deal buying, sell at the close
-status: draft
+status: rejected
 family: stock_intraday_daily_all_nse
 source_kind: paper
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 337 trades, {''gross_mean'': -27.17, ''net_mean'': -39.41} bps; net Sharpe
+  -1.039, halves -1.573 / -0.586, at 2x costs -1.352; by year 2021 -6%, 2022 -2%, 2023 -1%, 2024 -5% (research
+  176). Fails research 170''s screen; not gated.'

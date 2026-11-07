@@ -683,6 +683,10 @@ index-expiry:
 library-reports:
 	@uv run python -m eulerlab.research.library_reports $(if $(H),--only $(H),)
 
+# Research 176: ten more rules on every liquid NSE stock, daily bars (H-0164 to H-0173).
+daily-more:
+	@uv run python -m eulerlab.intraday.daily_more_screen
+
 # Research 174: which stocks were trade-for-trade each day, from the cash bhavcopies.
 trade-for-trade:
 	@uv run python -m eulerlab.ingest.trade_for_trade

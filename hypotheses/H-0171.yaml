@@ -1,6 +1,6 @@
 id: H-0171
 title: Buy at the open the day after a 3% fall on half the usual delivery and hold five sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -31,4 +31,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1350 positions, {''net_mean'': -132.21} bps; net Sharpe -1.217, halves -1.757
+  / -0.416, at 2x costs -1.455; by year 2016 -40%, 2017 +5%, 2018 -28%, 2019 -38%, 2020 -34%, 2021 +7%,
+  2022 -20%, 2023 -2%, 2024 -5% (research 176). Fails research 170''s screen; not gated.'

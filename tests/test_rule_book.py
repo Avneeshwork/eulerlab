@@ -282,3 +282,54 @@ def test_library_reports_curve_adds_each_days_net_pnl() -> None:
     run = SimpleNamespace(trades=[trade], sessions=[d0, d1], capital=1000.0)
     days, equity = lr.curve(run)
     assert days == [d0, d1] and equity == [1000.0, 1400.0]
+
+
+# --- H-0168 and H-0162 paper books (ADR-149) ---------------------------------------------
+
+
+def test_h0168_fades_a_results_gap_and_skips_a_watched_short() -> None:
+    from datetime import datetime, time
+
+    from eulerlab.deploy import daily_books as books
+    from eulerlab.intraday import daily_universe_screen as du
+
+    panel, days = _panel_for_fade(["AAA", "BBB"])
+    p, today = days[-2], days[-1]
+    panel["AAA"][today] = du.Bar(108.0, 106.0, 1e8)  # +3.8% gap over 104
+    panel["BBB"][today] = du.Bar(108.0, 106.0, 1e8)
+    from zoneinfo import ZoneInfo
+
+    ist = ZoneInfo("Asia/Kolkata")
+    results = {s: [datetime.combine(p, time(18, 0), tzinfo=ist)] for s in ("AAA", "BBB")}
+    mornings = books.results_mornings(days, results)
+    assert (today, "AAA") in mornings
+    found, _ = books.gap_fade_trades(
+        panel, mornings, {p: frozenset()}, {p: frozenset({"BBB"})}, start=today, capital=1e6
+    )
+    assert [(t["symbol"], t["direction"], t["entry"], t["exit"]) for t in found] == [
+        ("AAA", -1, 108.0, 106.0)
+    ]
+
+
+def test_h0162_books_a_closed_twenty_session_hold_on_its_exit_day() -> None:
+    from eulerlab.deploy import daily_books as books
+    from eulerlab.intraday import daily_universe_screen as du
+
+    days: list[date] = []
+    d = date(2026, 9, 1)
+    while len(days) < 45:
+        if d.weekday() < 5:
+            days.append(d)
+        d += timedelta(days=1)
+    panel = {"AAA": {x: du.Bar(100.0, 101.0, 1e8) for x in days}}
+    entry = days[21]  # the liquidity ranking needs 20 sessions first
+    found, _ = books.promoter_trades(
+        panel, {"AAA": {entry: 1.0}}, start=days[0], through=days[-1], capital=1e6
+    )
+    (t,) = found
+    assert t["day"] == days[21 + books.HOLD] and t["entry_day"] == entry
+    assert t["segment"] == "delivery" and t["direction"] == 1
+    still_open, _ = books.promoter_trades(
+        panel, {"AAA": {days[30]: 1.0}}, start=days[0], through=days[-1], capital=1e6
+    )
+    assert still_open == []

@@ -1,6 +1,6 @@
 id: H-0167
 title: Short at the open the day after one-sided bulk-deal selling, cover at the close
-status: draft
+status: rejected
 family: stock_intraday_daily_all_nse
 source_kind: paper
 parent: ''
@@ -31,4 +31,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 705 trades, {''gross_mean'': 16.72, ''net_mean'': 4.47} bps; net Sharpe 0.185,
+  halves -0.59 / 0.788, at 2x costs -0.329; by year 2021 +3%, 2022 -6%, 2023 +4%, 2024 +2% (research 176).
+  Fails research 170''s screen; not gated.'

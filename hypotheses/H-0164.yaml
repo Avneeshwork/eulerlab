@@ -1,6 +1,6 @@
 id: H-0164
 title: Buy at the open the day after a 3% fall on half the usual delivery, sell at the close
-status: draft
+status: rejected
 family: stock_intraday_daily_all_nse
 source_kind: paper
 parent: ''
@@ -33,4 +33,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1547 trades, {''gross_mean'': -30.87, ''net_mean'': -43.12} bps; net Sharpe
+  -1.08, halves -1.218 / -0.941, at 2x costs -1.383; by year 2016 -18%, 2017 +4%, 2018 -4%, 2019 -15%,
+  2020 -10%, 2021 +2%, 2022 -1%, 2023 -10%, 2024 -12% (research 176). Fails research 170''s screen; not
+  gated.'

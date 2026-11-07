@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighty-three times this project was wrong
+## Eighty-four times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -463,6 +463,8 @@ figure produced outside the result store before this date was frictionless.
 **82. The intraday stock screens choose from today's F&O list.** (2026-11-07) `cross_section.universe()` lists stocks with Kite minute files, which are today's F&O stocks, and every stock screen from research 112 to 172 draws from it. Stocks that joined F&O later (often after a large rise) are in the 2021-2024 tests; stocks that left are not. Checked on the two research-172 PROMOTEs by keeping only stocks in F&O on the trade date (`stock_fo_daily.jsonl`): H-0160's net edge falls from +44.1 to +8.6 bps a trade (183 of 416 trades) and H-0153's from +331 to +153 bps a position (90 of 181). Measured the same day on all eight research 168-172 stock survivors (research 173): on stocks in F&O at the time, H-0132 falls from +8.9 to +0.6 bps net, H-0146 from +15.3 to +3.2, the four PAPER scalps to -3.2 to +6.0, and none survives 2x costs. On every liquid NSE stock, daily bars, H-0160's and H-0153's rules hold (H-0161, H-0162: PROMOTE): the effect is in small stocks, not only hindsight. Results invalidated: the minute-bar PROMOTEs H-0132 and H-0146 and the four PAPER scalps are unproven until tested on a survivorship-free universe.
 
 **83. A gated strategy had no report to open.** (2026-11-07) The operator could not see H-0161's and H-0162's results in the library: `make validate` and `make gate` write an evidence pack and ledger entries but no stored result, and only `make full-history` (ADR-143) stored reports, for fifteen named cards. Every research 166-173 PROMOTE and PAPER showed a verdict with nothing behind it. `make library-reports` now stores each one's research-window run and report. No numbers invalidated.
+
+**84. H-0168 was gated on a rule that skipped most results.** (2026-11-07) `daily_more_screen._results_mornings` was meant to find results disclosed after the previous 15:30 and before 09:15. It skipped any disclosure on a session day at or after 09:15, which threw away every evening disclosure, the common case, and kept only pre-open and holiday ones. H-0168 was screened and gated PROMOTE on that (176 trades, +90.21 bps net; ledger #122, #123). Found while writing its test. Fixed and re-run: 1,077 trades, +48.09 bps net, Sharpe 1.91, PROMOTE again (ledger #124, #125). Numbers invalidated: H-0168's first screen and gate; H-0172's "no events" was re-checked and holds.
 
 ---
 

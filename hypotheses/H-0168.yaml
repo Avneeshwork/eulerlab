@@ -33,4 +33,10 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07 (corrected code, HISTORY #84): 1,077 trades 2021-07 to 2024-11, 60.36 bps gross
+  and +48.09 net a trade; net Sharpe 1.91, halves 0.73 / 2.80, 1.44 at 2x costs, 0.95 at 3x; every year
+  positive (2021 +6%, 2022 +3%, 2023 +8%, 2024 +41%); drawdown -4.5% (research 176). Gate (validate #124,
+  gate #125): PROMOTE, 9 of 9 (PSR 1.000). Strict-mode figures: deflated Sharpe 0.844, Romano-Wolf fails
+  (0.20 vs 1.82); best five names removed keeps 78%. Superseded: the first screen and gate (validate #122,
+  gate #123: PROMOTE on 176 trades, +90.21 bps net) ran code that skipped every results disclosure made
+  after the close.'

@@ -1,6 +1,6 @@
 id: H-0169
 title: Buy at the open the day after one-sided bulk-deal buying and hold ten sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -30,4 +30,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 291 positions, {''net_mean'': -60.02} bps; net Sharpe -0.41, halves -0.934
+  / -0.045, at 2x costs -0.588; by year 2021 -8%, 2022 -3%, 2023 +10%, 2024 -17% (research 176). Fails
+  research 170''s screen; not gated.'

@@ -307,7 +307,14 @@ def replay(
             if view is None or oms.state(coid) is not OrderState.FILLED:
                 return {"halt": f"order {coid} is {oms.state(coid)}, not filled"}
             filled = float(view.average_price)
-            charge = ip.stock_cost(filled, quantity, side, day)
+            # A delivery (CNC) position, e.g. H-0162's 20-day hold, pays delivery
+            # charges; everything else here is intraday (ADR-149).
+            if trade.get("segment") == "delivery":
+                from eulerlab.intraday import other_data_screen as od
+
+                charge = od.delivery_fee(filled, quantity, side, day)
+            else:
+                charge = ip.stock_cost(filled, quantity, side, day)
             costs += charge
             by_day[day] += (-filled if side is Side.BUY else filled) * quantity - charge
             fills.append(

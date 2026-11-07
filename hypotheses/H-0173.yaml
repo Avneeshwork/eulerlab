@@ -1,6 +1,6 @@
 id: H-0173
 title: Buy a stock closing at a new 250-session high on twice the usual delivery, hold twenty sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -31,4 +31,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 101 positions, {''net_mean'': -33.49} bps; net Sharpe -0.068, halves 0.43
+  / -0.608, at 2x costs -0.123; by year 2016 +13%, 2017 +9%, 2018 -6%, 2019 -1%, 2020 -1%, 2021 -7%, 2022
+  -6%, 2023 -1%, 2024 -2% (research 176). Fails research 170''s screen; not gated.'

@@ -461,3 +461,27 @@ def test_daily_tug_of_war_shorts_high_overnight_and_buys_low() -> None:
     longs = {t.symbol for t in last if t.direction > 0}
     assert shorts == {f"S{i:02d}" for i in range(15, 20)}
     assert longs == {f"S{i:02d}" for i in range(5)}
+
+
+# --- research 176 -----------------------------------------------------------------------------
+
+from datetime import time as clock  # noqa: E402
+
+from eulerlab.intraday import daily_more_screen as dms  # noqa: E402
+
+
+def test_results_mornings_are_disclosed_between_the_close_and_the_open() -> None:
+    days = _weekdays(date(2023, 1, 2), 3)
+
+    from types import SimpleNamespace
+
+    ctx = SimpleNamespace(
+        sessions=days,
+        results={
+            "AAA": [datetime.combine(days[0], clock(18, 0), tzinfo=onex.IST)],  # evening
+            "BBB": [datetime.combine(days[1], clock(11, 0), tzinfo=onex.IST)],  # in hours
+            "CCC": [datetime.combine(days[2], clock(8, 0), tzinfo=onex.IST)],  # pre-open
+        },
+    )
+    found = dms._results_mornings(ctx)  # type: ignore[arg-type]
+    assert found == [(days[1], "AAA"), (days[2], "CCC")]

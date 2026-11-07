@@ -295,8 +295,26 @@ def _h0161(
     return delivery_fade_book.h0161(start=start, through=through, since=since, capital=capital)
 
 
+def _h0168(
+    *, start: date, through: date, since: date, capital: float
+) -> tuple[list[Trade], list[date]]:
+    from eulerlab.deploy import daily_books
+
+    return daily_books.h0168(start=start, through=through, since=since, capital=capital)
+
+
+def _h0162(
+    *, start: date, through: date, since: date, capital: float
+) -> tuple[list[Trade], list[date]]:
+    from eulerlab.deploy import daily_books
+
+    return daily_books.h0162(start=start, through=through, since=since, capital=capital)
+
+
 RULES: dict[str, Generator] = {
     "H-0161": _h0161,
+    "H-0168": _h0168,
+    "H-0162": _h0162,
     "H-0052": h0052,
     "H-0065": h0065,
     "H-0096": h0096,
@@ -305,6 +323,10 @@ RULES: dict[str, Generator] = {
 }
 
 VARIANT = {
+    "H-0168": "variant: covers at the official close, which an MIS position cannot reach; "
+    "shorts skip the previous evening's ASM, GSM and trade-for-trade lists (ADR-149)",
+    "H-0162": "a 20-session delivery hold, booked on its exit day: open positions are not "
+    "shown until they close (ADR-149)",
     "H-0161": "variant: covers at the official close, which an MIS short cannot reach "
     "(the broker squares off from 15:12); shorts only stocks off the previous evening's "
     "ASM, GSM and trade-for-trade lists (ADR-148)",

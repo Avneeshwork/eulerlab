@@ -1,6 +1,6 @@
 id: H-0170
 title: Buy at the open the day after a 3% rise on twice the usual delivery and hold ten sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -30,4 +30,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 339 positions, {''net_mean'': 25.4} bps; net Sharpe 0.12, halves 0.973 / -1.111,
+  at 2x costs 0.0; by year 2016 +6%, 2017 +8%, 2018 -2%, 2019 +22%, 2020 +10%, 2021 -13%, 2022 -7%, 2023
+  -14%, 2024 +0% (research 176). Fails research 170''s screen; not gated.'
