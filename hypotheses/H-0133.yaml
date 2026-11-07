@@ -1,0 +1,40 @@
+id: H-0133
+title: 'One-day residual reversal: long yesterday''s five largest residual losers, short the five largest
+  winners, 09:20 to 15:10'
+status: draft
+family: intraday_stock_quant
+source_kind: paper
+parent: ''
+claim: 'One-day residual reversal: long yesterday''s five largest residual losers, short the five largest
+  winners, 09:20 to 15:10: earns more than costs at Rs 5 lakh a position in both halves of the window
+  and at twice the costs.'
+rationale: 'Lehmann (1990, QJE) and Jegadeesh (1990, JF) short-term reversal; Da, Liu and Schaumburg (2014,
+  MS): the reversal is in the residual.'
+source:
+  research: '170'
+  written_by: Claude, for the operator's request for ten better-quality quant strategies after research
+    169
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: score = yesterday's close-to-close return - beta x Nifty's; rank the 100 most traded F&O stocks
+    (20-session traded value) at 09:20; long the five lowest, short the five highest; from the open after
+    the 09:20 close to 15:10
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes, next-minute fills, daily
+    traded value); Nifty 50 daily closes for beta; today's NSE industry (A-112)
+  timeframe: 09:20 decision on 5-minute snapshots
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a position (Rs 1 lakh margin at Zerodha's
+    5x MIS); five long and five short, ten open on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15 (H-0138 from 2022-09-01, when 250 sessions of history exist)
+red_flags:
+- 'Stricter screen fixed in advance (research 170): gated only if net positive in both halves AND at 2x
+  costs.'
+- Thirty scalps were tried before these; the simple gate does not correct for that search.
+- The papers tested daily or monthly holding on US or Chinese stocks; this is a same-day version on NSE
+  F&O stocks.
+- Fills on 5-minute snapshots; 2 bps a side of slippage assumed (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

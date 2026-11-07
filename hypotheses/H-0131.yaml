@@ -1,0 +1,41 @@
+id: H-0131
+title: 'Overnight gap reversal: long the five largest residual gaps down, short the five largest up, 09:20
+  to 15:10'
+status: draft
+family: intraday_stock_quant
+source_kind: paper
+parent: ''
+claim: 'Overnight gap reversal: long the five largest residual gaps down, short the five largest up, 09:20
+  to 15:10: earns more than costs at Rs 5 lakh a position in both halves of the window and at twice the
+  costs.'
+rationale: 'Berkman, Koch, Tuttle and Zhang (2012, JFQA), ''Paying attention: overnight returns and the
+  hidden cost of buying at the open'': stocks bid up overnight by attention-driven buyers reverse in the
+  day.'
+source:
+  research: '170'
+  written_by: Claude, for the operator's request for ten better-quality quant strategies after research
+    169
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: score = 09:20 close / previous last close - 1 - beta x Nifty's same gap (60-session beta); rank
+    the 100 most traded F&O stocks (20-session traded value) at 09:20; long the five lowest, short the
+    five highest; from the open after the 09:20 close to 15:10
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes, next-minute fills, daily
+    traded value); Nifty 50 daily closes for beta; today's NSE industry (A-112)
+  timeframe: 09:20 decision on 5-minute snapshots
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a position (Rs 1 lakh margin at Zerodha's
+    5x MIS); five long and five short, ten open on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15 (H-0138 from 2022-09-01, when 250 sessions of history exist)
+red_flags:
+- 'Stricter screen fixed in advance (research 170): gated only if net positive in both halves AND at 2x
+  costs.'
+- Thirty scalps were tried before these; the simple gate does not correct for that search.
+- The papers tested daily or monthly holding on US or Chinese stocks; this is a same-day version on NSE
+  F&O stocks.
+- Fills on 5-minute snapshots; 2 bps a side of slippage assumed (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

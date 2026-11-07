@@ -1,0 +1,41 @@
+id: H-0132
+title: 'Tug of war at MIS size: short the five stocks with the highest 20-session mean overnight return,
+  long the five lowest, 09:20 to 15:10'
+status: draft
+family: intraday_stock_quant
+source_kind: paper
+parent: H-0065
+claim: 'Tug of war at MIS size: short the five stocks with the highest 20-session mean overnight return,
+  long the five lowest, 09:20 to 15:10: earns more than costs at Rs 5 lakh a position in both halves of
+  the window and at twice the costs.'
+rationale: 'Lou, Polk and Skouras (2019, JFE): clienteles trade overnight and in the day in opposite directions.
+  Parent H-0065 (PAPER at 1x and deciles), re-sized and narrowed to five a side.'
+source:
+  research: '170'
+  written_by: Claude, for the operator's request for ten better-quality quant strategies after research
+    169
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: score = mean over the previous 20 sessions of (09:20 close / previous last close - 1); rank the
+    100 most traded F&O stocks (20-session traded value) at 09:20; short the five highest, long the five
+    lowest; from the open after the 09:20 close to 15:10
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes, next-minute fills, daily
+    traded value); Nifty 50 daily closes for beta; today's NSE industry (A-112)
+  timeframe: 09:20 decision on 5-minute snapshots
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a position (Rs 1 lakh margin at Zerodha's
+    5x MIS); five long and five short, ten open on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15 (H-0138 from 2022-09-01, when 250 sessions of history exist)
+red_flags:
+- 'A re-sized relative of H-0065, chosen knowing it reached PAPER: not independent evidence.'
+- 'Stricter screen fixed in advance (research 170): gated only if net positive in both halves AND at 2x
+  costs.'
+- Thirty scalps were tried before these; the simple gate does not correct for that search.
+- The papers tested daily or monthly holding on US or Chinese stocks; this is a same-day version on NSE
+  F&O stocks.
+- Fills on 5-minute snapshots; 2 bps a side of slippage assumed (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
