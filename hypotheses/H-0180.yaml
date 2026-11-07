@@ -1,0 +1,56 @@
+id: H-0180
+title: Large monthly loser with delivery accumulation, hold 30
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks down 20% or more over 20 sessions with delivery at least 1.3x normal on the last session
+  outperform over the next 30 sessions.
+rationale: Parthasarathy 2022 (parthasarathy-2022-large-price-moves-india) finds overreaction to large
+  falls that recovers. High delivery after the fall suggests investors are absorbing the selling, which
+  separates a capitulation from a slide that is still under way.
+source:
+  research: autopilot
+  paper: parthasarathy-2022-large-price-moves-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when ret(20)[lag 1] <= -0.2 and delivery_ratio[lag 1] >= 1.3; long; hold 30 sessions;
+    rank by ret(20)[lag 1] asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 30
+  side: long
+  when:
+  - signal: ret
+    lag: 1
+    n: 20
+    op: <=
+    value: -0.2
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.3
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 20
+    order: asc
+red_flags:
+- The 20% fall may come from real bad news or fraud, so there is no mean reversion
+- Clusters in crash periods, such as March 2020, drive the result
+- The engine cannot restrict to large caps
+- H-0155 and H-0171 also bought losers and did not clearly work
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

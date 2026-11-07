@@ -1,0 +1,49 @@
+id: H-0181
+title: Bulk-deal buying near a 60-session low, hold 20
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with net bulk-deal buying disclosed the evening before, whose last close was at a 60-session
+  low, return more than costs over the next 20 sessions.
+rationale: H-0169 bought every bulk-buy for 10 sessions. A large buyer stepping in at a multi-month low
+  is a stronger information event than one at any price, since the buyer takes the other side of existing
+  selling.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when bulk_buy > 0 and at_low(60)[lag 1]; long; hold 20 sessions; rank by bulk_buy desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: bulk_buy
+    op: '>'
+    value: 0.0
+  - signal: at_low
+    lag: 1
+    n: 60
+  rank_by:
+    signal: bulk_buy
+red_flags:
+- Very few events
+- Bulk buyers can be promoter-linked sellers or hold arrangements, not informed buyers
+- Falling-knife risk
+- H-0169 and H-0166 results are not known, so the base rate is unclear
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

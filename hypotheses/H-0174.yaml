@@ -1,0 +1,56 @@
+id: H-0174
+title: Short the open after a 5-day run on thin delivery
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks up 6% or more over five sessions with delivery under 0.7x the 20-session mean fall from
+  open to close on the next session by more than the 12 bps round trip.
+rationale: Builds on H-0160/H-0161, where a 1-day rally on low delivery was faded profitably. Here the
+  speculative run is measured over five sessions, so it catches slower, momentum-chasing build-ups that
+  hold few real buyers. Acharya 2013 (acharya-2013-foreign-fund-flows-stock-returns-india) supports short-lived
+  price-pressure moves that partly reverse.
+source:
+  research: autopilot
+  paper: acharya-2013-foreign-fund-flows-stock-returns-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when ret(5)[lag 1] >= 0.06 and delivery_ratio[lag 1] <= 0.7; short; open to close;
+    rank by ret(5)[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: ret
+    lag: 1
+    n: 5
+    op: '>='
+    value: 0.06
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.7
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 5
+red_flags:
+- Overlaps heavily with H-0160/H-0161 and may be the same trades
+- Short leg only; mostly a bet on retail overreaction in small names
+- Borrow and MIS short availability may not hold for stocks that have run up
+- Few trades in weak-momentum years
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

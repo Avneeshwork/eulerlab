@@ -1,0 +1,53 @@
+id: H-0178
+title: Short after an intraday-led 3% rally on low delivery
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks whose previous session rose 3% or more from open to close on delivery below 0.7x normal
+  fall from open to close on the next day.
+rationale: Open-to-close gains are made by intraday traders, not overnight holders, and low delivery shows
+  few investors took the stock home. H-0160 used the close-to-close return; this uses day_return, which
+  isolates intraday-driven moves that tend to be given back.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when day_return[lag 1] >= 0.03 and delivery_ratio[lag 1] <= 0.7; short; open to close;
+    rank by day_return[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: day_return
+    lag: 1
+    op: '>='
+    value: 0.03
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.7
+  rank_by:
+    signal: day_return
+    lag: 1
+red_flags:
+- Heavily overlaps H-0160/H-0161
+- Only the short leg has shown edge here
+- Stocks that gap up on news are included
+- Cost drag if the average move is small
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

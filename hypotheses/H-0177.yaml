@@ -1,0 +1,48 @@
+id: H-0177
+title: Short bad-news results gap-downs that follow through
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that disclose results before the open and gap down 4% or more keep falling from open to
+  close.
+rationale: H-0168 tested fading results gaps in both directions. This tests only the downside, on the
+  idea that bad earnings are under-reacted to within the day as institutions sell down over the session.
+  It leaves the long side to the swing cards.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when results_morning and gap <= -0.04; short; open to close; rank by gap asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: results_morning
+  - signal: gap
+    op: <=
+    value: -0.04
+  rank_by:
+    signal: gap
+    order: asc
+red_flags:
+- Could simply be the mirror of H-0168, with a bounce instead of a follow-through
+- Small sample from results season, data only from 2021-07
+- Panic gap-downs often bounce intraday
+- Hard-to-short names
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

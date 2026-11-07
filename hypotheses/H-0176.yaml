@@ -1,0 +1,52 @@
+id: H-0176
+title: 'Circuit-exhaustion fade: short an 8% prior-day winner that gaps up again'
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks that closed up 8% or more yesterday and gap up another 1% or more at the open lose ground
+  from open to close.
+rationale: Banerjee 2026 (banerjee-2026-circuit-exhaustion-reversal) reports an opening overshoot after
+  upper-circuit sessions that reverses intraday. A prior-day gain of 8% or more plus a further gap-up
+  is the closest proxy the engine allows for a stock locked at its circuit.
+source:
+  research: autopilot
+  paper: banerjee-2026-circuit-exhaustion-reversal
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when ret(1)[lag 1] >= 0.08 and gap >= 0.01; short; open to close; rank by ret(1)[lag
+    1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: ret
+    lag: 1
+    op: '>='
+    value: 0.08
+  - signal: gap
+    op: '>='
+    value: 0.01
+  rank_by:
+    signal: ret
+    lag: 1
+red_flags:
+- Very few trades per day
+- Stocks locked at the upper circuit often cannot be shorted, or open at the circuit again
+- Catalyst-driven momentum such as large news can continue
+- A close-to-close move cannot separate circuit stocks from ordinary winners
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

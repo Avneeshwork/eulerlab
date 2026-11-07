@@ -1,0 +1,55 @@
+id: H-0179
+title: Promoter buying into a deep 60-session drawdown, hold 40
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks with a SAST promoter acquisition disclosed after a fall of 15% or more over 60 sessions
+  return more than costs over the next 40 sessions.
+rationale: H-0153 and H-0162 found promoter purchases carry information. When the stock has also sold
+  off, insiders are buying against price pressure, which should make the signal stronger. Parthasarathy
+  2022 (parthasarathy-2022-large-price-moves-india) supports recovery after large falls.
+source:
+  research: autopilot
+  paper: parthasarathy-2022-large-price-moves-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when promoter_buy > 0 and ret(60)[lag 1] <= -0.15; long; hold 40 sessions; rank by ret(60)[lag
+    1] asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 40
+  side: long
+  when:
+  - signal: promoter_buy
+    op: '>'
+    value: 0.0
+  - signal: ret
+    lag: 1
+    n: 60
+    op: <=
+    value: -0.15
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 60
+    order: asc
+red_flags:
+- Very small sample, likely fewer than 100 positions from 2021-07
+- A subset of H-0153, so not independent
+- Low-priced stocks that stay weak
+- A market-wide rebound could drive the result
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

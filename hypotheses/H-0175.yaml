@@ -1,0 +1,52 @@
+id: H-0175
+title: Fade a gap-up that follows a low-delivery session
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that open 2% or more above the previous close after a session with delivery below 0.8x normal
+  fall from open to close on average.
+rationale: A gap-up following thin-delivery trading is driven by speculators with no holders behind it,
+  so the opening overshoot should unwind. This extends H-0160, which used the prior day's return, by putting
+  the entry-morning gap in the condition. It also draws on H-0115 and H-0141, where fading 2% gaps earned
+  gross edge.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when gap >= 0.02 and delivery_ratio[lag 1] <= 0.8; short; open to close; rank by gap
+    desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: gap
+    op: '>='
+    value: 0.02
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.8
+  rank_by:
+    signal: gap
+red_flags:
+- Gaps backed by news or results are included, since the engine cannot exclude filings
+- Strong bull markets can push gap-ups to keep running
+- May just be the H-0141 gap fade with a delivery filter
+- Tail risk from short squeezes
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

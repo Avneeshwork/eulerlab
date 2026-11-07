@@ -1,0 +1,57 @@
+id: H-0182
+title: 'Quiet breakout: 60-day high on strong delivery after a flat month, hold 30'
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks closing at a 60-session high with delivery at least 1.5x normal, after gaining no more than
+  10% over 20 sessions, rise over the next 30 sessions.
+rationale: H-0173 used a 250-day high with high delivery. A shorter 60-session breakout that follows a
+  quiet month is an earlier, less crowded trend start, and the delivery marks genuine accumulation. Maheshwari
+  2015 (maheshwari-2015-momentum-seasonality-india) supports continuation of recent winners.
+source:
+  research: autopilot
+  paper: maheshwari-2015-momentum-seasonality-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-07'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when at_high(60)[lag 1] and delivery_ratio[lag 1] >= 1.5 and ret(20)[lag 1] <= 0.1; long;
+    hold 30 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 30
+  side: long
+  when:
+  - signal: at_high
+    lag: 1
+    n: 60
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.5
+  - signal: ret
+    lag: 1
+    n: 20
+    op: <=
+    value: 0.1
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Overlaps H-0173 and H-0170
+- False breakouts in range-bound markets
+- Market-beta exposure could be the whole return
+- Entry at the open after a breakout day may already have the move priced in
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 172 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
