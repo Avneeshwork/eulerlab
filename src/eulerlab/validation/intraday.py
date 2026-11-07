@@ -29,6 +29,7 @@ from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Protocol
 
 from eulerlab.intraday import cross_section as cs
 from eulerlab.validation.cpcv import cpcv_splits, leakage_check
@@ -39,10 +40,24 @@ MIN_DAYS = 60
 """A path or regime with fewer sessions has no Sharpe worth reading."""
 
 
+class DayTrade(Protocol):
+    """What the battery reads from a trade: a stock (`cs.Trade`), a future or a
+    straddle (research 166) all carry these."""
+
+    @property
+    def symbol(self) -> str: ...
+    @property
+    def day(self) -> date: ...
+    @property
+    def gross(self) -> float: ...
+    @property
+    def costs(self) -> float: ...
+
+
 @dataclass(frozen=True)
 class IntradayRun:
-    trades: list[cs.Trade]
-    late_trades: list[cs.Trade]
+    trades: Sequence[DayTrade]
+    late_trades: Sequence[DayTrade]
     sessions: list[date]
     capital: float
 
@@ -118,7 +133,36 @@ def _h0052() -> IntradayRun:
     return IntradayRun(trades, [], sessions, five.ETF_CAPITAL)
 
 
+def _index_futures(hypothesis: str) -> Callable[[], IntradayRun]:
+    def run() -> IntradayRun:
+        from eulerlab.intraday import index_futures_screen as fut
+
+        result: IntradayRun = fut.validation_run(hypothesis)
+        return result
+
+    return run
+
+
+def _index_expiry(hypothesis: str) -> Callable[[], IntradayRun]:
+    def run() -> IntradayRun:
+        from eulerlab.options import index_expiry_screen as expiry
+
+        result: IntradayRun = expiry.validation_run(hypothesis)
+        return result
+
+    return run
+
+
+def _h0106() -> IntradayRun:
+    from eulerlab.intraday import nse_reports_screen
+
+    return nse_reports_screen.ban_exit_long_run()
+
+
 SOURCES: dict[str, Callable[[], IntradayRun]] = {
+    **{h: _index_expiry(h) for h in ("H-0041", "H-0103", "H-0104", "H-0105")},
+    **{h: _index_futures(h) for h in ("H-0099", "H-0100", "H-0101", "H-0102")},
+    "H-0106": _h0106,
     "H-0052": _h0052,
     "H-0065": _h0065,
     "H-0096": _h0096,
@@ -131,7 +175,7 @@ def supported(hypothesis_id: str) -> bool:
 
 
 def daily_returns(
-    trades: Sequence[cs.Trade],
+    trades: Sequence[DayTrade],
     sessions: Sequence[date],
     capital: float,
     *,

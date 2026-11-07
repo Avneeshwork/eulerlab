@@ -67,4 +67,45 @@ Each card holds its rule in full. Common to all:
 
 ## Results
 
-(Added after the runs.)
+Screens, 2026-11-07 (`make index-futures`, `make index-expiry`,
+`make nse-reports-intraday ARGS=--ban-exit`). No trial spent. Per trade in
+bps of notional; halves are net totals split at the window's midpoint.
+
+| Card | Rule | Trades | Gross | Net | Net Sharpe | Halves (net bps) | Screen |
+|---|---|---|---|---|---|---|---|
+| H-0099 | Nifty future, noise area, 15-min | 788 | 3.90 | -0.47 | -0.21 | -374 / +6 | fail |
+| H-0100 | BankNifty future, noise area, 15-min | 824 | 1.33 | -3.04 | -1.17 | -1,300 / -1,201 | fail |
+| H-0101 | BankNifty future, 15-min ORB | 705 | 2.26 | -2.10 | -0.49 | -305 / -1,179 | fail |
+| H-0102 | Nifty future, gap fade, 15-min | 128 | 6.46 | +2.10 | 0.38 | +361 / -92 | fail |
+| H-0041 | Nifty expiry-day straddle | 303 | 8.95 | +7.12 | 0.98 | +1,169 / +987 | pass |
+| H-0103 | BankNifty expiry-day straddle | 302 | 20.17 | +19.05 | 1.79 | +3,769 / +1,984 | pass |
+| H-0104 | FinNifty expiry-day straddle | 151 | 4.20 | +2.64 | 0.23 | +667 / -268 | fail |
+| H-0105 | Nifty straddle, session before expiry | 302 | 7.07 | +3.41 | 0.61 | +1,027 / +4 | pass |
+| H-0106 | Buy on F&O ban exit | 567 | -33.58 | -45.81 | -1.69 | — (negative 2022-2024) | fail |
+
+Futures costs were 4.37 bps a round trip (2.35-3.10 charges, 2 slippage).
+
+1. **The noise area is real before costs and is not tradable.** On the Nifty it
+   made 3.9 bps a trade, gross Sharpe 1.81, the same as NIFTYBEES in research
+   071 (1.58). Futures halve the cost but do not remove it. At 2026 STT (0.05%)
+   it would be further behind. T-4039 is answered: no.
+2. **BankNifty breakouts are worse than the Nifty's**, not better: 1.3 and 2.3
+   bps gross. The larger daily move did not make a larger edge.
+3. **The gap fade** was the best futures rule net (+2.1) but negative in the
+   second half on 128 trades. Dead under the screen rule.
+4. **Short expiry-day straddles carry the premium on the Nifty and BankNifty**,
+   not FinNifty: FinNifty's opening strikes often had no trade (52 of 203
+   expiries skipped) and 2024 lost 7.9% (worst -540 bps on 2024-06-04, the
+   election-result day). The three survivors are **one bet**: short
+   same-day index volatility; their worst days coincide (2020-03-12).
+5. **The F&O ban exit** loses 34 bps gross a trade: stocks keep falling the
+   day the ban lifts. Reversing it now would be a hypothesis chosen on this
+   result, so it is recorded and not traded.
+6. H-0041 re-screened with this note's shared code gives 303 expiries and
+   +7.12 net against research 153's 299 and +6.96: the four extra days
+   (2019-08-29, 2019-09-05, 2019-09-12, 2021-05-20) are expiries that
+   research 153's list from `nifty_options.jsonl` did not have, because this
+   note finds expiries in each day's bhavcopy instead. Why that file lacks
+   them was not checked.
+
+Gating: see the "Gate" section below.

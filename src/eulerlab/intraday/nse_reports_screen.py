@@ -214,6 +214,16 @@ def ban_events(lists: Mapping[date, set[str]]) -> Events:
     return out
 
 
+def ban_exits(lists: Mapping[date, set[str]]) -> Events:
+    """H-0106 (research 166): in the ban list for the previous trade date, not for this one."""
+    out: Events = defaultdict(dict)
+    days = sorted(lists)
+    for before, today in pairwise(days):
+        for symbol in lists[before] - lists[today]:
+            out[symbol][today] = 1.0
+    return out
+
+
 def slbm_events(
     daily: Sequence[tuple[date, dict[str, float]]], snaps: six.Snaps, sessions: Sequence[date]
 ) -> Events:
@@ -252,6 +262,37 @@ def ban_short_run() -> IntradayRun:
         if fill is not None and (t := five._trade(symbol, d, fill, -1, five.TRADE)):
             late.append(t)
     return IntradayRun(on_time, late, list(window), five.TRADE * five.MAX_OPEN)
+
+
+def ban_exit_long_run() -> IntradayRun:
+    """H-0106's trades for the validation battery: as screened, and entered 5 minutes late."""
+    from eulerlab.validation.intraday import IntradayRun
+
+    snaps, window = fo.load_snaps()
+    exits = ban_exits(dict(_parsed("fo_ban", ban_list)))
+    chosen = trades(snaps, exits, 1)
+    on_time = [
+        t for d, symbol, fill in chosen if (t := five._trade(symbol, d, fill, 1, five.TRADE))
+    ]
+    late = []
+    for d, symbol, _ in chosen:
+        fill = six._from(snaps[symbol][d], 10, 1)
+        if fill is not None and (t := five._trade(symbol, d, fill, 1, five.TRADE)):
+            late.append(t)
+    return IntradayRun(on_time, late, list(window), five.TRADE * five.MAX_OPEN)
+
+
+def ban_exit_screen() -> dict[str, Any]:
+    """H-0106 screened alone (research 166), measured as research 164's five."""
+    snaps, window = fo.load_snaps()
+    exits = ban_exits(dict(_parsed("fo_ban", ban_list)))
+    return {
+        "hypothesis": "H-0106",
+        "events": sum(len(v) for v in exits.values()),
+        **six.evaluate(
+            "nse_fo_ban_exit_long", trades(snaps, exits, 1), window, five.TRADE * five.MAX_OPEN
+        ),
+    }
 
 
 DAILY_FIRST = date(2015, 1, 1)
@@ -369,7 +410,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="nse-reports-intraday")
     parser.add_argument("--output", type=Path, default=OUT)
     parser.add_argument("--daily", action="store_true", help="H-0098: daily bars from 2015")
+    parser.add_argument("--ban-exit", action="store_true", help="H-0106 alone (research 166)")
     args = parser.parse_args()
+    if args.ban_exit:
+        one = ban_exit_screen()
+        Path("data/derived/nse_ban_exit_intraday.json").write_text(json.dumps(one, indent=1))
+        print(
+            f"H-0106: {one['trades']} trades of {one['events']} events; "
+            f"{one['per_trade_bps']['gross_mean']} bps gross, "
+            f"{one['per_trade_bps']['net_mean']} net a trade; net Sharpe {one['net']['sharpe']}; "
+            f"by year {[(y, v['total_return']) for y, v in one['net_by_year'].items()]}"
+        )
+        return 0
     if args.daily:
         daily = run_daily()
         print(

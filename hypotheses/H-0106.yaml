@@ -1,6 +1,6 @@
 id: H-0106
 title: Buy a stock on the first session after it leaves the F&O ban, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_nse_reports
 source_kind: practitioner
 parent: ''
@@ -27,4 +27,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 567 trades of 665 ban exits, -33.58 bps gross and -45.81 net a trade, net
+  Sharpe -1.69, negative 2022-2024 (research 166). Fails the screen; not gated. Stocks kept falling after
+  the ban lifted; reversing the rule after seeing this would be a new, contaminated hypothesis and was
+  not done.'

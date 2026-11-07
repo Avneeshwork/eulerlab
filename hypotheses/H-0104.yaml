@@ -1,6 +1,6 @@
 id: H-0104
 title: Sell the at-the-money FinNifty straddle at the open on weekly expiry day
-status: draft
+status: rejected
 family: options_expiry_day
 source_kind: practitioner
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 151 expiries (52 skipped: the strike did not trade at the open), 4.20 bps
+  gross and +2.64 net of notional a trade, net Sharpe 0.23; 2024 -7.9%, second half net negative; worst
+  -540 bps on 2024-06-04 (research 166). Fails the screen; not gated.'

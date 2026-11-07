@@ -1,6 +1,6 @@
 id: H-0099
 title: 'Leave the noise area on 15-minute closes: trade Nifty futures with the break, flat by 15:25'
-status: draft
+status: rejected
 family: intraday_index_futures
 source_kind: paper
 parent: ''
@@ -37,4 +37,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 788 trades, 3.90 bps gross and -0.47 net a trade (costs 4.37), gross Sharpe
+  1.81, net -0.21; first half net negative (research 166). Fails the screen; not gated.'

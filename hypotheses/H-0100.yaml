@@ -1,6 +1,6 @@
 id: H-0100
 title: 'Leave the noise area on 15-minute closes: trade BankNifty futures with the break, flat by 15:25'
-status: draft
+status: rejected
 family: intraday_index_futures
 source_kind: paper
 parent: ''
@@ -30,4 +30,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 824 trades, 1.33 bps gross and -3.04 net a trade, net Sharpe -1.17, both halves
+  negative (research 166). Fails the screen; not gated.'

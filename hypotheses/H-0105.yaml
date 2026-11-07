@@ -36,4 +36,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 302 sessions, 7.07 bps gross and +3.41 net of notional a trade, net Sharpe
+  0.61; 2022 and 2023 net negative; halves +1,027 and +3.5 bps total; worst -271 bps on 2020-03-18 (research
+  166). Not yet gated.'

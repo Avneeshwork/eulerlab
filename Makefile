@@ -671,6 +671,14 @@ results-gap-fade:
 expiry-straddle:
 	@uv run python -m eulerlab.options.expiry_straddle_screen
 
+# Research 166: four Nifty/BankNifty futures rules on 15-minute bars, and four
+# index-option expiry-day straddles (H-0041, H-0103 to H-0105). No trial spent.
+index-futures:
+	@uv run python -m eulerlab.intraday.index_futures_screen
+
+index-expiry:
+	@uv run python -m eulerlab.options.index_expiry_screen
+
 # Research 154: how far stocks move in minutes, against a round trip's cost.
 move-cost-map:
 	@uv run python -m eulerlab.intraday.move_cost_map

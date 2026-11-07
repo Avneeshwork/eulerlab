@@ -38,4 +38,4 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: 'Screen 2026-11-05: 299 expiries, 8.79 bps gross and 6.96 bps net of notional a trade, net Sharpe 0.95 (0.87 before 2024, 1.38 in 2024), worst -307 bps on 2020-03-12, drawdown -3.8% of notional (research 153). Not gated.'
+result: 'Screen 2026-11-05: 299 expiries, 8.79 bps gross and 6.96 bps net of notional a trade, net Sharpe 0.95 (0.87 before 2024, 1.38 in 2024), worst -307 bps on 2020-03-12, drawdown -3.8% of notional (research 153). Not gated. Re-screened 2026-11-07 with research 166''s shared code: 303 expiries, 8.95 gross, +7.12 net, Sharpe 0.98, every year positive.'

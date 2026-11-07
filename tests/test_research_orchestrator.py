@@ -79,15 +79,16 @@ def test_the_real_hypotheses_directory_surveys_cleanly() -> None:
     ),
 )
 def test_the_gate_verdict_is_read_from_the_ledger() -> None:
-    """H-0001 was killed by the real gate; the report must reflect that rather
-    than tracking its own state.
+    """H-0001 was killed by the strict gate and re-gated PROMOTE under the simple
+    gate on 2026-11-06 (ADR-140, ledger #68-#95); the report must show the
+    ledger's latest verdict rather than tracking its own state.
 
     Deliberately *not* made hermetic. The whole claim is that the verdict comes
     from the real ledger instead of state the orchestrator keeps for itself, and
     a synthetic ledger would assert that against evidence this test wrote.
     """
     cards = {c.id: c for c in orchestrator.survey(Path("hypotheses"), years=11.4)}
-    assert cards["H-0001"].gate_verdict == "KILL"
+    assert cards["H-0001"].gate_verdict == "PROMOTE"
 
 
 def test_an_empty_directory_is_not_an_error(tmp_path: Path) -> None:

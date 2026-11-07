@@ -1,6 +1,6 @@
 id: H-0102
 title: Fade a Nifty opening gap of 0.4% or more when the first 15-minute bar turns against it
-status: draft
+status: rejected
 family: intraday_index_futures
 source_kind: practitioner
 parent: ''
@@ -37,4 +37,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 128 trades, 6.46 bps gross and +2.10 net a trade, net Sharpe 0.38; second
+  half net negative (research 166). Fails the screen; not gated.'

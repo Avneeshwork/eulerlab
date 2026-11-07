@@ -1,6 +1,6 @@
 id: H-0101
 title: BankNifty futures 15-minute opening-range breakout, stop at the other side, flat by 15:25
-status: draft
+status: rejected
 family: intraday_index_futures
 source_kind: practitioner
 parent: ''
@@ -37,4 +37,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 705 trades, 2.26 bps gross and -2.10 net a trade, net Sharpe -0.49, both halves
+  negative (research 166). Fails the screen; not gated.'
