@@ -1,0 +1,35 @@
+id: H-0109
+title: Fade a stock's move from the next 5-minute close after NSE queries a volume or price spurt during
+  the session
+status: draft
+family: intraday_nse_queries
+source_kind: practitioner
+parent: ''
+claim: When an NSE 'Spurt in Volume' or 'Price movement' clarification is disseminated 09:20 to 14:30,
+  trading the F&O stock against its move since the previous close (at least 3%) from the next 5-minute
+  close to 15:10 earns more than costs in both halves of 2021-08 to 2024-11.
+rationale: As H-0107, traded the same day the query is answered.
+source:
+  research: '167'
+  written_by: Claude, for the operator's request to research stock day-trading after research 166
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: 'event: ''Spurt in Volume'' or ''Price movement'', disseminated 09:20 to 14:30 on T; k = first
+    5-minute close at or after it; move = close at k / last close of T-1 - 1; if |move| >= 3%, trade against
+    it from the open after k to 15:10'
+  data: data/landing/nse_announcements (2021-07 to 2024-12), timed by exchdisstime; fills from research
+    161's minute snapshots (5-minute checkpoints)
+  timeframe: 5-minute closes
+  costs: cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x, at most ten a day, largest move first
+  window: 2021-08-20 to 2024-11-29
+red_flags:
+- No academic study of NSE clarification queries was found; the prior is research 160 (news moves reverse)
+  and attention-driven buying (Barber and Odean 2008).
+- 'The four cards share one idea (fade a move NSE has queried): passing together is about one bet.'
+- The dissemination time is when the company's reply is posted, which can be hours after NSE asked.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
