@@ -1,0 +1,40 @@
+id: H-0115
+title: Fade a 2% opening gap whose first 15 minutes turn back, target the previous close
+status: draft
+family: intraday_stock_mft
+source_kind: practitioner
+parent: ''
+claim: 'Fade a 2% opening gap whose first 15 minutes turn back, target the previous close: earns more
+  than costs at Rs 5 lakh a trade in both halves of 2021-11 to 2024-10.'
+rationale: Practitioner gap-fill; H-0040 faded results gaps only (dead).
+source:
+  research: '168'
+  written_by: Claude, for the operator's request for ten MFT-style stock scalps on minute data, 5-10 trades
+    a day, Zerodha MIS leverage
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  kind: gap fade
+  rule: 'among the 200 most traded stocks: gap = 09:20 close / previous last close - 1, |gap| >= 2%, and
+    the 09:30 close lies between the previous close and the 09:20 close; trade toward the previous close
+    from the next fill; exit at the fill after the first 5-minute close at or past the previous close
+    (target), or 1% beyond the entry against the trade (stop), else 15:10; at most ten, largest gap first'
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes and next-minute fills,
+    09:20 to 15:10); Nifty 50 index minutes; Nifty 50 daily closes for beta
+  timeframe: 5-minute closes
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a trade (Rs 1 lakh margin at Zerodha's 5x
+    MIS), at most 10 open at once on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15 (Nifty minutes start 2021-11-01; the last index file before the 2024-11-30
+    cut ends 2024-10-15)
+red_flags:
+- H-0102 (the same idea on the Nifty future) was negative in its second half.
+- Ten rules written together; under the simple gate (no search correction) about one in twenty pure-noise
+  rules would pass at 5%, so a single pass among ten is weak evidence.
+- Decisions and stops on 5-minute closes only (the snapshots keep no highs, lows or volume per bar); a
+  real stop would trigger inside the bar.
+- 2 bps a side of slippage is assumed for every stock in the liquid set, not measured (T-906, A-052).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

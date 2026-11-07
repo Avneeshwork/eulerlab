@@ -1,0 +1,41 @@
+id: H-0111
+title: 'Nifty 15-minute burst: trade the two high-beta stocks that lagged it, hold 30 minutes'
+status: draft
+family: intraday_stock_mft
+source_kind: paper
+parent: ''
+claim: 'Nifty 15-minute burst: trade the two high-beta stocks that lagged it, hold 30 minutes: earns more
+  than costs at Rs 5 lakh a trade in both halves of 2021-11 to 2024-10.'
+rationale: 'Lo and MacKinlay (1990) and Hou (2007): large or index moves lead slower stocks; research
+  161''s market-move laggards (H-0078) made 16.68 bps gross at one fixed time.'
+source:
+  research: '168'
+  written_by: Claude, for the operator's request for ten MFT-style stock scalps on minute data, 5-10 trades
+    a day, Zerodha MIS leverage
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  kind: lead-lag
+  rule: 'at each 5-minute close 09:35-14:30, if the Nifty moved at least 0.25% over the last 15 minutes
+    and no signal fired in the previous 30: among the 100 most traded stocks, the two with 60-session
+    beta >= 1.0 whose own 15-minute move in the Nifty''s direction is smallest; trade with the Nifty from
+    the next fill, exit at the fill 30 minutes later'
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes and next-minute fills,
+    09:20 to 15:10); Nifty 50 index minutes; Nifty 50 daily closes for beta
+  timeframe: 5-minute closes
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a trade (Rs 1 lakh margin at Zerodha's 5x
+    MIS), at most 10 open at once on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15 (Nifty minutes start 2021-11-01; the last index file before the 2024-11-30
+    cut ends 2024-10-15)
+red_flags:
+- Close to H-0078 (market-move laggards), which was positive gross but concentrated in 2022.
+- Ten rules written together; under the simple gate (no search correction) about one in twenty pure-noise
+  rules would pass at 5%, so a single pass among ten is weak evidence.
+- Decisions and stops on 5-minute closes only (the snapshots keep no highs, lows or volume per bar); a
+  real stop would trigger inside the bar.
+- 2 bps a side of slippage is assumed for every stock in the liquid set, not measured (T-906, A-052).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
