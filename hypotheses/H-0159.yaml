@@ -1,0 +1,35 @@
+id: H-0159
+title: 'FII hedging surge: when FIIs'' net index put longs jump, short the five highest-beta liquid stocks
+  (and the mirror), 09:20 to 15:10'
+status: draft
+family: stock_intraday_other_data
+source_kind: paper
+parent: ''
+claim: 'FII hedging surge: when FIIs'' net index put longs jump, short the five highest-beta liquid stocks
+  (and the mirror), 09:20 to 15:10: earns more than costs in both halves of the window and at twice the
+  costs.'
+rationale: Foreign investors' option positioning carries information about index direction (Indian participant-OI
+  studies; Pan and Poteshman 2006 on informed option volume).
+source:
+  research: '172'
+  written_by: 'Claude, for the operator''s request: half intraday, half swing, other data as signals for
+    stocks and the index'
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: 'FII net index puts = put long - put short contracts; change from t-2 to t-1 against its previous
+    250 sessions: top tenth shorts, bottom tenth buys the five highest-beta liquid stocks, 09:20 to 15:10'
+  data: NSE participant-wise OI; minute snapshots
+  costs: cash intraday charges plus 2 bps a side; Rs 1 lakh a position at 1x, at most ten open on Rs 10
+    lakh; 12.24 bps a round trip
+  window: 2021-11-01 to 2024-10-15 (research 168's window; index minutes start 2021-11-01)
+red_flags:
+- Third rule on the participant report with H-0156 and H-0157.
+- Fifty-three rules were tried before these; the simple gate does not correct for that search.
+- Papers cited from memory and earlier notes, not re-fetched (research 172).
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

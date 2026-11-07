@@ -1,0 +1,35 @@
+id: H-0154
+title: 'Retail short, index long: buy NIFTYBEES for five sessions when Clients'' net index-futures position
+  is in its bottom tenth'
+status: draft
+family: stock_swing_other_data
+source_kind: paper
+parent: ''
+claim: 'Retail short, index long: buy NIFTYBEES for five sessions when Clients'' net index-futures position
+  is in its bottom tenth: earns more than costs in both halves of the window and at twice the costs.'
+rationale: 'Kaniel, Saar and Titman (2008, JF): individual investors are contrarian and provide liquidity;
+  their extreme positioning precedes reversals. Applied to NSE''s participant-wise OI.'
+source:
+  research: '172'
+  written_by: 'Claude, for the operator''s request: half intraday, half swing, other data as signals for
+    stocks and the index'
+  day: '2026-11-07'
+configurations:
+- shape: swing_cash
+  rule: Client net index futures = long - short contracts from NSE's participant-wise OI; if today's value
+    is below the 10th percentile of the previous 250 sessions, buy NIFTYBEES at 09:20 next session with
+    the whole Rs 10 lakh, sell at 15:10 five sessions later; no overlapping trades
+  data: NSE participant-wise OI (2020 to now); NIFTYBEES minute bars
+  costs: delivery (CNC) charges from costs.schedule plus 2 bps a side, 26.2 bps a round trip; Rs 1 lakh
+    a position at 1x, at most ten open on Rs 10 lakh; long only (no overnight cash shorts)
+  window: 2021-11-01 to 2024-10-15 (research 168's window; index minutes start 2021-11-01)
+red_flags:
+- One instrument, about 25 events a year at most.
+- Fifty-three rules were tried before these; the simple gate does not correct for that search.
+- Papers cited from memory and earlier notes, not re-fetched (research 172).
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,36 @@
+id: H-0151
+title: 'Weekly: buy the ten liquid stocks whose at-the-money call implied vol is richest against the put,
+  hold the week'
+status: draft
+family: stock_swing_other_data
+source_kind: paper
+parent: ''
+claim: 'Weekly: buy the ten liquid stocks whose at-the-money call implied vol is richest against the put,
+  hold the week: earns more than costs in both halves of the window and at twice the costs.'
+rationale: 'Cremers and Weinbaum (2010, JFQA): stocks with high call-minus-put implied-vol spreads beat
+  low-spread stocks by about 50 bps a week (US). H-0089 tested it for one day (dead).'
+source:
+  research: '172'
+  written_by: 'Claude, for the operator''s request: half intraday, half swing, other data as signals for
+    stocks and the index'
+  day: '2026-11-07'
+configurations:
+- shape: swing_cash
+  rule: 'on each week''s first session, from the previous session''s stock-option bhavcopy (option_iv_screen):
+    ATM call IV - put IV for the 100 most traded stocks with options; buy the ten highest at 09:20; sell
+    at 15:10 on the week''s last session'
+  data: F&O bhavcopy stock options (research 163's daily chains); minute snapshots for fills
+  costs: delivery (CNC) charges from costs.schedule plus 2 bps a side, 26.2 bps a round trip; Rs 1 lakh
+    a position at 1x, at most ten open on Rs 10 lakh; long only (no overnight cash shorts)
+  window: 2021-11-01 to 2024-10-15 (research 168's window; index minutes start 2021-11-01)
+red_flags:
+- 'Long only in a market that rose about 50% over the window: the report also gives the return over NIFTYBEES
+  held the same days.'
+- Fifty-three rules were tried before these; the simple gate does not correct for that search.
+- Papers cited from memory and earlier notes, not re-fetched (research 172).
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
