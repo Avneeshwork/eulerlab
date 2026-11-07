@@ -1,7 +1,7 @@
 id: H-0134
 title: 'High-volume return premium: long the five stocks with the most abnormal traded value yesterday,
   short the five with the least, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -36,4 +36,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7280 trades (10.0 a day), -7.75 bps gross (long leg -18.23, short leg 2.73)
+  and -16.21 net a trade at Rs 5 lakh; net Sharpe -3.042, halves -1.986 / -4.047, at 2x costs -4.63; drawdown
+  -100% of margin; by year on margin 2021 -9%, 2022 -77%, 2023 -95%, 2024 -86% (research 170). Fails research
+  170''s screen (both halves and 2x costs net positive); not gated.'

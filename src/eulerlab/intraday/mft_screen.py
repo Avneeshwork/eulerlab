@@ -33,7 +33,7 @@ import json
 import statistics
 from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from itertools import pairwise
 from pathlib import Path
@@ -96,6 +96,8 @@ class Market:
 
     previous: Mapping[date, date]
     """Each session's previous session in the snapshots."""
+    nifty_close: Mapping[date, float] = field(default_factory=dict)
+    """The Nifty 50's official close by day (research 170)."""
 
     def prev(self, day: date) -> date | None:
         return self.previous.get(day)
@@ -185,6 +187,7 @@ def build() -> Market:
         liquid=liquidity(snaps, window),
         industry=industry,
         previous={b: a for a, b in pairwise(window)},
+        nifty_close=official,
     )
 
 

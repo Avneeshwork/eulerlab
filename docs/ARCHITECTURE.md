@@ -755,11 +755,11 @@ From 2026-11-07 (ADR-145, ADR-146) the battery reads any trade through the
 index-option straddles (`options/index_expiry_screen.py`, H-0041, H-0103 to
 H-0105), index-futures rules on index minutes (`intraday/index_futures_screen.py`,
 H-0099 to H-0102), the F&O ban exit (H-0106) and the MFT stock scalps
-(`intraday/mft_screen.py`, H-0111 to H-0130). The scalps decide on the
+(`intraday/mft_screen.py`, H-0111 to H-0130; `intraday/quant_screen.py`, H-0131 to H-0140, five long and five short chosen at 09:20). The scalps decide on the
 5-minute closes of research 161's snapshots, fill at the next minute's open,
 trade ₹5 lakh (₹1 lakh of margin at 5x MIS), at most ten open, and return on
 ₹10 lakh of margin; their late-entry stress fills five minutes after the
-decision. For a one-underlying straddle, "drop best 5 names" removes
+decision. Their paper books (`deploy/mis_book.py`, ADR-147) call the same rule functions on snapshots built from minute files after the holdout end, a position at half the deployment's capital in notional. For a one-underlying straddle, "drop best 5 names" removes
 everything and reads 0% kept.
 
 ## 5.3a The bar from what was searched (ADR-108, research 138)

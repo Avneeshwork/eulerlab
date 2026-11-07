@@ -140,3 +140,52 @@ def test_the_auction_variant_exits_when_the_data_ends_at_1514() -> None:
     )
     trades, _ = rule_book.ban_trades({MON: ["A"]}, lambda s: [short], 1_000_000.0, auction=True)
     assert len(trades) == 1 and trades[0]["exit"] == 95.0
+
+
+# --- research 168-170: MIS stock rules (ADR-147) -----------------------------------------
+
+
+def test_mis_rules_are_paper_books() -> None:
+    for card in ("H-0132", "H-0118", "H-0121", "H-0115", "H-0124"):
+        assert rule_book.is_rule(card)
+
+
+def test_mis_book_sizes_half_the_margin_a_position() -> None:
+    from array import array
+
+    from eulerlab.deploy import mis_book
+    from eulerlab.intraday import mft_screen as mft
+    from eulerlab.intraday import minute_six_screen as six
+
+    def snap(closes: list[float], last: float) -> six.Snap:
+        n = len(six.CHECKPOINTS)
+        closes = closes + [closes[-1]] * (n - len(closes))
+        return six.Snap(
+            5,
+            closes[0],
+            355,
+            closes[-1],
+            array("d", closes),
+            array("d", closes),
+            array("h", [m + 1 for m in six.CHECKPOINTS]),
+            last,
+            1e7,
+            None,
+        )
+
+    d0, d1 = MON, MON + timedelta(days=1)
+    path = [103.0] * 20 + [104.0] * 10 + [103.3] * 10
+    mk = mft.Market(
+        snaps={"ABC": {d0: snap([100.0], 100.0), d1: snap(path, 103.3)}},
+        sessions=[d1],
+        nifty={d1: tuple([20_000.0] * N)},
+        nifty_prev={d1: 19_900.0},
+        beta={},
+        liquid={d1: ["ABC"]},
+        industry={},
+        previous={d1: d0},
+    )
+    trades, _ = mis_book.trades_from(mis_book.rules()["H-0118"], mk, start=d1, capital=1_000_000.0)
+    (t,) = trades
+    assert t["direction"] == 1 and t["quantity"] == int(500_000.0 / 103.3)
+    assert t["minute"] == 166  # the open after the 12:00 close

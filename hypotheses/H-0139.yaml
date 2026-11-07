@@ -1,7 +1,7 @@
 id: H-0139
 title: 'Turnover-conditioned short-term momentum: among the 20 highest-turnover stocks, long the five
   best past-month performers, short the five worst, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -39,4 +39,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7280 trades (10.0 a day), -5.58 bps gross (long leg -14.78, short leg 3.61)
+  and -14.04 net a trade at Rs 5 lakh; net Sharpe -2.703, halves -2.944 / -2.444, at 2x costs -4.333;
+  drawdown -100% of margin; by year on margin 2021 -23%, 2022 -87%, 2023 -93%, 2024 -53% (research 170).
+  Fails research 170''s screen (both halves and 2x costs net positive); not gated.'

@@ -1,7 +1,7 @@
 id: H-0138
 title: 'Nearness to the 52-week high: long the five closest to their 250-session high close, short the
   five farthest, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -36,4 +36,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 5220 trades (10.0 a day), 3.0 bps gross (long leg -4.1, short leg 10.1) and
+  -5.46 net a trade at Rs 5 lakh; net Sharpe -1.004, halves -1.338 / -0.649, at 2x costs -2.559; drawdown
+  -88% of margin; by year on margin 2022 -17%, 2023 -70%, 2024 -42% (research 170). Fails research 170''s
+  screen (both halves and 2x costs net positive); not gated.'

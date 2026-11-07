@@ -1,4 +1,6 @@
-"""Paper books for the gated intraday rules: H-0052, H-0065, H-0096, H-0098 (ADR-142).
+"""Paper books for the gated intraday rules: H-0052, H-0065, H-0096, H-0098 (ADR-142),
+and research 168-170's MIS stock rules H-0132, H-0118, H-0121, H-0115, H-0124
+(`deploy/mis_book.py`, ADR-147).
 
 These four hypotheses passed the gate (PROMOTE or PAPER, research 164-165) but
 are not daily rank-and-hold cards, so `forward.build` cannot trade them. Each
@@ -277,7 +279,21 @@ def h0052(
 
 # --- the book ---------------------------------------------------------------------------
 
-RULES: dict[str, Generator] = {"H-0052": h0052, "H-0065": h0065, "H-0096": h0096, "H-0098": h0098}
+
+def _mis_rules() -> dict[str, Generator]:
+    """Research 168-170's MIS stock rules (`deploy/mis_book.py`, ADR-147)."""
+    from eulerlab.deploy import mis_book
+
+    return {h: mis_book.generator(h) for h in mis_book.IDS}
+
+
+RULES: dict[str, Generator] = {
+    "H-0052": h0052,
+    "H-0065": h0065,
+    "H-0096": h0096,
+    "H-0098": h0098,
+    **_mis_rules(),
+}
 
 VARIANT = {
     "H-0098": "variant: covers at 15:10, not the closing auction its backtest used "

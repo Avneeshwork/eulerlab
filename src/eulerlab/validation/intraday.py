@@ -162,6 +162,15 @@ def _mft(hypothesis: str) -> Callable[[], IntradayRun]:
     return run
 
 
+def _quant(hypothesis: str) -> Callable[[], IntradayRun]:
+    def run() -> IntradayRun:
+        from eulerlab.intraday import quant_screen
+
+        return quant_screen.validation_run(hypothesis)
+
+    return run
+
+
 def _h0106() -> IntradayRun:
     from eulerlab.intraday import nse_reports_screen
 
@@ -173,6 +182,7 @@ SOURCES: dict[str, Callable[[], IntradayRun]] = {
     **{h: _index_futures(h) for h in ("H-0099", "H-0100", "H-0101", "H-0102")},
     "H-0106": _h0106,
     **{f"H-0{n}": _mft(f"H-0{n}") for n in range(111, 131)},
+    **{f"H-0{n}": _quant(f"H-0{n}") for n in range(131, 141)},
     "H-0052": _h0052,
     "H-0065": _h0065,
     "H-0096": _h0096,

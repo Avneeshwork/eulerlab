@@ -1,7 +1,7 @@
 id: H-0140
 title: 'Industry-relative gap reversal: long the five largest gaps down against their industry, short
   the five largest up, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -38,4 +38,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7280 trades (10.0 a day), 5.37 bps gross (long leg -7.48, short leg 18.22)
+  and -3.09 net a trade at Rs 5 lakh; net Sharpe -0.659, halves -1.525 / -0.017, at 2x costs -2.46; drawdown
+  -86% of margin; by year on margin 2021 -6%, 2022 -82%, 2023 +85%, 2024 -40% (research 170). Fails research
+  170''s screen (both halves and 2x costs net positive); not gated.'

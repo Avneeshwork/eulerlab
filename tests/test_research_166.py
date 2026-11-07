@@ -5,6 +5,7 @@ exit and cost path is pinned without market data."""
 from __future__ import annotations
 
 from datetime import date, timedelta
+from itertools import pairwise
 
 import pytest
 
@@ -309,3 +310,57 @@ def test_tight_range_break_follows_the_morning_move() -> None:
     mk, d1 = _one_stock_market(path)
     (sig,) = list(mft.h0124(mk, d1))
     assert sig.direction == 1 and sig.decided == 125
+
+
+# --- research 170: paper-backed long/short books -------------------------------------------
+
+from eulerlab.intraday import quant_screen as qs  # noqa: E402
+
+
+def test_long_short_takes_five_each_side_from_the_ranks() -> None:
+    days = _weekdays(date(2023, 1, 2), 2)
+    names = [f"S{i:02d}" for i in range(20)]
+    snaps = {n: {d: _path_snap([100.0]) for d in days} for n in names}
+    mk = mft.Market(
+        snaps=snaps,
+        sessions=[days[1]],
+        nifty={days[1]: [20_000.0] * 375},
+        nifty_prev={days[1]: 20_000.0},
+        beta={},
+        liquid={days[1]: names},
+        industry={},
+        previous={days[1]: days[0]},
+    )
+    scored = [(float(i), n) for i, n in enumerate(names)]
+    sigs = list(qs._long_short(mk, days[1], scored, True, None, 0))
+    longs = sorted(s.symbol for s in sigs if s.direction == 1)
+    shorts = sorted(s.symbol for s in sigs if s.direction == -1)
+    assert longs == names[:5] and shorts == names[-5:]
+
+
+def test_tug_of_war_score_is_the_mean_overnight_gap() -> None:
+    days = _weekdays(date(2023, 1, 2), 17)
+    snaps = {"ABC": {d: _path_snap([101.0], last_close=100.0) for d in days}}
+    mk = mft.Market(
+        snaps=snaps,
+        sessions=days,
+        nifty={},
+        nifty_prev={},
+        beta={},
+        liquid={},
+        industry={},
+        previous={b: a for a, b in pairwise(days)},
+    )
+    assert qs.s0132(mk, "ABC", days[-1]) == pytest.approx(0.01)
+
+
+def test_the_stricter_screen_needs_both_halves_and_2x_costs() -> None:
+    ok = {
+        "halves": {"first": {"sharpe": 1.0}, "second": {"sharpe": 0.1}},
+        "net_at_2x_costs": {"sharpe": 0.01},
+    }
+    bad = {
+        "halves": {"first": {"sharpe": 1.0}, "second": {"sharpe": 0.1}},
+        "net_at_2x_costs": {"sharpe": -0.2},
+    }
+    assert qs.passes_screen(ok) and not qs.passes_screen(bad)

@@ -1,7 +1,7 @@
 id: H-0135
 title: 'Industry momentum: long the five most traded stocks of yesterday''s best industry, short those
   of the worst, 09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -37,4 +37,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7280 trades (10.0 a day), 1.2 bps gross (long leg -4.79, short leg 7.18) and
+  -7.27 net a trade at Rs 5 lakh; net Sharpe -1.462, halves -0.954 / -1.907, at 2x costs -3.164; drawdown
+  -97% of margin; by year on margin 2021 +6%, 2022 -44%, 2023 -85%, 2024 -57% (research 170). Fails research
+  170''s screen (both halves and 2x costs net positive); not gated.'

@@ -1,7 +1,7 @@
 id: H-0137
 title: 'Weekly residual reversal: long the five largest 5-session residual losers, short the winners,
   09:20 to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -36,4 +36,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7160 trades (9.84 a day), 11.88 bps gross (long leg -3.31, short leg 27.07)
+  and 3.42 net a trade at Rs 5 lakh; net Sharpe 0.548, halves 0.395 / 0.695, at 2x costs -0.803; drawdown
+  -65% of margin; by year on margin 2021 -32%, 2022 +39%, 2023 +196%, 2024 -48% (research 170). Fails
+  research 170''s screen (both halves and 2x costs net positive); not gated.'

@@ -679,6 +679,10 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
+# Research 170: ten paper-backed, market-neutral stock day trades (H-0131 to H-0140).
+quant-screen:
+	@uv run python -m eulerlab.intraday.quant_screen
+
 # Research 168: ten MFT-style stock scalps on 5-minute closes at Zerodha MIS size (H-0111 to H-0120).
 mft-screen:
 	@uv run python -m eulerlab.intraday.mft_screen

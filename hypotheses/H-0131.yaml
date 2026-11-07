@@ -1,7 +1,7 @@
 id: H-0131
 title: 'Overnight gap reversal: long the five largest residual gaps down, short the five largest up, 09:20
   to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_quant
 source_kind: paper
 parent: ''
@@ -38,4 +38,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7160 trades (9.84 a day), 9.22 bps gross (long leg -0.98, short leg 19.41)
+  and 0.75 net a trade at Rs 5 lakh; net Sharpe 0.126, halves -0.015 / 0.266, at 2x costs -1.293; drawdown
+  -68% of margin; by year on margin 2021 -18%, 2022 -37%, 2023 +34%, 2024 -15% (research 170). Fails research
+  170''s screen (both halves and 2x costs net positive); not gated.'

@@ -38,4 +38,10 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 7280 trades (10.0 a day), 17.35 bps gross (long leg 3.68, short leg 31.02)
+  and 8.89 net a trade at Rs 5 lakh; net Sharpe 1.439, halves 2.357 / 0.442, at 2x costs 0.069; drawdown
+  -47% of margin; by year on margin 2021 -15%, 2022 +602%, 2023 +184%, 2024 -37% (research 170). Gate
+  2026-11-07 (validate #110, gate #111), simple mandate: PROMOTE, 9 of 9 (PSR 0.994, 2 of 3 full years
+  positive, Sharpe 0.07 at 2x costs). Strict-mode figures: deflated Sharpe 0.704, Romano-Wolf fails (1.24
+  vs 1.88). 2024 to October lost 37% on margin: the edge is weaker in the second half (0.44). Holdout
+  unread; none left to read.'
