@@ -27,7 +27,7 @@ what is open is in `TASKS.md`.*
   against 28 idea families, Romano-Wolf over Nifty, stress retention) is kept
   in `mandate.yaml` as `mode: strict`. A strategy that misses that but is
   profitable (PSR >= 0.80) gets **PAPER**: paper trading only (ADR-141).
-  Ledger: 117 entries.
+  Ledger: 121 entries.
 - **Under the simple gate (research 165):** PROMOTE H-0096, H-0098 (F&O
   ban-day short), H-0001, H-0020, H-0021, H-0022, H-0029; PAPER H-0023 to
   H-0028, H-0065, H-0052. All deploy to paper from Live → Deploy (ADR-142).
@@ -45,7 +45,10 @@ what is open is in `TASKS.md`.*
   ₹1 lakh a position): net Sharpe 1.57, 2024 -4% (research 171).
   On non-price data (research 172): PROMOTE **H-0160** (short a 3% rally
   made on low delivery, intraday) and **H-0153** (promoter buys held 20
-  days); both shrink on stocks that were in F&O at the time (T-4500).
+  days); on every liquid NSE stock, daily bars (research 173), their forms
+  H-0161 (9,867 trades 2016-2024, Sharpe 2.29, every year positive; strict
+  bar passed except Romano-Wolf) and H-0162 PROMOTE. Shortability of small
+  stocks (ASM/T2T) is unchecked (A-120, T-4502).
   The six earlier stock rules have paper books (`deploy/mis_book.py`, ADR-147); none started
   yet (T-4495). Since 2026-11-07 the operator's scope is NSE cash stocks only.
 - **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to

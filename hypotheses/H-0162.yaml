@@ -33,4 +33,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 274 positions 2021-07 to 2024-11 on the 500 most traded NSE stocks, +394.57
+  bps net each; net Sharpe 1.74, halves 0.97 / 2.53, 1.62 at 2x costs; every year positive (research 173).
+  Gate 2026-11-07 (validate #120, gate #121): PROMOTE, 9 of 9 (PSR 0.999). Strict-mode figures: deflated
+  Sharpe 0.836, Romano-Wolf fails (1.13 vs 1.82). Long only; 2021-2024 was a rising market.'

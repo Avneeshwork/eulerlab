@@ -189,6 +189,15 @@ def _other(hypothesis: str) -> Callable[[], IntradayRun]:
     return run
 
 
+def _daily_universe(hypothesis: str) -> Callable[[], IntradayRun]:
+    def run() -> IntradayRun:
+        from eulerlab.intraday import daily_universe_screen
+
+        return daily_universe_screen.validation_run(hypothesis)
+
+    return run
+
+
 def _h0106() -> IntradayRun:
     from eulerlab.intraday import nse_reports_screen
 
@@ -203,6 +212,8 @@ SOURCES: dict[str, Callable[[], IntradayRun]] = {
     **{f"H-0{n}": _quant(f"H-0{n}") for n in range(131, 141)},
     **{f"H-0{n}": _onex(f"H-0{n}") for n in range(141, 151)},
     **{f"H-0{n}": _other(f"H-0{n}") for n in range(151, 161)},
+    "H-0161": _daily_universe("H-0161"),
+    "H-0162": _daily_universe("H-0162"),
     "H-0052": _h0052,
     "H-0065": _h0065,
     "H-0096": _h0096,
