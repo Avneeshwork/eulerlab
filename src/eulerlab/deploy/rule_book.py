@@ -336,7 +336,9 @@ VARIANT = {
 
 
 def is_rule(strategy_id: str) -> bool:
-    return strategy_id in RULES
+    from eulerlab.deploy import engine_book
+
+    return strategy_id in RULES or engine_book.is_engine_card(strategy_id)
 
 
 def blocker(strategy_id: str) -> str:
@@ -361,7 +363,13 @@ def blocker(strategy_id: str) -> str:
 def trades_for(
     strategy_id: str, *, start: date, through: date, since: date, capital: float
 ) -> tuple[list[Trade], list[date]]:
-    return RULES[strategy_id](start=start, through=through, since=since, capital=capital)
+    if strategy_id in RULES:
+        return RULES[strategy_id](start=start, through=through, since=since, capital=capital)
+    from eulerlab.deploy import engine_book
+
+    return engine_book.trades(
+        strategy_id, start=start, through=through, since=since, capital=capital
+    )
 
 
 def run(deployment: Deployment) -> dict[str, Any]:
@@ -370,7 +378,12 @@ def run(deployment: Deployment) -> dict[str, Any]:
     from eulerlab.deploy import study_book
 
     state = study_book.run(deployment, trades_for=trades_for, block=blocker)
-    if note := VARIANT.get(deployment.strategy_id):
+    from eulerlab.deploy import engine_book
+
+    note = VARIANT.get(deployment.strategy_id) or (
+        engine_book.VARIANT if engine_book.is_engine_card(deployment.strategy_id) else ""
+    )
+    if note:
         state.setdefault("warnings", []).append(note)
         store.write_state(deployment, state)
     return state

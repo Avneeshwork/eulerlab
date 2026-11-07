@@ -219,7 +219,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     from eulerlab.validation import intraday
 
-    intraday_run = intraday.SOURCES[hypothesis.id]() if intraday.supported(hypothesis.id) else None
+    intraday_run = intraday.source(hypothesis.id)() if intraday.supported(hypothesis.id) else None
     if intraday_run is not None:
         # An intraday rule is scored from its own trades (ADR-139).
         cut = hypothesis.holdout.starts

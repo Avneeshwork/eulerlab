@@ -59,7 +59,22 @@ def _fills_for(hypothesis: str, run: Any) -> tuple[list[Any], int]:
     return out, len({s.symbol for s in swings})
 
 
+def _engine_card(hypothesis: str) -> bool:
+    from eulerlab.intraday import rule_engine
+
+    try:
+        return rule_engine.card_spec(hypothesis) is not None
+    except ValueError:
+        return False
+
+
 def _swings(hypothesis: str) -> list[Any]:
+    if _engine_card(hypothesis):
+        from eulerlab.intraday import rule_engine
+
+        spec = rule_engine.card_spec(hypothesis)
+        assert spec is not None
+        return rule_engine.Engine(rule_engine.Data()).swings(spec)
     if hypothesis == "H-0162":
         from eulerlab.intraday import daily_universe_screen as du
 
@@ -88,11 +103,11 @@ def setting(hypothesis: str, sessions: Sequence[date], capital: float) -> dict[s
         "end": end.isoformat(),
         "window_days": (end - start).days,
         "universe": "nse_500_most_traded"
-        if hypothesis in ("H-0161", "H-0162", "H-0168")
+        if hypothesis in ("H-0161", "H-0162", "H-0168") or _engine_card(hypothesis)
         else "fo_stocks",
         "tier": "B",
         "asset_class": "equity",
-        "timeframe": TIMEFRAME.get(hypothesis, "1m"),
+        "timeframe": "1d" if _engine_card(hypothesis) else TIMEFRAME.get(hypothesis, "1m"),
         "capital": capital,
     }
 
@@ -101,7 +116,7 @@ def store_one(hypothesis: str) -> dict[str, Any]:
     from eulerlab import reports, results, workspace
     from eulerlab.validation import intraday
 
-    run = intraday.SOURCES[hypothesis]()
+    run = intraday.source(hypothesis)()
     days, equity = curve(run)
     fills, symbols = _fills_for(hypothesis, run)
     summary = fh.summarise(days, equity)

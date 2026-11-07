@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
 **Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
-*Last updated: 2026-11-07. One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-08. One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -94,6 +94,14 @@ what is open is in `TASKS.md`.*
 - **Data.** NSE equities, F&O, indices, delivery, FII/DII, deals and filings,
   Nifty minutes and option chains; about 4.5 GB mirrored to Backblaze B2,
   which is the store of record. `make daily` refreshes, uploads and prunes.
+- **Research autopilot (ADR-150, 2026-11-08).** Each evening in `make agents-ideas`,
+  the autopilot writes about ten new NSE stock rules as engine specs, half
+  intraday and half swing (Claude Sonnet, then Groq, then fixed rules). It
+  commits them before any run and screens them in research 173's frame with
+  bias checks. It gates clean survivors within 10 ledger entries a week, and
+  stores a report and starts a paper book for each pass. It writes one
+  research note. `intraday/rule_engine.py` reproduces research 176 exactly.
+  Run it alone: `make agents-autopilot`.
 - **AI agents.** Eight agents on one runtime with budgets, an inbox and a
   hash-chained log; none can reach the order path, gate or ledger. The market
   brief runs before the open, after the close and on closed days; it tells

@@ -83,6 +83,11 @@ def sources(strategy_id: str) -> list[str]:
         # A gated intraday rule: its card and the book that applies it (ADR-142).
         path = forward.card_path(strategy_id)
         card = path.read_text(encoding="utf-8") if path.exists() else ""
+        if strategy_id not in rule_book.RULES:  # an engine card (ADR-150)
+            from eulerlab.deploy import engine_book
+            from eulerlab.intraday import rule_engine
+
+            return [card, _source(engine_book), _source(rule_engine), _source(rule_book)]
         return [card, _source(rule_book.RULES[strategy_id]), _source(rule_book)]
     if forward.is_hypothesis(strategy_id):
         # A promoted card: its text (what was gated) and the code that trades it.

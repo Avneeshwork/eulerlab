@@ -762,6 +762,56 @@ trade ₹5 lakh (₹1 lakh of margin at 5x MIS), at most ten open, and return on
 decision. Their paper books (`deploy/mis_book.py`, ADR-147) call the same rule functions on snapshots built from minute files after the holdout end, a position at half the deployment's capital in notional. For a one-underlying straddle, "drop best 5 names" removes
 everything and reads 0% kept.
 
+## 5.2c The rule engine and the research autopilot (ADR-150)
+
+Research 166-176 needed a new screen module for every batch, so only a person
+could test an idea. `intraday/rule_engine.py` makes a daily-bar event rule data.
+A card's `engine:` block is:
+
+    kind: intraday | swing      hold: 0 | 2-60 sessions
+    side: long | short | against | with   (+ direction_of: a signal whose sign sets the side)
+    when: 1-5 conditions, all must hold   (signal, lag, n, absolute, op, value)
+    rank_by: a signal, desc | asc         (ten a day, or ten open, best first)
+
+The signals are `gap`, `ret(n)`, `day_return`, `delivery_ratio`, `value_ratio`,
+`at_high(n)`, `at_low(n)`, `results_morning`, `bulk_buy`, `bulk_sell` and
+`promoter_buy`. `lag` counts sessions before the entry session, and entry is
+at its official open. A signal that reads a close needs `lag >= 1`, so a rule
+that looks ahead does not parse. The window starts on the first day every
+signal's data exists (2016-01-01, or 2021-07-01 for deals and results) and
+ends at `DATA_END`. The card cannot choose it. The universe, costs, sizing
+and books are research 173's (`daily_more_screen.day_book`/`swing_book`).
+Research 176's ten rules, written as specs (`REFERENCE`), reproduce its
+published counts and Sharpes exactly (`make rule-engine-check`).
+
+Every screen adds five checks. A rule is gated only if it passes the screen
+(net positive in both halves and at 2x costs) and none of these flags:
+fewer than 100 trades; under half the Sharpe kept without the five best
+stocks; positive in under 60% of years; the best 1% of sessions making over
+half the profit. Sharpe at 3x costs is shown for information.
+
+`validation/intraday.source(h)` falls back to the engine for a card with an
+`engine:` block, so `make validate`, `make gate`, `library_reports` and
+`rule_book` (through `deploy/engine_book.py`, which reads data after the holdout
+end only) take an engine card with no new code.
+
+**The nightly loop** (`make agents-autopilot`, part of `make agents-ideas`):
+
+    autopilot agent writes ~10 specs (Claude Sonnet -> Groq -> fixed rules), half intraday
+      -> parse; drop repeats by fingerprint (every engine card and research 176's ten)
+      -> hypotheses/H-NNNN.yaml, committed alone: the pre-registration
+      -> one screen pass (no trial) -> bias checks
+      -> clean survivors, and older ones waiting: validate + gate while the week's
+         allowance of ledger entries lasts (gate_entries_per_week, 10)
+      -> PROMOTE or PAPER: library report + paper deployment
+      -> result line on each card, docs/RESEARCH/NNN-autopilot-<day>.md, one commit,
+         an inbox item and a Telegram line
+
+The agent itself only writes cards (`agents/workers/autopilot.py`). The rest is
+`research/autopilot.py`, run as that agent's run (`runtime.run(worker=...)`), so
+the boundary that keeps agents away from the gate still holds for every module
+in `agents/`.
+
 ## 5.3a The bar from what was searched (ADR-108, research 138)
 
 From 2026-10-31, by operator decision, `N` and `σ_SR` in 5.3 come from the

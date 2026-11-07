@@ -3,6 +3,20 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## The research autopilot (2026-11-07, ADR-150)
+
+Operator: the agents should run the research loop on their own and ask only for real decisions; "go", with Claude Sonnet first and Groq as fallback.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4510 | Rule engine: an `engine:` block per card, one screen in research 173's frame, lookahead refused at parse, bias checks on every screen | DONE 2026-11-08 — `intraday/rule_engine.py`; research 176's ten rules reproduce exactly (`make rule-engine-check`); `tests/test_research_autopilot.py` |
+| T-4511 | Nightly loop: write, pre-register (commit), screen, gate within `gate_entries_per_week`, library report, paper book, research note, summary | DONE 2026-11-08 — `research/autopilot.py`, `agents/workers/autopilot.py`, `deploy/engine_book.py`; in `make agents-ideas` |
+| T-4512 | Operator: put credit on the Anthropic key (`ANTHROPIC_API_KEY` in `.env`); until then the autopilot falls back to Groq | TODO. Operator |
+| T-4513 | The idea lab tested 2 of 37 queued cards on 2026-11-07: one card ran from 11:38 to 14:12, past its 90-minute limit, because the limit is checked only between cards. Check the time inside a card's test, or move formula cards onto a faster screen | TODO |
+| T-4514 | The department heads ran 0 tasks from 2026-11-05 to 2026-11-07: they act only on tasks the operator types. Let a head give the autopilot a theme from its goals | TODO |
+| T-4515 | More signals for the engine: F&O ban days, ASM/GSM entries, FII/participant OI and index moves as conditions on stocks (`SIGNALS` plus a branch in `Engine.value`) | TODO |
+| T-4516 | Screens spend no trial (as research 166-176). Decide whether the autopilot's screened rules count toward the search the strict gate corrects for | TODO. Operator decision |
+
 ## Nightly upload never finishing (2026-11-02, HISTORY #68)
 
 Operator: the automatic data upload stalls and never finishes.

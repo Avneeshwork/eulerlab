@@ -1,0 +1,34 @@
+# The research autopilot (ADR-150): the manual loop of research 166-176, every
+# evening. The agent writes the cards; `research/autopilot.py` registers,
+# screens, gates and writes up. Operator approval: 2026-11-07 ("go", with
+# Claude Sonnet first and Groq if Claude cannot answer).
+name: autopilot
+title: Research autopilot
+reports_to: research
+job: Writes about ten new NSE stock rules a night (half intraday, half swing) in the rule engine's language, commits them before any run, screens them, gates the clean survivors within a weekly allowance, and stores reports and paper books for passes.
+worker: eulerlab.agents.workers.autopilot
+provider: claude-sonnet
+schedule: Every day 17:00 IST, after research and before the idea lab (make agents-ideas)
+uses_model: true
+daily_requests: 1
+needs_approval: false
+never:
+  - edit gates.py or mandate.yaml, or read a holdout
+  - change a card after it is committed, or tune a rule after its screen
+  - gate more than the week's allowance of ledger entries (gate_entries_per_week)
+  - trade live money or push to GitHub
+options:
+  cards: 10
+  # Ledger entries a week for gating clean survivors: validate and gate add one
+  # each, so 10 is five gate runs. The operator's number to change.
+  gate_entries_per_week: 10
+  cli_only: true
+duties:
+  - Every day at 17:00, write and pre-register ten rules, screen them, gate the clean ones
+  - Store a library report and start a paper book for each PROMOTE or PAPER
+  - Write one research note listing every rule tried, pass or fail
+can_do:
+  - kind: write_rules
+    what: Write and pre-register a batch of rules (screening and gating run from make agents-autopilot)
+    auto: false
+    words: [rule, rules, strategy, strategies, autopilot, intraday, swing]

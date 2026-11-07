@@ -232,8 +232,27 @@ SOURCES: dict[str, Callable[[], IntradayRun]] = {
 }
 
 
+def source(hypothesis_id: str) -> Callable[[], IntradayRun]:
+    """The trade source for a card: `SOURCES`, else its `engine:` block (ADR-150)."""
+    if hypothesis_id in SOURCES:
+        return SOURCES[hypothesis_id]
+    from eulerlab.intraday import rule_engine
+
+    if rule_engine.card_spec(hypothesis_id) is None:
+        msg = f"{hypothesis_id} is not an intraday rule"
+        raise KeyError(msg)
+    return lambda: rule_engine.validation_run(hypothesis_id)
+
+
 def supported(hypothesis_id: str) -> bool:
-    return hypothesis_id in SOURCES
+    if hypothesis_id in SOURCES:
+        return True
+    from eulerlab.intraday import rule_engine
+
+    try:
+        return rule_engine.card_spec(hypothesis_id) is not None
+    except ValueError:
+        return False
 
 
 def daily_returns(

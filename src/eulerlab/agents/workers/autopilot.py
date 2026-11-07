@@ -1,0 +1,365 @@
+"""The autopilot's card writer: new rules in the engine's language, half intraday, half swing (ADR-150).
+
+    papers in the library + every rule already tried + what earlier screens showed
+        -> the model writes about ten cards as `engine:` specs (Claude first, Groq
+           if Claude cannot answer), each with a reason and red flags
+        -> each spec is parsed by `intraday/rule_engine.py` (no lookahead, long-only
+           swings, a window it cannot choose); a spec that fails is dropped, with why
+        -> a repeat of any rule already tried (same fingerprint) is dropped
+        -> too few left: fixed-rule specs fill the gap from the signal vocabulary
+        -> written to `hypotheses/H-NNNN.yaml` as drafts, unscreened
+
+This worker only writes cards. It never screens, validates, gates or commits:
+`research/autopilot.py` (`make agents-autopilot`) commits the cards as their
+pre-registration and runs the rest of the loop under the operator's approval
+of 2026-11-07. Run alone (`make agent NAME=autopilot`) it stops at the cards.
+"""
+
+from __future__ import annotations
+
+import json
+import random
+import re
+from datetime import date
+from pathlib import Path
+from typing import Any
+
+import yaml
+from pydantic import ValidationError
+
+from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, model_asker, untrusted
+from eulerlab.intraday import rule_engine as engine
+
+HYPOTHESES = Path("hypotheses")
+PAPERS = Path("research/papers")
+FAMILY = "autopilot_event_rules"
+DEFAULT_CARDS = 10
+FALLBACK_PROVIDER = "groq"
+HOLDOUT_START = "2024-12-01"
+
+SCOPE = (
+    "Scope (operator, 2026-11-07): Indian cash stocks only, NSE. Trade only stocks, never "
+    "options or futures; other data (F&O, OI, deals, results dates) may be signals. 1x capital, "
+    "no leverage. Half intraday (official open to official close, long or short), half swing "
+    "(delivery, long only, held 2 to 60 sessions)."
+)
+
+SYSTEM = (
+    "You are the research autopilot of a quant platform for NSE stocks. You write new trading "
+    "rules as JSON specs for a fixed rule engine. You never see results before writing; every "
+    "rule is pre-registered and tested once, with no tuning afterwards. Prefer rules with an "
+    "economic reason (who is forced to trade, who under-reacts, what information arrives) over "
+    "chart patterns: price-only stock rules have repeatedly died on the 12 bps intraday round "
+    "trip here. Each rule must be different from every rule already tried. Answer with JSON only."
+)
+
+
+def vocabulary() -> str:
+    lines = [
+        f"- {name}: {info.what}; min lag {info.min_lag}; data from {info.first}"
+        for name, info in engine.SIGNALS.items()
+    ]
+    return "\n".join(lines)
+
+
+SPEC_HELP = """A spec (the `engine` object):
+{"kind": "intraday" | "swing",
+ "hold": 0 for intraday, 2-60 sessions for swing,
+ "side": "long" | "short" (intraday only) | "against" | "with",
+ "direction_of": {"signal": ..., "lag": ..., "n": ...}   (only for against/with: trade against/with its sign),
+ "when": [ {"signal": ..., "lag": 0-5, "n": 1-260, "absolute": false, "op": ">=" | "<=" | ">" | "<", "value": number}, ... ]  (1-5 conditions, all must hold; omit op/value for a yes/no event),
+ "rank_by": {"signal": ..., "lag": ..., "n": ..., "absolute": false, "order": "desc" | "asc"}}
+lag is sessions before the entry session; entry is at the entry session's official open.
+A signal that uses a close needs lag >= 1. Returns are fractions (0.03 = 3%).
+Example (research 176, H-0168, already tried): {"kind": "intraday", "side": "against",
+ "direction_of": {"signal": "gap"}, "when": [{"signal": "results_morning"},
+ {"signal": "gap", "op": ">=", "value": 0.03, "absolute": true}],
+ "rank_by": {"signal": "gap", "absolute": true, "order": "desc"}}"""
+
+
+def tried(root: Path = HYPOTHESES, limit: int = 60) -> str:
+    """Every engine rule tried, and the latest other cards, with their result lines."""
+    lines = []
+    for h, spec in engine.reference_specs().items():
+        lines.append(f"{h} [{spec.kind}] {spec.describe()}")
+    other = []
+    for path in sorted(root.glob("H-*.yaml")):
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        result = str(raw.get("result") or "")[:160].replace("\n", " ")
+        if isinstance(raw.get("engine"), dict):
+            try:
+                spec = engine.RuleSpec.model_validate(raw["engine"])
+            except ValidationError:
+                continue
+            lines.append(f"{path.stem} [{spec.kind}] {spec.describe()} :: {result}")
+        else:
+            other.append(f"{path.stem} {raw.get('title', '')} :: {result}")
+    return "\n".join(lines + other[-limit:])
+
+
+def papers(day: date, count: int = 12, root: Path = PAPERS) -> str:
+    """A different dozen papers with a trade idea each day, seeded by the day."""
+    found = []
+    for path in sorted(root.glob("*.yaml")):
+        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        idea = str(raw.get("trade_idea") or "").strip()
+        if idea:
+            found.append(f"[{raw.get('id', path.stem)}] {raw.get('title', '')}: {idea[:300]}")
+    random.Random(day.toordinal()).shuffle(found)
+    return "\n".join(found[:count])
+
+
+def prompt(day: date, count: int) -> str:
+    half = count // 2
+    return (
+        f"{SCOPE}\n\nSignals you may use:\n{vocabulary()}\n\n{SPEC_HELP}\n\n"
+        f"Rules already tried (do not repeat them or trivially vary a threshold):\n"
+        f"{untrusted('tried', tried())}\n\n"
+        f"Papers in the library:\n{untrusted('papers', papers(day))}\n\n"
+        f"Write {count} new rules: {half} intraday and {count - half} swing. Answer with "
+        '{"cards": [{"title": "<under 90 characters>", "claim": "<one sentence a test can '
+        'falsify>", "rationale": "<why it should earn money, naming the paper id or earlier '
+        'card it builds on>", "paper": "<paper id or empty>", "engine": {...}, '
+        '"red_flags": ["<specific ways it could be fake>"]}]}'
+    )
+
+
+def parse(answer: str) -> list[dict[str, Any]]:
+    """The cards in a model answer; anything that is not a JSON object list gives []."""
+    text = answer.strip()
+    fenced = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
+    if fenced:
+        text = fenced.group(1)
+    start = text.find("{")
+    if start < 0:
+        return []
+    try:
+        body = json.loads(text[start : text.rfind("}") + 1])
+    except ValueError:
+        return []
+    cards = body.get("cards") if isinstance(body, dict) else None
+    return [c for c in cards if isinstance(c, dict)] if isinstance(cards, list) else []
+
+
+def accept(
+    raw: list[dict[str, Any]], known: dict[str, str]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """(cards whose spec parses and is new, why each other was dropped)."""
+    kept: list[dict[str, Any]] = []
+    dropped: list[str] = []
+    seen = dict(known)
+    for card in raw:
+        title = str(card.get("title") or "untitled")[:120]
+        try:
+            spec = engine.RuleSpec.model_validate(card.get("engine"))
+        except ValidationError as exc:
+            dropped.append(f"{title}: {exc.errors()[0].get('msg', 'invalid spec')}")
+            continue
+        fp = spec.fingerprint()
+        if fp in seen:
+            dropped.append(f"{title}: repeats {seen[fp]}")
+            continue
+        seen[fp] = title
+        kept.append({**card, "title": title, "spec": spec})
+    return kept, dropped
+
+
+GRID: tuple[tuple[str, dict[str, Any]], ...] = (
+    ("gap", {"op": ">=", "value": 0.02, "absolute": True}),
+    ("ret", {"lag": 1, "n": 5, "op": "<=", "value": -0.08}),
+    ("ret", {"lag": 1, "n": 5, "op": ">=", "value": 0.08}),
+    ("value_ratio", {"lag": 1, "op": ">=", "value": 3.0}),
+    ("delivery_ratio", {"lag": 1, "op": ">=", "value": 1.5}),
+    ("at_high", {"lag": 1, "n": 60}),
+    ("at_low", {"lag": 1, "n": 60}),
+    ("promoter_buy", {"op": ">", "value": 0.0}),
+    ("results_morning", {}),
+    ("day_return", {"lag": 1, "op": "<=", "value": -0.04}),
+)
+"""Fixed-rule building blocks for when the model cannot answer."""
+
+
+def fallback(count: int, seed: int, known: dict[str, str]) -> list[dict[str, Any]]:
+    """Pairs of grid conditions, half intraday and half swing, new fingerprints only."""
+    rng = random.Random(seed)
+    out: list[dict[str, Any]] = []
+    tries = 0
+    while len(out) < count and tries < 500:
+        tries += 1
+        (a, ca), (b, cb) = rng.sample(GRID, 2)
+        swing = len(out) % 2 == 1
+        when = [{"signal": a, **ca}, {"signal": b, **cb}]
+        rank = next(
+            (
+                {"signal": s, **{k: v for k, v in c.items() if k in ("lag", "n", "absolute")}}
+                for s, c in ((a, ca), (b, cb))
+                if not engine.SIGNALS[s].boolean
+            ),
+            None,
+        )
+        if rank is None:
+            continue
+        body = {
+            "kind": "swing" if swing else "intraday",
+            "hold": rng.choice((5, 10, 20)) if swing else 0,
+            "side": "long" if swing else rng.choice(("long", "short")),
+            "when": when,
+            "rank_by": {**rank, "order": "desc"},
+        }
+        try:
+            spec = engine.RuleSpec.model_validate(body)
+        except ValidationError:
+            continue
+        if spec.fingerprint() in known:
+            continue
+        known = {**known, spec.fingerprint(): "fallback"}
+        out.append(
+            {
+                "title": f"Fixed-rule combination: {spec.describe()[:80]}",
+                "claim": f"{spec.describe()} earns more than costs in both halves and at 2x costs.",
+                "rationale": "Written by fixed rules from the signal vocabulary, because the model "
+                "could not answer. No paper behind it.",
+                "paper": "",
+                "red_flags": ["No economic reason was written before the test."],
+                "spec": spec,
+            }
+        )
+    return out
+
+
+def next_ids(count: int, root: Path = HYPOTHESES) -> list[str]:
+    numbers = [int(p.stem[2:]) for p in root.glob("H-*.yaml") if p.stem[2:].isdigit()]
+    start = max(numbers, default=0) + 1
+    return [f"H-{n:04d}" for n in range(start, start + count)]
+
+
+def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_count: int) -> str:
+    spec: engine.RuleSpec = card["spec"]
+    flags = [str(f) for f in card.get("red_flags") or [] if str(f).strip()][:6]
+    body = {
+        "id": h,
+        "title": card["title"],
+        "status": "draft",
+        "family": FAMILY,
+        "source_kind": "paper" if card.get("paper") else "agent",
+        "parent": "",
+        "claim": str(card.get("claim") or spec.describe())[:400],
+        "rationale": str(card.get("rationale") or "")[:800],
+        "source": {
+            "research": "autopilot",
+            "paper": str(card.get("paper") or ""),
+            "written_by": f"the research autopilot ({model or 'fixed rules'}), ADR-150",
+            "day": day.isoformat(),
+        },
+        "configurations": [
+            {
+                "shape": "engine_rule",
+                "rule": spec.describe(),
+                "universe": "the 500 most traded NSE stocks by 20-session traded value each day; "
+                "stocks in series BE/BZ the previous session skipped (research 173, 174)",
+                "costs": "cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most "
+                "ten a day, official open to close"
+                if spec.kind == "intraday"
+                else "delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open",
+                "window": f"{spec.first.isoformat()} to {engine.END.isoformat()}",
+            }
+        ],
+        "engine": spec.model_dump(mode="json", exclude_defaults=True),
+        "red_flags": [
+            *flags,
+            "Daily bars: the official open and close stand in for real fills.",
+            f"Written by the autopilot after {tried_count} cards were tried; the simple gate "
+            "does not correct for that search.",
+            "Screen as research 176: gated only if net positive in both halves, at twice the "
+            "costs, and clean on the engine's bias checks.",
+        ],
+        "holdout": {"starts": HOLDOUT_START, "status": "unread"},
+        "result": "",
+    }
+    return yaml.safe_dump(body, sort_keys=False, allow_unicode=True, width=100)
+
+
+def _ask(ctx: Context, user: str) -> tuple[str, str]:
+    """(answer, provider): the agent's own provider first, then Groq."""
+    try:
+        return ctx.ask(SYSTEM, user), ctx.model
+    except BudgetSpent:
+        raise
+    except Exception as exc:  # an outage or an empty Claude balance must not stop the night
+        ctx.notes.append(f"{ctx.model or 'the model'} failed ({type(exc).__name__}); trying Groq")
+    ctx.requests += 1
+    return model_asker(FALLBACK_PROVIDER)(SYSTEM, user, None), FALLBACK_PROVIDER
+
+
+def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
+    """Write the night's cards. Returns {"cards": [{id, path, kind, rule}], "dropped": [...]}."""
+    count = int(ctx.options.get("cards", DEFAULT_CARDS))
+    day = ctx.now.date()
+    known = engine.known_fingerprints(root)
+    raw: list[dict[str, Any]] = []
+    model = ""
+    if ctx.can_ask():
+        try:
+            answer, model = _ask(ctx, prompt(day, count))
+            raw = parse(answer)
+            ctx.step(f"The model wrote {len(raw)} card(s)")
+        except BudgetSpent:
+            ctx.notes.append("model budget spent for today; fixed rules only")
+        except Exception as exc:
+            ctx.notes.append(f"no model answered ({type(exc).__name__}); fixed rules only")
+    kept, dropped = accept(raw, known)
+    kept = _balance(kept, count)
+    if len(kept) < count:
+        taken = {**known, **{c["spec"].fingerprint(): c["title"] for c in kept}}
+        extra = fallback(count - len(kept), day.toordinal(), taken)
+        if extra:
+            ctx.notes.append(f"{len(extra)} card(s) written by fixed rules to make up {count}")
+        kept += extra
+    ids = next_ids(len(kept), root)
+    tried_count = len(list(root.glob("H-*.yaml")))
+    written = []
+    for h, card in zip(ids, kept, strict=True):
+        path = root / f"{h}.yaml"
+        if path.exists():  # another session took the number meanwhile
+            continue
+        path.write_text(
+            card_yaml(h, card, day=day, model=model, tried_count=tried_count), encoding="utf-8"
+        )
+        spec: engine.RuleSpec = card["spec"]
+        written.append(
+            {
+                "id": h,
+                "path": str(path),
+                "kind": spec.kind,
+                "rule": spec.describe(),
+                "title": card["title"],
+                "model": model or "fixed rules",
+            }
+        )
+    return {"cards": written, "dropped": dropped, "model": model}
+
+
+def _balance(cards: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:
+    """At most half of `count` of each kind, model order kept."""
+    half = {"intraday": count // 2, "swing": count - count // 2}
+    out = []
+    for card in cards:
+        kind = card["spec"].kind
+        if half[kind] > 0:
+            half[kind] -= 1
+            out.append(card)
+    return out
+
+
+def run(ctx: Context) -> WorkerResult:
+    """Cards only; `make agents-autopilot` runs the full loop."""
+    found = write_cards(ctx)
+    items = [
+        Item(kind="draft", title=f"{c['id']}: {c['title']}"[:200], body=c["rule"], ref=c["path"])
+        for c in found["cards"]
+    ]
+    return WorkerResult(
+        f"{len(found['cards'])} card(s) written, unscreened; {len(found['dropped'])} dropped",
+        items=items,
+        data=found,
+    )
