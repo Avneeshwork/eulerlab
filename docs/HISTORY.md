@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighty times this project was wrong
+## Eighty-one times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -458,6 +458,8 @@ figure produced outside the result store before this date was frictionless.
 
 **80. A test said H-0001's holdout was unread after the operator had read it.** (2026-11-07) `tests/test_validation_holdout.py` asserted that `hypotheses/H-0001.yaml` declares an unread holdout. The operator read it on 2026-11-06 (ADR-143) and the file was changed to `status: read`, but the test was not, so `make verify` and CI on main went red from commit 6bd2119. Nobody saw it because the later commits were pushed straight to main. Now the test checks that the file records the read, and a new test checks that a read holdout is still cut off by `truncate`. No numbers invalidated.
 
+**81. A test still expected H-0001's gate verdict to be KILL.** (2026-11-07) `tests/test_research_orchestrator.py` asserted that the real ledger's latest verdict for H-0001 is KILL; H-0001 was re-gated PROMOTE under the simple gate on 2026-11-06 (ADR-140, ledger #68-#95), so the pre-commit suite failed on this machine (the test is skipped in CI, where the ledger is absent). Now it expects PROMOTE. Also found in research 166: research 153's Nifty expiry list (from `nifty_options.jsonl`) lacks four expiries (2019-08-29, 2019-09-05, 2019-09-12, 2021-05-20); H-0041's numbers move from 299 trades and +6.96 bps net to 303 and +7.12. Why the file lacks them was not checked. No conclusion changes.
+
 ---
 
 ## What the project has actually concluded
@@ -471,6 +473,10 @@ hypotheses PROMOTE and eight get PAPER (research 165), and the holdout was
 read once for all fifteen (ADR-143). So there is no unseen data left: forward
 paper trading is the only out-of-sample test these strategies will get. A
 PROMOTE under the simple bar is not evidence that the strict bar was wrong.
+
+Research 166-167 (2026-11-07) added one: H-0103, the BankNifty expiry-day
+straddle, PROMOTE under the simple bar (it would fail the strict bar's
+Romano-Wolf). Seventeen other intraday rules died at the screen.
 
 **No capital has ever been traded.**
 

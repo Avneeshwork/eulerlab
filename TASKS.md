@@ -160,7 +160,7 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4456 | Data watch also at 22:00 IST: NSE sometimes publishes F&O after the 19:30 run | DONE 2026-11-04 (operator). `make schedule ACTION=install JOB=data-watch` reloads it |
 | T-4457 | Engineering agent fits Groq's free limit: small context (rules digest, the failing function, its tests, the error) and exact edits; wider second try; then the next model | DONE 2026-11-05 (HISTORY #78). 8,600-12,600 tokens became 1,800-4,200 |
 | T-4458 | The lab writes its own formula ideas again (`max_ideas: 30`, `model_ideas: 6`, the settings before 2026-11-03), beside research's cards | DONE 2026-11-04 (operator). Each idea spends trials as before |
-| T-4459 | H-0041, selling the Nifty straddle at the open on expiry day, screened alive: 6.96 bps net of notional a week, net Sharpe 0.95 (both halves positive), worst day -307 bps (research 153). Decide: check fills on minute option prices, gate it (one trial), or leave it | OPEN (operator) |
+| T-4459 | H-0041, selling the Nifty straddle at the open on expiry day, screened alive: 6.96 bps net of notional a week, net Sharpe 0.95 (both halves positive), worst day -307 bps (research 153). Decide: check fills on minute option prices, gate it (one trial), or leave it | CLOSED 2026-11-07 — operator kept only H-0103 of the research-166 straddles; H-0041 not gated |
 | T-4460 | Backfill NSE's F&O ban list (`fo_secban`) for 2021-2024 so ban entry can be screened (research 153, idea 4); held only from 2025-10-30 today | OPEN (operator: backfill or not) |
 | T-4461 | Minute-level scalping on NSE stocks and the Nifty (operator, 2026-11-05): move-vs-cost map and two pre-registered scalps | DONE 2026-11-05 — both dead: shock fade 7.69 bps gross, -4.57 net; round-number cross -2.26 gross. Index scalps cannot pay: NIFTYBEES moves 8.3 bps in 15 minutes (research 154) |
 | T-4462 | Zerodha's charges page (operator, 2026-11-05) lists NSE equity transaction at 0.00307%; `costs/schedule.py` uses 0.00297% from 2024-10-01 (0.01 bps a side). Confirm with T-906's contract notes and add a dated schedule entry if NSE changed it | OPEN |
@@ -184,6 +184,20 @@ Verify: `uv run pytest -q tests/test_agent_fixes_2026_11_04.py`; `make agent NAM
 | T-4480 | Paper-trade the gate's PROMOTE and PAPER strategies. Daily cards (H-0001, H-0020 to H-0029) deploy from the Deploy page; the intraday rules H-0096, H-0098 (auction-entry variant), H-0065 and H-0052 now do too (`deploy/rule_book.py`, ADR-142). Mostly one momentum bet: choose a few | OPEN (operator: start the deployments) |
 | T-4481 | H-0065's paper book loads every F&O stock's minute files on each run: 34 minutes in the 2026-11-06 dry run. Cache the overnight moves per stock-day so a run reads only new days | OPEN |
 | T-4482 | Full-history backtests (ADR-143) | DONE 2026-11-06 — reports stored for H-0001, H-0020 to H-0029, H-0052 and H-0098. H-0065 and H-0096 skipped on the operator's instruction (their runs download every needed stock's minute data from B2 and took hours). Both holdout reads were recorded before the skip, so the ledger shows them read though their 2025-26 results were never computed; H-0096's 2021-2024 result is in research 164 |
+
+## Day trades on Indian stocks and indexes (2026-11-07, research 166-167, ADR-145)
+
+Operator: "research more on the minute level strategies ... closed at day end. set a goal to find 5 strategies if profitable register in library and generate report"; "we only have to research for indian stocks and indexes"; "keep 1st strategy only and research on stocks trading"; then "build strategies like [MFT/HFT] ... minute level trades and take 5-10 trades a day ... research on such 10 strategies".
+Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `make index-expiry`, `make nse-queries`; read research 166 and 167.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4483 | Pre-register and screen nine Indian day-trading rules: four index-futures rules on 15-minute bars, four index-option expiry straddles, the F&O ban exit | DONE 2026-11-07 — survivors H-0041, H-0103, H-0105; dead H-0099 to H-0102 (futures: 1.3-6.5 bps gross against 4.4 cost), H-0104, H-0106 (research 166). T-4039 answered: the noise area does not pay on Nifty futures |
+| T-4484 | Gate H-0103, the BankNifty expiry-day straddle (operator: "keep 1st strategy only") | DONE 2026-11-07 — PROMOTE, 9 of 9 (ledger #96, #97): net Sharpe 1.79, halves 2.03 / 1.51, 6 of 6 years positive, 1.69 at 2x costs. Holdout unread; none left to read (15 reads used). In the library as promoted |
+| T-4485 | Four stock fades after NSE clarification queries (H-0107 to H-0110) | DONE 2026-11-07 — all dead, no gross edge (-35 to +1.4 bps a trade) (research 167) |
+| T-4486 | H-0103 cannot be paper-traded yet: no rule-book generator for options, and BankNifty has only monthly expiries since 2024-11-20. Build a monthly-expiry book, or leave it as a record | OPEN (operator) |
+| T-4487 | Check H-0103's bhavcopy opening fills against minute option prices once FYERS history is fetched (T-4285) | OPEN |
+| T-4488 | Ten MFT-style minute rules, 5-10 trades a day: judge at retail cost only, or also report at member-level (statutory-only) cost, or wait for futures/option minute data | OPEN (operator) |
 
 ## Stock screener: long-term and swing models (2026-11-04)
 
@@ -774,7 +788,7 @@ Verify: `uv run pytest -q tests/test_session_papers.py`; `make intraday-papers`;
 |---|---|---|
 | T-4038 | **Gao et al. (last half-hour) and Zarattini et al. (noise area), read in full, coded and run** | DONE — `intraday/session_papers.py`, NIFTYBEES one-minute bars, 1,264 sessions 2021-2026. Gao: no predictability (t -0.54), gross 0.3 bps a trade, net -53%. Noise area with band + VWAP stop: gross Sharpe 1.58, stable before and after 2024, 3 bps a trade; NSE charges are 4 bps a round trip, net -31%. Both rejected for the cash ETF. No trial spent |
 | T-4042 | **"Price Action Meets Volatility" (Mukherjee & Mandal 2025) coded as written** | DONE — research 072, `research/gap_forecast.py`, `make gap-forecast`. All three models and the paper's tables, with its VIX change (close minus open). The tables reproduce, but the paper compares with 50% and the Nifty gaps up on 68.7% of days: always saying "up" beats every model. Signals lift 2-5 points over the base rate. On the Nifty future after costs: joint long-only +47%, Sharpe 0.64, flat since 2024; short side loses. Not a gate candidate. Verify: `uv run pytest -q tests/test_gap_forecast.py`; `make gap-forecast` |
-| T-4039 | Does the noise-area edge survive on a cheaper instrument? | OPEN — a new hypothesis, not a re-run. Needs minute bars for the Nifty future, which are not landed, and its own trial |
+| T-4039 | Does the noise-area edge survive on a cheaper instrument? | DONE 2026-11-07 — no: on the Nifty future (index minutes as its price, A-115) 3.90 bps gross against 4.37 cost (H-0099, research 166) |
 | T-4040 | Do the existing intraday signals read NIFTYBEES's 09:15 print as a price? | ANSWERED 2026-10-12 — yes, on ETFs. Research 075: the first bar sets the 15-minute range's edge on 99.6% of NIFTYBEES days and triples its width. Three stored NIFTYBEES results measured that print (HISTORY #20); all had already failed. Shares: the first bar widens the range about 40%. Nothing re-run |
 | T-4041 | NIFTYBEES's last bar is not the close | NOTED — 4.7 bps above the official close on average. `session_papers` uses the bhavcopy close; the bracket engine closes at a bar price and is not affected by the label, but any study of "the last minutes" on an ETF is |
 

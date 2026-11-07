@@ -158,3 +158,64 @@ def test_battery_reads_a_straddle_like_a_stock_trade() -> None:
     returns = intraday.daily_returns([t], [date(2023, 6, 15), date(2023, 6, 16)], 1000.0)
     assert returns[date(2023, 6, 16)] == 0.0
     assert returns[date(2023, 6, 15)] == pytest.approx((t.gross - t.costs) / 1000.0)
+
+
+# --- research 167: fades after NSE queries --------------------------------------------
+
+from array import array  # noqa: E402
+
+from eulerlab.intraday import minute_six_screen as six  # noqa: E402
+from eulerlab.intraday import nse_query_screen as q  # noqa: E402
+
+
+def _snap(last_close: float, closes_at: float = 100.0) -> six.Snap:
+    n = len(six.CHECKPOINTS)
+    return six.Snap(
+        5,
+        100.0,
+        355,
+        99.0,
+        array("d", [closes_at] * n),
+        array("d", [100.5] * n),
+        array("h", [m + 1 for m in six.CHECKPOINTS]),
+        last_close,
+        1e7,
+        None,
+    )
+
+
+def test_outside_hours_query_fades_the_three_session_move_next_session() -> None:
+    days = _weekdays(date(2023, 1, 2), 6)
+    snaps = {
+        "ABC": {
+            days[0]: _snap(100.0),
+            days[1]: _snap(101.0),
+            days[2]: _snap(102.0),
+            days[3]: _snap(104.0),
+            days[4]: _snap(104.0),
+        }
+    }
+    event = q.Event("ABC", "spurt", days[3], 400)  # posted after the close on day 3
+    (found,) = q.candidates(q.BY_ID["H-0107"], [event], snaps, days)
+    day, symbol, fill, size = found
+    assert (day, symbol, fill.direction) == (days[4], "ABC", -1)
+    assert size == pytest.approx(0.04)
+
+
+def test_in_hours_query_trades_from_the_next_five_minute_close() -> None:
+    days = _weekdays(date(2023, 1, 2), 2)
+    snaps = {"ABC": {days[0]: _snap(100.0), days[1]: _snap(100.0, closes_at=97.0)}}
+    event = q.Event("ABC", "news", days[1], 62)  # 10:17 -> the 10:20 close
+    (found,) = q.candidates(q.BY_ID["H-0110"], [event], snaps, days)
+    assert found[2].direction == 1 and found[2].minute == 65
+
+
+def test_a_small_move_is_not_traded_and_in_hours_events_skip_next_session_rules() -> None:
+    days = _weekdays(date(2023, 1, 2), 3)
+    snaps = {"ABC": {d: _snap(100.0) for d in days}}
+    assert (
+        q.candidates(q.BY_ID["H-0108"], [q.Event("ABC", "news", days[1], 400)], snaps, days) == []
+    )
+    assert (
+        q.candidates(q.BY_ID["H-0108"], [q.Event("ABC", "news", days[1], 100)], snaps, days) == []
+    )

@@ -42,4 +42,17 @@ were set before any run and not varied. One family: four cards, about one bet.
 
 ## Results
 
-(Added after the runs.)
+Screen 2026-11-07 (`make nse-queries`), no trial spent. Bps a trade.
+
+| Card | Trades | Gross | Net | Net Sharpe | Net by year |
+|---|---|---|---|---|---|
+| H-0107 | 265 | -0.19 | -12.44 | -0.324 | 2021 -1.6%, 2022 -5.4%, 2023 +5.0%, 2024 -1.2% |
+| H-0108 | 206 | 1.42 | -10.84 | -0.248 | 2021 -1.0%, 2022 -1.2%, 2023 +1.4%, 2024 -1.4% |
+| H-0109 | 34 | -35.23 | -47.48 | -0.836 | 2021 -0.2%, 2022 -0.7%, 2023 -0.3%, 2024 -0.5% |
+| H-0110 | 148 | -4.17 | -16.42 | -0.664 | 2021 +0.1%, 2022 -0.7%, 2023 -0.8%, 2024 -1.0% |
+
+**All four are dead, and not on cost: there is no gross edge.** The moves NSE
+queries neither reverse nor continue the next session on average (-0.19 and
++1.42 bps gross). Same-day fades after a reply lose (-35 and -4 bps gross):
+a stock still moving when the reply lands keeps moving. Nothing here is
+worth a variant; the family is closed.

@@ -1,6 +1,6 @@
 id: H-0107
 title: Fade a stock's 3-session move the session after NSE queries a volume or price spurt, 09:20 to 15:10
-status: draft
+status: rejected
 family: intraday_nse_queries
 source_kind: practitioner
 parent: ''
@@ -31,4 +31,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 265 trades, -0.19 bps gross and -12.44 net a trade, net Sharpe -0.324; by
+  year 2021 -1.6%, 2022 -5.4%, 2023 +5.0%, 2024 -1.2% (research 167). Fails the screen; not gated.'

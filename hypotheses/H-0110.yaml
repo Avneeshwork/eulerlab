@@ -1,7 +1,7 @@
 id: H-0110
 title: Fade a stock's move from the next 5-minute close after NSE asks it to verify a news item during
   the session
-status: draft
+status: rejected
 family: intraday_nse_queries
 source_kind: practitioner
 parent: ''
@@ -32,4 +32,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 148 trades, -4.17 bps gross and -16.42 net a trade, net Sharpe -0.664; by
+  year 2021 +0.1%, 2022 -0.7%, 2023 -0.8%, 2024 -1.0% (research 167). Fails the screen; not gated.'

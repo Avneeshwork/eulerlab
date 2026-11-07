@@ -679,6 +679,10 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
+# Research 167: four stock fades after NSE clarification queries (H-0107 to H-0110).
+nse-queries:
+	@uv run python -m eulerlab.intraday.nse_query_screen
+
 # Research 154: how far stocks move in minutes, against a round trip's cost.
 move-cost-map:
 	@uv run python -m eulerlab.intraday.move_cost_map

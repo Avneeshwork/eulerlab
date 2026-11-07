@@ -37,4 +37,7 @@ holdout:
   status: unread
 result: 'Screen 2026-11-07: 302 expiries, 20.17 bps gross and +19.05 net of notional a trade, net Sharpe
   1.79, every year 2019-2024 positive, worst -291 bps on 2020-03-12, drawdown -5.0% (research 166). Not
-  yet gated.'
+  yet gated. Gate 2026-11-07 (validate ledger #96, gate #97), simple mandate: PROMOTE, 9 of 9 (PSR 1.000,
+  6 of 6 years positive, Sharpe 1.69 at 2x costs, halves 2.03 / 1.51). Strict-mode figures from the same
+  run: deflated Sharpe 0.932, Romano-Wolf over Nifty fails (-0.36 vs 1.37). Holdout unread; none left
+  to read.'

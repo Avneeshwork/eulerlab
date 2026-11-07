@@ -1,7 +1,7 @@
 id: H-0108
 title: Fade a stock's last-session move the session after NSE asks it to verify a news item, 09:20 to
   15:10
-status: draft
+status: rejected
 family: intraday_nse_queries
 source_kind: practitioner
 parent: ''
@@ -32,4 +32,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 206 trades, 1.42 bps gross and -10.84 net a trade, net Sharpe -0.248; by year
+  2021 -1.0%, 2022 -1.2%, 2023 +1.4%, 2024 -1.4% (research 167). Fails the screen; not gated.'
