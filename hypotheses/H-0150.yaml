@@ -1,0 +1,37 @@
+id: H-0150
+title: Buy a stock that closed in the top 5% of its range on twice its normal turnover, next day 09:20
+  to 15:10 (mirror for weak closes)
+status: draft
+family: intraday_stock_1x
+source_kind: practitioner
+parent: ''
+claim: 'Buy a stock that closed in the top 5% of its range on twice its normal turnover, next day 09:20
+  to 15:10 (mirror for weak closes): earns more than costs at Rs 1 lakh a position (1x) in both halves
+  of 2021-11 to 2024-10 and at twice the costs.'
+rationale: Practitioner closing-strength continuation; buying pressure into the close.
+source:
+  research: '171'
+  written_by: Claude, for the operator's request to keep researching at 1x capital
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: 'among the 100 most traded: yesterday''s last close within 5% of the top of its 5-minute-close
+    range and traded value >= 2x its 20-session mean, |yesterday''s return| >= 2%; buy at 09:20 to 15:10;
+    the mirror (bottom 5%) sells; at most ten, largest value ratio first'
+  data: research 161's minute snapshots of the 416 F&O stocks; data/landing/nse_announcements (2021-07
+    to 2024-12) timed by exchdisstime, administrative categories excluded (research 171); fo_ban reports;
+    NSE holiday list
+  timeframe: 09:20 decision on 5-minute snapshots
+  costs: cash intraday charges plus 2 bps a side; Rs 1 lakh a position at 1x (no leverage), at most ten
+    open on Rs 10 lakh of capital; 12.24 bps a round trip
+  window: 2021-11-01 to 2024-10-15
+red_flags:
+- 1x at Rs 1 lakh a position costs 12.24 bps a round trip; no stock rule tested at that cost before research
+  166 cleared it except H-0096.
+- Forty-three rules were tried before these; the simple gate does not correct for that search.
+- Fills on 5-minute snapshots; 2 bps a side of slippage assumed (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,38 @@
+id: H-0141
+title: Fade a 2% opening gap that came with no NSE filing, 09:20 to 15:10
+status: draft
+family: intraday_stock_1x
+source_kind: paper
+parent: ''
+claim: 'Fade a 2% opening gap that came with no NSE filing, 09:20 to 15:10: earns more than costs at Rs
+  1 lakh a position (1x) in both halves of 2021-11 to 2024-10 and at twice the costs.'
+rationale: 'Chan (2003, JFE), ''Stock price reaction to news and no-news'': large moves without public
+  news reverse; with news they drift.'
+source:
+  research: '171'
+  written_by: Claude, for the operator's request to keep researching at 1x capital
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: 'among the 200 most traded stocks: gap = 09:20 close / previous last close - 1, |gap| >= 2%, and
+    no news filing between the previous session''s 15:30 and 09:15; trade against the gap from the open
+    after the 09:20 close to 15:10; at most ten, largest gap first'
+  data: research 161's minute snapshots of the 416 F&O stocks; data/landing/nse_announcements (2021-07
+    to 2024-12) timed by exchdisstime, administrative categories excluded (research 171); fo_ban reports;
+    NSE holiday list
+  timeframe: 09:20 decision on 5-minute snapshots
+  costs: cash intraday charges plus 2 bps a side; Rs 1 lakh a position at 1x (no leverage), at most ten
+    open on Rs 10 lakh of capital; 12.24 bps a round trip
+  window: 2021-11-01 to 2024-10-15
+red_flags:
+- News is any NSE filing outside a fixed list of administrative categories (research 171); a filing is
+  not always news, and news outside NSE filings is missed.
+- 1x at Rs 1 lakh a position costs 12.24 bps a round trip; no stock rule tested at that cost before research
+  166 cleared it except H-0096.
+- Forty-three rules were tried before these; the simple gate does not correct for that search.
+- Fills on 5-minute snapshots; 2 bps a side of slippage assumed (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
