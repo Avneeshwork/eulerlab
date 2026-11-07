@@ -33,4 +33,11 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 416 trades, 56.38 bps gross and 44.11 net each; net Sharpe 1.427, halves 1.554
+  / 1.333, at 2x costs 1.034; drawdown -4%; by year 2021 +1%, 2022 +11%, 2023 +5%, 2024 +2% (research
+  172). Gate 2026-11-07 (validate #114, gate #115): PROMOTE, 9 of 9 (PSR 0.992, 3 of 3 years positive,
+  Sharpe 1.03 at 2x costs, 0.64 at 3x; 50% kept without the best five names). Strict-mode figures: deflated
+  Sharpe 0.693, Romano-Wolf fails. Survivorship check 2026-11-07 (information, no trial): the universe
+  is today''s F&O list. Kept to stocks in F&O on the trade day (stock_fo_daily), 183 of 416 trades remain
+  at +8.6 bps net each (all: +44.1): most of the edge is in stocks that joined F&O later, then smaller
+  and more speculative.'

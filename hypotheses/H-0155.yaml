@@ -1,7 +1,7 @@
 id: H-0155
 title: 'No-news losers rebound: buy a liquid stock that fell 5% on a day with no NSE filing, hold ten
   sessions'
-status: draft
+status: rejected
 family: stock_swing_other_data
 source_kind: paper
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 499 positions, 64.52 bps gross and 38.22 net each, net over NIFTYBEES -21.4
+  bps; net Sharpe 0.301, halves -0.238 / 0.934, at 2x costs 0.123; drawdown -29%; by year 2021 +2%, 2022
+  -4%, 2023 +4%, 2024 +11% (research 172). Fails research 170''s screen; not gated.'

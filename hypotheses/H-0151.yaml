@@ -1,7 +1,7 @@
 id: H-0151
 title: 'Weekly: buy the ten liquid stocks whose at-the-money call implied vol is richest against the put,
   hold the week'
-status: draft
+status: rejected
 family: stock_swing_other_data
 source_kind: paper
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1550 positions, 46.4 bps gross and 20.12 net each, net over NIFTYBEES -8.48
+  bps; net Sharpe 0.492, halves 0.081 / 0.866, at 2x costs -0.15; drawdown -20%; by year 2021 +6%, 2022
+  +6%, 2023 +10%, 2024 +3% (research 172). Fails research 170''s screen; not gated.'

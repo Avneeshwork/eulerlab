@@ -1,7 +1,7 @@
 id: H-0157
 title: 'Follow the prop desks: when Pro traders added the most net index-futures longs yesterday, buy
   the five highest-beta liquid stocks (and the mirror), 09:20 to 15:10'
-status: draft
+status: rejected
 family: stock_intraday_other_data
 source_kind: paper
 parent: ''
@@ -31,4 +31,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 850 trades, 6.23 bps gross and -6.03 net each; net Sharpe -0.252, halves -0.866
+  / 0.29, at 2x costs -0.759; drawdown -20%; by year 2021 +3%, 2022 -10%, 2023 -5%, 2024 +6% (research
+  172). Fails research 170''s screen; not gated.'

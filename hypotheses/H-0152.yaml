@@ -1,7 +1,7 @@
 id: H-0152
 title: 'Earnings premium: buy a liquid stock the session before its results, sell at the end of the reaction
   session'
-status: draft
+status: rejected
 family: stock_swing_other_data
 source_kind: paper
 parent: ''
@@ -35,4 +35,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 819 positions, -23.81 bps gross and -50.0 net each, net over NIFTYBEES -48.43
+  bps; net Sharpe -1.014, halves -1.647 / -0.451, at 2x costs -1.548; drawdown -45%; by year 2021 +1%,
+  2022 -22%, 2023 -22%, 2024 +6% (research 172). Fails research 170''s screen; not gated.'

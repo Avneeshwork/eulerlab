@@ -1,7 +1,7 @@
 id: H-0154
 title: 'Retail short, index long: buy NIFTYBEES for five sessions when Clients'' net index-futures position
   is in its bottom tenth'
-status: draft
+status: rejected
 family: stock_swing_other_data
 source_kind: paper
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 28 positions, 51.27 bps gross and 24.99 net each, net over NIFTYBEES -26.28
+  bps; net Sharpe 0.529, halves 0.849 / 0.39, at 2x costs -0.027; drawdown -6%; by year 2021 -0%, 2022
+  +5%, 2023 +8%, 2024 -5% (research 172). Fails research 170''s screen; not gated.'

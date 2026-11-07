@@ -1,7 +1,7 @@
 id: H-0158
 title: 'Fear spike at the open: when India VIX is 5% above its previous close at 09:30, buy the five highest-beta
   liquid stocks to 15:10'
-status: draft
+status: rejected
 family: stock_intraday_other_data
 source_kind: paper
 parent: ''
@@ -30,4 +30,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 345 trades, -28.97 bps gross and -41.21 net each; net Sharpe -1.01, halves
+  -1.629 / -0.504, at 2x costs -1.294; drawdown -14%; by year 2021 +0%, 2022 -9%, 2023 +4%, 2024 -9% (research
+  172). Fails research 170''s screen; not gated.'

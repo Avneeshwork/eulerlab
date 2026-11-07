@@ -404,3 +404,40 @@ def test_no_news_gap_is_faded_and_news_gap_followed() -> None:
     loud = onex.Context(mk, news, {}, frozenset())
     (follow,) = list(onex.RULES["H-0142"][1](loud, d1))
     assert follow.direction == 1
+
+
+# --- research 172: non-price data, swing and intraday ----------------------------------------
+
+from eulerlab.intraday import other_data_screen as od  # noqa: E402
+
+
+def test_a_swing_books_its_pnl_day_by_day_and_pays_both_legs() -> None:
+    days = _weekdays(date(2023, 1, 2), 4)
+    snaps = {d: _path_snap([100.0 + i], last_close=100.0 + i) for i, d in enumerate(days)}
+    s = od.swing(snaps, days, "ABC", days[0], 2)
+    assert s is not None and (s.entry_day, s.exit_day) == (days[0], days[2])
+    pieces = s.pieces()
+    assert [p.day for p in pieces] == days[:3]
+    assert sum(p.gross for p in pieces) == pytest.approx(s.gross_total)
+    assert pieces[0].costs > 0 and pieces[1].costs == 0 and pieces[2].costs > 0
+
+
+def test_swing_caps_one_position_per_stock_at_a_time() -> None:
+    days = _weekdays(date(2023, 1, 2), 6)
+    snaps = {d: _path_snap([100.0]) for d in days}
+    a = od.swing(snaps, days, "ABC", days[0], 3)
+    b = od.swing(snaps, days, "ABC", days[1], 3)
+    assert a and b
+    kept = od.cap_swings([(days[0], 0.0, "ABC", a), (days[1], 0.0, "ABC", b)])
+    assert kept == [a]
+
+
+def test_participant_report_is_read_per_category() -> None:
+    text = (
+        '"Participant wise Open Interest"\n'
+        "Client Type,Future Index Long,Future Index Short,Option Index Put Long,Option Index Put Short\n"
+        "Client,100,40,7,3\nPro,5,6,1,1\nFII,10,20,30,5\nDII,1,1,0,0\nTOTAL,116,67,38,9\n"
+    )
+    found = od.parse_participants(text)
+    assert od.net_futures(found["Client"]) == 60 and od.net_puts(found["FII"]) == 25
+    assert "TOTAL" not in found

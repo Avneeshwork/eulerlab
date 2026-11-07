@@ -1,7 +1,7 @@
 id: H-0159
 title: 'FII hedging surge: when FIIs'' net index put longs jump, short the five highest-beta liquid stocks
   (and the mirror), 09:20 to 15:10'
-status: draft
+status: rejected
 family: stock_intraday_other_data
 source_kind: paper
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1195 trades, 5.09 bps gross and -7.16 net each; net Sharpe -0.363, halves
+  0.203 / -0.846, at 2x costs -0.979; drawdown -15%; by year 2021 -1%, 2022 -1%, 2023 +3%, 2024 -10% (research
+  172). Fails research 170''s screen; not gated.'

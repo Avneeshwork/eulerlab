@@ -679,6 +679,10 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
+# Research 172: five swing and five intraday rules on non-price data (H-0151 to H-0160).
+other-data-screen:
+	@uv run python -m eulerlab.intraday.other_data_screen
+
 # Research 171: ten stock day trades at 1x (H-0141 to H-0150).
 onex-screen:
 	@uv run python -m eulerlab.intraday.onex_screen

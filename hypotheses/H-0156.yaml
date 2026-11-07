@@ -1,7 +1,7 @@
 id: H-0156
 title: 'Retail contrarian, intraday: when Clients bought the most index futures yesterday, short the five
   highest-beta liquid stocks (and the mirror), 09:20 to 15:10'
-status: draft
+status: rejected
 family: stock_intraday_other_data
 source_kind: paper
 parent: ''
@@ -30,4 +30,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 910 trades, 11.98 bps gross and -0.27 net each; net Sharpe -0.007, halves
+  1.232 / -0.791, at 2x costs -0.466; drawdown -17%; by year 2021 -2%, 2022 +11%, 2023 -2%, 2024 -8% (research
+  172). Fails research 170''s screen; not gated.'
