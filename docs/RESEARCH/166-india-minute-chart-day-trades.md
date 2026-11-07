@@ -1,4 +1,4 @@
-# 166 — Nine more Indian day-trading rules: index futures on 15-minute bars, index-option expiry days, the F&O ban exit
+# 166 — Eight more Indian day-trading rules: index futures on 15-minute bars, index-option expiry days, the F&O ban exit
 
 **Question.** Operator, 2026-11-07: "research more on the minute level
 strategies means trade taken based on 5 min, 15 min etc charts and closed at
@@ -6,7 +6,7 @@ day end. set a goal to find 5 strategies if profitable register in library
 and generate report"; then "we have to work on indian market only".
 
 **Status.** H-0099 to H-0106 pre-registered and committed before any run,
-with H-0041 (research 153, screened alive, never gated) as the tenth
+with H-0041 (research 153, screened alive, never gated) as the ninth
 candidate. Results follow under "Results".
 
 ## Why these and not more stock rules
@@ -59,7 +59,7 @@ Each card holds its rule in full. Common to all:
 
 ## The order of work
 
-1. Screen all ten (no trial spent).
+1. Screen all nine (no trial spent).
 2. A rule that is net positive in each half of its window goes to
    `make validate` and `make gate`. Each run adds two permanent ledger
    entries. A rule that fails the screen is not gated.
