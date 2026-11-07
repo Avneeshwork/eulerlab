@@ -1,0 +1,11 @@
+# ADR-151 — The AI tab in four views, led by the research pipeline
+
+**Context.** Operator, 2026-11-07 (relayed): a new user could not follow the AI tab. It had ten sub-tabs (Live, Inbox, Org chart, Calendar, Agents & briefs, Ask, Research, Market brief, Data quality, Agent log), it opened on fifteen agent cards with no order, and nothing said how an idea moves from a paper to a paper book or what the results meant. The research autopilot (ADR-150) adds a nightly loop that also had no place on the page.
+
+**Options.** Restyle the ten views; add an eleventh "Pipeline" view; or rebuild the tab around one flow and fold the rest in.
+
+**Choice.** Four views. *Overview*: one sentence on what the team does, four status pills, the pipeline as five steps (find ideas, write rules, backtest, gate, paper trade) with last week's numbers and who is working now, the inbox as "Needs you", the newest research results and today's runs. *Results*: every outcome newest first with a one-line meaning (autopilot batches rule by rule, lab tests, gate verdicts, paper books, drafts, skeptic attacks, the market brief, the newest check of each support agent), with filter chips. *Agents*: cards grouped as research pipeline, heads and support, each with its switch, brief and Run in a Settings fold; the org chart, schedule and data/log health sit behind chips here. *Ask*: the knowledge agent, research a topic, attack a result. Old links (`#agents/inbox`, `#agents/brief`, ...) open the view that holds them (`web/lib/aiFlow.openView`). One new read-only route, `GET /api/agents/flow` (`agents/flow.py`), assembles stages and results from the agents' outputs, `research/promote.py` and the paper deployments.
+
+**Why.** A reader learns the system from the flow, then drills down; the meaning line removes the need to know each agent's vocabulary. The route only reads, so it cannot change a result.
+
+**Cost if wrong.** The meaning lines are fixed text per kind and can drift from an agent's real behaviour; `tests/test_agent_flow.py` pins them. The stage numbers count runs, not unique ideas (a card tested twice counts twice). Support agents show only their newest run, so an older warning is visible only in the agent's own card.

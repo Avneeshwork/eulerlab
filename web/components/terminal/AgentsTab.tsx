@@ -1,57 +1,97 @@
 /**
- * The AI page: the agent control room (ADR-085), opening on what each agent
- * is doing right now (ADR-091).
+ * The AI page (ADR-151): what the agents are doing, what ran, what came out.
  *
- *   Live            one card per agent: running / finished / stopped, the step
- *                   it is on, its last few steps, today's model requests, and a
- *                   feed of every agent's steps, newest first
- *   Inbox           what waits on the operator
- *   Org chart       you as CEO, departments, heads, goals, agents (ADR-123)
- *   Calendar        scheduled agent runs: ran, missed, upcoming (ADR-123)
- *   Agents & briefs switches, budgets, briefs and a Run button per agent
- *   Ask · Research · Market brief · Data quality · Agent log
+ * It had ten views (Live, Inbox, Org chart, Calendar, Agents & briefs, Ask,
+ * Research, Market brief, Data quality, Agent log) and a new reader could not
+ * tell where to start. It now has four:
  *
- * Nothing here places an order or spends a trial: approving an inbox item
- * records a decision, and registering a draft or relocking a deployment are
- * still commands the operator runs. The trade desk lives on Live & Risk only.
+ *   Overview   what needs you, the research pipeline as five steps with last
+ *              week's numbers (find ideas, write rules, backtest, gate, paper
+ *              trade), the newest results, and what is running and ran today
+ *   Results    every outcome, newest first, each with one line on what it
+ *              means: autopilot batches, lab tests, gate verdicts, paper books,
+ *              research drafts, skeptic attacks, the market brief, agent checks
+ *   Agents     the team: one card per agent with its switch, brief and Run
+ *              button; the org chart, the schedule, and data and log health
+ *   Ask        ask the knowledge agent, research a topic, attack a result
+ *
+ * Old links (`#agents/inbox`, `#agents/brief`, ...) open the view that now
+ * holds them (`lib/aiFlow.openView`). Nothing here places an order or spends
+ * a trial: approving an inbox item records a decision (an idea lab survivor
+ * goes to the unchanged gate), and live money stays the operator's.
  */
 
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleDashed,
+  FileSearch,
+  FlaskConical,
+  Gavel,
+  Lightbulb,
+  LineChart,
+  ListChecks,
+  PenLine,
+  ShieldAlert,
+  XCircle,
+} from 'lucide-react';
 
 import { agentsApi } from '@/lib/api';
 import { usePoll } from '@/lib/usePoll';
 import { AGENTS_TAB } from '@/lib/poll';
 import { nowLine } from '@/lib/agentNow';
+import { ago, filterResults, openView, todaysRuns } from '@/lib/aiFlow';
+import type { AiView, ResultFilter, TeamView } from '@/lib/aiFlow';
 import { CalendarView, OrgChartView } from './CompanyViews';
 import MarketBriefView from './MarketBriefView';
 import type {
   ActivityResponse,
   AgentActivity,
   AgentItem,
-  AgentOutput,
   AgentsResponse,
   AgentStep,
   DatasetGrade,
+  FlowOutcome,
+  FlowResponse,
+  FlowResult,
+  FlowStage,
   MarketBrief as MarketBriefData,
-  GateFinding,
-  Promotion,
 } from '@/lib/api';
+import './aitab.css';
 
-const VIEWS = [
-  ['live', 'Live'],
-  ['inbox', 'Inbox'],
-  ['org', 'Org chart'],
-  ['calendar', 'Calendar'],
-  ['agents', 'Agents & briefs'],
+const VIEWS: [AiView, string][] = [
+  ['overview', 'Overview'],
+  ['results', 'Results'],
+  ['team', 'Agents'],
   ['ask', 'Ask'],
+];
+
+const TEAM_VIEWS: [TeamView, string][] = [
+  ['cards', 'Team'],
+  ['org', 'Org chart'],
+  ['schedule', 'Schedule'],
+  ['health', 'Data & log health'],
+];
+
+const FILTERS: [ResultFilter, string][] = [
   ['research', 'Research'],
+  ['verdicts', 'Verdicts & paper books'],
   ['brief', 'Market brief'],
-  ['quality', 'Data quality'],
-  ['log', 'Agent log'],
-] as const;
-type View = (typeof VIEWS)[number][0];
+  ['checks', 'Agent checks'],
+  ['all', 'Everything'],
+];
+
+/** Which agents do research, which manage, which keep the lights on. */
+const GROUPS: [string, string, string[]][] = [
+  ['Research pipeline', 'Find, write, test and challenge trading ideas.', ['research', 'autopilot', 'lab', 'skeptic']],
+  ['Heads', 'Managers: split your tasks, unstick their agents, pass problems up to you.', ['head_research', 'head_platform', 'head_portfolio']],
+];
+
+/** The command that runs an agent too heavy for the web server. */
+const CLI_RUN: Record<string, string> = { autopilot: 'make agents-autopilot' };
 
 type Quality = { grades: DatasetGrade[]; held: { dataset: string; path: string; reason: string; at: string }[] };
 type LogView = { verified: boolean; problem: string; entries: { seq: number; at: string; kind: string; agent: string }[] };
@@ -61,17 +101,6 @@ function when(at: string): string {
   if (!at) return '—';
   const d = new Date(at);
   return Number.isNaN(d.getTime()) ? at : d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-/** "12 s ago", "4 min ago", "3 h ago", else the date. */
-function ago(at: string, now: number): string {
-  const t = new Date(at).getTime();
-  if (!at || Number.isNaN(t)) return '';
-  const s = Math.max(0, Math.round((now - t) / 1000));
-  if (s < 60) return `${s} s ago`;
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
-  return when(at);
 }
 
 const STATE: Record<AgentActivity['state'], [string, Tone]> = {
@@ -85,7 +114,40 @@ const STATE: Record<AgentActivity['state'], [string, Tone]> = {
   idle: ['Never run', undefined],
 };
 
-const SEVERITY_TONE: Record<string, Tone> = { info: 'brand', warn: 'caveat', critical: 'down' };
+const OUTCOME: Record<FlowOutcome, [string, Tone]> = {
+  pass: ['Passed', 'up'],
+  partial: ['Worth a look', 'caveat'],
+  fail: ['Failed', 'down'],
+  info: ['Info', undefined],
+};
+
+const SEVERITY_TONE: Record<string, Tone> = { info: 'brand', warn: 'caveat', warning: 'caveat', critical: 'down' };
+
+const STAGE_ICON = { find: FileSearch, write: PenLine, test: FlaskConical, gate: Gavel, paper: LineChart } as const;
+
+const KIND_ICON: Record<FlowResult['kind'], typeof FileSearch> = {
+  ideas: Lightbulb,
+  batch: PenLine,
+  test: FlaskConical,
+  verdict: Gavel,
+  paper: LineChart,
+  attack: ShieldAlert,
+  brief: FileSearch,
+  check: ListChecks,
+  problem: XCircle,
+};
+
+const KIND_LABEL: Record<FlowResult['kind'], string> = {
+  ideas: 'Ideas',
+  batch: 'Autopilot',
+  test: 'Backtest',
+  verdict: 'Gate verdict',
+  paper: 'Paper book',
+  attack: 'Skeptic',
+  brief: 'Market brief',
+  check: 'Agent check',
+  problem: 'Problem',
+};
 
 function Badge({ tone, children }: { tone?: Tone; children: React.ReactNode }) {
   return (
@@ -95,7 +157,364 @@ function Badge({ tone, children }: { tone?: Tone; children: React.ReactNode }) {
   );
 }
 
-// ---------------------------------------------------------------- live
+/** Ticks once a second so "4 min ago" stays true. */
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(tick);
+  }, []);
+  return now;
+}
+
+// ================================================================ overview
+
+function NeedsYou({ items, onDone }: { items: AgentItem[]; onDone: () => void }) {
+  const [error, setError] = useState('');
+  const [gate, setGate] = useState('');
+  const [open, setOpen] = useState<string>('');
+  const decide = (id: string, decision: 'approved' | 'dismissed') => {
+    agentsApi
+      .decide(id, decision)
+      .then((r) => {
+        setError(r.ok ? '' : r.error ?? 'not recorded');
+        setGate(r.gate ?? '');
+        onDone();
+      })
+      .catch((e: unknown) => setError(String(e)));
+  };
+  return (
+    <section className="tpanel ai2-needs" data-empty={items.length === 0}>
+      <header className="ai2-head">
+        <h3>
+          Needs you <span className="ai-count">{items.length}</span>
+        </h3>
+        <p className="tfine">
+          Approving an idea lab survivor sends it to the gate. Approving anything else only records your decision.
+        </p>
+      </header>
+      {error && <p className="tnote bad">{error}</p>}
+      {gate && <p className="tnote">{gate}</p>}
+      {items.length === 0 ? (
+        <p className="ai2-calm">
+          <CheckCircle2 size={16} /> Nothing waiting on you. The agents carry on by themselves.
+        </p>
+      ) : (
+        <ul className="ai2-needs-list">
+          {items.map((item) => (
+            <li key={item.id}>
+              <div className="ai2-needs-main">
+                <span className="ai2-meta">
+                  <Badge tone={SEVERITY_TONE[item.severity]}>{item.kind}</Badge>
+                  <span>
+                    from {item.agent} · {when(item.at)}
+                  </span>
+                </span>
+                <b>{item.title}</b>
+                {item.body && (
+                  <>
+                    <p className={open === item.id ? 'ai2-body open' : 'ai2-body'}>{item.body}</p>
+                    {item.body.length > 220 && (
+                      <button type="button" className="ai2-more" onClick={() => setOpen(open === item.id ? '' : item.id)}>
+                        {open === item.id ? 'Less' : 'Read all'}
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+              <span className="ai2-needs-acts">
+                <button type="button" className="tbtn sm ok" onClick={() => decide(item.id, 'approved')}>
+                  Approve
+                </button>
+                <button type="button" className="tbtn sm" onClick={() => decide(item.id, 'dismissed')}>
+                  Dismiss
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function StageCard({ stage, index, running, now }: { stage: FlowStage; index: number; running: string[]; now: number }) {
+  const Icon = STAGE_ICON[stage.key];
+  const busy = running.length > 0;
+  const never = stage.last.status === 'never';
+  const tone: Tone = busy ? 'brand' : never ? undefined : stage.last.status === 'ok' ? 'up' : 'down';
+  return (
+    <li className="ai2-stage" data-busy={busy}>
+      <span className="ai2-stage-icon">
+        <Icon size={18} />
+        <em>{index + 1}</em>
+      </span>
+      <b className="ai2-stage-title">{stage.title}</b>
+      <span className="ai2-stage-num">
+        <strong>{stage.number}</strong> {stage.label}
+      </span>
+      <p className="ai2-stage-what">{stage.what}</p>
+      <span className="ai2-stage-last">
+        <span className="tdot" data-tone={tone} data-live={busy} />
+        {busy
+          ? `Working now: ${running.join(', ')}`
+          : never
+            ? stage.key === 'write'
+              ? 'First run: today at 17:00 IST'
+              : stage.last.summary
+            : `${stage.last.agent ? `${stage.last.agent} · ` : ''}${ago(stage.last.at, now)}`}
+      </span>
+    </li>
+  );
+}
+
+function Pipeline({ flow, activity, now }: { flow: FlowResponse; activity: ActivityResponse | null; now: number }) {
+  const runningNames = new Set((activity?.agents ?? []).filter((a) => a.state === 'running').map((a) => a.name));
+  const title = new Map((activity?.agents ?? []).map((a) => [a.name, a.title]));
+  return (
+    <section className="tpanel ai2-pipeline">
+      <header className="ai2-head">
+        <h3>How an idea becomes a trade</h3>
+        <p className="tfine">
+          Every evening the agents run these steps on Indian stocks without you. Numbers cover the last {flow.days} days.
+          Only steps 4 and 5 can lead to money, and real money always waits for you.
+        </p>
+      </header>
+      <ol className="ai2-stages">
+        {flow.stages.map((stage, i) => (
+          <StageCard
+            key={stage.key}
+            stage={stage}
+            index={i}
+            now={now}
+            running={stage.agents.filter((n) => runningNames.has(n)).map((n) => title.get(n) ?? n)}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ResultCard({ result, now, compact = false }: { result: FlowResult; now: number; compact?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const Icon = KIND_ICON[result.kind] ?? ListChecks;
+  const [label, tone] = OUTCOME[result.outcome] ?? OUTCOME.info;
+  const rows = open ? result.rows : result.rows.slice(0, compact ? 0 : 4);
+  return (
+    <article className="ai2-result" data-outcome={result.outcome}>
+      <span className="ai2-result-icon" data-outcome={result.outcome}>
+        <Icon size={16} />
+      </span>
+      <div className="ai2-result-main">
+        <span className="ai2-meta">
+          <span className="ai2-kind">{KIND_LABEL[result.kind]}</span>
+          <span>{result.agent === 'gate' || result.agent === 'paper' ? '' : `${result.agent} · `}</span>
+          <time dateTime={result.at} title={when(result.at)}>
+            {ago(result.at, now)}
+          </time>
+        </span>
+        <b className="ai2-result-title">{result.title}</b>
+        {result.meaning && <p className="ai2-meaning">{result.meaning}</p>}
+        {!compact && result.summary && result.summary !== result.title && <p className="tfine">{result.summary}</p>}
+        {rows.length > 0 && (
+          <ul className="ai2-rows">
+            {rows.map((row, i) => (
+              <li key={`${row.id}-${i}`}>
+                <span className="tdot" data-tone={OUTCOME[row.tone]?.[1]} />
+                <span className="ai2-row-main">
+                  <span>
+                    {row.id && row.id !== row.label && <code>{row.id}</code>} {row.label}
+                  </span>
+                  {open && row.detail && <span className="tfine">{row.detail}</span>}
+                </span>
+                <span className="ai2-row-status">{row.status}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {(result.rows.length > rows.length || (open && result.rows.length > 0)) && (
+          <button type="button" className="ai2-more" onClick={() => setOpen((v) => !v)}>
+            {open ? 'Show less' : `Show all ${result.rows.length} with details`}
+          </button>
+        )}
+        {open && result.ref && (
+          <p className="tfine">
+            File: <code>{result.ref}</code>
+          </p>
+        )}
+      </div>
+      <Badge tone={tone}>{label}</Badge>
+    </article>
+  );
+}
+
+function RunRow({ agent, now }: { agent: AgentActivity; now: number }) {
+  const [label, tone] = STATE[agent.state] ?? ['—', undefined];
+  const running = agent.state === 'running';
+  const line = nowLine(agent.steps, running);
+  return (
+    <li className="ai2-run" data-state={agent.state}>
+      <span className="tdot" data-tone={tone} data-live={running} />
+      <span className="ai2-run-main">
+        <b>{agent.title}</b>
+        <span>{running ? line.text || agent.now || 'Starting…' : agent.summary || agent.now}</span>
+      </span>
+      <span className="ai2-run-side">
+        <Badge tone={tone}>{label}</Badge>
+        <time dateTime={agent.started}>{ago(running ? line.since || agent.started : agent.started, now)}</time>
+      </span>
+    </li>
+  );
+}
+
+function Overview({
+  data,
+  flow,
+  activity,
+  items,
+  onRead,
+  onOpen,
+}: {
+  data: AgentsResponse;
+  flow: FlowResponse | null;
+  activity: ActivityResponse | null;
+  items: AgentItem[];
+  onRead: () => void;
+  onOpen: (view: AiView, filter?: ResultFilter) => void;
+}) {
+  const now = useNow();
+  const working = activity?.running ?? 0;
+  const today = todaysRuns(activity?.agents ?? [], now);
+  const latest = (flow?.results ?? []).filter((r) => r.pipeline).slice(0, 5);
+  const usedToday = data.agents.reduce((sum, a) => sum + (a.uses_model ? a.used_today : 0), 0);
+  const budgetToday = data.agents.reduce((sum, a) => sum + (a.uses_model ? a.daily_requests : 0), 0);
+  return (
+    <>
+      <p className="ai2-lead">
+        Your AI research team reads papers, turns ideas into exact rules, backtests them and sends only the survivors
+        through a fixed gate. It runs every evening by itself. It never trades real money.
+      </p>
+      <div className="ai2-pills">
+        <span className="ai2-pill" data-on={working > 0}>
+          <span className="tdot" data-tone={working ? 'brand' : undefined} data-live={working > 0} />
+          {working ? `${working} agent${working > 1 ? 's' : ''} working now` : 'No agent working right now'}
+        </span>
+        <span className="ai2-pill" data-warn={items.length > 0}>
+          {items.length ? `${items.length} waiting on you` : 'Nothing waiting on you'}
+        </span>
+        <span className="ai2-pill">
+          {data.trials.spent} trials this week{data.trials.per_week ? ` of ${data.trials.per_week}` : ''}
+        </span>
+        <span className="ai2-pill">
+          {usedToday} of {budgetToday} model requests today
+        </span>
+      </div>
+
+      {!flow ? <div className="tempty">Reading the pipeline…</div> : <Pipeline flow={flow} activity={activity} now={now} />}
+
+      <NeedsYou items={items} onDone={onRead} />
+
+      <div className="ai2-two">
+        <section className="tpanel">
+          <header className="ai2-head ai2-head-row">
+            <h3>Latest research results</h3>
+            <button type="button" className="tbtn sm" onClick={() => onOpen('results', 'research')}>
+              All results <ArrowRight size={14} />
+            </button>
+          </header>
+          {latest.length === 0 ? (
+            <div className="tempty">No results yet.</div>
+          ) : (
+            <div className="ai2-results">
+              {latest.map((r) => (
+                <ResultCard key={r.id} result={r} now={now} compact />
+              ))}
+            </div>
+          )}
+        </section>
+        <section className="tpanel">
+          <header className="ai2-head ai2-head-row">
+            <h3>Today</h3>
+            <button type="button" className="tbtn sm" onClick={() => onOpen('team')}>
+              All agents <ArrowRight size={14} />
+            </button>
+          </header>
+          {today.length === 0 ? (
+            <p className="ai2-calm">
+              <CircleDashed size={16} /> No agent has run yet today (IST). The first runs are at 08:45.
+            </p>
+          ) : (
+            <ul className="ai2-runs">
+              {today.map((a) => (
+                <RunRow key={a.name} agent={a} now={now} />
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </>
+  );
+}
+
+// ================================================================ results
+
+function MarketBrief() {
+  const [brief, setBrief] = useState<{ text?: string; brief?: MarketBriefData | null; at?: string; error?: string } | null>(null);
+  useEffect(() => {
+    agentsApi.marketBrief().then(setBrief).catch((e: unknown) => setBrief({ error: String(e) }));
+  }, []);
+  if (!brief) return null;
+  if (brief.brief) return <MarketBriefView brief={brief.brief} at={brief.at} />;
+  return (
+    <div className="tpanel">
+      <h3>Market brief</h3>
+      {brief.text ? (
+        <>
+          <p className="tfine">{when(brief.at ?? '')} · an older brief, written before briefs were saved as data</p>
+          <pre className="ai-pre">{brief.text}</pre>
+        </>
+      ) : (
+        <div className="tempty">{brief.error}</div>
+      )}
+    </div>
+  );
+}
+
+function Results({ flow, filter, setFilter }: { flow: FlowResponse | null; filter: ResultFilter; setFilter: (f: ResultFilter) => void }) {
+  const now = useNow();
+  const shown = useMemo(() => filterResults(flow?.results ?? [], filter), [flow, filter]);
+  return (
+    <>
+      <div className="ai2-chips" role="tablist" aria-label="Which results">
+        {FILTERS.map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={filter === id} onClick={() => setFilter(id)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {filter === 'brief' && <MarketBrief />}
+      {!flow ? (
+        <div className="tempty">Reading results…</div>
+      ) : shown.length === 0 ? (
+        <div className="tempty">Nothing here yet.</div>
+      ) : (
+        <section className="tpanel">
+          <p className="tfine ai2-legend">
+            Newest first. Each result says what happened and what it means. Green passed, amber is worth a look, red
+            failed. A failed idea is normal: most do.
+          </p>
+          <div className="ai2-results">
+            {shown.map((r) => (
+              <ResultCard key={r.id} result={r} now={now} />
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+// ================================================================ agents
 
 function Steps({ steps, now, max }: { steps: AgentStep[]; now: number; max: number }) {
   const shown = steps.slice(-max);
@@ -110,337 +529,6 @@ function Steps({ steps, now, max }: { steps: AgentStep[]; now: number; max: numb
     </ol>
   );
 }
-
-function AgentCard({
-  agent,
-  row,
-  now,
-  onRun,
-}: {
-  agent: AgentActivity;
-  row?: AgentsResponse['agents'][number];
-  now: number;
-  onRun: (name: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [label, tone] = STATE[agent.state] ?? ['—', undefined];
-  const running = agent.state === 'running';
-  const line = nowLine(agent.steps, running);
-  const used = row?.used_today ?? 0;
-  const budget = row?.daily_requests ?? 0;
-  return (
-    <article className="ai-card" data-state={agent.state}>
-      <header>
-        <span className="tdot" data-tone={tone} data-live={running} />
-        <div className="ai-card-title">
-          <b>{agent.title}</b>
-          <span>{agent.job}</span>
-        </div>
-        <Badge tone={tone}>{label}</Badge>
-      </header>
-
-      <div className="ai-now">
-        <span>{running ? 'Now' : agent.state === 'idle' ? 'Waiting' : 'Last'}</span>
-        <p>{running ? line.text || agent.now || 'Starting…' : agent.summary || agent.now || 'Has not run yet.'}</p>
-        {running ? (
-          <time dateTime={line.since || agent.started}>
-            {line.since ? `this step began ${ago(line.since, now)}` : ''}
-            {line.since && agent.started ? ' · ' : ''}
-            {agent.started ? `run started ${ago(agent.started, now)}` : ''}
-          </time>
-        ) : (
-          agent.started && <time dateTime={agent.started}>{when(agent.started)}</time>
-        )}
-      </div>
-
-      {line.before.length > 0 && <Steps steps={line.before} now={now} max={open ? 60 : 4} />}
-
-      <footer>
-        {agent.uses_model ? (
-          <span className="ai-meter" title={`${used} of ${budget} model requests used today`}>
-            <i style={{ width: `${budget ? Math.min(100, (used / budget) * 100) : 0}%` }} />
-            <em>
-              {used}/{budget} requests today
-            </em>
-          </span>
-        ) : (
-          <span className="ai-meter-none">No model: plain code</span>
-        )}
-        <span className="ai-card-acts">
-          {line.before.length > 4 && (
-            <button type="button" className="tbtn sm" onClick={() => setOpen((v) => !v)}>
-              {open ? 'Fewer steps' : `All ${line.before.length} earlier steps`}
-            </button>
-          )}
-          {agent.cli_only ? (
-            <code className="ai-cli" title="It reads the whole price panel, so it runs outside the web server">
-              make agent NAME={agent.name}
-            </code>
-          ) : (
-            <button
-              type="button"
-              className="tbtn sm go"
-              disabled={!agent.enabled || running}
-              title={agent.enabled ? '' : 'Switched off in Agents & briefs'}
-              onClick={() => onRun(agent.name)}
-            >
-              {running ? 'Running' : 'Run now'}
-            </button>
-          )}
-        </span>
-      </footer>
-    </article>
-  );
-}
-
-/** Working first, then the most recently run, then those that never ran. */
-function ordered(agents: AgentActivity[]): AgentActivity[] {
-  const rank = (a: AgentActivity) => (a.state === 'running' ? 0 : a.state === 'idle' ? 2 : 1);
-  return [...agents].sort((a, b) => rank(a) - rank(b) || b.started.localeCompare(a.started) || a.title.localeCompare(b.title));
-}
-
-function Live({
-  data,
-  inbox,
-  onRead,
-  onOpen,
-}: {
-  data: AgentsResponse;
-  inbox: number;
-  onRead: () => void;
-  onOpen: (view: View) => void;
-}) {
-  const [activity, setActivity] = useState<ActivityResponse | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-  const [error, setError] = useState('');
-
-  const read = useCallback(() => {
-    agentsApi
-      .activity(60)
-      .then((r) => {
-        setActivity(r);
-        setNow(Date.now());
-        setError('');
-      })
-      .catch((e: unknown) => setError(String(e)));
-  }, []);
-
-  // Faster while something runs, slow when nothing does, never while hidden.
-  const busy = (activity?.running ?? 0) > 0;
-  usePoll(read, AGENTS_TAB, busy);
-  useEffect(() => {
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(tick);
-  }, []);
-
-  const run = (name: string) => {
-    agentsApi
-      .run(name)
-      .then((r) => {
-        setError(r.ok ? '' : r.error ?? 'not started');
-        read();
-        onRead();
-      })
-      .catch((e: unknown) => setError(String(e)));
-  };
-
-  const rows = new Map(data.agents.map((a) => [a.name, a]));
-  const usedToday = data.agents.reduce((sum, a) => sum + (a.uses_model ? a.used_today : 0), 0);
-  const budgetToday = data.agents.reduce((sum, a) => sum + (a.uses_model ? a.daily_requests : 0), 0);
-
-  return (
-    <>
-      <div className="tstats">
-        <div className="tstat-card">
-          <span>Working now</span>
-          <b className={busy ? 'brand' : ''}>{activity?.running ?? '—'}</b>
-          <i>of {data.agents.length} agents</i>
-        </div>
-        <button type="button" className="tstat-card ai-stat-link" onClick={() => onOpen('inbox')}>
-          <span>Waiting on you</span>
-          <b className={inbox ? 'caveat' : ''}>{inbox}</b>
-          <i>{inbox ? 'open the inbox' : 'nothing to decide'}</i>
-        </button>
-        <div className="tstat-card">
-          <span>Agent trials this week</span>
-          <b>
-            {data.trials.spent}
-            <small> / {data.trials.per_week ?? 'no limit'}</small>
-          </b>
-          <i>each one is logged before its result is read</i>
-        </div>
-        <div className="tstat-card">
-          <span>Model requests today</span>
-          <b>
-            {usedToday}
-            <small> / {budgetToday}</small>
-          </b>
-          <i>across every agent</i>
-        </div>
-      </div>
-
-      {error && <p className="tnote bad">{error}</p>}
-
-      <div className="ai-live">
-        <div className="ai-grid">
-          {ordered(activity?.agents ?? []).map((agent) => (
-            <AgentCard key={agent.name} agent={agent} row={rows.get(agent.name)} now={now} onRun={run} />
-          ))}
-        </div>
-        <aside className="tpanel ai-feed">
-          <h3>
-            Activity <span className="tdot" data-tone={busy ? 'brand' : undefined} data-live={busy} />
-          </h3>
-          <p className="tfine">Every step every agent reports, newest first. Updates by itself.</p>
-          {activity && activity.feed.length === 0 ? (
-            // Runs from before the step trail existed have a result but no
-            // steps, so "no agent has run" was false on real data.
-            <div className="tempty">
-              {activity.agents.some((agent) => agent.run_id)
-                ? 'No steps recorded yet. Runs from before this view kept none; the next run will show its steps here.'
-                : 'No agent has run yet.'}
-            </div>
-          ) : (
-            <ol className="ai-feed-list">
-              {(activity?.feed ?? []).map((step, i) => (
-                <li key={`${step.agent}-${step.at}-${i}`} data-kind={step.kind}>
-                  <b>{step.title}</b>
-                  <span>{step.text}</span>
-                  <time dateTime={step.at}>{ago(step.at, now)}</time>
-                </li>
-              ))}
-            </ol>
-          )}
-        </aside>
-      </div>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------- gate runs
-
-/** Approved idea lab survivors sent to the gate (ADR-116), newest first. */
-function GateRules({ rules }: { rules: GateFinding[] }) {
-  const failed = rules.filter((r) => !r.passed);
-  const passed = rules.filter((r) => r.passed);
-  const row = (r: GateFinding) => (
-    <li key={r.rule}>
-      <Badge tone={r.passed ? 'up' : 'down'}>{r.passed ? 'pass' : 'fail'}</Badge> <b>{r.rule}</b>
-      {r.detail && <span className="tfine"> {r.detail}</span>}
-    </li>
-  );
-  return (
-    <details>
-      <summary className="tfine">
-        View more: {failed.length} failed, {passed.length} passed
-      </summary>
-      {failed.length > 0 && (
-        <>
-          <p className="tfine">Failed</p>
-          <ul>{failed.map(row)}</ul>
-        </>
-      )}
-      {passed.length > 0 && (
-        <>
-          <p className="tfine">Passed</p>
-          <ul>{passed.map(row)}</ul>
-        </>
-      )}
-    </details>
-  );
-}
-
-function GateRuns() {
-  const [rows, setRows] = useState<Promotion[]>([]);
-  useEffect(() => {
-    const load = () =>
-      agentsApi
-        .promotions()
-        .then((r) => setRows(r.ok ? r.promotions : []))
-        .catch(() => setRows([]));
-    load();
-    const timer = setInterval(load, 30000);
-    return () => clearInterval(timer);
-  }, []);
-  if (rows.length === 0) return null;
-  return (
-    <div className="tpanel">
-      <h3>Gate runs ({rows.length})</h3>
-      <ul className="ai-inbox">
-        {rows.map((row) => (
-          <li key={row.item}>
-            <div>
-              <strong>{row.hypothesis || row.card.split('/').slice(-2, -1)[0]}</strong>{' '}
-              <Badge tone={row.verdict.startsWith('PROMOTE') ? 'up' : row.finished ? 'down' : undefined}>
-                {row.finished ? row.verdict.split(' ')[0] : 'running'}
-              </Badge>
-              <p className="tfine">{row.finished ? row.verdict : `started ${row.started.slice(0, 16)}`}</p>
-              {row.findings && row.findings.length > 0 && <GateRules rules={row.findings} />}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- inbox
-
-function Inbox({ items, onDone }: { items: AgentItem[]; onDone: () => void }) {
-  const [error, setError] = useState('');
-  const [gate, setGate] = useState('');
-  const decide = (id: string, decision: 'approved' | 'dismissed') => {
-    agentsApi
-      .decide(id, decision)
-      .then((r) => {
-        setError(r.ok ? '' : r.error ?? 'not recorded');
-        setGate(r.gate ?? '');
-        onDone();
-      })
-      .catch((e: unknown) => setError(String(e)));
-  };
-  return (
-    <div className="tpanel">
-      <h3>Waiting on you ({items.length})</h3>
-      <p className="tfine">
-        Approving an idea lab survivor sends it to the gate: it is registered, validated and gated, and the verdict
-        appears under Gate runs. Approving anything else only records your decision.
-      </p>
-      {error && <p className="tnote bad">{error}</p>}
-      {gate && <p className="tnote">{gate}</p>}
-      {items.length === 0 ? (
-        <div className="tempty">Nothing waiting on you.</div>
-      ) : (
-        <ul className="ai-inbox">
-          {items.map((item) => (
-            <li key={item.id}>
-              <div>
-                <span className="ai-inbox-meta">
-                  <Badge tone={SEVERITY_TONE[item.severity]}>{item.severity}</Badge>
-                  <span>
-                    {item.agent} · {item.kind} · {when(item.at)}
-                  </span>
-                </span>
-                <b>{item.title}</b>
-                {item.body && <p>{item.body}</p>}
-              </div>
-              <span className="ai-inbox-acts">
-                <button type="button" className="tbtn sm ok" onClick={() => decide(item.id, 'approved')}>
-                  Approve
-                </button>
-                <button type="button" className="tbtn sm" onClick={() => decide(item.id, 'dismissed')}>
-                  Dismiss
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------- agents & briefs
 
 function BriefBox({ name, initial, label }: { name: string; initial: string; label: string }) {
   const [text, setText] = useState(initial);
@@ -477,128 +565,190 @@ function BriefBox({ name, initial, label }: { name: string; initial: string; lab
   );
 }
 
-function Agents({ data, onChange }: { data: AgentsResponse; onChange: () => void }) {
-  const [args, setArgs] = useState<Record<string, string>>({});
-  const [error, setError] = useState('');
-  const toggle = (name: string, enabled: boolean) =>
-    agentsApi.setting(name, { enabled }).then(onChange).catch((e: unknown) => setError(String(e)));
-  const run = (name: string) => {
+function AgentCard({
+  agent,
+  row,
+  now,
+  onRun,
+  onToggle,
+}: {
+  agent: AgentActivity;
+  row?: AgentsResponse['agents'][number];
+  now: number;
+  onRun: (name: string, args?: Record<string, string>) => void;
+  onToggle: (name: string, enabled: boolean) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState(false);
+  const [args, setArgs] = useState('');
+  const [label, tone] = STATE[agent.state] ?? ['—', undefined];
+  const running = agent.state === 'running';
+  const line = nowLine(agent.steps, running);
+  const used = row?.used_today ?? 0;
+  const budget = row?.daily_requests ?? 0;
+  const run = () => {
     const parsed: Record<string, string> = {};
-    for (const part of (args[name] ?? '').split(/\s+/)) {
+    for (const part of args.split(/\s+/)) {
       const at = part.indexOf('=');
       if (at > 0) parsed[part.slice(0, at)] = part.slice(at + 1);
     }
+    onRun(agent.name, parsed);
+  };
+  return (
+    <article className="ai-card" data-state={agent.state}>
+      <header>
+        <span className="tdot" data-tone={tone} data-live={running} />
+        <div className="ai-card-title">
+          <b>{agent.title}</b>
+          <span>{agent.job}</span>
+        </div>
+        <Badge tone={agent.enabled ? tone : 'caveat'}>{agent.enabled ? label : 'Switched off'}</Badge>
+      </header>
+
+      <div className="ai-now">
+        <span>{running ? 'Now' : agent.state === 'idle' ? 'Waiting' : 'Last run'}</span>
+        <p>{running ? line.text || agent.now || 'Starting…' : agent.summary || agent.now || 'Has not run yet.'}</p>
+        {running ? (
+          <time dateTime={line.since || agent.started}>
+            {line.since ? `this step began ${ago(line.since, now)}` : ''}
+            {line.since && agent.started ? ' · ' : ''}
+            {agent.started ? `run started ${ago(agent.started, now)}` : ''}
+          </time>
+        ) : (
+          agent.started && <time dateTime={agent.started}>{when(agent.started)}</time>
+        )}
+      </div>
+
+      {open && line.before.length > 0 && <Steps steps={line.before} now={now} max={60} />}
+
+      <p className="tfine ai2-sched">When: {row?.schedule || agent.schedule || 'on demand'}</p>
+
+      {settings && row && (
+        <div className="ai2-settings">
+          <label className="ai-switch">
+            <input type="checkbox" checked={row.enabled} onChange={(e) => onToggle(agent.name, e.target.checked)} />
+            <span>{row.enabled ? 'On: runs on its schedule' : 'Off: will not run'}</span>
+          </label>
+          {row.never.length > 0 && <p className="tfine">Never: {row.never.join('; ')}</p>}
+          <BriefBox name={agent.name} initial={row.brief} label="Brief" />
+          {!agent.cli_only && (
+            <input
+              aria-label={`arguments for ${agent.name}`}
+              placeholder="optional key=value for the next run"
+              value={args}
+              onChange={(e) => setArgs(e.target.value)}
+            />
+          )}
+        </div>
+      )}
+
+      <footer>
+        {agent.uses_model ? (
+          <span className="ai-meter" title={`${used} of ${budget} model requests used today`}>
+            <i style={{ width: `${budget ? Math.min(100, (used / budget) * 100) : 0}%` }} />
+            <em>
+              {used}/{budget} requests today
+            </em>
+          </span>
+        ) : (
+          <span className="ai-meter-none">No model: plain code</span>
+        )}
+        <span className="ai-card-acts">
+          {line.before.length > 0 && (
+            <button type="button" className="tbtn sm" onClick={() => setOpen((v) => !v)}>
+              {open ? 'Hide steps' : `Steps (${line.before.length})`}
+            </button>
+          )}
+          <button type="button" className="tbtn sm" onClick={() => setSettings((v) => !v)}>
+            {settings ? 'Close settings' : 'Settings'}
+          </button>
+          {agent.cli_only ? (
+            <code className="ai-cli" title="It reads the whole price panel, so it runs outside the web server">
+              {CLI_RUN[agent.name] ?? `make agent NAME=${agent.name}`}
+            </code>
+          ) : (
+            <button
+              type="button"
+              className="tbtn sm go"
+              disabled={!agent.enabled || running}
+              title={agent.enabled ? '' : 'Switched off: turn it on in Settings'}
+              onClick={run}
+            >
+              {running ? 'Running' : 'Run now'}
+            </button>
+          )}
+        </span>
+      </footer>
+    </article>
+  );
+}
+
+function Team({
+  data,
+  activity,
+  onChange,
+}: {
+  data: AgentsResponse;
+  activity: ActivityResponse | null;
+  onChange: () => void;
+}) {
+  const now = useNow();
+  const [error, setError] = useState('');
+  const rows = new Map(data.agents.map((a) => [a.name, a]));
+  const agents = activity?.agents ?? [];
+  const grouped = new Set(GROUPS.flatMap(([, , names]) => names));
+  const groups: [string, string, AgentActivity[]][] = [
+    ...GROUPS.map(([title, what, names]): [string, string, AgentActivity[]] => [
+      title,
+      what,
+      names.map((n) => agents.find((a) => a.name === n)).filter((a): a is AgentActivity => Boolean(a)),
+    ]),
+    ['Support', 'Keep data, briefs, schedules and the other agents healthy.', agents.filter((a) => !grouped.has(a.name))],
+  ];
+  const run = (name: string, args: Record<string, string> = {}) => {
     agentsApi
-      .run(name, parsed)
+      .run(name, args)
       .then((r) => {
         setError(r.ok ? '' : r.error ?? 'not started');
         onChange();
       })
       .catch((e: unknown) => setError(String(e)));
   };
+  const toggle = (name: string, enabled: boolean) =>
+    agentsApi.setting(name, { enabled }).then(onChange).catch((e: unknown) => setError(String(e)));
   return (
     <>
-      <div className="tpanel">
-        <h3>Brief for every agent</h3>
-        {error && <p className="tnote bad">{error}</p>}
+      {error && <p className="tnote bad">{error}</p>}
+      <details className="tpanel ai2-all-brief">
+        <summary>
+          <b>Brief for every agent</b>
+          <span className="tfine">{data.brief_all ? ` · ${data.brief_all.slice(0, 90)}` : ' · none set'}</span>
+        </summary>
         <BriefBox name="all" initial={data.brief_all} label="Read by every agent before its own brief." />
-      </div>
-      <div className="ai-grid">
-        {data.agents.map((a) => (
-          <article key={a.name} className="ai-card">
-            <header>
-              <span className="tdot" data-tone={a.enabled ? 'up' : undefined} />
-              <div className="ai-card-title">
-                <b>{a.title}</b>
-                <span>{a.job}</span>
-              </div>
-              <label className="ai-switch">
-                <input type="checkbox" checked={a.enabled} onChange={(e) => toggle(a.name, e.target.checked)} />
-                <span>{a.enabled ? 'On' : 'Off'}</span>
-              </label>
+      </details>
+      {groups.map(([title, what, list]) =>
+        list.length === 0 ? null : (
+          <section key={title} className="ai2-group">
+            <header className="ai2-head">
+              <h3>{title}</h3>
+              <p className="tfine">{what}</p>
             </header>
-            <p className="tfine">
-              {a.schedule || 'On demand'} · {a.uses_model ? `${a.used_today}/${a.daily_requests} requests today` : 'no model'}
-              {a.switched === 'operator' && ' · switched by you'}
-            </p>
-            {a.never.length > 0 && <p className="tfine">Never: {a.never.join('; ')}</p>}
-            <BriefBox name={a.name} initial={a.brief} label="Brief" />
-            <footer>
-              <input
-                aria-label={`arguments for ${a.name}`}
-                placeholder="key=value (optional)"
-                value={args[a.name] ?? ''}
-                onChange={(e) => setArgs({ ...args, [a.name]: e.target.value })}
-              />
-              <button type="button" className="tbtn sm go" disabled={!a.enabled || a.running} onClick={() => run(a.name)}>
-                {a.running ? 'Running' : 'Run'}
-              </button>
-            </footer>
-          </article>
-        ))}
-      </div>
-    </>
-  );
-}
-
-// ---------------------------------------------------------------- the rest
-
-function MarketBrief() {
-  const [brief, setBrief] = useState<{ text?: string; brief?: MarketBriefData | null; at?: string; error?: string } | null>(null);
-  useEffect(() => {
-    agentsApi.marketBrief().then(setBrief).catch((e: unknown) => setBrief({ error: String(e) }));
-  }, []);
-  if (!brief) return null;
-  if (brief.brief) return <MarketBriefView brief={brief.brief} at={brief.at} />;
-  return (
-    <div className="tpanel">
-      <h3>Market brief</h3>
-      {brief.text ? (
-        <>
-          <p className="tfine">{when(brief.at ?? '')} · an older brief, written before briefs were saved as data</p>
-          <pre className="ai-pre">{brief.text}</pre>
-        </>
-      ) : (
-        <div className="tempty">{brief.error}</div>
+            <div className="ai-grid">
+              {list.map((agent) => (
+                <AgentCard
+                  key={agent.name}
+                  agent={agent}
+                  row={rows.get(agent.name)}
+                  now={now}
+                  onRun={run}
+                  onToggle={toggle}
+                />
+              ))}
+            </div>
+          </section>
+        ),
       )}
-    </div>
-  );
-}
-
-function Ask() {
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [busy, setBusy] = useState(false);
-  const ask = () => {
-    if (!question.trim()) return;
-    setBusy(true);
-    agentsApi
-      .ask(question)
-      .then((r) => setAnswer(r.ok ? `${r.answer ?? ''}\n\n(${r.model ?? 'model'}, ${r.requests ?? 0} requests)` : r.error ?? 'no answer'))
-      .catch((e: unknown) => setAnswer(String(e)))
-      .finally(() => setBusy(false));
-  };
-  return (
-    <div className="tpanel">
-      <h3>Ask the knowledge agent</h3>
-      <p className="tfine">It answers from the papers, cards, decisions and data grades on disk, and names what it read.</p>
-      <textarea
-        aria-label="question"
-        value={question}
-        placeholder="e.g. Which momentum ideas have we already rejected, and why?"
-        onChange={(e) => setQuestion(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask();
-        }}
-        rows={3}
-      />
-      <div className="tacts" style={{ marginTop: 8 }}>
-        <button type="button" className="tbtn go" disabled={busy || !question.trim()} onClick={ask}>
-          {busy ? 'Asking…' : 'Ask'}
-        </button>
-      </div>
-      {answer && <pre className="ai-pre">{answer}</pre>}
-    </div>
+    </>
   );
 }
 
@@ -677,7 +827,9 @@ function Log() {
     <div className="tpanel">
       <h3>Agent log</h3>
       <p className={view.verified ? 'tfine' : 'tnote bad'}>
-        {view.verified ? 'The hash chain verifies.' : `The chain does not verify: ${view.problem}`}
+        {view.verified
+          ? 'Every agent action is written to a hash-chained log, and the chain verifies: nothing was edited afterwards.'
+          : `The chain does not verify: ${view.problem}`}
       </p>
       {view.entries.length === 0 ? (
         <div className="tempty">Nothing logged yet.</div>
@@ -707,47 +859,68 @@ function Log() {
   );
 }
 
-/** Start a research or skeptic run and read what came back: drafts, Quantpedia leads, attacks. */
-function Research({ onStarted }: { onStarted: () => void }) {
+// ================================================================ ask
+
+function Ask({ onStarted }: { onStarted: () => void }) {
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [busy, setBusy] = useState(false);
   const [topic, setTopic] = useState('');
   const [strategy, setStrategy] = useState('');
   const [note, setNote] = useState('');
-  const [latest, setLatest] = useState<Record<string, AgentOutput | undefined>>({});
-  const read = useCallback(() => {
-    for (const name of ['research', 'skeptic']) {
-      agentsApi
-        .outputs(name, 1)
-        .then((r) => setLatest((prev) => ({ ...prev, [name]: r.outputs[0] })))
-        .catch(() => undefined);
-    }
-  }, []);
-  useEffect(() => {
-    read();
-    const timer = window.setInterval(read, 15000);
-    return () => window.clearInterval(timer);
-  }, [read]);
+  const ask = () => {
+    if (!question.trim()) return;
+    setBusy(true);
+    agentsApi
+      .ask(question)
+      .then((r) => setAnswer(r.ok ? `${r.answer ?? ''}\n\n(${r.model ?? 'model'}, ${r.requests ?? 0} requests)` : r.error ?? 'no answer'))
+      .catch((e: unknown) => setAnswer(String(e)))
+      .finally(() => setBusy(false));
+  };
   const start = (name: string, args: Record<string, string>) =>
     agentsApi
       .run(name, args)
       .then((r) => {
-        setNote(r.ok ? `${name} started. Watch it work on the Live view.` : r.error ?? 'not started');
+        setNote(r.ok ? `The ${name} agent started. Its progress shows on Overview and its result under Results.` : r.error ?? 'not started');
         if (r.ok) onStarted();
       })
       .catch((e: unknown) => setNote(String(e)));
   return (
     <>
+      <section className="tpanel">
+        <h3>Ask a question</h3>
+        <p className="tfine">
+          The knowledge agent answers from the papers, strategy cards, decisions and data grades on disk, and names what
+          it read.
+        </p>
+        <textarea
+          aria-label="question"
+          value={question}
+          placeholder="e.g. Which momentum ideas have we already rejected, and why?"
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask();
+          }}
+          rows={3}
+        />
+        <div className="tacts" style={{ marginTop: 8 }}>
+          <button type="button" className="tbtn go" disabled={busy || !question.trim()} onClick={ask}>
+            {busy ? 'Asking…' : 'Ask'}
+          </button>
+        </div>
+        {answer && <pre className="ai-pre">{answer}</pre>}
+      </section>
       <div className="tgrid">
-        <div className="tpanel">
-          <h3>Find and draft ideas</h3>
+        <section className="tpanel">
+          <h3>Research a topic now</h3>
           <p className="tfine">
-            Searches arXiv and OpenAlex, reads Quantpedia&rsquo;s catalogue if synced (<code>make quantpedia-sync</code>),
-            drafts cards and checks them against ideas already tried. It stops at drafts: nothing is registered or
-            backtested, and no trial is spent.
+            The research agent searches arXiv and OpenAlex and drafts ideas. It stops at drafts: nothing is tested and no
+            trial is spent. It also runs every evening on its own topic list.
           </p>
           <div className="ai-inline">
             <input
               aria-label="research topic"
-              placeholder="topic, e.g. delivery percentage and next-day returns"
+              placeholder="e.g. delivery percentage and next-day returns"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
             />
@@ -755,68 +928,48 @@ function Research({ onStarted }: { onStarted: () => void }) {
               Research
             </button>
           </div>
-        </div>
-        <div className="tpanel">
+        </section>
+        <section className="tpanel">
           <h3>Try to break a result</h3>
           <p className="tfine">
-            The skeptic reads a stored backtest and attacks it: without its best year, its best days, Indian stress
-            windows, the t-statistic and twice the costs.
+            The skeptic attacks a stored backtest: without its best year, its best days, Indian stress windows, the
+            t-statistic and twice the costs.
           </p>
           <div className="ai-inline">
-            <input
-              aria-label="strategy id"
-              placeholder="strategy id"
-              value={strategy}
-              onChange={(e) => setStrategy(e.target.value)}
-            />
+            <input aria-label="strategy id" placeholder="strategy id" value={strategy} onChange={(e) => setStrategy(e.target.value)} />
             <button type="button" className="tbtn go" disabled={!strategy.trim()} onClick={() => start('skeptic', { strategy })}>
               Attack
             </button>
           </div>
-        </div>
+        </section>
       </div>
       {note && <p className="tnote">{note}</p>}
-      {(['research', 'skeptic'] as const).map((name) => {
-        const out = latest[name];
-        if (!out) return null;
-        return (
-          <div key={name} className="tpanel">
-            <h3>
-              Latest {name} run <Badge tone={out.status === 'ok' ? 'up' : 'caveat'}>{out.status}</Badge>
-            </h3>
-            <p className="tfine">
-              {when(out.started)} · {out.summary}
-            </p>
-            <ul className="ai-inbox">
-              {out.items.map((item) => (
-                <li key={item.id}>
-                  <div>
-                    <span className="ai-inbox-meta">
-                      <Badge tone="brand">{item.kind}</Badge>
-                    </span>
-                    <b>{item.title}</b>
-                    {item.body && <p>{item.body}</p>}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
     </>
   );
 }
 
-/** `#agents/brief` opens the Market brief view, so the brief can be linked to. */
+// ================================================================ the page
+
+/** `#agents/<old or new view>` opens that view, so old links still land. */
 export function AgentsTab({ open = '' }: { open?: string }) {
-  const wanted = VIEWS.find(([id]) => id === open)?.[0];
-  const [view, setView] = useState<View>(wanted ?? 'live');
+  const wanted = openView(open);
+  const [view, setView] = useState<AiView>(wanted.view);
+  const [team, setTeam] = useState<TeamView>(wanted.team ?? 'cards');
+  const [filter, setFilter] = useState<ResultFilter>(wanted.filter ?? 'research');
   useEffect(() => {
-    if (wanted) setView(wanted);
-  }, [wanted]);
+    if (!open) return;
+    const next = openView(open);
+    setView(next.view);
+    if (next.team) setTeam(next.team);
+    if (next.filter) setFilter(next.filter);
+  }, [open]);
+
   const [data, setData] = useState<AgentsResponse | null>(null);
   const [items, setItems] = useState<AgentItem[]>([]);
+  const [flow, setFlow] = useState<FlowResponse | null>(null);
+  const [activity, setActivity] = useState<ActivityResponse | null>(null);
   const [error, setError] = useState('');
+
   const read = useCallback(() => {
     agentsApi
       .list()
@@ -829,12 +982,33 @@ export function AgentsTab({ open = '' }: { open?: string }) {
       .inbox()
       .then((r) => setItems(r.items))
       .catch(() => undefined);
+    agentsApi
+      .flow()
+      .then(setFlow)
+      .catch(() => undefined);
+  }, []);
+  const readActivity = useCallback(() => {
+    agentsApi
+      .activity(60)
+      .then(setActivity)
+      .catch(() => undefined);
   }, []);
   useEffect(() => {
     read();
-    const timer = window.setInterval(read, 15000);
+    const timer = window.setInterval(read, 30000);
     return () => window.clearInterval(timer);
   }, [read]);
+  // Faster while something runs, slow when nothing does, never while hidden.
+  usePoll(readActivity, AGENTS_TAB, (activity?.running ?? 0) > 0);
+
+  const refresh = () => {
+    read();
+    readActivity();
+  };
+  const go = (next: AiView, nextFilter?: ResultFilter) => {
+    setView(next);
+    if (nextFilter) setFilter(nextFilter);
+  };
 
   if (error) {
     return (
@@ -850,27 +1024,37 @@ export function AgentsTab({ open = '' }: { open?: string }) {
         {VIEWS.map(([id, label]) => (
           <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)}>
             {label}
-            {id === 'inbox' && items.length > 0 && <span className="ai-count">{items.length}</span>}
+            {id === 'overview' && items.length > 0 && <span className="ai-count">{items.length}</span>}
           </button>
         ))}
       </div>
-      <section className="tsection ai-section">
+      <section className="tsection ai-section ai2">
         {!data.log_ok && <p className="tnote bad">The agent log does not verify: {data.log_problem}</p>}
-        {view === 'live' && <Live data={data} inbox={items.length} onRead={read} onOpen={setView} />}
-        {view === 'inbox' && (
+        {view === 'overview' && (
+          <Overview data={data} flow={flow} activity={activity} items={items} onRead={refresh} onOpen={go} />
+        )}
+        {view === 'results' && <Results flow={flow} filter={filter} setFilter={setFilter} />}
+        {view === 'team' && (
           <>
-            <Inbox items={items} onDone={read} />
-            <GateRuns />
+            <div className="ai2-chips" role="tablist" aria-label="Agents">
+              {TEAM_VIEWS.map(([id, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={team === id} onClick={() => setTeam(id)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {team === 'cards' && <Team data={data} activity={activity} onChange={refresh} />}
+            {team === 'org' && <OrgChartView />}
+            {team === 'schedule' && <CalendarView />}
+            {team === 'health' && (
+              <>
+                <QualityTable />
+                <Log />
+              </>
+            )}
           </>
         )}
-        {view === 'org' && <OrgChartView />}
-        {view === 'calendar' && <CalendarView />}
-        {view === 'agents' && <Agents data={data} onChange={read} />}
-        {view === 'ask' && <Ask />}
-        {view === 'research' && <Research onStarted={read} />}
-        {view === 'brief' && <MarketBrief />}
-        {view === 'quality' && <QualityTable />}
-        {view === 'log' && <Log />}
+        {view === 'ask' && <Ask onStarted={refresh} />}
       </section>
     </>
   );

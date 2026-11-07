@@ -8,7 +8,7 @@
     "start": "next start -H 127.0.0.1 -p 3000",
     "typecheck": "tsc --noEmit",
     "lint": "next lint",
-    "test": "node --test --experimental-strip-types lib/indicators.test.ts lib/bars.test.ts lib/poll.test.ts lib/agentNow.test.ts lib/placePopover.test.ts"
+    "test": "node --test --experimental-strip-types lib/indicators.test.ts lib/bars.test.ts lib/poll.test.ts lib/agentNow.test.ts lib/placePopover.test.ts lib/aiFlow.test.ts"
   },
   "dependencies": {
     "lightweight-charts": "^5.2.1",

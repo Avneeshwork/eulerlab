@@ -2602,6 +2602,36 @@ export type AgentItem = {
   data: Record<string, unknown>;
 };
 
+/** The research pipeline and its results (`agents/flow.py`, ADR-151). */
+export type FlowOutcome = 'pass' | 'partial' | 'fail' | 'info';
+export type FlowRow = { id: string; label: string; tag: string; status: string; tone: FlowOutcome; detail: string; ref: string };
+export type FlowResult = {
+  id: string;
+  agent: string;
+  at: string;
+  status: string;
+  kind: 'batch' | 'test' | 'ideas' | 'attack' | 'verdict' | 'paper' | 'brief' | 'check' | 'problem';
+  title: string;
+  outcome: FlowOutcome;
+  summary: string;
+  meaning: string;
+  rows: FlowRow[];
+  model: string;
+  notes: string[];
+  ref?: string;
+  pipeline: boolean;
+};
+export type FlowStage = {
+  key: 'find' | 'write' | 'test' | 'gate' | 'paper';
+  title: string;
+  agents: string[];
+  what: string;
+  number: string;
+  label: string;
+  last: { at: string; status: string; summary: string; agent: string };
+};
+export type FlowResponse = { ok: boolean; days: number; stages: FlowStage[]; results: FlowResult[] };
+
 export type AgentOutput = {
   agent: string;
   run_id: string;
@@ -2897,6 +2927,7 @@ export const agentsApi = {
   activity: (steps = 40) => get<ActivityResponse>(`/api/agents/activity?steps=${steps}`),
   inbox: () => get<{ ok: boolean; items: AgentItem[] }>('/api/agents/inbox'),
   promotions: () => get<{ ok: boolean; promotions: Promotion[] }>('/api/agents/promotions'),
+  flow: (days = 7) => get<FlowResponse>(`/api/agents/flow?days=${days}`),
   skepticTargets: () => get<{ ok: boolean; targets: SkepticTarget[] }>('/api/agents/skeptic/targets'),
   decide: (id: string, decision: 'approved' | 'dismissed', note = '') =>
     post<{ ok: boolean; error?: string; gate?: string }>(`/api/agents/inbox/${encodeURIComponent(id)}`, {

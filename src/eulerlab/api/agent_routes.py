@@ -529,6 +529,29 @@ def agents_promotions() -> dict[str, Any]:
     return {"ok": True, "promotions": promote.results()}
 
 
+@router.get("/api/agents/flow")
+def agents_flow(days: int = 7) -> dict[str, Any]:
+    """The research pipeline with last week's numbers, and every result newest first (ADR-151)."""
+    from eulerlab.agents import flow
+    from eulerlab.research import promote
+
+    papers: list[dict[str, Any]] = []
+    try:
+        from eulerlab.deploy import deployments
+
+        papers = [
+            d.model_dump(mode="json") for d in deployments.all_deployments() if d.mode == "paper"
+        ]
+    except (OSError, ValueError):
+        papers = []
+    return flow.build(
+        promotions=promote.results(),
+        papers=papers,
+        names=sorted(all_effective()),
+        days=max(1, min(days, 60)),
+    )
+
+
 @router.get("/api/agents/log")
 def agents_log(limit: int = 100) -> dict[str, Any]:
     entries = log.read()
