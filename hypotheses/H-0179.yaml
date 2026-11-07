@@ -52,4 +52,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Autopilot screen 2026-11-07: 33 positions 2021-07-01 to 2024-11-30; net -165.59 bps each; net
+  Sharpe -0.249, halves -0.796 / 0.602, -0.287 at 2x costs. Flagged: enough trades. Screen fail; not gated.'
