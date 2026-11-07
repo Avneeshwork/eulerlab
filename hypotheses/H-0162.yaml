@@ -1,0 +1,36 @@
+id: H-0162
+title: 'Daily bars, every liquid NSE stock: buy at the open after a SAST promoter purchase, sell at the
+  close 20 sessions later'
+status: draft
+family: stock_other_data_daily
+source_kind: paper
+parent: H-0153
+claim: 'Daily bars, every liquid NSE stock: buy at the open after a SAST promoter purchase, sell at the
+  close 20 sessions later: earns more than costs in both halves of 2021-07-01 to 2024-11-29 and at twice
+  the costs.'
+rationale: H-0153's rule (research 172) on every NSE stock in the 500 most traded on the entry day, so
+  the universe is what was liquid then.
+source:
+  research: '173'
+  written_by: 'Claude, to test research 172''s two PROMOTEs without today''s F&O list (HISTORY #82, T-4500)'
+  day: '2026-11-07'
+configurations:
+- shape: daily_cash
+  rule: SAST promoter acquisitions (backfilled from 2021-07); buy at the first session's official open
+    after the disclosure, sell at the official close 20 sessions later; at most ten open, earliest first,
+    largest stake first; Rs 1 lakh, 1x, delivery charges plus 2 bps a side
+  data: data/derived/price_panel.jsonl, delivery.jsonl, nse_reports sast
+  window: 2021-07-01 to 2024-11-29
+red_flags:
+- Written after H-0160 and H-0153 passed and after the survivorship check cut them; the rules are theirs,
+  the universe is new.
+- 'Daily bars: the official open and close stand in for 09:20 and 15:10 fills; the close is a 30-minute
+  average price an MIS order cannot reach (as H-0098).'
+- 'Raw prices: a holding window with a day-to-day close ratio outside 0.6-1.6 is dropped as a likely split
+  or bonus (A-119).'
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs.'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
