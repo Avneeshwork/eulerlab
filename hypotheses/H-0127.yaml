@@ -1,7 +1,7 @@
 id: H-0127
 title: When the Nifty rebounds 0.3% off a 0.6% morning fall, buy the three highest-beta liquid stocks
   to 15:10
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 135 trades (0.19 a day), -76.38 bps gross and -84.81 net a trade at Rs 5 lakh
+  (cost 8.43), net Sharpe -1.153, halves -1.175 / -1.141, drawdown -46% of margin; by year on margin 2021
+  -7%, 2022 -23%, 2023 +2%, 2024 -26% (research 169). Fails the screen; not gated.'

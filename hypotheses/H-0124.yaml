@@ -35,4 +35,8 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1043 trades (1.43 a day), 11.81 bps gross and 3.34 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe 0.61, halves 0.415 / 0.907, drawdown -14% of margin; by year on margin 2021
+  -1%, 2022 +18%, 2023 -2%, 2024 +2% (research 169). Gate 2026-11-07 (validate #106, gate #107): PAPER.
+  Failed promotion on 2x costs (-0.95) and probabilistic Sharpe 0.863; paper bar passed. Dropping the
+  best 5 names turns it negative.'

@@ -280,3 +280,32 @@ def test_noon_pullback_buys_a_trend_stock_below_its_high() -> None:
     )
     (sig,) = list(mft.h0118(mk, d1))
     assert (sig.direction, sig.decided, sig.exit_minute) == (1, 165, 355)
+
+
+def _one_stock_market(today: list[float], prev_close: float = 100.0) -> tuple[mft.Market, date]:
+    d0, d1 = _weekdays(date(2023, 1, 2), 2)
+    mk = mft.Market(
+        snaps={"ABC": {d0: _path_snap([prev_close], last_close=prev_close), d1: _path_snap(today)}},
+        sessions=[d1],
+        nifty={d1: [20_000.0] * 375},
+        nifty_prev={d1: 19_900.0},
+        beta={},
+        liquid={d1: ["ABC"]},
+        industry={},
+        previous={d1: d0},
+    )
+    return mk, d1
+
+
+def test_afternoon_pullback_is_the_noon_rule_at_1330() -> None:
+    path = [103.0] * 40 + [104.0] * 10 + [103.3] * 10  # 0.7% off the high at 13:30
+    mk, d1 = _one_stock_market(path)
+    (sig,) = list(mft.h0121(mk, d1))
+    assert (sig.direction, sig.decided) == (1, 255)
+
+
+def test_tight_range_break_follows_the_morning_move() -> None:
+    path = [101.0] * 11 + [102.0] * 13 + [102.1] * 2 + [102.5] * 10  # +2% by 10:15, tight, then up
+    mk, d1 = _one_stock_market(path)
+    (sig,) = list(mft.h0124(mk, d1))
+    assert sig.direction == 1 and sig.decided == 125

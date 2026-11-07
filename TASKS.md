@@ -198,7 +198,8 @@ Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `ma
 | T-4486 | H-0103 cannot be paper-traded yet: no rule-book generator for options, and BankNifty has only monthly expiries since 2024-11-20. Build a monthly-expiry book, or leave it as a record | OPEN (operator) |
 | T-4487 | Check H-0103's bhavcopy opening fills against minute option prices once FYERS history is fetched (T-4285) | OPEN |
 | T-4488 | Ten MFT-style stock scalps on 5-minute closes at Zerodha MIS size, ₹5 lakh a trade (operator: stocks only, 4-5x) | DONE 2026-11-07 — H-0118 (noon trend pullback) and H-0115 (gap fade after a 15-minute turn) PAPER (ledger #98-#101); H-0117 KILL (#102, #103); seven fail the screen (research 168, ADR-146) |
-| T-4489 | Paper books for H-0118 and H-0115: `deploy/rule_book.py` generators at ₹5 lakh a trade, ten open, from the holdout end | OPEN (operator: build them?) |
+| T-4492 | Ten more MIS stock scalps (operator: "go ahead and research 10 more strategies") | DONE 2026-11-07 — H-0121 (trend pullback at 13:30, 0.57 correlated with H-0118) and H-0124 (tight-range break) PAPER (ledger #104-#107); H-0128 KILL (#108, #109); seven fail the screen (research 169) |
+| T-4489 | Paper books for H-0118, H-0115, H-0121 and H-0124: `deploy/rule_book.py` generators at ₹5 lakh a trade, ten open, from the holdout end | OPEN (operator: build them?) |
 | T-4490 | Measure slippage on a ₹5 lakh MIS order in the 100 most traded stocks (depth snapshots or the first paper fills): at 4 bps a side H-0118 keeps about +4.8 bps net a trade and H-0115 about +0.8 | OPEN |
 | T-4491 | H-0103 is an option strategy; the operator's rule since 2026-11-07 is stocks only. Keep it as a record or mark it out of scope | OPEN (operator) |
 

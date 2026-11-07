@@ -1,7 +1,7 @@
 id: H-0129
 title: On a quiet Nifty morning, fade a liquid stock's 1.5% move from 09:20 between 11:30 and 14:00, hold
   30 minutes
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 4220 trades (5.8 a day), -2.28 bps gross and -10.74 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -5.124, halves -4.609 / -5.628, drawdown -90% of margin; by year on margin 2021
+  -3%, 2022 -40%, 2023 -63%, 2024 -53% (research 169). Fails the screen; not gated.'

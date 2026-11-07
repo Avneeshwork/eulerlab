@@ -1,6 +1,6 @@
 id: H-0125
 title: 'Gap reclaimed: when a 1.5% gap is fully filled after 09:45, trade the fill''s direction to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -35,4 +35,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 3234 trades (4.44 a day), -4.09 bps gross and -12.55 net a trade at Rs 5 lakh
+  (cost 8.46), net Sharpe -1.139, halves -1.669 / -0.757, drawdown -95% of margin; by year on margin 2021
+  -27%, 2022 -67%, 2023 -58%, 2024 -31% (research 169). Fails the screen; not gated.'

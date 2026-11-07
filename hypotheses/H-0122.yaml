@@ -1,7 +1,7 @@
 id: H-0122
 title: 'Gap and go: follow a 2% gap that keeps going in the first 15 minutes with the Nifty''s gap, stop
   at the 09:20 close'
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -35,4 +35,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2957 trades (4.06 a day), 1.73 bps gross and -6.74 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe -0.709, halves -0.237 / -1.271, drawdown -82% of margin; by year on margin 2021
+  +11%, 2022 -29%, 2023 -35%, 2024 -48% (research 169). Fails the screen; not gated.'

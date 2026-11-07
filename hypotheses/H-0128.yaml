@@ -1,7 +1,7 @@
 id: H-0128
 title: 'Industry breadth day: when 70% of an industry is up 1% by 10:30, buy its members that are up least,
   to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -34,4 +34,8 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 396 trades (0.54 a day), 14.87 bps gross and 6.4 net a trade at Rs 5 lakh
+  (cost 8.47), net Sharpe 0.369, halves 0.077 / 0.728, drawdown -14% of margin; by year on margin 2021
+  +2%, 2022 +1%, 2023 -5%, 2024 +13% (research 169). Gate 2026-11-07 (validate #108, gate #109): KILL.
+  Negative at 2x costs (-0.12) and probabilistic Sharpe below the paper bar. Dead: not to be tuned or
+  resubmitted.'

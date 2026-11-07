@@ -1,6 +1,6 @@
 id: H-0130
 title: Buy yesterday's 3% winner after a 1% dip by 10:00, to 15:10 (and the mirror)
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2173 trades (2.98 a day), 3.45 bps gross and -5.01 net a trade at Rs 5 lakh
+  (cost 8.46), net Sharpe -0.557, halves -0.29 / -0.792, drawdown -54% of margin; by year on margin 2021
+  +1%, 2022 -10%, 2023 -0%, 2024 -46% (research 169). Fails the screen; not gated.'

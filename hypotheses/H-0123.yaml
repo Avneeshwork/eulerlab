@@ -1,7 +1,7 @@
 id: H-0123
 title: 'Relative strength against a falling Nifty: at 11:00 buy stocks up 1% while the Nifty is down 0.5%
   (and the mirror), to 15:10'
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -34,4 +34,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 1041 trades (1.43 a day), 1.48 bps gross and -6.98 net a trade at Rs 5 lakh
+  (cost 8.46), net Sharpe -0.459, halves -0.372 / -0.684, drawdown -46% of margin; by year on margin 2021
+  -11%, 2022 -29%, 2023 +18%, 2024 -15% (research 169). Fails the screen; not gated.'

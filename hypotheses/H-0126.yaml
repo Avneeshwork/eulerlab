@@ -1,7 +1,7 @@
 id: H-0126
 title: 'Yesterday''s 2% winner that opens higher and holds its first 10 minutes: buy at 09:30 to 15:10
   (and the mirror)'
-status: draft
+status: rejected
 family: intraday_stock_mft
 source_kind: practitioner
 parent: ''
@@ -35,4 +35,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-07: 2721 trades (3.74 a day), 4.71 bps gross and -3.76 net a trade at Rs 5 lakh
+  (cost 8.46), net Sharpe -0.382, halves -0.239 / -0.503, drawdown -67% of margin; by year on margin 2021
+  +15%, 2022 -6%, 2023 -50%, 2024 -17% (research 169). Fails the screen; not gated.'

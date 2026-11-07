@@ -1,4 +1,4 @@
-"""Ten MFT-style stock scalps on 5-minute closes, at Zerodha MIS size (research 168).
+"""Twenty MFT-style stock scalps on 5-minute closes, at Zerodha MIS size (research 168, 169).
 
 Pre-registered as H-0111 to H-0120 before any run. Every rule decides on a
 5-minute close of research 161's snapshots (`make minute-six`) and fills at
@@ -17,6 +17,11 @@ Nifty minutes exist.
 - **H-0118** noon pullback in a 2.5% trend-day stock, to 15:10.
 - **H-0119** idiosyncratic 1.2% five-minute drop in a large cap: buy, 20 minutes.
 - **H-0120** break of the previous session's high (low) close in the Nifty's direction.
+
+Research 169 (H-0121 to H-0130), written after 168's results: H-0118 at 13:30,
+gap and go, relative strength at 11:00, tight-range break, gap reclaimed,
+yesterday's winner that holds, Nifty V-rebound with high-beta stocks,
+industry-breadth laggards, quiet-day fade, yesterday's winner after a dip.
 
 `make mft-screen` writes `data/derived/mft_screen.json`.
 """
@@ -432,8 +437,8 @@ def h0117(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
             break
 
 
-def h0118(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
-    m = 165
+def _pullback(mk: Market, day: date, m: int, delay: int) -> Iterator[Signal]:
+    """H-0118 / H-0121: a 2.5% trend-day stock 0.5% off its extreme at minute `m`."""
     nd = _nifty_day(mk, day, m)
     if nd is None or nd == 0:
         return
@@ -453,6 +458,10 @@ def h0118(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
         sig = held(s, day, symbol, sign, m, delay=delay)
         if sig:
             yield sig
+
+
+def h0118(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    return _pullback(mk, day, 165, delay)
 
 
 def h0119(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
@@ -495,6 +504,230 @@ def h0120(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
             break
 
 
+# --- research 169: ten more ------------------------------------------------------------
+
+
+def h0121(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    return _pullback(mk, day, 255, delay)
+
+
+def _gaps(mk: Market, day: date, size: float) -> list[tuple[float, str, six.Snap, float, float]]:
+    """(-|gap|, symbol, snap, previous close, gap) among the 200 most traded, largest first."""
+    p = mk.prev(day)
+    if p is None:
+        return []
+    out = []
+    for symbol in mk.liquid.get(day, [])[:200]:
+        s, before = _today(mk, symbol, day), mk.snaps[symbol].get(p)
+        if s is None or before is None or before.last_close <= 0:
+            continue
+        gap = s.closes[_k(5)] / before.last_close - 1.0
+        if abs(gap) >= size:
+            out.append((-abs(gap), symbol, s, before.last_close, gap))
+    return sorted(out, key=lambda x: (x[0], x[1]))
+
+
+def h0122(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    nifty_gap = _nifty_day(mk, day, 5)
+    if nifty_gap is None or nifty_gap == 0:
+        return
+    taken = 0
+    for _, symbol, s, _, gap in _gaps(mk, day, 0.02):
+        first = s.closes[_k(5)]
+        if gap * nifty_gap <= 0 or (s.closes[_k(15)] - first) * gap <= 0:
+            continue
+        sign = 1 if gap > 0 else -1
+
+        def stop(c: float, f: float = first, d: int = sign) -> bool:
+            return d * (c - f) < 0
+
+        sig = held(s, day, symbol, sign, 15, stop=stop, delay=delay)
+        if sig:
+            taken += 1
+            yield sig
+        if taken >= 10:
+            return
+
+
+def h0123(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    m = 105
+    nd = _nifty_day(mk, day, m)
+    if nd is None or abs(nd) < 0.005:
+        return
+    pool = []
+    for symbol in mk.liquid.get(day, [])[:100]:
+        r = _pct_from_prev(mk, symbol, day, m)
+        if r is not None and r * nd < 0 and abs(r) >= 0.01 and _today(mk, symbol, day):
+            pool.append((-abs(r), symbol, 1 if r > 0 else -1))
+    for _, symbol, sign in sorted(pool)[:5]:
+        sig = held(mk.snaps[symbol][day], day, symbol, sign, m, delay=delay)
+        if sig:
+            yield sig
+
+
+def h0124(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    taken = 0
+    for symbol in mk.liquid.get(day, [])[:100]:
+        s = _today(mk, symbol, day)
+        move = _pct_from_prev(mk, symbol, day, 60)
+        if s is None or move is None or abs(move) < 0.015:
+            continue
+        box = [s.closes[_k(m)] for m in range(60, 121, 5)]
+        high, low = max(box), min(box)
+        if (high - low) / low >= 0.004:
+            continue
+        sign = 1 if move > 0 else -1
+        for m in range(125, 286, 5):
+            c = s.closes[_k(m)]
+            if (sign > 0 and c > high) or (sign < 0 and c < low):
+
+                def stop(x: float, hi: float = high, lo: float = low, d: int = sign) -> bool:
+                    return x < lo if d > 0 else x > hi
+
+                sig = held(s, day, symbol, sign, m, stop=stop, delay=delay)
+                if sig:
+                    taken += 1
+                    yield sig
+                break
+        if taken >= 10:
+            return
+
+
+def h0125(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    found = []
+    for _, symbol, s, prev_close, gap in _gaps(mk, day, 0.015):
+        first = s.closes[_k(5)]
+        for m in range(30, 226, 5):
+            c = s.closes[_k(m)]
+            if (gap > 0 and c < prev_close) or (gap < 0 and c > prev_close):
+                sign = -1 if gap > 0 else 1
+                halfway = (first + prev_close) / 2
+
+                def stop(x: float, h: float = halfway, d: int = sign) -> bool:
+                    return x > h if d < 0 else x < h
+
+                sig = held(s, day, symbol, sign, m, stop=stop, delay=delay, rank=-m)
+                if sig:
+                    found.append(sig)
+                break
+    yield from sorted(found, key=lambda x: (x.entry_minute, x.symbol))[:10]
+
+
+def _yesterday(mk: Market, symbol: str, day: date) -> tuple[float, float] | None:
+    """(yesterday's close-to-close return, yesterday's close)."""
+    p = mk.prev(day)
+    pp = mk.prev(p) if p else None
+    if p is None or pp is None:
+        return None
+    a, b = mk.snaps[symbol].get(pp), mk.snaps[symbol].get(p)
+    if a is None or b is None or a.last_close <= 0:
+        return None
+    return b.last_close / a.last_close - 1.0, b.last_close
+
+
+def _stop_pct(entry: float, sign: int, pct: float) -> Callable[[float], bool]:
+    return lambda c: sign * (c / entry - 1.0) <= -pct
+
+
+def h0126(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    pool = []
+    for symbol in mk.liquid.get(day, [])[:100]:
+        s, y = _today(mk, symbol, day), _yesterday(mk, symbol, day)
+        if s is None or y is None or abs(y[0]) < 0.02:
+            continue
+        sign = 1 if y[0] > 0 else -1
+        first, now = s.closes[_k(5)], s.closes[_k(15)]
+        if sign * (first / y[1] - 1.0) >= 0.005 and sign * (now - first) > 0:
+            pool.append((-abs(y[0]), symbol, s, sign))
+    for _, symbol, s, sign in sorted(pool, key=lambda x: (x[0], x[1]))[:10]:
+        opened = entry_at(s, 15 + delay)
+        if opened is None:
+            continue
+        sig = held(s, day, symbol, sign, 15, stop=_stop_pct(opened[1], sign, 0.01), delay=delay)
+        if sig:
+            yield sig
+
+
+def h0127(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    n = mk.nifty[day]
+    low, low_at = n[5], 5
+    for m in range(5, 166, 5):
+        if n[m] < low:
+            low, low_at = n[m], m
+        if m >= 30 and m > low_at and low <= n[5] * (1 - 0.006) and n[m] >= low * 1.003:
+            pool = sorted(
+                (-(mk.beta.get((sym, day)) or -9.0), sym)
+                for sym in mk.liquid.get(day, [])[:100]
+                if _today(mk, sym, day) is not None and (sym, day) in mk.beta
+            )
+            for _, symbol in pool[:3]:
+                sig = held(mk.snaps[symbol][day], day, symbol, 1, m, delay=delay)
+                if sig:
+                    yield sig
+            return
+
+
+def h0128(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    m = 75
+    groups: dict[str, list[tuple[str, float]]] = defaultdict(list)
+    for symbol in mk.liquid.get(day, [])[:200]:
+        r = _pct_from_prev(mk, symbol, day, m)
+        if symbol in mk.industry and r is not None and _today(mk, symbol, day):
+            groups[mk.industry[symbol]].append((symbol, r))
+    pool = []
+    for _, members in sorted(groups.items()):
+        if len(members) < 5:
+            continue
+        for sign in (1, -1):
+            share = sum(1 for _, r in members if sign * r >= 0.01) / len(members)
+            if share >= 0.7:
+                pool += [(sym, sign) for sym, r in members if 0 <= sign * r <= 0.005]
+    for symbol, sign in sorted(pool)[:10]:
+        sig = held(mk.snaps[symbol][day], day, symbol, sign, m, delay=delay)
+        if sig:
+            yield sig
+
+
+def h0129(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    n = mk.nifty[day]
+    morning = [n[m] for m in range(5, 136, 5)]
+    if (max(morning) - min(morning)) / min(morning) >= 0.005:
+        return
+    found = []
+    for symbol in mk.liquid.get(day, [])[:100]:
+        s = _today(mk, symbol, day)
+        if s is None:
+            continue
+        first = s.closes[_k(5)]
+        for m in range(135, 286, 5):
+            move = s.closes[_k(m)] / first - 1.0
+            if abs(move) >= 0.015:
+                sig = held(s, day, symbol, -1 if move > 0 else 1, m, hold=30, delay=delay)
+                if sig:
+                    found.append(sig)
+                break
+    yield from sorted(found, key=lambda x: (x.entry_minute, x.symbol))[:10]
+
+
+def h0130(mk: Market, day: date, delay: int = 0) -> Iterator[Signal]:
+    m = 45
+    pool = []
+    for symbol in mk.liquid.get(day, [])[:100]:
+        s, y = _today(mk, symbol, day), _yesterday(mk, symbol, day)
+        if s is None or y is None or abs(y[0]) < 0.03:
+            continue
+        sign = 1 if y[0] > 0 else -1
+        if sign * (s.closes[_k(m)] / y[1] - 1.0) <= -0.01:
+            pool.append((-abs(y[0]), symbol, s, sign))
+    for _, symbol, s, sign in sorted(pool, key=lambda x: (x[0], x[1]))[:10]:
+        opened = entry_at(s, m + delay)
+        if opened is None:
+            continue
+        sig = held(s, day, symbol, sign, m, stop=_stop_pct(opened[1], sign, 0.01), delay=delay)
+        if sig:
+            yield sig
+
+
 RULES: dict[str, tuple[str, Callable[..., Iterator[Signal]]]] = {
     "H-0111": ("mft_nifty_burst_laggards", h0111),
     "H-0112": ("mft_residual_reversal_30m", h0112),
@@ -506,7 +739,19 @@ RULES: dict[str, tuple[str, Callable[..., Iterator[Signal]]]] = {
     "H-0118": ("mft_noon_trend_pullback", h0118),
     "H-0119": ("mft_idiosyncratic_drop_buy", h0119),
     "H-0120": ("mft_prior_day_break", h0120),
+    "H-0121": ("mft_afternoon_trend_pullback", h0121),
+    "H-0122": ("mft_gap_and_go", h0122),
+    "H-0123": ("mft_relative_strength_1100", h0123),
+    "H-0124": ("mft_tight_range_break", h0124),
+    "H-0125": ("mft_gap_reclaimed", h0125),
+    "H-0126": ("mft_yesterday_winner_holds", h0126),
+    "H-0127": ("mft_nifty_v_rebound_beta", h0127),
+    "H-0128": ("mft_industry_breadth_laggards", h0128),
+    "H-0129": ("mft_quiet_day_fade", h0129),
+    "H-0130": ("mft_yesterday_winner_dip", h0130),
 }
+BATCH_168 = tuple(f"H-0{n}" for n in range(111, 121))
+BATCH_169 = tuple(f"H-0{n}" for n in range(121, 131))
 
 
 # --- the book --------------------------------------------------------------------------
@@ -600,7 +845,7 @@ def validation_run(hypothesis: str) -> IntradayRun:
 def run(output: Path = OUT) -> dict[str, Any]:
     mk = market()
     result = {
-        "research": "168",
+        "research": "168, 169",
         "spent_trials": 0,
         "window": [mk.sessions[0].isoformat(), mk.sessions[-1].isoformat()],
         "runs": [evaluate(mk, h) for h in RULES],
