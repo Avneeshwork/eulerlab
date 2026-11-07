@@ -189,3 +189,10 @@ def test_mis_book_sizes_half_the_margin_a_position() -> None:
     (t,) = trades
     assert t["direction"] == 1 and t["quantity"] == int(500_000.0 / 103.3)
     assert t["minute"] == 166  # the open after the 12:00 close
+
+
+def test_h0146_is_a_paper_book_at_one_x() -> None:
+    from eulerlab.deploy import mis_book
+
+    assert rule_book.is_rule("H-0146")
+    assert mis_book.SHARE["H-0146"] == 0.1 and mis_book.SHARE["H-0132"] == 0.5

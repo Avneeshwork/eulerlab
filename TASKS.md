@@ -203,7 +203,7 @@ Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `ma
 | T-4494 | Beta-neutral versions of research 170's books: the five-and-five books are short the daytime drift of NSE stocks | OPEN (a new hypothesis if wanted) |
 | T-4489 | Paper books for H-0132 (PROMOTE), H-0118, H-0115, H-0121 and H-0124 at ₹5 lakh a position, ten open, from the holdout end | DONE 2026-11-07 — `deploy/mis_book.py` (ADR-147), in `rule_book.RULES`; deployable from Live → Deploy. Empty for the first 20 sessions after the holdout end (ranking history) |
 | T-4496 | Ten stock day trades at 1x (operator: "keep researching mor strategies take 1x capital now") | DONE 2026-11-07 — H-0146 (tug of war where today's gap agrees, ₹1 lakh a position) PROMOTE (ledger #112, #113); 2024 to October -4%; nine fail the screen (research 171) |
-| T-4497 | Paper book for H-0146 at 1x (₹1 lakh a position, ten open on ₹10 lakh) | OPEN |
+| T-4497 | Paper book for H-0146 at 1x (₹1 lakh a position, ten open on ₹10 lakh) | DONE 2026-11-07 — `deploy/mis_book.py` (`SHARE` 0.1); deployable |
 | T-4498 | A real run of an MIS paper book: the 2026-11-07 dry run of H-0118's generator timed out after 25 minutes loading every stock's minute files since the holdout end; cache snapshots per stock-day as T-4481 proposes | OPEN |
 | T-4495 | Start the MIS paper deployments (₹10 lakh of margin each is the backtest) and watch them for 60 sessions | OPEN (operator) |
 | T-4490 | Measure slippage on a ₹5 lakh MIS order in the 100 most traded stocks (depth snapshots or the first paper fills): at 4 bps a side H-0118 keeps about +4.8 bps net a trade and H-0115 about +0.8 | OPEN |

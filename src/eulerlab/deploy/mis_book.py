@@ -1,4 +1,7 @@
-"""Paper books for the gated MIS stock rules: H-0132, H-0118, H-0121, H-0115, H-0124 (ADR-147).
+"""Paper books for the gated stock rules of research 168-171 (ADR-147).
+
+H-0132, H-0118, H-0121, H-0115 and H-0124 at 5x MIS; H-0146 at 1x (₹1 lakh
+a position on ₹10 lakh, research 171; it reads no news, ban or holiday data).
 
 Research 168-170 gated these at Zerodha 5x MIS size: ₹5 lakh a position on
 ₹1 lakh of margin, at most ten open. Each generator here re-applies the exact
@@ -29,15 +32,31 @@ from eulerlab.intraday import mft_screen as mft
 
 POSITION_SHARE = 0.5
 """A position's notional as a share of the margin: ₹5 lakh on ₹10 lakh (research 168)."""
+ONE_X_SHARE = 0.1
+"""H-0146 at 1x: ₹1 lakh a position on ₹10 lakh of capital (research 171)."""
 
 Trade = dict[str, Any]
 Rule = Callable[..., Iterator[mft.Signal]]
+
+
+def _onex(hypothesis: str) -> Rule:
+    """A research-171 rule in the shape the book calls: (market, day, delay)."""
+    from eulerlab.intraday import onex_screen as onex
+
+    _, rule = onex.RULES[hypothesis]
+
+    def call(mk: mft.Market, day: date, delay: int = 0) -> Iterator[mft.Signal]:
+        del delay
+        return rule(onex.Context(mk, {}, {}, frozenset()), day)
+
+    return call
 
 
 def rules() -> dict[str, Rule]:
     from eulerlab.intraday import quant_screen as quant
 
     return {
+        "H-0146": _onex("H-0146"),
         "H-0132": quant.RULES["H-0132"][1],
         "H-0118": mft.RULES["H-0118"][1],
         "H-0121": mft.RULES["H-0121"][1],
@@ -46,7 +65,8 @@ def rules() -> dict[str, Rule]:
     }
 
 
-IDS = ("H-0132", "H-0118", "H-0121", "H-0115", "H-0124")
+IDS = ("H-0132", "H-0146", "H-0118", "H-0121", "H-0115", "H-0124")
+SHARE = {h: ONE_X_SHARE if h == "H-0146" else POSITION_SHARE for h in IDS}
 
 
 def _nifty_minutes(*, since: date, through: date) -> dict[date, tuple[float, ...]]:
@@ -98,13 +118,13 @@ def market(
 
 
 def trades_from(
-    rule: Rule, mk: mft.Market, *, start: date, capital: float
+    rule: Rule, mk: mft.Market, *, start: date, capital: float, share: float = POSITION_SHARE
 ) -> tuple[list[Trade], list[date]]:
     """The rule's signals from `start`, through the ten-open book, as `rule_book` trades."""
     from eulerlab.deploy import rule_book
 
     days = [d for d in mk.sessions if d >= start]
-    notional = capital * POSITION_SHARE
+    notional = capital * share
     out: list[Trade] = []
     for sig in mft.book([s for day in days for s in rule(mk, day, 0)]):
         quantity = int(notional / sig.entry) if sig.entry > 0 else 0
@@ -134,6 +154,8 @@ def generator(strategy_id: str) -> Callable[..., tuple[list[Trade], list[date]]]
             if found:
                 snaps[symbol] = found
         mk = market(snaps, _nifty_minutes(since=since, through=through), mft._official_closes())
-        return trades_from(rules()[strategy_id], mk, start=start, capital=capital)
+        return trades_from(
+            rules()[strategy_id], mk, start=start, capital=capital, share=SHARE[strategy_id]
+        )
 
     return generate

@@ -43,7 +43,7 @@ what is open is in `TASKS.md`.*
   09:20-15:10): net Sharpe 1.44, but 2024 lost 37% on margin (research 170).
   At 1x, PROMOTE **H-0146** (the tug of war only where today's gap agrees,
   ₹1 lakh a position): net Sharpe 1.57, 2024 -4% (research 171).
-  The five MIS rules have paper books (`deploy/mis_book.py`, ADR-147); none started
+  These six stock rules have paper books (`deploy/mis_book.py`, ADR-147); none started
   yet (T-4495). Since 2026-11-07 the operator's scope is NSE cash stocks only.
 - **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to
   2026-10 for these fifteen. 2016-2026: H-0001 Sharpe 1.28-1.55 (drawdown

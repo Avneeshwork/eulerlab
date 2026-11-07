@@ -9,3 +9,5 @@
 **Why.** The rule the book trades is the function the gate scored, so paper evidence is about the same rule.
 
 **Cost if wrong.** Each run reads every F&O stock's minute files since the holdout end (slow, as T-4481). The ranking needs 20 sessions of history (H-0132: 21), so a book is empty for its first month. The OMS applies no margin check: a book can hold 5x its capital, which is the backtest, not a broker's live limit (A-117).
+
+**Addendum, 2026-11-07.** H-0146 (research 171, PROMOTE at 1x) added: a position is a tenth of the capital (₹1 lakh on ₹10 lakh), `mis_book.SHARE`.
