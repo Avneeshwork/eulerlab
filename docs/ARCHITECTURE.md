@@ -3488,7 +3488,7 @@ A research card may name a signal the library lacks (`feature: liquidity_beta`).
       -> coded.problems (pure), ruff, format, mypy, pytest (its test + tests/test_coded_features.py), engine self-test
       -> red: one retry with the failures, then the next model, then a finding for you
       -> green: a line in docs/CODED_FEATURES.md, commit (`--no-verify`: the same checks just
-         ran, and CI runs the whole suite on the PR), push, `gh pr create`
+         ran; CI runs only on main, ADR-144), push, `gh pr create`
       -> a failed attempt's branch is deleted with its worktree
       -> worktree removed in every case
 
