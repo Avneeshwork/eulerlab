@@ -1,0 +1,38 @@
+id: H-0125
+title: 'Gap reclaimed: when a 1.5% gap is fully filled after 09:45, trade the fill''s direction to 15:10'
+status: draft
+family: intraday_stock_mft
+source_kind: practitioner
+parent: ''
+claim: 'Gap reclaimed: when a 1.5% gap is fully filled after 09:45, trade the fill''s direction to 15:10:
+  earns more than costs at Rs 5 lakh a trade in both halves of 2021-11 to 2024-10.'
+rationale: 'Practitioner: a gap closed against the opening crowd traps it.'
+source:
+  research: '169'
+  written_by: Claude, for the operator's request for ten more MIS-sized stock scalps after research 168
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: 'among the 200 most traded stocks: gap = 09:20 close / previous last close - 1, |gap| >= 1.5%;
+    from 09:45 to 13:00 the first close past the previous close on the other side trades in that direction
+    from the next fill; stop at the fill after a close back past the 09:20 close''s half-way to the previous
+    close; else 15:10; at most ten'
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes and next-minute fills,
+    09:20 to 15:10); Nifty 50 index minutes; Nifty 50 daily closes for beta
+  timeframe: 5-minute closes
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a trade (Rs 1 lakh margin at Zerodha's 5x
+    MIS), at most 10 open at once on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15
+red_flags:
+- Shares its events with H-0115 (gap fade, PAPER), which targets the same previous close; this one starts
+  where H-0115 exits.
+- 'Written after research 168''s results were known: two rules there passed the paper bar, and ideas near
+  them are flagged as such.'
+- 'Ten more rules under the simple gate (no search correction): twenty scalps in all, so one or two passes
+  are expected from noise alone.'
+- Decisions and stops on 5-minute closes only; slippage of 2 bps a side assumed, not measured (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

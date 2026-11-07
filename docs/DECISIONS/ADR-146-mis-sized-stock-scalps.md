@@ -8,4 +8,4 @@
 
 **Why.** It is how the operator trades, and brokerage is the only cost leverage changes. Sharpe is unchanged by leverage; return and drawdown on margin are 5x.
 
-**Cost if wrong.** Zerodha gives less than 5x on volatile stocks and can cut it intraday (A-117); slippage on ₹5 lakh is assumed, not measured, at 2 bps a side. H-0118 at 2x costs keeps a Sharpe of 0.03: if real slippage is 4 bps a side it is dead.
+**Cost if wrong.** Zerodha gives less than 5x on volatile stocks and can cut it intraday (A-117); slippage on ₹5 lakh is assumed, not measured, at 2 bps a side. Doubling every cost leaves H-0118 a Sharpe of 0.03; at 4 bps a side of slippage it keeps about +4.8 bps net a trade and H-0115 about +0.8.

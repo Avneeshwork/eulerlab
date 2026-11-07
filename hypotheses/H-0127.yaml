@@ -1,0 +1,36 @@
+id: H-0127
+title: When the Nifty rebounds 0.3% off a 0.6% morning fall, buy the three highest-beta liquid stocks
+  to 15:10
+status: draft
+family: intraday_stock_mft
+source_kind: practitioner
+parent: ''
+claim: 'When the Nifty rebounds 0.3% off a 0.6% morning fall, buy the three highest-beta liquid stocks
+  to 15:10: earns more than costs at Rs 5 lakh a trade in both halves of 2021-11 to 2024-10.'
+rationale: Baltussen et al. (2021) on hedging flows reversing; practitioner 'V' reversal.
+source:
+  research: '169'
+  written_by: Claude, for the operator's request for ten more MIS-sized stock scalps after research 168
+  day: '2026-11-07'
+configurations:
+- shape: intraday_cash
+  rule: 'Nifty: lowest 5-minute close from 09:20 to 12:00 at least 0.6% below its 09:20 close; the first
+    5-minute close 09:45-12:00 at least 0.3% above that low (after it) buys the three stocks with the
+    highest 60-session beta among the 100 most traded; to 15:10; once a day'
+  data: research 161's minute snapshots of the 416 F&O stocks (5-minute closes and next-minute fills,
+    09:20 to 15:10); Nifty 50 index minutes; Nifty 50 daily closes for beta
+  timeframe: 5-minute closes
+  costs: cash intraday charges plus 2 bps a side; Rs 5 lakh a trade (Rs 1 lakh margin at Zerodha's 5x
+    MIS), at most 10 open at once on Rs 10 lakh of margin; returns on the Rs 10 lakh
+  window: 2021-11-01 to 2024-10-15
+red_flags:
+- 'Written after research 168''s results were known: two rules there passed the paper bar, and ideas near
+  them are flagged as such.'
+- 'Ten more rules under the simple gate (no search correction): twenty scalps in all, so one or two passes
+  are expected from noise alone.'
+- Decisions and stops on 5-minute closes only; slippage of 2 bps a side assumed, not measured (T-4490).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
