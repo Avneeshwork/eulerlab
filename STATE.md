@@ -1,9 +1,9 @@
 # STATE — where this project is right now
 
-**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token) and the UI revamp (T-4283).
+**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
 **Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
-*Last updated: 2026-11-04. One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-07. One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -140,4 +140,4 @@ run them to check that they work (T-2609).
 - **Sharpe has no risk-free rate** (A-083, T-4249).
 
 `docs/STUBS.md` lists what is fake; `docs/ASSUMPTIONS.md` what is unverified;
-`docs/HISTORY.md` the 67 times this project has been wrong.
+`docs/HISTORY.md` the 80 times this project has been wrong.

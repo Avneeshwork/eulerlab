@@ -52,10 +52,22 @@ def test_the_count_withheld_is_reported_not_silent() -> None:
     assert dropped == 69
 
 
-def test_the_real_hypothesis_declares_an_unread_holdout() -> None:
+def test_the_real_hypothesis_declares_its_holdout() -> None:
+    """H-0001's holdout was read once, by the operator, on 2026-11-06 (ADR-143).
+    The file must say so, and the boundary must still be declared."""
     hypothesis = holdout_mod.load(Path("hypotheses/H-0001.yaml"))
-    assert hypothesis.holdout.is_unread
+    assert hypothesis.holdout.status == "read"
+    assert not hypothesis.holdout.is_unread
     assert hypothesis.holdout.starts.year >= 2024
+
+
+def test_a_read_holdout_is_still_truncated() -> None:
+    """Reading the holdout once does not open it to `make validate`: the
+    boundary is enforced whatever the status says."""
+    boundary = date(2024, 3, 1)
+    kept, dropped = holdout_mod.truncate(_rows(), holdout_mod.Holdout(boundary, "read"))
+    assert dropped > 0
+    assert all(r.day < boundary for r in kept)
 
 
 def test_the_hypothesis_declares_red_flags_in_advance() -> None:

@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Seventy-nine times this project was wrong
+## Eighty times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -456,19 +456,21 @@ figure produced outside the result store before this date was frictionless.
 
 **79. The agents page showed the engineering agent "Working… Starting…" when nothing ran.** (2026-11-05) `runtime.latest_run_dir` took an agent's newest folder by name as its latest run. The engineering agent keeps its fix worktrees in `data/agents/engineering/worktrees`, and "worktrees" sorts after every run id, so the page read that folder as a run with no output and no steps, called it running, and showed "Starting…" forever. The operator asked to stop a "stuck" agent that was not running. Now only folders named like a run id (`YYYYMMDDTHHMMSSZ-xxxxxx`) count. No numbers invalidated.
 
+**80. A test said H-0001's holdout was unread after the operator had read it.** (2026-11-07) `tests/test_validation_holdout.py` asserted that `hypotheses/H-0001.yaml` declares an unread holdout. The operator read it on 2026-11-06 (ADR-143) and the file was changed to `status: read`, but the test was not, so `make verify` and CI on main went red from commit 6bd2119. Nobody saw it because the later commits were pushed straight to main. Now the test checks that the file records the read, and a new test checks that a read holdout is still cut off by `truncate`. No numbers invalidated.
+
 ---
 
 ## What the project has actually concluded
 
-**Nothing has beaten the bar.** 19 trials are logged. A candidate must clear
-**Sharpe 1.88** from noise alone (until 2026-10-31; since ADR-108 the bar is
-0.98 from 27 idea families, plus Romano-Wolf over Nifty, HISTORY #45). The best result ever produced here is
-**1.27**. The most recent Monte Carlo on `momentum_12_1` puts the bootstrap 5th
-percentile at **−0.96** — the data cannot rule out that there is no edge.
+**Nothing has beaten the strict bar.** Under it (deflated Sharpe against the
+idea families, Romano-Wolf over Nifty, stress retention, HISTORY #45) the best
+result ever produced here was **1.27** and the gate killed everything.
 
-**The gate has killed everything it has seen.** H-0001 (momentum), plus three
-deliberately overfit strategies fed to it as acceptance. It has never promoted
-anything, so the PROMOTE path has never been exercised (T-1407).
+**The operator then chose a simpler bar (ADR-140, 2026-11-06).** Under it seven
+hypotheses PROMOTE and eight get PAPER (research 165), and the holdout was
+read once for all fifteen (ADR-143). So there is no unseen data left: forward
+paper trading is the only out-of-sample test these strategies will get. A
+PROMOTE under the simple bar is not evidence that the strict bar was wrong.
 
 **No capital has ever been traded.**
 
