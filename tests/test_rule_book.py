@@ -196,3 +196,89 @@ def test_h0146_is_a_paper_book_at_one_x() -> None:
 
     assert rule_book.is_rule("H-0146")
     assert mis_book.SHARE["H-0146"] == 0.1 and mis_book.SHARE["H-0132"] == 0.5
+
+
+# --- H-0161 delivery fade (ADR-148) --------------------------------------------------------
+
+
+def _panel_for_fade(symbols: list[str]) -> tuple[dict[str, Any], list[date]]:
+    from eulerlab.intraday import daily_universe_screen as du
+
+    days: list[date] = []
+    d = date(2026, 9, 1)
+    while len(days) < 24:
+        if d.weekday() < 5:
+            days.append(d)
+        d += timedelta(days=1)
+    panel = {}
+    for s in symbols:
+        bars = {x: du.Bar(100.0, 100.0, 1e8) for x in days[:-2]}
+        bars[days[-2]] = du.Bar(100.0, 104.0, 1e8)  # +4% yesterday
+        bars[days[-1]] = du.Bar(104.0, 102.0, 1e8)
+        panel[s] = bars
+    return panel, days
+
+
+def test_h0161_shorts_the_low_delivery_rally_and_skips_watched_stocks() -> None:
+    from eulerlab.deploy import delivery_fade_book as book
+
+    panel, days = _panel_for_fade(["AAA", "BBB", "CCC"])
+    p, today = days[-2], days[-1]
+    delivery = {s: {p: 0.4} for s in panel}
+    t2t = {p: frozenset({"BBB"})}
+    watched = {p: frozenset({"CCC"})}
+    found, _ = book.trades(panel, delivery, t2t, watched, start=today, capital=1_000_000.0)
+    assert [(t["symbol"], t["direction"], t["entry"], t["exit"]) for t in found] == [
+        ("AAA", -1, 104.0, 102.0)
+    ]
+    assert found[0]["quantity"] == int(100_000 / 104.0)
+
+
+def test_h0161_does_not_trade_without_a_surveillance_snapshot() -> None:
+    from eulerlab.deploy import delivery_fade_book as book
+
+    panel, days = _panel_for_fade(["AAA"])
+    p = days[-2]
+    found, _ = book.trades(
+        panel, {"AAA": {p: 0.4}}, {p: frozenset()}, {}, start=days[-1], capital=1e6
+    )
+    assert found == []
+
+
+def test_asm_and_gsm_payloads_give_their_symbols() -> None:
+    from eulerlab.deploy import delivery_fade_book as book
+
+    asm = {"longterm": {"data": [{"symbol": "A"}]}, "shortterm": {"data": [{"symbol": "B"}]}}
+    assert book.symbols_on_lists(asm) == {"A", "B"}
+    assert book.symbols_on_lists([{"symbol": "C"}]) == {"C"}
+    assert rule_book.is_rule("H-0161")
+
+
+def test_trade_for_trade_reads_series_from_either_bhavcopy_era() -> None:
+    import io
+    import zipfile
+
+    from eulerlab.ingest import trade_for_trade as tt
+
+    def zipped(text: str) -> bytes:
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as z:
+            z.writestr("bhav.csv", text)
+        return buf.getvalue()
+
+    legacy = "SYMBOL,SERIES,OPEN\nAAA,EQ,1\nBBB,BE,1\nCCC,BZ,1\n"
+    udiff = "TckrSymb,SctySrs,OpnPric\nAAA,EQ,1\nDDD,BE,1\n"
+    assert tt.t2t_symbols(zipped(legacy)) == ["BBB", "CCC"]
+    assert tt.t2t_symbols(zipped(udiff)) == ["DDD"]
+
+
+def test_library_reports_curve_adds_each_days_net_pnl() -> None:
+    from types import SimpleNamespace
+
+    from eulerlab.research import library_reports as lr
+
+    d0, d1 = MON, MON + timedelta(days=1)
+    trade = SimpleNamespace(day=d1, gross=500.0, costs=100.0)
+    run = SimpleNamespace(trades=[trade], sessions=[d0, d1], capital=1000.0)
+    days, equity = lr.curve(run)
+    assert days == [d0, d1] and equity == [1000.0, 1400.0]

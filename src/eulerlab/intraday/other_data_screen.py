@@ -231,13 +231,18 @@ def percentile_rank(history: Sequence[float], value: float) -> float:
     return sum(1 for h in history if h < value) / len(history)
 
 
-def delivery_ratios(path: Path = DELIVERY) -> dict[str, dict[date, float]]:
-    """{symbol: {day: delivery % / its previous 20-session mean}}."""
+def delivery_ratios(
+    path: Path = DELIVERY, *, since: date | None = None
+) -> dict[str, dict[date, float]]:
+    """{symbol: {day: delivery % / its previous 20-session mean}}; with `since`,
+    only days after it are read (a paper book's holdout end)."""
     series: dict[str, list[tuple[date, float]]] = defaultdict(list)
     with path.open(encoding="utf-8") as handle:
         for line in handle:
             row = json.loads(line)
             day = date.fromisoformat(row["d"])
+            if since is not None and day <= since:
+                continue
             for symbol, values in row["stocks"].items():
                 if len(values) >= 3 and values[2] is not None:
                     series[symbol].append((day, float(values[2])))

@@ -20,6 +20,9 @@ Snapshots, today's state only (NSE publishes no history):
 - **`ipo_current`**, **`ipo_past`** — open issues and the past-issue list.
 - **`nifty50_list`** — NSE's Nifty 50 constituent file, so membership on each
   date is on record.
+- **`asm`**, **`gsm`** — NSE's additional and graded surveillance lists, and
+  **`sec_list`** — every security's series and price band (BE/BZ =
+  trade-for-trade). An intraday short must avoid all three (research 174).
 
 Everything lands raw and unedited through the rate-limited `Fetcher` and an
 append-only manifest, under `data/landing/nse_reports/`. A report already in
@@ -114,6 +117,17 @@ def _json_list(key: str | None) -> Callable[[bytes], int | None]:
     return check
 
 
+def _asm_rows(payload: bytes) -> int | None:
+    """NSE's ASM report: {"longterm": {"data": [...]}, "shortterm": {"data": [...]}}."""
+    try:
+        body = json.loads(payload)
+    except ValueError:
+        return None
+    if not isinstance(body, dict) or not ({"longterm", "shortterm"} & set(body)):
+        return None
+    return sum(len((body.get(k) or {}).get("data") or []) for k in ("longterm", "shortterm"))
+
+
 def _deals(kind: str) -> Callable[[date], str]:
     return lambda d: (
         f"{API}/historicalOR/bulk-block-short-deals?optionType={kind}"
@@ -200,6 +214,17 @@ REPORTS: dict[str, Report] = {
             lambda d: f"{API}/public-past-issues",
             "json",
             _json_list(None),
+            snapshot=True,
+        ),
+        # Research 174: the surveillance lists an intraday short must avoid.
+        # Fetched and checked 2026-11-07; NSE publishes no history of them.
+        Report("asm", lambda d: f"{API}/reportASM", "json", _asm_rows, snapshot=True),
+        Report("gsm", lambda d: f"{API}/reportGSM", "json", _json_list(None), snapshot=True),
+        Report(
+            "sec_list",
+            lambda d: f"{ARCHIVE}/content/equities/sec_list.csv",
+            "csv",
+            _csv_rows("Symbol"),
             snapshot=True,
         ),
         Report(

@@ -287,7 +287,16 @@ def _mis_rules() -> dict[str, Generator]:
     return {h: mis_book.generator(h) for h in mis_book.IDS}
 
 
+def _h0161(
+    *, start: date, through: date, since: date, capital: float
+) -> tuple[list[Trade], list[date]]:
+    from eulerlab.deploy import delivery_fade_book
+
+    return delivery_fade_book.h0161(start=start, through=through, since=since, capital=capital)
+
+
 RULES: dict[str, Generator] = {
+    "H-0161": _h0161,
     "H-0052": h0052,
     "H-0065": h0065,
     "H-0096": h0096,
@@ -296,8 +305,11 @@ RULES: dict[str, Generator] = {
 }
 
 VARIANT = {
+    "H-0161": "variant: covers at the official close, which an MIS short cannot reach "
+    "(the broker squares off from 15:12); shorts only stocks off the previous evening's "
+    "ASM, GSM and trade-for-trade lists (ADR-148)",
     "H-0098": "variant: covers at 15:10, not the closing auction its backtest used "
-    "(an intraday short cannot be held to the close)"
+    "(an intraday short cannot be held to the close)",
 }
 
 

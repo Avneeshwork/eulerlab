@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighty-two times this project was wrong
+## Eighty-three times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -461,6 +461,8 @@ figure produced outside the result store before this date was frictionless.
 **81. A test still expected H-0001's gate verdict to be KILL.** (2026-11-07) `tests/test_research_orchestrator.py` asserted that the real ledger's latest verdict for H-0001 is KILL; H-0001 was re-gated PROMOTE under the simple gate on 2026-11-06 (ADR-140, ledger #68-#95), so the pre-commit suite failed on this machine (the test is skipped in CI, where the ledger is absent). Now it expects PROMOTE. Also found in research 166: research 153's Nifty expiry list (from `nifty_options.jsonl`) lacks four expiries (2019-08-29, 2019-09-05, 2019-09-12, 2021-05-20); H-0041's numbers move from 299 trades and +6.96 bps net to 303 and +7.12. Why the file lacks them was not checked. No conclusion changes.
 
 **82. The intraday stock screens choose from today's F&O list.** (2026-11-07) `cross_section.universe()` lists stocks with Kite minute files, which are today's F&O stocks, and every stock screen from research 112 to 172 draws from it. Stocks that joined F&O later (often after a large rise) are in the 2021-2024 tests; stocks that left are not. Checked on the two research-172 PROMOTEs by keeping only stocks in F&O on the trade date (`stock_fo_daily.jsonl`): H-0160's net edge falls from +44.1 to +8.6 bps a trade (183 of 416 trades) and H-0153's from +331 to +153 bps a position (90 of 181). Measured the same day on all eight research 168-172 stock survivors (research 173): on stocks in F&O at the time, H-0132 falls from +8.9 to +0.6 bps net, H-0146 from +15.3 to +3.2, the four PAPER scalps to -3.2 to +6.0, and none survives 2x costs. On every liquid NSE stock, daily bars, H-0160's and H-0153's rules hold (H-0161, H-0162: PROMOTE): the effect is in small stocks, not only hindsight. Results invalidated: the minute-bar PROMOTEs H-0132 and H-0146 and the four PAPER scalps are unproven until tested on a survivorship-free universe.
+
+**83. A gated strategy had no report to open.** (2026-11-07) The operator could not see H-0161's and H-0162's results in the library: `make validate` and `make gate` write an evidence pack and ledger entries but no stored result, and only `make full-history` (ADR-143) stored reports, for fifteen named cards. Every research 166-173 PROMOTE and PAPER showed a verdict with nothing behind it. `make library-reports` now stores each one's research-window run and report. No numbers invalidated.
 
 ---
 

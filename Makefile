@@ -679,6 +679,14 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
+# Stored reports for research 166-173's gated stock strategies, so the library shows them (no trial).
+library-reports:
+	@uv run python -m eulerlab.research.library_reports $(if $(H),--only $(H),)
+
+# Research 174: which stocks were trade-for-trade each day, from the cash bhavcopies.
+trade-for-trade:
+	@uv run python -m eulerlab.ingest.trade_for_trade
+
 # Research 173: research 172's PROMOTEs on every liquid NSE stock, daily bars (H-0161, H-0162).
 daily-universe:
 	@uv run python -m eulerlab.intraday.daily_universe_screen

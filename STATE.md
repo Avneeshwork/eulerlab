@@ -47,8 +47,10 @@ what is open is in `TASKS.md`.*
   made on low delivery, intraday) and **H-0153** (promoter buys held 20
   days); on every liquid NSE stock, daily bars (research 173), their forms
   H-0161 (9,867 trades 2016-2024, Sharpe 2.29, every year positive; strict
-  bar passed except Romano-Wolf) and H-0162 PROMOTE. Shortability of small
-  stocks (ASM/T2T) is unchecked (A-120, T-4502).
+  bar passed except Romano-Wolf) and H-0162 PROMOTE, with stored reports
+  (`make library-reports`). H-0161 has a paper book that skips the previous
+  evening's ASM/GSM/trade-for-trade stocks (ADR-148); ASM history does not
+  exist, so the backtest cannot check it (A-120).
   The six earlier stock rules have paper books (`deploy/mis_book.py`, ADR-147); none started
   yet (T-4495). Since 2026-11-07 the operator's scope is NSE cash stocks only.
 - **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to
