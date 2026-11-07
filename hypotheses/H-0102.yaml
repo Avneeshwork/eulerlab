@@ -1,0 +1,40 @@
+id: H-0102
+title: Fade a Nifty opening gap of 0.4% or more when the first 15-minute bar turns against it
+status: draft
+family: intraday_index_futures
+source_kind: practitioner
+parent: ''
+claim: On Nifty futures, when the open gaps at least 0.40% from the previous official close and the first
+  15-minute bar closes against the gap, trading toward the previous close from 09:30, stopped at that
+  bar's extreme, flat at the target or 15:25, earns more than futures costs in both halves of 2021-11
+  to 2024-10.
+rationale: Gap-fill is a common practitioner rule; Indian overnight index moves partly reverse in the
+  daytime (Lou, Polk and Skouras 2019 tug of war, research 159). No study of Nifty gap fills with an intraday
+  trigger was found.
+source:
+  research: '166'
+  written_by: Claude, for the operator's request for five minute-chart day-trading strategies on Indian
+    markets
+  day: '2026-11-07'
+configurations:
+- shape: intraday_index_futures
+  rule: gap = 09:15 minute close / previous official close - 1; if |gap| >= 0.40% and the 09:29 close
+    is on the previous close's side of the 09:15 close, enter against the gap at the 09:30 open; stop
+    at the first bar's high (short) or low (long), checked each minute; target the previous official close;
+    else flat at the 15:25 open
+  data: kite_index_minute NIFTY50 one-minute bars, used as the near-month future's price (A-115)
+  timeframe: 15-minute bars, filled on one-minute bars
+  costs: costs.schedule futures rates on the day plus 1 bp a side slippage; Rs 10 lakh notional a trade,
+    continuous units, 1x
+  window: 2021-11-01 to 2024-10-15 (the last index file before the 2024-11-30 cut)
+red_flags:
+- No academic support for this exact trigger.
+- 'The index is not the future: the basis moves a little inside the day and the future has a spread; both
+  are assumed away (A-115).'
+- Futures STT went from 0.0125% to 0.02% on 2024-10-01 and to 0.05% on 2026-04-01; a rule that clears
+  2021-2024 costs may not clear today's (reported).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

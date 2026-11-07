@@ -1,0 +1,39 @@
+id: H-0105
+title: Sell the at-the-money Nifty straddle at the open on the session before weekly expiry, buy it back
+  at the close
+status: draft
+family: options_expiry_day
+source_kind: practitioner
+parent: ''
+claim: On the session before each weekly Nifty expiry, selling the expiring call and put at the strike
+  nearest the Nifty open at their opening prices and buying both back at their closing prices earns more
+  than costs in both halves of 2019-02 to 2024-11.
+rationale: One-day options lose most time value on the last two sessions; this captures the day-before
+  decay without holding overnight.
+source:
+  research: '166'
+  written_by: Claude, for the operator's request for five minute-chart day-trading strategies on Indian
+    markets
+  day: '2026-11-07'
+configurations:
+- shape: options_day
+  strategy: nifty_day_before_short_straddle
+  rule: 'on the session before a Nifty weekly expiry: sell the next-day-expiry call and put at the strike
+    nearest the Nifty 50 open (multiple of 50) at their bhavcopy OPEN less 1 point; buy back at their
+    bhavcopy CLOSE plus 1 point; Rs 10 lakh notional, continuous units'
+  data: F&O bhavcopy OPEN/CLOSE of NIFTY options; Nifty 50 daily open/close from index_history
+  costs: costs.schedule options rates on the day; 1 index point a leg a side slippage; a short leg pays
+    no exercise STT
+  window: 2019-02-13 to 2024-11-27
+red_flags:
+- The bhavcopy CLOSE is the last trade; buying back at 15:29 may cost more than it shows.
+- The bhavcopy OPEN is the first trade, which may be seconds after 09:15 and at a wide spread.
+- 'Same bet as H-0041 (short same-day volatility on an Indian index): passing together is one bet, not
+  several.'
+- SEBI's 2024-11-20 measures ended BankNifty and FinNifty weekly expiries; a rule on them cannot be traded
+  weekly today.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,35 @@
+id: H-0104
+title: Sell the at-the-money FinNifty straddle at the open on weekly expiry day
+status: draft
+family: options_expiry_day
+source_kind: practitioner
+parent: ''
+claim: H-0041's rule on FinNifty weekly options (strike nearest the Nifty Financial Services open, a multiple
+  of 50) earns more than costs in both halves of 2021-01 to 2024-11.
+rationale: As H-0103; FinNifty weeklies started in January 2021.
+source:
+  research: '166'
+  written_by: Claude, for the operator's request for five minute-chart day-trading strategies on Indian
+    markets
+  day: '2026-11-07'
+configurations:
+- shape: options_day
+  strategy: finnifty_expiry_short_straddle
+  rule: as H-0103, on FINNIFTY options, strike multiple of 50, index Nifty Financial Services
+  data: F&O bhavcopy OPEN/CLOSE of FINNIFTY options; Nifty Financial Services daily open/close from index_history
+  costs: costs.schedule options rates on the day; 1 index point a leg a side slippage; a short leg pays
+    no exercise STT
+  window: 2021-01-11 to 2024-11-28
+red_flags:
+- 'No stop and no hedge: one gap or trend day can wipe out months. Worst day and drawdown are reported
+  first.'
+- The bhavcopy OPEN is the first trade, which may be seconds after 09:15 and at a wide spread.
+- 'Same bet as H-0041 (short same-day volatility on an Indian index): passing together is one bet, not
+  several.'
+- SEBI's 2024-11-20 measures ended BankNifty and FinNifty weekly expiries; a rule on them cannot be traded
+  weekly today.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

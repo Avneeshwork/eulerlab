@@ -1,0 +1,40 @@
+id: H-0101
+title: BankNifty futures 15-minute opening-range breakout, stop at the other side, flat by 15:25
+status: draft
+family: intraday_index_futures
+source_kind: practitioner
+parent: ''
+claim: On BankNifty futures, trading the first 15-minute close outside the 09:15-09:30 range in its direction,
+  stopped at the range's other side, one trade a day, earns more than futures costs in both halves of
+  2021-11 to 2024-10.
+rationale: Crabel (1990) opening range breakout; Zarattini, Barbon and Aziz (2024) on US stocks in play
+  (research 019). On NSE stocks the ORB died on cash costs (H-0004, H-0045, H-0050); never run on an index
+  future here.
+source:
+  research: '166'
+  written_by: Claude, for the operator's request for five minute-chart day-trading strategies on Indian
+    markets
+  day: '2026-11-07'
+configurations:
+- shape: intraday_index_futures
+  rule: range = high and low of 09:15-09:29; at each 15-minute close from 09:44 to 14:59 the first close
+    above the high buys and below the low sells at the next minute's open; stop at the other side of the
+    range, checked each minute on its high/low and filled at the stop or the minute's open if beyond it;
+    else flat at the 15:25 open
+  data: kite_index_minute NIFTYBANK one-minute bars, used as the near-month future's price (A-115)
+  timeframe: 15-minute bars, filled on one-minute bars
+  costs: costs.schedule futures rates on the day plus 1 bp a side slippage; Rs 10 lakh notional a trade,
+    continuous units, 1x
+  window: 2021-11-01 to 2024-10-15 (the last index file before the 2024-11-30 cut)
+red_flags:
+- ORB on Indian stocks has failed three times here; the prior for an index is not better, only its costs
+  are lower.
+- 'The index is not the future: the basis moves a little inside the day and the future has a spread; both
+  are assumed away (A-115).'
+- Futures STT went from 0.0125% to 0.02% on 2024-10-01 and to 0.05% on 2026-04-01; a rule that clears
+  2021-2024 costs may not clear today's (reported).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,38 @@
+id: H-0103
+title: Sell the at-the-money BankNifty straddle at the open on weekly expiry day
+status: draft
+family: options_expiry_day
+source_kind: practitioner
+parent: ''
+claim: H-0041's rule on BankNifty weekly options (strike nearest the Nifty Bank open, a multiple of 100)
+  earns more than costs in both halves of 2019-02 to 2024-11.
+rationale: H-0041 screened alive on the Nifty (research 153, +6.96 bps net of notional a week); the variance
+  premium should not be Nifty-specific.
+source:
+  research: '166'
+  written_by: Claude, for the operator's request for five minute-chart day-trading strategies on Indian
+    markets
+  day: '2026-11-07'
+configurations:
+- shape: options_day
+  strategy: banknifty_expiry_short_straddle
+  rule: 'on each day a BankNifty option expires: sell the call and put at the strike nearest the Nifty
+    Bank open (multiple of 100) at their bhavcopy OPEN less 1 index point each; settle at intrinsic value
+    on the Nifty Bank close; Rs 10 lakh notional, continuous units'
+  data: F&O bhavcopy OPEN/CLOSE of BANKNIFTY options; Nifty Bank daily open/close from index_history
+  costs: costs.schedule options rates on the day; 1 index point a leg a side slippage; a short leg pays
+    no exercise STT
+  window: 2019-02-14 to 2024-11-28
+red_flags:
+- 'No stop and no hedge: one gap or trend day can wipe out months. Worst day and drawdown are reported
+  first.'
+- The bhavcopy OPEN is the first trade, which may be seconds after 09:15 and at a wide spread.
+- 'Same bet as H-0041 (short same-day volatility on an Indian index): passing together is one bet, not
+  several.'
+- SEBI's 2024-11-20 measures ended BankNifty and FinNifty weekly expiries; a rule on them cannot be traded
+  weekly today.
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
