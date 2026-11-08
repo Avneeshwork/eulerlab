@@ -3394,10 +3394,21 @@ slippage   = backtest - achievable
 `make readiness` lists, per strategy, the evidence for real money. A strategy is
 pilot-ready only when every line holds: an active paper book; live-price
 sessions >= the pilot's minimum (10 by default) with mean achievable return
-above 12.24 bps of costs; the Kite order path proved (`data/oms/kite_proof.json`);
+above 12.24 bps of costs; a broker order path proved by one supervised round
+trip (`data/oms/kite_proof.json` or `data/oms/angel_proof.json`);
 a kill switch trip and reset within 30 days; no guardian hold; the operator's
 go (`data/desk/live_go.json`); and a `forward_test.pilot` block in the mandate.
 Full size needs the mandate's `forward_test` instead of the pilot block.
+
+**Angel One (ADR-154).** The sweeps use Kite quotes; when Kite has no fresh
+token they use Angel One's (`broker/angel_check.quotes`, login by PIN and TOTP,
+no person needed) and record `quote_source`. Angel symbols map to tokens by
+scrip search, cached in `data/master/angel_nse_tokens.json`. `make angel-readonly`
+reads funds, orders, positions, a quote and the MIS list and sends nothing.
+`make angel-proof SYMBOL=SBIN CONFIRM=SEND` buys 1 share MIS through
+`broker/smartapi.SmartAPIBroker` and sells it back; it refuses without
+`CONFIRM=SEND`, with the kill switch tripped, at weekends and outside 09:20–15:00
+IST, and writes the proof only when both legs complete.
 
 ### The agents' memory in B2 (ADR-128)
 

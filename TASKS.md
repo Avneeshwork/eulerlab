@@ -15,16 +15,18 @@ Operator: agents that learn, verify against data, fix their own failures and sto
 | T-4523 | Live-price paper: plan, 09:16 and 15:10 sweeps, reconcile, summary | DONE 2026-11-08 — `deploy/live_shadow.py`, `config/live_shadow.yaml`; `tests/test_live_shadow.py`. Not run on real data yet: the cloud copy has no market data |
 | T-4524 | On the Mac: run `make live-shadow-plan` once by hand and check the H-0161 candidates against `deploy/delivery_fade_book.py` on the same evening (A-124) | TODO |
 | T-4525 | Operator: install and load the three jobs: `make schedule ACTION=install JOB=live-shadow-open` (then `live-shadow-close`, `live-shadow-evening`), `launchctl load -w` each plist | TODO. Operator |
-| T-4526 | Operator: `make kite-login` before 09:15 every trading day; a missed login is a missed live-price session | TODO. Operator, daily |
+| T-4526 | Operator: `make kite-login` before 09:15 every trading day | TODO. Operator, daily. Since ADR-154 a missed login falls back to Angel quotes, which log in by themselves |
 | T-4527 | Readiness checklist per strategy | DONE 2026-11-08 — `deploy/readiness.py`, `make readiness`; `tests/test_readiness.py` |
 | T-4528 | Operator decision: add a `forward_test.pilot` block to the mandate (for example ₹1 lakh, one strategy, ₹2,000 daily loss halt, 10 live-price sessions) or keep 60 sessions before any live money. Editing the mandate halts the agents until `make agents-resume` | TODO. Operator decision |
-| T-4529 | Operator: one supervised one-share Kite order (buy and sell back) to prove S-015, written to `data/oms/kite_proof.json`; and a kill switch drill (`make kill-stop REASON=drill`, then reset) | TODO. Operator, before any pilot |
+| T-4529 | Operator: one supervised one-share order (buy and sell back) to prove S-015: `make angel-proof SYMBOL=SBIN CONFIRM=SEND` (writes `data/oms/angel_proof.json`) or the Kite one (`data/oms/kite_proof.json`); and a kill switch drill (`make kill-stop REASON=drill`, then reset) | TODO. Operator, before any pilot |
 | T-4530 | H-0168 needs that morning's results disclosures, so the evening plan cannot shadow it; add a 09:05 refresh of results disclosures to the open sweep | TODO |
 | T-4531 | Paper books read nothing before the holdout end (2026-10-17), so H-0161's and H-0175's 20-session ratios are ready only around 14 Nov; decide whether a book may read pre-holdout days as history (not as evidence) | TODO. Operator decision |
 | T-4532 | Show the lessons, guardian trips, feedback log and readiness on the AI and Live tabs | TODO |
 | T-4533 | Research note with sources: Kite order rate limits, SEBI's retail algo rules for API orders, and Zerodha's MIS-allowed list (H-0175 shorts small caps) | TODO, before any pilot |
 | T-4534 | Surveillance list dated before the open now counts in every paper book and the live-price plan (HISTORY #86); H-0187's long side added to live-price paper (A-126) | DONE 2026-11-08 |
 | T-4535 | ETFs (INF ISINs) are dropped from paper books and the live-price plan (HISTORY #87); decide whether the research engine's universe drops them too, which changes research 176's reproduction and every past screen | TODO. Operator decision |
+| T-4536 | Angel One: read-only check, quote fallback for live-price paper, supervised one-share proof; readiness accepts either broker's proof | DONE 2026-11-08 — `broker/angel_check.py`, `make angel-readonly`, `make angel-proof SYMBOL= CONFIRM=SEND` (ADR-154); `tests/test_angel_check.py`. Not run against Angel yet |
+| T-4537 | Operator: `make angel-readonly` once (sends nothing); check `data/oms/angel_readonly.json` shows funds, a quote with depth and the intraday list (A-127) | TODO. Operator |
 
 ## The research autopilot (2026-11-07, ADR-150)
 

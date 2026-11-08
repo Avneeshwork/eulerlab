@@ -86,7 +86,7 @@ def test_verdict_today_is_not_ready(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     )
     names = {x.check: x for x in lines}
     assert names["active paper book"].met
-    assert not names["Kite order path proved (S-015)"].met
+    assert not names["broker order path proved (S-015)"].met
     assert not names["operator's go"].met
     assert rd.verdict(lines) == {"pilot": False, "full": False}
 
@@ -102,3 +102,11 @@ def test_go_must_name_the_strategy(tmp_path: Path) -> None:
 
 def _unused(_: Any) -> None:  # keeps the import of Any honest for mypy
     return None
+
+
+def test_either_broker_proof_counts(tmp_path: Path) -> None:
+    kite, angel = tmp_path / "kite.json", tmp_path / "angel.json"
+    assert not rd.broker_line(kite, angel).met
+    angel.write_text(json.dumps({"broker": "angel", "at": "t", "what": "1 SBIN"}), encoding="utf-8")
+    line = rd.broker_line(kite, angel)
+    assert line.met and line.evidence.startswith("angel")

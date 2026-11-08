@@ -114,7 +114,7 @@ what is open is in `TASKS.md`.*
   figures, tells you when one fails three times running, and holds results too good to believe (H-0175).
   `make feedback TEXT=...` turns a rule into a lesson and anything else into a
   head's task. Live-price paper prices H-0161 and H-0175 picks on Kite quotes
-  at 09:16 and 15:10 and measures the slippage the backtest hides;
+  (Angel One's when Kite has no token, ADR-154) at 09:16 and 15:10 and measures the slippage the backtest hides;
   `make readiness` lists what each strategy still lacks for real money. Not
   run on real data yet (T-4524, T-4525).
 - **AI agents.** Eight agents on one runtime with budgets, an inbox and a

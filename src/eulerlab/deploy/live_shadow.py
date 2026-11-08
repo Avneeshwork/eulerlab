@@ -313,6 +313,24 @@ def _kite_quotes(symbols: list[str]) -> dict[str, dict[str, Any]]:
     return out
 
 
+def _any_quotes(symbols: list[str]) -> dict[str, dict[str, Any]]:
+    """Kite first; Angel One (logs itself in by TOTP, ADR-154) when Kite has no fresh token."""
+    try:
+        return _kite_quotes(symbols)
+    except Exception as kite_exc:
+        from eulerlab.broker import angel_check
+
+        try:
+            return angel_check.quotes(symbols)
+        except Exception as angel_exc:
+            msg = f"Kite: {kite_exc}; Angel: {angel_exc}"
+            raise RuntimeError(msg) from angel_exc
+
+
+def _source(quotes: Mapping[str, Mapping[str, Any]]) -> str:
+    return next((str(r.get("source", "kite")) for r in quotes.values()), "none")
+
+
 def _now_ist() -> datetime:
     return datetime.now(UTC) + IST
 
@@ -333,7 +351,7 @@ def _write(path: Path, body: Mapping[str, Any]) -> Path:
 
 
 def open_session(
-    day: date | None = None, root: Path = ROOT, get: Quotes = _kite_quotes
+    day: date | None = None, root: Path = ROOT, get: Quotes = _any_quotes
 ) -> dict[str, Any]:
     clock = _now_ist()
     day = day or clock.date()
@@ -360,6 +378,7 @@ def open_session(
         "seconds_after_open": _seconds_after_open(started + IST),
         "quote_seconds": round(took, 3),
         "symbols_quoted": len(quotes),
+        "quote_source": _source(quotes),
         "books": [pick(b, quotes, at) for b in planned["books"]],
     }
     _write(root / day.isoformat() / "open.json", body)
@@ -370,7 +389,7 @@ def open_session(
 
 
 def close_session(
-    day: date | None = None, root: Path = ROOT, get: Quotes = _kite_quotes
+    day: date | None = None, root: Path = ROOT, get: Quotes = _any_quotes
 ) -> dict[str, Any]:
     day = day or _now_ist().date()
     opened = _read(root / day.isoformat() / "open.json")
@@ -396,7 +415,13 @@ def close_session(
             "last": row.get("last_price"),
             "at": at,
         }
-    body = {"status": "ok", "session": day.isoformat(), "swept_at": at, "exits": exits}
+    body = {
+        "status": "ok",
+        "session": day.isoformat(),
+        "swept_at": at,
+        "quote_source": _source(quotes),
+        "exits": exits,
+    }
     _write(root / day.isoformat() / "close.json", body)
     return body
 

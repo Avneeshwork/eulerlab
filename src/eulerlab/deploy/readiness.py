@@ -16,8 +16,8 @@ Lines that hold for both stages:
 - an active paper book exists for the strategy;
 - live-price paper (`deploy/live_shadow.py`) has measured fills, and the edge
   left after real fills and costs is still positive;
-- the Kite order path has been proved by one supervised order (S-015), shown by
-  `data/oms/kite_proof.json`;
+- a broker order path has been proved by one supervised round trip (S-015),
+  shown by `data/oms/kite_proof.json` or `data/oms/angel_proof.json`;
 - the kill switch has been tripped and cleared in a drill within 30 days;
 - no guardian hold is open on the strategy (a result too good to believe);
 - the operator's explicit go, `data/desk/live_go.json`, names the strategy.
@@ -40,6 +40,7 @@ from eulerlab.deploy import live_shadow
 
 MANDATE = Path("mandate.yaml")
 KITE_PROOF = Path("data/oms/kite_proof.json")
+ANGEL_PROOF = Path("data/oms/angel_proof.json")
 KILL_LOG = Path("data/oms/killswitch_log.jsonl")
 LIVE_GO = Path("data/desk/live_go.json")
 GUARDIAN_LOG = Path("data/agents/guardian/log.jsonl")
@@ -91,16 +92,19 @@ def shadow_line(strategy: str, summary: dict[str, dict[str, Any]], min_sessions:
     return Line("edge survives live-price fills", met, text)
 
 
-def kite_line(path: Path = KITE_PROOF) -> Line:
-    if not path.exists():
-        return Line(
-            "Kite order path proved (S-015)",
-            False,
-            "never sent a real order: one supervised one-share order with the operator present",
-        )
-    body = json.loads(path.read_text(encoding="utf-8"))
+def broker_line(*paths: Path) -> Line:
+    """Met when either broker has a supervised round trip on file (Kite S-015, Angel ADR-154)."""
+    check = "broker order path proved (S-015)"
+    for path in paths or (KITE_PROOF, ANGEL_PROOF):
+        if path.exists():
+            body = json.loads(path.read_text(encoding="utf-8"))
+            who = body.get("broker") or "kite"
+            return Line(check, True, f"{who}, {body.get('at', '?')}: {body.get('what', '')}")
     return Line(
-        "Kite order path proved (S-015)", True, f"{body.get('at', '?')}: {body.get('what', '')}"
+        check,
+        False,
+        "never sent a real order: one supervised one-share round trip with the operator "
+        "present (make angel-proof SYMBOL=SBIN CONFIRM=SEND, or the Kite one)",
     )
 
 
@@ -209,7 +213,7 @@ def checklist(
     return [
         paper_line(strategy, deployments),
         shadow_line(strategy, summary, sessions),
-        kite_line(),
+        broker_line(),
         drill_line(now),
         guardian_line(strategy),
         go_line(strategy),

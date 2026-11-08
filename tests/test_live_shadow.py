@@ -6,6 +6,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from eulerlab.deploy import live_shadow as ls
 from eulerlab.intraday import rule_engine as engine
 
@@ -146,3 +148,18 @@ def test_fund_units_are_never_candidates(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert ls.fund_symbols(panel) == frozenset({"NIFTYBEES"})
+
+
+def test_quotes_fall_back_to_angel_without_a_kite_token(monkeypatch: Any) -> None:
+    from eulerlab.broker import angel_check
+
+    def dead(symbols: list[str]) -> dict[str, dict[str, Any]]:
+        raise RuntimeError("no fresh Kite session")
+
+    monkeypatch.setattr(ls, "_kite_quotes", dead)
+    monkeypatch.setattr(angel_check, "quotes", lambda s: {x: {"source": "angel"} for x in s})
+    got = ls._any_quotes(["SBIN"])
+    assert ls._source(got) == "angel"
+    monkeypatch.setattr(angel_check, "quotes", dead)
+    with pytest.raises(RuntimeError, match=r"Kite: .*Angel: "):
+        ls._any_quotes(["SBIN"])
