@@ -17,7 +17,19 @@ books:
       rank_by: {signal: delivery_ratio, lag: 1, order: asc}
   - strategy: H-0175
   - strategy: H-0168
+    # UNPROVEN (research 180): 45.9 bps gross from the official open but 1.2 bps
+    # from 09:20, so its edge may be the stale opening print. Not shadowed anyway:
+    # it needs that morning's results, which the evening plan cannot see.
   - strategy: H-0187
-    # Follow a 5%+ results reaction the next day, open to close (strategy thread,
-    # 2026-11-08). Uses its card's engine block; if it has none, or needs that
-    # morning's data, the plan lists it under not_shadowed with the reason.
+    # ASSUMPTION: A-126 — the long side of H-0187 (deploy/daily_books.py
+    # results_follow_trades) restated: results disclosed before the previous
+    # session's open, that session's close-to-close move >= +5%; long the next
+    # session open to close; biggest move first. Its short side (moves of -5% or
+    # worse) is not shadowed. Restated here, not on the card, so no second book.
+    engine:
+      kind: intraday
+      side: long
+      when:
+        - {signal: results_morning, lag: 1}
+        - {signal: ret, lag: 1, op: ">=", value: 0.05}
+      rank_by: {signal: ret, lag: 1, order: desc}

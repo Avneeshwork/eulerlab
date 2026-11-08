@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -98,7 +98,7 @@ def trades(
         day, p, q = sessions[i], sessions[i - 1], sessions[i - 2]
         if day < start:
             continue
-        watched = latest_on_or_before(surveillance, p)
+        watched = latest_on_or_before(surveillance, day - timedelta(days=1))
         if watched is None or p not in t2t:
             continue
         for symbol in liquid.get(day, frozenset()):

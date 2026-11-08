@@ -127,3 +127,22 @@ def test_a_dead_token_is_recorded_not_raised(tmp_path: Path) -> None:
 def test_no_plan_means_no_sweep(tmp_path: Path) -> None:
     out = ls.open_session(date(2026, 11, 9), tmp_path, get=lambda s: {})
     assert out["status"] == "no plan"
+
+
+def test_the_real_config_shadows_h0161_h0175_and_h0187_long() -> None:
+    shadowed, skipped = ls.books()
+    names = {b.strategy: b for b in shadowed}
+    assert {"H-0161", "H-0187"} <= set(names)
+    h0187 = names["H-0187"].spec
+    assert h0187.side == "long" and names["H-0187"].source == "restated"
+    assert "H-0168" in skipped  # needs that morning's results
+
+
+def test_fund_units_are_never_candidates(tmp_path: Path) -> None:
+    panel = tmp_path / "panel.jsonl"
+    panel.write_text(
+        '{"s": "NIFTYBEES", "isin": "INF204K014", "d": "2026-11-06"}\n'
+        '{"s": "TCS", "isin": "INE467B010", "d": "2026-11-06"}\n',
+        encoding="utf-8",
+    )
+    assert ls.fund_symbols(panel) == frozenset({"NIFTYBEES"})

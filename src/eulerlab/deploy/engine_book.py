@@ -20,7 +20,7 @@ switch, halts, the equity curve).
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from eulerlab.intraday import cross_section as cs
@@ -78,7 +78,8 @@ def trades(
         p = data.prev(day)
         if day < start or p is None:
             continue
-        watched = fade.latest_on_or_before(lists, p)
+        # a snapshot landed any time before the trade day's open counts (HISTORY #86)
+        watched = fade.latest_on_or_before(lists, day - timedelta(days=1))
         if watched is None or p not in data.t2t:
             continue  # no list snapshot for that evening: not traded
         if side < 0 and symbol in watched:

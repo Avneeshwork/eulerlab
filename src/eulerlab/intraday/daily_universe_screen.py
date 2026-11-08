@@ -56,6 +56,18 @@ class Bar:
     value: float
 
 
+def fund_symbols(path: Path = PANEL) -> frozenset[str]:
+    """Symbols whose ISIN starts with INF (ETFs, fund units), read from the price panel."""
+    if not path.exists():
+        return frozenset()
+    out: set[str] = set()
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if '"isin": "INF' in line:
+                out.add(str(json.loads(line)["s"]))
+    return frozenset(out)
+
+
 def load_panel(
     path: Path = PANEL, *, start: date = date(2015, 1, 1), end: date = END
 ) -> dict[str, dict[date, Bar]]:

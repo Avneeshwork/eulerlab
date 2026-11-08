@@ -124,8 +124,21 @@ def _at_open(signal: Any) -> bool:
     return bool(signal.lag == 0 and signal.signal == "gap")
 
 
+def fund_symbols(panel: Path | None = None) -> frozenset[str]:
+    """ETFs and fund units (INF ISINs), never shadowed: their official opening print is
+    often stale (research 180), so a gap from it is not a real gap."""
+    from eulerlab.intraday import daily_universe_screen as du
+
+    return du.fund_symbols(panel or du.PANEL)
+
+
 def plan_book(
-    engine: Any, data: Any, book: Book, last: date, watched: frozenset[str]
+    engine: Any,
+    data: Any,
+    book: Book,
+    last: date,
+    watched: frozenset[str],
+    funds: frozenset[str] = frozenset(),
 ) -> dict[str, Any]:
     """Tonight's candidates for the session after `last`: every condition known tonight holds."""
     from eulerlab.intraday import cross_section as cs
@@ -139,7 +152,7 @@ def plan_book(
     t2t = data.t2t.get(last, frozenset())
     candidates: dict[str, float | None] = {}
     for symbol in sorted(liquid):
-        if symbol in t2t or (spec.side == "short" and symbol in watched):
+        if symbol in t2t or symbol in funds or (spec.side == "short" and symbol in watched):
             continue
         bar = data.panel.get(symbol, {}).get(last)
         if bar is None or bar.close < cs.MIN_PRICE:
@@ -184,14 +197,18 @@ def plan(root: Path = ROOT, config: Path = CONFIG) -> Path:
     last = data.sessions[-1]
     session = next_session(last, holidays.load_holidays(holidays.REFERENCE))
     lists = fade.surveillance_lists()
-    watched = fade.latest_on_or_before(lists, last)
+    watched = fade.latest_on_or_before(lists, today)
     engine = rule_engine.Engine(data)
+    funds = fund_symbols()
     body = {
         "for_session": session.isoformat(),
         "data_through": last.isoformat(),
         "made_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "surveillance_list": "missing" if watched is None else f"{len(watched)} symbols",
-        "books": [plan_book(engine, data, b, last, watched or frozenset()) for b in shadowed],
+        "books": [
+            plan_book(engine, data, b, last, watched or frozenset(), funds) for b in shadowed
+        ],
+        "funds_excluded": len(funds),
         "not_shadowed": skipped,
     }
     path = root / session.isoformat() / "plan.json"

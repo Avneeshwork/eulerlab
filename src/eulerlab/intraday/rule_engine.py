@@ -452,7 +452,14 @@ class LiveData(Data):
         self.panel = du.load_panel(start=since + timedelta(days=1), end=through)
         self.sessions = sorted({d for bars in self.panel.values() for d in bars})
         self.index = {d: i for i, d in enumerate(self.sessions)}
-        self.liquid = du.liquid_sets(self.panel, self.sessions)
+        # ETFs and fund units (INF ISINs) are never traded by a paper or live book: their
+        # official opening print is often stale (research 180, HISTORY #87). The research
+        # window (`Data`) keeps them, so research 176's reproduction is unchanged.
+        funds = du.fund_symbols()
+        self.liquid = {
+            d: frozenset(s for s in names if s not in funds)
+            for d, names in du.liquid_sets(self.panel, self.sessions).items()
+        }
         self.delivery = od.delivery_ratios(since=since)
         self.t2t = trade_for_trade.load()
         bulk = rep._parsed("bulk_deals", rep.bulk_net)

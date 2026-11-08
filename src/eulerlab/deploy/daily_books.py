@@ -103,7 +103,7 @@ def gap_fade_trades(
         bars = panel[symbol]
         if day not in bars or p not in bars or p not in t2t or symbol in t2t[p]:
             continue
-        watched = fade.latest_on_or_before(surveillance, p)
+        watched = fade.latest_on_or_before(surveillance, day - timedelta(days=1))
         if watched is None:
             continue
         gap = bars[day].open / bars[p].close - 1.0
@@ -253,7 +253,7 @@ def results_follow_trades(
         if abs(r) < move or not du.SPLIT_LOW <= 1 + r <= du.SPLIT_HIGH:
             continue
         side = 1 if r > 0 else -1
-        watched = fade.latest_on_or_before(surveillance, reaction)
+        watched = fade.latest_on_or_before(surveillance, day - timedelta(days=1))
         if watched is None or (side < 0 and symbol in watched):
             continue
         bar = bars[day]

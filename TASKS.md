@@ -24,6 +24,7 @@ Operator: agents that learn, verify against data, fix their own failures and sto
 | T-4532 | Show the lessons, guardian trips, feedback log and readiness on the AI and Live tabs | TODO |
 | T-4533 | Research note with sources: Kite order rate limits, SEBI's retail algo rules for API orders, and Zerodha's MIS-allowed list (H-0175 shorts small caps) | TODO, before any pilot |
 | T-4534 | Surveillance list dated before the open now counts in every paper book and the live-price plan (HISTORY #86); H-0187's long side added to live-price paper (A-126) | DONE 2026-11-08 |
+| T-4535 | ETFs (INF ISINs) are dropped from paper books and the live-price plan (HISTORY #87); decide whether the research engine's universe drops them too, which changes research 176's reproduction and every past screen | TODO. Operator decision |
 
 ## The research autopilot (2026-11-07, ADR-150)
 

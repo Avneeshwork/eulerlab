@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighty-five times this project was wrong
+## Eighty-seven times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -469,6 +469,10 @@ figure produced outside the result store before this date was frictionless.
 **85. The autopilot's first three passes were one bet, already held.** (2026-11-08) The first nightly batch (research 177) gated H-0174, H-0175 and H-0178 PROMOTE (ledger entries for each: validate, then gate). Each shorts a stock that rose on thin delivery, as H-0161 does. Their daily returns correlate 0.63 (H-0174) and 0.73 (H-0178) with H-0161's, and 0.47-0.73 with each other. The engine's bias checks looked at each rule alone, and the repeat check matched only identical specs. So "three new strategies" was one strategy counted four times. Fixed: a "new bet" check (`research/autopilot.same_bet`, A-122) now flags a clean rule whose daily returns correlate 0.5 or more with any pass, or with a better rule from the same night, and it is not gated. Under it, H-0174 and H-0178 would not have been gated; H-0175 (correlation 0.39 with H-0161) would. The verdicts stand in the ledger. The two duplicate paper books were stopped, and the cards say why.
 
 ---
+
+**86. The paper books ignored a surveillance list landed before the open.** (2026-11-08) Every stock paper book (H-0161, H-0168, H-0187, the engine books) took the ASM/GSM snapshot on or before the *previous session*, so the list NSE published on Saturday 7 Nov (265 symbols) did not count for Monday 9 Nov, and a book with no earlier snapshot would not trade at all; the live-price plan did the same. The list was knowable before the open. Now each book takes the latest snapshot dated before the trade day (`day - 1 calendar day`), and the evening plan the latest on or before tonight. No trade was affected: no paper book had traded yet. Found by the research 178 work; fixed in `deploy/delivery_fade_book.py`, `deploy/daily_books.py`, `deploy/engine_book.py`, `deploy/live_shadow.py`.
+
+**87. ETFs were in the stock rules' universe, priced at a stale open.** (2026-11-08) The engine's universe (the 500 most traded NSE symbols) included ETFs and fund units such as NIFTYBEES and GOLDBEES, whose official opening print often lags the market. H-0194's edge came mostly from them (research 180), and Monday's live-price plan listed LIQUIDIETF and SILVERBEES as H-0175 candidates. Measured from 09:20 instead of the official open, H-0168 keeps 1.2 of its 45.9 bps gross, so it is labelled unproven; H-0161 (29.0 vs 28.8 bps), H-0187 (34.9) and H-0175 (43.2) keep an edge. Fixed for money: paper books and the live-price plan drop INF ISINs (`rule_engine.LiveData`, `live_shadow.fund_symbols`). The research window still includes them, so research 176's reproduction holds; whether past screens should be re-run without them is open (T-4535).
 
 ## What the project has actually concluded
 
