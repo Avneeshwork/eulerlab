@@ -25,6 +25,10 @@ from typing import Any
 from eulerlab.research import full_history as fh
 
 CARDS = (
+    "H-0194",
+    "H-0186",
+    "H-0191",
+    "H-0065",
     "H-0187",
     "H-0185",
     "H-0168",
@@ -47,7 +51,23 @@ TIMEFRAME = {
     "H-0168": "1d",
     "H-0187": "1d",
     "H-0185": "1d",
+    "H-0186": "1d",
+    "H-0191": "1d",
+    "H-0194": "1d",
 }
+
+ALL_NSE = ("H-0161", "H-0162", "H-0168", "H-0185", "H-0186", "H-0187", "H-0191", "H-0194")
+"""Daily rules on the 500 most traded NSE stocks (research 173)."""
+
+NOTES = {
+    "H-0194": (
+        "Overstated about 2x. Its five best names were ETFs with stale opening prints; "
+        "without ETFs +97.7 bps net, Sharpe 6.05. On F&O stocks with minute data the gap "
+        "fade made 87.4 bps gross from the official open but 41.2 bps from 09:20 "
+        "(research 180). The live-price paper shadow is the test."
+    ),
+}
+"""Caveats stored with a report, shown beside its figures."""
 
 
 def _fills_for(hypothesis: str, run: Any) -> tuple[list[Any], int]:
@@ -89,6 +109,13 @@ def _swings(hypothesis: str) -> list[Any]:
 
         ctx = du.Context()
         return du.h0162_positions(ctx.panel, ctx.sessions, ctx.liquid, ctx.promoters)
+    if hypothesis == "H-0191":
+        from eulerlab.intraday import daily_more_screen as dm
+        from eulerlab.intraday import new_signals_screen as ns
+
+        signals = ns.Context()
+        _, events, hold, _ = ns.SWING_RULES[hypothesis]
+        return dm.swing_book(signals, events(signals), hold)
     from eulerlab.intraday import other_data_screen as od
 
     return od.h0153(od._context())
@@ -112,8 +139,7 @@ def setting(hypothesis: str, sessions: Sequence[date], capital: float) -> dict[s
         "end": end.isoformat(),
         "window_days": (end - start).days,
         "universe": "nse_500_most_traded"
-        if hypothesis in ("H-0161", "H-0162", "H-0168", "H-0187", "H-0185")
-        or _engine_card(hypothesis)
+        if hypothesis in ALL_NSE or _engine_card(hypothesis)
         else "fo_stocks",
         "tier": "B",
         "asset_class": "equity",
@@ -138,6 +164,8 @@ def store_one(hypothesis: str) -> dict[str, Any]:
         "configuration": "as gated",
         "holdout": "unread (research window only)",
     }
+    if hypothesis in NOTES:
+        params["caveat"] = NOTES[hypothesis]
     version = f"research-window {chosen['start']}..{chosen['end']} as gated"
     stored = results.Run(
         strategy_id=hypothesis,
