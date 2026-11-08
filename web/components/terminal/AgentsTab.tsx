@@ -3,7 +3,8 @@
  *
  * It had ten views (Live, Inbox, Org chart, Calendar, Agents & briefs, Ask,
  * Research, Market brief, Data quality, Agent log) and a new reader could not
- * tell where to start. It now has four:
+ * tell where to start. It now has three (Ask went to the floating assistant,
+ * the diamond button on every page, 2026-11-08):
  *
  *   Overview   what needs you, the research pipeline as five steps with last
  *              week's numbers (find ideas, write rules, backtest, gate, paper
@@ -11,9 +12,9 @@
  *   Results    every outcome, newest first, each with one line on what it
  *              means: autopilot batches, lab tests, gate verdicts, paper books,
  *              research drafts, skeptic attacks, the market brief, agent checks
- *   Agents     the team: one card per agent with its switch, brief and Run
- *              button; the org chart, the schedule, and data and log health
- *   Ask        ask the knowledge agent, research a topic, attack a result
+ *   Agents     research a topic or attack a result now; the team: one card
+ *              per agent with its switch, brief and Run button; the org
+ *              chart, the schedule, and data and log health
  *
  * Old links (`#agents/inbox`, `#agents/brief`, ...) open the view that now
  * holds them (`lib/aiFlow.openView`). Nothing here places an order or spends
@@ -66,7 +67,6 @@ const VIEWS: [AiView, string][] = [
   ['overview', 'Overview'],
   ['results', 'Results'],
   ['team', 'Agents'],
-  ['ask', 'Ask'],
 ];
 
 const TEAM_VIEWS: [TeamView, string][] = [
@@ -859,24 +859,13 @@ function Log() {
   );
 }
 
-// ================================================================ ask
+// ================================================================ start a run
 
-function Ask({ onStarted }: { onStarted: () => void }) {
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [busy, setBusy] = useState(false);
+/** Start a research or skeptic run by hand. Questions go to the floating assistant. */
+function StartRun({ onStarted }: { onStarted: () => void }) {
   const [topic, setTopic] = useState('');
   const [strategy, setStrategy] = useState('');
   const [note, setNote] = useState('');
-  const ask = () => {
-    if (!question.trim()) return;
-    setBusy(true);
-    agentsApi
-      .ask(question)
-      .then((r) => setAnswer(r.ok ? `${r.answer ?? ''}\n\n(${r.model ?? 'model'}, ${r.requests ?? 0} requests)` : r.error ?? 'no answer'))
-      .catch((e: unknown) => setAnswer(String(e)))
-      .finally(() => setBusy(false));
-  };
   const start = (name: string, args: Record<string, string>) =>
     agentsApi
       .run(name, args)
@@ -887,29 +876,6 @@ function Ask({ onStarted }: { onStarted: () => void }) {
       .catch((e: unknown) => setNote(String(e)));
   return (
     <>
-      <section className="tpanel">
-        <h3>Ask a question</h3>
-        <p className="tfine">
-          The knowledge agent answers from the papers, strategy cards, decisions and data grades on disk, and names what
-          it read.
-        </p>
-        <textarea
-          aria-label="question"
-          value={question}
-          placeholder="e.g. Which momentum ideas have we already rejected, and why?"
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) ask();
-          }}
-          rows={3}
-        />
-        <div className="tacts" style={{ marginTop: 8 }}>
-          <button type="button" className="tbtn go" disabled={busy || !question.trim()} onClick={ask}>
-            {busy ? 'Asking…' : 'Ask'}
-          </button>
-        </div>
-        {answer && <pre className="ai-pre">{answer}</pre>}
-      </section>
       <div className="tgrid">
         <section className="tpanel">
           <h3>Research a topic now</h3>
@@ -1043,7 +1009,12 @@ export function AgentsTab({ open = '' }: { open?: string }) {
                 </button>
               ))}
             </div>
-            {team === 'cards' && <Team data={data} activity={activity} onChange={refresh} />}
+            {team === 'cards' && (
+              <>
+                <StartRun onStarted={refresh} />
+                <Team data={data} activity={activity} onChange={refresh} />
+              </>
+            )}
             {team === 'org' && <OrgChartView />}
             {team === 'schedule' && <CalendarView />}
             {team === 'health' && (
@@ -1054,7 +1025,6 @@ export function AgentsTab({ open = '' }: { open?: string }) {
             )}
           </>
         )}
-        {view === 'ask' && <Ask onStarted={refresh} />}
       </section>
     </>
   );

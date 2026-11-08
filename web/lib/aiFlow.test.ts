@@ -7,7 +7,8 @@ test('every old AI view name opens the view that holds it now', () => {
   assert.deepEqual(openView('inbox'), { view: 'overview' });
   assert.deepEqual(openView('live'), { view: 'overview' });
   assert.deepEqual(openView('brief'), { view: 'results', filter: 'brief' });
-  assert.deepEqual(openView('research'), { view: 'ask' });
+  assert.deepEqual(openView('research'), { view: 'team', team: 'cards' });
+  assert.deepEqual(openView('ask'), { view: 'team', team: 'cards' });
   assert.deepEqual(openView('org'), { view: 'team', team: 'org' });
   assert.deepEqual(openView('calendar'), { view: 'team', team: 'schedule' });
   assert.deepEqual(openView('quality'), { view: 'team', team: 'health' });

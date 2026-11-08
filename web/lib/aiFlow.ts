@@ -4,7 +4,7 @@
  * `npm test` can pin them.
  */
 
-export type AiView = 'overview' | 'results' | 'team' | 'ask';
+export type AiView = 'overview' | 'results' | 'team';
 export type TeamView = 'cards' | 'org' | 'schedule' | 'health';
 export type ResultFilter = 'research' | 'verdicts' | 'checks' | 'brief' | 'all';
 
@@ -24,9 +24,9 @@ export function openView(name: string): { view: AiView; team?: TeamView; filter?
       return { view: 'results' };
     case 'brief':
       return { view: 'results', filter: 'brief' };
+    // Questions moved to the floating assistant; starting a run is on Agents.
     case 'ask':
     case 'research':
-      return { view: 'ask' };
     case 'team':
     case 'agents':
       return { view: 'team', team: 'cards' };

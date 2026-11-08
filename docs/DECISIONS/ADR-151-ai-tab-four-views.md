@@ -9,3 +9,5 @@
 **Why.** A reader learns the system from the flow, then drills down; the meaning line removes the need to know each agent's vocabulary. The route only reads, so it cannot change a result.
 
 **Cost if wrong.** The meaning lines are fixed text per kind and can drift from an agent's real behaviour; `tests/test_agent_flow.py` pins them. The stage numbers count runs, not unique ideas (a card tested twice counts twice). Support agents show only their newest run, so an older warning is visible only in the agent's own card.
+
+**Amended 2026-11-08 (operator).** The Ask view is gone: questions go to the floating assistant, now a diamond-shaped button on every page. Research a topic and attack a result moved to the top of Agents. The tab has three views; `#agents/ask` and `#agents/research` open Agents.

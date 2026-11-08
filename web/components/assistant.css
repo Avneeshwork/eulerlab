@@ -324,3 +324,19 @@
 
 /* The agents' mark beside the panel's title. */
 .asst-mark { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; stroke-width: 1.8; }
+
+/* The assistant's mark is a diamond (2026-11-08): a rounded square turned
+   45 degrees, its icon turned back upright. It is also where questions to
+   the agents go, now that the AI tab has no Ask view (ADR-151). */
+.asst-fab,
+.terminal .asst-fab {
+  border-radius: 14px;
+  transform: rotate(45deg);
+}
+.asst-fab:hover,
+.terminal .asst-fab:hover {
+  transform: rotate(45deg) scale(1.06);
+}
+.asst-fab svg {
+  transform: rotate(-45deg);
+}
