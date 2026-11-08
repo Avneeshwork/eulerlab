@@ -98,7 +98,8 @@ what is open is in `TASKS.md`.*
   which is the store of record. `make daily` refreshes, uploads and prunes.
 - **Research autopilot (ADR-150, 2026-11-08).** Each evening in `make agents-ideas`,
   the autopilot writes about ten new NSE stock rules as engine specs, half
-  intraday and half swing (Claude Sonnet, then Groq, then fixed rules). It
+  intraday and half swing (Claude Sonnet, up to 5 requests a night, then Groq,
+  then fixed rules). It
   commits them before any run and screens them in research 173's frame with
   bias checks. It gates clean survivors within 10 ledger entries a week, and
   stores a report and starts a paper book for each pass. It writes one

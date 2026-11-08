@@ -10,7 +10,7 @@ worker: eulerlab.agents.workers.autopilot
 provider: claude-sonnet
 schedule: Every day 17:00 IST, after research and before the idea lab (make agents-ideas)
 uses_model: true
-daily_requests: 1
+daily_requests: 5
 needs_approval: false
 never:
   - edit gates.py or mandate.yaml, or read a holdout

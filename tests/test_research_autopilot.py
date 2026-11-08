@@ -479,3 +479,36 @@ def test_a_rule_that_moves_with_a_pass_is_not_gated() -> None:
     check = screens["H-0999"]["checks"][-1]
     assert check["check"] == "a new bet" and check["flag"] and check["with"] == "H-0161"
     assert not screens["H-0999"]["clean"]
+
+
+def test_a_lost_card_is_asked_for_again_within_the_days_requests(folder: Path) -> None:
+    intraday = {
+        **GAP_FADE,
+        "when": [{"signal": "gap", "op": ">=", "value": 0.03, "absolute": True}],
+    }
+    swing = {**GAP_FADE, "kind": "swing", "hold": 3, "side": "with"}
+    answers = [
+        json.dumps(
+            {
+                "cards": [
+                    {"title": "a", "engine": intraday},
+                    {"title": "a again", "engine": intraday},
+                ]
+            }
+        ),
+        json.dumps({"cards": [{"title": "b", "engine": swing}]}),
+    ]
+    ctx = _Ctx(folder / "agents", "")
+    prompts: list[str] = []
+
+    def ask(system: str, user: str, accept: Any = None) -> str:
+        prompts.append(user)
+        ctx.requests += 1
+        return answers[len(prompts) - 1]
+
+    ctx.ask = ask  # type: ignore[method-assign]
+    found = writer.write_cards(ctx)  # type: ignore[arg-type]
+    assert [c["title"] for c in found["cards"]] == ["a", "b"]
+    assert len(prompts) == 2
+    assert "Write 1 new rules: 0 intraday and 1 swing" in prompts[1]
+    assert "repeats" in prompts[1]

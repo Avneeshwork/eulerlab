@@ -35,6 +35,9 @@ HYPOTHESES = Path("hypotheses")
 PAPERS = Path("research/papers")
 FAMILY = "autopilot_event_rules"
 DEFAULT_CARDS = 10
+MAX_ASKS = 5
+"""Requests a night at most: the first writes every card, each later one only the cards
+a repeat or an invalid spec cost (operator, 2026-11-08: up to 5 a day)."""
 FALLBACK_PROVIDER = "groq"
 HOLDOUT_START = "2024-12-01"
 
@@ -110,8 +113,13 @@ def papers(day: date, count: int = 12, root: Path = PAPERS) -> str:
     return "\n".join(found[:count])
 
 
-def prompt(day: date, count: int) -> str:
-    half = count // 2
+def prompt(day: date, count: int, *, intraday: int | None = None, retry: str = "") -> str:
+    half = count // 2 if intraday is None else intraday
+    again = (
+        f"\n\nYour last answer left these out (fix the cause, do not resend them):\n{retry}"
+        if retry
+        else ""
+    )
     return (
         f"{SCOPE}\n\nSignals you may use:\n{vocabulary()}\n\n{SPEC_HELP}\n\n"
         f"Rules already tried (do not repeat them or trivially vary a threshold):\n"
@@ -121,7 +129,7 @@ def prompt(day: date, count: int) -> str:
         '{"cards": [{"title": "<under 90 characters>", "claim": "<one sentence a test can '
         'falsify>", "rationale": "<why it should earn money, naming the paper id or earlier '
         'card it builds on>", "paper": "<paper id or empty>", "engine": {...}, '
-        '"red_flags": ["<specific ways it could be fake>"]}]}'
+        '"red_flags": ["<specific ways it could be fake>"]}]}' + again
     )
 
 
@@ -301,19 +309,33 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
     count = int(ctx.options.get("cards", DEFAULT_CARDS))
     day = ctx.now.date()
     known = engine.known_fingerprints(root)
-    raw: list[dict[str, Any]] = []
     model = ""
-    if ctx.can_ask():
+    kept: list[dict[str, Any]] = []
+    dropped: list[str] = []
+    asks = 0
+    while len(kept) < count and ctx.can_ask() and asks < MAX_ASKS:
+        want = {"intraday": count // 2, "swing": count - count // 2}
+        for c in kept:
+            want[c["spec"].kind] -= 1
+        missing = max(want["intraday"], 0) + max(want["swing"], 0)
+        retry = "\n".join(dropped[-10:]) if asks else ""
+        asks += 1
         try:
-            answer, model = _ask(ctx, prompt(day, count))
-            raw = parse(answer)
-            ctx.step(f"The model wrote {len(raw)} card(s)")
+            answer, model = _ask(
+                ctx, prompt(day, missing, intraday=max(want["intraday"], 0), retry=retry)
+            )
         except BudgetSpent:
-            ctx.notes.append("model budget spent for today; fixed rules only")
+            ctx.notes.append("model budget spent for today")
+            break
         except Exception as exc:
-            ctx.notes.append(f"no model answered ({type(exc).__name__}); fixed rules only")
-    kept, dropped = accept(raw, known)
-    kept = _balance(kept, count)
+            ctx.notes.append(f"no model answered ({type(exc).__name__})")
+            break
+        raw = parse(answer)
+        taken = {**known, **{c["spec"].fingerprint(): c["title"] for c in kept}}
+        new, lost = accept(raw, taken)
+        dropped += lost
+        kept = _balance(kept + new, count)
+        ctx.step(f"Request {asks}: the model wrote {len(raw)} card(s), {len(kept)} of {count} kept")
     if len(kept) < count:
         taken = {**known, **{c["spec"].fingerprint(): c["title"] for c in kept}}
         extra = fallback(count - len(kept), day.toordinal(), taken)

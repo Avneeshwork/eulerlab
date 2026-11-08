@@ -9,3 +9,5 @@
 **Why.** The creative step (which rule to try) is the model's; everything that decides a result is fixed code that a test pins. A new idea needs no new code, so the loop can run without a person.
 
 **Cost if wrong.** More rules tried means more false passes the simple gate does not correct for: about ten more each night. The weekly allowance caps the ledger entries, not the screens. Engine rules see only daily bars, so the official open and close stand in for fills. A paper book starts without the operator's click (paper only), and live money stays theirs. Gating runs outside `agents/` because the boundary forbids agents the gate. The model writes only YAML that code validates, but the loop it starts does append to the ledger.
+
+**Amended 2026-11-08 (operator: up to 5 requests a day).** The first request writes every card; each later one, up to five a night, asks only for the cards a repeat or an invalid spec cost, telling the model why they were dropped. Fixed rules fill what is still short. About 5 cents a request, so at most about 25 cents a night, usually one request.
