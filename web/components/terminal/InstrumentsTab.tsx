@@ -227,7 +227,7 @@ export function InstrumentsTab() {
         .instruments(query, assetClass === 'equity' ? batch : '', assetClass, 120)
         .then(setList)
         .catch(() => setList(null));
-    }, 180);
+    }, query ? 180 : 0);
     return () => clearTimeout(timer);
   }, [query, batch, assetClass, reloadAt]);
 

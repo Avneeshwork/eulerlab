@@ -34,6 +34,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Boxes,
   CandlestickChart,
@@ -57,30 +58,37 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { CommandPalette } from '@/components/CommandPalette';
-import { AgentsTab } from '@/components/terminal/AgentsTab';
 import AgentStrip from '@/components/terminal/AgentStrip';
-import { DeskTab } from '@/components/terminal/DeskTab';
-import { ResearchLibrary } from '@/components/terminal/ResearchLibrary';
-import { StrategyBuilder } from '@/components/terminal/StrategyBuilder';
 import { ModeBadge } from '@/components/terminal/ModeBadge';
-import { OptionsTab } from '@/components/terminal/OptionsTab';
-import { RiskTab } from '@/components/terminal/RiskTab';
-import { RiskBookView } from '@/components/terminal/RiskBook';
-import { BacktestDialog } from '@/components/terminal/BacktestDialog';
-import { DataTab } from '@/components/terminal/DataTab';
-import { DeployDialog } from '@/components/terminal/DeployDialog';
-import { ExplainDialog } from '@/components/terminal/ExplainDialog';
-import { BacktestReport } from '@/components/terminal/BacktestReport';
-import { ChartTab } from '@/components/terminal/ChartTab';
-import { InstrumentsTab } from '@/components/terminal/InstrumentsTab';
-import { Library } from '@/components/terminal/Library';
-import { LiveTab } from '@/components/terminal/LiveTab';
-import { SipTab } from '@/components/terminal/SipTab';
-import { SnapshotTab } from '@/components/terminal/SnapshotTab';
-import { ScreenerTab } from '@/components/terminal/ScreenerTab';
 import { Info as InfoButton, Move, Stat, Stats } from '@/components/terminal/ui';
 import { agentsApi, api } from '@/lib/api';
 import type { Fleet, FleetStrategy } from '@/lib/api';
+
+// Each page's code is fetched when the page is first opened, not with the
+// shell. Imported statically, every tab was one 242 KB bundle that each page
+// downloaded and parsed before it could paint (measured 2026-11-08).
+function Loading() {
+  return <div className="muted" style={{ padding: 16 }}>Loading…</div>;
+}
+const AgentsTab = dynamic(() => import('@/components/terminal/AgentsTab').then((m) => m.AgentsTab), { ssr: false, loading: Loading });
+const ResearchLibrary = dynamic(() => import('@/components/terminal/ResearchLibrary').then((m) => m.ResearchLibrary), { ssr: false, loading: Loading });
+const StrategyBuilder = dynamic(() => import('@/components/terminal/StrategyBuilder').then((m) => m.StrategyBuilder), { ssr: false, loading: Loading });
+const OptionsTab = dynamic(() => import('@/components/terminal/OptionsTab').then((m) => m.OptionsTab), { ssr: false, loading: Loading });
+const RiskTab = dynamic(() => import('@/components/terminal/RiskTab').then((m) => m.RiskTab), { ssr: false, loading: Loading });
+const RiskBookView = dynamic(() => import('@/components/terminal/RiskBook').then((m) => m.RiskBookView), { ssr: false, loading: Loading });
+const BacktestDialog = dynamic(() => import('@/components/terminal/BacktestDialog').then((m) => m.BacktestDialog), { ssr: false, loading: Loading });
+const DataTab = dynamic(() => import('@/components/terminal/DataTab').then((m) => m.DataTab), { ssr: false, loading: Loading });
+const DeployDialog = dynamic(() => import('@/components/terminal/DeployDialog').then((m) => m.DeployDialog), { ssr: false, loading: Loading });
+const ExplainDialog = dynamic(() => import('@/components/terminal/ExplainDialog').then((m) => m.ExplainDialog), { ssr: false, loading: Loading });
+const BacktestReport = dynamic(() => import('@/components/terminal/BacktestReport').then((m) => m.BacktestReport), { ssr: false, loading: Loading });
+const ChartTab = dynamic(() => import('@/components/terminal/ChartTab').then((m) => m.ChartTab), { ssr: false, loading: Loading });
+const InstrumentsTab = dynamic(() => import('@/components/terminal/InstrumentsTab').then((m) => m.InstrumentsTab), { ssr: false, loading: Loading });
+const Library = dynamic(() => import('@/components/terminal/Library').then((m) => m.Library), { ssr: false, loading: Loading });
+const LiveTab = dynamic(() => import('@/components/terminal/LiveTab').then((m) => m.LiveTab), { ssr: false, loading: Loading });
+const SipTab = dynamic(() => import('@/components/terminal/SipTab').then((m) => m.SipTab), { ssr: false, loading: Loading });
+const SnapshotTab = dynamic(() => import('@/components/terminal/SnapshotTab').then((m) => m.SnapshotTab), { ssr: false, loading: Loading });
+const ScreenerTab = dynamic(() => import('@/components/terminal/ScreenerTab').then((m) => m.ScreenerTab), { ssr: false, loading: Loading });
+const DeskTab = dynamic(() => import('@/components/terminal/DeskTab').then((m) => m.DeskTab), { ssr: false, loading: Loading });
 
 type PageId =
   | 'dashboard'
@@ -206,6 +214,10 @@ function readHash(): { page: PageId; strategy: string } {
 
 export default function TerminalPage() {
   const [page, setPageState] = useState<PageId>('dashboard');
+  // False until the URL's page is read. The first render used to be the
+  // dashboard whatever the URL said, so every page also fetched the dashboard's
+  // snapshot and market context before switching (2026-11-08).
+  const [hashRead, setHashRead] = useState(false);
   const [liveView, setLiveView] = useState<LiveView>('overview');
   const [fleet, setFleet] = useState<Fleet | null>(null);
   const [problem, setProblem] = useState('');
@@ -258,6 +270,7 @@ export default function TerminalPage() {
       const { page: next, strategy } = readHash();
       setPageState(next);
       setReportId(strategy);
+      setHashRead(true);
       // `#live/performance` opens that view of Live & Risk, so a view can be linked to.
       if (next === 'live' && (LIVE_VIEWS as readonly string[]).includes(strategy)) {
         setLiveView(strategy as LiveView);
@@ -418,9 +431,11 @@ export default function TerminalPage() {
           </div>
         )}
 
-        <AgentStrip page={page} onOpenAI={(view) => setPage('agents', view ?? '')} />
+        {hashRead && (
+          <AgentStrip page={page} onOpenAI={(view) => setPage('agents', view ?? '')} />
+        )}
 
-        {page === 'dashboard' && <SnapshotTab workspace={workspace} />}
+        {hashRead && page === 'dashboard' && <SnapshotTab workspace={workspace} />}
 
         {page === 'strategies' && (
           <>
