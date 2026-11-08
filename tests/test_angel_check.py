@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -85,7 +86,7 @@ class FakeClient:
 def test_quotes_map_to_the_kite_shape_and_batch(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setattr(angel, "TOKENS_FILE", tmp_path / "tokens.json")
     monkeypatch.setattr(angel, "QUOTE_BATCH", 2)
-    monkeypatch.setattr(angel.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     client = FakeClient()
     found = angel.quotes(["SBIN", "INFY", "TCS"], client)
     assert set(found) == {"SBIN", "INFY", "TCS"}
@@ -113,7 +114,7 @@ def test_an_unrecognised_quote_reply_is_refused() -> None:
 
 def test_readonly_reads_everything_and_writes_no_secret(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setattr(angel, "TOKENS_FILE", tmp_path / "tokens.json")
-    monkeypatch.setattr(angel.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     client = FakeClient()
     out = tmp_path / "ro.json"
     report = angel.readonly(client, "refresh-token-value", "SBIN", out)
@@ -175,7 +176,7 @@ def test_proof_round_trip_writes_the_proof(tmp_path: Path) -> None:
 
 
 def test_an_unfilled_buy_stops_before_the_sell(tmp_path: Path, monkeypatch: Any) -> None:
-    monkeypatch.setattr(angel.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     client = FakeClient()
     client.fill = "rejected"
     body = _proof(tmp_path, client)
