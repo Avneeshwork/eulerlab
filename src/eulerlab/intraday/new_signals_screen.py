@@ -89,11 +89,7 @@ class Context(dm.Context):
 
         closes = mft._official_closes("India VIX")
         days = sorted(closes)
-        self.vix_jump = {
-            b: closes[b] / closes[a] - 1.0
-            for a, b in pairwise(days)
-            if closes[a]
-        }
+        self.vix_jump = {b: closes[b] / closes[a] - 1.0 for a, b in pairwise(days) if closes[a]}
         self.institutions = institution_buys(self.sessions)
 
 
