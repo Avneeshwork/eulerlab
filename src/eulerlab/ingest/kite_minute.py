@@ -87,15 +87,20 @@ def uncovered_chunks(
     start: date,
     end: date,
     held: Sequence[tuple[date, date]],
+    *,
+    weekend_sessions: frozenset[date] = frozenset(),
 ) -> Iterator[Chunk]:
-    """Chunks for only the weekdays in [start, end] no landed range covers.
+    """Chunks for only the sessions in [start, end] no landed range covers.
+
+    A session is a weekday, or a weekend day in `weekend_sessions` (Muhurat and
+    other special sessions the bhavcopy proved, ADR-156).
 
     `chunks_for(start, end)` cut its windows from `end - 1 year`, a start that
     moves every day, so no window ever matched a key already landed: every run
     re-fetched the whole year — `2898 total, 2898 to fetch`, 37.6M bars, on
     2026-10-08 (T-4036). Planning from what is held fetches only the gap,
-    normally the one new session per symbol. Weekends are never fetched, and a
-    weekend between two missing days does not split the chunk.
+    normally the one new session per symbol. Other weekends are never fetched,
+    and a weekend between two missing days does not split the chunk.
     """
     have: set[date] = set()
     for first, last in held:
@@ -108,7 +113,7 @@ def uncovered_chunks(
     run_end: date | None = None
     day = start
     while day <= end:
-        if day.weekday() < 5:
+        if day.weekday() < 5 or day in weekend_sessions:
             if day in have:
                 if run_start is not None and run_end is not None:
                     yield from chunks_for(symbol, token, run_start, run_end)

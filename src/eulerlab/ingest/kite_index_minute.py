@@ -31,6 +31,7 @@ from eulerlab.ingest.kite_minute import (
     candles_to_table,
     uncovered_chunks,
 )
+from eulerlab.ingest.nse_eod import weekend_sessions
 
 LANDING_ROOT = Path("data/landing/kite_index_minute")
 MIN_INTERVAL_S = 0.34
@@ -58,6 +59,7 @@ def backfill(
     tokens = client.instruments(exchange="NSE")
     start = end - timedelta(days=365 * years)
     held = store.covered()
+    specials = weekend_sessions()
     totals = {"downloaded": 0, "rows": 0, "failed": 0, "missing": 0}
     for folder, kite_name in INDICES.items():
         token = tokens.get(kite_name)
@@ -65,7 +67,11 @@ def backfill(
             totals["missing"] += 1
             print(f"{kite_name}: not in Kite's NSE instrument list")
             continue
-        planned = list(uncovered_chunks(folder, token, start, end, held.get(folder, ())))
+        planned = list(
+            uncovered_chunks(
+                folder, token, start, end, held.get(folder, ()), weekend_sessions=specials
+            )
+        )
         print(f"{kite_name}: {start} .. {end}, {len(planned)} chunks to fetch")
         for chunk in planned:
             try:

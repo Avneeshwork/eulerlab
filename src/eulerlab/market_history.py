@@ -274,6 +274,23 @@ def build_delivery(*, full: bool = False) -> tuple[int, int]:
 # --- calendars --------------------------------------------------------------------
 
 
+def _short_sessions() -> frozenset[date]:
+    """Short sessions from the Nifty 50's daily turnover in the index history:
+    one number a day, so the calendar need not read the 750 MB price panel."""
+    from eulerlab.master.sessions import short_days
+
+    turnover: dict[date, float] = {}
+    if INDEX_HISTORY.exists():
+        with INDEX_HISTORY.open(encoding="utf-8") as handle:
+            for line in handle:
+                record = json.loads(line)
+                nifty = (record.get("indices") or {}).get("Nifty 50") or {}
+                value = nifty.get("turnover_cr")
+                if isinstance(value, int | float) and value > 0:
+                    turnover[date.fromisoformat(record["d"])] = float(value)
+    return short_days(turnover)
+
+
 def build_calendar() -> dict[str, Any]:
     """Trading days are the dates with a landed cash bhavcopy; a holiday is a
     weekday between the first and last of them with none. A day whose download
@@ -290,6 +307,10 @@ def build_calendar() -> dict[str, Any]:
     out = {
         "trading_days": [d.isoformat() for d in days],
         "holidays": holidays,
+        # Saturdays and Sundays NSE opened (Muhurat, Budget day, DR drills).
+        "weekend_sessions": [d.isoformat() for d in days if d.weekday() >= 5],
+        # Open, but not for a normal day: Muhurat, a late open (ADR-156).
+        "short_sessions": [d.isoformat() for d in sorted(_short_sessions())],
         "source": "dates with a landed NSE cash bhavcopy",
     }
     CALENDAR.parent.mkdir(parents=True, exist_ok=True)
@@ -594,7 +615,9 @@ def _main(argv: Sequence[str] | None) -> int:
     calendar = build_calendar()
     print(
         f"calendar: {len(calendar['trading_days']):,} trading days, "
-        f"{len(calendar['holidays'])} weekday closures -> {CALENDAR}"
+        f"{len(calendar['holidays'])} weekday closures, "
+        f"{len(calendar['weekend_sessions'])} weekend sessions, "
+        f"{len(calendar['short_sessions'])} short sessions -> {CALENDAR}"
     )
     added, total = build_nifty_futures(full=args.full)
     print(f"Nifty futures days: {added:,} added, {total:,} stored -> {NIFTY_FUTURES}")

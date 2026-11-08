@@ -46,7 +46,7 @@ from pathlib import Path
 
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.landing import Landing, ManifestEntry
-from eulerlab.ingest.nse_eod import IST, business_days
+from eulerlab.ingest.nse_eod import IST, session_days
 
 DEFAULT_LANDING = Path("data/landing/nse_reports")
 API = "https://www.nseindia.com/api"
@@ -312,7 +312,7 @@ def days_for(report: Report, start: date, now: datetime) -> list[date]:
     end = last_complete_day(report, now)
     if report.snapshot:
         return [end]
-    return list(business_days(start, end))
+    return session_days(start, end)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

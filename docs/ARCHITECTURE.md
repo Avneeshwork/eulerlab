@@ -136,9 +136,22 @@ eleven years from B2 would spend its 2,500 downloads a day several times over
 |---|---|---|
 | `index_history.jsonl` | one line per day holding every index (177). NSE renamed most in November 2015 and spells some differently from file to file; `canonical_index` maps each old name to today's ("CNX Midcap" → "Nifty Midcap 100"), matched by closing level across the rename, so each index is one series | 20:00 IST that day (A-044) |
 | `delivery.jsonl` | one line per day: per EQ-series stock, traded, deliverable, delivery % | 20:00 IST that day (A-044) |
-| `nse_calendar.json` | trading days = dates with a landed cash bhavcopy; a holiday is a weekday between them without one | — |
+| `nse_calendar.json` | trading days = dates with a landed cash bhavcopy; a holiday is a weekday between them without one; `weekend_sessions` (Saturdays and Sundays NSE opened) and `short_sessions` (Nifty 50 turnover under 35% of its 20-session median) | — |
 | `nifty_futures.jsonl` | one line per day: every live Nifty futures contract's open, high, low, close, settlement, open interest and volume, from the same F&O files, fetched over four connections | 20:00 IST that day |
 | `nifty_expiries.json` | every Nifty futures expiry (144, 2015-2026), read from F&O bhavcopies fetched from NSE's archive every 15th trading day (each lists the next three monthly contracts). A file lists the *scheduled* date, which can move later, so each date is confirmed by its own day's file (`confirm_expiries`) | — |
+
+**Special and short sessions (ADR-156, research 183).** NSE sometimes opens on
+a Saturday or Sunday (Muhurat on Diwali, Budget day, disaster-recovery drills).
+The nightly bhavcopy step probes weekends (`nse_eod --include-weekends`), and
+every other NSE feed (index closes, delivery, participant OI, reports, Kite
+minute bars) walks `nse_eod.session_days`: weekdays plus the weekend days whose
+cash bhavcopy landed. A *short* session is a day whose total turnover is under
+35% of the median of the 20 sessions before it (`master/sessions.py`): every
+Muhurat, and the late open of 2017-07-10. Its bar stays in the panel and in
+signal history, but `vector.run`, `event_driven.run` (so paper books) and the
+rule engine make no decision and no fill on it; positions are held through and
+the next normal day decides and fills. A panel without turnover (US, crypto,
+FX) or with fewer than 100 symbols flags nothing.
 
 The price panel stored only the close before 2026-08-18. `make rebuild-ohlc`
 re-reads every panel day's cash bhavcopy from NSE's archive (not B2, whose

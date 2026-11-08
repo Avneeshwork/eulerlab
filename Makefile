@@ -973,8 +973,8 @@ daily-run:
 	@# files (market history, price panel, Nifty options, paper books) and the
 	@# US files (US panel). Until 2026-10-13 everything was downloaded first
 	@# and uploaded once at the end, behind fundamentals.
-	@echo "== EOD bhavcopy =="
-	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d)
+	@echo "== EOD bhavcopy (weekends too: Muhurat and other special sessions, ADR-156) =="
+	-uv run python -m eulerlab.ingest.nse_eod --from $$(date -v-7d +%Y-%m-%d) --include-weekends
 	-@$(MAKE) --no-print-directory upload-tree TREES="nse"
 	@echo "== participant OI =="
 	-uv run python -m eulerlab.ingest.backfill_oi --from $$(date -v-7d +%Y-%m-%d)

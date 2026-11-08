@@ -9,7 +9,7 @@ from pathlib import Path
 
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, UrllibTransport
 from eulerlab.ingest.landing import Landing
-from eulerlab.ingest.nse_eod import business_days, today_ist
+from eulerlab.ingest.nse_eod import session_days, today_ist
 from eulerlab.ingest.participant_oi import fetch_day
 
 DEFAULT_LANDING = Path("data/landing/nse")
@@ -29,8 +29,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     fetcher = Fetcher(transport, FetchPolicy(min_interval_s=args.min_interval))
 
     counts: dict[str, int] = {}
-    days = list(business_days(args.start, args.end))
-    print(f"participant-wise OI: {args.start} .. {args.end}  ({len(days)} weekdays)")
+    days = session_days(args.start, args.end, args.landing)
+    print(f"participant-wise OI: {args.start} .. {args.end}  ({len(days)} sessions)")
 
     for index, day in enumerate(days, start=1):
         outcome = fetch_day(fetcher, landing, day)

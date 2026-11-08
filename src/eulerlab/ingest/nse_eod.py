@@ -130,6 +130,8 @@ def business_days(start: date, end: date, *, include_weekends: bool = False) -> 
     Weekends are skipped by default. NSE occasionally runs a special session on
     a non-weekday (Muhurat trading on Diwali), so ``include_weekends`` exists to
     sweep for those without making every backfill pay for ~1,100 extra requests.
+    The nightly job passes it (a week's window costs four extra requests), and
+    the other NSE feeds follow the landed result through `session_days`.
     # ASSUMPTION: skipping weekends misses special sessions. See A-011.
     """
     current = start
@@ -137,6 +139,34 @@ def business_days(start: date, end: date, *, include_weekends: bool = False) -> 
         if include_weekends or current.weekday() < SATURDAY:
             yield current
         current += timedelta(days=1)
+
+
+def weekend_sessions(landing_root: Path = DEFAULT_LANDING) -> frozenset[date]:
+    """Saturdays and Sundays with a landed cash bhavcopy: NSE's special sessions.
+
+    Read from the manifest, not the files, because the nightly job deletes the
+    local copy once B2 holds it. The bhavcopy step probes weekends
+    (`--include-weekends`), so every other NSE feed can follow it here instead
+    of probing again (ADR-156).
+    """
+    found: set[date] = set()
+    for trade_day, segment in Landing(landing_root).entries():
+        if segment != Segment.CM.value:
+            continue
+        day = date.fromisoformat(trade_day)
+        if day.weekday() >= SATURDAY:
+            found.add(day)
+    return frozenset(found)
+
+
+def session_days(start: date, end: date, landing_root: Path = DEFAULT_LANDING) -> list[date]:
+    """Weekdays from start to end, plus any weekend session the bhavcopy proved."""
+    extra = weekend_sessions(landing_root)
+    return [
+        d
+        for d in business_days(start, end, include_weekends=True)
+        if d.weekday() < SATURDAY or d in extra
+    ]
 
 
 def count_rows(payload: bytes) -> tuple[int, str]:
