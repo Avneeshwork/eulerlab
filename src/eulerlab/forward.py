@@ -23,6 +23,7 @@ default chosen here.
 
 from __future__ import annotations
 
+import copy
 import math
 import re
 from collections.abc import Iterable, Sequence
@@ -111,15 +112,16 @@ def card_path(hypothesis: str, root: Path = HYPOTHESES) -> Path:
 
 def build(hypothesis: str, root: Path = HYPOTHESES) -> GatedCard:
     """The strategy a hypothesis card declares. Raises ValueError if it cannot be traded as one book."""
-    import yaml
-
+    from eulerlab.filecache import read_yaml
     from eulerlab.research import codegen
 
     path = card_path(hypothesis, root)
     if not path.exists():
         msg = f"no card at {path}"
         raise ValueError(msg)
-    spec = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    # A copy: the parsed card is shared through the cache and codegen is given
+    # the configuration to build from.
+    spec = copy.deepcopy(read_yaml(path)) or {}
     configs = spec.get("configurations") or []
     if len(configs) != 1:
         msg = (

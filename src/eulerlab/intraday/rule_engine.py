@@ -38,9 +38,9 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from eulerlab.filecache import FileMemo, read_yaml
 from eulerlab.intraday import daily_more_screen as dm
 from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import screen_common as sc
@@ -718,14 +718,25 @@ def checks(
 # --- cards ------------------------------------------------------------------------------
 
 
+def _read_card_spec(path: Path) -> RuleSpec | None:
+    raw = read_yaml(path) or {}
+    block = raw.get("engine") if isinstance(raw, dict) else None
+    return RuleSpec.model_validate(block) if isinstance(block, dict) else None
+
+
+_CARD_SPECS = FileMemo(_read_card_spec, size=4096)
+
+
 def card_spec(hypothesis: str, root: Path = HYPOTHESES) -> RuleSpec | None:
-    """The `engine:` block of a card, or None when it has none."""
+    """The `engine:` block of a card, or None when it has none.
+
+    Kept per card until its file changes: the strategy list asks this once per
+    row from several callers, 388 parses per request (2026-11-08). `RuleSpec`
+    is frozen, so the shared value cannot be changed by a caller."""
     path = root / f"{hypothesis}.yaml"
     if not path.exists():
         return None
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    block = raw.get("engine")
-    return RuleSpec.model_validate(block) if isinstance(block, dict) else None
+    return _CARD_SPECS(path)
 
 
 def known_fingerprints(root: Path = HYPOTHESES) -> dict[str, str]:

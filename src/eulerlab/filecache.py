@@ -17,6 +17,9 @@ import threading
 from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 
 def stamp(path: Path) -> tuple[int, int] | None:
@@ -57,3 +60,26 @@ class FileMemo[T]:
     def clear(self) -> None:
         with self._lock:
             self._held.clear()
+
+
+# libyaml's loader where the wheel has it: the same documents, parsed about
+# twelve times faster (every YAML file in the repository compared equal under
+# both, 2026-11-08). The pure-Python loader is the fallback, never an error.
+_YAML_LOADER: Any = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
+def parse_yaml(text: str) -> Any:
+    """`yaml.safe_load`, through libyaml when it is installed."""
+    return yaml.load(text, Loader=_YAML_LOADER)  # a safe loader, C or Python
+
+
+def _read_yaml(path: Path) -> Any:
+    return parse_yaml(path.read_text(encoding="utf-8"))
+
+
+read_yaml: FileMemo[Any] = FileMemo(_read_yaml, size=4096)
+"""A YAML file's contents, parsed once per change of the file.
+
+The strategy list parsed the same hypothesis cards 388 times per request
+(2026-11-08), because `rule_engine.card_spec` is asked once per strategy row by
+several callers. The value is shared: read it, never change it."""

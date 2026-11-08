@@ -2659,9 +2659,13 @@ def history(
 
     try:
         if asset_class == "equity":
-            rows = sorted(
-                (r for r in PANEL.rows(days=days) if r.symbol == wanted), key=lambda r: r.day
+            window = getattr(PANEL, "symbol_window", None)
+            found = (
+                window(wanted, days)
+                if window is not None
+                else [r for r in PANEL.rows(days=days) if r.symbol == wanted]
             )
+            rows = sorted(found, key=lambda r: r.day)
             scale = dict.fromkeys((r.day for r in rows), 1.0)
             if adjusted and rows:
                 from eulerlab.backtest.vector import build_adjusted_index
@@ -3664,6 +3668,36 @@ def _by_day(rows: list[PanelRow]) -> dict[date, dict[str, PanelRow]]:
     return index
 
 
+_INDEX_HELD: list[
+    tuple[tuple[PanelRow, PanelRow, int], dict[date, dict[str, PanelRow]], list[float]]
+] = []
+_INDEX_LOCK = threading.Lock()
+
+
+def _snapshot_index(
+    rows: list[PanelRow], days: list[date]
+) -> tuple[dict[date, dict[str, PanelRow]], list[float]]:
+    """`_by_day(rows)` and the proxy's daily moves, kept until the rows change.
+
+    Both are pure functions of the panel window, which changes once a day, and
+    together they were 70 ms of every snapshot (2026-11-08); the screen asks for
+    a snapshot twice per page. The key holds the first and last row objects, so
+    a re-read panel (new objects) is never mistaken for the old one. Shared:
+    read-only, like the rows themselves.
+    """
+    key = (rows[0], rows[-1], len(rows))
+    with _INDEX_LOCK:
+        if _INDEX_HELD:
+            (first, last, count), index, proxy = _INDEX_HELD[0]
+            if first is key[0] and last is key[1] and count == key[2]:
+                return index, proxy
+    index = _by_day(rows)
+    proxy = _daily_moves(index, days[-70:])
+    with _INDEX_LOCK:
+        _INDEX_HELD[:] = [(key, index, proxy)]
+    return index, proxy
+
+
 def _daily_moves(index: dict[date, dict[str, PanelRow]], days: list[date]) -> list[float]:
     """Equal-weighted average return per day, across everything that traded."""
     out: list[float] = []
@@ -4210,7 +4244,7 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     if len(days) < 30:
         return {"ok": False, "error": "not enough history for a snapshot"}
     today, yesterday = days[-1], days[-2]
-    index = _by_day(rows)
+    index, proxy = _snapshot_index(rows, days)
     prior_day, current_day = index.get(yesterday, {}), index.get(today, {})
     returns = {
         symbol: row.close / prior_day[symbol].close - 1.0
@@ -4282,7 +4316,6 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
     # so this is the average stock rather than the cap-weighted market — which
     # is a different and, for breadth, more honest number.
     latest_close = {symbol: row.close for symbol, row in current_day.items()}
-    proxy = _daily_moves(index, days[-70:])
 
     recent = proxy[-20:]
     older = proxy[-60:-20] if len(proxy) >= 60 else []

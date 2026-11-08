@@ -12,6 +12,7 @@ transport that happens to ask for it.
 
 from __future__ import annotations
 
+import bisect
 import gc
 import threading
 from datetime import date
@@ -95,6 +96,21 @@ class _Panel:
                 return None
             held = self._by_symbol.get(symbol, [])
             return held[-days:]
+
+    def symbol_window(self, symbol: str, days: int = 0) -> list[PanelRow]:
+        """`[r for r in rows(days) if r.symbol == symbol]`, from the per-symbol lists.
+
+        The chart's `/api/history` filtered the whole window for one symbol:
+        2,600 days is millions of rows and 0.27 s of a 0.38 s request
+        (2026-11-08). The symbol's own list is in panel order, oldest first, so
+        the window's first day is found by bisection."""
+        window = self.days(days)
+        if not window:
+            return []
+        with self._lock:
+            held = self._by_symbol.get(symbol, [])
+        start = bisect.bisect_left(held, window[0], key=lambda row: row.day)
+        return held[start:]
 
     def days(self, window: int = 0) -> list[date]:
         """The trading days `rows(window)` covers, oldest first; every day for 0.

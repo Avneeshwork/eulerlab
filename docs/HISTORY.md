@@ -502,3 +502,7 @@ Romano-Wolf). Seventeen other intraday rules died at the screen.
 | Why a choice was made | `docs/DECISIONS/ADR-*.md` |
 | What a source actually said | `docs/RESEARCH/` |
 | What to do when something breaks | `docs/RUNBOOKS/` |
+
+## 2026-11-08 — workbench pages re-parsed YAML on every request (perf, branch perf-workbench-load)
+
+Believed: the shell's calls (`/api/fleet`, `/api/snapshot`, agent routes) were slow because of data size. True: most of their time was pure-Python YAML parsing of the same unchanged cards — `rule_engine.card_spec` parsed 388 times per `/api/fleet`. Fixed by `filecache.read_yaml` (libyaml loader, memoised by file stamp; every repo YAML parses identically under both) and memoised `card_spec` / agent specs. `/api/history` scanned millions of panel rows for one symbol; it now bisects the per-symbol list (`PANEL.symbol_window`). Measured in-process: fleet 0.29 s → 0.10 s, snapshot 0.20 s → ~0.12 s, history 0.38 s → ~0.1 s. No numbers invalidated. Not done: frontend (duplicate shell calls, one 242 KB page bundle), cold-start warm-up of market-context and cloud status.

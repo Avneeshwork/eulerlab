@@ -1016,6 +1016,7 @@ def gated_hypotheses(gate: dict[str, Any], root: object = None) -> list[Declarat
 
     from eulerlab import forward
     from eulerlab.deploy import rule_book
+    from eulerlab.filecache import read_yaml
 
     folder = Path(str(root)) if root is not None else forward.HYPOTHESES
     out: list[Declaration] = []
@@ -1025,7 +1026,7 @@ def gated_hypotheses(gate: dict[str, Any], root: object = None) -> list[Declarat
             continue
         path = folder / f"{hypothesis}.yaml"
         try:
-            card = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            card = read_yaml(path) or {}
         except (OSError, yaml.YAMLError):
             continue
         intraday = rule_book.is_rule(hypothesis)

@@ -16,8 +16,9 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from eulerlab.filecache import FileMemo, read_yaml
 
 CONFIG_DIR = Path("config/agents")
 ROOT = Path("data/agents")
@@ -129,14 +130,23 @@ class Effective(BaseModel):
     switched: Literal["definition", "operator"]
 
 
+def _read_spec(path: Path) -> AgentSpec:
+    return AgentSpec.model_validate(read_yaml(path) or {})
+
+
+_SPECS = FileMemo(_read_spec, size=1024)
+"""Each definition, parsed once per change of its file. Every AI-tab route and
+the shell's activity strip load all of them, 60-85 ms of parsing a call
+(2026-11-08). `AgentSpec` is frozen."""
+
+
 def load_specs(directory: Path = CONFIG_DIR) -> dict[str, AgentSpec]:
     """Every definition, by name. A file whose name differs from its `name` is refused."""
     specs: dict[str, AgentSpec] = {}
     if not directory.is_dir():
         return specs
     for path in sorted(directory.glob("*.yaml")):
-        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        spec = AgentSpec.model_validate(raw)
+        spec = _SPECS(path)
         if spec.name != path.stem:
             msg = f"{path} defines {spec.name!r}; the file must be named after the agent"
             raise ValueError(msg)
