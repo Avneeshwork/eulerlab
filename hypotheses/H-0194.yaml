@@ -1,0 +1,35 @@
+id: H-0194
+title: Fade a 3% opening gap that came with no NSE filing, open to close, on every liquid NSE stock
+status: draft
+family: stock_intraday_daily_all_nse
+source_kind: paper
+parent: ''
+claim: 'Fade a 3% opening gap that came with no NSE filing, open to close, on every liquid NSE stock:
+  earns more than costs in both halves of 2021-07-01 to 2024-11-29 and at twice the costs.'
+rationale: 'Chan (2003): moves without news reverse. H-0141 tested 2% gaps on today''s F&O stocks with
+  minute fills (17.5 bps gross, first half flat); this is the all-NSE frame.'
+source:
+  research: '179'
+  written_by: Claude, for the operator's 'continue' (more strategies, in parallel with the autopilot)
+  day: '2026-11-08'
+configurations:
+- shape: daily_cash
+  rule: gap = open / previous close - 1, |gap| >= 3%, and no non-administrative NSE filing (research 171's
+    list) from the previous 15:30 to 09:15; trade against the gap open to close; largest gap first
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side; Rs 1 lakh a position, 1x, at most ten a day; official
+    open to official close
+  window: 2021-07-01 to 2024-11-29
+  data: price_panel.jsonl, delivery.jsonl, nse_announcements, nse_reports sast, nse corp_actions
+red_flags:
+- Signals the rule engine (ADR-150) does not have.
+- 'Daily bars: the official open and close stand in for 09:20 and 15:10 fills.'
+- About 195 rules were tried before these; the simple gate does not correct for that search.
+- Screen as research 170; a pass is checked for being the same bet as H-0161, H-0168, H-0162 or H-0187
+  (correlation >= 0.5, A-122).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

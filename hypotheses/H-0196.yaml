@@ -1,0 +1,35 @@
+id: H-0196
+title: Buy ten sessions before a dividend ex-date and sell at the close of the session before it
+status: draft
+family: stock_swing_daily_all_nse
+source_kind: paper
+parent: ''
+claim: 'Buy ten sessions before a dividend ex-date and sell at the close of the session before it: earns
+  more than costs in both halves of 2016-01-01 to 2024-11-29 and at twice the costs.'
+rationale: 'Hartzmark and Solomon (2013, JFE), ''The dividend month premium'': stocks earn more in months
+  they are expected to pay a dividend; ex-dates are announced in advance.'
+source:
+  research: '179'
+  written_by: Claude, for the operator's 'continue' (more strategies, in parallel with the autopilot)
+  day: '2026-11-08'
+configurations:
+- shape: daily_cash
+  rule: a 'Dividend' corporate action (NSE corporate-actions feed) with ex-date X; buy at the open ten
+    sessions before X, sell at the close of the session before X; earliest first
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side; Rs 1 lakh a position, 1x, long only, at most ten open; in
+    at the official open, out at the official close of the exit session
+  window: 2016-01-01 to 2024-11-29
+  data: price_panel.jsonl, delivery.jsonl, nse_announcements, nse_reports sast, nse corp_actions
+red_flags:
+- Signals the rule engine (ADR-150) does not have.
+- 'Daily bars: the official open and close stand in for 09:20 and 15:10 fills.'
+- About 195 rules were tried before these; the simple gate does not correct for that search.
+- Screen as research 170; a pass is checked for being the same bet as H-0161, H-0168, H-0162 or H-0187
+  (correlation >= 0.5, A-122).
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
