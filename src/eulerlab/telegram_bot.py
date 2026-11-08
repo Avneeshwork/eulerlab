@@ -366,6 +366,13 @@ COMMANDS: dict[str, Command] = {
         (),
         "instruct research overnight returns in midcaps",
     ),
+    "feedback": Command(
+        "tell the agents something: a rule becomes a lesson, the rest a head's task",
+        telegram_words.feedback,
+        "Agents",
+        (),
+        "feedback never short stocks under 50 rupees",
+    ),
     "outlook": Command("the latest market brief", telegram_words.outlook, "Agents"),
     "inbox": Command(
         "what the agents are waiting for you to decide", telegram_words.inbox_word, "Agents"
@@ -383,7 +390,8 @@ COMMANDS: dict[str, Command] = {
     "help": Command("this list", help_text, "Help", ("h", "?"), "help price"),
 }
 """Every word the bot answers. All read-only except `instruct`, which saves an agent brief
-(ADR-085); see the module docstring."""
+(ADR-085), and `feedback`, which saves a lesson or a head's task (ADR-152); see the module
+docstring."""
 
 SENTENCE_WORDS = 3
 """Words in a message before it is read as a question and not a mistyped word."""

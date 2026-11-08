@@ -279,6 +279,7 @@ def test_no_word_can_place_change_or_stop_an_order() -> None:
         "kill",
         "agents",
         "instruct",
+        "feedback",
         "outlook",
         "inbox",
         "ask",
@@ -286,7 +287,8 @@ def test_no_word_can_place_change_or_stop_an_order() -> None:
         "help",
     }, (
         "a new word needs a decision recorded first: every word here is read-only (ADR-068), "
-        "except `instruct`, which saves an agent brief and nothing else (ADR-085)"
+        "except `instruct`, which saves an agent brief and nothing else (ADR-085), and "
+        "`feedback`, which saves a lesson or a head's task and nothing else (ADR-152)"
     )
 
 

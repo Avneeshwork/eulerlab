@@ -306,3 +306,23 @@ def _offline_market_news(
     monkeypatch.setattr(stock_tone, "SCORES", folder / "stock_news_scores.jsonl")
     monkeypatch.setattr(stock_tone, "OUT", folder / "stock_news_tone.json")
     monkeypatch.setattr(company_page, "news_files", lambda months=3: [])
+
+
+@pytest.fixture(autouse=True)
+def _private_lessons(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test reads or writes the Mac's real `data/agents/lessons.jsonl` (ADR-152).
+
+    A test that passes its own root keeps it; the default root is redirected.
+    """
+    from pathlib import Path
+
+    from eulerlab.agents import lessons, spec
+
+    private = tmp_path_factory.mktemp("lessons") / "lessons.jsonl"
+
+    def path(root: Path) -> Path:
+        return private if root == spec.ROOT else root / "lessons.jsonl"
+
+    monkeypatch.setattr(lessons, "_path", path)

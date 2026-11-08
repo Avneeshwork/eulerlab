@@ -467,6 +467,15 @@ def instruct(arg: str = "") -> str:
     return f"Brief saved for {who} ({saved.id}). Its next run reads it. A brief steers; it cannot change limits."
 
 
+def feedback(arg: str = "") -> str:
+    """The feedback desk (ADR-152): a rule becomes a lesson, anything else a head's task."""
+    from eulerlab.agents import feedback as desk
+
+    if not arg.strip():
+        return "feedback <what you want>. A rule (never, always, avoid...) becomes a lesson; the rest goes to a head."
+    return desk.say(desk.route(arg, by="telegram"))
+
+
 def outlook(_: str = "") -> str:
     from eulerlab.agents import runtime
 

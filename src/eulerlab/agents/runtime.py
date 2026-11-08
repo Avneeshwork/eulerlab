@@ -99,6 +99,8 @@ class Output(BaseModel):
     prompts: list[str] = Field(default_factory=list)
     """Fingerprints of the instructions each model request ran under (ADR-088)."""
     data: dict[str, Any] = Field(default_factory=dict)
+    lessons: list[str] = Field(default_factory=list)
+    """Ids of the lessons the run's model requests carried (ADR-152)."""
 
 
 @dataclass
@@ -188,6 +190,7 @@ class Context:
     model: str = ""
     notes: list[str] = field(default_factory=list)
     prompts: list[str] = field(default_factory=list)
+    lessons: list[str] = field(default_factory=list)
     args: dict[str, Any] = field(default_factory=dict)
     """Arguments from the command line or the control room (a question, a topic)."""
 
@@ -218,6 +221,9 @@ class Context:
         rules = SHARED_RULES
         if self.brief:
             rules += "\n\nThe operator's brief:\n" + self.brief
+        learned = self._lessons(f"{system}\n{user}")
+        if learned:
+            rules += "\n\n" + learned
         version = prompt_version(system, SHARED_RULES)
         if version not in self.prompts:
             self.prompts.append(version)
@@ -228,6 +234,19 @@ class Context:
         answer = self.asker(f"{system}\n\n{rules}", user, accept)
         self.step(f"The model answered ({len(answer):,} characters)", "model")
         return answer
+
+    def _lessons(self, prompt: str) -> str:
+        """The lessons this request carries (ADR-152). Never fails the request."""
+        from eulerlab.agents import lessons
+
+        try:
+            found = lessons.relevant(self.name, prompt, root=self.root)
+        except (OSError, ValueError, KeyError):
+            return ""
+        for lesson in found:
+            if lesson.id not in self.lessons:
+                self.lessons.append(lesson.id)
+        return lessons.prompt_block(found)
 
     def step(self, text: str, kind: str = "step") -> None:
         """Say what the agent is doing now. Appended to this run's `progress.jsonl`.
@@ -330,7 +349,12 @@ def run(
             + (" under the operator's brief" if brief_text else ""),
             "start",
         )
-    if not agent.enabled:
+    from eulerlab.agents import guardian
+
+    stopped = guardian.halted(root)
+    if stopped:
+        result = WorkerResult(f"Every agent is halted by the guardian: {stopped}", status="skipped")
+    elif not agent.enabled:
         result = WorkerResult(f"{agent.spec.title} is switched off.", status="skipped")
     else:
         try:
@@ -364,6 +388,7 @@ def run(
         notes=ctx.notes,
         prompts=sorted(set(ctx.prompts)),
         data=result.data,
+        lessons=list(ctx.lessons),
     )
     ctx.step(f"Finished: {output.status} · {output.summary}", "end")
     ctx.write("output.json", output.model_dump())
@@ -387,6 +412,7 @@ def run(
     from eulerlab.agents import doctor
 
     doctor.after_run(output, root)
+    guardian.after_run(output, root)
     return output
 
 
