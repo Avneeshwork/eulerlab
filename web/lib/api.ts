@@ -1659,10 +1659,25 @@ export type FiiDiiFlows =
     }
   | { available: false; reason: string };
 
+// GETs for the same path already on the wire are shared. The shell and the
+// page asked for `/api/agents/activity?steps=1` together on every page, and
+// the chart page sent two identical snapshot requests (2026-11-08). Only the
+// request is shared: each caller parses its own copy of the body, so no two
+// components hold the same object. Nothing is cached once the request ends.
+const inFlight = new Map<string, Promise<string>>();
+
 async function get<T>(path: string): Promise<T> {
-  const response = await fetch(path, { cache: 'no-store' });
-  if (!response.ok) throw new Error(`${path} returned ${response.status}`);
-  return (await response.json()) as T;
+  let body = inFlight.get(path);
+  if (!body) {
+    body = fetch(path, { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error(`${path} returned ${response.status}`);
+        return response.text();
+      })
+      .finally(() => inFlight.delete(path));
+    inFlight.set(path, body);
+  }
+  return JSON.parse(await body) as T;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {

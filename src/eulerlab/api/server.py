@@ -170,6 +170,12 @@ def _preload() -> None:
     for warm in (options_days, instruments):
         with contextlib.suppress(Exception):
             warm()
+    # The two first-visit waits measured on 2026-11-08: the dashboard's market
+    # context (3.2 s cold, then held for MARKET_CONTEXT_TTL) and Data Status's
+    # bucket listing (3.2 s cold, held for CLOUD_LISTING_TTL).
+    for warm_route in (market_context_route, cloud_status):
+        with contextlib.suppress(Exception):
+            warm_route()
 
 
 app = FastAPI(title="EulerLab", version="0.1.0", lifespan=_lifespan)
