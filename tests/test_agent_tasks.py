@@ -472,6 +472,17 @@ def test_every_committed_agent_can_do_what_it_may_be_given() -> None:
     assert capabilities.report()["gaps"] == []
 
 
+def test_each_check_is_listed_once_per_agent() -> None:
+    """Engineering's fix and feature skills both pass `mode`; the audit listed
+    "reads mode" twice and the org chart drew two rows with one key."""
+    checks = capabilities.audit()
+    keys = [(c.who, c.check) for c in checks]
+    assert len(keys) == len(set(keys))
+    mode = [c for c in checks if c.who == "engineering" and c.check == "reads mode"]
+    assert len(mode) == 1
+    assert "fix" in mode[0].detail and "feature" in mode[0].detail
+
+
 def test_a_skill_whose_argument_the_worker_never_reads_is_a_gap() -> None:
     specs = load_specs()
     data = specs["data"]

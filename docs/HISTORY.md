@@ -518,3 +518,7 @@ Believed: pages were slow because the data is big. True, measured with headless 
 - Market context and cloud status are warmed at server start.
 
 Warm page load, median of 13 pages: 1.12 s → 0.36 s; API calls per full page tour 150 → 82. No research numbers invalidated. Still slow: the first page opened in the ~60 s after an API restart waits for the panel preload (about 18 s), unchanged.
+
+## 2026-11-08 — the org chart listed engineering's "reads mode" twice
+
+Believed: the capability audit makes one check per thing an agent needs. True: it made one "reads <arg>" check per skill, so an argument two skills share (engineering's `mode`, passed by both fix and feature) appeared twice under one name, and the AI tab's org chart raised a React duplicate-key error. Now one check per argument, naming every skill that passes it; a test asserts each (agent, check) pair is unique. No numbers affected.
