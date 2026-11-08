@@ -1,7 +1,7 @@
 # STATE — where this project is right now
 
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
-**Next:** Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
+**Next:** live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528). Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
 *Last updated: 2026-11-08. One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
@@ -105,6 +105,16 @@ what is open is in `TASKS.md`.*
   H-0175, H-0178 PROMOTE, but H-0174 and H-0178 are H-0161's bet again
   (HISTORY #85; their paper books stopped); H-0175 paper-trades. A "new bet"
   check now keeps such repeats from the gate.
+- **Self-running organisation (ADR-152, ADR-153, 2026-11-08).** Agents read
+  lessons (HISTORY, findings, your feedback) on every model request; two are
+  enforced as code on the autopilot. A guardian after every run halts every
+  agent if `mandate.yaml` or `gates.py` changes, suspends one that makes up
+  figures, tells you when one fails three times running, and holds results too good to believe (H-0175).
+  `make feedback TEXT=...` turns a rule into a lesson and anything else into a
+  head's task. Live-price paper prices H-0161 and H-0175 picks on Kite quotes
+  at 09:16 and 15:10 and measures the slippage the backtest hides;
+  `make readiness` lists what each strategy still lacks for real money. Not
+  run on real data yet (T-4524, T-4525).
 - **AI agents.** Eight agents on one runtime with budgets, an inbox and a
   hash-chained log; none can reach the order path, gate or ledger. The market
   brief runs before the open, after the close and on closed days; it tells

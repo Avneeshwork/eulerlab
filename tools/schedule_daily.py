@@ -235,6 +235,50 @@ JOBS = {
             "The heads and the work runner go first, so the day's tasks are done (ADR-124)."
         ),
     ),
+    "live-shadow-open": Job(
+        name="live-shadow-open",
+        label="com.eulerlab.liveshadowopen",
+        command="cd {repo} && make live-shadow-open",
+        hour=9,
+        minute=16,
+        weekdays=WEEKDAYS,
+        log="live_shadow",
+        what="make live-shadow-open, Monday to Friday",
+        why_then=(
+            "09:16 IST, a minute after the open: the official open is set and the book has\n"
+            "quotes. It prices the evening plan's candidates on Kite and sends nothing (ADR-153).\n"
+            "A holiday has no plan for the day, so the run records that and stops."
+        ),
+    ),
+    "live-shadow-close": Job(
+        name="live-shadow-close",
+        label="com.eulerlab.liveshadowclose",
+        command="cd {repo} && make live-shadow-close",
+        hour=15,
+        minute=10,
+        weekdays=WEEKDAYS,
+        log="live_shadow",
+        what="make live-shadow-close, Monday to Friday",
+        why_then=(
+            "15:10 IST: an MIS position must be closed before the broker squares it off\n"
+            "from 15:12, so this is the last price a real intraday book could exit at."
+        ),
+    ),
+    "live-shadow-evening": Job(
+        name="live-shadow-evening",
+        label="com.eulerlab.liveshadowevening",
+        command="cd {repo} && make live-shadow-evening",
+        hour=22,
+        minute=30,
+        weekdays=(),
+        log="live_shadow",
+        what="make live-shadow-evening, every day",
+        why_then=(
+            "22:30 IST, after the 19:30 daily run and the 22:00 data agent have the day's\n"
+            "bhavcopy and delivery: reconcile today's sweeps, then plan the next session.\n"
+            "Every day, so Friday's and Sunday's runs both leave a plan for Monday."
+        ),
+    ),
     "data-watch": Job(
         name="data-watch",
         label="com.eulerlab.datawatch",

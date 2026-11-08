@@ -3,6 +3,27 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## The self-running organisation and the road to live intraday (2026-11-08, ADR-152, ADR-153)
+
+Operator: agents that learn, verify against data, fix their own failures and stop themselves on wrong-doing, run as an organisation on feedback only; a real-money intraday strategy by month end. Plan: Claude Doc "Euler Lab: the self-running agent organisation and the road to live intraday". Operator, on the plan: "keep building strategies and process to deploy parallely".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4520 | Lessons store: HISTORY seeded, lessons on every model request, coded lessons checked by the autopilot | DONE 2026-11-08 — `agents/lessons.py`, `make lessons-seed` (first step of `make agents-ideas`); `tests/test_agent_lessons_guardian.py` |
+| T-4521 | Guardian: five rules after every run; halt, suspend or hold; lifting is the operator's | DONE 2026-11-08 — `agents/guardian.py`, `make guardian`, `make agents-resume REASON=...` |
+| T-4522 | Feedback desk: `make feedback TEXT=...` and Telegram `feedback` | DONE 2026-11-08 — `agents/feedback.py` |
+| T-4523 | Live-price paper: plan, 09:16 and 15:10 sweeps, reconcile, summary | DONE 2026-11-08 — `deploy/live_shadow.py`, `config/live_shadow.yaml`; `tests/test_live_shadow.py`. Not run on real data yet: the cloud copy has no market data |
+| T-4524 | On the Mac: run `make live-shadow-plan` once by hand and check the H-0161 candidates against `deploy/delivery_fade_book.py` on the same evening (A-124) | TODO |
+| T-4525 | Operator: install and load the three jobs: `make schedule ACTION=install JOB=live-shadow-open` (then `live-shadow-close`, `live-shadow-evening`), `launchctl load -w` each plist | TODO. Operator |
+| T-4526 | Operator: `make kite-login` before 09:15 every trading day; a missed login is a missed live-price session | TODO. Operator, daily |
+| T-4527 | Readiness checklist per strategy | DONE 2026-11-08 — `deploy/readiness.py`, `make readiness`; `tests/test_readiness.py` |
+| T-4528 | Operator decision: add a `forward_test.pilot` block to the mandate (for example ₹1 lakh, one strategy, ₹2,000 daily loss halt, 10 live-price sessions) or keep 60 sessions before any live money. Editing the mandate halts the agents until `make agents-resume` | TODO. Operator decision |
+| T-4529 | Operator: one supervised one-share Kite order (buy and sell back) to prove S-015, written to `data/oms/kite_proof.json`; and a kill switch drill (`make kill-stop REASON=drill`, then reset) | TODO. Operator, before any pilot |
+| T-4530 | H-0168 needs that morning's results disclosures, so the evening plan cannot shadow it; add a 09:05 refresh of results disclosures to the open sweep | TODO |
+| T-4531 | Paper books read nothing before the holdout end (2026-10-17), so H-0161's and H-0175's 20-session ratios are ready only around 14 Nov; decide whether a book may read pre-holdout days as history (not as evidence) | TODO. Operator decision |
+| T-4532 | Show the lessons, guardian trips, feedback log and readiness on the AI and Live tabs | TODO |
+| T-4533 | Research note with sources: Kite order rate limits, SEBI's retail algo rules for API orders, and Zerodha's MIS-allowed list (H-0175 shorts small caps) | TODO, before any pilot |
+
 ## The research autopilot (2026-11-07, ADR-150)
 
 Operator: the agents should run the research loop on their own and ask only for real decisions; "go", with Claude Sonnet first and Groq as fallback.
