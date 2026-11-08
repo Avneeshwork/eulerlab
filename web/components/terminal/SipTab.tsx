@@ -50,7 +50,7 @@ export function SipTab() {
         .instruments(query, '', market, 12)
         .then((list) => setFound(list.instruments))
         .catch(() => setFound([]));
-    }, 180);
+    }, query ? 180 : 0);
     return () => clearTimeout(timer);
   }, [query, market]);
 

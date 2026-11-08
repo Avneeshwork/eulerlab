@@ -503,6 +503,14 @@ Romano-Wolf). Seventeen other intraday rules died at the screen.
 | What a source actually said | `docs/RESEARCH/` |
 | What to do when something breaks | `docs/RUNBOOKS/` |
 
-## 2026-11-08 — workbench pages re-parsed YAML on every request (perf, branch perf-workbench-load)
+## 2026-11-08 — workbench pages were slow for reasons other than data size (perf, branch perf-workbench-load)
 
-Believed: the shell's calls (`/api/fleet`, `/api/snapshot`, agent routes) were slow because of data size. True: most of their time was pure-Python YAML parsing of the same unchanged cards — `rule_engine.card_spec` parsed 388 times per `/api/fleet`. Fixed by `filecache.read_yaml` (libyaml loader, memoised by file stamp; every repo YAML parses identically under both) and memoised `card_spec` / agent specs. `/api/history` scanned millions of panel rows for one symbol; it now bisects the per-symbol list (`PANEL.symbol_window`). Measured in-process: fleet 0.29 s → 0.10 s, snapshot 0.20 s → ~0.12 s, history 0.38 s → ~0.1 s. No numbers invalidated. Not done: frontend (duplicate shell calls, one 242 KB page bundle), cold-start warm-up of market-context and cloud status.
+Believed: pages were slow because the data is big. True, measured with headless Chrome against a production build:
+- Most API time was pure-Python YAML parsing of unchanged cards: `rule_engine.card_spec` parsed 388 times per `/api/fleet`. Now `filecache.read_yaml` (libyaml loader, memoised by file stamp; every repo YAML parses identically under both) plus memoised `card_spec` and agent specs.
+- Every page first rendered the dashboard (the URL hash was read after the first render), so every page also fetched the snapshot and market context. The page now waits for the hash.
+- The shell and the page sent identical GETs at once (activity, inbox, snapshot twice on Charts). `lib/api.get` now shares an in-flight request; each caller parses its own copy.
+- All tabs were in one 242 KB page bundle; each is now loaded on first open (`next/dynamic`), 123 KB first load.
+- `/api/history` scanned millions of panel rows for one symbol; it now bisects the per-symbol list (`PANEL.symbol_window`, equal output checked on real data).
+- Market context and cloud status are warmed at server start.
+
+Warm page load, median of 13 pages: 1.12 s → 0.36 s; API calls per full page tour 150 → 82. No research numbers invalidated. Still slow: the first page opened in the ~60 s after an API restart waits for the panel preload (about 18 s), unchanged.
