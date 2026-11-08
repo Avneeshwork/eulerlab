@@ -1,0 +1,52 @@
+id: H-0198
+title: Fade a results-morning gap-up that follows a low-delivery day
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks that disclose results before the open, gap up 2% or more, and had delivery under 0.8x normal
+  the session before underperform from open to close net of 12 bps costs.
+rationale: Builds on H-0168 (results-morning gap fade, net +48 bps) and H-0161/H-0175 (shorting rises
+  or gaps on thin delivery). A pre-results run-up on speculative, non-delivery volume plus a gap-up should
+  reverse intraday once the headline is priced. Lottery-demand logic from sehgal-2024-lottery-factor-india.
+source:
+  research: autopilot
+  paper: sehgal-2024-lottery-factor-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when results_morning and gap >= 0.02 and delivery_ratio[lag 1] <= 0.8; short; open
+    to close; rank by gap desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: results_morning
+  - signal: gap
+    op: '>='
+    value: 0.02
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.8
+  rank_by:
+    signal: gap
+red_flags:
+- Likely only a few hundred trades since 2021-07
+- Overlaps with H-0168 and H-0175 trades, so it may add no independent evidence
+- Results-day gaps in the tested window may be dominated by a few strong-market months
+- Shorting is unavailable for some stocks under intraday rules
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

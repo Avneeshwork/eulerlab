@@ -1,0 +1,55 @@
+id: H-0205
+title: Delivery-backed results reaction without a gap requirement, hold 15 sessions
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with results disclosed before the previous open, a green open-to-close session, and delivery
+  at least 2x normal that day outperform over 15 sessions by more than 50 bps net.
+rationale: H-0172 tied post-results drift to a 3% gap; here delivery alone shows that real holders took
+  stock, which catches slower-reacting results where the gap was small. Delivery-led accumulation is the
+  non-price information the lessons say to use.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when results_morning[lag 1] and day_return[lag 1] > 0 and delivery_ratio[lag 1] >= 2;
+    long; hold 15 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 15
+  side: long
+  when:
+  - signal: results_morning
+    lag: 1
+  - signal: day_return
+    lag: 1
+    op: '>'
+    value: 0.0
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Overlaps with H-0172 positions
+- Delivery spikes on results day can be one-off block settlements
+- Small sample
+- Market beta over 15 sessions may dominate
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,50 @@
+id: H-0203
+title: Promoter buying that arrives with a 60-session high, hold 40 sessions
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with a promoter acquisition disclosure whose prior close is at a 60-session high gain more
+  over 40 sessions than 60 bps net, and more than promoter buys in general.
+rationale: H-0153 and H-0162 are positive; H-0179 (promoter buying into a 15% drawdown) failed, suggesting
+  falling knives hurt. Requiring price strength tests whether the insider-conviction signal works best
+  when the market already confirms it.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when promoter_buy > 0 and at_high(60)[lag 1]; long; hold 40 sessions; rank by promoter_buy
+    desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 40
+  side: long
+  when:
+  - signal: promoter_buy
+    op: '>'
+    value: 0.0
+  - signal: at_high
+    lag: 1
+    n: 60
+  rank_by:
+    signal: promoter_buy
+red_flags:
+- Probably fewer than 60 positions
+- Overlapping holding periods mean a few market regimes drive the result
+- Strong 2021-2024 smallcap bull market inflates all long positions
+- Subset of H-0153 and H-0162, so not independent
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

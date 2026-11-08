@@ -1,0 +1,46 @@
+id: H-0201
+title: Buy on the morning of a SAST promoter-purchase disclosure, open to close
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with a promoter acquisition disclosed before the open earn more than 12 bps from open to
+  close on the disclosure morning.
+rationale: H-0153 and H-0162 showed promoter buying drifts up over 20 sessions; this tests whether the
+  first-day reaction is already part of the gain (under-reaction by retail on day 0) or whether the drift
+  starts only later.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when promoter_buy > 0; long; open to close; rank by promoter_buy desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: promoter_buy
+    op: '>'
+    value: 0.0
+  rank_by:
+    signal: promoter_buy
+red_flags:
+- Only about 200-300 events since 2021-07
+- Disclosure timing may leak into the previous session, so the gap already carries the news
+- Small caps with wide spreads
+- Most of the swing return may come after day 0
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,57 @@
+id: H-0206
+title: Buy a delivery-heavy dip in a stock that was at its 120-session high a week ago
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks at a 120-session closing high five sessions earlier, then down 5% or more over five sessions
+  on delivery above 1.3x normal, gain more than 50 bps net over 10 sessions.
+rationale: Prior results (H-0180 deep falls, H-0171 plain falls) failed on plain losers, but a pullback
+  from a high in a leader on rising delivery shows holders absorbing supply rather than a broken stock.
+  This is a pullback-in-trend rule using delivery as the filter, not a pure price rule.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when at_high(120)[lag 5] and ret(5)[lag 1] <= -0.05 and delivery_ratio[lag 1] >= 1.3;
+    long; hold 10 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 10
+  side: long
+  when:
+  - signal: at_high
+    lag: 5
+    n: 120
+  - signal: ret
+    lag: 1
+    n: 5
+    op: <=
+    value: -0.05
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.3
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- The 5-day drop ending lag 1 and the high at lag 5 may be almost the same event as the one-day crash
+- Heavy delivery on a drop could be forced distribution (pledge sales)
+- Market-wide drops give correlated entries and a drawdown cluster
+- Weak support from prior tests of dip buying
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

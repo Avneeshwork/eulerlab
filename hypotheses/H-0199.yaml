@@ -1,0 +1,49 @@
+id: H-0199
+title: Short a gap-up against the prior evening's bulk-deal selling
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: A stock that gaps up 1% or more on the morning after net bulk-deal selling gives back part of the
+  gap from open to close by more than 12 bps.
+rationale: H-0167 (short after bulk selling alone) was weakly positive gross (16.7 bps). A gap-up despite
+  disclosed large-holder distribution suggests retail chasing into a seller; conditioning on the gap isolates
+  the stocks where the price has overshot the information.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when bulk_sell > 0 and gap >= 0.01; short; open to close; rank by bulk_sell desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: bulk_sell
+    op: '>'
+    value: 0.0
+  - signal: gap
+    op: '>='
+    value: 0.01
+  rank_by:
+    signal: bulk_sell
+red_flags:
+- Small sample (bulk sells with gap-ups are rare)
+- Bulk-deal sellers may be block-trade arbitrage or promoters selling to a buyer at a premium
+- The gap condition alone (H-0175 style) may explain everything
+- Costs at low-liquidity names may exceed 12 bps
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

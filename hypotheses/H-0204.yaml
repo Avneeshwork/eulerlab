@@ -1,0 +1,55 @@
+id: H-0204
+title: Buy results-morning gap-downs that recover to close green, hold 10 sessions
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that disclosed results before the open, gapped down 3% or more, then closed above the open
+  that day outperform over the next 10 sessions by more than 60 bps net.
+rationale: H-0177 showed shorting results gap-downs loses; an intraday recovery signals buyers absorbing
+  the news. A slow under-reaction by institutions to a failed sell-off is the hypothesised drift. Different
+  from H-0172, which needs a gap-up.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when results_morning[lag 1] and gap[lag 1] <= -0.03 and day_return[lag 1] > 0; long; hold
+    10 sessions; rank by day_return[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 10
+  side: long
+  when:
+  - signal: results_morning
+    lag: 1
+  - signal: gap
+    lag: 1
+    op: <=
+    value: -0.03
+  - signal: day_return
+    lag: 1
+    op: '>'
+    value: 0.0
+  rank_by:
+    signal: day_return
+    lag: 1
+red_flags:
+- Small sample (a few hundred at most)
+- Recovery day may be a one-day bounce that fades
+- Results quality not held; only the gap says it was bad
+- Window starts 2021-07 so only one regime
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

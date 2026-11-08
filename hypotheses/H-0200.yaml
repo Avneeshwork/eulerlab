@@ -1,0 +1,52 @@
+id: H-0200
+title: Short 52-week-high closes made on thin delivery, next open to close
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: A stock that closed at a 250-session high on delivery under 0.7x its 20-day average falls from
+  open to close the next day by more than 12 bps.
+rationale: Extends H-0160/H-0161/H-0178 (low-delivery rallies reverse) to the case where the rally is
+  a breakout, where retail lottery demand (sehgal-2024-lottery-factor-india) is strongest. H-0183 showed
+  heavy-delivery highs do not work long intraday, so the thin-delivery side is the mirror.
+source:
+  research: autopilot
+  paper: sehgal-2024-lottery-factor-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-08'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when at_high(250)[lag 1] and delivery_ratio[lag 1] <= 0.7; short; open to close; rank
+    by value_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: at_high
+    lag: 1
+    n: 250
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.7
+  rank_by:
+    signal: value_ratio
+    lag: 1
+red_flags:
+- Strong bull-market years may produce breakouts that keep running
+- Overlaps heavily with H-0174/H-0178 trades
+- Shorts in cash segment are intraday only and subject to borrow/surveillance constraints
+- Delivery data noise on small stocks
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 196 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
