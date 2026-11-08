@@ -100,16 +100,26 @@ def audit(specs: dict[str, AgentSpec] | None = None, chart: org.Org | None = Non
             )
         )
         source = _source(spec.worker)
+        # One check per argument, naming every skill that passes it. Checked
+        # per skill, an argument two skills share (engineering's `mode`, for
+        # fix and feature) was the same check twice under one name, and the
+        # org chart drew it twice with one React key (2026-11-08).
+        needed: dict[str, list[str]] = {}
         for skill in spec.can_do:
             for arg in [*([skill.arg] if skill.arg else []), *skill.also, *skill.fixed]:
-                out.append(
-                    Check(
-                        name,
-                        f"reads {arg}",
-                        reads_arg(source, arg),
-                        f"{skill.kind}: {spec.worker} must read ctx.args[{arg!r}]",
-                    )
+                kinds = needed.setdefault(arg, [])
+                if skill.kind not in kinds:
+                    kinds.append(skill.kind)
+        for arg, kinds in needed.items():
+            out.append(
+                Check(
+                    name,
+                    f"reads {arg}",
+                    reads_arg(source, arg),
+                    f"{', '.join(kinds)}: {spec.worker} must read ctx.args[{arg!r}]",
                 )
+            )
+        for skill in spec.can_do:
             if skill.auto:
                 out.append(
                     Check(
