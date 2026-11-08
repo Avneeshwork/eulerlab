@@ -1,0 +1,37 @@
+id: H-0190
+title: Buy the session after a 5% up results reaction and hold twenty sessions
+status: draft
+family: stock_swing_daily_all_nse
+source_kind: paper
+parent: ''
+claim: 'Buy the session after a 5% up results reaction and hold twenty sessions: earns more than costs
+  in both halves of 2021-07-01 to 2024-11-29 and at twice the costs.'
+rationale: Post-earnings drift (Bernard and Thomas 1989) with the reaction-day return as the surprise;
+  H-0172 (with a delivery condition) had no events.
+source:
+  research: '178'
+  written_by: Claude, for the operator's request to keep building strategies in parallel with the autopilot
+  day: '2026-11-08'
+configurations:
+- shape: daily_cash
+  rule: results morning on day R; R's close-to-close return >= 5%; buy at R+1's open, sell at the close
+    twenty sessions later; largest move first
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side; Rs 1 lakh a position, 1x, long only, at most ten open; in
+    at the official open, out at the official close of the exit session
+  window: 2021-07-01 to 2024-11-29
+  data: price_panel.jsonl (with highs and lows), delivery.jsonl, index_history.jsonl (India VIX), nse_reports
+    bulk_deals, nse_earnings_announcements
+red_flags:
+- 'Uses signals the rule engine (ADR-150) does not have: price-limit closes, India VIX, bulk-deal client
+  names, multi-day delivery.'
+- 'Daily bars: the official open and close stand in for 09:20 and 15:10 fills.'
+- About 185 rules were tried before these; the simple gate does not correct for that search.
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs; a pass is
+  checked for being the same bet as H-0161, H-0168 or H-0162 (correlation >= 0.5, A-122).'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

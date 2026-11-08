@@ -1,0 +1,37 @@
+id: H-0184
+title: Short at the open the day after a stock closed at its high on a 10% or 20% rise, cover at the close
+status: draft
+family: stock_intraday_daily_all_nse
+source_kind: paper
+parent: ''
+claim: 'Short at the open the day after a stock closed at its high on a 10% or 20% rise, cover at the
+  close: earns more than costs in both halves of 2016-01-01 to 2024-11-29 and at twice the costs.'
+rationale: Price-limit closes attract attention buyers (Barber and Odean 2008); the next session's move
+  reverses. Research 100 tested circuit exhaustion on F&O stocks, which have no price bands.
+source:
+  research: '178'
+  written_by: Claude, for the operator's request to keep building strategies in parallel with the autopilot
+  day: '2026-11-08'
+configurations:
+- shape: daily_cash
+  rule: yesterday's close = yesterday's high and close-to-close return >= 9.5% (a 10% or 20% band close);
+    short at today's open, cover at the close; largest return first
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side; Rs 1 lakh a position, 1x, at most ten a day; official
+    open to official close
+  window: 2016-01-01 to 2024-11-29
+  data: price_panel.jsonl (with highs and lows), delivery.jsonl, index_history.jsonl (India VIX), nse_reports
+    bulk_deals, nse_earnings_announcements
+red_flags:
+- 'Uses signals the rule engine (ADR-150) does not have: price-limit closes, India VIX, bulk-deal client
+  names, multi-day delivery.'
+- 'Daily bars: the official open and close stand in for 09:20 and 15:10 fills.'
+- About 185 rules were tried before these; the simple gate does not correct for that search.
+- 'Screen as research 170: gated only if net positive in both halves and at twice the costs; a pass is
+  checked for being the same bet as H-0161, H-0168 or H-0162 (correlation >= 0.5, A-122).'
+- 'Screening backtest only: no trial spent, not judged by the gate.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
