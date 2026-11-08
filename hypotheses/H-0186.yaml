@@ -35,4 +35,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 300 trades, {''gross_mean'': 61.95, ''net_mean'': 49.66} bps; net Sharpe 0.248,
+  halves 0.243 / 0.318, at 2x costs 0.188; by year 2016 +3%, 2017 +0%, 2018 -2%, 2019 +0%, 2020 +11%,
+  2021 +5%, 2022 +5%, 2023 -3%, 2024 -5% (research 178). Gate 2026-11-08 (validate #136, gate #137): PAPER,
+  2 of 9 promotion rules failed (PSR, positive years). Weak: Sharpe 0.25.'

@@ -311,7 +311,16 @@ def _h0162(
     return daily_books.h0162(start=start, through=through, since=since, capital=capital)
 
 
+def _h0187(
+    *, start: date, through: date, since: date, capital: float
+) -> tuple[list[Trade], list[date]]:
+    from eulerlab.deploy import daily_books
+
+    return daily_books.h0187(start=start, through=through, since=since, capital=capital)
+
+
 RULES: dict[str, Generator] = {
+    "H-0187": _h0187,
     "H-0161": _h0161,
     "H-0168": _h0168,
     "H-0162": _h0162,
@@ -323,6 +332,8 @@ RULES: dict[str, Generator] = {
 }
 
 VARIANT = {
+    "H-0187": "variant: covers at the official close, which an MIS position cannot reach; "
+    "shorts skip the reaction evening's ASM, GSM and trade-for-trade lists (research 178)",
     "H-0168": "variant: covers at the official close, which an MIS position cannot reach; "
     "shorts skip the previous evening's ASM, GSM and trade-for-trade lists (ADR-149)",
     "H-0162": "a 20-session delivery hold, booked on its exit day: open positions are not "

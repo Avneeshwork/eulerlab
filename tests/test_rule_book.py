@@ -333,3 +333,34 @@ def test_h0162_books_a_closed_twenty_session_hold_on_its_exit_day() -> None:
         panel, {"AAA": {days[30]: 1.0}}, start=days[0], through=days[-1], capital=1e6
     )
     assert still_open == []
+
+
+def test_h0187_follows_a_results_reaction_the_next_session() -> None:
+    from datetime import datetime, time
+    from zoneinfo import ZoneInfo
+
+    from eulerlab.deploy import daily_books as books
+    from eulerlab.intraday import daily_universe_screen as du
+
+    days: list[date] = []
+    d = date(2026, 9, 1)
+    while len(days) < 26:
+        if d.weekday() < 5:
+            days.append(d)
+        d += timedelta(days=1)
+    bars = {x: du.Bar(100.0, 100.0, 1e8) for x in days}
+    reaction, nxt = days[-2], days[-1]
+    bars[reaction] = du.Bar(100.0, 106.0, 1e8)  # +6% on the results day
+    bars[nxt] = du.Bar(106.0, 108.0, 1e8)
+    panel = {"AAA": bars}
+    ist = ZoneInfo("Asia/Kolkata")
+    results = {"AAA": [datetime.combine(days[-3], time(19, 0), tzinfo=ist)]}
+    mornings = books.results_mornings(days, results)
+    assert mornings == [(reaction, "AAA")]
+    found, _ = books.results_follow_trades(
+        panel, mornings, {reaction: frozenset()}, {reaction: frozenset()}, start=nxt, capital=1e6
+    )
+    assert [(t["symbol"], t["direction"], t["day"], t["entry"], t["exit"]) for t in found] == [
+        ("AAA", 1, nxt, 106.0, 108.0)
+    ]
+    assert rule_book.is_rule("H-0187")

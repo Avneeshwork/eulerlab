@@ -1,6 +1,6 @@
 id: H-0189
 title: Buy at the open the day after an institution bought in a bulk deal and hold twenty sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 189 positions, {''net_mean'': 195.57} bps; net Sharpe 0.889, halves 0.33 /
+  1.277, at 2x costs 0.768; by year 2021 -3%, 2022 +1%, 2023 +33%, 2024 +8% (research 178). Passes the
+  screen but its daily returns correlate 0.51 with H-0162: the same long-the-market bet (A-122); not gated.'

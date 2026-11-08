@@ -33,4 +33,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 973 positions, {''net_mean'': 73.94} bps; net Sharpe 0.379, halves 0.574 /
+  0.181, at 2x costs 0.244; by year 2016 +19%, 2017 +42%, 2018 -20%, 2019 +11%, 2020 +0%, 2021 +33%, 2022
+  -18%, 2023 -11%, 2024 +13% (research 178). Gate 2026-11-08 (validate #138, gate #139): PAPER, 1 of 9
+  promotion rules failed. Long only; correlation 0.46 with H-0162; drawdown -38%.'

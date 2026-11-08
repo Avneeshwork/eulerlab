@@ -692,6 +692,10 @@ index-expiry:
 library-reports:
 	@uv run python -m eulerlab.research.library_reports $(if $(H),--only $(H),)
 
+# Research 178: ten rules on signals the rule engine lacks (H-0184 to H-0193).
+new-signals:
+	@uv run python -m eulerlab.intraday.new_signals_screen
+
 # Research 176: ten more rules on every liquid NSE stock, daily bars (H-0164 to H-0173).
 daily-more:
 	@uv run python -m eulerlab.intraday.daily_more_screen

@@ -207,6 +207,15 @@ def _daily_more(hypothesis: str) -> Callable[[], IntradayRun]:
     return run
 
 
+def _new_signals(hypothesis: str) -> Callable[[], IntradayRun]:
+    def run() -> IntradayRun:
+        from eulerlab.intraday import new_signals_screen
+
+        return new_signals_screen.validation_run(hypothesis)
+
+    return run
+
+
 def _h0106() -> IntradayRun:
     from eulerlab.intraday import nse_reports_screen
 
@@ -225,6 +234,7 @@ SOURCES: dict[str, Callable[[], IntradayRun]] = {
     "H-0162": _daily_universe("H-0162"),
     "H-0163": _daily_universe("H-0163"),
     **{f"H-0{n}": _daily_more(f"H-0{n}") for n in range(164, 174)},
+    **{f"H-0{n}": _new_signals(f"H-0{n}") for n in range(184, 194)},
     "H-0052": _h0052,
     "H-0065": _h0065,
     "H-0096": _h0096,

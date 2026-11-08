@@ -214,3 +214,74 @@ def as_json(trades: Sequence[Trade]) -> str:
     return json.dumps(
         [{k: str(v) if isinstance(v, date) else v for k, v in t.items()} for t in trades]
     )
+
+
+# --- H-0187 (research 178) ---------------------------------------------------------------
+
+
+def results_follow_trades(
+    panel: Mapping[str, Mapping[date, du.Bar]],
+    mornings: Sequence[tuple[date, str]],
+    t2t: Mapping[date, frozenset[str]],
+    surveillance: Mapping[date, frozenset[str]],
+    *,
+    start: date,
+    capital: float,
+    move: float = 0.05,
+) -> tuple[list[Trade], list[date]]:
+    """H-0187: the session after a 5% results reaction, with it, open to close."""
+    from eulerlab.deploy import delivery_fade_book as fade
+    from eulerlab.deploy import rule_book
+
+    sessions = sorted({d for bars in panel.values() for d in bars})
+    index = {d: i for i, d in enumerate(sessions)}
+    liquid = du.liquid_sets(panel, sessions)
+    by_day: dict[date, list[tuple[float, str, Trade]]] = defaultdict(list)
+    for reaction, symbol in mornings:
+        i = index.get(reaction)
+        if i is None or i == 0 or i + 1 >= len(sessions):
+            continue
+        day, before = sessions[i + 1], sessions[i - 1]
+        bars = panel[symbol]
+        if day < start or symbol not in liquid.get(day, frozenset()):
+            continue
+        if any(d not in bars for d in (before, reaction, day)) or reaction not in t2t:
+            continue
+        if symbol in t2t[reaction]:
+            continue
+        r = bars[reaction].close / bars[before].close - 1.0
+        if abs(r) < move or not du.SPLIT_LOW <= 1 + r <= du.SPLIT_HIGH:
+            continue
+        side = 1 if r > 0 else -1
+        watched = fade.latest_on_or_before(surveillance, reaction)
+        if watched is None or (side < 0 and symbol in watched):
+            continue
+        bar = bars[day]
+        quantity = int(capital / SLOTS / bar.open) if bar.open >= cs.MIN_PRICE else 0
+        if quantity:
+            trade = rule_book._trade(day, symbol, side, quantity, bar.open, bar.close, 0)
+            by_day[day].append((-abs(r), symbol, trade))
+    out: list[Trade] = []
+    for day in sorted(by_day):
+        out.extend(t for _, _, t in sorted(by_day[day], key=lambda x: (x[0], x[1]))[:SLOTS])
+    return out, [d for d in sessions if d >= start]
+
+
+def h0187(
+    *, start: date, through: date, since: date, capital: float
+) -> tuple[list[Trade], list[date]]:
+    from eulerlab.deploy import delivery_fade_book as fade
+    from eulerlab.ingest import trade_for_trade
+
+    trade_for_trade.build()
+    panel = du.load_panel(start=since + timedelta(days=1), end=through)
+    sessions = sorted({d for bars in panel.values() for d in bars})
+    mornings = results_mornings(sessions, results_times(since=since, through=through))
+    return results_follow_trades(
+        panel,
+        mornings,
+        trade_for_trade.load(),
+        fade.surveillance_lists(),
+        start=start,
+        capital=capital,
+    )

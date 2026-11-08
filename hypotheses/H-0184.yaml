@@ -1,6 +1,6 @@
 id: H-0184
 title: Short at the open the day after a stock closed at its high on a 10% or 20% rise, cover at the close
-status: draft
+status: rejected
 family: stock_intraday_daily_all_nse
 source_kind: paper
 parent: ''
@@ -34,4 +34,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 1562 trades, {''gross_mean'': 22.55, ''net_mean'': 10.3} bps; net Sharpe 0.198,
+  halves -0.248 / 0.626, at 2x costs -0.036; by year 2016 -12%, 2017 -4%, 2018 -0%, 2019 -2%, 2020 +29%,
+  2021 +25%, 2022 -0%, 2023 -5%, 2024 -11% (research 178). Fails research 170''s screen; not gated.'

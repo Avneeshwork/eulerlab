@@ -25,6 +25,8 @@ from typing import Any
 from eulerlab.research import full_history as fh
 
 CARDS = (
+    "H-0187",
+    "H-0185",
     "H-0168",
     "H-0161",
     "H-0162",
@@ -38,7 +40,14 @@ CARDS = (
     "H-0124",
 )
 """PROMOTE and PAPER stock cards of research 168-173 (H-0103 is an option rule, out of scope)."""
-TIMEFRAME = {"H-0161": "1d", "H-0162": "1d", "H-0153": "1d", "H-0168": "1d"}
+TIMEFRAME = {
+    "H-0161": "1d",
+    "H-0162": "1d",
+    "H-0153": "1d",
+    "H-0168": "1d",
+    "H-0187": "1d",
+    "H-0185": "1d",
+}
 
 
 def _fills_for(hypothesis: str, run: Any) -> tuple[list[Any], int]:
@@ -103,7 +112,8 @@ def setting(hypothesis: str, sessions: Sequence[date], capital: float) -> dict[s
         "end": end.isoformat(),
         "window_days": (end - start).days,
         "universe": "nse_500_most_traded"
-        if hypothesis in ("H-0161", "H-0162", "H-0168") or _engine_card(hypothesis)
+        if hypothesis in ("H-0161", "H-0162", "H-0168", "H-0187", "H-0185")
+        or _engine_card(hypothesis)
         else "fo_stocks",
         "tier": "B",
         "asset_class": "equity",

@@ -1,6 +1,6 @@
 id: H-0190
 title: Buy the session after a 5% up results reaction and hold twenty sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -34,4 +34,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 150 positions, {''net_mean'': 199.86} bps; net Sharpe 0.666, halves -0.543
+  / 1.772, at 2x costs 0.578; by year 2021 +2%, 2022 -15%, 2023 +26%, 2024 +19% (research 178). Fails
+  research 170''s screen; not gated.'

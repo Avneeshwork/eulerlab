@@ -1,6 +1,6 @@
 id: H-0193
 title: When India VIX rose 15% yesterday, buy the ten liquid stocks that fell most and hold ten sessions
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 229 positions, {''net_mean'': -188.71} bps; net Sharpe -0.341, halves -0.501
+  / -0.135, at 2x costs -0.389; by year 2016 -3%, 2017 +0%, 2018 -1%, 2019 +0%, 2020 -24%, 2021 +17%,
+  2022 -21%, 2023 -24%, 2024 +15% (research 178). Fails research 170''s screen; not gated.'

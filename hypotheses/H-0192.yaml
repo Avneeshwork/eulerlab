@@ -1,7 +1,7 @@
 id: H-0192
 title: 'Quiet accumulation: buy a stock with five sessions of 1.5 times normal delivery and a flat price,
   hold twenty'
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -35,4 +35,7 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 863 positions, {''net_mean'': 120.77} bps; net Sharpe 0.656, halves 0.383
+  / 0.965, at 2x costs 0.513; by year 2016 -4%, 2017 +66%, 2018 -19%, 2019 -8%, 2020 +47%, 2021 +35%,
+  2022 +9%, 2023 -4%, 2024 -1% (research 178). Passes the screen but its daily returns correlate 0.55
+  with H-0162: the same long-the-market bet (A-122); not gated.'
