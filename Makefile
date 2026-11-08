@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: agents-autopilot rule-engine-check full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
 
 help:
 	@echo "EulerLab — targets"
@@ -371,6 +371,7 @@ rule-engine-check:
 	@RULE_ENGINE_REPRO=1 uv run pytest -q tests/test_research_autopilot.py -k reproduces
 
 agents-ideas:
+	-@uv run python -m eulerlab.agents.lessons seed
 	-@uv run python -m eulerlab.agents.runtime head_research
 	-@uv run python -m eulerlab.agents.runtime head_platform
 	-@uv run python -m eulerlab.agents.runtime head_portfolio
@@ -571,6 +572,42 @@ montecarlo:
 
 chaos:
 	@uv run python -m eulerlab.oms.chaos
+
+# --- Live-price paper, readiness, lessons, guardian, feedback (ADR-152, ADR-153) ---
+live-shadow-plan:
+	@uv run python -m eulerlab.deploy.live_shadow plan
+
+live-shadow-open:
+	@uv run python -m eulerlab.deploy.live_shadow open
+
+live-shadow-close:
+	@uv run python -m eulerlab.deploy.live_shadow close
+
+live-shadow-evening:
+	-@uv run python -m eulerlab.deploy.live_shadow reconcile
+	@uv run python -m eulerlab.deploy.live_shadow plan
+
+live-shadow-summary:
+	@uv run python -m eulerlab.deploy.live_shadow summary
+
+readiness:
+	@uv run python -m eulerlab.deploy.readiness $(if $(STRATEGY),--strategy $(STRATEGY),)
+
+lessons-seed:
+	@uv run python -m eulerlab.agents.lessons seed
+
+lessons:
+	@uv run python -m eulerlab.agents.lessons show $(if $(AGENT),--agent $(AGENT),)
+
+feedback:
+	@uv run python -m eulerlab.agents.feedback "$(TEXT)"
+
+guardian:
+	@uv run python -m eulerlab.agents.guardian status
+
+agents-resume:
+	@test -n "$(REASON)" || (echo 'usage: make agents-resume REASON="why it is safe to resume"'; exit 2)
+	@uv run python -m eulerlab.agents.guardian clear --reason "$(REASON)"
 
 kill-status:
 	@uv run python -m eulerlab.oms.killswitch

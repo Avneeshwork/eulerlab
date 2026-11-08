@@ -27,6 +27,7 @@ from typing import Any
 import yaml
 from pydantic import ValidationError
 
+from eulerlab.agents import lessons
 from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, model_asker, untrusted
 from eulerlab.intraday import rule_engine as engine
 
@@ -154,6 +155,10 @@ def accept(
             spec = engine.RuleSpec.model_validate(card.get("engine"))
         except ValidationError as exc:
             dropped.append(f"{title}: {exc.errors()[0].get('msg', 'invalid spec')}")
+            continue
+        broken = lessons.violations(spec)
+        if broken:
+            dropped.append(f"{title}: breaks a lesson: {broken[0]}")
             continue
         fp = spec.fingerprint()
         if fp in seen:

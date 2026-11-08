@@ -3339,6 +3339,66 @@ Each output records a fingerprint of the prompts it ran under, so a changed
 score can be traced to a prompt change. `make agent-eval` runs weekly in
 `agents-weekly`; the skeptic part is free, the knowledge part uses its budget.
 
+### Lessons, the guardian and the feedback desk (ADR-152)
+
+Three loops close the organisation around the agents. None of them uses a model
+to decide anything.
+
+```
+docs/HISTORY.md, gate/screen findings, guardian trips, operator feedback
+        |  lessons.add (append-only, id = hash of source + ref)
+        v
+data/agents/lessons.jsonl --relevant(agent, prompt)--> Context.ask system prompt
+        |                                              (operator first, then the
+        |                                               agent's own, then >= 2 shared keywords;
+        |                                               at most 6; ids kept on the output)
+        +--violations(spec)--> autopilot.accept drops a card that breaks a coded lesson
+
+runtime.run -> doctor.after_run (remedies) -> guardian.after_run (stops)
+   protected file changed ......... halt every agent   (data/agents/HALT)
+   3 withheld answers in a day .... suspend the agent  (settings: enabled=false)
+   3 failed runs in a row ......... hold: told + lesson; it keeps running so fixes can heal it
+   ledger entries > weekly allowance  suspend the autopilot
+   screened net Sharpe > 3 ........ hold: lesson + Telegram; readiness blocks a pilot
+   lift a halt: make agents-resume REASON=...   lift a suspension: the AI tab switch
+
+make feedback TEXT=... / Telegram "feedback ..."
+   a rule (never, always, avoid, must ...) -> operator lesson (all agents, or "agent: ...")
+   anything else (incl. "goal: ...")        -> task for head_platform / head_portfolio /
+                                                head_research by keywords
+   every message -> data/agents/feedback.jsonl with where it went
+```
+
+The guardian's thresholds are A-125. It reads the autopilot's own gate log as a
+file, so nothing the runtime loads reaches the gating code.
+
+### Live-price paper and readiness (ADR-153)
+
+The paper books fill at the official open and close. `deploy/live_shadow.py`
+prices the same picks on live Kite quotes without sending anything:
+
+| When (IST) | Command | What |
+|---|---|---|
+| 22:30 daily | `make live-shadow-evening` | reconcile today's sweeps with the bhavcopy close, then plan the next session |
+| 09:16 weekdays | `make live-shadow-open` | quote the candidates; apply the gap condition; rank; record bid, ask, spread |
+| 15:10 weekdays | `make live-shadow-close` | quote the picks where an MIS book must exit |
+
+Per trade, in bps, gross of costs, with side s = +1 long or -1 short:
+
+```
+backtest   = s * (official_close / official_open - 1) * 1e4
+achievable = s * (exit_quote / entry_quote - 1) * 1e4     short: sell at bid, cover at ask
+slippage   = backtest - achievable
+```
+
+`make readiness` lists, per strategy, the evidence for real money. A strategy is
+pilot-ready only when every line holds: an active paper book; live-price
+sessions >= the pilot's minimum (10 by default) with mean achievable return
+above 12.24 bps of costs; the Kite order path proved (`data/oms/kite_proof.json`);
+a kill switch trip and reset within 30 days; no guardian hold; the operator's
+go (`data/desk/live_go.json`); and a `forward_test.pilot` block in the mandate.
+Full size needs the mandate's `forward_test` instead of the pilot block.
+
 ### The agents' memory in B2 (ADR-128)
 
 `make agents-backup` (`ingest/memory_backup.py`, last step of `make agents-ideas`)

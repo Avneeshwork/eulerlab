@@ -1,0 +1,23 @@
+# Intraday books priced on live Kite quotes (deploy/live_shadow.py, ADR-153).
+# A book with no `engine:` here uses its card's own engine block.
+# A restated rule is the gated rule written in the engine's language; see A-124
+# for how far the restatement is checked.
+books:
+  - strategy: H-0161
+    # ASSUMPTION: A-124 — restated from deploy/delivery_fade_book.py: yesterday's
+    # close-to-close rise >= 3% on <= half the 20-session mean delivery %; short;
+    # lowest delivery ratio first. The universe is the evening's liquid set
+    # (the gated rule uses the trade day's).
+    engine:
+      kind: intraday
+      side: short
+      when:
+        - {signal: ret, lag: 1, op: ">=", value: 0.03}
+        - {signal: delivery_ratio, lag: 1, op: "<=", value: 0.5}
+      rank_by: {signal: delivery_ratio, lag: 1, order: asc}
+  - strategy: H-0175
+  - strategy: H-0168
+  - strategy: H-0187
+    # Follow a 5%+ results reaction the next day, open to close (strategy thread,
+    # 2026-11-08). Uses its card's engine block; if it has none, or needs that
+    # morning's data, the plan lists it under not_shadowed with the reason.

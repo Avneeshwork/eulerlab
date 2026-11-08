@@ -465,6 +465,7 @@ def pipeline(
             "kept": kept,
             "note": str(note_path),
             "dropped": found["dropped"],
+            "net_sharpe": {h: s["net"]["sharpe"] for h, s in screens.items()},
         },
     )
 
