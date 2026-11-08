@@ -254,6 +254,10 @@ Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `ma
 | T-4509 | Ten rules on signals the rule engine lacks (operator: "keep building strategies and process to deploy") | DONE 2026-11-08 — H-0187 (follow a 5% results reaction the next day) and H-0185 (buy after a lower-limit close) PROMOTE, H-0186 and H-0191 PAPER (ledger #132-#139); H-0189, H-0192 same bet as H-0162; four fail (research 178). H-0187 has a paper book (`daily_books.h0187`) |
 | T-4510 | H-0096 on daily bars, stored in the library (operator) | DONE 2026-11-07 — 2016-2026, Sharpe 1.72, +109%, drawdown -10.1%, 9 of 11 years positive; 2025-26 flat |
 | T-4511 | H-0163 and H-0121 on the holdout, 2024-12 to 2026-10 (operator: "run on 2024- 2026"; reads recorded 2026-11-07) | PARTIAL — H-0163: gross 10.6 bps, +2.1 net at 5x, -1.7 at 1x (research 175); H-0121 running (downloads two years of F&O minute bars) |
+| T-4512 | Four more signals (research 179) | DONE 2026-11-08 — H-0194 (no-news 3% gap fade) PROMOTE (ledger #140, #141) but overstated; H-0196 same bet as H-0162; two fail |
+| T-4513 | How much of each daily-bar edge is in the auction prints (research 180) | DONE 2026-11-08 — H-0161 robust (29.0 vs 28.8 bps); H-0168's edge is all in the opening auction (1.2 bps from 09:20): unproven; H-0187, H-0194, H-0175 overstated 1.3-2.1x; ETFs inflate gap rules |
+| T-4514 | Exclude ETFs (INF ISINs) from research 173's universe and the rule engine; re-screen the gap rules | OPEN (framework thread owns the engine) |
+| T-4515 | Test H-0168 as a pre-open auction trade (indicative price at 09:07) | OPEN |
 | T-4495 | Start the MIS paper deployments (₹10 lakh of margin each is the backtest) and watch them for 60 sessions | OPEN (operator) |
 | T-4490 | Measure slippage on a ₹5 lakh MIS order in the 100 most traded stocks (depth snapshots or the first paper fills): at 4 bps a side H-0118 keeps about +4.8 bps net a trade and H-0115 about +0.8 | OPEN |
 | T-4491 | H-0103 is an option strategy; the operator's rule since 2026-11-07 is stocks only. Keep it as a record or mark it out of scope | OPEN (operator) |

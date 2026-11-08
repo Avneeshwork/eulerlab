@@ -1,7 +1,7 @@
 id: H-0197
 title: Buy at the open the day after a stock made a new 250-session low on half its usual delivery, sell
   at the close
-status: draft
+status: rejected
 family: stock_intraday_daily_all_nse
 source_kind: paper
 parent: ''
@@ -33,4 +33,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 331 trades, {''gross_mean'': -76.57, ''net_mean'': -88.8} bps; net Sharpe
+  -0.728, halves -1.01 / -0.211, at 2x costs -0.824 (research 179). Fails research 170''s screen; not
+  gated.'

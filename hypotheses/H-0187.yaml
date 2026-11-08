@@ -38,4 +38,5 @@ result: 'Screen 2026-11-08: 935 trades, {''gross_mean'': 78.91, ''net_mean'': 66
   halves 2.318 / 2.813, at 2x costs 2.135; by year 2021 +10%, 2022 +13%, 2023 +21%, 2024 +22% (research
   178). Gate 2026-11-08 (validate #132, gate #133): PROMOTE, 9 of 9. Strict-mode figures: deflated Sharpe
   0.965, fails only Romano-Wolf over Nifty (0.26 vs 1.82). Same-bet check: correlation with H-0161 -0.08,
-  H-0168 0.01, H-0162 -0.11.'
+  H-0168 0.01, H-0162 -0.11. Open-print check 2026-11-08 (research 180): 61.7 bps gross from the official
+  open, 34.9 from 09:20 to 15:10 on F&O stocks: still above cost, overstated about 1.8x.'

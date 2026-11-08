@@ -1,6 +1,6 @@
 id: H-0196
 title: Buy ten sessions before a dividend ex-date and sell at the close of the session before it
-status: draft
+status: rejected
 family: stock_swing_daily_all_nse
 source_kind: paper
 parent: ''
@@ -32,4 +32,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 1567 positions, {''net_mean'': 98.07} bps; net Sharpe 1.052, halves 0.621
+  / 1.453, at 2x costs 0.77 (research 179). Daily returns correlate 0.58 with H-0162: the same long-the-market
+  bet (A-122); not gated.'

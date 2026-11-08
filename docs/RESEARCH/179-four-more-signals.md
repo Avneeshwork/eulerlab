@@ -17,4 +17,15 @@ Papers cited from memory. Same frame, costs and screen as research 178.
 
 ## Results
 
-(Added after the run.)
+Screen 2026-11-08 (`make more-signals`).
+
+| Card | Count | Net | Net Sharpe | Halves | At 2x costs | Verdict |
+|---|---|---|---|---|---|---|
+| H-0194 | 4,828 trades | +121.56 bps | 7.81 | 9.17 / 6.50 | 7.08 | PROMOTE (ledger #140, #141), but see research 180 |
+| H-0195 | 527 trades | -11.86 bps | -0.52 | -0.64 / -0.42 | -1.03 | screen fail |
+| H-0196 | 1,567 positions | +98.07 bps | 1.05 | 0.62 / 1.45 | 0.77 | screen pass; same bet as H-0162 (0.58), not gated |
+| H-0197 | 331 trades | -88.80 bps | -0.73 | -1.01 / -0.21 | -0.82 | screen fail |
+
+H-0194's Sharpe of 7.8 led to research 180: ETFs' stale opening prints and the
+auction fill inflate it about twofold. Promoter sales carry no next-day edge,
+and buying thin new lows loses.

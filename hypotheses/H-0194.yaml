@@ -32,4 +32,8 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 4828 trades, {''gross_mean'': 133.82, ''net_mean'': 121.56} bps; net Sharpe
+  7.806, halves 9.165 / 6.498, at 2x costs 7.079 (research 179). Gate (validate #140, gate #141): PROMOTE,
+  9 of 9, even Romano-Wolf passes; but its five best names were ETFs with stale opening prints. Without
+  ETFs: +97.7 bps net, Sharpe 6.05. On F&O stocks with minute data, 87.4 bps gross from the official open
+  but 41.2 from 09:20 (research 180). Treat as overstated about 2x; the live-price shadow is the test.'

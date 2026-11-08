@@ -39,4 +39,6 @@ result: 'Screen 2026-11-07: 9,867 trades 2016-01 to 2024-11 on the 500 most trad
   year 2016-2024 positive (research 173). Gate 2026-11-07 (validate #118, gate #119): PROMOTE, 9 of 9
   (PSR 1.000, 9 of 9 years positive). Strict-mode figures: deflated Sharpe 0.999, dropping the best five
   names keeps 95%, 2x costs keeps 64%, worst half 88%; fails only Romano-Wolf over Nifty (0.92 vs critical
-  1.07). Not checked: whether each stock could be shorted intraday on the day (ASM/T2T lists, A-120).'
+  1.07). Not checked: whether each stock could be shorted intraday on the day (ASM/T2T lists, A-120).
+  Open-print check 2026-11-08 (research 180): 29.0 bps gross from the official open, 28.8 from 09:20 to
+  15:10 on F&O stocks: does not depend on the auction prints.'

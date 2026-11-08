@@ -1,6 +1,6 @@
 id: H-0195
 title: Short at the open the session after a promoter sale is disclosed, cover at the close
-status: draft
+status: rejected
 family: stock_intraday_daily_all_nse
 source_kind: paper
 parent: ''
@@ -32,4 +32,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Screen 2026-11-08: 527 trades, {''gross_mean'': 0.41, ''net_mean'': -11.86} bps; net Sharpe -0.517,
+  halves -0.644 / -0.42, at 2x costs -1.034 (research 179). Fails research 170''s screen; not gated.'

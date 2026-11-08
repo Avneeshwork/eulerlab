@@ -39,4 +39,6 @@ result: 'Screen 2026-11-07 (corrected code, HISTORY #84): 1,077 trades 2021-07 t
   gate #125): PROMOTE, 9 of 9 (PSR 1.000). Strict-mode figures: deflated Sharpe 0.844, Romano-Wolf fails
   (0.20 vs 1.82); best five names removed keeps 78%. Superseded: the first screen and gate (validate #122,
   gate #123: PROMOTE on 176 trades, +90.21 bps net) ran code that skipped every results disclosure made
-  after the close.'
+  after the close. Open-print check 2026-11-08 (research 180): on F&O stocks with minute data the edge
+  is 45.9 bps gross from the official open but 1.2 from 09:20 to 15:10: it lives in the opening auction
+  and is untested as a pre-open trade. Unproven.'
