@@ -33,8 +33,12 @@ red_flags:
 - 'Screening backtest only: no trial spent, not judged by the gate.'
 holdout:
   starts: '2024-12-01'
-  status: unread
+  status: read
+  read_on: '2026-11-07'
+  read_by: 'operator (Avneesh Kumar): ''run on 2024- 2026'''
 result: 'Screen 2026-11-07, 2016-01 to 2024-11, the 100 most traded NSE stocks each day, 22,000 trades:
   16.40 bps gross (long leg -0.98, short leg +33.77). At Rs 5 lakh (5x MIS): +7.93 net a trade, net Sharpe
   1.20, halves 0.94 / 1.52, 2x costs -0.08; 2016 and 2017 lost. At Rs 1 lakh (1x): +4.13 net, Sharpe 0.63,
-  2x costs -1.23 (research 175). Fails research 170''s screen (negative at 2x costs); not gated.'
+  2x costs -1.23 (research 175). Fails research 170''s screen (negative at 2x costs); not gated. Holdout
+  2024-12-02 to 2026-10-16 (read 2026-11-07, operator): 4640 trades, 10.57 bps gross; 5x: +2.11 net, Sharpe
+  0.34, -1.03 at 2x costs; 1x: -1.71 net, Sharpe -0.29. The effect is fading.'

@@ -1,28 +1,38 @@
 id: H-0096
-title: 'Short a stock on its first F&O ban day, 09:20 to 15:10'
+title: Short a stock on its first F&O ban day, 09:20 to 15:10
 status: draft
 family: intraday_nse_reports
 source_kind: paper
 parent: ''
-claim: 'Shorting F&O stocks on the first trade date they enter the F&O ban list, 09:20 to 15:10, earns more than costs in both halves of 2021-08 to 2024-11.'
-rationale: 'Broker explainers call the ban bearish because no new longs can be opened. Research 164.'
+claim: Shorting F&O stocks on the first trade date they enter the F&O ban list, 09:20 to 15:10, earns
+  more than costs in both halves of 2021-08 to 2024-11.
+rationale: Broker explainers call the ban bearish because no new longs can be opened. Research 164.
 source:
   research: '164'
   written_by: Claude, for the operator's request for more strategies on backfilled NSE reports
   day: '2026-11-06'
 configurations:
 - shape: intraday_cash
-  rule: 'in the fo_secban list for trade date t, not for t-1; short t 09:20-15:10; at most ten'
-  data: 'data/landing/nse_reports (bulk_deals, sast, fo_ban, slbm), backfilled from 2021-07-01'
-  costs: 'cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x'
-  window: '2021-08-20 to 2024-11-29'
+  rule: in the fo_secban list for trade date t, not for t-1; short t 09:20-15:10; at most ten
+  data: data/landing/nse_reports (bulk_deals, sast, fo_ban, slbm), backfilled from 2021-07-01
+  costs: cash intraday plus 2 bps a side; Rs 1 lakh a position, 1x
+  window: 2021-08-20 to 2024-11-29
 red_flags:
-- 'No academic support.'
-- 'Bans follow heavy open interest in either direction.'
+- No academic support.
+- Bans follow heavy open interest in either direction.
 - 'Screening backtest only: no trial spent, not judged by the gate.'
 holdout:
   starts: '2024-12-01'
   status: read
   read_on: '2026-11-06'
   read_by: 'operator (Avneesh Kumar): backtest 2016-2026, ADR-143'
-result: 'Screen 2026-11-06: 567 trades, 45.46 bps gross and +33.22 net a trade, t 4.22, net Sharpe 1.49, every year positive (research 164). Gate 2026-11-06 (validate ledger #64, gate #65): KILL, 3 of 12 rules failed: deflated Sharpe 0.784 < 0.95; Romano-Wolf over Nifty -0.51 vs critical 1.73; dropping the best 5 names keeps 44% of Sharpe < 60%. Holdout not read. Re-gated 2026-11-06 under the simple mandate (ADR-140; validate #66, gate #67): PROMOTE, 9 of 9 (PSR 0.996, 4 of 4 years positive, Sharpe 0.95 at 2x costs). Holdout kept unread on the operator''s choice; out-of-sample evidence from forward paper trading.'
+result: 'Screen 2026-11-06: 567 trades, 45.46 bps gross and +33.22 net a trade, t 4.22, net Sharpe 1.49,
+  every year positive (research 164). Gate 2026-11-06 (validate ledger #64, gate #65): KILL, 3 of 12 rules
+  failed: deflated Sharpe 0.784 < 0.95; Romano-Wolf over Nifty -0.51 vs critical 1.73; dropping the best
+  5 names keeps 44% of Sharpe < 60%. Holdout not read. Re-gated 2026-11-06 under the simple mandate (ADR-140;
+  validate #66, gate #67): PROMOTE, 9 of 9 (PSR 0.996, 4 of 4 years positive, Sharpe 0.95 at 2x costs).
+  Holdout kept unread on the operator''s choice; out-of-sample evidence from forward paper trading. Daily-bar
+  run stored 2026-11-07 (operator: ''backtest this on daily data and store result''): official open to
+  official close on each first ban day, 2016-01 to 2026-10-16 (holdout read recorded 2026-11-06), 1,694
+  trades in 139 stocks: Sharpe 1.72, +109% on Rs 10 lakh, drawdown -10.1%, 9 of 11 years positive; 2025
+  +0.4% and 2026 to October -0.7%: the edge has faded in the last two years.'

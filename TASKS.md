@@ -23,6 +23,7 @@ Operator: agents that learn, verify against data, fix their own failures and sto
 | T-4531 | Paper books read nothing before the holdout end (2026-10-17), so H-0161's and H-0175's 20-session ratios are ready only around 14 Nov; decide whether a book may read pre-holdout days as history (not as evidence) | TODO. Operator decision |
 | T-4532 | Show the lessons, guardian trips, feedback log and readiness on the AI and Live tabs | TODO |
 | T-4533 | Research note with sources: Kite order rate limits, SEBI's retail algo rules for API orders, and Zerodha's MIS-allowed list (H-0175 shorts small caps) | TODO, before any pilot |
+| T-4534 | Surveillance list dated before the open now counts in every paper book and the live-price plan (HISTORY #86); H-0187's long side added to live-price paper (A-126) | DONE 2026-11-08 |
 
 ## The research autopilot (2026-11-07, ADR-150)
 
@@ -251,6 +252,8 @@ Verify: `uv run pytest -q tests/test_research_166.py`; `make index-futures`, `ma
 | T-4506 | Backtest H-0132 (tug of war) over ten years (operator) | DONE 2026-11-07 — daily-bar version H-0163, 2016-2024, 100 most traded NSE stocks: 16.4 bps gross, +7.9 net at 5x (Sharpe 1.20), +4.1 at 1x (0.63); negative at 2x costs, 2016-2017 lost; not gated (research 175). Through 2026 needs the operator's holdout read |
 | T-4507 | Ten more rules on every liquid NSE stock, daily bars (operator: "start researching of more strategies") | DONE 2026-11-07 — H-0168 (fade a 3% results-morning gap, open to close) PROMOTE (ledger #124, #125 after HISTORY #84's fix; #122-#123 superseded), +48 bps net a trade, 1,077 trades; nine fail or have no events (research 176) |
 | T-4509 | Ten rules on signals the rule engine lacks (operator: "keep building strategies and process to deploy") | DONE 2026-11-08 — H-0187 (follow a 5% results reaction the next day) and H-0185 (buy after a lower-limit close) PROMOTE, H-0186 and H-0191 PAPER (ledger #132-#139); H-0189, H-0192 same bet as H-0162; four fail (research 178). H-0187 has a paper book (`daily_books.h0187`) |
+| T-4510 | H-0096 on daily bars, stored in the library (operator) | DONE 2026-11-07 — 2016-2026, Sharpe 1.72, +109%, drawdown -10.1%, 9 of 11 years positive; 2025-26 flat |
+| T-4511 | H-0163 and H-0121 on the holdout, 2024-12 to 2026-10 (operator: "run on 2024- 2026"; reads recorded 2026-11-07) | PARTIAL — H-0163: gross 10.6 bps, +2.1 net at 5x, -1.7 at 1x (research 175); H-0121 running (downloads two years of F&O minute bars) |
 | T-4495 | Start the MIS paper deployments (₹10 lakh of margin each is the backtest) and watch them for 60 sessions | OPEN (operator) |
 | T-4490 | Measure slippage on a ₹5 lakh MIS order in the 100 most traded stocks (depth snapshots or the first paper fills): at 4 bps a side H-0118 keeps about +4.8 bps net a trade and H-0115 about +0.8 | OPEN |
 | T-4491 | H-0103 is an option strategy; the operator's rule since 2026-11-07 is stocks only. Keep it as a record or mark it out of scope | OPEN (operator) |

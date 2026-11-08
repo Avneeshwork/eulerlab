@@ -39,3 +39,16 @@ Screen 2026-11-07 (`make daily-universe ARGS=--tug-of-war`, writes
 4. Returns on ₹10 lakh of margin at 5x compound to large yearly figures
    (2018: +557%) that are not realistic at size; they are in the JSON for
    completeness.
+
+## Holdout, 2024-12 to 2026-10 (read on the operator's instruction, 2026-11-07)
+
+Recorded in `holdout_reads.jsonl` before the run. Same rule, the 100 most
+traded stocks each day:
+
+| Size | Trades | Gross | Net a trade | Net Sharpe | At 2x costs |
+|---|---|---|---|---|---|
+| ₹5 lakh (5x MIS) | 4640 | 10.57 bps | +2.11 | 0.34 | -1.03 |
+| ₹1 lakh (1x) | 4640 | 10.57 bps | -1.71 | -0.29 | -2.27 |
+
+The gross edge fell from 16.4 to 10.6 bps; at 1x it loses. The tug of war is
+not a strategy to trade.
