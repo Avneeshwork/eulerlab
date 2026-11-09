@@ -73,6 +73,7 @@ from eulerlab.api import (
     fii_dii_routes,
     fyers_routes,
     kite_routes,
+    live_money_routes,
     research_routes,
     risk_routes,
     screener_routes,
@@ -142,6 +143,11 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
         threading.Thread(
             target=telegram_bot.listen, args=(stop,), daemon=True, name="telegram-bot"
         ).start()
+    # The real-money book's clock (ADR-161): ticks every 20 s and does nothing
+    # unless the operator armed a deploy from the Live tab.
+    from eulerlab.deploy import live_money
+
+    live_money.CLOCK.start()
     # Read the price panel now, in the background, not on the first request.
     # The read takes about 19 seconds; left to the first request, the first
     # screen opened after a restart waited for all of it (29 s measured
@@ -182,6 +188,7 @@ app = FastAPI(title="EulerLab", version="0.1.0", lifespan=_lifespan)
 app.include_router(builder_routes.router)
 app.include_router(research_routes.router)
 app.include_router(deploy_routes.router)
+app.include_router(live_money_routes.router)
 app.include_router(assistant_routes.router)
 app.include_router(company_routes.router)
 app.include_router(screener_routes.router)

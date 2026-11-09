@@ -53,4 +53,7 @@ holdout:
   starts: '2024-12-01'
   status: unread
 result: 'Autopilot screen 2026-11-08: 8614 trades 2016-01-01 to 2024-11-30; net 141.47 bps each; net Sharpe
-  7.149, halves 7.247 / 7.349, 6.611 at 2x costs. Gate: PROMOTE.'
+  7.149, halves 7.247 / 7.349, 6.611 at 2x costs. Gate: PROMOTE. Open-print check 2026-11-09 (research
+  184): without ETFs 128.7 bps net; on 1,154 F&O-name trades 85.0 bps gross from the official open but
+  19.2 from 09:20 (longs 8.2, shorts 27.0). Its edge is the opening auction, and it is the same bet as
+  H-0194. Not traded with money (ADR-162).'

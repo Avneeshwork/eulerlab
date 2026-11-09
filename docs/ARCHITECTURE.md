@@ -3423,6 +3423,32 @@ reads funds, orders, positions, a quote and the MIS list and sends nothing.
 `CONFIRM=SEND`, with the kill switch tripped, at weekends and outside 09:20–15:00
 IST, and writes the proof only when both legs complete.
 
+### Real money from the workbench (ADR-162)
+
+`deploy/live_money.py` runs one card, H-0194, with real orders through Angel
+One. The operator enters an amount, a leverage (1x to 5x) and a daily loss cap
+on Live & Risk → Deployment and types DEPLOY. That arms **one session**; the
+deploy ends after it.
+
+Sizing: exposure = amount x leverage; names = min(10, exposure / ₹5,000),
+equal rupees a name. A small amount trades fewer names, never a bigger one.
+
+The API server's clock (`live_money.CLOCK`, every 20 s) does the day:
+
+| When | Step | Fails closed when |
+|---|---|---|
+| evening, or before 09:20 | watchlist: the liquid 500 of the last session, less ETFs, ASM/GSM, trade-for-trade, under ₹100, or too dear for one share | data or ASM/GSM list missing |
+| 09:20-09:35 | Angel quotes; gap = open / previous close - 1; keep \|gap\| >= 3%, no non-administrative NSE filing since 15:30, spread <= 50 bps; largest gap first; MIS market order against the gap | NSE filings or quotes do not answer; kill switch tripped |
+| every minute | P&L = fill price vs last price, less estimated costs (S-059); at the loss cap trip the kill switch and close all | — |
+| 15:10 | close every position this book holds at the broker; the deploy ends | — |
+
+Entries check the kill switch; exits do not, because closing is what a tripped
+switch wants. The broker's position book decides what is open. Client order
+ids are `hash(H-0194-live, session, symbol, seq)`; an exit retried takes the
+next `seq` for only what is still held. Clearing the switch is not on the
+screen: it needs `KILLSWITCH_TOKEN`. Files: `data/live_money/deploy.json` and
+`data/live_money/<session>/{plan,open,watch,close,dry_run}.json`, `log.jsonl`.
+
 ### The agents' memory in B2 (ADR-128)
 
 `make agents-backup` (`ingest/memory_backup.py`, last step of `make agents-ideas`)

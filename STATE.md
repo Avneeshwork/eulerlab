@@ -69,6 +69,11 @@ what is open is in `TASKS.md`.*
   -44% to -63%), H-0098 1.72 (drawdown -10%), the other momentum cards
   0.57-1.12 with drawdowns of 35-60%. H-0065 and H-0096 skipped. No unseen data is left;
   paper trading is the only out-of-sample test. **No capital traded.**
+- **Real money, armed from the workbench (ADR-162, 2026-11-09).** H-0194 (fade a
+  3% no-news gap, 09:20 to 15:10, MIS) on Angel One: Live & Risk → Deployment,
+  amount + leverage + loss cap, type DEPLOY, one session per deploy. Operator's
+  size: ₹1,000 at 5x, one name, ₹150 loss cap: a plumbing test. H-0202 is not
+  traded: its edge is the opening auction (research 184).
 - **Strategies.** About 140 registered; 68 India daily strategies have stored
   reports and are about 3 independent bets (`make strategy-map`, HISTORY #44).
   Each declares its sizing: equal by default, its own weights when it says

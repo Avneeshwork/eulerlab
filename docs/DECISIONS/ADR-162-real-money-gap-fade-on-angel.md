@@ -1,0 +1,11 @@
+# ADR-162 — First real money: H-0194 on Angel One, armed from the workbench
+
+**Context.** Operator, 2026-11-09: trade H-0202 and H-0194 with real money on Angel One, "I need to put amount... only I need to deploy", then "I will put total of 1k and you have to take leverage" and "show everything on ui, I should control everything via ui". ADR-153's readiness list (60 paper sessions, live-price shadow) has not been met; the operator chose to go ahead at a size meant as a live test of the order path.
+
+**Options.** Wait for the readiness list; trade both cards; or trade H-0194 alone at the operator's size, every step on the workbench, each deploy armed for one session.
+
+**Choice.** `deploy/live_money.py` and the Live & Risk → Deployment panel (`web/components/terminal/LiveMoney.tsx`, `/api/live-money`). H-0194 only: H-0202 keeps 19 bps gross from 09:20 (8 bps on its longs, below cost) and is the same bet (research 184). Enter at 09:20 on Angel quotes, not the official open (research 180). Size = amount x leverage (max 5x); at least ₹5,000 a name, so a small amount trades fewer names, never a bigger one. Deploy needs the word DEPLOY and arms one session. A server thread ticks every 20 s: watchlist (liquid 500 less ETFs, ASM/GSM, trade-for-trade), 09:20 MIS market orders against the gap with NSE filings checked live (fail closed), a mark every minute, at the loss cap close all and trip the kill switch, 15:10 close all. Exits bypass the kill-switch check; entries never do. Clearing the switch stays off the screen (separate token).
+
+**Why.** The operator wants to learn what real fills cost with money small enough that a bad day is ₹150. One screen and one word per day keep every real order an explicit act.
+
+**Cost if wrong.** At ₹5,000 a name brokerage is about 20 bps a round trip, so expected profit is near zero; this is a plumbing test. Leverage at 5x is the operator's explicit exception to the 1x rule of 2026-11-07. The API server and the Mac must be awake from 09:15 to 15:15; if the server is down at 09:20 nothing is entered, but if it dies mid-day positions rely on the loss-cap watch resuming or Angel's own square-off (~15:20). SEBI's retail-algo rules (static IP, order-rate limits) were not re-checked for Angel API orders (A-133 recheck); a refusal shows as a rejected order on the panel.

@@ -3,6 +3,17 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
+
+Operator: trade H-0202 and H-0194 with real money on Angel One, enter an amount and deploy, everything on the workbench; ₹1,000 total, with leverage.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4544 | Real-money book: sizing, watchlist, 09:20 entry, loss cap, 15:10 exit, kill button, workbench panel | DONE 2026-11-09 — `deploy/live_money.py`, Live & Risk → Deployment; `uv run pytest tests/test_live_money.py`; dry run on 9 Nov quotes sent nothing |
+| T-4545 | Read the first live day's Angel contract note and compare it with the panel's estimated P&L (S-059, A-131) | TODO, after the first live session |
+| T-4546 | First real order through Angel's API: confirm it is accepted without a static IP (A-133) | TODO, operator funds the account and deploys |
+| T-4547 | H-0202 not traded: its edge is the opening auction (19 bps gross from 09:20, longs 8 bps) and it repeats H-0194 | DONE 2026-11-09 — research 184 |
+
 ## The screener, likely movers and stock ideas in the brief (2026-11-08, research 182, ADR-156)
 
 Operator: a brief with daily picks and likely big movers, long-term and swing screeners for retail use, more than 20% a year, chosen top down (sectors, industries, stocks).

@@ -16,6 +16,7 @@
 
 import { Info } from '@/components/terminal/ui';
 import { useEffect, useState } from 'react';
+import { LiveMoney } from '@/components/terminal/LiveMoney';
 import { PaperDeployments } from '@/components/terminal/PaperDeployments';
 import { api } from '@/lib/api';
 import type { FleetStrategy, Preflight } from '@/lib/api';
@@ -61,6 +62,7 @@ export function LiveTab({
 
   return (
     <>
+      <LiveMoney />
       <PaperDeployments fleet={fleet} onReport={onReport} />
       <section className="thero">
         <div>
