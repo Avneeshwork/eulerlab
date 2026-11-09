@@ -88,7 +88,7 @@ def test_quotes_map_to_the_kite_shape_and_batch(tmp_path: Path, monkeypatch: Any
     monkeypatch.setattr(angel, "QUOTE_BATCH", 2)
     monkeypatch.setattr(time, "sleep", lambda _: None)
     client = FakeClient()
-    found = angel.quotes(["SBIN", "INFY", "TCS"], client)
+    found = angel.quotes(["SBIN", "INFY", "TCS"], client, master=None)
     assert set(found) == {"SBIN", "INFY", "TCS"}
     assert [len(x) for x in client.market_calls] == [2, 1]
     row = found["SBIN"]
@@ -99,10 +99,44 @@ def test_quotes_map_to_the_kite_shape_and_batch(tmp_path: Path, monkeypatch: Any
 def test_tokens_are_cached_and_pick_the_eq_line(tmp_path: Path) -> None:
     path = tmp_path / "tokens.json"
     client = FakeClient()
-    first = angel.tokens_for(client, ["SBIN"], pause=0, path=path)
-    again = angel.tokens_for(client, ["SBIN"], pause=0, path=path)
+    first = angel.tokens_for(client, ["SBIN"], pause=0, path=path, master=None)
+    again = angel.tokens_for(client, ["SBIN"], pause=0, path=path, master=None)
     assert first == again == {"SBIN": str(1000 + sum(map(ord, "SBIN")))}
     assert client.searched == ["SBIN"]
+
+
+MASTER = [
+    {"token": "3045", "symbol": "SBIN-EQ", "exch_seg": "NSE"},
+    {"token": "9", "symbol": "SBIN-BE", "exch_seg": "NSE"},
+    {"token": "77", "symbol": "ODDCO-BE", "exch_seg": "NSE"},
+    {"token": "500112", "symbol": "SBIN", "exch_seg": "BSE"},
+    {"token": "99926000", "symbol": "Nifty 50", "exch_seg": "NSE"},
+]
+
+
+def test_master_tokens_take_the_eq_line_and_fall_back_to_be() -> None:
+    assert angel.master_tokens(MASTER) == {"SBIN": "3045", "ODDCO": "77"}
+
+
+def test_the_master_resolves_a_universe_without_searching(tmp_path: Path) -> None:
+    """searchScrip is rate-limited after a handful of calls (2026-11-09), so a
+    two-thousand-name universe must come from the master, read once a day."""
+    path = tmp_path / "tokens.json"
+    client = FakeClient()
+    reads: list[int] = []
+
+    def master() -> list[dict[str, Any]]:
+        reads.append(1)
+        return MASTER
+
+    names = ["SBIN", "ODDCO", *[f"GONE{i}" for i in range(9)]]
+    found = angel.tokens_for(client, names, pause=0, path=path, master=master)
+    assert found["SBIN"] == "3045" and found["ODDCO"] == "77"
+    assert client.searched == [
+        f"GONE{i}" for i in range(angel.SEARCH_LIMIT)
+    ]  # the rest are not searched
+    angel.tokens_for(client, ["GONE8"], pause=0, path=path, master=master)
+    assert reads == [1]  # fresh for a day: not downloaded again
 
 
 def test_an_unrecognised_quote_reply_is_refused() -> None:

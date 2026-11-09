@@ -128,7 +128,7 @@ help:
 # Everything this machine runs: the news tone model (ADR-135) and scikit-learn for
 # the screener's tree ranker (ADR-136), which holds nothing without it.
 install:
-	uv sync --extra dev --extra web --extra news --extra research-ml
+	uv sync --extra dev --extra web --extra news --extra research-ml --extra angel
 	cd web && npm install
 	uv run pre-commit install
 
@@ -453,7 +453,7 @@ build-factors:
 # data/ included (64,323 files), four times a second for changed .py files:
 # a whole CPU core, all day (measured 2026-10-27). src/ is 618 files.
 api:
-	uv run --extra web uvicorn eulerlab.api.server:app --host 127.0.0.1 --port 8000 --reload --reload-dir src
+	uv run --extra web --extra angel uvicorn eulerlab.api.server:app --host 127.0.0.1 --port 8000 --reload --reload-dir src
 
 ui:
 	-@uv run python tools/render_metrics_handbook.py
@@ -579,26 +579,26 @@ chaos:
 
 # --- Live-price paper, readiness, lessons, guardian, feedback (ADR-152, ADR-153) ---
 live-shadow-plan:
-	@uv run python -m eulerlab.deploy.live_shadow plan
+	@uv run --extra angel python -m eulerlab.deploy.live_shadow plan
 
 live-shadow-open:
-	@uv run python -m eulerlab.deploy.live_shadow open
+	@uv run --extra angel python -m eulerlab.deploy.live_shadow open
 
 live-shadow-close:
-	@uv run python -m eulerlab.deploy.live_shadow close
+	@uv run --extra angel python -m eulerlab.deploy.live_shadow close
 
 live-shadow-evening:
-	-@uv run python -m eulerlab.deploy.live_shadow reconcile
-	@uv run python -m eulerlab.deploy.live_shadow plan
+	-@uv run --extra angel python -m eulerlab.deploy.live_shadow reconcile
+	@uv run --extra angel python -m eulerlab.deploy.live_shadow plan
 
 live-shadow-summary:
-	@uv run python -m eulerlab.deploy.live_shadow summary
+	@uv run --extra angel python -m eulerlab.deploy.live_shadow summary
 
 angel-readonly:
-	@uv run python -m eulerlab.broker.angel_check readonly $(if $(SYMBOL),--symbol $(SYMBOL),)
+	@uv run --extra angel python -m eulerlab.broker.angel_check readonly $(if $(SYMBOL),--symbol $(SYMBOL),)
 
 angel-proof:
-	@uv run python -m eulerlab.broker.angel_check proof --symbol "$(SYMBOL)" --confirm "$(CONFIRM)"
+	@uv run --extra angel python -m eulerlab.broker.angel_check proof --symbol "$(SYMBOL)" --confirm "$(CONFIRM)"
 
 readiness:
 	@uv run python -m eulerlab.deploy.readiness $(if $(STRATEGY),--strategy $(STRATEGY),)

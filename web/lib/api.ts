@@ -1188,6 +1188,8 @@ export type Snapshot = {
     quoted: number;
     of: number;
     taken_at: string;
+    /** Which broker priced the live figures: `zerodha` or `angel`. */
+    source?: string;
     /** Not live, but newer than the panel: the last prices this machine saw. */
     last_seen?: boolean;
     panel_date: string;
@@ -1227,7 +1229,7 @@ export type Snapshot = {
   quotes: {
     available: boolean;
     reason?: string;
-    /** Which source priced most of them — `zerodha` or `yahoo`. */
+    /** Which source priced most of them — `zerodha`, `angel` or `yahoo`. */
     source?: string;
     sources?: Record<string, number>;
     errors?: Record<string, string>;

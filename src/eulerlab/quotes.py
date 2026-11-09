@@ -49,6 +49,7 @@ source and its timestamp, and the band says which it is showing.
 from __future__ import annotations
 
 import json
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -56,6 +57,7 @@ import urllib.request
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=2d"
 USER_AGENT = (
@@ -150,6 +152,9 @@ def from_zerodha(symbols: list[str]) -> tuple[dict[str, Quote], str]:
     session = kite_session.load()
     if session is None:
         return {}, "no Kite session — run `make kite-login` to mint a token"
+    if not kite_session.is_fresh(session):
+        # Asking with a dead token costs a round trip to be told so.
+        return {}, "Kite token expired at 06:00 IST — run `make kite-login` to mint a new one"
 
     api_key = _env("ZERODHA_API_KEY")
     if not api_key:
@@ -183,6 +188,66 @@ def from_zerodha(symbols: list[str]) -> tuple[dict[str, Quote], str]:
                 source="zerodha",
                 at=stamp,
             )
+    return out, ""
+
+
+ANGEL_SESSION_TTL = 4 * 3600.0
+"""Seconds an Angel One login is reused. Its JWT lasts the trading day; a login
+costs a TOTP round trip, and logging in on every dashboard refresh would hit
+the login rate limit. A failed call drops the session so the next one logs in."""
+
+_angel_session: list[Any] = [None, 0.0]
+_angel_lock = threading.Lock()
+
+
+def _angel_client() -> Any:
+    from eulerlab.broker import angel_check
+
+    with _angel_lock:
+        client, at = _angel_session
+        if client is None or time.monotonic() - at > ANGEL_SESSION_TTL:
+            client, _ = angel_check.login()
+            _angel_session[:] = [client, time.monotonic()]
+        return client
+
+
+def from_angel(symbols: list[str]) -> tuple[dict[str, Quote], str]:
+    """Live quotes from Angel One SmartAPI. Returns (quotes, error).
+
+    The fallback when Kite has no token for the day: Angel logs itself in with
+    the PIN and TOTP seed in `.env` (ADR-154), so it needs no one at a login
+    page. OHLC mode, 50 symbols a call; tokens from Angel's scrip master.
+    """
+    if not symbols:
+        return {}, ""
+    if not _env("ANGEL_API_KEY"):
+        return {}, "ANGEL_API_KEY is not set"
+    try:
+        from eulerlab.broker import angel_check
+
+        rows = angel_check.quotes(symbols, _angel_client(), mode="OHLC")
+    except Exception as exc:
+        # Broad and surfaced, as for Kite: a missing SDK, a refused login and a
+        # rate limit are all things the operator has to see, not an empty band.
+        with _angel_lock:
+            _angel_session[:] = [None, 0.0]
+        return {}, f"{type(exc).__name__}: {str(exc)[:160]}"
+
+    stamp = datetime.now(UTC).isoformat()
+    out: dict[str, Quote] = {}
+    for symbol, row in rows.items():
+        last = row.get("last_price")
+        close = (row.get("ohlc") or {}).get("close")
+        if not isinstance(last, (int, float)) or not last:
+            continue
+        out[symbol] = Quote(
+            symbol=symbol,
+            last=float(last),
+            # Angel's `close` in a quote is the previous session's close.
+            previous_close=float(close) if isinstance(close, (int, float)) else 0.0,
+            source="angel",
+            at=stamp,
+        )
     return out, ""
 
 
@@ -263,6 +328,15 @@ def live(symbols: list[str]) -> QuoteResult:
 
     missing = [s for s in wanted if s not in result.quotes]
     if missing:
+        angel, angel_error = from_angel(missing)
+        result.quotes.update(angel)
+        if angel:
+            result.sources["angel"] = len(angel)
+        if angel_error:
+            result.errors["angel"] = angel_error
+
+    missing = [s for s in wanted if s not in result.quotes]
+    if missing:
         secondary, yahoo_error = from_yahoo(missing)
         result.quotes.update(secondary)
         if secondary:
@@ -273,7 +347,27 @@ def live(symbols: list[str]) -> QuoteResult:
 
 
 def nse_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
-    """Live quotes for a whole NSE universe. Returns (quotes, error).
+    """Live quotes for a whole NSE universe: Kite, then Angel One. (quotes, error).
+
+    Kite's token dies at 06:00 and needs a person to mint it; when it has no
+    fresh token, or answers nothing, Angel One is asked instead. The error is
+    empty when either answered, and names both when neither did.
+    """
+    if not symbols:
+        return {}, ""
+    kite, kite_error = _kite_universe(symbols)
+    if kite and not kite_error:
+        return kite, ""
+    angel, angel_error = from_angel(symbols)
+    if angel and not angel_error:
+        return angel, ""
+    if kite:
+        return kite, kite_error
+    return angel, f"Kite: {kite_error or 'no quotes'}; Angel: {angel_error or 'no quotes'}"
+
+
+def _kite_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
+    """Live quotes for a whole NSE universe from Kite. Returns (quotes, error).
 
     Asked through Kite's OHLC endpoint, 500 instruments a call, because the
     map needs two numbers per stock: the last price and the previous close.
@@ -300,6 +394,9 @@ def nse_universe(symbols: list[str]) -> tuple[dict[str, Quote], str]:
     session = kite_session.load()
     if session is None:
         return {}, "no Kite session — run `make kite-login` to mint a token"
+    if not kite_session.is_fresh(session):
+        # Asking with a dead token costs a round trip to be told so.
+        return {}, "Kite token expired at 06:00 IST — run `make kite-login` to mint a new one"
     api_key = _env("ZERODHA_API_KEY")
     if not api_key:
         return {}, "ZERODHA_API_KEY is not set"

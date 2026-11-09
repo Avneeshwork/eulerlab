@@ -3740,6 +3740,11 @@ request a second (research 074), so the five calls cannot be made in parallel;
 reopening the dashboard inside this window asks nobody. Each quote keeps the
 time it was taken, so the screen's "live at" stays true."""
 
+ANGEL_UNIVERSE_TTL = 60.0
+"""The same reuse when Angel One answered instead of Kite. Angel takes 50
+symbols a call, so the map is about 48 calls and 12 s (measured 2026-11-09);
+reusing it for a minute keeps a busy morning inside Angel's hourly limit."""
+
 _LIVE_UNIVERSE: dict[tuple[str, ...], tuple[float, dict[str, Any]]] = {}
 
 
@@ -3759,13 +3764,16 @@ def _bounded[T](work: Callable[..., T], *args: Any, timeout: float) -> T:
 
 
 def _universe_quotes(symbols: list[str]) -> tuple[dict[str, Any], str]:
-    """Live quotes for the map: a complete answer from the last 15 s, or Kite's."""
+    """Live quotes for the map: a recent complete answer, or Kite's, or Angel One's."""
     from eulerlab import quotes as quote_feed
 
     key = tuple(symbols)
     held = _LIVE_UNIVERSE.get(key)
-    if held is not None and time.monotonic() - held[0] < LIVE_UNIVERSE_TTL:
-        return held[1], ""
+    if held is not None:
+        angel = any(getattr(q, "source", "") == "angel" for q in held[1].values())
+        ttl = ANGEL_UNIVERSE_TTL if angel else LIVE_UNIVERSE_TTL
+        if time.monotonic() - held[0] < ttl:
+            return held[1], ""
     fetched, error = _bounded(quote_feed.nse_universe, symbols, timeout=LIVE_MAP_DEADLINE)
     if fetched and not error:
         _LIVE_UNIVERSE.clear()
@@ -4429,6 +4437,8 @@ def snapshot(workspace: str = "", live: bool = True) -> dict[str, Any]:
             "quoted": len(live_returns) or len(seen_returns),
             "of": len(returns),
             "taken_at": live_at or seen_at,
+            # Which broker priced the live figures: `zerodha` or `angel`.
+            "source": (next((q.source for q in fetched.values()), "") if live_returns else ""),
             # Not live, but newer than the panel: the last prices seen here.
             "last_seen": bool(seen_returns),
             "panel_date": today.isoformat(),

@@ -89,17 +89,86 @@ def login() -> tuple[Any, str]:
 # --- symbols to tokens --------------------------------------------------------------------
 
 
-def _load_tokens(path: Path = TOKENS_FILE) -> dict[str, str]:
+def _read(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     raw = json.loads(path.read_text(encoding="utf-8"))
-    return {str(k): str(v) for k, v in (raw.get("tokens") or {}).items()}
+    return raw if isinstance(raw, dict) else {}
 
 
-def _save_tokens(tokens: Mapping[str, str], path: Path = TOKENS_FILE) -> None:
+def _load_tokens(path: Path = TOKENS_FILE) -> dict[str, str]:
+    return {str(k): str(v) for k, v in (_read(path).get("tokens") or {}).items()}
+
+
+def _save_tokens(
+    tokens: Mapping[str, str], path: Path = TOKENS_FILE, *, master_at: str | None = None
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    body = {"tokens": dict(sorted(tokens.items())), "at": datetime.now(UTC).isoformat()}
+    body: dict[str, Any] = {
+        "tokens": dict(sorted(tokens.items())),
+        "at": datetime.now(UTC).isoformat(),
+    }
+    kept = master_at if master_at is not None else _read(path).get("master_at")
+    if kept:
+        body["master_at"] = kept
     path.write_text(json.dumps(body, indent=1), encoding="utf-8")
+
+
+SCRIP_MASTER = (
+    "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
+)
+"""Angel One's public instrument list (no login), about 38 MB and 162,000 rows,
+fetched 2026-11-09. NSE cash lines are `exch_seg == "NSE"` with a `-EQ` (or `-BE`)
+suffix on `symbol`; 2,776 `-EQ` lines on that day."""
+
+MASTER_MAX_AGE = timedelta(hours=20)
+"""Re-read the scrip master once a day: listings and renames change daily."""
+
+SEARCH_LIMIT = 5
+"""Symbols still searched one by one after the master. `searchScrip` answered
+"exceeding access rate" after a handful of calls on 2026-11-09, so a universe of
+two thousand names cannot be resolved that way."""
+
+
+def download_master(timeout: float = 90.0) -> list[dict[str, Any]]:
+    """The scrip master rows. Read-only, public, not stored raw (it is a lookup)."""
+    import urllib.request
+
+    request = urllib.request.Request(SCRIP_MASTER, headers={"User-Agent": "eulerlab"})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        rows = json.loads(response.read().decode("utf-8"))
+    if not isinstance(rows, list):
+        msg = "Angel scrip master is not a list"
+        raise AngelError(msg)
+    return [r for r in rows if isinstance(r, dict)]
+
+
+def master_tokens(rows: Sequence[Mapping[str, Any]]) -> dict[str, str]:
+    """NSE cash symbol -> token. The `-EQ` line wins over `-BE` for the same name."""
+    eq: dict[str, str] = {}
+    be: dict[str, str] = {}
+    for row in rows:
+        if row.get("exch_seg") != "NSE":
+            continue
+        name = str(row.get("symbol") or "")
+        token = str(row.get("token") or "")
+        if not token:
+            continue
+        if name.endswith("-EQ"):
+            eq[name[:-3]] = token
+        elif name.endswith("-BE"):
+            be[name[:-3]] = token
+    return {**be, **eq}
+
+
+def _master_stale(path: Path, now: datetime) -> bool:
+    stamp = _read(path).get("master_at")
+    if not stamp:
+        return True
+    try:
+        return now - datetime.fromisoformat(str(stamp)) > MASTER_MAX_AGE
+    except ValueError:
+        return True
 
 
 def token_for(client: Any, symbol: str) -> str | None:
@@ -114,19 +183,32 @@ def token_for(client: Any, symbol: str) -> str | None:
 
 
 def tokens_for(
-    client: Any, symbols: Sequence[str], *, pause: float = 0.35, path: Path | None = None
+    client: Any,
+    symbols: Sequence[str],
+    *,
+    pause: float = 1.1,
+    path: Path | None = None,
+    master: Callable[[], Sequence[Mapping[str, Any]]] | None = download_master,
 ) -> dict[str, str]:
-    """Cached tokens; unknown symbols are searched one by one and added to the cache."""
+    """Cached tokens. Unknown symbols come from the scrip master (re-read at most
+    once a day), then at most SEARCH_LIMIT of what is left from `searchScrip`."""
     path = path or TOKENS_FILE
     known = _load_tokens(path)
     missing = [s for s in symbols if s not in known]
-    for s in missing:
+    changed = False
+    now = datetime.now(UTC)
+    if missing and master is not None and _master_stale(path, now):
+        known.update(master_tokens(master()))
+        _save_tokens(known, path, master_at=now.isoformat())
+        missing = [s for s in symbols if s not in known]
+    for s in missing[:SEARCH_LIMIT]:
         found = token_for(client, s)
         if found:
             known[s] = found
+            changed = True
         if pause:
             time.sleep(pause)
-    if missing:
+    if changed:
         _save_tokens(known, path)
     return {s: known[s] for s in symbols if s in known}
 
@@ -172,16 +254,37 @@ def parse_quotes(reply: Any, by_token: Mapping[str, str]) -> dict[str, dict[str,
     return out
 
 
-def quotes(symbols: list[str], client: Any | None = None) -> dict[str, dict[str, Any]]:
-    """Full quotes with depth for NSE cash symbols, keyed by symbol. Read-only."""
+# ASSUMPTION: A-130 — SmartAPI quote calls are limited to roughly 10 a second;
+# from memory of Angel's rate-limit table, not fetched.
+QUOTE_PAUSE = 0.12
+"""Seconds between `getMarketData` batches, to stay under about ten a second."""
+
+
+def quotes(
+    symbols: list[str],
+    client: Any | None = None,
+    *,
+    mode: str = "FULL",
+    pause: float = QUOTE_PAUSE,
+    master: Callable[[], Sequence[Mapping[str, Any]]] | None = download_master,
+) -> dict[str, dict[str, Any]]:
+    """Quotes for NSE cash symbols, keyed by symbol. Read-only.
+
+    `mode="FULL"` carries depth (what live_shadow needs); `"OHLC"` is the same
+    row without depth, enough for a last price and the previous close."""
     if client is None:
         client, _ = login()
-    tokens = tokens_for(client, symbols)
+    tokens = tokens_for(client, symbols, master=master)
     by_token = {t: s for s, t in tokens.items()}
     out: dict[str, dict[str, Any]] = {}
     ids = list(by_token)
+    sent = 0.0
     for i in range(0, len(ids), QUOTE_BATCH):
-        reply = client.getMarketData("FULL", {"NSE": ids[i : i + QUOTE_BATCH]})
+        wait = pause - (time.monotonic() - sent)
+        if i and wait > 0:  # only the part of the pause the request did not use
+            time.sleep(wait)
+        sent = time.monotonic()
+        reply = client.getMarketData(mode, {"NSE": ids[i : i + QUOTE_BATCH]})
         out.update(parse_quotes(reply, by_token))
     return out
 

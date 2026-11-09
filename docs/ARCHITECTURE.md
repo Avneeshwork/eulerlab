@@ -1971,7 +1971,7 @@ The remaining top-level modules. Small, and load-bearing in the way plumbing is:
 
 | module | what it does |
 |---|---|
-| `quotes` | live prices, Zerodha first and Yahoo second |
+| `quotes` | live prices: Zerodha first, Angel One when Kite has no token for the day (ADR-158), Yahoo last |
 | `indices` | index levels — India from the broker, the world from FMP |
 | `macro` | macro series from TradingView's keyless public scanner |
 | `workspace` | what is shared between tenants and what emphatically is not (ADR-040) |

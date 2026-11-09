@@ -269,7 +269,7 @@ function Stamp({ snap, market }: { snap: Snapshot; market: Market }) {
   const detail =
     market === 'IN'
       ? f?.live
-        ? `${f.quoted.toLocaleString('en-IN')} of ${f.of.toLocaleString('en-IN')} quoted live via Zerodha. Panel close ${f.panel_date}.`
+        ? `${f.quoted.toLocaleString('en-IN')} of ${f.of.toLocaleString('en-IN')} quoted live via ${f.source === 'angel' ? 'Angel One' : 'Zerodha'}. Panel close ${f.panel_date}.`
         : seen && f
           ? `${f.quoted.toLocaleString('en-IN')} of ${f.of.toLocaleString('en-IN')} from the last prices seen (${f.reason}). The rest are the ${f.panel_date} close.`
           : `End-of-day panel, ${snap.as_of}.${f?.reason ? ` No live quote: ${f.reason}.` : ''}`
@@ -787,6 +787,7 @@ export function SnapshotTab({ workspace }: { workspace: string }) {
               'Gainers and losers are the day\'s biggest moves; unusual volume is turnover against the stock\'s own normal. The first figure is how many are quoted live, the second how many have a news story attached.',
               snap.quotes?.note,
               snap.quotes?.errors?.zerodha ? `Zerodha: ${snap.quotes.errors.zerodha}` : '',
+              snap.quotes?.errors?.angel ? `Angel One: ${snap.quotes.errors.angel}` : '',
               snap.quotes?.errors?.yahoo ? `Yahoo: ${snap.quotes.errors.yahoo}` : '',
               snap.news?.available
                 ? snap.news.note
