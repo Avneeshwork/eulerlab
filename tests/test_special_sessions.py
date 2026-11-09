@@ -67,7 +67,7 @@ def _turnover(short: dict[int, float]) -> dict[date, float]:
 
 
 def test_a_session_far_below_its_recent_median_is_short() -> None:
-    series = _turnover({30: 15.0, 35: 45.0})  # Muhurat-like, and a quiet day
+    series = _turnover({30: 15.0, 35: 62.0})  # Muhurat-like, and a quiet full day
     assert short_days(series) == frozenset({date(2026, 1, 31)})
 
 

@@ -274,21 +274,25 @@ def build_delivery(*, full: bool = False) -> tuple[int, int]:
 # --- calendars --------------------------------------------------------------------
 
 
-def _short_sessions() -> frozenset[date]:
-    """Short sessions from the Nifty 50's daily turnover in the index history:
-    one number a day, so the calendar need not read the 750 MB price panel."""
-    from eulerlab.master.sessions import short_days
+def _held_short_sessions() -> list[str]:
+    """The short sessions `make build-panel` last wrote (`record_short_sessions`).
 
-    turnover: dict[date, float] = {}
-    if INDEX_HISTORY.exists():
-        with INDEX_HISTORY.open(encoding="utf-8") as handle:
-            for line in handle:
-                record = json.loads(line)
-                nifty = (record.get("indices") or {}).get("Nifty 50") or {}
-                value = nifty.get("turnover_cr")
-                if isinstance(value, int | float) and value > 0:
-                    turnover[date.fromisoformat(record["d"])] = float(value)
-    return short_days(turnover)
+    They are judged from the price panel's turnover, which this step does not
+    read, so a rebuild of the calendar keeps them rather than dropping them."""
+    if not CALENDAR.exists():
+        return []
+    held = json.loads(CALENDAR.read_text(encoding="utf-8")).get("short_sessions", [])
+    return [str(d) for d in held]
+
+
+def record_short_sessions(days: frozenset[date]) -> None:
+    """Write the short sessions into `nse_calendar.json` (called after the panel
+    build, which has just read every day's turnover)."""
+    if not CALENDAR.exists():
+        build_calendar()
+    calendar = json.loads(CALENDAR.read_text(encoding="utf-8"))
+    calendar["short_sessions"] = [d.isoformat() for d in sorted(days)]
+    CALENDAR.write_text(json.dumps(calendar, indent=1), encoding="utf-8")
 
 
 def build_calendar() -> dict[str, Any]:
@@ -310,7 +314,7 @@ def build_calendar() -> dict[str, Any]:
         # Saturdays and Sundays NSE opened (Muhurat, Budget day, DR drills).
         "weekend_sessions": [d.isoformat() for d in days if d.weekday() >= 5],
         # Open, but not for a normal day: Muhurat, a late open (ADR-156).
-        "short_sessions": [d.isoformat() for d in sorted(_short_sessions())],
+        "short_sessions": _held_short_sessions(),
         "source": "dates with a landed NSE cash bhavcopy",
     }
     CALENDAR.parent.mkdir(parents=True, exist_ok=True)

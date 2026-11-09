@@ -7,12 +7,14 @@ treats one as a full day decides on a thin close and fills at a thin price.
 
 A short session is recognised from evidence, not from a list: the day's total
 turnover is under `SHORT_SESSION_RATIO` of the median of the
-`TRAILING_DAYS` sessions before it. Measured on the price panel 2015-2026
-(research 183): every Muhurat session scores 0.12-0.21 and the 2017 outage day
-0.27, while the lowest normal day scores above 0.40. A panel with no turnover
-(US, crypto, FX) flags nothing.
+`TRAILING_DAYS` sessions before it. Measured on the price panel 2015-2026,
+weekend sessions included (research 183): the fourteen short sessions score
+0.10-0.27 and Muhurat 2026-11-08 (a busy afternoon hour) 0.39; the lowest full
+day is 0.59 (2021-02-24, NSE's outage day), then New Year's Days at 0.60-0.67.
+A full-day Budget Saturday scores about 1. A panel with no turnover (US,
+crypto, FX) flags nothing.
 
-# ASSUMPTION: 0.35 separates short from normal sessions. See A-129.
+# ASSUMPTION: 0.5 separates short from normal sessions. See A-129.
 """
 
 from __future__ import annotations
@@ -23,7 +25,7 @@ from datetime import date
 from statistics import median
 from typing import Protocol
 
-SHORT_SESSION_RATIO = 0.35
+SHORT_SESSION_RATIO = 0.5
 TRAILING_DAYS = 20
 MIN_TRAILING = 10
 """A day needs this many earlier sessions before it can be judged."""
