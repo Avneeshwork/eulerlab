@@ -488,7 +488,7 @@ class Engine:
 
     @cached_property
     def short(self) -> frozenset[date]:
-        """Short sessions (Muhurat, a late open): no entry on them (ADR-156).
+        """Short sessions (Muhurat, a late open): no entry on them (ADR-157).
         An open-to-close trade there is an hour long and a thin print."""
         from eulerlab.master.sessions import short_days
 

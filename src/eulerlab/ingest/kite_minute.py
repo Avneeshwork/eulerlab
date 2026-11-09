@@ -93,7 +93,7 @@ def uncovered_chunks(
     """Chunks for only the sessions in [start, end] no landed range covers.
 
     A session is a weekday, or a weekend day in `weekend_sessions` (Muhurat and
-    other special sessions the bhavcopy proved, ADR-156).
+    other special sessions the bhavcopy proved, ADR-157).
 
     `chunks_for(start, end)` cut its windows from `end - 1 year`, a start that
     moves every day, so no window ever matched a key already landed: every run

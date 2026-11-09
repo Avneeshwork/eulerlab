@@ -313,7 +313,7 @@ def build_calendar() -> dict[str, Any]:
         "holidays": holidays,
         # Saturdays and Sundays NSE opened (Muhurat, Budget day, DR drills).
         "weekend_sessions": [d.isoformat() for d in days if d.weekday() >= 5],
-        # Open, but not for a normal day: Muhurat, a late open (ADR-156).
+        # Open, but not for a normal day: Muhurat, a late open (ADR-157).
         "short_sessions": _held_short_sessions(),
         "source": "dates with a landed NSE cash bhavcopy",
     }

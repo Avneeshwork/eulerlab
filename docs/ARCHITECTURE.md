@@ -140,7 +140,7 @@ eleven years from B2 would spend its 2,500 downloads a day several times over
 | `nifty_futures.jsonl` | one line per day: every live Nifty futures contract's open, high, low, close, settlement, open interest and volume, from the same F&O files, fetched over four connections | 20:00 IST that day |
 | `nifty_expiries.json` | every Nifty futures expiry (144, 2015-2026), read from F&O bhavcopies fetched from NSE's archive every 15th trading day (each lists the next three monthly contracts). A file lists the *scheduled* date, which can move later, so each date is confirmed by its own day's file (`confirm_expiries`) | — |
 
-**Special and short sessions (ADR-156, research 183).** NSE sometimes opens on
+**Special and short sessions (ADR-157, research 183).** NSE sometimes opens on
 a Saturday or Sunday (Muhurat on Diwali, Budget day, disaster-recovery drills).
 The nightly bhavcopy step probes weekends (`nse_eod --include-weekends`), and
 every other NSE feed (index closes, delivery, participant OI, reports, Kite

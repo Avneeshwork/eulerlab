@@ -1,4 +1,4 @@
-# ADR-156 · Weekend sessions are collected; short sessions are held through, not traded
+# ADR-157 · Weekend sessions are collected; short sessions are held through, not traded
 
 - **Context:** NSE held a Muhurat session on Sunday 2026-11-08 (14:20-15:30 IST). Every NSE downloader walked weekdays only, so no weekend session since 2015 was held, and the weekday Muhurat sessions that were held counted as full days in every backtest and paper book (research 183).
 - **Options:** a hand-kept list of special sessions; probe weekends for the bhavcopy; probe weekends in every feed. For short days: treat as normal; drop from the panel; keep in the panel but never trade on them.

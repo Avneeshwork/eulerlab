@@ -147,7 +147,7 @@ def weekend_sessions(landing_root: Path = DEFAULT_LANDING) -> frozenset[date]:
     Read from the manifest, not the files, because the nightly job deletes the
     local copy once B2 holds it. The bhavcopy step probes weekends
     (`--include-weekends`), so every other NSE feed can follow it here instead
-    of probing again (ADR-156).
+    of probing again (ADR-157).
     """
     found: set[date] = set()
     for trade_day, segment in Landing(landing_root).entries():

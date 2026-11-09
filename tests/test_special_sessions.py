@@ -1,4 +1,4 @@
-"""Special and short NSE sessions (ADR-156, research 183).
+"""Special and short NSE sessions (ADR-157, research 183).
 
 Until 2026-11-08 every downloader walked weekdays only, so no weekend session
 since 2015 was held (Muhurat Sundays, Budget Saturdays, DR drills), and the

@@ -26,7 +26,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"\nwrote {written:,} new days -> {PANEL_PATH}")
     print(f"panel now covers {len(cached_days()):,} trading days")
     # Short sessions (Muhurat, a late open) into the calendar, from the turnover
-    # just written (ADR-156). The engines judge them from their own rows.
+    # just written (ADR-157). The engines judge them from their own rows.
     from eulerlab.market_history import record_short_sessions
     from eulerlab.master.sessions import short_days
 
