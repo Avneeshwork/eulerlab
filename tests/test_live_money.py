@@ -83,9 +83,16 @@ def test_small_amount_cuts_names_never_oversizes() -> None:
     assert lm.size(settings(capital=12_000, leverage=1)).names == 2
 
 
-def test_too_small_is_refused_with_the_amount_needed() -> None:
+def test_any_amount_that_buys_one_share_trades_one_name() -> None:
     sized = lm.size(settings(capital=500, leverage=1))
-    assert sized.names == 0 and "at least ₹5,000" in sized.refused
+    assert (sized.names, sized.per_name, sized.refused) == (1, 500.0, "")
+    assert any("Warning" in n for n in sized.notes)  # ₹10 brokerage is 200 bps of ₹500
+    assert lm.size(settings(capital=300, leverage=5)).names == 1
+
+
+def test_below_one_share_is_refused_with_the_amount_needed() -> None:
+    sized = lm.size(settings(capital=50, leverage=1))
+    assert sized.names == 0 and "at least ₹100" in sized.refused
 
 
 def test_leverage_is_capped_at_five() -> None:

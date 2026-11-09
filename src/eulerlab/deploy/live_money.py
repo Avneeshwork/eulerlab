@@ -57,6 +57,9 @@ MAX_SPREAD_BPS = 50.0
 # ~30 bps edge left after costs; not measured, chosen as a guard.
 MIN_PRICE = 100.0
 """As the research universe (`cross_section.MIN_PRICE`)."""
+EDGE_BPS = 30.0
+# ASSUMPTION: A-132 — H-0194 keeps about 30-50 bps gross from 09:20 (research 184);
+# the low end is used to warn when brokerage alone would exceed it.
 MAX_LEVERAGE = 5.0
 # ASSUMPTION: A-133 — Angel One's intraday (MIS) list shows a 5.0 multiplier for
 # 1,871 NSE names (`make angel-readonly`, 2026-11-09); SEBI's peak-margin rule caps
@@ -94,28 +97,36 @@ class Sizing:
 def size(s: Settings) -> Sizing:
     """Names and rupees a name. Cut the names, never oversize one."""
     exposure = s.capital * s.leverage
-    names = min(s.max_names, int(exposure // s.min_per_name))
     notes: list[str] = []
-    if names == 0:
-        need = s.min_per_name / s.leverage
+    if exposure < MIN_PRICE:
         return Sizing(
             exposure,
             0,
             0.0,
-            f"₹{exposure:,.0f} of exposure is below one name's minimum of ₹{s.min_per_name:,.0f}; "
-            f"put in at least ₹{need:,.0f} at {s.leverage:g}x",
+            f"₹{exposure:,.0f} of exposure cannot buy one share: the rule trades stocks of "
+            f"₹{MIN_PRICE:,.0f} or more, so put in at least ₹{MIN_PRICE / s.leverage:,.0f} "
+            f"at {s.leverage:g}x",
             (),
         )
+    # Operator, 2026-11-09: "it should take whatever money I have". Below one name's
+    # minimum the whole amount goes into one name, the largest gap a share of which fits.
+    names = max(1, min(s.max_names, int(exposure // s.min_per_name)))
     per = exposure / names
     if names < s.max_names:
         notes.append(
             f"{names} name(s), not {s.max_names}: each needs at least ₹{s.min_per_name:,.0f}"
         )
     order_cost = min(20.0, max(5.0, per * 0.001))
+    cost_bps = 2 * order_cost / per * 1e4
     notes.append(
         f"Brokerage about ₹{2 * order_cost:,.0f} a round trip a name "
-        f"({2 * order_cost / per * 1e4:.0f} bps of ₹{per:,.0f})"
+        f"({cost_bps:.0f} bps of ₹{per:,.0f})"
     )
+    if cost_bps > EDGE_BPS:
+        notes.append(
+            f"Warning: costs ({cost_bps:.0f} bps) are more than the edge left from 09:20 "
+            f"(about {EDGE_BPS:.0f} bps): at this size the trades are expected to lose a little"
+        )
     if s.leverage > 1:
         notes.append(
             f"{s.leverage:g}x: a 3% move against the book is ₹{0.03 * exposure:,.0f}, "
