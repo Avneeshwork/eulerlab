@@ -34,7 +34,7 @@ can_do:
   - kind: fix_code
     what: Fix the code problems the doctor queued, one file and its test on its own branch for you to merge
     fixed: {mode: fix}
-    auto: false   # writes a branch with a paid model; you start it
+    auto: true    # ADR-160: it only writes its own branch, within daily_requests; you merge
     words: [bug, bugs, fix, error, errors, crash, broken, failing, code, test, tests, lint]
   - kind: code_feature
     what: Code a signal a research card names, in features/coded with its test, and open a pull request for you to merge
@@ -45,5 +45,5 @@ can_do:
     words: [signal, feature, code, coded, build, primitive, factor]
   - kind: review_branch
     what: Review the files changed on this branch against the house rules
-    auto: false
+    auto: true    # ADR-160: reads only
     words: [review, branch, rules, diff, change, changes]

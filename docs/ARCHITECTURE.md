@@ -3143,7 +3143,7 @@ and Calendar views draw them.
 you ── POST /api/agents/tasks ──▶ task (owner = a head, open)
         head run: check finished ─▶ roll up ─▶ split new (Groq, else rules) ─▶ plan the day
         work runner: hand-offs ─▶ run each auto task's agent ─▶ head's checklist ─▶ roll up
-you ◀── passed up (done) ── close it, or send it back
+you ◀── passed up and closed at once (ADR-160) ── send it back if it is wrong
 ```
 
 **A task** (`agents/tasks.py`) is the fold of its events in the append-only
@@ -3172,7 +3172,9 @@ and engineering's `fix_code` and `review_branch` (paid model, writes a branch).
    run, or a failed run whose summary starts `Refused`, is blocked at once (a
    retry would fail the same way). Over budget: assigned again.
 2. *Roll up*: a parent whose current subtasks are all settled with one done is
-   passed up with their summaries; one with a blocked subtask is blocked.
+   passed up with their summaries and closed in the same step (ADR-160: the
+   checklist already passed, so accepting it is not your decision); one with a
+   blocked subtask is blocked.
 3. *Split* each open task. Groq is asked first with the roster (agent, kind,
    what, argument) and must answer JSON; `fit` keeps only subtasks naming an
    agent on the team and one of its own kinds, at most `max_subtasks`. If
@@ -3222,8 +3224,11 @@ today's plan, the skills they can be given (marked "waits for you" when not
 `auto`), their tasks with every event, what they can never do, and their
 capability checks. Your panel has the task form, what needs you, your tasks
 as trees of subtasks, the checklist and the capability summary. Your buttons:
-run a waiting task, ask AI for help on a blocked one, retry it, accept and
-close or send back what was passed up, cancel. Giving a task wakes its head at once
+run a waiting task, ask AI for help on a blocked one, retry it, send back a
+finished or closed one, cancel. Only major changes wait for you (ADR-160):
+merging code, money, buying data, gate runs and trial-spending tests; engineering's
+`fix_code` and `review_branch` run as `auto`, and notices with nothing to decide
+(research drafts, failed fixes) carry no approve button. Giving a task wakes its head at once
 (`agent_routes._wake`: the head's run, then that department's due tasks), on
 the API's single agent worker.
 

@@ -475,11 +475,11 @@ def test_the_watchdog_does_not_chase_its_own_tasks_or_yours(tmp_path: Path) -> N
         now=late,
     )
     tasks.create(
-        title="Fix the slow tests",
-        owner="engineering",
-        department="platform",
-        created_by="doctor",
-        kind="fix_code",
+        title="Test a card",
+        owner="lab",
+        department="research",
+        created_by="research",
+        kind="test_card",
         root=tmp_path,
         now=late,
     )

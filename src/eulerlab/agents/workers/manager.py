@@ -4,7 +4,8 @@
       1. check   each finished task of its agents against CHECKLIST:
                  pass → done; failed run → sent back (at most twice) → then blocked;
                  refused or switched off → blocked, with the reason, for you
-      2. roll up a task of yours whose subtasks are all done is passed up to you;
+      2. roll up a task of yours whose subtasks are all done is passed up and
+                 closed (ADR-160: you can still send it back);
                  one with a blocked subtask is blocked, so it shows as needing you
       3. split   each new task you gave it, among its agents, by what each lists
                  in `can_do`. The model is asked first; if it is not available,
@@ -195,6 +196,19 @@ def roll_up(head: str, root: Path, now: datetime) -> list[tasks.Task]:
                     "passed_up",
                     head,
                     {"summary": summary[:1000], "note": "every subtask passed the checklist"},
+                    root=root,
+                    now=now,
+                )
+            )
+            # Closed at once (ADR-160): the checklist already passed, so accepting
+            # it is not a decision the operator needs to make. "Send back" still
+            # works on a closed task from the page.
+            changed.append(
+                tasks.record(
+                    parent.id,
+                    "closed",
+                    head,
+                    {"note": "closed automatically: every step passed the checklist"},
                     root=root,
                     now=now,
                 )

@@ -128,6 +128,11 @@ export function needsYou(
       yes: true,
       text: 'One of its steps is stuck. Ask AI for help, or open the steps below.',
     };
+  if (head && task.status === 'closed')
+    return {
+      yes: false,
+      text: 'Closed automatically: every step passed its check. Read the result, and send it back only if it is not what you wanted.',
+    };
   if (task.status === 'closed' || task.status === 'cancelled')
     return { yes: false, text: 'Finished with. Nothing to do.' };
   return {

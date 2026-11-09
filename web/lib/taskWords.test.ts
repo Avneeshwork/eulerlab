@@ -67,6 +67,13 @@ test('a task that no agent may start says it needs you', () => {
   assert.match(needsYou(head, { auto: undefined, stuckSteps: false }).text, /accept it or send it back/);
 });
 
+test('a head task closed by its checklist needs nothing from you', () => {
+  const head = { ...base, owner: 'head_platform', kind: '', status: 'closed', title: 'x' };
+  const need = needsYou(head, { auto: undefined, stuckSteps: false });
+  assert.equal(need.yes, false);
+  assert.match(need.text, /Closed automatically/);
+});
+
 test('every button explains itself', () => {
   for (const a of ['run', 'close', 'send_back', 'retry', 'cancel', 'assist'] as const)
     assert.ok(buttonHelp(a, { ...base, title: 'x' }, titles).length > 20);

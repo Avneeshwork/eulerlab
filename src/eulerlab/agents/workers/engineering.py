@@ -250,7 +250,7 @@ def fixes(ctx: Context, *, limit: int) -> list[Item]:
                     title=f"could not fix {problem.file}: {attempt.outcome}"[:200],
                     body="\n".join([problem.detail, attempt.explanation, f"checks: {checks}"]),
                     severity="warn",
-                    needs_approval=True,
+                    # A notice, not a decision (ADR-160): there is nothing to approve.
                     data={"file": problem.file, "outcome": attempt.outcome},
                 )
             )
@@ -337,7 +337,8 @@ def code_feature(ctx: Context) -> WorkerResult:
         )[:200],
         body="\n".join([attempt.explanation, f"card: {card}", f"branch: {attempt.branch}", *tried]),
         severity="info" if done else "warn",
-        needs_approval=True,
+        # Only a coded signal waits for you: merging it is a code change (ADR-160).
+        needs_approval=done,
         ref=attempt.branch,
         data={"feature": name, "card": card, "tried": tried, "outcome": attempt.outcome},
     )

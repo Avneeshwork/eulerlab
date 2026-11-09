@@ -356,7 +356,8 @@ def run(ctx: Context) -> WorkerResult:
                     title=str(spec.get("title") or draft.candidate.title)[:200],
                     body="\n".join(lines),
                     severity="warn" if repeat else "info",
-                    needs_approval=not repeat,
+                    # A notice (ADR-160): the idea lab tests a valid draft without
+                    # your approval, and approving one recorded nothing else.
                     ref=str(draft.path),
                     data={
                         "rank": round(rank, 2),

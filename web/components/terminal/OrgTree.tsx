@@ -131,6 +131,8 @@ function TaskCard({
     actions.push(['close', 'Accept and close', 'ok']);
     actions.push(['send_back', 'Send back', '']);
   }
+  // A head closes a task whose steps all passed their check (ADR-160); you can still send it back.
+  if (isHeadTask && task.status === 'closed') actions.push(['send_back', 'Send back', '']);
   if (ACTIVE.has(task.status) && task.status !== 'doing') actions.push(['cancel', 'Cancel', '']);
   const last = task.history[task.history.length - 1];
   const parentTitle = byId.get(task.parent)?.title ?? '';
@@ -505,7 +507,7 @@ export function OrgChartView() {
       <>
         <div className="org-panel-head">
           <b>{chart.ceo}, CEO</b>
-          <span>You give tasks to the heads, approve what they pass up, and own the gate.</span>
+          <span>You give tasks to the heads and own the gate. Only major changes wait for you: merging code, money, buying data and gate runs.</span>
         </div>
         <Goals goals={chart.goals} />
         {proposed && (

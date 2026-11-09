@@ -349,8 +349,8 @@ def agents_task_act(task_id: str, request: TaskAction) -> dict[str, Any]:
                 tasks.record(one.id, "help_asked", "ceo", {"note": "you asked for AI help"})
             return {"ok": True, "asked": [one.id for one in stuck], "woke": _wake(task.department)}
         if request.action in ("retry", "send_back"):
-            if request.action == "send_back" and task.status != "done":
-                return {"ok": False, "error": "only a task passed up to you can be sent back"}
+            if request.action == "send_back" and task.status not in ("done", "closed"):
+                return {"ok": False, "error": "only a finished task can be sent back"}
             tasks.reopen(task_id, "ceo", note)
             return {
                 "ok": True,

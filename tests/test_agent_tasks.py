@@ -266,9 +266,11 @@ def test_a_finished_task_that_passes_the_checklist_is_passed_up(tmp_path: Path) 
     assert seen == [{"topic": sub.args["topic"], "task": sub.id}]
     known = tasks.load(tmp_path)
     assert known[sub.id].status == "done"
-    assert known[parent.id].status == "done" and "3 leads, 1 draft" in known[parent.id].summary
-    tasks.record(parent.id, "closed", "ceo", root=tmp_path)
-    assert tasks.load(tmp_path)[parent.id].status == "closed"
+    # Passed up and closed at once (ADR-160); sending it back still works.
+    assert known[parent.id].status == "closed" and "3 leads, 1 draft" in known[parent.id].summary
+    assert [e["event"] for e in known[parent.id].history][-2:] == ["passed_up", "closed"]
+    tasks.reopen(parent.id, "ceo", "not what I meant", root=tmp_path)
+    assert tasks.load(tmp_path)[parent.id].status == "open"
 
 
 def test_a_failed_run_is_sent_back_twice_then_blocked_for_you(tmp_path: Path) -> None:
@@ -307,7 +309,9 @@ def test_retrying_a_blocked_parent_cancels_the_old_round_and_splits_afresh(tmp_p
     assert len(fresh) == 1 and fresh[0].id != sub.id and fresh[0].status == "assigned"
 
 
-def test_a_skill_that_is_not_auto_waits_for_you(tmp_path: Path) -> None:
+def test_an_engineering_fix_starts_by_itself(tmp_path: Path) -> None:
+    """ADR-160: a fix only writes engineering's own branch, so it no longer waits
+    for a click; merging the branch still does."""
     t = tasks.create(
         title="Fix x.py",
         owner="engineering",
@@ -317,15 +321,14 @@ def test_a_skill_that_is_not_auto_waits_for_you(tmp_path: Path) -> None:
         root=tmp_path,
         now=_at(0),
     )
-    assert work.run_due(root=tmp_path, now=_at(1), worker=_ok()) == []
     seen: list[dict[str, object]] = []
 
     def worker(ctx: Context) -> WorkerResult:
         seen.append(dict(ctx.args))
         return WorkerResult("1 fix ready")
 
-    done = work.run_one(t.id, by="ceo", root=tmp_path, now=_at(2), worker=worker)
-    assert done.status == "done" and seen == [{"mode": "fix", "task": t.id}]
+    ran = work.run_due(root=tmp_path, now=_at(1), worker=worker)
+    assert [r.id for r in ran] == [t.id] and seen == [{"mode": "fix", "task": t.id}]
 
 
 def test_a_terminal_only_agent_is_never_started_from_a_task(tmp_path: Path) -> None:
@@ -600,7 +603,7 @@ def test_a_stuck_task_is_fixed_by_ai_help_and_runs_again(tmp_path: Path) -> None
     assert "No stored result" in seen[0] and "<untrusted" in seen[0]
     assert sub.id in out.data["helped"]
     work.run_due(root=tmp_path, now=_at(5), worker=_ok("attacked: 3 of 5 attacks hurt it"))
-    assert tasks.load(tmp_path)[parent.id].status == "done"
+    assert tasks.load(tmp_path)[parent.id].status == "closed"  # passed up and closed (ADR-160)
 
 
 def test_ai_help_may_hand_the_task_to_another_agent_on_the_team(tmp_path: Path) -> None:
