@@ -939,6 +939,11 @@ depth-day:
 upload-verified:
 	@uv run python -m eulerlab.ingest.verified_prune $(TREES) $(if $(KEEP),--keep,)
 
+# Angel One minute bars for sessions Kite missed (no browser login), e.g. Muhurat:
+# make angel-minute FROM=2026-11-08. Lands in data/landing/angel_minute (ADR-157).
+angel-minute:
+	uv run --extra angel python -m eulerlab.ingest.angel_minute --from $(FROM) --to $(if $(TO),$(TO),$(FROM))
+
 mcx-index-minute:
 	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_mcx_indices --years 5
 

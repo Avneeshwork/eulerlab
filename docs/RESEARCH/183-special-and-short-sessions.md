@@ -18,4 +18,6 @@
 
 **Confidence.** High that the sessions are complete (every weekend probed). Medium on the 50% line: the gap between 0.39 and 0.59 is the whole margin.
 
-**Open.** Minute bars for 2026-11-08 need a Kite login (the token expired 2026-11-07 06:00). NSE reports (deals, short selling, SLBM) for the older weekend sessions were not backfilled. A paper book replay does not respect `knowledge_time`, so any backfill of past days can change a live book; that is a wider gap than this note.
+**Minute bars from Angel One (2026-11-09).** The Kite token had expired, so on the operator's instruction the 2026-11-08 minute bars came from Angel One SmartAPI's `getCandleData` (`ingest/angel_minute.py`, `make angel-minute FROM=`), landed in `data/landing/angel_minute` in the Kite layout. Bars run 14:20 to 15:29 IST. NIFTY 50 and NIFTY BANK return 56 bars and INDIA VIX 70, so Angel's index series has gaps in this session; not investigated. SmartAPI refused requests 0.4 s apart (`exceeding access rate`) although it documents 3 a second; 1 s with backoff holds.
+
+**Open.** NSE reports (deals, short selling, SLBM) for the older weekend sessions were not backfilled. A paper book replay does not respect `knowledge_time`, so any backfill of past days can change a live book; that is a wider gap than this note.
