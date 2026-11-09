@@ -39,6 +39,7 @@ import hashlib
 import json
 import mmap
 import os
+import re
 from bisect import bisect_left
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass, fields, replace
@@ -812,6 +813,8 @@ def _build(
     paths = dict(wanted)
     written = 0
     note = ""
+    tail_from = path.stat().st_size if path.exists() else 0
+    last_before = max(already) if already else ""
 
     with path.open("a", encoding="utf-8") as handle:
         try:
@@ -858,10 +861,53 @@ def _build(
                 f"stopped after {written} of {len(wanted)} days: B2 daily cap reached. "
                 f"Re-run to resume; nothing already written is lost."
             )
+    if written and last_before and min(d for d, _ in wanted) < last_before:
+        put_in_date_order(path, tail_from)
     if left_out:
         extra = f"{len(left_out)} quarantined day(s) left out: {', '.join(sorted(left_out)[:5])}"
         note = f"{note}; {extra}" if note else extra
     return written, note
+
+
+_DAY = re.compile(rb'"d": "(\d{4}-\d{2}-\d{2})"')
+
+
+def _row_day(line: bytes) -> str:
+    found = _DAY.search(line)
+    return found.group(1).decode() if found else str(json.loads(line)["d"])
+
+
+def put_in_date_order(path: Path, tail_from: int) -> None:
+    """Move rows appended after `tail_from` to their place by date.
+
+    Readers take the panel's latest day from its last line (`coverage.last_day_jsonl`,
+    the freshness badge). A backfilled older day appended at the end made the
+    whole panel read as 2026-02-01, "190 days old" (2026-11-09, HISTORY). The
+    file before `tail_from` is already in date order, and the tail is a few
+    days, so this is one streaming pass holding only the tail in memory.
+    """
+    with path.open("rb") as handle:
+        handle.seek(tail_from)
+        tail = [line for line in handle.read().splitlines(keepends=True) if line.strip()]
+    late: dict[str, list[bytes]] = {}
+    for line in tail:
+        late.setdefault(_row_day(line), []).append(line)
+    pending = sorted(late)
+    temp = path.with_suffix(path.suffix + ".sorting")
+    with path.open("rb") as source, temp.open("wb") as out:
+        remaining = tail_from
+        for line in source:
+            if remaining <= 0:
+                break
+            remaining -= len(line)
+            if line.strip():
+                day = _row_day(line)
+                while pending and pending[0] < day:
+                    out.writelines(late[pending.pop(0)])
+            out.write(line)
+        for day in pending:
+            out.writelines(late[day])
+    os.replace(temp, path)
 
 
 def cross_section(rows: Sequence[PanelRow], day: date) -> dict[str, PanelRow]:
