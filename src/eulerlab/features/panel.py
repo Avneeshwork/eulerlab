@@ -49,7 +49,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from eulerlab.bitemporal.store import BitemporalStore, Record
-from eulerlab.corp_actions.build_factors import PRICE_FACTORS
+from eulerlab.corp_actions.build_factors import PRICE_FACTORS, cached_dates
 from eulerlab.corp_actions.prices import instrument_key
 from eulerlab.filecache import FileMemo
 from eulerlab.quality.sources import bars_from_bhavcopy
@@ -710,13 +710,8 @@ def assert_adjustable(rows: Sequence[PanelRow], *, sample: int = 5000) -> None:
 
 
 def cached_days(path: Path = PANEL_PATH) -> set[str]:
-    if not path.exists():
-        return set()
-    return {
-        json.loads(line)["d"]
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    }
+    """Trade dates already in the panel cache (same file format as the close cache)."""
+    return cached_dates(path)
 
 
 def day_turnover(path: Path = PANEL_PATH) -> dict[date, float]:

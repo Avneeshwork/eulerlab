@@ -22,7 +22,6 @@ sessions after it.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import date, datetime, time, timedelta
@@ -207,13 +206,6 @@ def h0162(
     sast = [x for _, found in rep._parsed("sast", rep.promoter_buys, since, through) for x in found]
     promoters = rep.promoter_events(sast, sessions)
     return promoter_trades(panel, promoters, start=start, through=through, capital=capital)
-
-
-def as_json(trades: Sequence[Trade]) -> str:
-    """For a quick look: the trades with dates as text."""
-    return json.dumps(
-        [{k: str(v) if isinstance(v, date) else v for k, v in t.items()} for t in trades]
-    )
 
 
 # --- H-0187 (research 178) ---------------------------------------------------------------

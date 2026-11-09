@@ -311,21 +311,6 @@ def is_readable(symbol: str, year_month: str, *, directory: Path = LANDING) -> b
     return True
 
 
-def repair(symbol: str, year_month: str, *, directory: Path = LANDING) -> bool:
-    """Re-fetch a month whose file cannot be read. Returns True if repaired.
-
-    Deletes before re-fetching, because `land_month` skips anything that
-    exists — the very behaviour that lets a truncated file persist.
-    """
-    if is_readable(symbol, year_month, directory=directory):
-        return False
-    path = month_path(symbol, year_month, directory=directory)
-    path.unlink(missing_ok=True)
-    path.with_suffix(path.suffix + ".partial").unlink(missing_ok=True)
-    land_month(symbol, year_month, directory=directory)
-    return True
-
-
 def months_between(start: date, end: date) -> list[str]:
     """Every `YYYY-MM` from start to end inclusive."""
     out: list[str] = []

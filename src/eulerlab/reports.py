@@ -22,7 +22,7 @@ configuration, and it is replaced on a re-run. Before run ids, that replacement
 was the only copy, so re-running a configuration destroyed the report it
 superseded. Now every save also writes
 `reports/{strategy}/runs/{configuration}/{run_id}.json`, which is never
-overwritten — the shape LEAN uses, one result file per backtest id
+overwritten (the latest file is a hard link to it, not a second copy) — the shape LEAN uses, one result file per backtest id
 (`docs/RESEARCH/061-backtest-result-storage.md`). The latest file stays where
 it was so every existing reader, and every report written before this, works
 unchanged.
@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
@@ -562,8 +563,27 @@ def save(workspace: Workspace, payload: dict[str, Any]) -> Path:
     run_id = str(payload["provenance"]["run_id"])
     permanent = _run_path(workspace, strategy_id, configuration, run_id)
     _write(permanent, payload, exclusive=True)
-    _write(_path(workspace, strategy_id, configuration), payload)
+    _link_latest(permanent, _path(workspace, strategy_id, configuration), payload)
     return permanent
+
+
+def _link_latest(permanent: Path, latest: Path, payload: dict[str, Any]) -> None:
+    """Point the latest file at the run just written, without a second copy.
+
+    A hard link, swapped in by atomic rename: the latest name now shares the
+    run's bytes, and a later re-run replaces the *name*, never the bytes, so the
+    stored run is untouched. Writing a full copy here doubled the reports
+    folder (342 MB of 986 MB on 2026-11-09, ADR-161). Where a link cannot be
+    made (another filesystem), it falls back to the copy.
+    """
+    tmp = latest.with_suffix(".partial")
+    tmp.unlink(missing_ok=True)
+    try:
+        os.link(permanent, tmp)
+    except OSError:
+        _write(latest, payload)
+        return
+    tmp.replace(latest)
 
 
 def load(

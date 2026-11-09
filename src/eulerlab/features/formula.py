@@ -478,10 +478,6 @@ def zoo_nodes() -> list[Node]:
     return [parse(e.text) for e in ZOO]
 
 
-def zoo_features() -> list[Feature]:
-    return [compile_formula(e.text, name=e.name, min_history=e.min_history) for e in ZOO]
-
-
 def describe() -> str:
     """The operator list, for a model's prompt or a person."""
     lines = [f"  {name:<12} {op.doc}" for name, op in OPS.items()]

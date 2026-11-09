@@ -15,9 +15,10 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from eulerlab.costs.schedule import Segment, Side
+from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.intraday.screen_common import intraday_fee
 
 OUT = Path("data/derived/stock_intraday_candidates.json")
 TRAIN_START = date(2022, 1, 1)
@@ -43,17 +44,8 @@ def load_universe(*, root: Path | None = None) -> dict[str, list[ip.Day]]:
     return {symbol: rs.load_days(symbol, root=root, cutoff=DATA_END) for symbol in SYMBOLS}
 
 
-def _trade_cost(price: float, quantity: int, side: Side, day: date) -> float:
-    from eulerlab.costs.router import fill_cost
-
-    return fill_cost(
-        venue="equity",
-        price=price,
-        quantity=quantity,
-        side=side,
-        day=day,
-        segment=Segment.EQUITY_INTRADAY,
-    )
+# One fee function for every screen (ADR-161): the shared, time-versioned one.
+_trade_cost = intraday_fee
 
 
 def _quantity(notional: float, price: float) -> int:

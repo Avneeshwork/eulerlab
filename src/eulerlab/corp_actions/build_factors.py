@@ -42,7 +42,7 @@ PRICE_FACTORS = Path("data/derived/price_factors.jsonl")
 TOTAL_RETURN_FACTORS = Path("data/derived/total_return_factors.jsonl")
 
 
-def _cached_dates(path: Path) -> set[str]:
+def cached_dates(path: Path) -> set[str]:
     """Trade dates already in the close-price cache, so the builder can say
     how much of the run will actually hit the network."""
     if not path.exists():
@@ -160,8 +160,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.limit_files:
         entries = entries[: args.limit_files]
 
-    cached_dates = _cached_dates(CLOSE_CACHE)
-    to_fetch = sum(1 for e in entries if e.trade_date not in cached_dates)
+    already_cached = cached_dates(CLOSE_CACHE)
+    to_fetch = sum(1 for e in entries if e.trade_date not in already_cached)
     print(
         f"{len(entries):,} cash bhavcopy files needed; "
         f"{len(entries) - to_fetch:,} already cached, {to_fetch:,} to download"

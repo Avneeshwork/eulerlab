@@ -10,12 +10,9 @@
   "dup-function": [
     "backtest/event_driven.py::_adjusted = backtest/vector.py::_adjusted",
     "backtest/event_driven.py::_view_history = backtest/vector.py::_view_history",
-    "corp_actions/build_factors.py::_cached_dates = features/panel.py::cached_days",
     "ingest/alpaca.py::_env = notify.py::_env",
     "intraday/adopted.py::_read = us_all_run.py::read",
-    "intraday/cash_events_screen.py::_book = intraday/cash_volume_screen.py::_book",
-    "intraday/github_ema_crossover_screen.py::main = intraday/hikkake_screen.py::main = intraday/inside_bar_screen.py::main = intraday/supertrend_alignment_screen.py::main",
-    "intraday/screen_common.py::intraday_fee = intraday/stock_candidate_screen.py::_trade_cost"
+    "intraday/cash_events_screen.py::_book = intraday/cash_volume_screen.py::_book"
   ],
   "research-number": [
     "024-alpaca.md = 024-daily-gap-sources.md"

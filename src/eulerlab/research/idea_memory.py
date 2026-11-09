@@ -130,10 +130,6 @@ def tested_features(experiences: Iterable[Experience]) -> set[str]:
     return {f for e in experiences for f in e.features}
 
 
-def tested_cards(experiences: Iterable[Experience]) -> set[str]:
-    return {e.path for e in experiences if e.path} | {e.card for e in experiences}
-
-
 # --- family scores ----------------------------------------------------------
 
 

@@ -72,27 +72,8 @@ class ContractRegistry:
         contract = self._by_id.get(contract_id)
         return contract.lot_size.at(as_of) if contract else None
 
-    def underlying_lot_size_at(self, underlying: str, as_of: date) -> int | None:
-        """Lot size for an underlying on a date, from any contract on it.
-
-        Contracts on one underlying share a lot size, so any live contract
-        answers. Used to check a lot size without knowing a specific expiry.
-        """
-        for contract_id, contract in self._by_id.items():
-            if contract_id.underlying != underlying:
-                continue
-            if not contract.was_traded_on(as_of):
-                continue
-            size = contract.lot_size.at(as_of)
-            if size is not None:
-                return size
-        return None
-
     def live_on(self, as_of: date) -> Iterator[Contract]:
         return (c for c in self._by_id.values() if c.was_traded_on(as_of))
-
-    def underlyings(self) -> set[str]:
-        return {cid.underlying for cid in self._by_id}
 
     def __len__(self) -> int:
         return len(self._by_id)

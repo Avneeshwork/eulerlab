@@ -10,7 +10,6 @@ conservative and avoids claiming a fill at a price only known intrabar.
 from __future__ import annotations
 
 import argparse
-import json
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -245,15 +244,7 @@ def main() -> int:
     parser.add_argument("--root", type=Path, help="optional local parquet root for tests")
     parser.add_argument("--output", type=Path, default=OUT)
     args = parser.parse_args()
-    result = run_all(root=args.root)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    run = result["runs"][0]
-    print(
-        f"wrote {args.output}: {run['trades']} trades, gross "
-        f"{run['gross']['total_return']:.2%}, net {run['net']['total_return']:.2%}"
-    )
-    return 0
+    return sc.write_and_print(args.output, run_all(root=args.root))
 
 
 if __name__ == "__main__":

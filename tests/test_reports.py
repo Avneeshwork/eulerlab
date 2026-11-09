@@ -7,6 +7,7 @@ from a fully-invested run.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -341,3 +342,15 @@ def test_total_return_is_measured_from_the_starting_cash() -> None:
     )
     gain = payload["final_equity"] - payload["starting_cash"]
     assert payload["metrics"]["total_return"] == pytest.approx(gain / 1000.0)
+
+
+def test_the_latest_report_is_a_link_to_its_run_not_a_second_copy(space: ws.Workspace) -> None:
+    """ADR-161: the copy doubled the reports folder. A re-run must still leave
+    the earlier run's bytes untouched."""
+    first = reports.save(space, {"strategy_id": "demo", "configuration": "cfg", "n": 1})
+    latest = space.root / "reports" / "demo" / "cfg.json"
+    assert latest.stat().st_ino == first.stat().st_ino
+    second = reports.save(space, {"strategy_id": "demo", "configuration": "cfg", "n": 2})
+    assert latest.stat().st_ino == second.stat().st_ino
+    assert json.loads(first.read_text())["n"] == 1
+    assert not list(latest.parent.glob("*.partial"))

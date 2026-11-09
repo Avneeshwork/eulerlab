@@ -166,16 +166,6 @@ def problems(org: Org, specs: dict[str, AgentSpec], company: Company | None = No
     return found
 
 
-def department_of(specs: dict[str, AgentSpec]) -> dict[str, str]:
-    """Agent name → department id. A head maps to the department it runs."""
-    return {
-        name: str(spec.options.get("department") or "")
-        if spec.reports_to == CEO
-        else spec.reports_to
-        for name, spec in specs.items()
-    }
-
-
 def head_of(org: Org, department: str) -> str:
     """The head's agent name for a department id. Raises on an unknown department."""
     for d in org.departments:

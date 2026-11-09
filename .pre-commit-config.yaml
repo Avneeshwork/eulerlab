@@ -51,12 +51,22 @@ repos:
   # happened twice on 2026-08-18.
   - repo: local
     hooks:
+      # On commit, mypy checks the staged files (and what they import), so
+      # another thread's half-written file cannot block this commit. The whole
+      # tree is checked on push and in `make check` (ADR-161).
       - id: mypy
-        name: mypy --strict
+        name: mypy --strict (staged files)
+        entry: uv run mypy
+        language: system
+        types: [python]
+        files: ^(src|tools|tests)/
+      - id: mypy-all
+        name: mypy --strict (whole tree)
         entry: uv run mypy
         language: system
         pass_filenames: false
         types: [python]
+        stages: [pre-push]
       # The whole suite takes minutes and runs against the shared working
       # tree, so on commit it was the reason hooks were skipped (ADR-161). It
       # runs on push and in `make check` instead.

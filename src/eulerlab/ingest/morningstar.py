@@ -208,14 +208,6 @@ class _Session:
     def __init__(self) -> None:
         self._opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(CookieJar()))
 
-    def open_path(self, path: str, *, timeout: int = 45) -> str:
-        """GET a page other than the listing (a fund's own page)."""
-        url = urllib.parse.urljoin("https://www.morningstar.in", path)
-        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-        with self._opener.open(request, timeout=timeout) as response:
-            body: bytes = response.read()
-            return body.decode("utf-8", errors="replace")
-
     def open(self, data: dict[str, str] | None = None, *, timeout: int = 60) -> str:
         payload = urllib.parse.urlencode(data).encode() if data else None
         request = urllib.request.Request(
@@ -345,23 +337,6 @@ def parse_isin(page: str) -> str:
     """
     match = ISIN_RE.search(page)
     return match.group(0) if match else ""
-
-
-def known_isins(*, path: Path = ISIN_PATH) -> dict[str, str]:
-    """Morningstar id -> ISIN for everything already fetched.
-
-    This is what makes the crawl resumable: 5,741 detail pages is over an hour,
-    and a run that had to start again from zero would never finish.
-    """
-    if not path.exists():
-        return {}
-    out: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        out[str(row["morningstar_id"])] = str(row["isin"])
-    return out
 
 
 ENRICHED_DIR = Path("data/landing/mf/enriched")

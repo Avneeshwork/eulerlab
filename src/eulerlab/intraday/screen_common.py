@@ -13,11 +13,13 @@ and folding them together would change one screen's numbers.
 
 from __future__ import annotations
 
+import json
 import math
 import statistics
 from collections.abc import Sequence
 from datetime import date
 from itertools import pairwise
+from pathlib import Path
 from typing import Any
 
 from eulerlab.costs.schedule import Segment, Side
@@ -112,3 +114,15 @@ def rsi(values: Sequence[float], period: int) -> list[float | None]:
         avg_loss = ((period - 1) * avg_loss + losses[index - 1]) / period
         out[index] = value(avg_gain, avg_loss)
     return out
+
+
+def write_and_print(output: Path, result: dict[str, Any]) -> int:
+    """The tail every screen's `main` shared (ADR-161): write the JSON, print run 0."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    run = result["runs"][0]
+    print(
+        f"wrote {output}: {run['trades']} trades, gross "
+        f"{run['gross']['total_return']:.2%}, net {run['net']['total_return']:.2%}"
+    )
+    return 0
