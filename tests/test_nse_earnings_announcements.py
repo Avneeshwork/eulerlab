@@ -79,3 +79,50 @@ def test_a_landed_quarter_is_never_fetched_again(
 def test_an_unfinished_quarter_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="has not finished"):
         ann.land(date(2099, 1, 1), date(2099, 3, 31), root=tmp_path)
+
+
+def test_since_2026_a_board_outcome_with_results_text_is_a_result(tmp_path: Path) -> None:
+    text = "ABC Limited has submitted to the Exchange, the financial results for the period ended"
+    path = _land(
+        tmp_path,
+        [
+            {
+                "desc": "Outcome of Board Meeting",
+                "symbol": "ABC",
+                "attchmntText": text,
+                "exchdisstime": "05-Nov-2026 16:10:00",
+            },
+            {
+                "desc": "Outcome of Board Meeting",
+                "symbol": "XYZ",
+                "attchmntText": "Outcome of Board Meeting",
+                "exchdisstime": "05-Nov-2026 16:20:00",
+            },
+        ],
+        name="2026-11-05_2026-11-05",
+    )
+    rows, _ = ann.derive([path])
+    assert [(r["symbol"], r["knowledge_time"]) for r in rows] == [
+        ("ABC", "2026-11-05T16:10:00+05:30")
+    ]
+
+
+def test_a_results_row_wins_over_the_outcome_text_on_the_same_day(tmp_path: Path) -> None:
+    path = _land(
+        tmp_path,
+        [
+            {
+                "desc": "Financial Result Updates",
+                "symbol": "ABC",
+                "exchdisstime": "05-Aug-2024 13:06:00",
+            },
+            {
+                "desc": "Outcome of Board Meeting",
+                "symbol": "ABC",
+                "attchmntText": "has submitted to the Exchange, the financial results for the quarter",
+                "exchdisstime": "05-Aug-2024 13:02:30",
+            },
+        ],
+    )
+    rows, _ = ann.derive([path])
+    assert len(rows) == 1 and rows[0]["results_row_time"] == "2024-08-05T13:06:00+05:30"

@@ -3758,6 +3758,57 @@ momentum, and shows the first 10, 20 or all.
 equal vote (the first build read only the first kind and failed on the
 consensus, 2026-11-04).
 
+### Top-down screening, likely movers and the brief's stock ideas (research 182)
+
+**Sector tags.** `fundamentals.sectors.build(isin_of)` reads each ticker's newest
+screener.in snapshot and keeps its `section == "sector"` rows: `level_1` broad
+sector, `level_2` sector (about 40), `level_3` industry, `level_4` basic
+industry. It writes `data/derived/sectors.json`, ISIN → tag; `make
+fundamentals-annual` builds it with the annual table. Tags are today's, applied
+to the past (A-128).
+
+**Ranking.** `backtest.topdown.rank(view, names)`: each named stock's 126-session
+return; a sector's and an industry's score is the equal-weighted mean of its
+members, counted with 3 or more; an industry with fewer inherits its sector's
+score. The top 5 sectors are kept; an industry is strong when its score is above
+the median of the industries scored on their own. `Ranking.passes(s)` = in a top
+sector and a strong industry.
+
+**Models** (`screener_models`, kinds long/swing): `screen_topdown_sectors` (every
+liquid stock in the top 5, a fifth per sector), `screen_topdown_quality_momentum`
+(passes, quality ≥ median, top 20 by Sharpe momentum, at most 6 per sector,
+`_capped`), `screen_topdown_discount` (passes, positive earnings yield, mean rank
+of Sharpe momentum and of earnings yield less its industry median,
+`industry_relative`), and `TopSectorsOnly` wrapping the trend pullback and the
+52-week breakout (targets kept only in the top 5 sectors, weights unchanged).
+`events_daily.DriftMomentum(topdown=True)` ranks only top-sector stocks.
+`research.topdown_run` runs each through `api.server._engine_run` (which now
+takes `cost_multiplier`) on 2016-2026, each half and at 2x costs, with each
+calendar year's return from the equity curve (`make topdown-screen`).
+
+**Likely movers.** `movers.build(view, names, table)`: the reaction session of a
+results disclosure is the first session whose close follows it (before 15:30 on
+a session day: that day; else the next). Typical results-day move = median
+absolute close-to-close return over 3 or more past reactions (`events_daily.
+announcements`, 2021-2024, plus the last 90 days from `daily_books.results_times`).
+Lists: results due in 7 days among the liquid 250 (`board_meetings.upcoming`)
+with that typical move; reactions of 5% or more within 60 sessions, tagged H-0187
+(today's) or earnings drift (positive, 2-60 sessions); and today's close at a new
+52-week high on twice the 50-session median volume. `drift_picks` is
+`india_drift_momentum_combo` on today's view (reaction 2-60 sessions old beating
+NIFTYBEES over two days, Clenow's filter, 15 best by his score). `screener.build` stores
+`topdown` (sectors, industries in the top sectors, each stock's sector, industry
+and flags) and `movers` in `screener.json`.
+
+**The brief.** `market_brief` reads `screener.json`; `brief_content.ideas` turns
+it into sections: where the strength is (top 5 sectors and strong industries,
+with the top-5-sectors model's backtest), the main long and chosen swing lists
+(first 10, each pick with its sector, 12-1 momentum, nearness to the high,
+quality percentile and P/E, the list's annualised return, Sharpe and worst fall
+beside it), the top-down lists, and the likely movers with the evidence of each
+setup. `brief_text` prints them as STOCK IDEAS; the workbench draws them before
+the news.
+
 ### The engineering agent on a small model (HISTORY #78)
 
 `engineering.budget(name)` = 0.8 × the model's `tokens_per_minute` in

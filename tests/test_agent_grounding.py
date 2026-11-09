@@ -117,6 +117,8 @@ def test_the_brief_drops_commentary_with_a_number_not_in_it(
     monkeypatch.setattr(market_brief, "_world", lambda notes, fetch: [])
     monkeypatch.setattr(market_brief, "_events", lambda day: [])
     monkeypatch.setattr(market_brief, "_books", list)
+    # The screener page on disk can hold any figure; this test is about invented ones.
+    monkeypatch.setattr(market_brief, "_screener", dict)
     spec = AgentSpec(
         name="market_brief",
         title="Market brief",

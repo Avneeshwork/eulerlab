@@ -128,6 +128,17 @@ def _reports() -> dict[str, Any]:
     return loaded if isinstance(loaded, dict) else {}
 
 
+def _screener() -> dict[str, Any]:
+    """Today's screener page (`make screener`): lists, sector ranking, likely movers."""
+    from eulerlab import screener
+
+    try:
+        loaded = json.loads(screener.OUT.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
 def _results(day: str) -> dict[str, Any]:
     """Results meetings in the next week, from the captured board-meeting intimations."""
     from eulerlab.ingest import board_meetings
@@ -581,6 +592,7 @@ def run(ctx: Context) -> WorkerResult:
         _learn(news_found, ctx.now)
     except (OSError, ValueError) as exc:
         notes.append(f"news rules not updated: {type(exc).__name__}: {str(exc)[:120]}")
+    brief["ideas"] = brief_content.ideas(_screener())
     brief["news"] = brief_content.news_sections(news_found, upcoming)
     brief["news_summary"] = summary
     brief["shocks"] = [
@@ -821,6 +833,17 @@ def brief_text(brief: dict[str, Any], read_text: str, detail: str) -> str:
             lines.append(f"- {label}: {'; '.join(u[key])}")
     if u.get("flows"):
         lines.append(f"- Flows: {u['flows']}")
+    ideas = brief.get("ideas") or {}
+    if ideas.get("available"):
+        lines += [
+            "",
+            f"STOCK IDEAS (screener of {ideas.get('as_of')}; screening backtests, not advice)",
+        ]
+        for sec in ideas["sections"]:
+            lines += [f"{sec['title']}:", *[f"- {x}" for x in sec["lines"]]]
+        lines.append(f"- {ideas['caveat']}")
+    elif ideas:
+        lines += ["", "STOCK IDEAS", f"- Not held: {ideas.get('why')}"]
     for s in brief.get("news") or []:
         lines += ["", s["title"].upper(), *[f"- {x}" for x in s["lines"]]]
     if brief.get("note"):

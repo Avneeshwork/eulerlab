@@ -108,15 +108,31 @@ def backtests(paths: Sequence[str]) -> tuple[dict[str, dict[str, Any]], dict[str
         if not path.exists():
             continue
         got = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(got.get("runs"), dict):  # research 182's file: id -> full, halves, 2x
+            got = _from_topdown(got)
         for r in got.get("runs") or []:
             if r.get("id") and r["id"] not in runs:
                 runs[str(r["id"])] = r | {
-                    "window": got.get("window"),
-                    "benchmark": got.get("benchmark"),
+                    "window": r.get("window") or got.get("window"),
+                    "benchmark": r.get("benchmark") or got.get("benchmark"),
                 }
         bench.setdefault("window", got.get("window"))
         bench.setdefault("benchmark", got.get("benchmark"))
     return runs, bench
+
+
+def _from_topdown(got: Mapping[str, Any]) -> dict[str, Any]:
+    """`topdown_screen.json` as a summary file: each id's full-window run, with its window."""
+    bench = got.get("benchmark") or {}
+    runs = []
+    for sid, v in (got.get("runs") or {}).items():
+        full = dict(v.get("full") or {})
+        if full.get("error"):
+            continue
+        events = (full.get("window") or [""])[0] != "2016-01-01"
+        runs.append({"id": sid, **full, "benchmark": bench.get("events" if events else "full")})
+    window = next((r.get("window") for r in runs), None)
+    return {"runs": runs, "window": window, "benchmark": bench.get("full")}
 
 
 def parts_of(strategy: Any) -> list[dict[str, Any]]:
@@ -337,6 +353,56 @@ def track(
     return out
 
 
+def top_down(
+    view: MarketView, names: Sequence[str], table: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Today's sector and industry ranking (research 182), and each stock's place in it."""
+    from eulerlab.backtest import topdown
+
+    rk = topdown.rank(view, names)
+    members: dict[str, list[str]] = {}
+    for s, ind in rk.industry_of.items():
+        members.setdefault(ind, []).append(s)
+        row = table.setdefault(s, {})
+        row["sector"] = rk.sector_of[s]
+        row["industry"] = ind.split(" / ", 1)[1]
+        row["top_sector"] = rk.in_top_sectors(s)
+        row["strong_industry"] = ind in rk.strong_industries
+    count = {k: sum(1 for v in rk.sector_of.values() if v == k) for k in rk.sector_score}
+    sectors = [
+        {
+            "sector": k,
+            "return_6m": round(v, 4),
+            "members": count[k],
+            "rank": i + 1,
+            "top": k in rk.top_sectors,
+        }
+        for i, (k, v) in enumerate(sorted(rk.sector_score.items(), key=lambda x: (-x[1], x[0])))
+    ]
+    industries = [
+        {
+            "sector": ind.split(" / ", 1)[0],
+            "industry": ind.split(" / ", 1)[1],
+            "return_6m": round(rk.industry_score[ind], 4),
+            "strong": ind in rk.strong_industries,
+            "stocks": sorted(members.get(ind, [])),
+            "own_score": len(members.get(ind, [])) >= topdown.MIN_MEMBERS,
+        }
+        for ind in sorted(rk.industry_score, key=lambda k: (-rk.industry_score[k], k))
+        if ind.split(" / ", 1)[0] in rk.top_sectors
+    ]
+    return {
+        "top_sectors": list(rk.top_sectors),
+        "sectors": sectors,
+        "industries": industries,
+        "rule": (
+            "Sector and industry score: equal-weighted 126-session return of their members among "
+            "today's liquid 250, counted with 3 or more; top 5 sectors; an industry is strong above "
+            "the median industry (research 182). Tags are today's screener.in classification (A-128)."
+        ),
+    }
+
+
 def _news_tone() -> dict[str, Any]:
     path = Path("data/derived/stock_news_tone.json")
     if not path.exists():
@@ -377,6 +443,13 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
     runs, bench = backtests(list(cfg.get("summaries") or []))
     names = liquid_universe(view)
     table = reasons(view, names)
+    funnel = top_down(view, names, table)
+    from eulerlab import movers
+
+    try:
+        moving = movers.build(view, names, table)
+    except Exception as exc:  # the lists must not fail for want of the movers
+        moving = {"error": f"{type(exc).__name__}: {str(exc)[:120]}"}
     tone = _news_tone()
     lists = []
     for mid, kind, title, strategy in models:
@@ -451,6 +524,8 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
         "stocks": dict(sorted(table.items())),
         "benchmark": bench,
         "choice": choice,
+        "topdown": funnel,
+        "movers": moving,
         "history": {
             "recorded_today": added,
             "since": min((str(r["as_of"]) for r in history()), default=""),
@@ -465,8 +540,8 @@ def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, 
             "Fundamentals count from 90 days after each year end (A-107) and carry later restatements; "
             "only companies listed in 2026 have them, so fundamental models pick survivors.",
             "The existing five are all momentum: they are close to one bet (HISTORY #44).",
-            "The long-term list is the consensus of the top 5 long-term models: stocks 3 or more pick "
-            "(research 152). The swing list is chosen by research 151's pre-registered rule: best Sharpe "
+            "The long-term list is the operator's choice in config/screener.yaml (since 2026-11-08 "
+            "Stocks on the Move, research 182: picked after seeing the results). The swing list is chosen by research 151's pre-registered rule: best Sharpe "
             "in the worse of 2016-2020 and 2021-2026.",
         ],
     }
@@ -485,10 +560,14 @@ def _jsonable(value: Any) -> Any:
 
 
 def build_fundamentals() -> dict[str, int]:
+    """The annual statements and the sector tags (research 182), both keyed by ISIN."""
     from eulerlab.features.panel import read_panel
-    from eulerlab.fundamentals import annual
+    from eulerlab.fundamentals import annual, sectors
 
-    return annual.build(isin_map(read_panel()))
+    isins = isin_map(read_panel())
+    got = annual.build(isins)
+    tags = sectors.build(isins)
+    return got | {"sector_tags": tags["tagged"]}
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -499,7 +578,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         got = build_fundamentals()
         print(
             f"fundamentals-annual: {got['companies']} companies, {got['years']} years; "
-            f"{got['read']} snapshots read, {got['no_isin']} tickers without an ISIN, {got['failed']} unreadable"
+            f"{got['read']} snapshots read, {got['no_isin']} tickers without an ISIN, {got['failed']} unreadable; "
+            f"{got['sector_tags']} sector tags"
         )
         return 0
     result = build()

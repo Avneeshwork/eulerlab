@@ -180,22 +180,31 @@ class DriftMomentum(Strategy):
     drift and smooth-trend momentum. Declared before it was run (2026-10-18).
     """
 
-    def __init__(self, name: str, *, hold: int = 15, hold_days: int = 60) -> None:
+    def __init__(
+        self, name: str, *, hold: int = 15, hold_days: int = 60, topdown: bool = False
+    ) -> None:
         self.name = name
         self.hold = hold
         self.hold_days = hold_days
+        self.topdown = topdown
+        """Research 182: only stocks in the top 5 sectors (`backtest.topdown`)."""
         self.rebalance_every = WEEK
         self.lookback = 140
         self.hold_unchanged = True
 
     def target_weights(self, view: MarketView) -> dict[str, float]:
+        from eulerlab.backtest import topdown
         from eulerlab.backtest.evidence_daily import clenow_score
 
         market = view.history.get(INDEX_ETF) or []
         if not market:
             return {}
+        names = liquid_universe(view)
+        if self.topdown:
+            ranking = topdown.rank(view, names)
+            names = [s for s in names if ranking.in_top_sectors(s)]
         scored = []
-        for symbol in liquid_universe(view):
+        for symbol in names:
             rows = view.history[symbol]
             reaction = recent_reaction(rows, market, symbol, view.as_of, self.hold_days)
             if reaction is None or reaction <= 0:
@@ -251,6 +260,20 @@ STRATEGIES: tuple[PaperStrategy, ...] = (
         ),
         140,
         lambda: DriftMomentum("india_drift_momentum_combo"),
+    ),
+    PaperStrategy(
+        "india_drift_momentum_topdown",
+        "Earnings drift plus Clenow momentum, top 5 sectors only (India)",
+        "chan-jegadeesh-lakonishok-1996-announcement-drift",
+        "Chan, Jegadeesh & Lakonishok (1996); Moskowitz & Grinblatt (1999); research 182",
+        "As the drift-momentum combo, but only among stocks in the five sectors with the best six months.",
+        (
+            "Sectors: equal-weighted 126-session return of their liquid members (3 or more); "
+            "top 5 kept (backtest.topdown). Sector tags are today's (A-128).",
+            "Then as india_drift_momentum_combo: 15 names at fixed fifteenths. Run 2021-08 to 2024-11.",
+        ),
+        140,
+        lambda: DriftMomentum("india_drift_momentum_topdown", topdown=True),
     ),
 )
 

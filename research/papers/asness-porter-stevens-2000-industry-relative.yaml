@@ -1,0 +1,31 @@
+id: asness-porter-stevens-2000-industry-relative
+title: Predicting Stock Returns Using Industry-Relative Firm Characteristics
+authors: Asness, C. S., Porter, R. B., Stevens, R. L.
+year: 2000
+kind: paper
+source_url: https://www.aqr.com/Insights/Research/Working-Paper/Predicting-Stock-Returns-Using-IndustryRelative-Firm-Characteristics
+pdf: ''
+added: '2026-11-08'
+status: specified
+markets:
+- US stocks (NYSE, AMEX, NASDAQ), 1963-1998
+summary: 'Splits each characteristic into a within-industry part (the firm against its industry
+  average) and an across-industry part. Each is priced within industry, and the within-industry
+  measure predicts more precisely than the raw one.'
+trade_idea: Judge cheapness against a stock's own industry peers, not the whole market.
+implementation: |-
+  Here: screen_topdown_discount, earnings yield less its industry median (sector median when the
+  industry has fewer than 3 liquid members), blended with Sharpe momentum inside the top 5 sectors
+  (research 182).
+red_flags:
+- Read from a search summary of the abstract; the PDF was not read (research 182).
+- US evidence only; no Indian test found.
+- Industry tags are today's (A-128).
+reported_results: 'Reported: within-industry book-to-market, cash flow-to-price and momentum are
+  reliably priced.'
+hypothesis: ''
+strategies:
+- kind: registered
+  id: screen_topdown_discount
+  note: ''
+  timeframe: 0

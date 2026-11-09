@@ -29,6 +29,7 @@ from functools import cache
 from statistics import median
 from typing import Any
 
+from eulerlab.backtest import topdown
 from eulerlab.backtest.event_driven import FAR_FUTURE
 from eulerlab.backtest.india_papers import (
     MONTH,
@@ -447,6 +448,133 @@ class BreakoutVolume(Strategy):
         return dict.fromkeys(held, 1.0 / max(len(held), SLOTS)) if held else {}
 
 
+# --- top-down models (research 182) ---------------------------------------------------------------
+
+SECTOR_CAP = 6
+
+
+def _capped(
+    scores: Mapping[str, float], sector_of: Mapping[str, str], n: int = TOP, cap: int = SECTOR_CAP
+) -> dict[str, float]:
+    """The best `n` by score, at most `cap` from one sector; equal weights."""
+    chosen: list[str] = []
+    count: dict[str, int] = {}
+    for s in sorted(scores, key=lambda s: (-scores[s], s)):
+        sec = sector_of.get(s, "")
+        if count.get(sec, 0) >= cap:
+            continue
+        chosen.append(s)
+        count[sec] = count.get(sec, 0) + 1
+        if len(chosen) == n:
+            break
+    return dict.fromkeys(chosen, 1.0 / len(chosen)) if chosen else {}
+
+
+def industry_relative(values: Mapping[str, float], ranking: topdown.Ranking) -> dict[str, float]:
+    """Each value less the median of its industry (3 or more with a value), else of its sector."""
+    by_ind: dict[str, list[float]] = {}
+    by_sec: dict[str, list[float]] = {}
+    for s, v in values.items():
+        if s in ranking.industry_of:
+            by_ind.setdefault(ranking.industry_of[s], []).append(v)
+            by_sec.setdefault(ranking.sector_of[s], []).append(v)
+    out: dict[str, float] = {}
+    for s, v in values.items():
+        if s not in ranking.industry_of:
+            continue
+        peers = by_ind[ranking.industry_of[s]]
+        if len(peers) < topdown.MIN_MEMBERS:
+            peers = by_sec[ranking.sector_of[s]]
+        if len(peers) >= topdown.MIN_MEMBERS:
+            out[s] = v - median(peers)
+    return out
+
+
+class TopDownSectors(Strategy):
+    """Every liquid stock in the top 5 sectors; a fifth to each sector, equal inside it."""
+
+    rebalance_every = MONTH
+    lookback = topdown.FORMATION + 10
+
+    def __init__(self) -> None:
+        self.name = "screen_topdown_sectors"
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        names = liquid_universe(view)
+        rk = topdown.rank(view, names)
+        out: dict[str, float] = {}
+        for sec in rk.top_sectors:
+            members = [s for s in names if rk.sector_of.get(s) == sec]
+            for s in members:
+                out[s] = 1.0 / len(rk.top_sectors) / len(members)
+        return out
+
+
+class TopDownQualityMomentum(Strategy):
+    """Top sectors, then strong industries, then quality at or above the median; Sharpe momentum."""
+
+    rebalance_every = MONTH
+    lookback = YEAR + 10
+
+    def __init__(self) -> None:
+        self.name = "screen_topdown_quality_momentum"
+        self.score = sharpe_momentum_over(YEAR)
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        names, f = _universe_facts(view)
+        q = quality(f)
+        if len(q) < 40:
+            return {}
+        rk = topdown.rank(view, names)
+        bar = median(q.values())
+        good = [s for s in q if q[s] >= bar and rk.passes(s)]
+        scores = {s: v for s in good if (v := self.score(view.history[s])) is not None}
+        return _capped(scores, rk.sector_of)
+
+
+class TopDownDiscount(Strategy):
+    """The same funnel, ranked on momentum and on cheapness against industry peers."""
+
+    rebalance_every = MONTH
+    lookback = YEAR + 10
+
+    def __init__(self) -> None:
+        self.name = "screen_topdown_discount"
+        self.score = sharpe_momentum_over(YEAR)
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        names, f = _universe_facts(view)
+        if len(f) < 40:
+            return {}
+        rk = topdown.rank(view, names)
+        ey = {s: v["earnings_yield"] for s, v in f.items() if "earnings_yield" in v}
+        rel = industry_relative(ey, rk)
+        cands = [s for s in rel if ey[s] > 0 and rk.passes(s)]
+        mom = {s: m for s in cands if (m := self.score(view.history[s])) is not None}
+        if not mom:
+            return {}
+        blend = _mean_of([_z(mom), _z({s: rel[s] for s in mom})], mom)
+        return _capped(blend, rk.sector_of)
+
+
+class TopSectorsOnly(Strategy):
+    """Another strategy's targets, kept only for stocks in the top 5 sectors (weights unchanged)."""
+
+    def __init__(self, name: str, inner: Strategy) -> None:
+        self.name = name
+        self.inner = inner
+        self.rebalance_every = int(getattr(inner, "rebalance_every", 1))
+        self.lookback = max(int(inner.lookback or 0), topdown.FORMATION + 10)
+        self.hold_unchanged = getattr(inner, "hold_unchanged", False)
+
+    def target_weights(self, view: MarketView) -> dict[str, float]:
+        got = self.inner.target_weights(view)
+        if not got:
+            return {}
+        rk = topdown.rank(view, liquid_universe(view))
+        return {s: w for s, w in got.items() if rk.in_top_sectors(s)}
+
+
 # --- blends (ADR-137) ----------------------------------------------------------------------------
 
 
@@ -722,6 +850,94 @@ SPECS = (
             build=lambda: Consensus("screen_consensus_3of5", CONSENSUS_PARTS, 3, MONTH),
         ),
         LONG,
+    ),
+)
+
+_TOPDOWN_FUNNEL = (
+    "Sectors and industries: equal-weighted 126-session return of their liquid members "
+    "(3 or more); top 5 sectors, industries above the median (backtest.topdown).",
+    "Sector tags are today's, applied backwards (A-128).",
+)
+
+SPECS = (
+    *SPECS,
+    (
+        PaperStrategy(
+            id="screen_topdown_sectors",
+            title="Top 5 sectors",
+            paper="moskowitz-grinblatt-1999-industry-momentum",
+            citation="Moskowitz and Grinblatt (1999); Sehgal and Jain (2011); research 182",
+            summary="Every liquid stock in the five sectors with the best six months; monthly.",
+            logic=(
+                _TOPDOWN_FUNNEL[0],
+                "A fifth of capital to each top sector, equal inside it. Rebalanced every 21 sessions.",
+                _TOPDOWN_FUNNEL[1],
+            ),
+            lookback=topdown.FORMATION + 10,
+            build=TopDownSectors,
+        ),
+        LONG,
+    ),
+    (
+        PaperStrategy(
+            id="screen_topdown_quality_momentum",
+            title="Top-down quality momentum",
+            paper="moskowitz-grinblatt-1999-industry-momentum",
+            citation="Moskowitz and Grinblatt (1999); Jacob, Pradeep and Varma (2022); research 182",
+            summary="Top 5 sectors, strong industries, quality at or above the median; top 20 by Sharpe momentum.",
+            logic=(
+                *_TOPDOWN_FUNNEL,
+                "Quality as screen_quality_momentum; rank by 12-month return over volatility.",
+                "Top 20, at most 6 from one sector, equal; rebalanced every 21 sessions.",
+            ),
+            lookback=YEAR + 10,
+            build=TopDownQualityMomentum,
+        ),
+        LONG,
+    ),
+    (
+        PaperStrategy(
+            id="screen_topdown_discount",
+            title="Top-down momentum at a discount to peers",
+            paper="asness-porter-stevens-2000-industry-relative",
+            citation="Asness, Porter and Stevens (2000); Moskowitz and Grinblatt (1999); research 182",
+            summary="Top 5 sectors, strong industries; momentum plus earnings yield above the industry median.",
+            logic=(
+                *_TOPDOWN_FUNNEL,
+                "Earnings yield positive; score = mean rank of Sharpe momentum and of earnings "
+                "yield less its industry median (sector median under 3 peers).",
+                "Top 20, at most 6 from one sector, equal; rebalanced every 21 sessions.",
+            ),
+            lookback=YEAR + 10,
+            build=TopDownDiscount,
+        ),
+        LONG,
+    ),
+    (
+        PaperStrategy(
+            id="screen_topdown_pullback",
+            title="Trend pullback in the top 5 sectors",
+            paper="github-2021-connors-rsi2-bot",
+            citation="Connors RSI(2) with a 200-day trend; Moskowitz and Grinblatt (1999)",
+            summary="screen_trend_pullback, only in the five sectors with the best six months; weekly.",
+            logic=(_TOPDOWN_FUNNEL[0], "Then as screen_trend_pullback.", _TOPDOWN_FUNNEL[1]),
+            lookback=230,
+            build=lambda: TopSectorsOnly("screen_topdown_pullback", TrendPullback()),
+        ),
+        SWING,
+    ),
+    (
+        PaperStrategy(
+            id="screen_topdown_breakout",
+            title="52-week breakout in the top 5 sectors",
+            paper="george-hwang-2004-52-week-high",
+            citation="George and Hwang (2004); Moskowitz and Grinblatt (1999)",
+            summary="screen_52w_breakout, only in the five sectors with the best six months; weekly.",
+            logic=(_TOPDOWN_FUNNEL[0], "Then as screen_52w_breakout.", _TOPDOWN_FUNNEL[1]),
+            lookback=YEAR + 30,
+            build=lambda: TopSectorsOnly("screen_topdown_breakout", BreakoutVolume()),
+        ),
+        SWING,
     ),
 )
 

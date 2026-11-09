@@ -985,3 +985,148 @@ def telegram(brief: Mapping[str, Any]) -> str:
     lines = lines[:7]
     lines.append("Full brief: workbench → AI → Market brief")
     return "\n".join(lines)
+
+
+# --- stock ideas (research 182) ----------------------------------------------------------
+
+
+def _cagr(bt: Mapping[str, Any]) -> float | None:
+    total, window = bt.get("total_return"), bt.get("window") or []
+    if not isinstance(total, int | float) or len(window) != 2 or total <= -1:
+        return None
+    years = (date.fromisoformat(str(window[1])) - date.fromisoformat(str(window[0]))).days / 365.25
+    return (1 + float(total)) ** (1 / years) - 1 if years > 0 else None
+
+
+def _evidence(item: Mapping[str, Any]) -> str:
+    bt = item.get("backtest") or {}
+    sharpe, dd = bt.get("sharpe"), bt.get("max_drawdown")
+    if not isinstance(sharpe, int | float):
+        return "no stored backtest yet"
+    cagr = _cagr(bt)
+    window = bt.get("window") or ["?", "?"]
+    return (
+        f"backtest {str(window[0])[:4]}-{str(window[1])[:4]}: "
+        + (f"{cagr:+.0%} a year, " if cagr is not None else "")
+        + f"Sharpe {float(sharpe):.2f}"
+        + (f", worst fall {float(dd):.0%}" if isinstance(dd, int | float) else "")
+    )
+
+
+def _stock(s: str, row: Mapping[str, Any]) -> str:
+    bits = []
+    if row.get("sector"):
+        bits.append(str(row["sector"]) + (" (top sector)" if row.get("top_sector") else ""))
+    if isinstance(row.get("momentum_12_1"), int | float):
+        bits.append(f"12-1m {float(row['momentum_12_1']):+.0%}")
+    if isinstance(row.get("near_high"), int | float):
+        bits.append(f"{float(row['near_high']):.0%} of 52w high")
+    if isinstance(row.get("quality_pct"), int | float):
+        bits.append(f"quality pct {row['quality_pct']:.0f}")
+    if isinstance(row.get("pe"), int | float):
+        bits.append(f"P/E {float(row['pe']):.0f}")
+    return f"{s} ({', '.join(bits)})" if bits else s
+
+
+def ideas(screen: Mapping[str, Any], *, top: int = 10) -> dict[str, Any]:
+    """The brief's stock ideas from the screener page (`make screener`): sectors, lists, movers."""
+    if not screen.get("lists"):
+        return {"available": False, "why": "the screener has not been built (`make screener`)"}
+    stocks: Mapping[str, Mapping[str, Any]] = screen.get("stocks") or {}
+    lists = {str(x["id"]): x for x in screen["lists"]}
+    choice = screen.get("choice") or {}
+    out: dict[str, Any] = {"available": True, "as_of": screen.get("as_of"), "sections": []}
+
+    funnel = screen.get("topdown") or {}
+    lines = []
+    secs = [x for x in funnel.get("sectors") or [] if x.get("top")]
+    if secs:
+        lines.append(
+            "Top 5 sectors by 6-month return of their liquid stocks: "
+            + "; ".join(f"{x['sector']} {float(x['return_6m']):+.0%}" for x in secs)
+        )
+        strong = [x for x in funnel.get("industries") or [] if x.get("strong")][:8]
+        if strong:
+            lines.append(
+                "Strongest industries inside them: "
+                + "; ".join(f"{x['industry']} {float(x['return_6m']):+.0%}" for x in strong)
+            )
+        ts = lists.get("screen_topdown_sectors")
+        if ts:
+            lines.append(f"Holding the top 5 sectors alone: {_evidence(ts)}.")
+    if lines:
+        out["sections"].append({"title": "Where the strength is", "lines": lines})
+
+    def list_lines(mid: str, label: str) -> list[str]:
+        item = lists.get(mid)
+        if not item or item.get("error"):
+            return []
+        picks = list(item.get("picks") or [])[:top]
+        return [
+            f"{label}: {item.get('title')} — {_evidence(item)}.",
+            *[f"{i}. {_stock(s, stocks.get(s) or {})}" for i, s in enumerate(picks, 1)],
+        ] + ([] if picks else ["holds nothing today (cash)"])
+
+    for kind, mid, label in (
+        ("long", str(choice.get("main_long") or ""), "Long-term list, monthly"),
+        ("swing", str(choice.get("chosen_swing") or ""), "Swing list, weekly"),
+    ):
+        got = list_lines(mid, label)
+        if got:
+            out["sections"].append({"title": f"{kind.title()} picks", "lines": got})
+    extra = [
+        list_lines(m, "Top-down")
+        for m in ("screen_topdown_quality_momentum", "screen_topdown_discount")
+        if m not in (choice.get("main_long"), choice.get("chosen_swing"))
+    ]
+    flat = [x for got in extra for x in got[: 1 + 5]]
+    if flat:
+        out["sections"].append({"title": "Top-down lists (research 182)", "lines": flat})
+
+    mv = screen.get("movers") or {}
+    ev = mv.get("evidence") or {}
+    lines = []
+    due = sorted(
+        [d for d in mv.get("results_due") or [] if d.get("typical_move")],
+        key=lambda d: -float(d["typical_move"]),
+    )[:8]
+    if due:
+        lines.append(
+            "Results due this week, biggest typical results-day move first: "
+            + "; ".join(
+                f"{d['symbol']} {d['meeting'][5:]} (±{float(d['typical_move']):.1%})" for d in due
+            )
+        )
+    for f in (mv.get("fresh_reactions") or [])[:8]:
+        lines.append(
+            f"{f['symbol']} moved {float(f['move']):+.1%} on results ({f['reaction_day']}, "
+            f"{f['sessions_ago']} sessions ago): {', '.join(f['setups'])}"
+        )
+    drift = mv.get("drift") or []
+    if drift:
+        lines.append(
+            "Earnings-drift swing picks (reported 2-60 sessions ago, beat Nifty on the news, smooth "
+            "trend): "
+            + ", ".join(
+                f"{d['symbol']} ({float(d['reaction']):+.0%}, {d['sessions_ago']}d ago)"
+                for d in drift[:15]
+            )
+        )
+    br = mv.get("breakouts") or []
+    if br:
+        lines.append(
+            "52-week breakouts on 2x volume today: "
+            + ", ".join(b["symbol"] + ("*" if b.get("top_sector") else "") for b in br[:12])
+            + (" (* in a top sector)" if any(b.get("top_sector") for b in br[:12]) else "")
+        )
+    if lines:
+        lines += [f"Evidence: {ev[k]}" for k in ("H-0187", "drift", "breakouts") if ev.get(k)]
+        lines += [f"Not covered: {g}" for g in mv.get("gaps") or []]
+        out["sections"].append({"title": "Likely big movers", "lines": lines})
+    out["caveat"] = (
+        "Screening backtests after Indian costs, not advice; no list has passed the gate. "
+        "Backtests carry survivorship bias (fundamentals and sector tags exist only for companies "
+        "alive in 2026) and today's sector tags applied to the past. A 20%-a-year backtest came "
+        "with 30-55% falls on the way."
+    )
+    return out

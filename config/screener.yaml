@@ -16,6 +16,7 @@ existing:
 # Where each strategy's stored screening backtest is read from, in order.
 summaries:
   - data/derived/screener_models.json
+  - data/derived/topdown_screen.json
   - data/derived/india_papers.json
   - data/derived/github_daily.json
   - data/derived/evidence_daily.json
@@ -24,7 +25,10 @@ summaries:
 # fixed 70:30 blend; the swing list is the candidate with the best Sharpe in its
 # worse half, ties to fewer parts, and none when no worse half reaches the floor.
 # Changed 2026-11-04 by the operator: the 3-of-5 consensus (research 152).
-main_long: screen_consensus_3of5
+# Changed 2026-11-08 by the operator (option A, research 182): Stocks on the Move,
+# 21.5% a year 2016-2026, worst fall -29%, worse half 0.65 (the consensus: 0.48).
+# Chosen after seeing the results, not by a pre-registered rule.
+main_long: nse_github_stocks_on_the_move
 swing_candidates:
   - screen_swing_mom_weinstein
   - screen_swing_breakout_weinstein

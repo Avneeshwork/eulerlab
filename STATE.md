@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
 **Next:** live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528). Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
 
-*Last updated: 2026-11-08. One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-08 (screener). One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -59,6 +59,11 @@ what is open is in `TASKS.md`.*
   2.58, deflated 0.965; paper book built) and H-0185 (weak).
   The six earlier stock rules have paper books (`deploy/mis_book.py`, ADR-147); none started
   yet (T-4495). Since 2026-11-07 the operator's scope is NSE cash stocks only.
+- **Screener and stock ideas (research 182, ADR-156).** Picking the top 5
+  sectors first lowered every model's return; the long-term list is now Stocks
+  on the Move (21.5% a year 2016-2026, worst fall -29%), swing A unchanged. The
+  brief shows top sectors, both lists, results due with typical moves, fresh
+  results reactions, earnings-drift picks and breakouts. Screening runs only.
 - **Holdout spent (ADR-143, 2026-11-06).** The operator read 2024-12 to
   2026-10 for these fifteen. 2016-2026: H-0001 Sharpe 1.28-1.55 (drawdown
   -44% to -63%), H-0098 1.72 (drawdown -10%), the other momentum cards

@@ -3,6 +3,19 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## The screener, likely movers and stock ideas in the brief (2026-11-08, research 182, ADR-156)
+
+Operator: a brief with daily picks and likely big movers, long-term and swing screeners for retail use, more than 20% a year, chosen top down (sectors, industries, stocks).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4538 | Six top-down screeners pre-registered and tested against the current lists, halves, 2x costs, year by year | DONE 2026-11-08 — `make topdown-screen`; research 182. The sector funnel lowered every model's return |
+| T-4539 | Long-term list: Stocks on the Move (operator's option A) | DONE 2026-11-08 — `config/screener.yaml`, ADR-156 |
+| T-4540 | Stock ideas in the brief: top sectors and industries, long and swing picks with backtests, results due with typical moves, fresh 5% reactions, earnings-drift picks, volume breakouts | DONE 2026-11-08 — `movers.py`, `brief_content.ideas`; `make screener` then the brief |
+| T-4541 | NSE results now come as board-meeting outcomes; re-run any 2026 replay of H-0168/H-0187 paper books made before the fix (HISTORY) | TODO |
+| T-4542 | A paper book for the earnings-drift swing picks (`india_drift_momentum_combo`, 36% a year 2021-2024, the only rule here up every year) so the 3.3-year backtest gets forward evidence | TODO. Operator decision |
+| T-4543 | Backfill NSE announcements for 2025 and 2026-01 to 2026-08 so the drift rule and typical results moves can be tested past 2024 | TODO |
+
 ## The self-running organisation and the road to live intraday (2026-11-08, ADR-152, ADR-153)
 
 Operator: agents that learn, verify against data, fix their own failures and stop themselves on wrong-doing, run as an organisation on feedback only; a real-money intraday strategy by month end. Plan: Claude Doc "Euler Lab: the self-running agent organisation and the road to live intraday". Operator, on the plan: "keep building strategies and process to deploy parallely".

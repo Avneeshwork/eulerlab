@@ -374,6 +374,7 @@ def _engine_run(
     cost_mode: str = "realistic",
     asset_class: str,
     span: tuple[date, date] | None = None,
+    cost_multiplier: float = 1.0,
 ) -> _EngineRun:
     """The one place this API calls an engine.
 
@@ -418,6 +419,7 @@ def _engine_run(
         warmup=warmup,
         adjusted_index=index,
         cost_mode=cost_mode,
+        cost_multiplier=cost_multiplier,
     )
     return _EngineRun(
         run_b.equity,

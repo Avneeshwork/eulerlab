@@ -33,6 +33,11 @@ USER_AGENT = (
 )
 SUBJECT = "Financial Result Updates"
 BOARD_OUTCOME = "Outcome of Board Meeting"
+RESULTS_TEXT = "the financial results for the"
+"""Since 2026 (every daily answer landed from 2026-08-10) NSE files no "Financial Result
+Updates" rows: results arrive only as board-meeting outcomes whose text says the company
+"has submitted to the Exchange, the financial results for the period ended ...". Such a
+row counts as a result for a (symbol, day) with no results row (HISTORY, research 182)."""
 INCOMPLETE = ((date(2022, 7, 1), date(2022, 12, 31)),)
 """Windows where NSE filed results under other labels: 21 and 9 results rows
 against about 1,800 a quarter elsewhere (checked 2026-10-16). Excluded from
@@ -126,6 +131,7 @@ def derive(paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
     warnings = []
     collected: dict[tuple[str, str], dict[str, Any]] = {}
     board: dict[tuple[str, str], str] = {}
+    outcome: dict[tuple[str, str], dict[str, Any]] = {}
     """Earliest same-day board-meeting outcome per (symbol, day). It often carries
     the results minutes before the results row (median 3 min in Q3 2024, 738 of
     2,056), so a result is known from whichever came first."""
@@ -141,6 +147,23 @@ def derive(paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
                 if symbol and at:
                     key = (symbol, at[:10])
                     board[key] = min(board.get(key, at), at)
+                    text = str(row.get("attchmntText") or "")
+                    if (
+                        RESULTS_TEXT in text.lower()
+                        and window_start <= date.fromisoformat(at[:10]) <= window_end
+                    ):
+                        have = outcome.get(key)
+                        if have is None or at < have["knowledge_time"]:
+                            outcome[key] = {
+                                "symbol": symbol,
+                                "event_time": _exchange_time(row.get("an_dt")) or at,
+                                "knowledge_time": at,
+                                "results_row_time": at,
+                                "details": text,
+                                "attachment": str(row.get("attchmntFile") or ""),
+                                "source": "NSE corporate-announcements API (board outcome)",
+                                "landing": path.name,
+                            }
                 continue
             if row.get("desc") != SUBJECT:
                 continue
@@ -161,6 +184,10 @@ def derive(paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
                 "source": "NSE corporate-announcements API",
                 "landing": path.name,
             }
+    have_days = {(r["symbol"], r["results_row_time"][:10]) for r in collected.values()}
+    for key, row in outcome.items():
+        if key not in have_days:
+            collected[(row["symbol"], row["knowledge_time"])] = row
     for row in collected.values():
         earlier = board.get((row["symbol"], row["results_row_time"][:10]))
         if earlier is not None and earlier < row["knowledge_time"]:

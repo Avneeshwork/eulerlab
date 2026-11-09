@@ -522,3 +522,7 @@ Warm page load, median of 13 pages: 1.12 s → 0.36 s; API calls per full page t
 ## 2026-11-08 — the org chart listed engineering's "reads mode" twice
 
 Believed: the capability audit makes one check per thing an agent needs. True: it made one "reads <arg>" check per skill, so an argument two skills share (engineering's `mode`, passed by both fix and feature) appeared twice under one name, and the AI tab's org chart raised a React duplicate-key error. Now one check per argument, naming every skill that passes it; a test asserts each (agent, check) pair is unique. No numbers affected.
+
+## 2026-11-08 — NSE stopped filing "Financial Result Updates", so live results feeds saw no results (research 182)
+
+Believed: `nse_earnings_announcements.derive` finds every results disclosure, as it did for 2021-2024. True: every daily answer landed from 2026-08-10 holds no "Financial Result Updates" row; results now arrive only as "Outcome of Board Meeting" rows saying the company "has submitted to the Exchange, the financial results for the period ended ...". `daily_books.results_times` therefore returned nothing for 2026, so the H-0168 and H-0187 paper books (not started) and the brief's movers could not see a single results morning. Fixed: such an outcome row counts as a result for a (symbol, day) that has no results row (594 for 2026-11-03 to 2026-11-07). The 2021-2024 backtests are unaffected: those years have results rows, and those win. Any 2026 paper replay of H-0168 or H-0187 run before this fix had no trades and should be re-run.

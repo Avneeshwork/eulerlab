@@ -9,6 +9,8 @@
  * The last session is told first, and the next-session forecast follows what
  * matters, with its reasons, scenarios and its own score (ADR-133). News tone,
  * its likely impact and crash risk come last, before the analyst note (ADR-134).
+ * Stock ideas (sectors, the screener's lists, likely movers) sit before the news
+ * (research 182).
  *
  * `BriefCard` is the short form for the agent strip: headline, the three
  * titles and a link to the whole brief.
@@ -250,6 +252,26 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
           )}
         </dl>
       </Section>
+
+      {brief.ideas?.available ? (
+        <Section title={`Stock ideas (screener of ${brief.ideas.as_of ?? '?'}; not advice)`}>
+          {brief.ideas.sections?.map((sec) => (
+            <div key={sec.title} className="mb-detail">
+              <h4>{sec.title}</h4>
+              <ul className="mb-list">
+                {sec.lines.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {brief.ideas.caveat && <p className="mb-quiet">{brief.ideas.caveat}</p>}
+        </Section>
+      ) : brief.ideas ? (
+        <Section title="Stock ideas" open={false}>
+          <p className="mb-quiet">Not held: {brief.ideas.why}</p>
+        </Section>
+      ) : null}
 
       {brief.news?.map((s) => (
         <Section key={s.title} title={s.title}>

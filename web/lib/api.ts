@@ -2755,6 +2755,14 @@ export type MarketBrief = {
   story?: string[];
   forecast?: { title: string; lines: string[] }[];
   news?: { title: string; lines: string[] }[];
+  /** Stock ideas from the screener page (research 182): sectors, lists, likely movers. */
+  ideas?: {
+    available: boolean;
+    why?: string;
+    as_of?: string;
+    sections?: { title: string; lines: string[] }[];
+    caveat?: string;
+  };
   left_out: string[];
   note?: string;
   detail: [string, string[]][];
