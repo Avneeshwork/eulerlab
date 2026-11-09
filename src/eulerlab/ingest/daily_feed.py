@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import json
 import re
 import sys
 import threading
@@ -54,6 +55,7 @@ from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from eulerlab import timings
@@ -425,10 +427,72 @@ def _india_minute() -> str:
     from eulerlab.ingest import backfill_minute
 
     if not kite_session.is_fresh(kite_session.load()):
-        return "skipped: no Kite token minted today. Log in to Kite on this page first"
+        return angel_minute_fill()
     text = _captured(lambda: backfill_minute.main(["--years", "1"]))
     last = next((ln.strip() for ln in reversed(text.splitlines()) if ln.strip()), "")
     return last[:160] or "minute bars up to date"
+
+
+ANGEL_SESSIONS = 2
+"""Sessions the Angel fallback fetches a run at most: about 450 symbols at one
+request a second is eight minutes a session, inside `STEP_DEADLINE`."""
+
+
+def angel_window(kite_end: str, angel_end: str, now: dt.datetime) -> tuple[str, str] | None:
+    """(from, to) for the Angel fallback, or None when nothing is owed.
+
+    From the day after the later of the two sources' last session, to the last
+    *complete* session: today only from 15:45 IST, because a day landed while
+    the market is open would be held as complete and never fetched again.
+    """
+    from zoneinfo import ZoneInfo
+
+    ist = now.astimezone(ZoneInfo("Asia/Kolkata"))
+    to = ist.date() if (ist.hour, ist.minute) >= (15, 45) else ist.date() - dt.timedelta(days=1)
+    held = max(kite_end, angel_end)
+    start = dt.date.fromisoformat(held) + dt.timedelta(days=1) if held else to
+    start = max(start, to - dt.timedelta(days=14))
+    return None if start > to else (start.isoformat(), to.isoformat())
+
+
+def angel_minute_fill() -> str:
+    """Minute bars from Angel One SmartAPI when there is no Kite token today.
+
+    Kite needs a browser login each day; Angel logs in headless with TOTP
+    (`ingest/angel_minute.py`, ADR-157), so the data agent and `make daily`
+    can fill the sessions Kite missed without the operator. The bars land in
+    `data/landing/angel_minute`, their own tree, so the source stays visible.
+    """
+    from eulerlab.ingest import angel_minute
+    from eulerlab.ingest.nse_eod import session_days
+
+    def last_end(manifest: Path) -> str:
+        if not manifest.exists():
+            return ""
+        ends = (
+            str(json.loads(line).get("end", ""))
+            for line in manifest.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
+        return max(ends, default="")
+
+    window = angel_window(
+        last_end(Path("data/landing/kite_minute/manifest.jsonl")),
+        last_end(angel_minute.LANDING_ROOT / "manifest.jsonl"),
+        dt.datetime.now(dt.UTC),
+    )
+    days = (
+        session_days(dt.date.fromisoformat(window[0]), dt.date.fromisoformat(window[1]))
+        if window
+        else []
+    )
+    if not days:
+        return "no Kite token today; Angel minute bars already up to date"
+    days = days[-ANGEL_SESSIONS:]
+    span = ["--from", days[0].isoformat(), "--to", days[-1].isoformat()]
+    text = _captured(lambda: angel_minute.main(span))
+    last = next((ln.strip() for ln in reversed(text.splitlines()) if "done:" in ln), "")
+    return f"no Kite token today, so from Angel One: {days[0]}..{days[-1]} {last}"[:200]
 
 
 def _mcx_index_minute(progress: Callable[[str], None] | None = None) -> str:

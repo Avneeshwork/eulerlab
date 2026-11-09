@@ -903,8 +903,14 @@ kite-fresh:
 
 # Minute bars for the last few sessions. NOT a backfill: --years 5 is a one-off
 # of ~13,500 chunks, this keeps the tail current.
+# Without a fresh Kite token, Angel One SmartAPI fills the sessions Kite missed
+# (daily_feed.angel_minute_fill, 2026-11-09), so the minute bars need no login.
 daily-minute:
-	@$(MAKE) --no-print-directory kite-fresh && 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),)
+	@if $(MAKE) --no-print-directory kite-fresh >/dev/null 2>&1; then \
+	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),); \
+	else \
+	  uv run --extra angel python -c "from eulerlab.ingest.daily_feed import angel_minute_fill; print(angel_minute_fill())"; \
+	fi
 
 # Five-year MCX iCOMDEX minute history; the manifest makes repeats incremental.
 # NSE daily reports: bulk/block deals, short selling, F&O ban, SLBM, MTF,

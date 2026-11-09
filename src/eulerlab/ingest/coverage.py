@@ -287,7 +287,7 @@ STEPS_FOR: dict[str, tuple[str, ...]] = {
     "FX 1-minute": ("FX",),
     "Mutual fund NAVs": ("mutual fund NAVs",),
     "Option chain snapshots": ("option chain",),
-    "India minute bars (Kite)": ("India minute bars",),
+    "India minute bars (Kite/Angel)": ("India minute bars",),
     "MCX iCOMDEX minute bars (Kite)": ("MCX index minute bars",),
 }
 """Each dataset's own Update button: the fetch it derives from, then the build.
@@ -416,17 +416,23 @@ def table(now: datetime | None = None) -> list[Row]:
     )
 
     slow = "Not in the button"
+    # Without a Kite token the step fetches from Angel One (2026-11-09), into its
+    # own tree; the row is as fresh as the later of the two.
+    angel = _max_by(LANDING / "angel_minute" / "manifest.jsonl", "", "end").get("", "")
+    minute = max(kite, angel)
     add(
-        "Needs a Kite login",
-        "India minute bars (Kite)",
-        kite,
+        "Minute bars (Kite/Angel)",
+        "India minute bars (Kite/Angel)",
+        minute,
         "nse",
         detail=(
-            "daily bhavcopy is in; minute bars need a Kite token minted today"
-            if kite < due <= nse.get("cm", "")
-            else "needs a Kite token minted today: log in to Kite above"
+            f"Kite to {kite or 'never'}, then Angel One to {angel} (data/landing/angel_minute)"
+            if angel > kite
+            else "daily bhavcopy is in; minute bars come from Kite, or Angel One without a Kite login"
+            if minute < due <= nse.get("cm", "")
+            else "no Kite token: the Update button fetches from Angel One instead"
         ),
-        fix="Log in to Kite on this page, then Update",
+        fix="Update (Angel One fills in without a Kite login)",
     )
     mcx_indexes = _max_by(
         LANDING / "mcx_indices" / "manifest.jsonl", "symbol", "end", nonempty=True

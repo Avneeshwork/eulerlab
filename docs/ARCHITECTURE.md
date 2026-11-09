@@ -3627,7 +3627,12 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
 
     grade every dataset (quality contract)
       -> freshness: today's data before 21:00 IST is "due tonight", not stale
-      -> re-run the allowed feed steps of stale datasets (`jobs.ALLOWED`, no Kite)
+      -> download with the allowed feed steps (`jobs.ALLOWED`, no Kite): stale datasets,
+           and from 18:00 IST (`TRY_FROM`, A-014) today's due files too; a row no allowed
+           step can update (MCX index bars, Kite only) becomes "Needs you"; without a Kite token
+           "India minute bars" fetches from Angel One (`daily_feed.angel_minute_fill`, last two
+           complete sessions, own tree `data/landing/angel_minute`; research readers still read Kite's); the card's first
+           sentence says what was downloaded and what is still not in
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it

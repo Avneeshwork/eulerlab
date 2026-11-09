@@ -30,10 +30,16 @@ ALLOWED = frozenset(
         "US bars and actions",
         "US panel",
         "paper books",
+        "India minute bars",
+        "FII/DII cash flows",
     }
 )
-"""Steps an agent may re-run. Kite steps are left out: they need a login made by
-the operator that day, and a re-run without one only fails again."""
+"""Steps an agent may re-run. "India minute bars" is here because without a Kite
+token it fetches from Angel One, which logs in headless (2026-11-09). "FII/DII
+cash flows" too: NSE serves only the latest day, so a day not taken that evening
+is lost. The other
+Kite steps are left out: they need a login made by the operator that day, and a
+re-run without one only fails again."""
 
 
 @dataclass(frozen=True)

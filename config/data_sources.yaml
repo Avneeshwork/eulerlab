@@ -214,9 +214,11 @@ datasets:
     critical: false
     min_grade: C
 
-  - name: India minute bars (Kite)
+  - name: India minute bars (Kite/Angel)
     tree: kite_minute
-    publisher: Zerodha Kite
+    # Without a Kite token, Angel One SmartAPI fills the sessions Kite missed,
+    # into its own tree data/landing/angel_minute (2026-11-09).
+    publisher: Zerodha Kite, Angel One SmartAPI fallback
     url: https://api.kite.trade/instruments/historical/
     licence: unreviewed
     knowledge_time: during the session, final after the close

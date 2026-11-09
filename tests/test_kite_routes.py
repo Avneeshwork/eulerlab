@@ -106,7 +106,7 @@ def test_the_callback_page_escapes_what_it_echoes() -> None:
     assert "<script>" not in page and "&lt;script&gt;" in page
 
 
-def test_the_minute_step_skips_itself_without_a_fresh_token(
+def test_the_minute_step_uses_angel_without_a_fresh_token(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from eulerlab.ingest import backfill_minute, daily_feed
@@ -116,6 +116,8 @@ def test_the_minute_step_skips_itself_without_a_fresh_token(
 
     monkeypatch.setattr(kite_session, "load", lambda *a, **k: None)
     monkeypatch.setattr(backfill_minute, "main", never)
-    assert daily_feed._india_minute().startswith("skipped: no Kite token minted today")
+    # Without a token the step fetches from Angel One instead (2026-11-09).
+    monkeypatch.setattr(daily_feed, "angel_minute_fill", lambda: "from Angel One")
+    assert daily_feed._india_minute() == "from Angel One"
     assert "India minute bars" in dict(daily_feed.STEPS)
     assert "daily-minute" not in daily_feed.TERMINAL_ONLY

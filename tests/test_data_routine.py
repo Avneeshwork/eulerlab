@@ -186,6 +186,86 @@ def _ctx(tmp_path: Path, answer: str = "", **options: Any) -> Any:
     )
 
 
+def _cov(name: str, steps: tuple[str, ...], status: str = "missing") -> Any:
+    return SimpleNamespace(
+        name=name,
+        status=status,
+        behind=1,
+        steps=steps,
+        detail="today's data not in yet" if status == "missing" else "",
+        fix="click Update",
+    )
+
+
+EVENING = datetime(2026, 11, 9, 13, 7, tzinfo=UTC)  # 18:37 IST, the operator's run on 9 Nov
+
+
+def test_in_the_evening_todays_missing_files_are_downloaded_and_the_card_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ran: list[list[str]] = []
+    cash = _cov("Cash bhavcopy", ("NSE end-of-day",))
+    poi = _cov("Participant OI", ("participant OI",))
+
+    def rerun(steps: list[str]) -> jobs.Rerun:
+        ran.append(list(steps))
+        return jobs.Rerun(tuple(steps), True, "NSE end-of-day: 1 fetched")
+
+    monkeypatch.setattr(jobs, "rerun", rerun)
+    monkeypatch.setattr(
+        data_worker, "_coverage_rows", lambda: [_cov("Cash bhavcopy", (), "ok"), poi]
+    )
+    ctx = _ctx(tmp_path, auto_rerun=True)
+    ctx.now = EVENING
+    items, reran, report = data_worker._fetch(ctx, [], [cash, poi])
+    assert ran == [["NSE end-of-day", "participant OI"]] and reran == ran[0]
+    assert report["caught"] == ["Cash bhavcopy"] and report["still_behind"] == ["Participant OI"]
+    assert report["line"].startswith("Downloaded with NSE end-of-day, participant OI.")
+    assert (
+        "Now up to date: Cash bhavcopy" in report["line"]
+        and "Still not in: Participant OI" in report["line"]
+    )
+    assert items[0].title == "Updated 1 dataset(s)"
+
+
+def test_before_six_pm_todays_files_wait_and_the_card_says_why(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(jobs, "rerun", lambda steps: pytest.fail("must not run"))
+    ctx = _ctx(tmp_path, auto_rerun=True)  # NOW is 12:00 IST
+    items, reran, report = data_worker._fetch(ctx, [], [_cov("Cash bhavcopy", ("NSE end-of-day",))])
+    assert items == [] and reran == [] and "from 18:00 IST" in report["line"]
+
+
+def test_kite_minute_bars_are_a_needs_you_item_not_a_silent_skip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(jobs, "rerun", lambda steps: pytest.fail("must not run"))
+    ctx = _ctx(tmp_path, auto_rerun=True)
+    ctx.now = EVENING
+    kite = _cov("MCX iCOMDEX minute bars (Kite)", ("MCX index minute bars",))
+    items, reran, report = data_worker._fetch(ctx, [], [kite])
+    assert reran == [] and report["cannot"] == ["MCX iCOMDEX minute bars (Kite)"]
+    assert items[0].needs_approval and items[0].title.startswith("Needs you:")
+    assert "needs you" in report["line"]
+
+
+def test_a_fetch_while_the_nightly_feed_runs_says_so(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        jobs,
+        "rerun",
+        lambda steps: jobs.Rerun(tuple(steps), False, "the feed is already running: x"),
+    )
+    cash = _cov("Cash bhavcopy", ("NSE end-of-day",))
+    monkeypatch.setattr(data_worker, "_coverage_rows", lambda: [cash])
+    ctx = _ctx(tmp_path, auto_rerun=True)
+    ctx.now = EVENING
+    _, _, report = data_worker._fetch(ctx, [], [cash])
+    assert "nightly feed is running" in report["line"]
+
+
 def test_upkeep_uploads_then_merges_and_reports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -555,3 +635,26 @@ def test_a_card_whose_formula_does_not_parse_is_incomplete() -> None:
     bad = card.Card(**{**good.__dict__, "configurations": [{"feature": "formula:neg(ret(0))"}]})
     assert not [p for p in paper_agent.card_problems(good) if "formula" in p]
     assert any("formula does not parse" in p for p in paper_agent.card_problems(bad))
+
+
+# --- the Angel One fallback for minute bars (2026-11-09) ----------------------
+
+
+def test_angel_fills_from_the_day_after_the_later_source_to_the_last_complete_session() -> None:
+    from eulerlab.ingest import daily_feed
+
+    evening = datetime(2026, 11, 9, 13, 0, tzinfo=UTC)  # 18:30 IST
+    assert daily_feed.angel_window("2026-11-06", "2026-11-08", evening) == (
+        "2026-11-09",
+        "2026-11-09",
+    )
+    morning = datetime(2026, 11, 9, 5, 0, tzinfo=UTC)  # 10:30 IST: today is not complete
+    assert daily_feed.angel_window("2026-11-06", "2026-11-08", morning) is None
+    assert daily_feed.angel_window("2026-11-06", "", morning) == ("2026-11-07", "2026-11-08")
+
+
+def test_the_agent_may_run_the_minute_step_because_angel_needs_no_login() -> None:
+    assert "India minute bars" in jobs.ALLOWED
+    assert jobs.allowed_steps(["India minute bars", "MCX index minute bars"]) == (
+        "India minute bars",
+    )

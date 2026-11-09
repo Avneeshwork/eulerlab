@@ -15,9 +15,11 @@ One pass, in this order, cheapest first:
    data we do not hold"): matched against the register. Known and graded →
    answered; unknown → a proposal in the operator's inbox, because acquiring a
    new source is the operator's decision.
-6. **Re-run** the allowed feed steps for stale datasets (`agents/jobs.py`),
-   when `auto_rerun` is on. Today's data before 21:00 IST is "due tonight",
-   not stale: NSE publishes after the close and `make daily` runs at 19:30.
+6. **Download** with the allowed feed steps (`agents/jobs.py`), when
+   `auto_rerun` is on: every stale dataset, and from 18:00 IST today's
+   files too ("due tonight" until 21:00 means not stale, not "leave it"). A
+   dataset only the operator can update (Kite needs that day's login) is a
+   "Needs you" item. The card's first line says what was downloaded.
 7. **Upkeep** (`upkeep: true`, ADR-132): under the `feed` lock, upload every
    landing tree `make daily` uploads, delete the local files the bucket now
    holds at the same size, then merge each file that differs from the
@@ -62,6 +64,12 @@ IST = ZoneInfo("Asia/Kolkata")
 DUE_UNTIL = 21
 """IST hour until which today's missing data is "due tonight": `make daily`
 starts at 19:30 and usually finishes by 20:30."""
+TRY_FROM = 18
+"""IST hour from which the agent downloads today's NSE files itself instead of
+waiting for `make daily`. ASSUMPTION A-014: NSE posts the day's files in the
+evening; same-day bhavcopies have landed from 18:00 (2026-11-04). A try before
+publication lands nothing and costs a few requests. Knowledge times still use
+the deliberately late `bitemporal.provenance` hours, so this cannot leak."""
 HELP = """You help the data agent of a small quant research platform keep its data
 current and backed up. You get the problems still open after it re-ran the feed steps
 it may run and uploaded to the bucket. For the most important problem, say what most
@@ -195,39 +203,18 @@ def run(ctx: Context) -> WorkerResult:
     answers = _answer_requests(ctx, grades)
     items.extend(answers)
 
-    reran: list[str] = []
-    if ctx.options.get("auto_rerun") and stale:
-        steps: list[str] = []
-        for row in stale:
-            steps.extend(s for s in row.steps if s not in steps)
-        result = jobs.rerun(steps)
-        reran = list(result.steps)
-        items.append(
-            Item(
-                kind="finding",
-                title=f"re-ran {', '.join(result.steps) or 'nothing'}",
-                body=result.detail,
-                severity="info" if result.ok else "warn",
-            )
-        )
-        # Re-read freshness: a dataset the re-run brought up to date is not a
-        # problem, and must not be described to the model as one (2026-11-04,
-        # HISTORY #77: the model was told F&O was missing after it had landed).
-        caught = caught_up(stale, _coverage_rows())
-        if caught:
-            items = [
-                i
-                for i in items
-                if not (i.kind == "alert" and any(i.title == f"{n} is {s}" for n, s in caught))
-            ]
-            items.append(
-                Item(
-                    kind="finding",
-                    title=f"caught up after the re-run: {', '.join(n for n, _ in caught)}",
-                    body="fresh again; not sent for diagnosis",
-                    severity="info",
-                )
-            )
+    fetch_items, reran, fetched = _fetch(ctx, stale, due)
+    if fetched.get("caught"):
+        # A dataset the fetch brought up to date is not a problem, and must not
+        # be described to the model as one (2026-11-04, HISTORY #77: the model
+        # was told F&O was missing after it had landed).
+        caught = set(fetched["caught"])
+        items = [
+            i
+            for i in items
+            if not (i.kind == "alert" and any(i.title.startswith(f"{n} is ") for n in caught))
+        ]
+    items = fetch_items + items
 
     upkeep: dict[str, Any] = {}
     if ctx.options.get("upkeep"):
@@ -272,6 +259,7 @@ def run(ctx: Context) -> WorkerResult:
     blocked = [g.name for g in grades if g.critical and not g.usable]
     summary = (
         (f"{answer.title}. " if answer is not None else "")
+        + f"{fetched['line']} "
         + f"{len(grades)} datasets graded: {counts['A'] + counts['B']} clean (A or B), "
         f"{counts['C']} usable with a failed check (C), {counts['D']} not usable (D). "
         f"{len(stale)} behind schedule"
@@ -291,9 +279,106 @@ def run(ctx: Context) -> WorkerResult:
             "grades": [g.as_dict() for g in grades],
             "reran": reran,
             "due": [r.name for r in due],
+            "fetched": fetched,
             "upkeep": upkeep,
         },
     )
+
+
+def fetch_now(row: Any, now: datetime) -> bool:
+    """Today's data that NSE has most likely published by now: worth a try.
+
+    Every step skips what is landed and reports what it could not get, so a
+    try before NSE publishes costs a few requests and lands nothing.
+    """
+    return due_tonight(row, now) and now.astimezone(IST).hour >= TRY_FROM
+
+
+def _fetch(
+    ctx: Context, stale: Sequence[Any], due: Sequence[Any]
+) -> tuple[list[Item], list[str], dict[str, Any]]:
+    """Download what is behind, and today's files once NSE has published.
+
+    Returns the items for the card, the steps run, and a report whose `line`
+    says in one sentence what was downloaded (2026-11-09: before this, a run
+    between 16:00 and 21:00 IST parked every missing dataset as "due tonight",
+    fetched nothing, and its card did not say so).
+    """
+    wanted = list(stale) + [r for r in due if fetch_now(r, ctx.now)]
+    waiting = [r for r in due if not fetch_now(r, ctx.now)]
+    report: dict[str, Any] = {"tried": [], "caught": [], "still_behind": [], "cannot": []}
+    items: list[Item] = []
+    if not wanted:
+        report["line"] = (
+            f"Nothing to download yet: today's NSE files come out in the evening; "
+            f"I fetch them from {TRY_FROM}:00 IST."
+            if waiting
+            else "Nothing to download: every dataset is up to date."
+        )
+        return items, [], report
+
+    # A row none of whose steps an agent may run (Kite: a login only the
+    # operator can make) is said plainly, not silently skipped.
+    cannot = [r for r in wanted if not jobs.allowed_steps(list(r.steps))]
+    report["cannot"] = [r.name for r in cannot]
+    items.extend(
+        Item(
+            kind="alert",
+            title=f"Needs you: {r.name} is not updating",
+            body=f"I cannot download it myself. {r.detail or ''} Fix: {r.fix}".strip(),
+            severity="warn",
+            ref=r.fix,
+            needs_approval=True,
+        )
+        for r in cannot
+    )
+    tryable = [r for r in wanted if r not in cannot]
+    if not ctx.options.get("auto_rerun"):
+        report["line"] = (
+            f"Did not download anything: {len(tryable)} dataset(s) are behind, "
+            "and re-running the feed is switched off (auto_rerun)."
+        )
+        return items, [], report
+    if not tryable:
+        report["line"] = "Downloaded nothing: what is behind needs you (see below)."
+        return items, [], report
+
+    steps: list[str] = []
+    for row in tryable:
+        steps.extend(s for s in jobs.allowed_steps(list(row.steps)) if s not in steps)
+    ctx.step(f"Downloading: {', '.join(steps)}")
+    result = jobs.rerun(steps)
+    report["tried"] = list(result.steps)
+    caught = caught_up(tryable, _coverage_rows())
+    caught_names = [n for n, _ in caught]
+    left = [r.name for r in tryable if r.name not in caught_names]
+    report["caught"] = caught_names
+    report["still_behind"] = left
+    if "already running" in result.detail:
+        line = "Downloaded nothing: the nightly feed is running right now and will land the data."
+    else:
+        line = f"Downloaded with {', '.join(result.steps)}."
+        if caught_names:
+            line += f" Now up to date: {', '.join(caught_names)}."
+        if left:
+            why = "NSE has probably not published it yet" if result.ok else "a step failed"
+            line += f" Still not in: {', '.join(left)} ({why}; I try again next run)."
+    report["line"] = line
+    items.insert(
+        0,
+        Item(
+            kind="finding",
+            title=(
+                f"Updated {len(caught_names)} dataset(s)"
+                if caught_names
+                else "Downloaded nothing new"
+            ),
+            body=f"{line} Steps said: {result.detail}",
+            severity="info" if result.ok else "warn",
+            data={"steps": list(result.steps), "caught": caught_names, "left": left},
+        ),
+    )
+    return items, list(result.steps), report
 
 
 def due_tonight(row: Any, now: datetime) -> bool:

@@ -53,7 +53,7 @@ DATA_WORDS: dict[str, tuple[str, ...]] = {
         "quality",
     ),
     "Nifty options": ("option", "implied vol", "volatility risk premium", "straddle", "put-call"),
-    "India minute bars (Kite)": (
+    "India minute bars (Kite/Angel)": (
         "intraday",
         "minute",
         "opening range",
