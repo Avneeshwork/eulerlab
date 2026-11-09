@@ -1224,3 +1224,26 @@ audit:
 
 audit-strategies:
 	@uv run python -m eulerlab.audit --inventory
+
+# Repo hygiene (ADR-161). `make hygiene` fails on new dead modules, duplicate
+# functions, shared ADR/research numbers, duplicate cards or tracked junk; known
+# debt sits in tools/hygiene_baseline.json. `make check` is the gate to run
+# before merging any branch (agent or thread) into main.
+hygiene:
+	@uv run python tools/hygiene.py
+
+hygiene-report:
+	@uv run python tools/hygiene.py --report
+	@uv run python tools/hook_witness.py report
+	@uvx vulture src/eulerlab --min-confidence 60 2>/dev/null | grep -v "/api/" | grep -E "unused (function|class|method)" || true
+
+hygiene-rebaseline:
+	@uv run python tools/hygiene.py --rebaseline
+
+check:
+	uv run ruff check .
+	uv run ruff format --check .
+	uv run mypy
+	uv run python tools/hygiene.py
+	uv run python tools/docs_check.py
+	uv run pytest -q --durations=10

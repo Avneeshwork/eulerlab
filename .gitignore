@@ -46,3 +46,6 @@ research/agent_drafts/
 research/lab_ideas/
 # Generated from docs/METRICS by tools/render_metrics_handbook.py (make handbook). Never edit or commit.
 web/public/handbook.html
+
+# Empty per-day app logs written at start-up; never committed (ADR-161).
+logs/

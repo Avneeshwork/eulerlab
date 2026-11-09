@@ -80,6 +80,13 @@ If a piece of work can't be verified that way, it isn't finished.
 - A strategy the gate KILLs is dead. Do not tune it and resubmit. Do not argue with the gate. A PAPER verdict (ADR-141) allows forward paper trading for more evidence, never the holdout or live money.
 - The holdout dataset is read exactly once, by the operator's action. Never read it to "check something".
 
+### Hygiene (ADR-161)
+- Never commit with `--no-verify`. The commit hook takes about 20 seconds; if it fails, fix the cause. Skipped commits are logged by the hook witness and show in `make hygiene`.
+- Before adding a module, function, screen or test helper, search for an existing one and reuse it. `make hygiene` fails on new duplicates and dead modules.
+- Take the next free ADR or research number at the moment you write the file; two threads picking the same number fails the gate.
+- Agent-written code goes on its own `agent-*` branch and reaches `main` only after `make check` passes.
+- `make hygiene-rebaseline` accepts debt into the baseline. Operator only.
+
 ### Money safety (from the OMS sprint onward)
 - Client order IDs are deterministic: `hash(strategy_id, signal_time, instrument_id, seq)`. Retries must never double-send.
 - The broker is the source of truth. Local position state is a cache.

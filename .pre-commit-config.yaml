@@ -6,6 +6,12 @@
 # a trailing space.
 exclude: '^docs/(quant_platform_playbook|AI_BUILD_PLAN|sprint_01_kickoff)\.md$'
 
+# `make install` installs all three. The commit hook stays under ~20 seconds so
+# nobody has a reason to pass --no-verify; the full test suite runs on push and
+# in `make check` (ADR-161). post-commit logs any commit the hooks never saw.
+default_install_hook_types: [pre-commit, commit-msg, pre-push, post-commit]
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.5
@@ -51,9 +57,35 @@ repos:
         language: system
         pass_filenames: false
         types: [python]
+      # The whole suite takes minutes and runs against the shared working
+      # tree, so on commit it was the reason hooks were skipped (ADR-161). It
+      # runs on push and in `make check` instead.
       - id: pytest
         name: pytest
         entry: uv run pytest -q
         language: system
         pass_filenames: false
         types: [python]
+        stages: [pre-push]
+      - id: hygiene
+        name: hygiene (no new dead code, duplicates or junk)
+        entry: uv run python tools/hygiene.py --staged
+        language: system
+        pass_filenames: false
+        always_run: true
+      # git runs commit-msg only after every pre-commit hook passed, and
+      # --no-verify skips both, so this records the tree the hooks approved.
+      - id: hook-witness-mark
+        name: hook witness (mark)
+        entry: uv run python tools/hook_witness.py mark
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [commit-msg]
+      - id: hook-witness-check
+        name: hook witness (check)
+        entry: uv run python tools/hook_witness.py check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [post-commit]

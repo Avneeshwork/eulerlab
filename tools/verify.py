@@ -106,6 +106,10 @@ def check_docs() -> Result:
     return _script_check("docs-check", "docs_check.py", "PASS")
 
 
+def check_hygiene() -> Result:
+    return _script_check("hygiene", "hygiene.py", "PASS")
+
+
 def check_state() -> Result:
     return _script_check("state", "state.py", "OK")
 
@@ -205,6 +209,7 @@ CHECKS = (
     check_tests,
     check_web,
     check_docs,
+    check_hygiene,
     check_engine,
     check_chaos,
     check_state,
