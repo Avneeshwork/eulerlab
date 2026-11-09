@@ -910,6 +910,7 @@ daily-minute:
 	  uv run python -m eulerlab.ingest.backfill_minute --years 1 $(if $(LIMIT),--limit $(LIMIT),); \
 	else \
 	  uv run --extra angel python -c "from eulerlab.ingest.daily_feed import angel_minute_fill; print(angel_minute_fill())"; \
+	  $(MAKE) --no-print-directory upload-verified TREES="kite_index_minute"; \
 	fi
 
 # Five-year MCX iCOMDEX minute history; the manifest makes repeats incremental.
@@ -946,9 +947,11 @@ upload-verified:
 	@uv run python -m eulerlab.ingest.verified_prune $(TREES) $(if $(KEEP),--keep,)
 
 # Angel One minute bars for sessions Kite missed (no browser login), e.g. Muhurat:
-# make angel-minute FROM=2026-11-08. Lands in data/landing/angel_minute (ADR-157).
+# make angel-minute FROM=2026-11-08. Lands in Kite's stores (kite_minute, kite_index_minute),
+# in Kite's format, marked source angel_one (ADR-157, 2026-11-09). ARGS=--migrate copies the
+# first fills from data/landing/angel_minute once.
 angel-minute:
-	uv run --extra angel python -m eulerlab.ingest.angel_minute --from $(FROM) --to $(if $(TO),$(TO),$(FROM))
+	uv run --extra angel python -m eulerlab.ingest.angel_minute $(if $(FROM),--from $(FROM) --to $(if $(TO),$(TO),$(FROM)),) $(ARGS)
 
 mcx-index-minute:
 	@$(MAKE) --no-print-directory kite-fresh && uv run python -m eulerlab.ingest.kite_mcx_indices --years 5

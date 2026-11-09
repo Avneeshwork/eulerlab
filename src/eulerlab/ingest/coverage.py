@@ -416,21 +416,17 @@ def table(now: datetime | None = None) -> list[Row]:
     )
 
     slow = "Not in the button"
-    # Without a Kite token the step fetches from Angel One (2026-11-09), into its
-    # own tree; the row is as fresh as the later of the two.
-    angel = _max_by(LANDING / "angel_minute" / "manifest.jsonl", "", "end").get("", "")
-    minute = max(kite, angel)
+    # Without a Kite token the step fetches from Angel One into the same store
+    # (2026-11-09), so one manifest says how far the minute bars reach.
     add(
         "Minute bars (Kite/Angel)",
         "India minute bars (Kite/Angel)",
-        minute,
+        kite,
         "nse",
         detail=(
-            f"Kite to {kite or 'never'}, then Angel One to {angel} (data/landing/angel_minute)"
-            if angel > kite
-            else "daily bhavcopy is in; minute bars come from Kite, or Angel One without a Kite login"
-            if minute < due <= nse.get("cm", "")
-            else "no Kite token: the Update button fetches from Angel One instead"
+            "daily bhavcopy is in; minute bars come from Kite, or Angel One without a Kite login"
+            if kite < due <= nse.get("cm", "")
+            else "Kite, or Angel One when there is no Kite login"
         ),
         fix="Update (Angel One fills in without a Kite login)",
     )

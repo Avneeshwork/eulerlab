@@ -310,7 +310,16 @@ class MinuteStore:
             out.setdefault(str(row.get("symbol", "")), []).append(span)
         return out
 
-    def write(self, chunk: Chunk, table: pa.Table) -> None:
+    def write(
+        self,
+        chunk: Chunk,
+        table: pa.Table,
+        *,
+        source: str | None = None,
+        knowledge_time: str | None = None,
+    ) -> None:
+        """Land one chunk. `source` is set for bars not from Kite (`angel_one`);
+        `knowledge_time` only when copying a file landed earlier elsewhere."""
         target = self.root / chunk.relative_path()
         target.parent.mkdir(parents=True, exist_ok=True)
         tmp = target.with_suffix(".parquet.part")
@@ -318,23 +327,20 @@ class MinuteStore:
         tmp.replace(target)
 
         self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        row: dict[str, object] = {
+            "key": chunk.key,
+            "symbol": chunk.symbol,
+            "token": chunk.token,
+            "start": chunk.start.isoformat(),
+            "end": chunk.end.isoformat(),
+            "rows": table.num_rows,
+            "path": str(chunk.relative_path()),
+            "knowledge_time": knowledge_time or datetime.now(UTC).isoformat(),
+        }
+        if source:
+            row["source"] = source
         with self.manifest_path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(
-                    {
-                        "key": chunk.key,
-                        "symbol": chunk.symbol,
-                        "token": chunk.token,
-                        "start": chunk.start.isoformat(),
-                        "end": chunk.end.isoformat(),
-                        "rows": table.num_rows,
-                        "path": str(chunk.relative_path()),
-                        "knowledge_time": datetime.now(UTC).isoformat(),
-                    },
-                    sort_keys=True,
-                )
-                + "\n"
-            )
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
         self.done().add(chunk.key)
 
     def mark_unresolvable(self, symbol: str, reason: str) -> None:

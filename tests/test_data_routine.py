@@ -640,17 +640,14 @@ def test_a_card_whose_formula_does_not_parse_is_incomplete() -> None:
 # --- the Angel One fallback for minute bars (2026-11-09) ----------------------
 
 
-def test_angel_fills_from_the_day_after_the_later_source_to_the_last_complete_session() -> None:
+def test_angel_fills_from_the_day_after_the_store_ends_to_the_last_complete_session() -> None:
     from eulerlab.ingest import daily_feed
 
     evening = datetime(2026, 11, 9, 13, 0, tzinfo=UTC)  # 18:30 IST
-    assert daily_feed.angel_window("2026-11-06", "2026-11-08", evening) == (
-        "2026-11-09",
-        "2026-11-09",
-    )
+    assert daily_feed.angel_window("2026-11-08", evening) == ("2026-11-09", "2026-11-09")
     morning = datetime(2026, 11, 9, 5, 0, tzinfo=UTC)  # 10:30 IST: today is not complete
-    assert daily_feed.angel_window("2026-11-06", "2026-11-08", morning) is None
-    assert daily_feed.angel_window("2026-11-06", "", morning) == ("2026-11-07", "2026-11-08")
+    assert daily_feed.angel_window("2026-11-08", morning) is None
+    assert daily_feed.angel_window("2026-11-06", morning) == ("2026-11-07", "2026-11-08")
 
 
 def test_the_agent_may_run_the_minute_step_because_angel_needs_no_login() -> None:

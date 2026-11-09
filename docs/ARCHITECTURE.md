@@ -3631,7 +3631,9 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            and from 18:00 IST (`TRY_FROM`, A-014) today's due files too; a row no allowed
            step can update (MCX index bars, Kite only) becomes "Needs you"; without a Kite token
            "India minute bars" fetches from Angel One (`daily_feed.angel_minute_fill`, last two
-           complete sessions, own tree `data/landing/angel_minute`; research readers still read Kite's); the card's first
+           complete sessions) into Kite's own stores `kite_minute` and `kite_index_minute`, in Kite's
+           file layout and `+0530` timestamps, manifest `"source": "angel_one"`, so backtests read
+           them unchanged and Kite does not refetch those days; the card's first
            sentence says what was downloaded and what is still not in
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
