@@ -8,9 +8,10 @@
     POST /api/live-money/stop     disarm before the entry; nothing open is touched
     POST /api/live-money/kill     trip the kill switch, close today's positions, disarm
 
-Clearing a tripped kill switch is deliberately not here: it needs the separate
-`KILLSWITCH_TOKEN` (CLAUDE.md: kill switches have separate credentials), so a
-button on the same screen that sends orders cannot undo it.
+Clearing a tripped kill switch is deliberately not here: it needs the switch's
+own reset credential, named only in `oms/killswitch.py` (CLAUDE.md: kill
+switches have separate credentials), so a button on the same screen that sends
+orders cannot undo it.
 """
 
 from __future__ import annotations

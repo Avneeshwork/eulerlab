@@ -542,3 +542,7 @@ Believed: the watchdog's "open past its due day" check finds work that agents ha
 ## 2026-11-09 — H-0202's Sharpe of 7 was the opening auction (research 184)
 
 Believed: the autopilot's H-0202 (fade a 3% gap on a quiet-volume name) passed the gate at a net Sharpe of 7.1, 141 bps a trade. True: on the 1,154 trades in F&O stocks with minute data it makes 85 bps gross from the official open but 19 bps from 09:20, and its long side 8 bps, below the ~12 bps cost. The backtest fills at the auction print, which a 09:20 order cannot get; ETFs added 205 trades of stale prints. It is also the same bet as H-0194. Invalid: H-0202's screen and gate figures as a measure of what money would earn. The ledger entries stand. H-0194 keeps 31 bps (long) and 48 bps (short) from 09:20 and is the card traded (ADR-162).
+
+## 2026-11-09 — the live-money panel named the kill switch's reset credential (ADR-162)
+
+Believed: the real-money H-0194 commits (932e2ac, 055dfa4) passed the test suite. True: they were committed with `--no-verify`, and `test_killswitch` failed because `api/live_money_routes.py` named the reset credential's variable in its docstring. The rule is that only `oms/killswitch.py` may name it, so no trading process can authenticate a reset even by accident. The code never read the variable; only the docstring named it. Fixed by rewording the docstring. Found by the full pytest run before the 2026-11-09 merge to main. No numbers affected.
