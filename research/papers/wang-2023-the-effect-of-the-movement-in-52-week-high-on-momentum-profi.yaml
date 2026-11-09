@@ -1,0 +1,43 @@
+id: wang-2023-the-effect-of-the-movement-in-52-week-high-on-momentum-profi
+title: 'The Effect of the Movement in 52-Week High on Momentum Profit: The Evidence from Taiwan'
+authors: Wang, Ping-Huang, Liao, Li-Chuan, Li-Chuan Liao, Chang, Tzu-Pu, Tzu-Pu Chang, Ping-Huang
+  Wang
+year: 2023
+kind: paper
+source_url: https://core.ac.uk/works/158406143
+pdf: ''
+added: '2026-11-05'
+status: idea
+markets:
+- Taiwan equity market (period not specified)
+summary: The authors decompose the price‑to‑52‑week‑high ratio into a price‑change component
+  and an updating‑component (movement of the 52‑week high itself). They build two momentum
+  portfolios that isolate each component and use portfolio returns and Fama‑MacBeth regressions
+  to assess profitability. They find that removing the price‑change part (i.e., focusing on
+  the updating component) raises momentum profits, and that a downward update of the 52‑week
+  high makes the subsequent winner momentum stronger.
+trade_idea: Long stocks whose price‑to‑52‑week‑high ratio is high because the 52‑week high
+  has recently moved down (a negative updating event), expecting an enhanced short‑term momentum
+  gain.
+implementation: |-
+  universe: unspecified
+  data: daily close, 52‑week high series, turnover; unspecified source
+  signal: price‑to‑52‑week‑high ratio combined with a recent negative change in the 52‑week high (downward update)
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing: unspecified
+  costs: unspecified
+red_flags:
+- The study is limited to the Taiwan market, which may have different microstructure and behavioural
+  dynamics than Indian or US markets.
+- No explicit transaction cost, slippage, or capacity analysis is provided; the reported profitability
+  may evaporate after realistic cost assumptions.
+- The sample period and exact look‑back windows are not disclosed, raising concerns about
+  survivorship bias and over‑fitting to a particular regime.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-05; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

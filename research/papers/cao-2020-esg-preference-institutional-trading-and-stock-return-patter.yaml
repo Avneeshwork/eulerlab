@@ -1,0 +1,41 @@
+id: cao-2020-esg-preference-institutional-trading-and-stock-return-patter
+title: ESG Preference, Institutional Trading, and Stock Return Patterns
+authors: Jie Cao, Sheridan Titman, Xintong Zhan, Weiming Zhang
+year: 2020
+kind: paper
+source_url: https://doi.org/10.3386/w28156
+pdf: ''
+added: '2026-11-07'
+status: idea
+markets:
+- US equities, recent years (post‑ESG rise)
+summary: The authors ask whether socially responsible (SR) institutions’ lower reaction to
+  quantitative mispricing signals alters stock return patterns. Using institutional ownership
+  data and standard mispricing metrics, they compare abnormal returns of stocks held more
+  by SR institutions versus others. They find that abnormal returns to mispricing signals
+  are larger for stocks with higher SR ownership, especially in recent years and when arbitrage
+  funding is constrained.
+trade_idea: Long stocks that have high SR institutional ownership and exhibit a strong undervaluation
+  (or other mispricing) signal, expecting the reduced attention from SR investors to let the
+  mispricing persist and generate excess returns.
+implementation: |-
+  universe: unspecified
+  data: unspecified (SR institutional ownership, mispricing signal values)
+  signal: unspecified (quantitative mispricing signal such as value, momentum, etc.)
+  entry: unspecified (e.g., when SR ownership above a threshold and signal indicates undervaluation)
+  exit: unspecified (e.g., after a fixed holding period or signal reversal)
+  holding period: unspecified
+  sizing and costs: unspecified (paper does not discuss transaction costs or position sizing)
+red_flags:
+- The definition and construction of the "mispricing signal" are not detailed, creating model
+  risk.
+- No transaction‑cost or liquidity analysis is provided, yet Indian round‑trip costs are ~9 bps
+  intraday, which could erode the edge.
+- The effect is reported only for recent years; survivorship bias and regime shifts could
+  limit out‑of‑sample performance.
+- Drafted by the paper agent (groq) from the abstract from OpenAlex found on nber 2026-11-07;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

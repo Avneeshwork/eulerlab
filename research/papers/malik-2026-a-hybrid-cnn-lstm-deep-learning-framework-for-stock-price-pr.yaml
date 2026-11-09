@@ -1,0 +1,34 @@
+id: malik-2026-a-hybrid-cnn-lstm-deep-learning-framework-for-stock-price-pr
+title: 'A Hybrid CNN-LSTM Deep Learning Framework for Stock Price Prediction: Evidence from
+  HDFC Bank on the National Stock Exchange of India'
+authors: Anu Malik, Ashish Girdhar, Ramesh kait
+year: 2026
+kind: paper
+source_url: https://core.ac.uk/works/391834312
+pdf: ''
+added: '2026-11-07'
+status: rejected
+markets:
+- Indian equities (NSE), HDFC Bank, daily data, 2025‑2026
+summary: The authors ask whether a hybrid CNN‑LSTM model can better forecast daily closing
+  prices of HDFC Bank on the NSE. They use 247 trading days (9 Feb 2025‑9 Feb 2026) with added
+  intraday volatility and VWAP, a 20‑day sliding window, and an 80/20 chronological train‑test
+  split. They compare three architectures (CNN, LSTM, CNN‑LSTM) against a random‑walk baseline.
+  The hybrid achieves RMSE 0.0228, MAE 0.0190, R² 0.312 and ~87 % validation accuracy, outperforming
+  the baselines.
+trade_idea: 'Not a testable trading idea: The paper only reports predictive accuracy metrics
+  for HDFC Bank without defining a concrete trading rule, signal, or net‑of‑costs performance,
+  so it does not present a testable market effect.'
+implementation: 'universe: unspecified, data: unspecified, signal: unspecified, entry: unspecified,
+  exit: unspecified, holding period: unspecified, sizing and costs: unspecified'
+red_flags:
+- Only one stock is studied, limiting generalizability.
+- Sample period is short (247 days) and includes a stress event that may cause overfitting.
+- No out‑of‑sample trading performance or transaction‑cost analysis is provided.
+- Model complexity may exceed realistic capacity for live trading.
+- Read by the research agent (groq) from the abstract only found on core 2026-11-07 and judged
+  not a testable trading idea; not read by the operator.
+reported_results: RMSE = 0.0228, MAE = 0.0190, R² = 0.312, validation accuracy ≈ 87 % (no
+  t‑statistics reported).
+hypothesis: ''
+strategies: []

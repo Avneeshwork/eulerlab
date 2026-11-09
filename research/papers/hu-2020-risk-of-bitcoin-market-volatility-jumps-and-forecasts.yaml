@@ -1,0 +1,40 @@
+id: hu-2020-risk-of-bitcoin-market-volatility-jumps-and-forecasts
+title: 'Risk of Bitcoin Market: Volatility, Jumps, and Forecasts'
+authors: Junjie Hu, Weiyu Kuo, Wolfgang Karl Härdle
+year: 2020
+kind: paper
+source_url: https://doi.org/10.2139/ssrn.3658078
+pdf: ''
+added: '2026-11-08'
+status: idea
+markets:
+- crypto (Bitcoin), period not specified (likely 2010‑2020)
+summary: 'Question: How do lagged realized variance and price jumps affect future Bitcoin
+  volatility? Data: High‑frequency Bitcoin price series, realized variance and jump estimators.
+  Method: Regression of future realized variance on its lag and signed jump measures; out‑of‑sample
+  forecasting. Findings: Past realized variance positively predicts future variance, while
+  positive jumps significantly reduce future variance; modeling jumps improves long‑term variance
+  forecasts but not short‑term ones.'
+trade_idea: 'Use yesterday’s realized variance and jump sign as signals: go long Bitcoin volatility
+  (e.g., buy ATM‑straddle or variance swap) when lagged variance is high and no positive jump,
+  and go short volatility when a positive jump is observed, expecting a drop in future variance.'
+implementation: |-
+  universe: Bitcoin spot and Bitcoin options (or variance swaps) on major crypto exchanges
+  data: daily realized variance computed from intraday returns; jump detection as in paper (signed jump estimator)
+  signal: lagged realized variance (high/low) and jump sign (positive/negative)
+  entry: long volatility if lagged variance > threshold and no positive jump; short volatility if positive jump detected
+  exit: close position after one trading day (or at next variance observation)
+  holding period: 1 day
+  sizing: unspecified
+  costs: unspecified (include exchange fees, slippage, option bid‑ask spread)
+red_flags:
+- High transaction costs and wide bid‑ask spreads in Bitcoin options may erode small predictive
+  edge
+- Jump detection is model‑dependent and may suffer from look‑ahead bias if not computed intraday
+- Liquidity constraints on variance‑type products could limit capacity and cause slippage
+- Drafted by the paper agent (groq) from the abstract from Crossref found on ssrn 2026-11-08;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

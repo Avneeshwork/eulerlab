@@ -1,0 +1,29 @@
+id: saha-2026-liquidity-volatility-and-price-discovery-in-indian-mid-cap-s
+title: 'Liquidity, Volatility, and Price Discovery in Indian Mid-Cap Stocks: Evidence from
+  NSE using Daily and Intraday Indicators'
+authors: P. Saha, Mrinal Ghosh
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/f2763691b3ddbce52fe667516229771c66c86298
+pdf: ''
+added: '2026-11-07'
+status: rejected
+markets:
+- Indian NSE mid‑cap and large‑cap equities, Jan 2025 – Jun 2025
+summary: The authors examine Indian mid‑cap and large‑cap stocks over Jan‑Jun 2025, measuring
+  liquidity via volume and turnover ratio, volatility via daily returns, and price‑discovery
+  via correlation with the index. They find mid‑caps are expected to be more volatile and
+  less liquid, and that higher trading activity should improve price stability and discovery.
+trade_idea: 'Not a testable trading idea: The paper only describes descriptive relationships
+  between liquidity, volatility, and price discovery without proposing a concrete, testable
+  trading signal.'
+implementation: unspecified
+red_flags:
+- Only a six‑month sample period, limiting robustness.
+- Analysis is purely descriptive/correlation; no causal or predictive model is offered.
+- No consideration of transaction costs, market impact, or capacity constraints.
+- Read by the research agent (groq) from the abstract only found on semantic_scholar 2026-11-07
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

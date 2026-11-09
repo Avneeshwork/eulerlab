@@ -1,0 +1,25 @@
+id: stock-2020-data-gaps-and-the-policy-response-to-the-novel-coronavirus
+title: Data Gaps and the Policy Response to the Novel Coronavirus
+authors: James Stock
+year: 2020
+kind: paper
+source_url: https://doi.org/10.3386/w26902
+pdf: ''
+added: '2026-11-09'
+status: rejected
+markets: []
+summary: The note presents a basic SIR model for COVID‑19, highlighting the role of the asymptomatic
+  rate and arguing that policies with the same transmission rate β can have different economic
+  costs.
+trade_idea: 'Not a testable trading idea: The paper discusses epidemiological modeling and
+  policy trade‑offs, not a market behavior or tradable signal.'
+implementation: unspecified
+red_flags:
+- No market or price data analyzed
+- No trading signal or economic variable linked to asset returns
+- Findings are purely epidemiological and policy‑oriented
+- Read by the research agent (groq) from the abstract from OpenAlex found on nber 2026-11-09
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

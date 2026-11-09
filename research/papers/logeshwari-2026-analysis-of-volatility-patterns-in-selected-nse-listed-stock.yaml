@@ -1,0 +1,38 @@
+id: logeshwari-2026-analysis-of-volatility-patterns-in-selected-nse-listed-stock
+title: Analysis of Volatility Patterns in Selected NSE-Listed Stocks using the Rogers–Satchell
+  Drift-Independent Estimator
+authors: M Logeshwari, K. Sanjana P. Devi
+year: 2026
+kind: paper
+source_url: https://doi.org/10.62823/exre/03.03.254
+pdf: ''
+added: '2026-11-07'
+status: rejected
+markets:
+- Indian equities (NSE) – 2025‑2026 (one‑year sample)
+summary: The authors compute daily Rogers–Satchell volatility for five NSE‑listed stocks over
+  246 trading days, compare it to the close‑to‑close estimator, and present annualised volatilities
+  and bootstrap confidence intervals.
+trade_idea: 'Not a testable trading idea: The paper only reports volatility estimates for
+  a handful of NSE stocks and does not propose a trading signal, edge, or expected return,
+  so it is not a testable trading idea.'
+implementation: |-
+  universe: unspecified
+  data: unspecified
+  signal: unspecified
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing and costs: unspecified
+red_flags:
+- Only five stocks are examined, limiting generalisability.
+- No trading rule or performance metric is presented, so no backtestable signal exists.
+- Sample period is short (246 days) and may not capture regime changes.
+- Liquidity, transaction costs, and market impact are not addressed.
+- Read by the research agent (groq) from the abstract only found on openalex 2026-11-07 and
+  judged not a testable trading idea; not read by the operator.
+reported_results: Infosys annualised RS volatility 21.75%, Wipro 20.55%, TCS 19.03%, Reliance
+  17.93%, ICICI Bank 15.86%; TCS 1.73× more efficient than close‑to‑close method. No t‑statistics
+  reported.
+hypothesis: ''
+strategies: []

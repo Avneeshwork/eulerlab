@@ -1,0 +1,40 @@
+id: stbinger-2019-statistical-arbitrage-with-mean-reverting-overnight-price-ga
+title: Statistical Arbitrage with Mean-Reverting Overnight Price Gaps on High-Frequency Data
+  of the S&amp;P 500
+authors: Stübinger, Johannes, Schneider, Lucas, Johannes Stübinger, Lucas Schneider
+year: 2019
+kind: paper
+source_url: https://core.ac.uk/works/59029567
+pdf: ''
+added: '2026-11-09'
+status: idea
+markets:
+- US equities (S&P 500 constituents), 1998‑2015
+summary: The authors ask whether overnight price gaps in S&P 500 stocks revert during the
+  early trading session. They use high‑frequency (minute) data for all S&P 500 constituents
+  from Jan 1998 to Dec 2015, apply a jump‑test to detect gaps, and trade the identified stocks
+  in the first minutes after the market opens. Back‑tests report annualised returns of 51.47 %
+  and a Sharpe of 2.38 after transaction costs, outperforming comparable strategies.
+trade_idea: Trade the stocks that exhibit a statistically significant overnight price gap,
+  entering shortly after the open and exiting after the gap mean‑reverts (approximately within
+  the first two hours). The mean‑reversion provides a short‑term directional edge.
+implementation: |-
+  universe: S&P 500 constituents (as of each trading day)
+  data: minute‑level price data (Jan 1998‑Dec 2015)
+  signal: overnight price gap identified by a jump‑test
+  entry: buy (or short) at market open based on the gap direction
+  exit: close position after the gap mean‑reverts, typically within 120 minutes of open
+  holding_period: up to 120 minutes after market open
+  sizing: unspecified
+  costs: transaction costs are included in the reported Sharpe, but exact cost assumptions are unspecified
+red_flags:
+- Survivorship bias from using static S&P 500 constituents
+- High‑frequency data and execution costs may differ from the paper’s assumptions
+- Sample ends in 2015; market microstructure and regime may have changed since then
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-09; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Annualised return 51.47 % p.a., Sharpe 2.38 (both after transaction costs);
+  no t‑statistics reported.
+hypothesis: ''
+strategies: []

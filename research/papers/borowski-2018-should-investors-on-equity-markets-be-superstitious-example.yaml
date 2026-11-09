@@ -1,0 +1,51 @@
+id: borowski-2018-should-investors-on-equity-markets-be-superstitious-example
+title: Should Investors on Equity Markets Be Superstitious? (Example of 7 World Stock Indexes
+  Components)
+authors: Krzysztof Borowski
+year: 2018
+kind: paper
+source_url: https://doi.org/10.5539/ijef.v11n1p151
+pdf: ''
+added: '2026-11-09'
+status: idea
+markets:
+- CAC40 (France) – period not specified
+- DAX (Germany) – period not specified
+- DJIA (USA) – period not specified
+- FTSE30 (UK) – period not specified
+- FTSEBIT (UK) – period not specified
+- NIKKEI225 (Japan) – period not specified
+- SENSE (Germany) – period not specified
+summary: The study asks whether certain calendar dates (13th of any month, 4th of any month,
+  Friday the 13th, Tuesday the 13th) generate abnormal returns. It examines 419 component
+  stocks of seven major world indexes (CAC40, DAX, DJIA, FTSE30, FTSEBIT, NIKKEI225, SENSE)
+  using four return definitions (close‑close, overnight, open‑open, open‑close). The method
+  is a simple date‑based grouping and t‑test of average returns. The authors report that all
+  four “unfortunate‑date” categories show statistically significant lower returns, with Tuesday
+  the 13th being the strongest effect.
+trade_idea: If returns are systematically lower on Tuesday the 13th (and other listed dates),
+  a short‑position opened at the market open and closed at the market close on those days
+  could capture the anomaly.
+implementation: |-
+  universe: components of the seven world indexes (419 stocks) – unspecified whether survivorship‑bias‑adjusted
+  data: daily open, close, and overnight prices; no intraday data mentioned
+  signal: binary indicator = 1 on Tuesday the 13th (or other listed dates), 0 otherwise
+  entry: unspecified (paper does not prescribe entry timing)
+  exit: unspecified (paper does not prescribe exit timing)
+  holding period: unspecified (paper only measures same‑day returns)
+  sizing: unspecified (paper does not discuss position size)
+  costs: unspecified (no transaction‑cost adjustment reported)
+red_flags:
+- No transaction‑cost or slippage adjustment – the reported effect may be erased by the ~9 bps
+  intraday cost in Indian equities.
+- Potential survivorship bias – only current index constituents are used, ignoring delistings.
+- Multiple testing across four return definitions and four date types inflates false‑positive
+  risk.
+- Cultural/regime specificity – the “unlucky‑date” belief may differ across markets and time
+  periods, limiting portability.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-09; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

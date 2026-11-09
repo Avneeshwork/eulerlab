@@ -1,0 +1,31 @@
+id: jagannathan-2015-dividend-dynamics-learning-and-expected-stock-index-returns
+title: Dividend Dynamics, Learning, and Expected Stock Index Returns
+authors: Ravi Jagannathan, Binying Liu
+year: 2015
+kind: paper
+source_url: https://doi.org/10.3386/w21557
+pdf: ''
+added: '2026-11-09'
+status: rejected
+markets:
+- US stock index (likely S&P 500 or similar), 1975‑2016
+summary: The authors build a latent‑variable model of dividend dynamics; it explains ~40%
+  of the variation in annual dividend growth (1975‑2016) and, when embedded in a long‑run
+  risks framework with learning, explains ~26% of the variation in annual stock‑index returns
+  over the same period.
+trade_idea: 'Not a testable trading idea: The paper offers a macro‑level predictive model
+  of dividend growth and index returns but does not define a concrete, testable trading rule
+  or implementation details.'
+implementation: unspecified
+red_flags:
+- No explicit trading signal, entry/exit, or holding period is provided.
+- No cost or liquidity considerations are discussed; annual horizon may be impractical for
+  active trading.
+- Results are reported only as variance‑explained percentages; statistical significance (t‑stats)
+  and out‑of‑sample performance metrics are absent.
+- Read by the research agent (groq) from the abstract from OpenAlex found on nber 2026-11-09
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Explains 39.5%‑41.3% of dividend‑growth variance; explains 25.3%‑27.1% of
+  index‑return variance (no t‑statistics reported).
+hypothesis: ''
+strategies: []

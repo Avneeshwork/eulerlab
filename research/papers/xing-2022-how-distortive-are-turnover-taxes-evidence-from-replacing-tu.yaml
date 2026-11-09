@@ -1,0 +1,33 @@
+id: xing-2022-how-distortive-are-turnover-taxes-evidence-from-replacing-tu
+title: How Distortive are Turnover Taxes? Evidence from Replacing Turnover Tax with VAT
+authors: Jing Xing, Katarzyna Bilicka, Xipei Hou, Sepideh Raei
+year: 2022
+kind: paper
+source_url: https://doi.org/10.3386/w29650
+pdf: ''
+added: '2026-11-06'
+status: rejected
+markets:
+- Chinese service and manufacturing firms, period surrounding the turnover‑tax‑to‑VAT reform
+  (approximately 2015‑2020).
+summary: 'Question: How does replacing turnover tax with VAT affect firm behavior? Data: Chinese
+  service and manufacturing firms before and after a tax reform. Method: Natural experiment
+  comparing affected service industries to unchanged manufacturing sectors. Findings: The
+  reform boosted sales, R&D, and employment in service firms, driven by increased outsourcing
+  from smaller, less innovative manufacturers; overall innovation quality improved.'
+trade_idea: 'Not a testable trading idea: The paper examines firm‑level production and R&D
+  responses to a tax reform in China and does not identify a market‑priced signal or tradable
+  return anomaly.'
+implementation: unspecified
+red_flags:
+- The effect is at the firm‑level in China, not directly linked to observable price or volume
+  signals in tradable markets.
+- No discussion of transaction costs, liquidity, or capacity constraints for any potential
+  strategy.
+- Results are based on a policy change; replicating the effect would require a similar tax
+  event, which may not occur in Indian or US markets.
+- Read by the research agent (groq) from the abstract from OpenAlex found on nber 2026-11-06
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

@@ -1,0 +1,42 @@
+id: 2024-information-processing-social-influence-and-learning-among-i
+title: 'Information processing, social influence and learning among investors: insight from
+  corporate misconduct, technical trading and online forum'
+authors: ''
+year: 2024
+kind: paper
+source_url: https://core.ac.uk/works/160244141
+pdf: ''
+added: '2026-11-06'
+status: idea
+markets:
+- US equities (implied), period not specified
+summary: Essay 1 studies market reaction to corporate misconduct settlements and finds little
+  new information. Essay 2 analyzes an online chat room, reporting that its participants earn
+  0.17% per day alpha after costs. Essay 3 examines turnover around n‑day price highs and
+  lows and discovers that turnover spikes at new lows and that new lows generate abnormal
+  returns for up to six trading days.
+trade_idea: Buy a stock immediately after it makes a new n‑day low and hold for up to six
+  days to capture the reported abnormal return.
+implementation: |-
+  universe: unspecified
+  data: unspecified (presumably daily price and volume)
+  signal: new n‑day low (price equals the minimum close over the past n days)
+  entry: at the close when the new low is observed
+  exit: after six trading days or earlier if a stop‑loss/target is hit (not specified)
+  holding_period: up to 6 days
+  sizing: unspecified
+  costs: unspecified (paper does not adjust for transaction costs in the abnormal‑return test)
+red_flags:
+- No quantitative magnitude or statistical significance (t‑stat) of the abnormal return is
+  reported, making performance unclear.
+- The sample period, market(s) and asset class are not disclosed, so results may not transfer
+  to Indian or US equities.
+- Transaction costs, liquidity constraints and capacity limits are omitted despite the need
+  to trade after low‑price events, which can be costly.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-06; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Abnormal returns are observed for up to 6 trading days after a new low;
+  the paper does not give the size of the return, its units, or t‑statistics.
+hypothesis: ''
+strategies: []

@@ -1,0 +1,32 @@
+id: dey-2025-smart-trading-in-nifty-50-ml-with-ma-rsi-volume-analysis
+title: 'Smart Trading in NIFTY-50: ML with MA, RSI & Volume Analysis'
+authors: Rajesh Dey, Salina Kassim, Mudassir Khan, R. Mahajan, P. William
+year: 2025
+kind: paper
+source_url: https://www.semanticscholar.org/paper/7fa4163fb5885209a7dede02d2ce454fe5151acb
+pdf: ''
+added: '2026-11-06'
+status: rejected
+markets:
+- Indian equities (NIFTY‑50 constituents) 2000‑2021
+summary: The authors build a machine‑learning framework for NIFTY‑50 stocks using daily data
+  (2000‑2021). Features include price, volume, VWAP, turnover and technical indicators (MA,
+  Stochastic RSI). They train SVM, Random Forest and LSTM models and claim higher trend‑classification
+  accuracy than conventional technical analysis.
+trade_idea: 'Not a testable trading idea: The paper only reports overall model performance
+  without specifying a concrete, implementable trading rule, making it non‑testable as a tradable
+  idea.'
+implementation: 'universe: unspecified, data: unspecified, signal: unspecified, entry: unspecified,
+  exit: unspecified, holding period: unspecified, sizing and costs: unspecified'
+red_flags:
+- No explicit entry/exit rule or signal definition – cannot be backtested as written.
+- No transaction‑cost or slippage assumptions; Indian round‑trip costs (≈9 bps intraday) are
+  ignored.
+- Potential over‑fitting given a long sample (2000‑2021) and lack of out‑of‑sample holdout.
+- Possible survivorship bias – only current NIFTY‑50 constituents may be used.
+- No discussion of liquidity constraints or capacity limits for the 50 large‑cap stocks.
+- Read by the research agent (groq) from the abstract only found on semantic_scholar 2026-11-06
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

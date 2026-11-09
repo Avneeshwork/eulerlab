@@ -1,0 +1,38 @@
+id: indargi-2026-risk-and-return-analysis-of-large-cap-and-small-cap-stocks-i
+title: 'Risk and Return Analysis of Large-Cap and Small-Cap Stocks in NSE-Listed Companies
+  in India: Implications for Green Business and Environmental Sustainability'
+authors: Ashwini Indargi, N. Shreyes
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/3727a524a07ff51559ed8b2295bacc8b8d7e7970
+pdf: ''
+added: '2026-11-07'
+status: rejected
+markets:
+- Indian equities (NSE), 2021‑2024
+summary: 'Question: Do large‑cap and small‑cap NSE stocks differ in risk and return, especially
+  for green/blue economy investors? Data: Secondary NSE/BSE data for 2021‑2024 covering selected
+  large‑cap and small‑cap stocks. Method: Descriptive statistics – average returns, volatility,
+  beta. Findings: Large‑cap and small‑cap stocks exhibit different risk‑return profiles; implications
+  for sustainability‑focused capital allocation.'
+trade_idea: 'Not a testable trading idea: The paper only describes aggregate risk‑return characteristics
+  of large‑cap vs small‑cap stocks and does not propose a specific, actionable trading signal.'
+implementation: |-
+  universe: unspecified
+  data: unspecified
+  signal: unspecified
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing and costs: unspecified
+red_flags:
+- No explicit trading rule or signal is provided, so no testable strategy.
+- Results are presented only as descriptive statistics without statistical significance or
+  t‑stats.
+- Sample period is short (4 years) and may suffer survivorship bias; no cost or liquidity
+  analysis.
+- Read by the research agent (groq) from the abstract only found on semantic_scholar 2026-11-07
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

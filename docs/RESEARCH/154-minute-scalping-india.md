@@ -73,7 +73,7 @@ inside bar, engulfing, Supertrend (088-111); first half-hour momentum (071).
 |---|---|---|
 | Fade a 1% one-minute shock on heavy volume | Possibly: it trades only very volatile minutes | **H-0042** |
 | Follow a stock's first round-number crossing | Unlikely: crossings are ordinary minutes; needs 72-80% accuracy | **H-0043**, run because it costs nothing extra on the same pass; expected to fail |
-| Follow the Nifty's round-number crossing in NIFTYBEES | No: a 15-minute call must be right about 98% of the time | Dropped without a run (was drafted as H-0044) |
+| Follow the Nifty's round-number crossing in NIFTYBEES | No: a 15-minute call must be right about 98% of the time | Dropped without a run (was drafted as H-0044; the idea lab later reused that id for its ret(126) card, 2026-11-08) |
 | Index leads stocks | No: a laggard's catch-up is a part of a move already below cost | Dropped |
 | VWAP-band fade | No sourced rule | Dropped |
 | Order-book scalps | Need ticks | Out of scope (operator, 2026-11-05) |

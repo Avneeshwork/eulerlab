@@ -1,0 +1,37 @@
+id: binsbergen-2020-duration-based-stock-valuation-reassessing-stock-market-perf
+title: 'Duration-Based Stock Valuation: Reassessing Stock Market Performance and Volatility'
+authors: Jules van Binsbergen
+year: 2020
+kind: paper
+source_url: https://doi.org/10.3386/w27367
+pdf: ''
+added: '2026-11-08'
+status: rejected
+markets:
+- International equity indices and government bond markets, 1970‑2020 (approx.)
+summary: 'Question: Do bond portfolios that match the duration of dividend strips of a stock
+  market index outperform the index? Data: International government bond returns and dividend
+  strip estimates for major equity indices over ~50 years. Method: Construct fixed‑income
+  portfolios with the same duration as the dividend strip cash flows and compare returns and
+  volatility to the corresponding equity index. Findings: Duration‑matched bond portfolios
+  have similar or higher returns and comparable or higher volatility than the equity indices.'
+trade_idea: 'Not a testable trading idea: The paper studies aggregate index‑level duration‑matched
+  bond portfolios versus equity indices, not a specific, testable trading signal for Indian
+  or US equities/options.'
+implementation: |-
+  universe: unspecified
+  data: unspecified
+  signal: unspecified
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing and costs: unspecified
+red_flags:
+- No concrete security‑level signal; only an asset‑class level observation.
+- Results are based on aggregate index data, not tradable individual securities.
+- Potential survivorship and data‑quality issues in long‑run bond and dividend strip series.
+- Read by the research agent (groq) from the abstract from OpenAlex found on nber 2026-11-08
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

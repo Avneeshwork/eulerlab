@@ -1,0 +1,41 @@
+id: novymarx-2015-fundamentally-momentum-is-fundamental-momentum
+title: Fundamentally, Momentum is Fundamental Momentum
+authors: Robert Novy-Marx
+year: 2015
+kind: paper
+source_url: https://doi.org/10.3386/w20984
+pdf: ''
+added: '2026-11-05'
+status: idea
+markets:
+- US equities (period not specified)
+summary: The authors ask whether firm‑level earnings momentum explains price momentum performance.
+  Using cross‑sectional regressions of stock returns on earnings‑surprise measures and price‑momentum
+  signals, they find earnings momentum fully accounts for the time‑series returns of price‑momentum
+  strategies. Controlling for earnings surprises cuts price‑momentum performance, while controlling
+  for past price performance reduces earnings‑momentum volatility and eliminates crash risk.
+trade_idea: Long stocks with strong positive earnings surprises (earnings momentum) and short
+  those with negative surprises; the expected excess return stems from the systematic component
+  of price momentum that is driven by fundamentals.
+implementation: |-
+  universe: unspecified
+  data: unspecified (earnings surprise / earnings momentum measures)
+  signal: earnings surprise (positive vs negative)
+  entry: unspecified
+  exit: unspecified
+  holding_period: unspecified
+  sizing: unspecified
+  costs: unspecified
+red_flags:
+- No details on the sample period or market (US vs other) are provided, limiting assessment
+  of regime stability.
+- Transaction costs, slippage, and market impact are not quantified, which could erode the
+  reported excess returns.
+- The strategy relies on earnings‑surprise data that may be delayed, sparse, or subject to
+  survivorship bias.
+- Drafted by the paper agent (groq) from the abstract from OpenAlex found on nber 2026-11-05;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

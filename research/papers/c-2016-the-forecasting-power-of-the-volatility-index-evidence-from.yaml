@@ -1,0 +1,37 @@
+id: c-2016-the-forecasting-power-of-the-volatility-index-evidence-from
+title: 'The Forecasting Power of the Volatility Index: Evidence from the Indian Stock Market'
+authors: Surya Bahadur G. C., Ranjana Kothari
+year: 2016
+kind: paper
+source_url: https://doi.org/10.21013/jmss.v4.n1.p21
+pdf: ''
+added: '2026-11-08'
+status: idea
+markets:
+- Indian equities (Nifty 50), Mar‑2009 to Dec‑2015
+summary: 'Question: Does India VIX forecast future stock market volatility and direction?
+  Data: Daily closing values of Nifty 50 and India VIX from Mar‑2009 to Dec‑2015 (1656 observations).
+  Method: Time‑series regressions and forecasting tests comparing VIX to realized volatility
+  and returns. Findings: India VIX has predictive power for next‑month volatility, especially
+  for upward market movements, and works better for low‑magnitude price changes.'
+trade_idea: When India VIX is low (or below its recent average) the market is more likely
+  to rise over the next 20‑60 days, suggesting a long position in Nifty (or Nifty futures)
+  could earn excess return.
+implementation: 'universe: Nifty 50 index (or Nifty futures); data: daily India VIX and Nifty
+  close; signal: unspecified (paper only says low VIX predicts up moves); entry: unspecified
+  (e.g., go long at next open when signal true); exit: unspecified (e.g., flat after 20‑60
+  days or when VIX rises); holding period: unspecified; sizing: unspecified; costs: unspecified
+  (use Indian round‑trip cost ~9 bps for intraday equity, 0.1 % STT for delivery).'
+red_flags:
+- The predictive relationship is shown only for the 2009‑2015 sample; regime shifts after
+  2015 could erase the edge.
+- No quantitative thresholds or performance metrics are provided, so back‑testing may suffer
+  from look‑ahead bias if thresholds are tuned in‑sample.
+- Transaction costs, slippage and liquidity of index futures are not accounted for; a 9 bps
+  round‑trip cost could wipe out modest predictive returns.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-08; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

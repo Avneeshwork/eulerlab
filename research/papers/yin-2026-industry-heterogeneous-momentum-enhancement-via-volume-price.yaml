@@ -1,0 +1,43 @@
+id: yin-2026-industry-heterogeneous-momentum-enhancement-via-volume-price
+title: 'Industry-Heterogeneous Momentum Enhancement via Volume-Price Composite Signals: An
+  Ablation Study in China''s A-share Market'
+authors: Yue Yin
+year: 2026
+kind: paper
+source_url: https://core.ac.uk/works/391832317
+pdf: ''
+added: '2026-11-06'
+status: rejected
+markets:
+- China A‑share equities, 2015‑2025
+summary: The study asks whether a triple‑condition volume‑price composite signal (price near
+  high, volume contraction, strongly negative price‑volume correlation) yields industry‑specific
+  momentum in China A‑shares. Using daily data 2015‑2025 for ~2,001 stocks across eight industries,
+  it builds the signal and runs a five‑group ablation. Results show high‑turnover industries
+  generate large post‑signal abnormal returns, with many tests remaining significant after
+  Bonferroni correction and clustering. The ablation finds that all three conditions are jointly
+  required.
+trade_idea: 'Not a testable trading idea: The effect is demonstrated only on China''s A‑share
+  market, which is outside the Indian and US markets EulerLab focuses on.'
+implementation: |-
+  universe: approx 2,001 A‑share stocks across eight Shenwan Level‑1 industries
+  data: daily prices and volumes 2015‑2025
+  signal: composite requiring (1) price near local high, (2) volume contraction, (3) significantly negative price‑volume Pearson correlation
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing: unspecified
+  costs: unspecified
+red_flags:
+- Effect is shown only in China A‑shares; results may not transfer to Indian or US equities.
+- Transaction costs, slippage and taxes are not incorporated, yet the reported gross CARs
+  are large.
+- The study focuses on high‑turnover industries, limiting capacity and possibly introducing
+  selection bias.
+- Read by the research agent (groq) from the abstract only found on core 2026-11-06 and judged
+  not a testable trading idea; not read by the operator.
+reported_results: 'CAR spread up to 5.47% gross, 4.01% net; 14/16 industry‑signal combos significant
+  after Bonferroni correction, 10/16 after clustering; sub‑period significance counts: 2015‑2016
+  (8/16), 2017‑2020 (2/16), 2021‑2025 (10/16).'
+hypothesis: ''
+strategies: []

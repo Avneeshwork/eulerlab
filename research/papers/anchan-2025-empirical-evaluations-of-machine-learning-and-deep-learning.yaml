@@ -1,0 +1,35 @@
+id: anchan-2025-empirical-evaluations-of-machine-learning-and-deep-learning
+title: 'Empirical evaluations of machine learning and deep learning models for stock market
+  predictions in Indian large cap equities: The limits of technical indicators and cost-aware
+  back testing'
+authors: Veerendra Anchan, Akshaj Kadamba, Viraj Salian, Nihar Kolhapurkar
+year: 2025
+kind: paper
+source_url: https://doi.org/10.22541/au.176120687.73846026/v1
+pdf: ''
+added: '2026-11-06'
+status: rejected
+markets:
+- Indian large‑cap equities, daily data, ~2009‑2024
+summary: The authors evaluate ML and deep‑learning models on 15 years of daily data for 25
+  Indian large‑cap stocks, using technical‑indicator features and cost‑aware back‑testing;
+  they compare out‑of‑sample accuracy and risk‑adjusted returns to buy‑and‑hold benchmarks.
+trade_idea: 'Not a testable trading idea: The paper finds no statistically significant predictive
+  edge over a naive buy‑and‑hold, so it does not present a testable trading idea.'
+implementation: |-
+  universe: unspecified
+  data: unspecified
+  signal: unspecified
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified
+  sizing and costs: unspecified
+red_flags:
+- Only 25 stocks – small universe may cause survivorship bias
+- Results are aggregated across stocks; no per‑stock edge reported
+- Cost model not detailed; execution costs for Indian equities can be ~9 bps intraday
+- Read by the research agent (groq) from the abstract only found on openalex 2026-11-06 and
+  judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

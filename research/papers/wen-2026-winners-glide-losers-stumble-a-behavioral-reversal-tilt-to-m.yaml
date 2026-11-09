@@ -1,0 +1,43 @@
+id: wen-2026-winners-glide-losers-stumble-a-behavioral-reversal-tilt-to-m
+title: 'Winners Glide, Losers Stumble: A Behavioral Reversal Tilt to Momentum'
+authors: Juncheng Wen, Taiyang Feng
+year: 2026
+kind: paper
+source_url: https://doi.org/10.2139/ssrn.7019599
+pdf: ''
+added: '2026-11-05'
+status: idea
+markets:
+- US equities (approximately 1920‑2025, daily/monthly data)
+- Twelve international equity markets (unspecified countries and periods)
+summary: The authors ask whether the short leg of cross‑sectional momentum can be improved
+  by accounting for the most recent month’s gross return. Using a century of US common‑stock
+  data and twelve international markets, they compute a factor equal to classic skip‑month
+  momentum multiplied by (1+ last‑month return). They find the factor outperforms standard
+  momentum, with the outperformance coming entirely from the short side, and report a tradable
+  gross premium of roughly 1–2% per year in shortable small‑to‑mid‑cap stocks.
+trade_idea: Long the top momentum winners as usual, but short the bottom momentum losers after
+  scaling each loser’s weight by (1+ its last‑month return); the short‑leg tilt is expected
+  to capture rebound‑related reversals and generate a modest net alpha of about 1–2% annualized.
+implementation: |-
+  universe: shortable US small‑to‑mid‑cap stocks (e.g., market cap below the top 70% of the market)
+  data: monthly total returns (including dividends) for each stock; daily price data for execution
+  signal: factor = skip‑month 12‑month momentum × (1 + last‑month gross return)
+  entry: rank stocks by the factor each month; go long top N and short bottom N
+  exit: rebalance monthly (approximately every 21 trading days)
+  holding period: 1 month
+  sizing and costs: equal‑weight long and short legs; assume 9 bps round‑trip cost for intraday equity trades and 0.1 % STT for delivery trades; other transaction costs unspecified
+red_flags:
+- The reported 1–2% premium is gross of realistic Indian/US transaction costs and may disappear
+  after applying 9 bps intraday or 0.1 % STT fees.
+- The study focuses on small‑to‑mid‑cap stocks where liquidity can be thin; capacity may be
+  limited and turnover constraints are not quantified.
+- The sample spans a century, mixing many market regimes; the effect may be regime‑dependent
+  and could have weakened in recent decades, raising survivorship bias concerns.
+- Drafted by the paper agent (groq) from the abstract from Crossref found on ssrn 2026-11-05;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: gross premium of roughly 1–2% per year in the shortable small‑to‑mid‑cap
+  range; no t‑statistics or confidence intervals are provided.
+hypothesis: ''
+strategies: []

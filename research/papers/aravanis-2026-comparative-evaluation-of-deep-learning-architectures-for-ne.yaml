@@ -1,0 +1,42 @@
+id: aravanis-2026-comparative-evaluation-of-deep-learning-architectures-for-ne
+title: Comparative Evaluation of Deep Learning Architectures for Next-Day Stock Price Forecasting
+  Using Technical Indicators
+authors: Theofanis I. Aravanis, Andreas Kanavos
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/ad9834c69179d84a163575e728cfbef4b862c601
+pdf: ''
+added: '2026-11-08'
+status: idea
+markets:
+- US equities, daily, approx. 2013‑2023 (ten‑year sample)
+summary: The authors compare LSTM, BiLSTM, GRU and ConvLSTM models for next‑day price prediction
+  on four large‑cap NASDAQ stocks using five technical indicators. ConvLSTM yields the lowest
+  RMSE (0.0256‑0.0394) and R² > 0.90. A simple trading rule—go long when the model forecasts
+  a higher closing price than today’s close—is backtested frictionlessly and beats buy‑and‑hold
+  for three of the four stocks.
+trade_idea: Long a stock for one day whenever a ConvLSTM model predicts its next‑day closing
+  price will be higher than today’s close; exit at the next day’s close.
+implementation: |-
+  universe: AAPL, META, SBUX, TSLA (four NASDAQ large‑cap equities)
+  data: Daily price series plus EMA, RSI, MACD, OBV, ATR for a ten‑year period
+  signal: predicted next‑day close > current close (binary)
+  entry: Enter a full‑capital long position at the market open of the next day
+  exit: Close the position at market close on the same day
+  holding period: 1 trading day
+  sizing: unspecified (paper uses full capital per signal)
+  costs: frictionless backtest; transaction‑cost sensitivity discussed but no concrete cost numbers
+red_flags:
+- Only four stocks are tested – results may not generalise to a broader universe
+- No walk‑forward or out‑of‑sample validation beyond a single chronological split, raising
+  over‑fitting concerns
+- Transaction‑cost impact is only qualitatively described; no quantitative cost model is provided
+- No statistical significance testing; reported performance could be due to chance
+- Potential survivorship bias by focusing on large‑cap, continuously listed equities
+- Drafted by the paper agent (groq) from the abstract only found on semantic_scholar 2026-11-08;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: RMSE between 0.0256 and 0.0394, out‑of‑sample R² > 0.90; Sharpe/Sortino/Calmar
+  improvements mentioned but not quantified; no t‑statistics reported.
+hypothesis: ''
+strategies: []

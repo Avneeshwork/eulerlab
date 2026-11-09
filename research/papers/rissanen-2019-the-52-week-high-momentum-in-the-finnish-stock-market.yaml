@@ -1,0 +1,40 @@
+id: rissanen-2019-the-52-week-high-momentum-in-the-finnish-stock-market
+title: The 52-week high momentum in the Finnish stock market
+authors: Rissanen, Olli
+year: 2019
+kind: paper
+source_url: https://core.ac.uk/works/351004682
+pdf: ''
+added: '2026-11-05'
+status: idea
+markets:
+- Finnish equity market, Jan‑1998 to Sep‑2019
+summary: The author examines a 52‑week‑high momentum strategy on Finnish stocks using monthly
+  data from Jan‑1998 to Sep‑2019, compares it to individual stock and industry momentum, and
+  checks for short‑ and long‑term reversals. The 6‑month holding version yields significant
+  positive returns, especially when January returns are excluded, though it is outperformed
+  by pure stock momentum.
+trade_idea: Buy stocks that are close to their 52‑week high (high price_to_52w_high) and hold
+  for six months; returns appear positive in the Finnish market, particularly when January
+  is omitted.
+implementation: |-
+  universe: unspecified (Finnish listed equities used in the study)
+  data: monthly price data (close and 52‑week high) from 01/1998‑09/2019
+  signal: price_to_52w_high = close / 52‑week‑high
+  entry: unspecified (presumably long the top ranked stocks by the signal)
+  exit: after a fixed six‑month holding period
+  holding period: 6 months
+  sizing: unspecified (likely equal‑weight among selected names)
+  costs: not accounted for in the paper
+red_flags:
+- Only Finnish stocks are examined; results may not transfer to Indian or US markets.
+- Monthly data and a six‑month horizon ignore transaction costs and slippage; the paper does
+  not model any costs.
+- Potential survivorship bias and limited sample (1998‑2019) could inflate performance; regime
+  changes after 2019 are not tested.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-05; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

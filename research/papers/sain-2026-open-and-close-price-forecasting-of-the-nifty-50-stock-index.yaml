@@ -1,0 +1,35 @@
+id: sain-2026-open-and-close-price-forecasting-of-the-nifty-50-stock-index
+title: 'Open and Close Price Forecasting of the NIFTY 50 Stock Index Using Machine Learning:
+  A Multi-Window Study of Feature Engineering and Model Tuning'
+authors: Rohit K. Sain, A. K. Singh
+year: 2026
+kind: paper
+source_url: https://www.semanticscholar.org/paper/ad50a50a312c20ea338e74fb5fee305601953ea1
+pdf: ''
+added: '2026-11-08'
+status: rejected
+markets:
+- Indian equities (NIFTY 50 index) – 5‑year, 10‑year, 20‑year historical windows
+summary: The authors ask whether machine‑learning models can predict the next‑day open and
+  close of the NIFTY 50 index. They use 5‑, 10‑ and 20‑year historical windows, compare raw
+  OHLCV features to an augmented set with SMA, RSI, returns and volatility, and test 12 supervised
+  regressors against a naïve persistence benchmark using chronological train‑test splits.
+  They report MAE, RMSE and R², finding that simple linear models (Linear Regression, Ridge,
+  Lasso) generalise best over longer windows, while tree‑based models (Random Forest, XGBoost)
+  overfit short windows.
+trade_idea: 'Not a testable trading idea: The paper only evaluates forecasting accuracy of
+  NIFTY 50 open/close prices and does not define a trading rule, profit metric, or cost analysis,
+  so it does not present a testable market effect.'
+implementation: 'universe: unspecified, data: unspecified, signal: unspecified, entry: unspecified,
+  exit: unspecified, holding period: unspecified, sizing and costs: unspecified'
+red_flags:
+- No explicit trading rule or signal is defined, so profitability cannot be assessed.
+- Paper reports only statistical error metrics, not economic performance or risk‑adjusted
+  returns.
+- No discussion of transaction costs, slippage, or market impact for trading the index or
+  related instruments.
+- Read by the research agent (groq) from the abstract only found on semantic_scholar 2026-11-08
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

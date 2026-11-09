@@ -1,0 +1,37 @@
+id: gupta-2025-gross-profitability-and-momentum-evidence-from-india
+title: 'Gross Profitability and Momentum: Evidence from India'
+authors: Priya Gupta, Valeed Ahmad Ansari
+year: 2025
+kind: paper
+source_url: https://doi.org/10.47191/jefms/v8-i2-52
+pdf: ''
+added: '2026-11-05'
+status: idea
+markets:
+- Indian equities, Oct 2002 – Sep 2022
+summary: The authors ask whether merging gross profitability with a 52‑week high price momentum
+  factor improves returns in India. Using monthly data from Oct 2002 to Sep 2022, they double‑sort
+  stocks into terciles by profitability and momentum, form long‑short portfolios, and compute
+  value‑weighted and equally‑weighted returns. They find the combined strategy yields an equally‑weighted
+  monthly return of 0.32% and a Fama‑French alpha of 1.08%, outperforming each factor alone.
+trade_idea: Long the top tercile of stocks with high gross profitability and near‑52‑week‑high
+  prices, short the bottom tercile; the synergy is claimed to generate positive excess returns.
+implementation: 'universe: Indian equities (all listed stocks); data: monthly gross profitability,
+  daily close to compute 52‑week high; signal: double‑sort into terciles and form long‑short;
+  entry: at month start; exit: end of month; holding period: 1 month; sizing: equally weighted;
+  costs: unspecified'
+red_flags:
+- Potential survivorship bias if delisted stocks are omitted from the sample.
+- Transaction costs and market impact not accounted for; Indian intraday round‑trip cost is
+  ~9 bps, which could erode the 0.32% monthly edge.
+- 'Liquidity constraints: the strategy may require trading illiquid stocks to achieve the
+  tercile splits.'
+- Capacity limits are unclear; scaling the strategy could be limited by market depth.
+- 'Regime dependence: the 20‑year sample includes varied market conditions that may not repeat.'
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-05; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Equally weighted monthly return = 0.32%; Fama‑French alpha = 1.08% (units
+  not specified); t‑statistics not reported.
+hypothesis: ''
+strategies: []

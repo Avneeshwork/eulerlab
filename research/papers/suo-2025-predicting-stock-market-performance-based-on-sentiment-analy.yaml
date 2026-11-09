@@ -1,0 +1,43 @@
+id: suo-2025-predicting-stock-market-performance-based-on-sentiment-analy
+title: Predicting Stock Market Performance Based on Sentiment Analysis of Online Comments
+authors: Wenhao Suo, Tongjai Yampaka
+year: 2025
+kind: paper
+source_url: https://doi.org/10.14569/ijacsa.2025.0161034
+pdf: ''
+added: '2026-11-09'
+status: idea
+markets:
+- China equities (Kweichow Moutai), sample period not disclosed
+summary: The authors ask whether off‑hours social‑media sentiment can forecast a stock's opening
+  price. They collect investor comments on Chinese financial platforms for Kweichow Moutai,
+  compute a sentiment index (average score, positive ratio, volatility), and combine it with
+  technical market data and macro indicators. A dual‑channel LSTM model processes technical
+  features in one channel and sentiment features in the other. They report that the sentiment
+  channel adds significant predictive power for the next‑day opening price, especially in
+  rising markets and when using high‑frequency sentiment updates.
+trade_idea: If overnight sentiment is high, go long at the market open; if sentiment is low,
+  go short (or stay flat) expecting the opening price to move in the direction indicated by
+  the sentiment signal.
+implementation: |-
+  universe: unspecified (paper uses only Kweichow Moutai)
+  data: unspecified (online comment feed, daily price/volume, macro indicators)
+  signal: unspecified (output of the dual‑channel LSTM predicting opening price direction)
+  entry: unspecified (presumably at market open based on predicted direction)
+  exit: unspecified (likely at close of the same day)
+  holding period: unspecified (intraday, one‑day horizon)
+  sizing: unspecified (paper does not detail position sizing)
+  costs: unspecified (paper does not account for transaction costs)
+red_flags:
+- Only a single stock is analyzed, so results may not generalize (capacity and survivorship
+  bias).
+- The study is confined to the Chinese market; sentiment data and market microstructure differ
+  from Indian/US markets.
+- No explicit accounting for transaction costs, slippage, or execution latency, which could
+  erode any edge.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-09; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
