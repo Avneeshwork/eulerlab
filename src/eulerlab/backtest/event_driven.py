@@ -61,6 +61,7 @@ from eulerlab.features.panel import (
     load_price_factor_store,
     trading_days,
 )
+from eulerlab.master.sessions import regular_days, short_sessions
 
 IST = ZoneInfo("Asia/Kolkata")
 FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)
@@ -184,6 +185,9 @@ def run(
     """
     histories = by_symbol(rows)
     days = trading_days(rows)
+    # A short session (Muhurat, a late open) is held through, not traded:
+    # no decision on its thin close, no fill at its thin price (ADR-157).
+    days, warmup = regular_days(days, warmup, short_sessions(rows))
     if len(days) <= warmup + 2:
         return TierBResult(strategy=strategy.describe(), starting_cash=starting_cash)
 

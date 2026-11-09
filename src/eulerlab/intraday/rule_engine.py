@@ -486,6 +486,18 @@ class Engine:
     def __init__(self, data: Data) -> None:
         self.data = data
 
+    @cached_property
+    def short(self) -> frozenset[date]:
+        """Short sessions (Muhurat, a late open): no entry on them (ADR-157).
+        An open-to-close trade there is an hour long and a thin print."""
+        from eulerlab.master.sessions import short_days
+
+        totals: dict[date, float] = defaultdict(float)
+        for bars in self.data.panel.values():
+            for day, bar in bars.items():
+                totals[day] += bar.value
+        return short_days(totals)
+
     def value(self, s: Signal, symbol: str, day: date) -> float | None:
         """`s` for `symbol`, read `s.lag` sessions before `day` (the entry session)."""
         d = self.data
@@ -564,7 +576,7 @@ class Engine:
         out: list[Event] = []
         first = spec.first
         for day in d.sessions:
-            if not first <= day <= d.end or d.prev(day) is None:
+            if not first <= day <= d.end or d.prev(day) is None or day in self.short:
                 continue
             for symbol in sorted(self._candidates(spec, day)):
                 if not d.tradable(symbol, day):

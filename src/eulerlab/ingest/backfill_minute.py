@@ -22,6 +22,7 @@ from eulerlab.ingest.kite_minute import (
     read_universe,
     uncovered_chunks,
 )
+from eulerlab.ingest.nse_eod import weekend_sessions
 
 DEFAULT_ROOT = Path("data/landing/kite_minute")
 DEFAULT_UNIVERSE = Path("config/universe_top250_union.txt")
@@ -123,10 +124,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     # start moves every day: that re-fetched the whole year on every run
     # (T-4036). `has` still guards a key landed by an older, shifted window.
     held = store.covered()
+    specials = weekend_sessions()
     planned: list[Chunk] = [
         chunk
         for symbol, token in resolved.items()
-        for chunk in uncovered_chunks(symbol, token, start, end, held.get(symbol, ()))
+        for chunk in uncovered_chunks(
+            symbol, token, start, end, held.get(symbol, ()), weekend_sessions=specials
+        )
     ]
     todo = [c for c in planned if not store.has(c)]
     current = sum(1 for symbol in resolved if not any(c.symbol == symbol for c in planned))

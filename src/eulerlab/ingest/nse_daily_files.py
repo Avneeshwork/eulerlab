@@ -25,7 +25,7 @@ from pathlib import Path
 
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.landing import Landing
-from eulerlab.ingest.nse_eod import business_days, today_ist
+from eulerlab.ingest.nse_eod import session_days, today_ist
 
 DEFAULT_LANDING = Path("data/landing/nse")
 
@@ -120,11 +120,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     transport.establish_session()
     fetcher = Fetcher(transport, FetchPolicy(min_interval_s=args.min_interval))
     specs = [FILES[args.only]] if args.only else list(FILES.values())
-    days = list(business_days(args.start, args.end))
+    days = session_days(args.start, args.end, args.landing)
     failed = 0
     for spec in specs:
         counts: dict[str, int] = {}
-        print(f"{spec.segment}: {args.start} .. {args.end} ({len(days)} weekdays)", flush=True)
+        print(f"{spec.segment}: {args.start} .. {args.end} ({len(days)} sessions)", flush=True)
         for index, day in enumerate(days, start=1):
             outcome = fetch_day(fetcher, landing, spec, day)
             counts[outcome] = counts.get(outcome, 0) + 1

@@ -719,6 +719,20 @@ def cached_days(path: Path = PANEL_PATH) -> set[str]:
     }
 
 
+def day_turnover(path: Path = PANEL_PATH) -> dict[date, float]:
+    """Each day's total traded value across the panel (for `master/sessions`)."""
+    totals: dict[date, float] = {}
+    if not path.exists():
+        return totals
+    with path.open(encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                row = json.loads(line)
+                day = date.fromisoformat(row["d"])
+                totals[day] = totals.get(day, 0.0) + float(row.get("t") or 0.0)
+    return totals
+
+
 def build(
     *,
     start: str,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Sequence
 
-from eulerlab.features.panel import PANEL_PATH, build, cached_days
+from eulerlab.features.panel import PANEL_PATH, build, cached_days, day_turnover
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -25,6 +25,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     written, note = build(start=args.start, end=args.end, progress=progress)
     print(f"\nwrote {written:,} new days -> {PANEL_PATH}")
     print(f"panel now covers {len(cached_days()):,} trading days")
+    # Short sessions (Muhurat, a late open) into the calendar, from the turnover
+    # just written (ADR-157). The engines judge them from their own rows.
+    from eulerlab.market_history import record_short_sessions
+    from eulerlab.master.sessions import short_days
+
+    short = short_days(day_turnover())
+    record_short_sessions(short)
+    print(f"short sessions: {len(short)} -> data/derived/nse_calendar.json")
     if note:
         print(f"\nincomplete: {note}")
         # A quarantined day is a finding for `make data-quality`, not a failed
