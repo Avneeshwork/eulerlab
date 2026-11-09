@@ -452,6 +452,62 @@ def test_ai_help_turns_a_problem_into_a_task_for_the_head(tmp_path: Path, no_rer
     assert out.requests == 1
 
 
+def test_the_watchdog_does_not_chase_its_own_tasks_or_yours(tmp_path: Path) -> None:
+    """The 5-9 Nov loop: an overdue watchdog task made a new one every day, and
+    each was split into fresh copies of an engineering fix only you can start."""
+    late = NOW - timedelta(days=3)
+    own = tasks.create(
+        title="Watchdog: engineering run failed",
+        owner="head_platform",
+        department="platform",
+        created_by="watchdog",
+        root=tmp_path,
+        now=late,
+    )
+    tasks.create(
+        title="Investigate the failure",
+        owner="watchdog",
+        department="platform",
+        created_by="head_platform",
+        kind="check_agents",
+        parent=own.id,
+        root=tmp_path,
+        now=late,
+    )
+    tasks.create(
+        title="Fix the slow tests",
+        owner="engineering",
+        department="platform",
+        created_by="doctor",
+        kind="fix_code",
+        root=tmp_path,
+        now=late,
+    )
+    real = tasks.create(
+        title="Grade bulk deals",
+        owner="data",
+        department="platform",
+        created_by="ceo",
+        kind="check_dataset",
+        root=tmp_path,
+        now=late,
+    )
+    agents = all_effective(tmp_path)
+    problems = watchdog.check_tasks(tmp_path, now=NOW, agents=agents)
+    assert [p.body.split(",")[0] for p in problems] == [real.id]
+
+
+def test_a_lasting_problem_stays_one_watchdog_task(tmp_path: Path, no_reruns: None) -> None:
+    _run(tmp_path, "lab", NOW - timedelta(minutes=8), "failed", "ValueError: bad card")
+    answer = json.dumps({"problems": [{"agent": "lab", "cause": "c", "fix": "f", "who": "head"}]})
+    runtime.run("watchdog", root=tmp_path, now=NOW, asker=lambda *a: answer)
+    later = NOW + timedelta(days=1)
+    _run(tmp_path, "lab", later - timedelta(minutes=8), "failed", "ValueError: bad card")
+    runtime.run("watchdog", root=tmp_path, now=later, asker=lambda *a: answer)
+    made = [t for t in tasks.load(tmp_path).values() if t.created_by == "watchdog"]
+    assert len(made) == 1
+
+
 # --- the head's checklist and the research card ------------------------------
 
 

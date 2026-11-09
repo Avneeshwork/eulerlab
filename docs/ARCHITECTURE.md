@@ -3614,9 +3614,9 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
 | missed | no run within `expect` hours (weekday-only agents get Saturday to Monday 17:00 off) |
 | requests | an agent defined without a model asked one; an agent used all its `daily_requests` |
 | tokens | an agent over 60,000 a day, an average request over 12,000, all agents over 160,000 (Groq's free 200,000) |
-| tasks | blocked, sent back twice, or open past its due day |
+| tasks | blocked, sent back twice, or open past its due day; never a task the watchdog raised (or its steps) and never one only you may start (ADR-159) |
 
-Remedies: re-run once a day an agent in `rerun_ok` (data, operations, portfolio, knowledge_keeper) whose run failed or was missed; never the lab, research or market brief. What is left goes to one Groq request (4 a day), whose answer per problem becomes a task for the agent's head, an alert for the operator, or a note that it will clear.
+Remedies: re-run once a day an agent in `rerun_ok` (data, operations, portfolio, knowledge_keeper) whose run failed or was missed; never the lab, research or market brief. What is left goes to one Groq request (4 a day), whose answer per problem becomes a task for the agent's head (none while an open watchdog task for that head and problem exists), an alert for the operator, or a note that it will clear.
 
 **Which research cards the lab queues (HISTORY #73).** `lab.candidates` takes research drafts that are not repeats, whose `draft.json` says `card: valid`, and that no earlier lab run found unbuildable with no named signal (`lab.never_buildable`). A card waiting for engineering to code a named signal stays queued, so it is tested once the code is merged. Research's summary counts both: "3 drafted (1 complete)".
 

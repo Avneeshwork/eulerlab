@@ -224,11 +224,48 @@ def check_model_use(
     return problems, spend
 
 
-def check_tasks(root: Any, *, now: datetime) -> list[Problem]:
+def _from_watchdog(task: tasks.Task, known: dict[str, tasks.Task]) -> bool:
+    """Whether the task, or any task above it, was raised by the watchdog."""
+    seen: set[str] = set()
+    while task.id not in seen:
+        seen.add(task.id)
+        if task.created_by == "watchdog":
+            return True
+        parent = known.get(task.parent)
+        if parent is None:
+            return False
+        task = parent
+    return False
+
+
+def waits_for_operator(task: tasks.Task, agents: dict[str, Effective]) -> bool:
+    """An assigned task whose skill is not `auto`: no agent may start it, only you."""
+    if task.status != "assigned" or task.owner not in agents:
+        return False
+    skill = next((s for s in agents[task.owner].spec.can_do if s.kind == task.kind), None)
+    return skill is not None and not skill.auto
+
+
+def check_tasks(
+    root: Any, *, now: datetime, agents: dict[str, Effective] | None = None
+) -> list[Problem]:
+    """Blocked, returned or overdue tasks.
+
+    Two kinds are left out (HISTORY: the watchdog's overdue loop, 2026-11-09):
+    tasks the watchdog itself raised, and their subtasks, because an overdue
+    watchdog task made a new watchdog task every day, each split into fresh
+    near-copies; and tasks that wait for you to start them, because no agent can
+    act on those, so a task about them only adds a copy to your list.
+    """
     problems: list[Problem] = []
     today = now.astimezone(IST).date().isoformat()
-    for task in tasks.load(root).values():
+    known = tasks.load(root)
+    for task in known.values():
         if task.status not in tasks.ACTIVE:
+            continue
+        if _from_watchdog(task, known):
+            continue
+        if agents is not None and waits_for_operator(task, agents):
             continue
         if task.status == "blocked":
             why = str(task.history[-1].get("data", {}).get("note", "")) if task.history else ""
@@ -318,6 +355,13 @@ def ask_for_help(ctx: Context, problems: list[Problem], agents: dict[str, Effect
     items: list[Item] = []
     known = {p.agent for p in problems}
     day = ctx.now.astimezone(IST).date().isoformat()
+    # One open watchdog task per head and problem: a problem that lasts a week
+    # stays one task, not seven.
+    open_titles = {
+        (t.owner, t.title)
+        for t in tasks.load(ctx.root).values()
+        if t.created_by == ctx.name and t.status in tasks.ACTIVE
+    }
     for advice in answers[:10]:
         agent = str(advice.get("agent") or "")
         if agent not in known:
@@ -328,6 +372,8 @@ def ask_for_help(ctx: Context, problems: list[Problem], agents: dict[str, Effect
         if who == "head" and agent in agents:
             head = _head_of(agent, agents)
             first = next(p for p in problems if p.agent == agent)
+            if (head, " ".join(f"Watchdog: {first.title}".split())[:200]) in open_titles:
+                continue
             task = tasks.create(
                 title=f"Watchdog: {first.title}"[:200],
                 owner=head,
@@ -384,7 +430,7 @@ def run(ctx: Context) -> WorkerResult:
     ctx.step(f"Checking {len(agents)} agents' runs, model use and tasks")
     run_problems, seen = check_runs(agents, now=ctx.now, root=ctx.root, options=ctx.options)
     use_problems, spend = check_model_use(agents, seen, now=ctx.now, options=ctx.options)
-    task_problems = check_tasks(ctx.root, now=ctx.now)
+    task_problems = check_tasks(ctx.root, now=ctx.now, agents=agents)
     problems = run_problems + use_problems + task_problems
     reran, items = remedy(ctx, problems)
     # What a re-run fixed is not asked about.

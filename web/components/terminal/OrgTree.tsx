@@ -15,9 +15,10 @@
 
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { agentsApi } from '@/lib/api';
+import { buttonHelp, headline, needsYou, whatItDoes, whyRaised } from '@/lib/taskWords';
 import type {
   AgentPlan,
   AgentTask,
@@ -89,6 +90,18 @@ function Goals({ goals }: { goals: OrgGoal[] }) {
 
 // ---------------------------------------------------------------- one task
 
+/** What every card needs from the chart: display names, and each skill's sentence and auto flag. */
+type CardInfo = {
+  titles: Map<string, string>;
+  skills: Map<string, { what: string; auto: boolean }>;
+  byId: Map<string, AgentTask>;
+};
+const CardContext = createContext<CardInfo>({
+  titles: new Map(),
+  skills: new Map(),
+  byId: new Map(),
+});
+
 function TaskCard({
   task,
   all,
@@ -102,10 +115,12 @@ function TaskCard({
   busy: Set<string>;
   depth?: number;
 }) {
+  const { titles, skills, byId } = useContext(CardContext);
   const [open, setOpen] = useState(false);
   const subs = all.filter((t) => t.parent === task.id);
   const isHeadTask = task.owner.startsWith('head_');
   const running = busy.has(`task:${task.id}`) || busy.has(`wake:${task.department}`);
+  const skill = skills.get(`${task.owner}:${task.kind}`);
   const actions: [TaskAction, string, string][] = [];
   if (!isHeadTask && task.status === 'assigned') actions.push(['run', 'Run now', 'go']);
   const stuckSubs = subs.some((x) => x.status === 'blocked');
@@ -118,55 +133,79 @@ function TaskCard({
   }
   if (ACTIVE.has(task.status) && task.status !== 'doing') actions.push(['cancel', 'Cancel', '']);
   const last = task.history[task.history.length - 1];
+  const parentTitle = byId.get(task.parent)?.title ?? '';
+  const need = needsYou(task, { auto: skill?.auto, stuckSteps: stuckSubs });
+  const due = ACTIVE.has(task.status) && task.due < new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
   return (
     <li className="org-task" data-depth={depth}>
       <div className="org-task-head">
         <Badge tone={STATUS_TONE[task.status]}>{STATUS_WORD[task.status]}</Badge>
-        <b>{task.title}</b>
+        <b>{headline(task)}</b>
         {running && <Badge tone="brand">working…</Badge>}
       </div>
-      <p className="tfine">
-        {task.owner} · due {task.due} · from {task.created_by}
-        {task.kind && ` · ${task.kind}`}
-        {task.planned_by && ` · split by ${task.planned_by === 'model' ? 'the model' : 'fixed rules'}`}
-        {task.returns > 0 && ` · sent back ${task.returns}×`}
-        {task.assists > 0 && ` · AI helped ${task.assists}×`}
-      </p>
-      {Object.keys(task.args).length > 0 && (
-        <p className="tfine">
-          {Object.entries(task.args)
-            .map(([k, v]) => `${k}: ${v}`)
-            .join(' · ')}
-        </p>
-      )}
-      {task.summary && <p className="org-task-summary">{task.summary}</p>}
+      <dl className="org-task-plain">
+        <dt>What it is for</dt>
+        <dd>{whatItDoes(task, skill?.what ?? '', titles)}</dd>
+        <dt>Why it was raised</dt>
+        <dd>{whyRaised(task, titles, parentTitle)}</dd>
+        <dt>Does it need you?</dt>
+        <dd>
+          <Badge tone={need.yes ? 'caveat' : 'up'}>{need.yes ? 'Yes' : 'No'}</Badge> {need.text}
+          {due && ` It was due ${task.due}.`}
+        </dd>
+      </dl>
+      {task.summary && <p className="org-task-summary">Result: {task.summary}</p>}
       {last?.note && task.status === 'blocked' && <p className="tnote bad">{String(last.note)}</p>}
-      <div className="org-task-actions">
-        {actions.map(([action, label, tone]) => (
-          <button
-            key={action}
-            type="button"
-            className={`tbtn sm ${tone}`}
-            disabled={running || (action === 'assist' && task.help_wanted)}
-            onClick={() => onAct(task.id, action)}
-          >
-            {label}
-          </button>
-        ))}
-        <button type="button" className="tbtn sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-          {open ? 'Hide history' : `History (${task.history.length})`}
-        </button>
-      </div>
-      {open && (
-        <ol className="org-history">
-          {task.history.map((e, i) => (
-            <li key={`${e.at}-${i}`}>
-              <span className="tfine">{when(e.at)}</span> <b>{e.by}</b> {e.assist ? 'AI help' : e.event.replace('_', ' ')}
-              {(e.note || e.summary) && <span> · {String(e.note || e.summary)}</span>}
-              {typeof e.run_id === 'string' && e.run_id && <span className="tfine"> · run {e.run_id}</span>}
+      {actions.length > 0 && (
+        <ul className="org-task-buttons">
+          {actions.map(([action, label, tone]) => (
+            <li key={action}>
+              <button
+                type="button"
+                className={`tbtn sm ${tone}`}
+                disabled={running || (action === 'assist' && task.help_wanted)}
+                onClick={() => onAct(task.id, action)}
+              >
+                {label}
+              </button>
+              <span className="tfine">{buttonHelp(action, task, titles)}</span>
             </li>
           ))}
-        </ol>
+        </ul>
+      )}
+      <div className="org-task-actions">
+        <button type="button" className="tbtn sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? 'Hide details' : 'Details for engineers'}
+        </button>
+        {subs.length > 0 && <span className="tfine">{subs.length} step(s) below</span>}
+      </div>
+      {open && (
+        <div className="org-task-details">
+          <p className="tfine">
+            {task.id} · title “{task.title}” · owner {task.owner} · from {task.created_by} · due {task.due}
+            {task.kind && ` · skill ${task.kind}`}
+            {task.planned_by && ` · steps planned by ${task.planned_by === 'model' ? 'the AI model' : 'fixed rules'}`}
+            {task.returns > 0 && ` · sent back ${task.returns}×`}
+            {task.assists > 0 && ` · AI helped ${task.assists}×`}
+          </p>
+          {Object.keys(task.args).length > 0 && (
+            <p className="tfine">
+              {Object.entries(task.args)
+                .map(([k, v]) => `${k}: ${v}`)
+                .join(' · ')}
+            </p>
+          )}
+          {task.detail && <p className="tfine org-task-detail">{task.detail}</p>}
+          <ol className="org-history">
+            {task.history.map((e, i) => (
+              <li key={`${e.at}-${i}`}>
+                <span className="tfine">{when(e.at)}</span> <b>{e.by}</b> {e.assist ? 'AI help' : e.event.replace('_', ' ')}
+                {(e.note || e.summary) && <span> · {String(e.note || e.summary)}</span>}
+                {typeof e.run_id === 'string' && e.run_id && <span className="tfine"> · run {e.run_id}</span>}
+              </li>
+            ))}
+          </ol>
+        </div>
       )}
       {subs.length > 0 && (
         <ul className="org-tasks org-subtasks">
@@ -598,8 +637,21 @@ export function OrgChartView() {
     }
   }
 
+  const info: CardInfo = {
+    titles: new Map(
+      chart.departments.flatMap((d) => [[d.head.name, d.head.title] as const, ...d.agents.map((a) => [a.name, a.title] as const)]),
+    ),
+    skills: new Map(
+      chart.departments.flatMap((d) =>
+        [d.head, ...d.agents].flatMap((a) => a.can_do.map((k) => [`${a.name}:${k.kind}`, { what: k.what, auto: k.auto }] as const)),
+      ),
+    ),
+    byId: new Map(all.map((t) => [t.id, t] as const)),
+  };
+
   return (
-    <div className="org">
+    <CardContext.Provider value={info}>
+      <div className="org">
       {chart.problems.length > 0 && <p className="tnote bad">The chart has problems: {chart.problems.join('; ')}</p>}
       <div className="org-strip">
         <span>
@@ -676,6 +728,7 @@ export function OrgChartView() {
         </nav>
         <aside className="org-panel ai-card">{panel}</aside>
       </div>
-    </div>
+      </div>
+    </CardContext.Provider>
   );
 }

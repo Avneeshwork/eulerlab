@@ -614,3 +614,15 @@
 .cal-chip[data-tone='brand'] { background: var(--brand-wash); border-color: color-mix(in srgb, var(--brand) 40%, transparent); }
 .cal-chip[aria-pressed='true'] { outline: 2px solid var(--brand); outline-offset: 1px; }
 .cal-adhoc { border-style: dashed; cursor: default; }
+.org-task-plain { margin: 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px var(--s2); font-size: 13px; }
+.org-task-plain dt { color: var(--ink-2); font-size: 12px; }
+.org-task-plain dd { margin: 0; overflow-wrap: anywhere; }
+.org-task-buttons { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.org-task-buttons li { display: flex; align-items: baseline; gap: var(--s2); }
+.org-task-buttons .tbtn { flex: none; }
+.org-task-details { display: grid; gap: 4px; padding-top: 4px; border-top: 1px dashed var(--rule); }
+.org-task-detail { white-space: pre-wrap; }
+@media (max-width: 600px) {
+  .org-task-plain { grid-template-columns: minmax(0, 1fr); }
+  .org-task-buttons li { flex-direction: column; align-items: flex-start; }
+}
