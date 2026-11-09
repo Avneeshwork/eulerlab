@@ -1,0 +1,55 @@
+id: H-0215
+title: 'Swing long: results-day close strong after a small gap, hold 20'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that disclosed results before the open, closed up 2% or more from the open, and gapped up
+  no more than 1% beat costs over the next 20 sessions.
+rationale: If good results are not priced in at the open and the stock recovers during the day, under-reaction
+  remains and post-earnings drift continues. H-0172 and H-0204 conditioned on gap size; this one selects
+  stocks where the move came after the open.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when results_morning[lag 1] and day_return[lag 1] >= 0.02 and gap[lag 1] <= 0.01; long;
+    hold 20 sessions; rank by day_return[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: results_morning
+    lag: 1
+  - signal: day_return
+    lag: 1
+    op: '>='
+    value: 0.02
+  - signal: gap
+    lag: 1
+    op: <=
+    value: 0.01
+  rank_by:
+    signal: day_return
+    lag: 1
+red_flags:
+- Few events, since results mornings with small gaps and strong closes are rare
+- Earnings drift is weaker in liquid Indian large caps
+- Results-morning flags may miss delayed disclosures, so the event set is incomplete
+- Market beta during 2021-2024 could explain returns
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

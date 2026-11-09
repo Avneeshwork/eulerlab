@@ -1,0 +1,49 @@
+id: H-0210
+title: Long stocks gapping down the morning after net bulk-deal buying
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: A stock with net bulk buying disclosed the evening before that opens down 1% or more gains from
+  open to close net of costs.
+rationale: Large buyers who are visible in the deals data have shown conviction. A gap down against their
+  buying is likely a temporary retail overreaction. H-0166 tested bulk_buy alone with no gap condition;
+  this conditions on the opening move against the buyer.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when bulk_buy > 0 and gap <= -0.01; long; open to close; rank by bulk_buy desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: bulk_buy
+    op: '>'
+    value: 0.0
+  - signal: gap
+    op: <=
+    value: -0.01
+  rank_by:
+    signal: bulk_buy
+red_flags:
+- Very few trades since 2021-07, so the Sharpe will be noisy
+- The bulk buyer may be one leg of a block trade between related parties, which carries no information
+- Deals data may include sellers on the other side of the same trade
+- A gap down can reflect news released after the deal
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

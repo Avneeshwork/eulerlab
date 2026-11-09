@@ -1,0 +1,49 @@
+id: H-0217
+title: 'Swing long: bulk buying at a 60-session closing high, hold 20'
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks with net bulk buying disclosed before entry that closed at a 60-session high the previous
+  session beat costs over the next 20 sessions.
+rationale: Large buyers entering stocks already making new highs are betting on a trend continuation.
+  H-0181 tested bulk buying at lows and H-0203 tested promoter buying at highs. This tests the open-market
+  deal channel at highs.
+source:
+  research: autopilot
+  paper: gupta-2025-gross-profitability-and-momentum-evidence-from-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when bulk_buy > 0 and at_high(60)[lag 1]; long; hold 20 sessions; rank by bulk_buy desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: bulk_buy
+    op: '>'
+    value: 0.0
+  - signal: at_high
+    lag: 1
+    n: 60
+  rank_by:
+    signal: bulk_buy
+red_flags:
+- Likely only a few dozen positions
+- New-high stocks may be in momentum crowded names that suffer in reversals
+- Beta to the 2021-2024 uptrend, so the excess over NIFTYBEES must be checked
+- Bulk deals may be block sales between related parties
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

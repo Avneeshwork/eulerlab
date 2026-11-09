@@ -1,0 +1,57 @@
+id: H-0218
+title: 'Swing long: delivery surge of 2x on a flat day (stealth accumulation), hold 15'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with delivery at least 2x its 20-day mean and a close-to-close move of 1% or less in either
+  direction beat costs over the next 15 sessions.
+rationale: Heavy delivery with no price move shows real buyers absorbing supply without pushing the price,
+  and the move comes later. H-0170 and H-0173 conditioned on a large rise or a new high; this takes the
+  opposite case, where price has not reacted yet.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when delivery_ratio[lag 1] >= 2 and ret(1)[lag 1] >= -0.01 and ret(1)[lag 1] <= 0.01;
+    long; hold 15 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 15
+  side: long
+  when:
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  - signal: ret
+    lag: 1
+    op: '>='
+    value: -0.01
+  - signal: ret
+    lag: 1
+    op: <=
+    value: 0.01
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Delivery spikes often come with index rebalances, expiry or corporate actions, not accumulation
+- 'Illiquid names dominate high delivery_ratio, which is the lesson from HISTORY #48'
+- Could be sellers absorbing instead of buyers
+- Needs a liquidity floor that this spec cannot express
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

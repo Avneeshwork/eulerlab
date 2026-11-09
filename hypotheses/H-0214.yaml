@@ -1,0 +1,51 @@
+id: H-0214
+title: 'Swing long: bulk buying backed by 1.5x delivery, hold 20 sessions'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with net bulk buying disclosed before entry and delivery at least 1.5x its 20-day mean the
+  session before beat their 20-session cost, with a positive net return.
+rationale: A large buyer plus real delivery is stronger evidence of accumulation than a bulk deal alone.
+  Delivery shows the buying is being held and not squared off. H-0169 held bulk buyers for 10 sessions
+  with no delivery filter. This adds the filter and a longer hold.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when bulk_buy > 0 and delivery_ratio[lag 1] >= 1.5; long; hold 20 sessions; rank by bulk_buy
+    desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: bulk_buy
+    op: '>'
+    value: 0.0
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.5
+  rank_by:
+    signal: bulk_buy
+red_flags:
+- Sample is likely small, with under 100 positions
+- Bulk deals include block trades between promoters and funds that are not informed
+- Overlapping positions in the same stock
+- Compare against NIFTYBEES, since a bull market alone can fake the return
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

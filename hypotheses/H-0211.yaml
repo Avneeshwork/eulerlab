@@ -1,0 +1,51 @@
+id: H-0211
+title: Long a gap-down of 2% or more that follows disclosed bulk selling
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: A stock with net bulk selling disclosed the evening before that gaps down 2% or more rebounds from
+  open to close net of costs.
+rationale: A forced or block seller's pressure may be fully priced into the open. The seller is gone by
+  the open, so the rest of the day is rebound from liquidity provision. H-0167 and H-0199 only shorted
+  bulk selling, and short-sale rules on gap-up do better than long rules here. Testing the other side
+  of the gap tells us whether the effect is about price or about deals.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when bulk_sell > 0 and gap <= -0.02; long; open to close; rank by gap asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: bulk_sell
+    op: '>'
+    value: 0.0
+  - signal: gap
+    op: <=
+    value: -0.02
+  rank_by:
+    signal: gap
+    order: asc
+red_flags:
+- Bulk selling may signal bad news such as a promoter exit, so the drop continues
+- Small sample
+- Gap-down rules were weak on the long side in H-0131 and H-0177
+- Illiquid names may have wide opening auctions
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

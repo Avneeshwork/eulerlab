@@ -1,0 +1,60 @@
+id: H-0216
+title: 'Swing long: low-delivery 5-day panic of 8% on a value spike, hold 5'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks down 8% or more over 5 sessions with traded value at least 2x normal and delivery at most
+  0.8x normal rebound over the next 5 sessions net of costs.
+rationale: A heavy fall with low delivery suggests squared-off leveraged and speculative selling, not
+  investors leaving. That should be followed by a bounce when the selling is exhausted. This extends H-0171
+  from a single-day fall to a weekly fall and adds a value-spike condition.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when ret(5)[lag 1] <= -0.08 and value_ratio[lag 1] >= 2 and delivery_ratio[lag 1] <= 0.8;
+    long; hold 5 sessions; rank by ret(5)[lag 1] asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 5
+  side: long
+  when:
+  - signal: ret
+    lag: 1
+    n: 5
+    op: <=
+    value: -0.08
+  - signal: value_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.8
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 5
+    order: asc
+red_flags:
+- H-0171, H-0180 and H-0206 are close cousins and all lost
+- 'Falling knives: bad news can keep stocks falling'
+- ASM/GSM names may be included, and entry may not be possible
+- Overlap between positions in a market-wide selloff
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

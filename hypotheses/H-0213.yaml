@@ -1,0 +1,47 @@
+id: H-0213
+title: Long a results-morning gap-down of 3% or more
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that open down 3% or more on a results morning gain from open to close net of costs.
+rationale: H-0177 shorted this set and lost 38 bps per trade, with the loss concentrated in the second
+  half. This pre-registers the mirror to test whether the open overshoots on results mornings. Results
+  arrive after hours, so the first auction carries panicked selling.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-09'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when results_morning and gap <= -0.03; long; open to close; rank by gap asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: results_morning
+  - signal: gap
+    op: <=
+    value: -0.03
+  rank_by:
+    signal: gap
+    order: asc
+red_flags:
+- Mirror of a rule that lost money, so it is selected on the knowledge of that result
+- Only about 330 trades and a bad second half
+- 'The mirror loses the cost twice: the same trades after costs cannot both be positive'
+- Genuinely bad results may keep falling through the day
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 208 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
