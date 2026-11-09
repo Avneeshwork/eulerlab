@@ -281,8 +281,8 @@ def plan(session: date, per_name: float, *, root: Path = ROOT) -> dict[str, Any]
             dropped["surveillance"] += 1
         elif symbol in t2t:
             dropped["t2t"] += 1
-        elif not MIN_PRICE <= bar.close <= per_name / (1 + GAP + 0.01):
-            dropped["price"] += 1  # under ₹100, or one share would not fit after a gap up
+        elif bar.close < MIN_PRICE:
+            dropped["price"] += 1  # under ₹100; a name too dear for one share is cut at 09:20
         else:
             candidates[symbol] = bar.close
     body = {
@@ -374,11 +374,6 @@ def pick(
             skipped["spread"] += 1
             continue
         side = -1 if gap > 0 else 1  # against the gap
-        price = bid if side < 0 else ask
-        quantity = math.floor(sized.per_name / price)
-        if quantity < 1:
-            skipped["size"] += 1
-            continue
         ranked.append(
             (
                 -abs(gap),
@@ -393,17 +388,42 @@ def pick(
                     "bid": bid,
                     "ask": ask,
                     "spread_bps": round(spread, 1),
-                    "quantity": quantity,
-                    "notional": round(quantity * price, 2),
                 },
             )
         )
     ranked.sort(key=lambda x: (x[0], x[1]))
-    return {
-        "picks": [r for _, _, r in ranked[: sized.names]],
-        "passed": len(ranked),
-        "skipped": skipped,
-    }
+    rows = [r for _, _, r in ranked]
+    picks, too_dear = allocate(rows, sized)
+    skipped["size"] = too_dear
+    return {"picks": picks, "passed": len(rows), "ranked": rows, "skipped": skipped}
+
+
+def allocate(
+    ranked: Sequence[Mapping[str, Any]], sized: Sizing
+) -> tuple[list[dict[str, Any]], int]:
+    """Size the ranked names: the first `sized.names` whose one share fits `per_name`,
+    each bought or shorted at the touch. Returns (positions, names skipped as too dear)."""
+    out: list[dict[str, Any]] = []
+    too_dear = 0
+    for row in ranked:
+        if len(out) >= sized.names:
+            break
+        price = float(row["bid"] if row["side"] < 0 else row["ask"])
+        quantity = math.floor(sized.per_name / price)
+        if quantity < 1:
+            too_dear += 1
+            continue
+        notional = quantity * price
+        out.append(
+            {
+                **row,
+                "price": price,
+                "quantity": quantity,
+                "notional": round(notional, 2),
+                "est_cost": round(round_trip_cost(price, price, quantity), 2),
+            }
+        )
+    return out, too_dear
 
 
 class Desk(Protocol):
@@ -786,6 +806,25 @@ CLOCK = Clock()
 
 
 # --- what the workbench shows -----------------------------------------------------------------
+
+
+def what_if(settings: Settings, *, root: Path = ROOT) -> dict[str, Any]:
+    """The positions `settings` would hold on the latest dry run's or entry's quotes."""
+    sized = size(settings)
+    for folder in sorted((d for d in root.glob("20*") if d.is_dir()), reverse=True):
+        for name in ("open", "dry_run"):
+            body = read(folder / f"{name}.json")
+            if "ranked" in body:
+                positions, too_dear = allocate(body["ranked"], sized) if sized.names else ([], 0)
+                return {
+                    "from": f"{name.replace('_', ' ')} of {folder.name} at {str(body.get('at', ''))[11:16]}",
+                    "passed": len(body["ranked"]),
+                    "too_dear": too_dear,
+                    "positions": positions,
+                    "exposure_used": round(sum(p["notional"] for p in positions), 2),
+                    "est_cost": round(sum(p["est_cost"] for p in positions), 2),
+                }
+    return {"from": "", "positions": [], "why": "no dry run yet: press Dry run to see real stocks"}
 
 
 def status(*, root: Path = ROOT) -> dict[str, Any]:

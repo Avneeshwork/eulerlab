@@ -56,8 +56,10 @@ def live_status() -> dict[str, Any]:
 
 @router.post("/preview")
 def preview(body: SizeRequest) -> dict[str, Any]:
-    sized = lm.size(_settings(body))
+    settings = _settings(body)
+    sized = lm.size(settings)
     return {
+        "what_if": lm.what_if(settings),
         "exposure": sized.exposure,
         "names": sized.names,
         "per_name": sized.per_name,

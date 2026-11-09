@@ -42,7 +42,7 @@ def quote(open_: float, bid: float, ask: float) -> dict[str, Any]:
 
 class FakeDesk:
     def __init__(self, quotes: dict[str, dict[str, Any]], switch: KillSwitch) -> None:
-        self._quotes = quotes
+        self._quotes = dict(quotes)  # a test may move a price; QUOTES stays shared
         self.switch = switch
         self.held: dict[str, int] = {}
         self.sent: list[tuple[str, str, bool, int]] = []
@@ -274,3 +274,25 @@ def test_costs_match_angels_schedule() -> None:
     # ₹5,000 a side: ₹5 brokerage each way, STT on the sell, small fees, GST.
     cost = lm.round_trip_cost(500.0, 500.0, 10)
     assert 12.5 < cost < 14.5
+
+
+def test_preview_follows_the_amount(tmp_path: Path, switch: KillSwitch) -> None:
+    _armed(tmp_path)
+    lm.enter(DAY, FakeDesk(QUOTES, switch), send=False, root=tmp_path, filings=no_news)
+    small = lm.what_if(settings(), root=tmp_path)
+    assert [p["symbol"] for p in small["positions"]] == ["UPCO"]
+    assert small["positions"][0]["quantity"] == int(5_000 / 104.9)
+    big = lm.what_if(settings(capital=20_000, leverage=1), root=tmp_path)
+    assert [p["symbol"] for p in big["positions"]] == ["UPCO", "DOWNCO"]
+    assert big["exposure_used"] > small["exposure_used"] and big["est_cost"] > 0
+
+
+def test_a_name_too_dear_for_one_share_is_skipped_not_oversized() -> None:
+    sized = lm.size(settings(capital=1_000, leverage=5))
+    rows = [
+        {"symbol": "DEAR", "side": -1, "bid": 9_000.0, "ask": 9_001.0},
+        {"symbol": "CHEAP", "side": 1, "bid": 499.0, "ask": 500.0},
+    ]
+    picks, too_dear = lm.allocate(rows, sized)
+    assert [p["symbol"] for p in picks] == ["CHEAP"] and too_dear == 1
+    assert picks[0]["quantity"] == 10
