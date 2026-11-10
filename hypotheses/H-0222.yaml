@@ -1,0 +1,53 @@
+id: H-0222
+title: Buy bulk-deal buying that the open has not priced in
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with net bulk-deal buying disclosed the evening before that open between -0.5% and +1% from
+  the previous close rise from open to close.
+rationale: H-0166 (all bulk_buy) and H-0210 (bulk_buy with a gap-down) were tried. This version isolates
+  the case where the deal is public but the market has not yet reacted. A large buyer's information should
+  then be absorbed into the price during the session. It excludes names that already gapped on the news.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when bulk_buy > 0 and gap >= -0.005 and gap <= 0.01; long; open to close; rank by bulk_buy
+    desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: bulk_buy
+    op: '>'
+    value: 0.0
+  - signal: gap
+    op: '>='
+    value: -0.005
+  - signal: gap
+    op: <=
+    value: 0.01
+  rank_by:
+    signal: bulk_buy
+red_flags:
+- Bulk buys are often block trades matched with a seller, so they carry no information.
+- Data starts 2021-07 and the sample is small.
+- Large rupee value mostly ranks big-cap stocks, which move little intraday.
+- H-0166 may have already shown that bulk_buy alone is flat.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

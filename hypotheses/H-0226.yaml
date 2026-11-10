@@ -1,0 +1,57 @@
+id: H-0226
+title: 'Capitulation reversal: 60-day low on 2x delivery with an up day'
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks that closed at a 60-session low, rose 1% or more that day, and had delivery at 2x or above
+  the 20-day mean return positive net over the next 10 sessions.
+rationale: Heavy delivery on a low-close day means real investors are taking the stock from sellers. If
+  the same day also closes up, buyers have absorbed the supply. Mean-reversion papers (shalinigayathri-2024-bollinger-rsi-india)
+  describe stretched stocks reverting, but this adds a volume-of-ownership condition. It differs from
+  H-0207 (250-day low, value spike) and H-0180.
+source:
+  research: autopilot
+  paper: shalinigayathri-2024-bollinger-rsi-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when at_low(60)[lag 1] and ret(1)[lag 1] >= 0.01 and delivery_ratio[lag 1] >= 2; long;
+    hold 10 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 10
+  side: long
+  when:
+  - signal: at_low
+    lag: 1
+    n: 60
+  - signal: ret
+    lag: 1
+    op: '>='
+    value: 0.01
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Stocks at 60-day lows may be in structural decline (H-0180 and H-0216 lost).
+- Rare event, so the sample may be small.
+- Delivery spikes at lows can be index rebalancing or block deals.
+- The 1% up-day requirement adds a parameter choice made without data.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

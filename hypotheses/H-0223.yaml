@@ -1,0 +1,58 @@
+id: H-0223
+title: 'Buy quiet sell-offs: low-volume 3% drops that do not gap down'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that fell 3% or more from open to close on at most 0.8x normal traded value, and open within
+  0.5% of the previous close or above it, rise the next session from open to close.
+rationale: A sell-off on thin volume lacks forced or informed selling and is mostly liquidity-driven price
+  pressure. It should partly reverse. Requiring no further gap-down avoids the continuing-panic cases.
+  It uses value_ratio and day_return, unlike the delivery and ret(1) conditions of H-0164.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when day_return[lag 1] <= -0.03 and value_ratio[lag 1] <= 0.8 and gap >= -0.005; long;
+    open to close; rank by day_return[lag 1] asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: day_return
+    lag: 1
+    op: <=
+    value: -0.03
+  - signal: value_ratio
+    lag: 1
+    op: <=
+    value: 0.8
+  - signal: gap
+    op: '>='
+    value: -0.005
+  rank_by:
+    signal: day_return
+    lag: 1
+    order: asc
+red_flags:
+- 'Low value_ratio with a 3% fall is common in illiquid small caps with wide spreads, as in the lesson
+  from idea lab HISTORY #48.'
+- H-0164 and H-0171 (similar low-delivery losers) have not been shown to clear costs.
+- Needs a check that results are not driven by stocks near circuit limits.
+- Rebound may only reflect a market-wide bounce day.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

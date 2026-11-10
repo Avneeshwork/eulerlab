@@ -1,0 +1,55 @@
+id: H-0220
+title: Short gap-ups on 52-week-high stocks after a volume spike
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks that closed at a 250-session high on 2x or more normal traded value and then gap up 1.5%
+  or more fall from open to close, net of costs.
+rationale: Heavy-volume breakouts (george-hwang-2004-52-week-high) attract momentum and retail chasers.
+  A further gap-up at the open hands them an inflated entry price that tends to fade intraday. It differs
+  from H-0200, which conditioned on low delivery and had no gap condition, and from H-0175, which had
+  no breakout condition.
+source:
+  research: autopilot
+  paper: george-hwang-2004-52-week-high
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when at_high(250)[lag 1] and value_ratio[lag 1] >= 2 and gap >= 0.015; short; open
+    to close; rank by gap desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: at_high
+    lag: 1
+    n: 250
+  - signal: value_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  - signal: gap
+    op: '>='
+    value: 0.015
+  rank_by:
+    signal: gap
+red_flags:
+- George-Hwang is a momentum paper, so this bets against its own premise and may just be fighting trend.
+- Shorting upper-circuit stocks is not executable, so the sample may include stocks that cannot be shorted.
+- Few trades in weak-breadth years.
+- Intraday shorting of a stock the surveillance list restricts may be missed.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
