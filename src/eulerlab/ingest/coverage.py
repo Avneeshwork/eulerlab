@@ -12,12 +12,15 @@ never lists the bucket.
 
 ### What "should reach" means
 
-- **nse** — the latest weekday that is not a known NSE closure, counting today
-  from 15:31 IST, one minute after the close (ADR-079). Until today's file
-  lands the row reads **missing**, not "behind": the operator asked to see the
-  gap from the close, and `make india-live` is retrying it. Future holidays are not
-  known here (T-3998), so a holiday reads as one session behind until the next
-  trading day lands.
+- **nse** — the latest NSE session, counting today from 15:31 IST, one minute
+  after the close (ADR-079). A session is a weekday that is not a closure, or a
+  weekend day NSE traded (Muhurat, special Saturdays). Closures are the past
+  days with no bhavcopy plus NSE's published holiday list (`make holidays`, the
+  current year), so a scheduled holiday such as 10 Nov 2026 is not expected
+  even before the next session lands. Until today's file lands the row reads
+  **missing**, not "behind": the operator asked to see the gap from the close,
+  and `make india-live` is retrying it. A weekend session is known only once
+  its file has landed; NSE's list does not announce them.
 - **amfi** — mutual fund NAVs are published late in the evening: the previous
   weekday.
 - **us** — the latest New York weekday, from 18:00 New York. US holidays are
@@ -158,8 +161,15 @@ def _census_latest(key: str) -> str:
 # --- what each cadence should have reached -------------------------------------
 
 
-def _weekday_back(day: date, closed: frozenset[date]) -> date:
-    while day.weekday() >= 5 or day in closed:
+def is_nse_session(
+    day: date, closed: frozenset[date], extra: frozenset[date] = frozenset()
+) -> bool:
+    """A weekday that is not a closure, or a weekend day NSE traded."""
+    return day in extra or (day.weekday() < 5 and day not in closed)
+
+
+def _weekday_back(day: date, closed: frozenset[date], extra: frozenset[date] = frozenset()) -> date:
+    while not is_nse_session(day, closed, extra):
         day -= timedelta(days=1)
     return day
 
@@ -170,10 +180,12 @@ usually out; the operator wants the gap shown from the close instead."""
 
 
 # ASSUMPTION: A-051 — the cut-off times below are observed, not published.
-def expected_nse(now: datetime, closed: frozenset[date]) -> date:
+def expected_nse(
+    now: datetime, closed: frozenset[date], extra: frozenset[date] = frozenset()
+) -> date:
     ist = now.astimezone(IST)
     day = ist.date() if (ist.hour, ist.minute) >= NSE_DUE else ist.date() - timedelta(days=1)
-    return _weekday_back(day, closed)
+    return _weekday_back(day, closed, extra)
 
 
 def expected_amfi(now: datetime, closed: frozenset[date]) -> date:
@@ -198,14 +210,24 @@ EXPECTED: dict[str, Callable[[datetime, frozenset[date]], date]] = {
 }
 
 
-def sessions_behind(last: date, expected: date, cadence: str, closed: frozenset[date]) -> int:
+def sessions_behind(
+    last: date,
+    expected: date,
+    cadence: str,
+    closed: frozenset[date],
+    extra: frozenset[date] = frozenset(),
+) -> int:
     """Sessions in (last, expected] for this cadence."""
     if last >= expected:
         return 0
     count, day = 0, last
     while day < expected:
         day += timedelta(days=1)
-        if cadence == "crypto" or (day.weekday() < 5 and not (cadence == "nse" and day in closed)):
+        if cadence == "crypto":
+            count += 1
+        elif cadence == "nse":
+            count += is_nse_session(day, closed, extra)
+        elif day.weekday() < 5:
             count += 1
     return count
 
@@ -225,6 +247,7 @@ def _grade(
     closed: frozenset[date],
     detail: str = "",
     fix: str = UPDATE,
+    extra: frozenset[date] = frozenset(),
 ) -> Row:
     if not last:
         return Row(group, name, "", "", 0, "missing", detail or "nothing held", fix)
@@ -235,8 +258,11 @@ def _grade(
         age = (now.astimezone(UTC).date() - last_day).days
         status = "ok" if age <= 10 else "behind" if age <= 17 else "stale"
         return Row(group, name, last, "within 10 days", 0, status, detail, fix)
-    expected = EXPECTED[cadence](now, closed)
-    behind = sessions_behind(last_day, expected, cadence, closed)
+    if cadence == "nse":
+        expected = expected_nse(now, closed, extra)
+    else:
+        expected = EXPECTED[cadence](now, closed)
+    behind = sessions_behind(last_day, expected, cadence, closed, extra)
     status = "ok" if behind == 0 else "behind" if behind == 1 else "stale"
     if cadence == "nse" and behind == 1 and expected == now.astimezone(IST).date():
         # Only today's session is absent: due since 15:31 and not in yet.
@@ -254,14 +280,40 @@ def _as_day(text: str) -> date:
     return date.fromisoformat(text[:10])
 
 
-def nse_closures(path: Path = DERIVED / "nse_calendar.json") -> frozenset[date]:
+def _calendar(path: Path) -> dict[str, Any]:
     if not path.exists():
-        return frozenset()
+        return {}
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return frozenset()
-    return frozenset(date.fromisoformat(d) for d in raw.get("holidays", []))
+        return {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _days(raw: dict[str, Any], key: str) -> frozenset[date]:
+    return frozenset(date.fromisoformat(d) for d in raw.get(key, []))
+
+
+def nse_closures(
+    path: Path = DERIVED / "nse_calendar.json",
+    reference: Path = LANDING / "reference",
+) -> frozenset[date]:
+    """Days NSE is shut: past days with no bhavcopy, plus NSE's published list.
+
+    The published list (`make holidays`) is what makes a holiday that has not
+    happened yet, or happened today, known (T-3998). A listed day that has a
+    landed bhavcopy traded anyway (a Muhurat session falls on a listed
+    holiday), so it is never a closure.
+    """
+    from eulerlab.ingest.holidays import load_holidays
+
+    raw = _calendar(path)
+    return (_days(raw, "holidays") | load_holidays(reference)) - _days(raw, "trading_days")
+
+
+def nse_weekend_sessions(path: Path = DERIVED / "nse_calendar.json") -> frozenset[date]:
+    """Saturdays and Sundays NSE traded, from landed bhavcopies (research 183)."""
+    return _days(_calendar(path), "weekend_sessions")
 
 
 # --- the table -----------------------------------------------------------------
@@ -294,7 +346,9 @@ STEPS_FOR: dict[str, tuple[str, ...]] = {
 Every name must be a `daily_feed.STEPS` name (tests/test_data_pipeline.py)."""
 
 
-def _paper_rows(now: datetime, closed: frozenset[date]) -> Iterable[Row]:
+def _paper_rows(
+    now: datetime, closed: frozenset[date], extra: frozenset[date] = frozenset()
+) -> Iterable[Row]:
     if not DEPLOYMENTS.exists():
         return
     for folder in sorted(DEPLOYMENTS.iterdir()):
@@ -319,6 +373,7 @@ def _paper_rows(now: datetime, closed: frozenset[date]) -> Iterable[Row]:
             cadence="nse",
             now=now,
             closed=closed,
+            extra=extra,
             detail=f"{state.get('status', 'not run')} — {spec.get('id')}",
             steps=PAPER_STEPS,
         )
@@ -332,6 +387,7 @@ def _paper_rows(now: datetime, closed: frozenset[date]) -> Iterable[Row]:
 def table(now: datetime | None = None) -> list[Row]:
     now = now or datetime.now(UTC)
     closed = nse_closures()
+    extra = nse_weekend_sessions()
     nse = _max_by(LANDING / "nse" / "manifest.jsonl", "segment", "trade_date")
     rows: list[Row] = []
 
@@ -344,6 +400,7 @@ def table(now: datetime | None = None) -> list[Row]:
                 cadence=cadence,
                 now=now,
                 closed=closed,
+                extra=extra,
                 steps=STEPS_FOR.get(name, ()),
                 **kw,
             )
@@ -351,9 +408,9 @@ def table(now: datetime | None = None) -> list[Row]:
 
     from eulerlab.ingest.provisional_daily import standing_days
 
-    due = expected_nse(now, closed).isoformat()
+    due = expected_nse(now, closed, extra).isoformat()
     stand_in = standing_days().get(due, 0)
-    kite = _max_by(LANDING / "kite_minute" / "manifest.jsonl", "", "end").get("", "")
+    kite = _max_by(LANDING / "kite_minute" / "manifest.jsonl", "", "end", nonempty=True).get("", "")
     cash_detail = "every NSE equity, daily"
     if nse.get("cm", "") < due:
         cash_detail = (
@@ -393,7 +450,7 @@ def table(now: datetime | None = None) -> list[Row]:
     add(built, "Nifty options", last_day_jsonl(DERIVED / "nifty_options.jsonl"), "nse")
     add(built, "US daily panel", last_day_jsonl(DERIVED / "us_panel.jsonl"), "us")
 
-    rows.extend(_paper_rows(now, closed))
+    rows.extend(_paper_rows(now, closed, extra))
 
     other = "Other markets (landed)"
     add(

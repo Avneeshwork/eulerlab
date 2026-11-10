@@ -463,6 +463,7 @@ def angel_minute_fill() -> str:
     read them unchanged; the manifest marks them `"source": "angel_one"`.
     """
     from eulerlab.ingest import angel_minute
+    from eulerlab.ingest.coverage import nse_closures
     from eulerlab.ingest.nse_eod import session_days
 
     manifest = angel_minute.STOCK_ROOT / "manifest.jsonl"
@@ -472,8 +473,15 @@ def angel_minute_fill() -> str:
         if line.strip()
     )
     window = angel_window(max(ends, default=""), dt.datetime.now(dt.UTC))
+    closed = nse_closures()  # NSE's listed holidays: asking Angel for one lands empty files
     days = (
-        session_days(dt.date.fromisoformat(window[0]), dt.date.fromisoformat(window[1]))
+        [
+            d
+            for d in session_days(
+                dt.date.fromisoformat(window[0]), dt.date.fromisoformat(window[1])
+            )
+            if d not in closed
+        ]
         if window
         else []
     )

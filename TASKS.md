@@ -960,7 +960,7 @@ Verify: `uv run pytest -q tests/test_market_history.py tests/test_india_papers.p
 | T-3995 | **Open, high and low for every stock** | DONE — `make rebuild-ohlc` re-read all 2,898 panel days from NSE's archive; `SWAP=1` replaced the panel after all 5,378,038 stored closes were reproduced exactly. The close-only panel is `price_panel.close_only.jsonl` |
 | T-3996 | **The real expiry and holiday calendar** | DONE — 144 expiries in `nifty_expiries.json`, each confirmed by its own day's F&O file (two scheduled dates had moved: June 2023, September 2025). They match the weekday rule on every past month, so `india_expiry_day`'s result stands. `nse_calendar.json`: 2,902 trading days, 166 closures. A-041 |
 | T-3997 | Nothing reads the delivery table yet | OPEN — index history, OHLC and the futures are used by the strategies in T-4000 to T-4002; delivery % is used by nothing, and no chart or API shows any of them |
-| T-3998 | Scheduled holidays and unscheduled closures look the same | OPEN — both calendars are dates with a file. NSE's holiday circulars would separate them (A-041) |
+| T-3998 | Scheduled holidays and unscheduled closures look the same | PARTLY DONE 2026-11-10 — coverage and the Angel fill now read NSE's published list (current year only), so a listed holiday is known before it happens. Past closures still mix both kinds; a future weekend session is unknown until its file lands (A-041) |
 | T-3999 | Items 5-9 of research 065 | TODO — FPI flows, ETF corporate actions, point-in-time index membership, market cap, dated fundamentals |
 
 ---

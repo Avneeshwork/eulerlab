@@ -127,6 +127,9 @@ known-first-party = ["eulerlab", "tools"]
 python_version = "3.12"
 strict = true
 files = ["src", "tools", "tests"]
+# Resolve eulerlab from src/, so the commit hook can check one staged test
+# file alone: the editable install has no py.typed and reads as untyped.
+mypy_path = "src"
 warn_unreachable = true
 disallow_any_unimported = true
 plugins = ["pydantic.mypy"]

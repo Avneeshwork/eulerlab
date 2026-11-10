@@ -327,9 +327,9 @@ def _append(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def latest_session(now: datetime | None = None) -> date:
     """The session the coverage table expects by now (15:31 IST cut-off)."""
-    from eulerlab.ingest.coverage import expected_nse, nse_closures
+    from eulerlab.ingest.coverage import expected_nse, nse_closures, nse_weekend_sessions
 
-    return expected_nse(now or datetime.now(UTC), nse_closures())
+    return expected_nse(now or datetime.now(UTC), nse_closures(), nse_weekend_sessions())
 
 
 def main() -> int:

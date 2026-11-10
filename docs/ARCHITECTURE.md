@@ -2149,7 +2149,10 @@ participant OI, index closes and delivery, and India minute bars, plus their
 dependents. It repeats every 600 s until today's cash bhavcopy is in the NSE
 manifest and today's minute bars are in the Kite manifest, or until 21:00 IST.
 With no Kite token minted today, the bhavcopy alone is enough. A holiday exits
-at once. `coverage.expected_nse` counts today from 15:31 (`NSE_DUE`). An NSE
+at once. `coverage.expected_nse` counts today from 15:31 (`NSE_DUE`). A session
+is a weekday not in `coverage.nse_closures()` (past days with no bhavcopy, plus
+NSE's published holiday list from `make holidays`, minus any day with a landed
+bhavcopy), or a landed weekend session (`nse_weekend_sessions()`). An NSE
 row whose only absent session is today reads `missing` with "today's data not
 in yet".
 

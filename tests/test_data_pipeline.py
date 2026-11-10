@@ -337,3 +337,42 @@ def test_the_api_refuses_a_step_that_does_not_exist(
     monkeypatch.chdir(tmp_path)
     answer = server.data_feed(FeedRequest(only=["price panel", "rm -rf"], mirror=False))
     assert answer["ok"] is False and "rm -rf" in answer["error"]
+
+
+def test_a_listed_holiday_is_not_expected_before_the_next_session(tmp_path: Path) -> None:
+    # 10 Nov 2026 (Balipratipada) is on NSE's list but has no gap in the
+    # bhavcopy yet; 8 Nov (Muhurat, a Sunday) is on the list but traded.
+    calendar = tmp_path / "nse_calendar.json"
+    calendar.write_text(
+        json.dumps(
+            {
+                "holidays": ["2026-10-20"],
+                "trading_days": ["2026-11-06", "2026-11-08", "2026-11-09"],
+                "weekend_sessions": ["2026-11-08"],
+            }
+        )
+    )
+    reference = tmp_path / "reference"
+    reference.mkdir()
+    (reference / "nse_holidays.json").write_text(
+        json.dumps(
+            {"CM": [{"tradingDate": d} for d in ("08-Nov-2026", "10-Nov-2026", "24-Nov-2026")]}
+        )
+    )
+    closed = coverage.nse_closures(calendar, reference)
+    assert closed == frozenset({date(2026, 10, 20), date(2026, 11, 10), date(2026, 11, 24)})
+    extra = coverage.nse_weekend_sessions(calendar)
+
+    def row(last: str, now: datetime) -> coverage.Row:
+        return coverage.judge(
+            group="g", name="n", last=last, cadence="nse", now=now, closed=closed, extra=extra
+        )
+
+    holiday_evening = datetime(2026, 11, 10, 14, 0, tzinfo=UTC)  # Tuesday 19:30 IST
+    held = row("2026-11-09", holiday_evening)
+    assert (held.status, held.expected, held.behind) == ("ok", "2026-11-09", 0)
+
+    # The Muhurat Sunday is a session: Friday's data alone is one behind on Monday morning.
+    monday_morning = datetime(2026, 11, 9, 4, 0, tzinfo=UTC)
+    friday = row("2026-11-06", monday_morning)
+    assert (friday.expected, friday.behind, friday.status) == ("2026-11-08", 1, "behind")
