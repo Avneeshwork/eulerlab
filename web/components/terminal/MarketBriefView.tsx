@@ -86,8 +86,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
       {(brief.story?.length ?? 0) > 0 && (
         <Section title="What happened in the last session">
           <ul className="mb-list">
-            {brief.story?.map((s) => (
-              <li key={s}>{s}</li>
+            {brief.story?.map((s, i) => (
+              <li key={`${i}-${s}`}>{s}</li>
             ))}
           </ul>
         </Section>
@@ -96,8 +96,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
       {brief.review.length > 0 && (
         <Section title={brief.review_title ?? 'This morning vs the close'}>
           <ul className="mb-list">
-            {brief.review.map((r) => (
-              <li key={r}>{r}</li>
+            {brief.review.map((r, i) => (
+              <li key={`${i}-${r}`}>{r}</li>
             ))}
           </ul>
         </Section>
@@ -132,8 +132,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
       {brief.forecast?.map((s) => (
         <Section key={s.title} title={s.title}>
           <ul className="mb-list">
-            {s.lines.map((line) => (
-              <li key={line}>{line}</li>
+            {s.lines.map((line, i) => (
+              <li key={`${i}-${line}`}>{line}</li>
             ))}
           </ul>
         </Section>
@@ -143,8 +143,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
         <Section title="What history says">
           <p className="mb-quiet">Past days that looked like today, and what Nifty did next. History, not a forecast.</p>
           <ul className="mb-list">
-            {brief.history?.map((h) => (
-              <li key={h}>{h}</li>
+            {brief.history?.map((h, i) => (
+              <li key={`${i}-${h}`}>{h}</li>
             ))}
           </ul>
         </Section>
@@ -162,14 +162,14 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
           </div>
         )}
         <ul className="mb-list">
-          {brief.levels.map((l) => (
-            <li key={l}>{l}</li>
+          {brief.levels.map((l, i) => (
+            <li key={`${i}-${l}`}>{l}</li>
           ))}
         </ul>
         {brief.scenarios.length > 0 && (
           <ul className="mb-list mb-if">
-            {brief.scenarios.map((s) => (
-              <li key={s}>{s}</li>
+            {brief.scenarios.map((s, i) => (
+              <li key={`${i}-${s}`}>{s}</li>
             ))}
           </ul>
         )}
@@ -177,14 +177,14 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
 
       <Section title="Coming up">
         <ul className="mb-list">
-          {brief.coming_up.items.map((c) => (
-            <li key={`${c.when}-${c.what}`}>
+          {brief.coming_up.items.map((c, i) => (
+            <li key={`${i}-${c.when}-${c.what}`}>
               <span className="mb-when">{c.when}</span> <b>{c.what}</b>
               <span className="mb-why"> {c.why}</span>
             </li>
           ))}
-          {brief.coming_up.not_covered.map((n) => (
-            <li key={n} className="mb-quiet">
+          {brief.coming_up.not_covered.map((n, i) => (
+            <li key={`${i}-${n}`} className="mb-quiet">
               Not covered: {n}
             </li>
           ))}
@@ -202,8 +202,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
           </ul>
         )}
         <ul className="mb-list">
-          {brief.books.map((b) => (
-            <li key={b}>{b}</li>
+          {brief.books.map((b, i) => (
+            <li key={`${i}-${b}`}>{b}</li>
           ))}
         </ul>
       </Section>
@@ -211,8 +211,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
       {(brief.books_history?.length ?? 0) > 0 && (
         <Section title="Your books in this kind of market" open={false}>
           <ul className="mb-list">
-            {brief.books_history?.map((h) => (
-              <li key={h}>{h}</li>
+            {brief.books_history?.map((h, i) => (
+              <li key={`${i}-${h}`}>{h}</li>
             ))}
           </ul>
         </Section>
@@ -259,8 +259,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
             <div key={sec.title} className="mb-detail">
               <h4>{sec.title}</h4>
               <ul className="mb-list">
-                {sec.lines.map((line) => (
-                  <li key={line}>{line}</li>
+                {sec.lines.map((line, i) => (
+                  <li key={`${i}-${line}`}>{line}</li>
                 ))}
               </ul>
             </div>
@@ -276,8 +276,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
       {brief.news?.map((s) => (
         <Section key={s.title} title={s.title}>
           <ul className="mb-list">
-            {s.lines.map((line) => (
-              <li key={line}>{line}</li>
+            {s.lines.map((line, i) => (
+              <li key={`${i}-${line}`}>{line}</li>
             ))}
           </ul>
         </Section>
@@ -294,8 +294,8 @@ export default function MarketBriefView({ brief, at }: { brief: MarketBrief; at?
           <div key={heading} className="mb-detail">
             <h4>{heading}</h4>
             <ul className="mb-list">
-              {lines.map((l) => (
-                <li key={l}>{l}</li>
+              {lines.map((l, i) => (
+                <li key={`${i}-${l}`}>{l}</li>
               ))}
             </ul>
           </div>
