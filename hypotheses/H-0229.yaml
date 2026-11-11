@@ -48,4 +48,5 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Autopilot screen 2026-11-11: 7949 trades 2016-01-01 to 2024-11-30; net 31.88 bps each; net Sharpe
+  1.573, halves 2.307 / 0.57, 0.974 at 2x costs. Gate: PROMOTE.'
