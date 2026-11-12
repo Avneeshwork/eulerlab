@@ -32,6 +32,19 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab.paths import data_path
 
 ROOT = data_path("deployments")
+"""The default workspace's deployments. Others keep theirs under their own
+workspace folder (`root()`, ADR-168)."""
+
+
+def root() -> Path:
+    """The deployments folder of the workspace of whoever is asking."""
+    from eulerlab import accounts, workspace
+
+    workspace_id = accounts.current().workspace_id
+    if workspace_id == workspace.DEFAULT_ID:
+        return ROOT
+    return workspace.Workspace(workspace_id).root / "deployments"
+
 
 Mode = Literal["paper", "live"]
 Status = Literal["active", "stopped", "halted"]
@@ -65,7 +78,7 @@ class Deployment(BaseModel):
 
     @property
     def folder(self) -> Path:
-        return ROOT / self.id
+        return root() / self.id
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -99,15 +112,16 @@ def create(strategy_id: str, *, mode: Mode, capital: float, start: date) -> Depl
 
 
 def load(deployment_id: str) -> Deployment:
-    path = ROOT / deployment_id / "deployment.json"
+    path = root() / deployment_id / "deployment.json"
     return Deployment.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 def all_deployments() -> list[Deployment]:
-    if not ROOT.exists():
+    folder = root()
+    if not folder.exists():
         return []
     out = []
-    for path in sorted(ROOT.glob("*/deployment.json")):
+    for path in sorted(folder.glob("*/deployment.json")):
         out.append(Deployment.model_validate_json(path.read_text(encoding="utf-8")))
     return sorted(out, key=lambda d: d.created_at, reverse=True)
 

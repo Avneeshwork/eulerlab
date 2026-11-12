@@ -18,6 +18,7 @@ from typing import Any, Literal
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab.accounts import carry
 from eulerlab.agents import briefs, inbox, log, org, runtime
 from eulerlab.agents import calendar as agent_calendar
 from eulerlab.agents.spec import all_effective, load_specs, write_setting
@@ -251,7 +252,7 @@ def _background(key: str, job: Any) -> bool:
             with _LOCK:
                 _RUNNING.discard(key)
 
-    _POOL.submit(work)
+    _POOL.submit(carry(work))
     return True
 
 
@@ -517,7 +518,7 @@ def _gate_on_approve(item_id: str) -> str:
         card = promote.eligible(agent, item)
     except promote.Refused as exc:
         return "" if agent != "lab" else f"not sent to the gate: {exc}"
-    _GATE_POOL.submit(promote.gate, item_id, card)
+    _GATE_POOL.submit(carry(promote.gate), item_id, card)
     return "sent to the gate: registering, validating and gating it now"
 
 
@@ -641,7 +642,7 @@ def agent_run(name: str, request: RunRequest) -> dict[str, Any]:
             with _LOCK:
                 _RUNNING.discard(name)
 
-    _POOL.submit(work)
+    _POOL.submit(carry(work))
     return {"ok": True, "started": True}
 
 

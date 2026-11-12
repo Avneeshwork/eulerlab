@@ -27,8 +27,9 @@ from __future__ import annotations
 
 import contextvars
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 from eulerlab.env import load_env
 from eulerlab.workspace import DEFAULT_ID
@@ -91,6 +92,23 @@ def bind(principal: Principal) -> contextvars.Token[Principal]:
 
 def unbind(token: contextvars.Token[Principal]) -> None:
     _current.reset(token)
+
+
+def carry[T](fn: Callable[..., T]) -> Callable[..., T]:
+    """`fn`, run later in another thread as whoever is asking now.
+
+    A thread does not inherit context variables, so a backtest started by a
+    researcher in workspace B would otherwise run as the operator and log its
+    trials into the default workspace's ledger. Every thread or pool task a
+    request starts goes through this; `tests/test_accounts.py` holds the API
+    modules to it.
+    """
+    context = contextvars.copy_context()
+
+    def run(*args: Any, **kwargs: Any) -> T:
+        return context.run(fn, *args, **kwargs)
+
+    return run
 
 
 def allowed(role: Role, method: str, path: str) -> str:

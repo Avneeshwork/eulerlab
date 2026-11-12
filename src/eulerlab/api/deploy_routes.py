@@ -20,6 +20,7 @@ from typing import Any, Literal
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab.accounts import carry
 from eulerlab.deploy import deployments as store
 
 router = APIRouter(prefix="/api/deployments")
@@ -124,7 +125,7 @@ def _run_in_background(deployment_id: str) -> None:
                 RUNNING.pop(deployment_id, None)
 
     RUNNING[deployment_id] = "queued"
-    threading.Thread(target=work, daemon=True).start()
+    threading.Thread(target=carry(work), daemon=True).start()
 
 
 @router.get("")

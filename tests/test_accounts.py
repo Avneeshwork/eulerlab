@@ -146,3 +146,117 @@ def test_on_an_api_token_is_bound_to_one_workspace_and_can_be_revoked(
         store.create_token(store.user_id_for("owner@x.in"), "beta", "nope")
     store.revoke_token(token)
     assert client.get("/api/whoami", headers=auth).status_code == 401
+
+
+# --- isolation (issue #113's test) -----------------------------------------------------------------
+
+
+def test_two_workspaces_run_the_same_strategy_and_neither_reads_the_other(
+    people: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same strategy, different capital, in alpha and beta. Every store the
+    issue names (books, the trial ledger, the agent log) shows each workspace
+    only its own, through the ordinary readers and through the API."""
+    from datetime import date
+
+    from eulerlab.agents import log as agent_log
+    from eulerlab.api import deploy_routes
+    from eulerlab.deploy import deployments
+    from eulerlab.features import trials
+    from eulerlab.oms.journal import Journal
+    from eulerlab.oms.states import Event, OrderState
+    from eulerlab.validation import ledger
+
+    monkeypatch.setattr(deployments, "ROOT", tmp_path / "deployments")
+    ledger_path = tmp_path / "derived" / "trial_ledger.jsonl"
+    trials_path = tmp_path / "derived" / "trials.jsonl"
+    agents_home = tmp_path / "agents"
+    store.grant(store.user_id_for("view@x.in"), "beta", "owner")
+
+    def as_(workspace_id: str) -> accounts.Principal:
+        return accounts.Principal("u", "", workspace_id, "owner")
+
+    made: dict[str, str] = {}
+    for workspace_id, capital in (("alpha", 100_000.0), ("beta", 250_000.0)):
+        token = accounts.bind(as_(workspace_id))
+        try:
+            d = deployments.create("H-0161", mode="paper", capital=capital, start=date(2026, 11, 2))
+            made[workspace_id] = d.id
+            Journal(d.folder / "orders.jsonl").append(
+                f"{workspace_id}-1", Event.CREATED, OrderState.INTENT
+            )
+            ledger.append(
+                kind="backtest", subject=workspace_id, params={}, outcome={}, path=ledger_path
+            )
+            trials.append(
+                trials.Trial(trials.now_iso(), workspace_id, 1, 1, "", "", 1, 0.0, 0.0),
+                trials_path,
+            )
+            agent_log.append("run", "research", {"by": workspace_id}, root=agents_home)
+        finally:
+            accounts.unbind(token)
+
+    for mine, theirs in (("alpha", "beta"), ("beta", "alpha")):
+        token = accounts.bind(as_(mine))
+        try:
+            books = deployments.all_deployments()
+            assert [d.id for d in books] == [made[mine]]
+            assert books[0].capital == (100_000.0 if mine == "alpha" else 250_000.0)
+            assert Journal(books[0].folder / "orders.jsonl").replay() == {
+                f"{mine}-1": OrderState.INTENT
+            }
+            # Even the other's journal path, if guessed, reads as this workspace's (empty).
+            guessed = deployments.ROOT / made[theirs] / "orders.jsonl"
+            assert Journal(guessed).read() == []
+            assert [e.subject for e in ledger.read(ledger_path)] == [mine]
+            assert ledger.count(ledger_path) == 1 and ledger.verify_chain(ledger_path).intact
+            assert trials.count(trials_path) == 1
+            assert [e.detail["by"] for e in agent_log.read(agents_home)] == [mine]
+        finally:
+            accounts.unbind(token)
+
+    # And through the API, logged in as each workspace's owner.
+    app = _app()
+    app.include_router(deploy_routes.router)
+    for email, workspace_id in (("owner@x.in", "alpha"), ("view@x.in", "beta")):
+        client = TestClient(app)
+        _login(client, email)
+        listed = client.get("/api/deployments", headers={"X-Workspace": workspace_id}).json()
+        assert [d["id"] for d in listed["deployments"]] == [made[workspace_id]]
+
+
+def test_a_thread_started_by_a_request_runs_as_that_request(people: dict[str, str]) -> None:
+    import threading
+
+    seen: list[str] = []
+    token = accounts.bind(accounts.Principal("u", "", "beta", "researcher"))
+    try:
+        thread = threading.Thread(
+            target=accounts.carry(lambda: seen.append(accounts.current().workspace_id))
+        )
+        bare = threading.Thread(target=lambda: seen.append(accounts.current().workspace_id))
+        for t in (thread, bare):
+            t.start()
+            t.join()
+    finally:
+        accounts.unbind(token)
+    assert seen == ["beta", "default"]  # the bare thread fell back to the operator
+
+
+def test_every_thread_an_api_route_starts_carries_the_principal() -> None:
+    """A thread started without `carry` runs as the operator: in another
+    workspace's request, that writes into the default workspace's evidence."""
+    import re
+
+    api = Path(__file__).resolve().parents[1] / "src" / "eulerlab" / "api"
+    # Started at startup, not by a request: these run as the operator on purpose.
+    allowed = {"carry", "autoupdate.watch", "telegram_bot.listen", "_preload", "read"}
+    loose: list[str] = []
+    for path in sorted(api.glob("*.py")):
+        text = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"target=([\w.]+)", text):
+            if match.group(1) not in allowed:
+                loose.append(f"{path.name}: target={match.group(1)}")
+        for match in re.finditer(r"\.(submit|map)\((?!carry\()([\w.]+)", text):
+            loose.append(f"{path.name}: .{match.group(1)}({match.group(2)}")
+    assert not loose, loose

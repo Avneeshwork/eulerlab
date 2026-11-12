@@ -25,11 +25,12 @@ Operator: "first fix infra related work then we make multiuser"; the platform is
 | T-4561 | Order journals onto `append_log`, with generations: a reset starts the next generation instead of deleting `orders.jsonl`; `make db-import` copies journals under `oms/` and `deployments/` | DONE 2026-11-12 — ADR-166, migration 002; `uv run --extra db pytest tests/test_db.py` (16 tests) |
 | T-4562 | Back up Postgres off the server: `make agents-backup` exports every stream to `db_export/` first and sends what changed to B2; `make db-restore` loads it into an empty database | DONE 2026-11-12 — ADR-167, `db/export.py`; `uv run --extra db pytest tests/test_db.py` (20 tests) |
 | T-4563 | Accounts and login (#113, slice 1): users, workspaces, memberships, sessions, API tokens (migration 003); `RequireLogin` on every `/api` request; roles owner, researcher, viewer; `/login` in the workbench; `make account` | DONE 2026-11-12 — ADR-168; `uv run --extra db pytest tests/test_accounts.py` |
-| T-4564 | Scope every store by `accounts.current().workspace_id`: deployments and books, order journals, trial ledger, trials, agent log (#113, slice 2) | TODO |
+| T-4564 | Scope every store by `accounts.current().workspace_id`: deployments and books, order journals, trial ledger, trials, agent log (#113, slice 2) | DONE 2026-11-12 — `stream_for` and `deployments.root()`; request threads via `accounts.carry` |
 | T-4565 | Per-workspace gate settings, agent budgets and model keys (#113, slice 3); who sets the gate is the operator's decision | TODO. Waits on that decision |
-| T-4566 | The isolation test: two workspaces, same strategy, different capital; neither reads the other's books, ledger or agent log (#113, slice 4) | TODO |
+| T-4566 | The isolation test: two workspaces, same strategy, different capital; neither reads the other's books, ledger or agent log (#113, slice 4) | DONE 2026-11-12 — `uv run --extra db pytest tests/test_accounts.py` |
 | T-4567 | Operator: rewrite `CLAUDE.md`'s single-operator rules for a multi-user product (#113's last condition); a draft will be proposed, not committed | TODO. Operator |
 | T-4568 | Slow down repeated failed logins (per email and per address) before the server faces the internet | TODO. Before T-4560 opens the port |
+| T-4569 | Scope what is still shared by every workspace: agents' tasks, inbox and outputs, research results and reports; and run the scheduler's jobs per workspace | TODO. Issue #113 |
 
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 

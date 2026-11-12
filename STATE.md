@@ -1,6 +1,6 @@
 # STATE — where this project is right now
 
-**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), Postgres for shared state (ADR-165 to ADR-167, T-4557 to T-4562, off by default), multi-user (#113: login done, T-4563; workspace scoping next, T-4564), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
+**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), Postgres for shared state (ADR-165 to ADR-167, T-4557 to T-4562, off by default), multi-user (#113: login and per-workspace records done; gate settings wait on a decision), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
 **Next:** build and start the containers (`docker compose up -d`, T-4553), then the regulatory research for a subscription platform (#112) and the multi-user design (#113). Also: live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528).
 
 *Last updated: 2026-11-12 (server infrastructure, trial ledger in Postgres). One page, and it stays one page: a summary, not a
@@ -83,8 +83,9 @@ what is open is in `TASKS.md`.*
   and the order journals live in Postgres, where edits are refused by the table and a paper reset starts a new
   generation (ADR-166); unset, they stay files (T-4557 to T-4561). The nightly backup exports the
   database to B2 (T-4562); the kill-switch log stays a file (ADR-167).
-  Login and roles exist (`EULERLAB_AUTH=on`, ADR-168, T-4563); stores are not yet
-  scoped by workspace (T-4564).
+  Login and roles exist (`EULERLAB_AUTH=on`, ADR-168); books, journals, ledger,
+  trials and agent log are kept apart per workspace (T-4563 to T-4566). Agent
+  files and research results are still shared (T-4569).
 - **Real money, armed from the workbench (ADR-162, 2026-11-09).** H-0194 (fade a
   3% no-news gap, 09:20 to 15:10, MIS) on Angel One: Live & Risk → Deployment,
   amount + leverage + loss cap, type DEPLOY, one session per deploy. Operator's

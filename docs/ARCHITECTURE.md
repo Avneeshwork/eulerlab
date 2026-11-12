@@ -2039,7 +2039,17 @@ role table in `accounts.allowed`, and binds the result so any code can ask
 `accounts.current()`. Owners do everything; researchers everything except
 real money, broker logins, members and agent settings; viewers read. The
 workbench sends any 401 to `/login`. Only `/api/health` and the login itself
-are open. Stores are not yet scoped by workspace: that is slice 2 (T-4564).
+are open.
+
+Workspaces are kept apart in the storage layer, not in the routes:
+`db.stream.stream_for` gives each stream the workspace of `accounts.current()`,
+so the same path in two workspaces is two streams (the ledger, trials, order
+journals, agent log), and `deployments.root()` puts each workspace's books in
+its own folder. A thread does not inherit the request's principal, so every
+thread an API route starts is wrapped in `accounts.carry`; without it, a
+backtest started in workspace B would log its trials into the operator's
+ledger. Still shared by every workspace: agents' tasks, inbox and outputs and
+research results (T-4569).
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three

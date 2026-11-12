@@ -65,6 +65,7 @@ from eulerlab import (
 from eulerlab import health as ops_health
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
+from eulerlab.accounts import carry
 from eulerlab.accounts import routes as auth_routes
 from eulerlab.accounts.middleware import RequireLogin
 from eulerlab.api import (
@@ -1788,7 +1789,7 @@ def run_batch(request: BatchRunRequest) -> dict[str, Any]:
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job
-    threading.Thread(target=_run_batch, args=(job, request), daemon=True).start()
+    threading.Thread(target=carry(_run_batch), args=(job, request), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -1856,7 +1857,7 @@ def backtest(request: BacktestRequest) -> dict[str, Any]:
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job
-    thread = threading.Thread(target=_run_backtest, args=(job, request), daemon=True)
+    thread = threading.Thread(target=carry(_run_backtest), args=(job, request), daemon=True)
     thread.start()
     return {"ok": True, "job": job.id}
 
@@ -1998,7 +1999,7 @@ def tweezer(request: TweezerRequest) -> dict[str, Any]:
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job
-    threading.Thread(target=_run_tweezer, args=(job, request), daemon=True).start()
+    threading.Thread(target=carry(_run_tweezer), args=(job, request), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -2513,7 +2514,7 @@ def data_feed(request: FeedRequest | None = None) -> dict[str, Any]:
     with JOBS_LOCK:
         JOBS[job.id] = job
     threading.Thread(
-        target=_run_feed, args=(job, request.only, request.mirror), daemon=True
+        target=carry(_run_feed), args=(job, request.only, request.mirror), daemon=True
     ).start()
     return {"ok": True, "job": job.id}
 
@@ -2553,7 +2554,7 @@ def data_sync() -> dict[str, Any]:
         job.result = {"kind": "sync"}
         JOBS[job.id] = job
 
-    threading.Thread(target=_run_sync, args=(job,), daemon=True).start()
+    threading.Thread(target=carry(_run_sync), args=(job,), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -2628,7 +2629,7 @@ def data_prune(request: PruneRequest) -> dict[str, Any]:
         job = Job(id=uuid.uuid4().hex[:12])
         job.result = {"kind": "prune"}
         JOBS[job.id] = job
-    threading.Thread(target=_run_prune, args=(job, request.dry_run), daemon=True).start()
+    threading.Thread(target=carry(_run_prune), args=(job, request.dry_run), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -3775,7 +3776,7 @@ def _bounded[T](work: Callable[..., T], *args: Any, timeout: float) -> T:
     """
     pool = ThreadPoolExecutor(1)
     try:
-        return pool.submit(work, *args).result(timeout=timeout)
+        return pool.submit(carry(work), *args).result(timeout=timeout)
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
 
@@ -5124,7 +5125,7 @@ def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]
 
     # Four at a time: each day is a download from B2, then a parse.
     with ThreadPoolExecutor(max_workers=4, thread_name_prefix="options-history") as pool:
-        list(pool.map(compute, missing))
+        list(pool.map(carry(compute), missing))
 
     points: list[dict[str, Any]] = []
     skipped: list[str] = []

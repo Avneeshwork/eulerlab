@@ -10,6 +10,10 @@ second home. `stream_for(path)` answers which home a path has:
   named by the path relative to the data directory;
 - the path is anywhere else (a test's `tmp_path`, a scratch copy): `None`.
 
+The stream belongs to the workspace of the request in progress
+(`accounts.current()`, ADR-168): the same path in two workspaces is two
+streams, and a reader in one cannot reach the other's rows.
+
 A stream can be reset (ADR-166): `Stream.next_generation` starts generation
 n + 1, stored under `<name>@<n+1>`, and leaves every earlier generation in
 place. `stream_for` returns the current generation. Generation 1 is the plain
@@ -35,7 +39,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from eulerlab import db
+from eulerlab import accounts, db
 from eulerlab.paths import data_dir
 
 Build = Callable[[str | None, int], tuple[str, datetime]]
@@ -177,8 +181,13 @@ def stream_for(path: Path, kind: str) -> Stream | None:
     name = stream_name(path)
     if not name:
         return None
-    first = Stream(kind, name)
-    in_file = len(file_lines(path))
+    # Whose stream: the workspace of whoever is asking (ADR-168), so two
+    # workspaces writing the same path write two streams. Nothing here takes
+    # a workspace as an argument, so no caller can pass the wrong one.
+    first = Stream(kind, name, accounts.current().workspace_id)
+    # The files are the single-operator install's, from before the switch:
+    # only the default workspace's streams were imported from them.
+    in_file = len(file_lines(path)) if first.workspace == db.WORKSPACE else 0
     if in_file and first.count() < in_file:
         msg = (
             f"{name}: the file holds {in_file} lines the database does not;"
