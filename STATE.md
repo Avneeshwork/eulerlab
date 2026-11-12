@@ -79,9 +79,10 @@ what is open is in `TASKS.md`.*
   killswitch and web; validated, not yet built or run (T-4553). The platform is
   to become multi-user, open source with a hosted subscription: issues #111-#132,
   storage design in ADR-165. With `EULERLAB_DATABASE_URL` set (after `make
-  db-migrate db-import`), the trial ledger, the trials counter and the order
-  journals live in Postgres, where edits are refused by the table and a paper reset starts a new
-  generation (ADR-166); unset, they stay files (T-4557, T-4558, T-4561). Back it up before switching on (T-4562).
+  db-migrate db-import`), the trial ledger, the trials counter, the agent log
+  and the order journals live in Postgres, where edits are refused by the table and a paper reset starts a new
+  generation (ADR-166); unset, they stay files (T-4557 to T-4561). The nightly backup exports the
+  database to B2 (T-4562); the kill-switch log stays a file (ADR-167).
 - **Real money, armed from the workbench (ADR-162, 2026-11-09).** H-0194 (fade a
   3% no-news gap, 09:20 to 15:10, MIS) on Angel One: Live & Risk → Deployment,
   amount + leverage + loss cap, type DEPLOY, one session per deploy. Operator's

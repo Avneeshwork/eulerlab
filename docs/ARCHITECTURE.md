@@ -2020,7 +2020,13 @@ the durable write that the file's fsync was, so the intent is still on record
 before the order is sent. The trials counter (`derived/trials.jsonl`, every
 configuration evaluated) moved the same way, and the evidence census counts
 its stream, so both stores the noise bar counts read from one place
-(T-4558). The agent log and the kill-switch log are still files (T-4559).
+(T-4558). The agent log moved too (T-4559). The kill-switch log and the
+trip file stay files on purpose (ADR-167): a trip must not depend on the
+database being up. With the database on, the nightly `make agents-backup`
+first exports every stream to `db_export/` (`db/export.py`, one JSON-lines
+file per stream and generation) and sends what changed with the rest of the
+memory; `make db-restore` loads an export into an empty database, where the
+table's triggers re-check every stream as it goes in.
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three

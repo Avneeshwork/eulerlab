@@ -20,10 +20,10 @@ Operator: "first fix infra related work then we make multiuser"; the platform is
 | T-4556 | When the VPS exists: move the launchd jobs off the Mac (`make schedule ACTION=uninstall JOB=...` each) so one scheduler owns the table; register the VPS's static IP with Angel One | TODO. Operator, after T-4553 |
 | T-4557 | Postgres for state, first slice: `eulerlab.db` (optional setting, migrations, `append_log` that refuses edits), the trial ledger on it, `make db-migrate`, `make db-import`, a `postgres` service in compose | DONE 2026-11-12 — ADR-165; `uv run --extra db pytest tests/test_db.py` (11 tests; they start a throwaway Postgres or skip) |
 | T-4558 | `features/trials.py` (`trials.jsonl`) onto `append_log`: it also counts toward the noise bar | DONE 2026-11-12 — `trials.lines` is the one reader (agent budget, ledger fold-in); the census counts the stream; `make db-import` copies the file. `uv run --extra db pytest tests/test_db.py` (17 tests) |
-| T-4559 | The agent log and the kill-switch log onto `append_log` | TODO. Issue #114 |
+| T-4559 | The agent log onto `append_log`; the kill-switch log stays a file (ADR-167) and is now in the nightly backup | DONE 2026-11-12 — `agents/log.py`; `uv run --extra db pytest tests/test_db.py` |
 | T-4560 | Operator: on the server, set `POSTGRES_PASSWORD` in `.env`, `docker compose up -d`, then `docker compose exec api make db-migrate db-import`, then set `EULERLAB_DATABASE_URL` in `.env` and restart | TODO. Operator, after T-4553 |
 | T-4561 | Order journals onto `append_log`, with generations: a reset starts the next generation instead of deleting `orders.jsonl`; `make db-import` copies journals under `oms/` and `deployments/` | DONE 2026-11-12 — ADR-166, migration 002; `uv run --extra db pytest tests/test_db.py` (16 tests) |
-| T-4562 | Back up Postgres off the server (`pg_dump` to B2, nightly) once it is switched on: `make memory-backup` copies files, so with the database on it misses the ledger, the trials counter and the journals | TODO. Before T-4560 |
+| T-4562 | Back up Postgres off the server: `make agents-backup` exports every stream to `db_export/` first and sends what changed to B2; `make db-restore` loads it into an empty database | DONE 2026-11-12 — ADR-167, `db/export.py`; `uv run --extra db pytest tests/test_db.py` (20 tests) |
 
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 

@@ -102,6 +102,9 @@ def test_the_committed_trees_cover_every_kind_of_memory() -> None:
         "drafts": "research/agent_drafts",
         "papers": "research/papers",
         "ledger": "data/derived",
+        "database": "data/db_export",  # the database's rows, exported first (T-4562)
+        "kill-log": "data/oms",
+        "kill-dep": "data/deployments",
     }
 
 

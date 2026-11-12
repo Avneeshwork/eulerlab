@@ -16,7 +16,8 @@ journal's sequence through `Journal.read`, which refuses a gap.
 
 Which files: the shared ledger (`derived/trial_ledger.jsonl`) and each
 workspace's (`workspaces/*/trial_ledger.jsonl`, `workspace.py`), the trials
-counter (`derived/trials.jsonl`, `features/trials.py`), and every
+counter (`derived/trials.jsonl`, `features/trials.py`), the agent log
+(`agents/log.jsonl`, hash-chained, checked with `agents.log.verify`), and every
 order journal under `oms/` and `deployments/` (`orders.jsonl`). A journal's
 torn final line, left by a crash mid-write, is not imported: the journal
 itself treats that event as never having happened. Files go into generation 1
@@ -32,13 +33,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from eulerlab import db
+from eulerlab.agents import log as agent_log
 from eulerlab.db.stream import Stream, file_lines, parse_time, stream_name
 from eulerlab.features import trials
 from eulerlab.oms import journal
 from eulerlab.paths import data_dir
 from eulerlab.validation import ledger
 
-TIME_KEY = {ledger.KIND: "logged_at", trials.KIND: "logged_at", journal.KIND: "at"}
+TIME_KEY = {
+    ledger.KIND: "logged_at",
+    trials.KIND: "logged_at",
+    journal.KIND: "at",
+    agent_log.KIND: "at",
+}
 """Which field of a line is its event time, per kind."""
 
 
@@ -74,6 +81,11 @@ def trials_files(root: Path | None = None) -> list[Path]:
     return [path] if path.exists() else []
 
 
+def agent_log_files(root: Path | None = None) -> list[Path]:
+    path = (root or data_dir()) / "agents" / "log.jsonl"
+    return [path] if path.exists() else []
+
+
 def import_ledger(path: Path) -> Imported:
     return import_stream(path, ledger.KIND)
 
@@ -87,6 +99,9 @@ def _check(path: Path, kind: str) -> tuple[bool, str]:
     if kind == ledger.KIND:
         chain = ledger.verify_chain(path)
         return chain.intact, chain.detail
+    if kind == agent_log.KIND:
+        ok, problem = agent_log.verify(path.parent)
+        return ok, problem or f"agent log chain intact: {len(agent_log.read(path.parent))} entries"
     if kind == trials.KIND:
         n, in_file = trials.count(path), len(file_lines(path))
         return n >= in_file, f"{n} trials read back from the database ({in_file} in the file)"
@@ -129,6 +144,7 @@ def main() -> int:
     db.migrate()
     files = [(p, ledger.KIND) for p in ledger_files()]
     files += [(p, trials.KIND) for p in trials_files()]
+    files += [(p, agent_log.KIND) for p in agent_log_files()]
     files += [(p, journal.KIND) for p in journal_files()]
     if not files:
         print("no ledger or journal files under the data directory; nothing to import")

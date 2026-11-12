@@ -20,6 +20,8 @@ from pathlib import Path
 import pytest
 
 from eulerlab import db, evidence, paths
+from eulerlab.agents import log as agent_log
+from eulerlab.db import export as db_export
 from eulerlab.db import importer
 from eulerlab.db.stream import NotImported, Stream, stream_for, stream_name
 from eulerlab.features import trials
@@ -387,3 +389,54 @@ def test_the_trials_counter_counts_from_postgres(
     assert agent_trials.spent_this_week(path=path) == 1
     store = next(s for s in evidence.stores() if s.name == "trials")
     assert evidence.Store(store.name, path, store.holds, store.counts_toward_bar).rows == 3
+
+
+# --- the agent log -----------------------------------------------------------------------------
+
+
+def test_the_agent_log_chains_in_postgres_and_imports(
+    database: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / "agents"
+    url = os.environ[db.ENV_VAR]
+    monkeypatch.delenv(db.ENV_VAR)
+    agent_log.append("run", "research", {"requests": 3}, root=home)
+    monkeypatch.setenv(db.ENV_VAR, url)
+    with pytest.raises(NotImported):
+        agent_log.read(home)
+    assert importer.agent_log_files() == [home / "log.jsonl"]
+    assert importer.import_stream(home / "log.jsonl", agent_log.KIND).added == 1
+    second = agent_log.append("decision", "ceo", {"ok": True}, root=home)
+    assert second.seq == 2 and second.prev_hash == agent_log.read(home)[0].entry_hash
+    assert agent_log.verify(home) == (True, "")
+    assert len((home / "log.jsonl").read_text().splitlines()) == 1
+
+
+# --- backup: export and restore ----------------------------------------------------------------
+
+
+def test_export_then_restore_into_an_empty_database_gives_back_every_row(
+    database: str, server: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ledger.append(
+        kind="ic", subject="a", params={}, outcome={"s": float("nan")}, path=_ledger_path(tmp_path)
+    )
+    _order(journal.Journal(_book(tmp_path)), "a")
+    journal.reset(_book(tmp_path), "test")
+    _order(journal.Journal(_book(tmp_path)), "b")
+    target = tmp_path / "export"
+    streams, changed = db_export.export(target)
+    assert (streams, changed) == (3, 4)  # ledger, journal gen 1 and 2, the generations file
+    assert db_export.export(target) == (3, 0)  # unchanged: nothing for the backup to send
+    with pytest.raises(RuntimeError, match="empty"):
+        db_export.load(target)
+
+    name = f"t_{uuid.uuid4().hex[:12]}"
+    with psycopg.connect(server, autocommit=True) as conn:
+        conn.execute(f'CREATE DATABASE "{name}"')
+    monkeypatch.setenv(db.ENV_VAR, server.replace("/postgres?", f"/{name}?"))
+    db.migrate()
+    assert db_export.load(target) == 1 + 2 + 2
+    assert ledger.verify_chain(_ledger_path(tmp_path)).intact
+    assert journal.Journal(_book(tmp_path)).replay() == {"b": OrderState.SENT}
+    assert len(Stream(journal.KIND, "oms/paper/orders.jsonl").read()) == 2
