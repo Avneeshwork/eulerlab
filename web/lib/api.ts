@@ -1668,11 +1668,22 @@ export type FiiDiiFlows =
 // components hold the same object. Nothing is cached once the request ends.
 const inFlight = new Map<string, Promise<string>>();
 
+// With accounts on (ADR-168) the API answers 401 until someone logs in. Every
+// helper below sends that to the login page, once, rather than leaving each
+// screen to show its own error.
+function toLogin(response: Response): void {
+  if (response.status !== 401 || typeof window === 'undefined') return;
+  if (window.location.pathname.startsWith('/login')) return;
+  const next = encodeURIComponent(window.location.pathname + window.location.hash);
+  window.location.assign(`/login?next=${next}`);
+}
+
 async function get<T>(path: string): Promise<T> {
   let body = inFlight.get(path);
   if (!body) {
     body = fetch(path, { cache: 'no-store' })
       .then((response) => {
+        toLogin(response);
         if (!response.ok) throw new Error(`${path} returned ${response.status}`);
         return response.text();
       })
@@ -1688,6 +1699,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  toLogin(response);
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
   return (await response.json()) as T;
 }
@@ -1831,6 +1843,7 @@ export type PaperDraft = Pick<Paper, 'summary' | 'trade_idea' | 'implementation'
 
 async function del<T>(path: string): Promise<T> {
   const response = await fetch(path, { method: 'DELETE' });
+  toLogin(response);
   if (!response.ok) throw new Error(`${path} returned ${response.status}`);
   return (await response.json()) as T;
 }

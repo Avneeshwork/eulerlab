@@ -65,6 +65,8 @@ from eulerlab import (
 from eulerlab import health as ops_health
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
+from eulerlab.accounts import routes as auth_routes
+from eulerlab.accounts.middleware import RequireLogin
 from eulerlab.api import (
     agent_routes,
     assistant_routes,
@@ -199,6 +201,11 @@ app.include_router(fyers_routes.router)
 app.include_router(risk_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(fii_dii_routes.router)
+app.include_router(auth_routes.router)
+# Login, when EULERLAB_AUTH=on (ADR-168). Added before CORS below, and the last
+# middleware added runs first, so CORS wraps it: a refused request still carries
+# the CORS headers the UI needs.
+app.add_middleware(RequireLogin)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,

@@ -1,0 +1,9 @@
+# ADR-168 — Accounts, roles and login for a multi-user platform
+
+**Date:** 2026-11-12. **Status:** accepted for slice 1 (login and roles); slices 2-4 below are the plan. Issue #113, building on ADR-040 (workspaces) and ADR-165 (Postgres).
+
+- **Context.** The API has no login: anyone who can reach port 8000 can trade. ADR-040 left authentication as a seam (`workspace.resolve`). A multi-user, self-hostable product needs accounts, a login, and roles, without changing the operator's Mac.
+- **Options.** (a) OIDC only (Google), which needs a client registration per install; (b) a managed auth service (cost, and a third party holding logins); (c) passwords and API tokens in our own Postgres, with OIDC addable later as another way to start a session.
+- **Choice.** (c). Migration 003: `users`, `workspaces`, `memberships` (owner, researcher, viewer), `sessions`, `api_tokens`; passwords hashed with the standard library's scrypt, tokens stored as SHA-256 only. One ASGI middleware proves every `/api` request (session cookie or bearer token), picks the workspace (`X-Workspace` or the first membership, never a substitute for one asked for and refused), applies the role table (`accounts.allowed`: real money, broker logins, members and agent settings are owner-only; a viewer reads only), and binds the principal for `accounts.current()`. `EULERLAB_AUTH` unset or off: every request is the operator, owner of `default`, as before.
+- **Why.** Free, no outside service, works offline on a VPS; one check before any route means no route can forget it, the same structural rule as `as_of`.
+- **Cost if wrong.** If a route needs a finer rule than its path, add it to `allowed`; the table is the only place roles are read. Plan for the rest of #113: slice 2 scopes every store by `current().workspace_id` (books, journals, ledger, trials, agent log); slice 3 adds per-workspace gate settings, agent budgets and model keys; slice 4 is the issue's isolation test.

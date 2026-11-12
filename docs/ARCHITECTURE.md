@@ -2028,6 +2028,19 @@ file per stream and generation) and sends what changed with the rest of the
 memory; `make db-restore` loads an export into an empty database, where the
 table's triggers re-check every stream as it goes in.
 
+**Accounts and login (ADR-168).** `EULERLAB_AUTH` unset: no login, and every
+request is the operator, owner of the `default` workspace. Set to `on` (with
+the database), `accounts.middleware.RequireLogin` stands in front of every
+`/api` route: it proves the request (an HttpOnly session cookie from
+`POST /api/auth/login`, or `Authorization: Bearer` with a token from
+`make account`), chooses the workspace (`X-Workspace`, else the user's first
+membership; one the user is not in is refused, never swapped), applies the
+role table in `accounts.allowed`, and binds the result so any code can ask
+`accounts.current()`. Owners do everything; researchers everything except
+real money, broker logins, members and agent settings; viewers read. The
+workbench sends any 401 to `/login`. Only `/api/health` and the login itself
+are open. Stores are not yet scoped by workspace: that is slice 2 (T-4564).
+
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three
 have been pulled out. The seam is that **nothing in `panels` or `intraday_runs`

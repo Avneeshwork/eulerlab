@@ -12,6 +12,12 @@ Set `EULERLAB_NO_CLOUD=0` to run a test against the real bucket deliberately.
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+import tempfile
+import uuid
+from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -316,7 +322,6 @@ def _private_lessons(
 
     A test that passes its own root keeps it; the default root is redirected.
     """
-    from pathlib import Path
 
     from eulerlab.agents import lessons, spec
 
@@ -326,3 +331,96 @@ def _private_lessons(
         return private if root == spec.ROOT else root / "lessons.jsonl"
 
     monkeypatch.setattr(lessons, "_path", path)
+
+
+# --- a throwaway Postgres (ADR-165) ------------------------------------------------------------
+# `EULERLAB_TEST_DATABASE_URL` when set (the compose service, a CI database),
+# else a server started for the session from the local Postgres binaries.
+# With neither, the tests that ask for it skip.
+
+
+def _bindir() -> Path | None:
+    candidates = []
+    if shutil.which("pg_config"):
+        out = subprocess.run(["pg_config", "--bindir"], capture_output=True, text=True, check=False)
+        candidates.append(Path(out.stdout.strip()))
+    candidates += sorted(Path("/usr/lib/postgresql").glob("*/bin"), reverse=True)
+    candidates += sorted(Path("/opt/homebrew/opt").glob("postgresql@*/bin"), reverse=True)
+    return next((c for c in candidates if (c / "initdb").exists()), None)
+
+
+@pytest.fixture(scope="session")
+def server() -> Iterator[str]:
+    """A connection string to a Postgres server the tests may create databases on."""
+    url = os.environ.get("EULERLAB_TEST_DATABASE_URL", "").strip()
+    if url:
+        yield url
+        return
+    bindir = _bindir()
+    if bindir is None:
+        pytest.skip("no Postgres: set EULERLAB_TEST_DATABASE_URL or install postgresql")
+    # Not tmp_path_factory: pytest's base directory is private to its owner, and
+    # the cluster runs as `postgres` when the suite runs as root.
+    root = Path(tempfile.mkdtemp(prefix="eulerlab-pg-"))
+    as_user: list[str] = []
+    if os.geteuid() == 0:  # initdb refuses to run as root
+        if shutil.which("runuser") is None:
+            pytest.skip("running as root without runuser")
+        shutil.chown(root, "postgres")
+        as_user = ["runuser", "-u", "postgres", "--"]
+    port = 54000 + os.getpid() % 900
+    subprocess.run(
+        [
+            *as_user,
+            str(bindir / "initdb"),
+            "-D",
+            str(root / "data"),
+            "-A",
+            "trust",
+            "-U",
+            "eulerlab",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        [
+            *as_user,
+            str(bindir / "pg_ctl"),
+            "-D",
+            str(root / "data"),
+            "-o",
+            f"-k {root} -c listen_addresses='' -p {port}",
+            "-l",
+            str(root / "log"),
+            "-w",
+            "start",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    try:
+        yield f"postgresql://eulerlab@/postgres?host={root}&port={port}"
+    finally:
+        subprocess.run(
+            [*as_user, str(bindir / "pg_ctl"), "-D", str(root / "data"), "-m", "fast", "stop"],
+            check=False,
+            capture_output=True,
+        )
+        shutil.rmtree(root, ignore_errors=True)
+
+
+@pytest.fixture
+def database(server: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> str:
+    """A fresh, migrated database, the data directory at tmp_path, the setting on."""
+    psycopg = pytest.importorskip("psycopg")
+    from eulerlab import db, paths
+
+    name = f"t_{uuid.uuid4().hex[:12]}"
+    with psycopg.connect(server, autocommit=True) as conn:
+        conn.execute(f'CREATE DATABASE "{name}"')
+    url = server.replace("/postgres?", f"/{name}?")
+    monkeypatch.setenv(db.ENV_VAR, url)
+    monkeypatch.setenv(paths.ENV_VAR, str(tmp_path))
+    db.migrate()
+    return url
