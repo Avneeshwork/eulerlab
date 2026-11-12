@@ -1,0 +1,75 @@
+# THE CONSTITUTION: operator-owned, like mandate.yaml. What the agents may do
+# on their own, with what capital, on which data and at what cost (ADR-171).
+#
+# The operator decided these on 2026-11-13. An agent may propose a change in
+# writing; it may not edit this file. The guardian halts every agent when the
+# file changes without `make agents-resume REASON=...`.
+#
+# The gate's thresholds stay in mandate.yaml. This file never loosens them.
+
+version: 1
+owner: operator
+decided: 2026-11-13
+
+capital:
+  # Every backtest report, paper book and forward test the agents start is
+  # sized to this. Operator, 2026-11-13: "take 1 lakh capital".
+  test_capital_inr: 100000
+  # 1x only (operator, 2026-11-07). The loader refuses more than 1.0.
+  leverage: 1.0
+
+periods:
+  # Operator, 2026-11-13: "backtest up to 2025 end and take 2026 as forward
+  # testing". Agents find ideas on data up to `discovery_end`, check survivors
+  # on the selection period (the day after it to `backtest_end`, every look
+  # counted), and never read `forward_start` onwards when finding or tuning.
+  # ASSUMPTION: A-134. The 2023/2024 boundary is the thread's choice inside the
+  # operator's bound, not the operator's own number.
+  discovery_end: 2023-12-31
+  backtest_end: 2025-12-31
+  forward_start: 2026-01-01
+
+budget:
+  # Operator, 2026-11-13: "monthly ai compute budget is 1k". Read as rupees.
+  # A hard stop: an agent's request to a paid model is refused once the
+  # calendar month's recorded spend reaches this.
+  monthly_ai_inr: 1000
+  # ASSUMPTION: A-135. Rupees per US dollar, set by hand and not fetched.
+  usd_inr: 90.0
+  # US dollars per million tokens, base input and output. Anthropic's pricing
+  # page, fetched 2026-11-12 (research 189). Keys are the model ids in
+  # config/llm.yaml. Providers marked `free: true` there cost nothing.
+  prices_usd_per_mtok:
+    claude-fable-5-2: {input: 8.0, output: 40.0}
+    claude-fable-5-1: {input: 10.0, output: 50.0}
+    claude-opus-5-5: {input: 4.0, output: 20.0}
+    claude-sonnet-5-5: {input: 2.0, output: 10.0}
+    claude-haiku-5-5: {input: 0.10, output: 0.50}
+  # A paid model with no price above is charged at this, the dearest listed,
+  # so a missing price can never make spending look cheaper than it is.
+  unknown_paid_model: {input: 10.0, output: 50.0}
+
+caps:
+  # Ledger entries a week the autopilot may use for gating. The smaller of
+  # this and config/agents/autopilot.yaml's own number applies.
+  gate_entries_per_week: 10
+
+# What an agent may do by itself.
+#   act      it does it, inside the caps above
+#   propose  it writes the proposal; the operator decides
+#   never    refused in code, whoever asks
+actions:
+  register_hypothesis: act
+  spend_ai_budget: act
+  use_ledger_entry: act
+  start_paper_book: act
+  stop_paper_book: act
+  demote_strategy: act
+  score_forward_test: act
+  change_cost_or_risk_settings: propose
+  merge_code: propose
+  edit_gate_or_mandate: never
+  # Operator, 2026-11-13: "doing anything with live account will not be done
+  # by agent"; "no real money while testing, only I will approve for real
+  # money". The loader refuses any value but `never` here.
+  live_account: never

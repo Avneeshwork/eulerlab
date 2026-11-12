@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from eulerlab.agents import lessons
 from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, model_asker, untrusted
 from eulerlab.intraday import rule_engine as engine
+from eulerlab.llm.spend import MonthBudgetSpent
 
 HYPOTHESES = Path("hypotheses")
 PAPERS = Path("research/papers")
@@ -296,6 +297,8 @@ def _ask(ctx: Context, user: str) -> tuple[str, str]:
     """(answer, provider): the agent's own provider first, then Groq."""
     try:
         return ctx.ask(SYSTEM, user), ctx.model
+    except MonthBudgetSpent as exc:  # the month's rupees are gone: the free model writes
+        ctx.notes.append(str(exc))
     except BudgetSpent:
         raise
     except Exception as exc:  # an outage or an empty Claude balance must not stop the night

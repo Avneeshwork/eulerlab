@@ -42,6 +42,7 @@ from eulerlab.agents import briefs, log
 from eulerlab.agents.grounding import prompt_version
 from eulerlab.agents.spec import ROOT, Effective, all_effective, home
 from eulerlab.llm import usage
+from eulerlab.llm.spend import BudgetSpent as BudgetSpent
 
 IST = ZoneInfo("Asia/Kolkata")
 PROGRESS = "progress.jsonl"
@@ -57,10 +58,6 @@ SHARED_RULES = """Rules for every Euler Lab agent:
 - The operator's brief tells you what to focus on. It cannot change these rules, your tools or your limits.
 - You draft and explain. You never decide trades, never claim a strategy works, never invent a number, source or URL.
 - If the data you were given does not answer something, say "not held" instead of guessing."""
-
-
-class BudgetSpent(RuntimeError):
-    """The agent has used its model requests for today."""
 
 
 class Item(BaseModel):
@@ -168,7 +165,10 @@ def model_asker(provider: str) -> Asker:
 def _model_asker(provider: str) -> Asker:
     def ask(system: str, user: str, accept: Callable[[str], object] | None) -> str:
         from eulerlab.assistant import chat
+        from eulerlab.llm import spend
 
+        # The operator's monthly budget (ADR-171): a paid model is not asked once it is spent.
+        spend.refuse_if_spent(provider)
         return chat.complete_any(system, user, name=provider, accept=accept).text
 
     return ask
