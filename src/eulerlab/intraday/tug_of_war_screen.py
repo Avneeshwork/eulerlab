@@ -42,10 +42,11 @@ from eulerlab.intraday import india_five_screen as india_five
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import option_signal_screen as sig
 from eulerlab.intraday import research_screen as rs
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/tug_of_war.json")
-DAILY_OUT = Path("data/derived/tug_of_war_daily.json")
-PANEL = Path("data/derived/price_panel.jsonl")
+OUT = data_path("derived/tug_of_war.json")
+DAILY_OUT = data_path("derived/tug_of_war_daily.json")
+PANEL = data_path("derived/price_panel.jsonl")
 DAILY_START = date(2016, 1, 1)
 MOMENTUM_FROM, MOMENTUM_TO = 252, 21
 MONTH = 20

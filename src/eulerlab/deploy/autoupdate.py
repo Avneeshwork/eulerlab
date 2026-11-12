@@ -28,10 +28,12 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 INTERVAL = 300.0
 """Seconds between checks. A check that finds nothing reads two small files."""
 
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 
 @dataclass

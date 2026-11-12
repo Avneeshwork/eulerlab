@@ -37,11 +37,12 @@ from eulerlab.master.derivatives import ContractType, parse_legacy_row, parse_ud
 from eulerlab.options import nifty_history
 from eulerlab.options.chain import CLOSE_FIELDS, OPEN_FIELDS, VOLUME_FIELDS, _number
 from eulerlab.options.strategies import _cost
+from eulerlab.paths import data_path
 
 RUN_ID = "nifty_expiry_day_short_straddle"
-DAYS = Path("data/derived/nifty_expiry_day_options.jsonl")
-OUT = Path("data/derived/expiry_straddle.json")
-INDEX = Path("data/derived/index_history.jsonl")
+DAYS = data_path("derived/nifty_expiry_day_options.jsonl")
+OUT = data_path("derived/expiry_straddle.json")
+INDEX = data_path("derived/index_history.jsonl")
 START = date(2019, 2, 14)
 """The first weekly Nifty expiry."""
 END = date(2024, 11, 30)

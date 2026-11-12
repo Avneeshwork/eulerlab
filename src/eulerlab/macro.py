@@ -42,6 +42,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 SCANNER = "https://scanner.tradingview.com/global/scan"
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -177,7 +179,7 @@ def fetch(*, timeout: int = 25) -> Macro:
     return Macro(readings=readings, missing=tuple(missing), at=stamp)
 
 
-HISTORY = Path("data/landing/macro")
+HISTORY = data_path("landing/macro")
 """Where each sweep's readings are appended.
 
 The scanner returns a level and no history, and TradingView's mini-chart widget

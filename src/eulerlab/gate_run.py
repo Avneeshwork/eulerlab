@@ -8,9 +8,10 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from eulerlab import gates
+from eulerlab.paths import data_path
 from eulerlab.validation import ledger
 
-EVIDENCE = Path("data/derived/evidence")
+EVIDENCE = data_path("derived/evidence")
 HYPOTHESES = Path("hypotheses")
 
 

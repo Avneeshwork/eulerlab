@@ -49,8 +49,10 @@ from typing import Any
 
 import numpy as np
 
-WORKSPACES = Path("data/workspaces")
-OUTPUT = Path("data/derived/strategy_map.json")
+from eulerlab.paths import data_path
+
+WORKSPACES = data_path("workspaces")
+OUTPUT = data_path("derived/strategy_map.json")
 TRADING_DAYS = 252.0
 
 MIN_DAYS = 500

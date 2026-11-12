@@ -41,10 +41,12 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
-PROVISIONAL_PATH = Path("data/derived/provisional_daily.jsonl")
-MINUTE_ROOT = Path("data/landing/kite_minute")
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
-PANEL_PATH = Path("data/derived/price_panel.jsonl")
+from eulerlab.paths import data_path
+
+PROVISIONAL_PATH = data_path("derived/provisional_daily.jsonl")
+MINUTE_ROOT = data_path("landing/kite_minute")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
+PANEL_PATH = data_path("derived/price_panel.jsonl")
 
 SESSION_OPEN = "09:15"
 SESSION_LAST_MINUTE = "15:29"

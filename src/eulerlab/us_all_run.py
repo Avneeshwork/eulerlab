@@ -41,8 +41,9 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import adopted
+from eulerlab.paths import data_path
 
-RESULTS_PATH = Path("data/derived/us_all_results.jsonl")
+RESULTS_PATH = data_path("derived/us_all_results.jsonl")
 
 SYMBOL = "QQQ"
 """One liquid instrument, so the comparison across strategies is like for like.

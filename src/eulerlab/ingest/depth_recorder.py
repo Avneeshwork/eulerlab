@@ -45,8 +45,9 @@ from eulerlab.env import load_env, require
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, UrllibTransport
 from eulerlab.ingest.kite_mcx_indices import _access_token
 from eulerlab.ingest.nse_eod import IST
+from eulerlab.paths import data_path
 
-LANDING_ROOT = Path("data/landing/kite_depth")
+LANDING_ROOT = data_path("landing/kite_depth")
 NIFTY50_LIST = "https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv"
 LEVELS = 5
 FLUSH_EVERY_S = 60.0

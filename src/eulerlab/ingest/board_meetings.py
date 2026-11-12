@@ -26,10 +26,12 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 URL = "https://nsearchives.nseindia.com/content/RSS/Board_Meetings.xml"
-LANDING = Path("data/landing/nse_board_meetings")
-OUT = Path("data/derived/board_meetings.jsonl")
-NAMES = Path("data/derived/nse_names.json")
+LANDING = data_path("landing/nse_board_meetings")
+OUT = data_path("derived/board_meetings.jsonl")
+NAMES = data_path("derived/nse_names.json")
 SEGMENT = "board_meetings"
 IST = ZoneInfo("Asia/Kolkata")
 MEETING = re.compile(r"Meeting Date:\s*(\d{1,2}-[A-Za-z]{3}-\d{4})")

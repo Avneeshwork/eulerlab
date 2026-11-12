@@ -46,9 +46,10 @@ from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import option_signal_screen as sig
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/minute_six.json")
-PARTS = Path("data/derived/minute_six_parts")
+OUT = data_path("derived/minute_six.json")
+PARTS = data_path("derived/minute_six_parts")
 BATCH = 40
 DAY_START = 5
 """09:20, as minutes after 09:15."""
@@ -411,7 +412,7 @@ def load_actions() -> list[Any]:
     from eulerlab.ingest import landing_reader
 
     rows: list[dict[str, object]] = []
-    manifest = Path("data/landing/nse/manifest.jsonl")
+    manifest = data_path("landing/nse/manifest.jsonl")
     for line in manifest.read_text(encoding="utf-8").splitlines():
         entry = json.loads(line)
         if entry.get("segment") == "corp_actions":

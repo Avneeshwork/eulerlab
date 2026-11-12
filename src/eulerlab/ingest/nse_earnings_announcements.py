@@ -22,8 +22,10 @@ from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, OpenerDirector, Request, build_opener
 from zoneinfo import ZoneInfo
 
-LANDING = Path("data/landing/nse_announcements")
-OUT = Path("data/derived/nse_earnings_announcements.jsonl")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/nse_announcements")
+OUT = data_path("derived/nse_earnings_announcements.jsonl")
 PAGE = "https://www.nseindia.com/companies-listing/corporate-filings-announcements"
 API = "https://www.nseindia.com/api/corporate-announcements"
 IST = ZoneInfo("Asia/Kolkata")

@@ -23,9 +23,10 @@ from typing import Any
 
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
+from eulerlab.paths import data_path
 from eulerlab.strategies import studies
 
-DERIVED = Path("data/derived")
+DERIVED = data_path("derived")
 CAPITAL = 1_000_000.0
 TIER = "study"
 

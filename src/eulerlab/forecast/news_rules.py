@@ -37,9 +37,10 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
 from eulerlab.config import CONFIG_DIR
+from eulerlab.paths import data_path
 
-LEARNED = Path("data/derived/news_rules_learned.json")
-JUDGED = Path("data/derived/news_judgements.jsonl")
+LEARNED = data_path("derived/news_rules_learned.json")
+JUDGED = data_path("derived/news_judgements.jsonl")
 # A corrected story's score: the rule's sign, at least this strong.
 FLOOR = 0.5
 

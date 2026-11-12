@@ -33,14 +33,14 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from datetime import date
 from itertools import pairwise
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from eulerlab.features.panel import PANEL_PATH, PanelRow
+from eulerlab.paths import data_path
 
-MONTHLY_PATH = Path("data/derived/attribution_monthly.json")
+MONTHLY_PATH = data_path("derived/attribution_monthly.json")
 BENCHMARK_TOP = 250
 FACTOR_TOP = 500
 PARTICIPATION = 0.2

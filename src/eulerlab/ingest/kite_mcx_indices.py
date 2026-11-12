@@ -29,8 +29,9 @@ from eulerlab.ingest.kite_minute import (
     candles_to_table,
     uncovered_chunks,
 )
+from eulerlab.paths import data_path
 
-LANDING_ROOT = Path("data/landing/mcx_indices")
+LANDING_ROOT = data_path("landing/mcx_indices")
 SESSION_FILE = Path(".kite_session.json")
 MIN_INTERVAL_S = 0.34
 

@@ -19,8 +19,10 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
-DEFAULT_ROOT = Path("data/landing/mcx_gold")
-DEFAULT_OUTPUT = Path("data/derived/mcx_gold_backtest.json")
+from eulerlab.paths import data_path
+
+DEFAULT_ROOT = data_path("landing/mcx_gold")
+DEFAULT_OUTPUT = data_path("derived/mcx_gold_backtest.json")
 PRICE_MULTIPLIER = 100  # MCX standard Gold: 1 kg lot, quoted per 10 grams.
 SMA_BARS = 50
 BAND_BPS = 20
@@ -272,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
 
     lot_size = args.lot_size
     if lot_size is None:
-        instrument_files = sorted(Path("data/landing/mcx/instruments").glob("**/*_instruments.csv"))
+        instrument_files = sorted(data_path("landing/mcx/instruments").glob("**/*_instruments.csv"))
         if not instrument_files:
             raise FileNotFoundError("No MCX instrument snapshot is available to read lot size")
         with instrument_files[-1].open(newline="") as handle:

@@ -11,8 +11,9 @@ from eulerlab.ingest.fetch import Fetcher, FetchPolicy, UrllibTransport
 from eulerlab.ingest.landing import Landing
 from eulerlab.ingest.nse_eod import session_days, today_ist
 from eulerlab.ingest.participant_oi import fetch_day
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse")
+DEFAULT_LANDING = data_path("landing/nse")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

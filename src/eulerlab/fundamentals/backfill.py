@@ -19,8 +19,9 @@ from eulerlab.fundamentals.screener_fetch import (
     ScreenerError,
 )
 from eulerlab.ingest.kite_minute import read_universe
+from eulerlab.paths import data_path
 
-DEFAULT_ROOT = Path("data/landing/fundamentals")
+DEFAULT_ROOT = data_path("landing/fundamentals")
 DEFAULT_UNIVERSE = Path("config/universe_all_liquid.txt")
 
 

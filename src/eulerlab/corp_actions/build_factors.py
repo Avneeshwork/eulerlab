@@ -35,11 +35,12 @@ from eulerlab.corp_actions.prices import (
     close_price_lookup,
     instrument_key,
 )
+from eulerlab.paths import data_path
 
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
 ACTIONS_GLOB = "corp_actions/*/*/*_json.json"
-PRICE_FACTORS = Path("data/derived/price_factors.jsonl")
-TOTAL_RETURN_FACTORS = Path("data/derived/total_return_factors.jsonl")
+PRICE_FACTORS = data_path("derived/price_factors.jsonl")
+TOTAL_RETURN_FACTORS = data_path("derived/total_return_factors.jsonl")
 
 
 def cached_dates(path: Path) -> set[str]:
@@ -139,7 +140,7 @@ class BuildReport:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="build-factors")
-    parser.add_argument("--landing", type=Path, default=Path("data/landing/nse"))
+    parser.add_argument("--landing", type=Path, default=data_path("landing/nse"))
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
     parser.add_argument(
         "--limit-files",

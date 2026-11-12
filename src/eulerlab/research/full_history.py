@@ -41,7 +41,9 @@ from typing import Any
 
 import yaml
 
-OUT = Path("data/derived/full_history.json")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/full_history.json")
 DAILY_FIRST = date(2016, 1, 1)
 WARMUP_FROM = date(2015, 1, 1)
 MINUTE_FIRST = date(2021, 8, 20)
@@ -80,7 +82,7 @@ def recommended(hypothesis: str, end: date) -> dict[str, Any]:
     }
 
 
-RECOMMENDED_PATH = Path("data/derived/full_history_recommended.json")
+RECOMMENDED_PATH = data_path("derived/full_history_recommended.json")
 
 
 def load_recommended(path: Path = RECOMMENDED_PATH) -> dict[str, dict[str, Any]]:

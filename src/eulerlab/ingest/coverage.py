@@ -42,12 +42,14 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 IST = ZoneInfo("Asia/Kolkata")
 NEW_YORK = ZoneInfo("America/New_York")
 
-LANDING = Path("data/landing")
-DERIVED = Path("data/derived")
-DEPLOYMENTS = Path("data/deployments")
+LANDING = data_path("landing")
+DERIVED = data_path("derived")
+DEPLOYMENTS = data_path("deployments")
 
 UPDATE = "Tools → Instruments → Update all data"
 

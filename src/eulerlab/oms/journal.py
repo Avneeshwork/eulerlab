@@ -39,8 +39,9 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.oms.states import Event, OrderState
+from eulerlab.paths import data_path
 
-JOURNAL_PATH = Path("data/oms/orders.jsonl")
+JOURNAL_PATH = data_path("oms/orders.jsonl")
 
 
 class CorruptJournal(RuntimeError):

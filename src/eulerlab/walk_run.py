@@ -21,8 +21,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from eulerlab import optimize_walk
+from eulerlab.paths import data_path
 
-RESULTS_PATH = Path("data/derived/walk_results.jsonl")
+RESULTS_PATH = data_path("derived/walk_results.jsonl")
 
 
 def run(

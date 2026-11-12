@@ -50,7 +50,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-LANDING = Path("data/landing/fmpnews")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/fmpnews")
 BASE = "https://financialmodelingprep.com/stable/"
 KEY_VAR = "FMP_API_KEY"
 USER_AGENT = "eulerlab/1.0"

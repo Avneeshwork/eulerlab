@@ -40,7 +40,9 @@ from collections.abc import Iterable
 from functools import lru_cache
 from pathlib import Path
 
-LANDING_ROOT = Path("data/landing")
+from eulerlab.paths import data_path
+
+LANDING_ROOT = data_path("landing")
 
 OFFLINE_ENV = "EULERLAB_NO_CLOUD"
 """Set to 1 to answer from disk alone.
@@ -133,7 +135,7 @@ _LISTED: dict[tuple[str, str], tuple[float, tuple[str, ...]]] = {}
 _REFRESHING: set[tuple[str, str]] = set()
 _REFRESH_LOCK = threading.Lock()
 
-LISTING_DIR = Path("data/cache/listings")
+LISTING_DIR = data_path("cache/listings")
 """The last listing of each tree, kept on disk for screens (`stale_ok`) only.
 
 The in-memory listing was lost on every restart, so the first screen opened

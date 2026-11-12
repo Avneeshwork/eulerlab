@@ -48,6 +48,7 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from eulerlab.paths import data_path
 from eulerlab.validation.statistics import (
     deflated_sharpe,
     expected_max_sharpe,
@@ -56,7 +57,7 @@ from eulerlab.validation.statistics import (
 )
 
 STRATEGY_ID = "india_sharpe_momentum"
-OUT_DIR = Path("data/derived/sweeps") / STRATEGY_ID
+OUT_DIR = data_path("derived/sweeps") / STRATEGY_ID
 RUNS = OUT_DIR / "runs.jsonl"
 SUMMARY = OUT_DIR / "summary.json"
 

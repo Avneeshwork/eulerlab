@@ -48,7 +48,9 @@ from typing import Any
 
 import yaml
 
-ROOT = Path("data/live_shadow")
+from eulerlab.paths import data_path
+
+ROOT = data_path("live_shadow")
 CONFIG = Path("config/live_shadow.yaml")
 SLOTS = 10
 HISTORY_DAYS = 200

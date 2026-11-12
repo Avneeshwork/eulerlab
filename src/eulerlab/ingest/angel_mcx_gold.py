@@ -21,8 +21,9 @@ from zoneinfo import ZoneInfo
 from eulerlab.env import load_env, require
 from eulerlab.ingest.backfill_minute import last_complete_session
 from eulerlab.ingest.kite_minute import Chunk, MinuteStore, candles_to_table
+from eulerlab.paths import data_path
 
-LANDING_ROOT = Path("data/landing/angel_mcx_gold")
+LANDING_ROOT = data_path("landing/angel_mcx_gold")
 CONTRACT_PATTERN = re.compile(r"^GOLD(\d{2}[A-Z]{3}\d{2})FUT$")
 WINDOW_DAYS = 1
 REQUEST_DELAY_S = 1.1

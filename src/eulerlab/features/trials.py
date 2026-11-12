@@ -22,7 +22,9 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-TRIALS_PATH = Path("data/derived/trials.jsonl")
+from eulerlab.paths import data_path
+
+TRIALS_PATH = data_path("derived/trials.jsonl")
 
 
 @dataclass(frozen=True)

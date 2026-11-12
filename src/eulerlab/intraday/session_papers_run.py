@@ -20,8 +20,9 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import session_papers as sp
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/intraday_papers.json")
+OUT = data_path("derived/intraday_papers.json")
 SYMBOL = "NIFTYBEES"
 CAPITAL = 1_000_000.0
 SPLIT = date(2024, 1, 1)
@@ -87,13 +88,12 @@ def predictive_regressions(days: Sequence[sp.Session]) -> dict[str, Any]:
     return {"r13_on_r1": fit(r1s), "r13_on_r12": fit(r12s)}
 
 
-def official_closes(
-    symbol: str, path: Path = Path("data/derived/price_panel.jsonl")
-) -> dict[date, float]:
+def official_closes(symbol: str, path: Path | None = None) -> dict[date, float]:
     """The exchange's closing price per day, from the price panel (raw closes).
 
     The panel is 745 MB of JSON lines; only lines naming the symbol are parsed.
     """
+    path = path if path is not None else data_path("derived/price_panel.jsonl")
     out: dict[date, float] = {}
     if not path.exists():
         return out

@@ -66,9 +66,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-LANDING = Path("data/landing/news")
-NAMES_LANDING = Path("data/landing/names")
-NAMES_DERIVED = Path("data/derived/nse_names.json")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/news")
+NAMES_LANDING = data_path("landing/names")
+NAMES_DERIVED = data_path("derived/nse_names.json")
 
 FEED = "https://news.google.com/rss/search?q={q}&hl={hl}&gl={gl}&ceid={gl}:{lang}"
 EQUITY_LIST = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"

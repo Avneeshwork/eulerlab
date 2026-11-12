@@ -43,8 +43,9 @@ from eulerlab.options.chain import (
     VOLUME_FIELDS,
     _number,
 )
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/nifty_options.jsonl")
+OUT = data_path("derived/nifty_options.jsonl")
 UNDERLYING = "NIFTY"
 
 

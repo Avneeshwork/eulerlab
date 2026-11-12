@@ -10,10 +10,11 @@ import time
 import urllib.request
 import zipfile
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
-US_FACTOR_CACHE = Path("data/derived/us_fama_french_monthly.json")
+from eulerlab.paths import data_path
+
+US_FACTOR_CACHE = data_path("derived/us_fama_french_monthly.json")
 US_FACTOR_SOURCE = "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html"
 US_FACTOR_FILES = (
     "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_5_Factors_2x3_CSV.zip",

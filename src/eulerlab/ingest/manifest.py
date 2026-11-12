@@ -39,8 +39,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from eulerlab.filecache import FileMemo
+from eulerlab.paths import data_path
 
-PATH = Path("data/derived/landing_manifest.json")
+PATH = data_path("derived/landing_manifest.json")
 
 TREES: tuple[tuple[str, str, str], ...] = (
     ("fx", "fx", "*/*/*.jsonl.gz"),

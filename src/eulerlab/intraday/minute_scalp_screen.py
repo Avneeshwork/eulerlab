@@ -38,9 +38,10 @@ from typing import Any
 
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/minute_scalps.json")
-PARTS = Path("data/derived/minute_scalps_parts")
+OUT = data_path("derived/minute_scalps.json")
+PARTS = data_path("derived/minute_scalps_parts")
 BATCH = 40
 HOLD = 15
 MAX_OPEN = 10

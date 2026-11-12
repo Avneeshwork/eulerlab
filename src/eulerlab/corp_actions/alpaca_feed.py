@@ -29,11 +29,10 @@ fields".
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from eulerlab.corp_actions.parse import CorporateAction, Kind, ParsedComponent
+from eulerlab.paths import data_path
 
-LANDING = Path("data/landing/us/actions")
+LANDING = data_path("landing/us/actions")
 
 
 def _components(row: dict[str, object]) -> tuple[ParsedComponent, ...]:

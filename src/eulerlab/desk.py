@@ -35,8 +35,10 @@ from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 IST = ZoneInfo("Asia/Kolkata")
-APPROVALS = Path("data/desk/approvals.jsonl")
+APPROVALS = data_path("desk/approvals.jsonl")
 GROSS = 0.99
 ROUND_TRIP_COST = 0.0025
 """Delivery round trip as a share of value: 0.1% STT each side plus exchange,

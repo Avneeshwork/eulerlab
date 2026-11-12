@@ -32,7 +32,9 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-LEDGER_PATH = Path("data/derived/trial_ledger.jsonl")
+from eulerlab.paths import data_path
+
+LEDGER_PATH = data_path("derived/trial_ledger.jsonl")
 GENESIS = "0" * 64
 """The chain's anchor. Fixed and public so the whole chain is verifiable from
 the file with no external secret."""

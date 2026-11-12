@@ -19,9 +19,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from eulerlab.filecache import FileMemo, read_yaml
+from eulerlab.paths import data_path
 
 CONFIG_DIR = Path("config/agents")
-ROOT = Path("data/agents")
+ROOT = data_path("agents")
 """Everything agents write: outputs, briefs, the log, decisions, settings."""
 
 

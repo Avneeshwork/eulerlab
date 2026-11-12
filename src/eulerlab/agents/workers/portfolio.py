@@ -26,8 +26,9 @@ from typing import Any
 import yaml
 
 from eulerlab.agents.runtime import Context, Item, WorkerResult
+from eulerlab.paths import data_path
 
-WORKSPACES = Path("data/workspaces")
+WORKSPACES = data_path("workspaces")
 HYPOTHESES = Path("hypotheses")
 
 

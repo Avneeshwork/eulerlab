@@ -30,9 +30,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab.config import CONFIG_DIR
 from eulerlab.ingest.fetch import FetchResult, Outcome
 from eulerlab.ingest.landing import Landing
+from eulerlab.paths import data_path
 
-LANDING = Path("data/landing/regwatch")
-ITEMS = Path("data/derived/regwatch_items.jsonl")
+LANDING = data_path("landing/regwatch")
+ITEMS = data_path("derived/regwatch_items.jsonl")
 TAG = re.compile(r"<[^>]+>")
 
 

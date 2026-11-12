@@ -32,6 +32,7 @@ from typing import Protocol
 
 from eulerlab.ingest.cloud import MissingCredentials, load_storage_config
 from eulerlab.ingest.landing import sha256_of
+from eulerlab.paths import data_path
 
 DEFAULT_CONFIG = Path("config/storage.yaml")
 
@@ -46,10 +47,10 @@ class Tree:
 
 
 TREES: tuple[Tree, ...] = (
-    Tree("agents", Path("data/agents"), "memory/agents/"),
+    Tree("agents", data_path("agents"), "memory/agents/"),
     Tree("drafts", Path("research/agent_drafts"), "memory/research/agent_drafts/"),
     Tree("papers", Path("research/papers"), "memory/research/papers/"),
-    Tree("ledger", Path("data/derived"), "derived/", pattern="trials.jsonl"),
+    Tree("ledger", data_path("derived"), "derived/", pattern="trials.jsonl"),
 )
 
 SKIP_PARTS = frozenset({"worktrees", "__pycache__", ".git"})

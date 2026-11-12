@@ -26,8 +26,9 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.fundamentals import annual
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/sectors.json")
+OUT = data_path("derived/sectors.json")
 
 
 @dataclass(frozen=True)

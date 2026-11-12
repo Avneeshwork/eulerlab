@@ -28,9 +28,10 @@ from eulerlab.ingest.fyers_expired_fo import (
     exchange_auth_code,
     token_status,
 )
+from eulerlab.paths import data_path
 
 router = APIRouter(prefix="/api/fyers")
-STATE_PATH = Path("data/cache/fyers_login_state.json")
+STATE_PATH = data_path("cache/fyers_login_state.json")
 STATE_TTL = timedelta(minutes=15)
 STATE_LOCK = threading.Lock()
 

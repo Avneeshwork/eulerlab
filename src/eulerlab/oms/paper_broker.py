@@ -40,8 +40,9 @@ from eulerlab.oms.broker import (
     BrokerUnreachable,
     DuplicateOrder,
 )
+from eulerlab.paths import data_path
 
-PAPER_STATE_PATH = Path("data/oms/paper_broker.json")
+PAPER_STATE_PATH = data_path("oms/paper_broker.json")
 
 
 @dataclass

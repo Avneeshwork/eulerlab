@@ -17,10 +17,11 @@ from pathlib import Path
 
 from eulerlab.master.succession import KNOWN_SUCCESSIONS, SuccessionKind
 from eulerlab.master.symbology import SymbolMap, load
+from eulerlab.paths import data_path
 
 RENAMES_PATH = Path("config/symbol_renames.json")
-UNRESOLVED_PATH = Path("data/landing/kite_minute/unresolved.jsonl")
-MINUTE_MANIFEST = Path("data/landing/kite_minute/manifest.jsonl")
+UNRESOLVED_PATH = data_path("landing/kite_minute/unresolved.jsonl")
+MINUTE_MANIFEST = data_path("landing/kite_minute/manifest.jsonl")
 
 
 @dataclass(frozen=True)

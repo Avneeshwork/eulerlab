@@ -21,6 +21,7 @@ import pyarrow.parquet as pq
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import screen_common as sc
+from eulerlab.paths import data_path
 
 DATA_END = date(2024, 11, 30)
 EVAL_START = date(2024, 1, 1)
@@ -540,7 +541,7 @@ def screen(*, root: Path | None = None) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(prog="gold-stock-intraday-screen")
     parser.add_argument(
-        "--output", type=Path, default=Path("data/derived/gold_stock_intraday_screen.json")
+        "--output", type=Path, default=data_path("derived/gold_stock_intraday_screen.json")
     )
     args = parser.parse_args()
     result = screen()

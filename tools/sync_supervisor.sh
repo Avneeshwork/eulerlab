@@ -25,7 +25,7 @@ while True:
     remote |= {o["Key"] for o in r.get("Contents", [])}
     if not r.get("IsTruncated"): break
     tok = r["NextContinuationToken"]
-root = Path("data/landing")
+root = Path(os.environ.get("EULERLAB_DATA_DIR", "data")) / "landing"
 missing = 0
 for p in root.rglob("*"):
     if not p.is_file() or p.name in ("manifest.jsonl", "unresolved.jsonl"):

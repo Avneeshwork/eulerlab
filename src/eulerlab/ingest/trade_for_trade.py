@@ -20,8 +20,10 @@ import zipfile
 from datetime import date
 from pathlib import Path
 
-OUT = Path("data/derived/trade_for_trade.jsonl")
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/trade_for_trade.jsonl")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
 T2T_SERIES = frozenset({"BE", "BZ"})
 SYMBOL_FIELDS = ("TckrSymb", "SYMBOL")
 SERIES_FIELDS = ("SctySrs", "SERIES")

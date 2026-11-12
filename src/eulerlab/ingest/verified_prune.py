@@ -18,8 +18,9 @@ from pathlib import Path
 
 from eulerlab.ingest.cloud import ObjectStore, S3ObjectStore, load_storage_config, sync_directory
 from eulerlab.ingest.prune_local import SKIP_NAMES
+from eulerlab.paths import data_path
 
-DEFAULT_ROOT = Path("data/landing")
+DEFAULT_ROOT = data_path("landing")
 DEFAULT_CONFIG = Path("config/storage.yaml")
 
 

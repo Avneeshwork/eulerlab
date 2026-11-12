@@ -43,7 +43,9 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
-LANDING = Path("data/landing/calendar")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/calendar")
 FEED = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 
@@ -203,10 +205,10 @@ def read_all(
         paths = landing_reader.available("calendar", "*.jsonl.gz", stale_ok=stale_ok)
         loader = landing_reader.read
     else:
-        paths = [str(p.relative_to(Path("data/landing"))) for p in sorted(root.glob("*.jsonl.gz"))]
+        paths = [str(p.relative_to(data_path("landing"))) for p in sorted(root.glob("*.jsonl.gz"))]
 
         def loader(relative: str, **_: object) -> bytes:
-            return (Path("data/landing") / relative).read_bytes()
+            return (data_path("landing") / relative).read_bytes()
 
     for relative in paths:
         try:

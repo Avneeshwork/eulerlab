@@ -23,8 +23,9 @@ from eulerlab.ingest.kite_minute import (
     uncovered_chunks,
 )
 from eulerlab.ingest.nse_eod import weekend_sessions
+from eulerlab.paths import data_path
 
-DEFAULT_ROOT = Path("data/landing/kite_minute")
+DEFAULT_ROOT = data_path("landing/kite_minute")
 DEFAULT_UNIVERSE = Path("config/universe_top250_union.txt")
 SESSION_FILE = Path(".kite_session.json")
 

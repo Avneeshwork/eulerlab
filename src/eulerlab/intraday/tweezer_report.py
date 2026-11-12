@@ -20,13 +20,13 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import date
-from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import bracket, scan
 from eulerlab.intraday.tweezer import Rules
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/tweezer_report.json")
+OUT = data_path("derived/tweezer_report.json")
 
 REPORT: dict[str, Any] = {
     "source": "Protective Collar AI, Tweezer Bottom Strategy — Performance & Backtest Report, June 2026",

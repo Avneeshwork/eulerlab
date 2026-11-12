@@ -23,11 +23,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from eulerlab.paths import data_path
+
 MAX_CHARS = 3500
 """Cap on one tool's answer. The free tier meters tokens per minute, and a
 question rarely needs more than a page."""
 
-DERIVED = Path("data/derived")
+DERIVED = data_path("derived")
 READABLE = ("docs", "hypotheses", "research")
 READABLE_FILES = ("STATE.md", "TASKS.md", "README.md")
 """The only places `read_document` opens. Not `data/`, not `config/`, not `.env`."""

@@ -16,6 +16,8 @@ Checks
   research-number two research notes share a number
   card-duplicate  two hypothesis cards with the same title, claim or config
   tracked-junk    logs, editor files or a second JS lockfile under git
+  data-literal    a src module spelling the data directory itself
+                  (``Path("data/...")``) instead of ``eulerlab.paths.data_path``
 
 Usage
   uv run python tools/hygiene.py            fail on anything not in the baseline
@@ -48,6 +50,8 @@ JUNK = re.compile(r"(^|/)(\.DS_Store|.*\.log|.*\.orig|.*\.bak|.*~|.*\.swp)$|^log
 SECOND_LOCKFILES = {"web/pnpm-lock.yaml", "web/yarn.lock"}
 WARN_ONLY = {"test-only"}
 SKIPPED_HOOKS = REPO / "data" / "logs" / "skipped_hooks.jsonl"
+DATA_LITERAL = re.compile(r"""Path\(\s*["']data(/|["'])|["']data/[a-z]""")
+DATA_LITERAL_ALLOWED = {"src/eulerlab/paths.py"}
 
 
 def _module_name(path: Path) -> str:
@@ -168,6 +172,19 @@ def check_junk() -> list[str]:
     return sorted(f for f in files if JUNK.search(f) or f in SECOND_LOCKFILES)
 
 
+def check_data_literals() -> list[str]:
+    """Src files that spell `data/...` themselves. `EULERLAB_DATA_DIR` is the one
+    setting for where data lives, and a literal path ignores it."""
+    found = []
+    for path in sorted(SRC.rglob("*.py")):
+        rel = path.relative_to(REPO).as_posix()
+        if rel in DATA_LITERAL_ALLOWED:
+            continue
+        if DATA_LITERAL.search(path.read_text()):
+            found.append(rel)
+    return found
+
+
 def collect() -> dict[str, list[str]]:
     dead, test_only = check_modules()
     return {
@@ -178,6 +195,7 @@ def collect() -> dict[str, list[str]]:
         "research-number": _number_collisions(REPO / "docs" / "RESEARCH", r"(\d{3})-"),
         "card-duplicate": check_cards(),
         "tracked-junk": check_junk(),
+        "data-literal": check_data_literals(),
     }
 
 

@@ -40,12 +40,13 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab.paths import data_path
 from eulerlab.quality import quarantine
 from eulerlab.quality.findings import Finding, Severity
 
 REGISTER = Path("config/data_sources.yaml")
-LANDING = Path("data/landing")
-GRADES = Path("data/quality/grades.json")
+LANDING = data_path("landing")
+GRADES = data_path("quality/grades.json")
 GRADE_ORDER = "ABCD"
 SHA = re.compile(r"^[0-9a-f]{64}$")
 

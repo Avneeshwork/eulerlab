@@ -21,9 +21,10 @@ from datetime import date, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 
+from eulerlab.paths import data_path
 from eulerlab.quality.findings import Finding, Severity
 
-LANDING_ROOT = Path("data/landing")
+LANDING_ROOT = data_path("landing")
 
 EXPECTED_SEGMENTS = frozenset({"cm", "fo"})
 """Cash and F&O should both exist for a normal NSE trading day."""

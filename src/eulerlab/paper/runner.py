@@ -47,8 +47,9 @@ from eulerlab.oms.killswitch import KillSwitch
 from eulerlab.oms.oms import OMS, Execution
 from eulerlab.oms.paper_broker import PaperBroker, PaperFaults
 from eulerlab.oms.states import OrderState
+from eulerlab.paths import data_path
 
-PAPER_DIR = Path("data/oms/paper")
+PAPER_DIR = data_path("oms/paper")
 
 
 class OMSExecutor:

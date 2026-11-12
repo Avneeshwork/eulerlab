@@ -36,7 +36,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-DERIVED = Path("data/derived")
+from eulerlab.paths import data_path
+
+DERIVED = data_path("derived")
 
 
 @dataclass(frozen=True)

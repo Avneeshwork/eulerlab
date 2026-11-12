@@ -35,9 +35,10 @@ from eulerlab.backtest.event_driven import FAR_FUTURE
 from eulerlab.backtest.strategy import MarketView, Strategy, decide
 from eulerlab.config import CONFIG_DIR
 from eulerlab.features.panel import PanelRow
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/screener.json")
-HISTORY = Path("data/derived/screener_history.jsonl")
+OUT = data_path("derived/screener.json")
+HISTORY = data_path("derived/screener_history.jsonl")
 # Each kind's holding period: the sessions to its next decision.
 HOLD = {"long": 21, "swing": 5}
 BENCHMARK = "NIFTYBEES"
@@ -404,7 +405,7 @@ def top_down(
 
 
 def _news_tone() -> dict[str, Any]:
-    path = Path("data/derived/stock_news_tone.json")
+    path = data_path("derived/stock_news_tone.json")
     if not path.exists():
         return {}
     got = json.loads(path.read_text(encoding="utf-8"))

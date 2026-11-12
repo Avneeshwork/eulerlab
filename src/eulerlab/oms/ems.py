@@ -44,10 +44,11 @@ from eulerlab.oms.broker import (
     DuplicateOrder,
 )
 from eulerlab.oms.states import Event
+from eulerlab.paths import data_path
 
 WINDOW_SECONDS = 1.0
 
-LIVE_WINDOW = Path("data/oms/rate_window.json")
+LIVE_WINDOW = data_path("oms/rate_window.json")
 """The one send window every live order manager on this machine shares.
 
 Each process used to keep its own window, so two books sending at the same

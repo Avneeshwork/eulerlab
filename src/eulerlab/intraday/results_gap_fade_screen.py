@@ -29,9 +29,10 @@ from eulerlab.ingest import nse_earnings_announcements as announcements
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_five_screen as five
 from eulerlab.intraday import overnight_reversal_screen as overnight
+from eulerlab.paths import data_path
 
 RUN_ID = "nse_results_gap_fade"
-OUT = Path("data/derived/results_gap_fade.json")
+OUT = data_path("derived/results_gap_fade.json")
 THRESHOLD = 0.02
 MAX_OPEN = 10
 """At most ten positions a day, ₹1 lakh each, as in the in-hours results screen."""

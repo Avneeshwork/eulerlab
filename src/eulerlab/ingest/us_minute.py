@@ -24,6 +24,7 @@ import time
 from collections.abc import Sequence
 
 from eulerlab.ingest import alpaca
+from eulerlab.paths import data_path
 
 BATCH = 25
 """Symbols per fetch-sync-prune cycle. Small enough that one cycle's local
@@ -47,7 +48,7 @@ def _sync_minute() -> tuple[bool, str]:
 
     from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config, sync_directory
 
-    root = Path("data/landing/us/minute")
+    root = data_path("landing/us/minute")
     if not root.exists():
         return True, "nothing to sync"
     try:
@@ -67,13 +68,12 @@ def _prune_minute() -> str:
     Verified per file rather than trusting the sync's return: the whole point
     of the ordering is that nothing is deleted until the bucket has it.
     """
-    from pathlib import Path
 
     from eulerlab.ingest import landing_reader
 
     remote = set(landing_reader.available("us", "minute/*/*.jsonl.gz"))
     removed = 0
-    for path in Path("data/landing/us/minute").glob("*/*.jsonl.gz"):
+    for path in data_path("landing/us/minute").glob("*/*.jsonl.gz"):
         relative = f"us/minute/{path.parent.name}/{path.name}"
         if relative in remote:
             path.unlink()

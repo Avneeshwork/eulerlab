@@ -174,7 +174,7 @@ def candles(
     return out, ""
 
 
-LANDING = __import__("pathlib").Path("data/landing/delta")
+LANDING = __import__("pathlib").data_path("landing/delta")
 
 
 def land_candles(

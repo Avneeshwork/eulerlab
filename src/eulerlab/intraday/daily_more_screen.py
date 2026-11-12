@@ -21,6 +21,8 @@ from datetime import date, time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -28,7 +30,7 @@ from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import other_data_screen as od
 
-OUT = Path("data/derived/daily_more.json")
+OUT = data_path("derived/daily_more.json")
 FIRST = date(2016, 1, 1)
 REPORTS_FIRST = date(2021, 7, 1)
 END = cs.DATA_END

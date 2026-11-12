@@ -53,11 +53,12 @@ from eulerlab.bitemporal.store import BitemporalStore, Record
 from eulerlab.corp_actions.build_factors import PRICE_FACTORS, cached_dates
 from eulerlab.corp_actions.prices import instrument_key
 from eulerlab.filecache import FileMemo
+from eulerlab.paths import data_path
 from eulerlab.quality.sources import bars_from_bhavcopy
 
 IST = ZoneInfo("Asia/Kolkata")
-PANEL_PATH = Path("data/derived/price_panel.jsonl")
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
+PANEL_PATH = data_path("derived/price_panel.jsonl")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 
 @dataclass(frozen=True, slots=True)
@@ -479,7 +480,7 @@ def _parse_jsonl(path: Path) -> list[PanelRow]:
 
 # --- the columnar copy ------------------------------------------------------------
 
-COLUMNS_DIR = Path("data/cache")
+COLUMNS_DIR = data_path("cache")
 """Where the panel's columnar copy lives. Not `data/derived/`, which
 `make sync-derived` uploads whole; this is a copy of a file already there.
 

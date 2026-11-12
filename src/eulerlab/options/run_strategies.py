@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from pathlib import Path
 from typing import Any
 
 from eulerlab.options import nifty_history
 from eulerlab.options import strategies as st
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/options_strategies.json")
+OUT = data_path("derived/options_strategies.json")
 CAPITAL = 1_000_000.0
 SPLIT = date(2024, 1, 1)
 

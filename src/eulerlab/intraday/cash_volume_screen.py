@@ -40,9 +40,10 @@ from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/cash_volume.json")
-PARTS = Path("data/derived/cash_volume_parts")
+OUT = data_path("derived/cash_volume.json")
+PARTS = data_path("derived/cash_volume_parts")
 BATCH = 40
 
 DAY_START = 5

@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -41,8 +43,8 @@ from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import stock_fo_screen as fo
 
-OUT = Path("data/derived/nse_reports_intraday.json")
-MANIFEST = Path("data/landing/nse_reports/manifest.jsonl")
+OUT = data_path("derived/nse_reports_intraday.json")
+MANIFEST = data_path("landing/nse_reports/manifest.jsonl")
 FIRST_DAY = date(2021, 7, 1)
 SLBM_SHARE = 0.005
 VALUE_DAYS = 20
@@ -296,8 +298,8 @@ def ban_exit_screen() -> dict[str, Any]:
 
 
 DAILY_FIRST = date(2015, 1, 1)
-DAILY_OUT = Path("data/derived/nse_ban_short_daily.json")
-PANEL = Path("data/derived/price_panel.jsonl")
+DAILY_OUT = data_path("derived/nse_ban_short_daily.json")
+PANEL = data_path("derived/price_panel.jsonl")
 
 
 def daily_bars(symbols: set[str], path: Path = PANEL) -> dict[str, dict[date, tuple[float, float]]]:
@@ -414,7 +416,7 @@ def main() -> int:
     args = parser.parse_args()
     if args.ban_exit:
         one = ban_exit_screen()
-        Path("data/derived/nse_ban_exit_intraday.json").write_text(json.dumps(one, indent=1))
+        data_path("derived/nse_ban_exit_intraday.json").write_text(json.dumps(one, indent=1))
         print(
             f"H-0106: {one['trades']} trades of {one['events']} events; "
             f"{one['per_trade_bps']['gross_mean']} bps gross, "

@@ -36,9 +36,11 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-OUT = Path("data/derived/fundamentals_annual.jsonl")
-META = Path("data/derived/fundamentals_annual.meta.json")
-MANIFEST = Path("data/landing/fundamentals/manifest.jsonl")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/fundamentals_annual.jsonl")
+META = data_path("derived/fundamentals_annual.meta.json")
+MANIFEST = data_path("landing/fundamentals/manifest.jsonl")
 # ASSUMPTION: A-107. Annual results are public within 90 days of the year end.
 LAG_DAYS = 90
 OVERRIDES = {date(2020, 3, 31): date(2020, 8, 1)}

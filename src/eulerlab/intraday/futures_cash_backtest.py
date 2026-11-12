@@ -40,12 +40,13 @@ from eulerlab.intraday.microstructure_five import (
     summarize,
 )
 from eulerlab.intraday.store import fetch as fetch_cash
+from eulerlab.paths import data_path
 
 IST = ZoneInfo("Asia/Kolkata")
-MASTER_PATH = Path("data/master/instruments.jsonl")
-DEFAULT_RAW = Path("data/landing/fyers_expired_fo")
-DEFAULT_OUTPUT = Path("data/derived/microstructure_five/micro-05")
-DERIVED_ROOT = Path("data/derived")
+MASTER_PATH = data_path("master/instruments.jsonl")
+DEFAULT_RAW = data_path("landing/fyers_expired_fo")
+DEFAULT_OUTPUT = data_path("derived/microstructure_five/micro-05")
+DERIVED_ROOT = data_path("derived")
 
 
 class BacktestConfig(BaseModel):

@@ -23,9 +23,10 @@ from zoneinfo import ZoneInfo
 from eulerlab.env import load_env, require
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, FetchResult, TransportError
 from eulerlab.ingest.landing import Landing
+from eulerlab.paths import data_path
 
 MCX_URL = "https://api.kite.trade/instruments/MCX"
-LANDING_ROOT = Path("data/landing/mcx")
+LANDING_ROOT = data_path("landing/mcx")
 SESSION_FILE = Path(".kite_session.json")
 REQUIRED_COLUMNS = frozenset(
     {

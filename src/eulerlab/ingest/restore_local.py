@@ -17,8 +17,9 @@ from pathlib import Path
 
 from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
 from eulerlab.ingest.landing import READ_ONLY, Landing, sha256_of
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse")
+DEFAULT_LANDING = data_path("landing/nse")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

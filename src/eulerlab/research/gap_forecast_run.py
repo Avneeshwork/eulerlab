@@ -14,13 +14,13 @@ import json
 from collections.abc import Sequence
 from datetime import date
 from itertools import pairwise
-from pathlib import Path
 from typing import Any
 
+from eulerlab.paths import data_path
 from eulerlab.research import gap_forecast as gf
 from eulerlab.research.session_studies import futures_legs
 
-OUT = Path("data/derived/gap_forecast.json")
+OUT = data_path("derived/gap_forecast.json")
 PAPER_END = date(2025, 6, 30)
 """The paper's sample ends June 2025. Ours starts in 2015, not 2010."""
 SPLIT = date(2024, 1, 1)

@@ -21,8 +21,9 @@ from pathlib import Path
 
 from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
 from eulerlab.ingest.landing import Landing, sha256_of
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse")
+DEFAULT_LANDING = data_path("landing/nse")
 STORAGE_CONFIG = Path("config/storage.yaml")
 REMOTE_LIST_TIMEOUT_S = 15
 

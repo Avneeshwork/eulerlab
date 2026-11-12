@@ -39,10 +39,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-ROOT = Path("data/workspaces")
+from eulerlab.paths import data_path
 
-SHARED_LANDING = Path("data/landing")
-SHARED_DERIVED = Path("data/derived")
+ROOT = data_path("workspaces")
+
+SHARED_LANDING = data_path("landing")
+SHARED_DERIVED = data_path("derived")
 """Market data, one copy, readable by every workspace.
 
 Deliberately NOT under `ROOT`. A path that cannot be reached from a workspace

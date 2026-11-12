@@ -42,9 +42,10 @@ from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_five_screen as india_five
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/cash_events.json")
-PARTS = Path("data/derived/cash_events_parts")
+OUT = data_path("derived/cash_events.json")
+PARTS = data_path("derived/cash_events_parts")
 BATCH = 40
 
 BURST_FROM, BURST_LAST = 30, 295

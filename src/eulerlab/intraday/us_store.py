@@ -36,16 +36,16 @@ import json
 import re
 from datetime import UTC, date, datetime, time
 from functools import lru_cache
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from eulerlab.ingest import landing_reader
 from eulerlab.intraday.tweezer import Candle
+from eulerlab.paths import data_path
 
 TREE = "us"
 SUBTREE = "minute"
 
-LOCAL_ROOT = Path("data/landing/us")
+LOCAL_ROOT = data_path("landing/us")
 """Where the tree lives on disk. Only its directory names are read."""
 
 EXCHANGE = ZoneInfo("America/New_York")

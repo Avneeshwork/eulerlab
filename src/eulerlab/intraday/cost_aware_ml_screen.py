@@ -23,8 +23,9 @@ from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import screen_common as sc
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/cost_aware_ml_nse_stock_strategies.json")
+OUT = data_path("derived/cost_aware_ml_nse_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS")
 CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)

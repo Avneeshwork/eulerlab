@@ -45,10 +45,12 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 NAV_ALL_URL = "https://portal.amfiindia.com/spages/NAVAll.txt"
 MFAPI_URL = "https://api.mfapi.in/mf"
 
-LANDING = Path("data/landing/mf")
+LANDING = data_path("landing/mf")
 SNAPSHOT_DIR = LANDING / "navall"
 HISTORY_DIR = LANDING / "history"
 

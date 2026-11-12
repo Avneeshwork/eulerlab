@@ -30,9 +30,10 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from eulerlab.costs.router import fill_cost
 from eulerlab.costs.schedule import Segment, Side
+from eulerlab.paths import data_path
 
 IST = ZoneInfo("Asia/Kolkata")
-DATA_ROOT = Path("data/landing")
+DATA_ROOT = data_path("landing")
 DEFAULT_INPUT = DATA_ROOT / "microstructure_normalized"
 CAPITAL = 1_000_000.0
 NOTIONAL = 100_000.0

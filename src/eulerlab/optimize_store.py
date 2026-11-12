@@ -20,7 +20,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-SWEEPS_PATH = Path("data/derived/sweeps.jsonl")
+from eulerlab.paths import data_path
+
+SWEEPS_PATH = data_path("derived/sweeps.jsonl")
 
 KEEP = 20
 """How many past sweeps to retain. Enough to see whether a strategy's numbers

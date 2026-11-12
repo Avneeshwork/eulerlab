@@ -39,7 +39,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-LANDING = Path("data/landing/us")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/us")
 DATA = "https://data.alpaca.markets"
 PAPER = "https://paper-api.alpaca.markets"
 

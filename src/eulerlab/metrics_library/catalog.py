@@ -15,9 +15,10 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.agents import knowledge_index
+from eulerlab.paths import data_path
 
 ROOT = Path("docs/METRICS")
-MISSES = Path("data/derived/metric_misses.jsonl")
+MISSES = data_path("derived/metric_misses.jsonl")
 """Lookups that found no page: the keeper reads them as candidate pages (ADR-104)."""
 
 ONE_LINE = re.compile(r"^\*\*In one line:\*\*\s*(.+)$", re.MULTILINE)

@@ -38,6 +38,7 @@ from eulerlab.corp_actions.adjust import ClosePriceLookup
 from eulerlab.env import require
 from eulerlab.ingest.landing import ManifestEntry
 from eulerlab.master.identity import InstrumentId, NotAnIsin
+from eulerlab.paths import data_path
 
 SYMBOL_FIELDS = ("TckrSymb", "SYMBOL")
 ISIN_FIELDS = ("ISIN",)
@@ -115,7 +116,7 @@ def parse_closes(payload: bytes) -> dict[str, tuple[float, float]]:
     return out
 
 
-CACHE_PATH = Path("data/derived/close_index.jsonl")
+CACHE_PATH = data_path("derived/close_index.jsonl")
 
 
 class TransactionCapExceeded(RuntimeError):

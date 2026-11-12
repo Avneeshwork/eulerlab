@@ -46,6 +46,7 @@ from typing import Any
 
 from eulerlab.costs.model import cost_of_exercise, cost_of_trade
 from eulerlab.costs.schedule import Segment, Side
+from eulerlab.paths import data_path
 
 STEP = 100.0
 """Strikes are taken at 100-point multiples, listed throughout 2015-2026."""
@@ -58,8 +59,8 @@ STRANGLE_MARGIN = 0.15
 the notional of one leg. SPAN plus exposure margin on a short Nifty strangle
 has run at roughly 12-18% of notional; not measured here."""
 
-EXPIRIES = Path("data/derived/nifty_expiries.json")
-INDEX_HISTORY = Path("data/derived/index_history.jsonl")
+EXPIRIES = data_path("derived/nifty_expiries.json")
+INDEX_HISTORY = data_path("derived/index_history.jsonl")
 
 
 @dataclass

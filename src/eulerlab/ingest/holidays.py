@@ -18,6 +18,8 @@ from collections.abc import Mapping
 from datetime import date, datetime
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 HOLIDAY_URL = "https://www.nseindia.com/api/holiday-master?type=trading"
 CACHE_NAME = "nse_holidays.json"
 
@@ -103,7 +105,7 @@ def save_holidays(cache_dir: Path, payload: bytes) -> Path:
     return cache
 
 
-REFERENCE = Path("data/landing/reference")
+REFERENCE = data_path("landing/reference")
 
 
 def is_session(day: date, holidays: frozenset[date]) -> bool:

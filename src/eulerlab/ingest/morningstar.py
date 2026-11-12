@@ -50,8 +50,10 @@ from datetime import UTC, date, datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 URL = "https://www.morningstar.in/featured-reports.aspx"
-LANDING = Path("data/landing/mf/morningstar")
+LANDING = data_path("landing/mf/morningstar")
 
 USER_AGENT = "EulerLab/0.1 (research; contact via repository)"
 
@@ -323,7 +325,7 @@ def land(ratings: list[Rating], *, directory: Path = LANDING) -> Path:
     return path
 
 
-ISIN_PATH = Path("data/landing/mf/morningstar_isin.jsonl")
+ISIN_PATH = data_path("landing/mf/morningstar_isin.jsonl")
 ISIN_RE = re.compile(r"\bINF[0-9A-Z]{9}\b")
 
 
@@ -339,7 +341,7 @@ def parse_isin(page: str) -> str:
     return match.group(0) if match else ""
 
 
-ENRICHED_DIR = Path("data/landing/mf/enriched")
+ENRICHED_DIR = data_path("landing/mf/enriched")
 
 
 def land_enriched(rows: list[dict[str, object]], *, directory: Path = ENRICHED_DIR) -> Path:

@@ -22,9 +22,10 @@ from datetime import date
 from pathlib import Path
 
 from eulerlab.features.panel import PANEL_PATH, cached_days
+from eulerlab.paths import data_path
 
-REBUILD_PATH = Path("data/derived/price_panel.ohlc.jsonl")
-BACKUP_PATH = Path("data/derived/price_panel.close_only.jsonl")
+REBUILD_PATH = data_path("derived/price_panel.ohlc.jsonl")
+BACKUP_PATH = data_path("derived/price_panel.close_only.jsonl")
 
 
 def rebuild(*, min_interval: float = 0.3, limit: int | None = None) -> tuple[int, int]:

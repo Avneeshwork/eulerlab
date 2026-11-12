@@ -17,7 +17,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-SWEEPS = Path("data/derived/sweeps")
+from eulerlab.paths import data_path
+
+SWEEPS = data_path("derived/sweeps")
 SAMPLE_EVERY = 5
 
 

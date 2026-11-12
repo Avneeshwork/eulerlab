@@ -26,8 +26,9 @@ from pathlib import Path
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.landing import Landing
 from eulerlab.ingest.nse_eod import session_days, today_ist
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse")
+DEFAULT_LANDING = data_path("landing/nse")
 
 
 def _ddmmyyyy(day: date) -> str:

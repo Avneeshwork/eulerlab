@@ -25,8 +25,9 @@ from typing import Any
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import session_papers as sp
 from eulerlab.intraday.session_papers_run import official_closes
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/india_intraday_papers.json")
+OUT = data_path("derived/india_intraday_papers.json")
 INDEX = "NIFTYBEES"
 SPLIT = date(2024, 1, 1)
 UNIVERSE_SIZE = 100

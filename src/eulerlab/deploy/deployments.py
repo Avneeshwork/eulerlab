@@ -29,7 +29,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ROOT = Path("data/deployments")
+from eulerlab.paths import data_path
+
+ROOT = data_path("deployments")
 
 Mode = Literal["paper", "live"]
 Status = Literal["active", "stopped", "halted"]

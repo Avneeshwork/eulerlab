@@ -41,13 +41,14 @@ from typing import Any
 
 from eulerlab.ingest.cloud import MissingCredentials, ReadableStore, load_storage_config
 from eulerlab.ingest.landing import sha256_of
+from eulerlab.paths import data_path
 
 TIME_FIELDS = ("knowledge_time", "receipt_time")
 """Fields that say when we held a row, not what the row is."""
 TREES = ("crypto", "fx", "news", "us", "mf", "calendar", "marketdata", "delta")
 """Landing trees of `.jsonl.gz` files that `make daily` uploads and deletes."""
-LANDING = Path("data/landing")
-REPORT = Path("data/derived/merge_back.json")
+LANDING = data_path("landing")
+REPORT = data_path("derived/merge_back.json")
 WORKERS = 8
 DEFAULT_LIMIT = 4000
 """Files merged a run at most, so one run stays under about half an hour; the
