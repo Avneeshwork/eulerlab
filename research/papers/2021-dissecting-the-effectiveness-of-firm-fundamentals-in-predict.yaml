@@ -1,0 +1,44 @@
+id: 2021-dissecting-the-effectiveness-of-firm-fundamentals-in-predict
+title: Dissecting the effectiveness of firm fundamentals in predicting cross-sectional stock
+  returns
+authors: Fujing Jin (16554835)
+year: 2021
+kind: paper
+source_url: https://core.ac.uk/works/286726943
+pdf: ''
+added: '2026-11-10'
+status: idea
+markets:
+- US equities (unspecified years)
+- Chinese equities (unspecified years)
+summary: The author asks whether firm investment, a Chinese‑style F‑score, and a composite
+  quality measure predict cross‑sectional returns. Using US and Chinese equity data, the study
+  builds quarterly investment‑to‑asset, asset‑growth, and F‑score signals, runs univariate
+  portfolio sorts and FM regressions, and finds negative return predictability for high investment
+  firms and positive predictability for high F‑score/quality firms, even after controlling
+  for standard factors.
+trade_idea: Long stocks with low investment‑to‑asset (or low asset growth) and high F‑score/quality,
+  short the opposite; the spread should earn a premium because investors underprice low‑investment,
+  high‑quality firms, especially when equity‑issuance constraints or limits‑to‑arbitrage are
+  high.
+implementation: |-
+  universe: US equities (large‑cap) and Chinese equities (all listed); the paper does not restrict further.
+  data: Quarterly financial statements for investment‑to‑asset, asset growth, and the 9‑item F‑score; plus price/return data for portfolio construction.
+  signal: Rank stocks by (i) investment‑to‑asset (lower = higher expected return) and (ii) F‑score/quality (higher = higher expected return).
+  entry: Go long the top decile of the combined ranking and short the bottom decile at the start of each quarter.
+  exit: Rebalance quarterly when new financial statements are released.
+  holding_period: Quarterly (approximately 63 trading days).
+  sizing: Equal‑weight within long and short legs.
+  costs: unspecified
+red_flags:
+- Signals are updated only quarterly, so they may be stale relative to daily price movements.
+- The paper does not disclose the sample period, raising concerns about survivorship bias
+  and regime dependence.
+- No explicit transaction‑cost or market‑impact estimates are provided, which could erode
+  the reported premium.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-10; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

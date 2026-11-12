@@ -1,0 +1,39 @@
+id: burggraf-2021-essays-in-cryptocurrency
+title: Essays in cryptocurrency
+authors: Burggraf, Tobias
+year: 2021
+kind: paper
+source_url: https://core.ac.uk/works/315752400
+pdf: ''
+added: '2026-11-10'
+status: idea
+markets:
+- cryptocurrency (unspecified period)
+summary: The dissertation studies several crypto topics; one essay tests whether low‑volatility
+  cryptocurrencies earn higher risk‑adjusted returns than high‑volatility ones using portfolio
+  sorting and cross‑sectional regressions. It finds a persistent low‑volatility outperformance
+  after controlling for liquidity and size.
+trade_idea: Long the most low‑volatility cryptocurrencies (as measured by recent return dispersion)
+  and avoid or short the high‑volatility ones, expecting higher risk‑adjusted returns.
+implementation: |-
+  universe: major digital assets (cryptocurrencies) as used in the study
+  data: daily price and volume data
+  signal: low_volatility (negated median absolute deviation of daily returns over the past 3 months)
+  entry: rank assets by the low_volatility signal and go long the top N (e.g., 30) most low‑vol assets
+  exit: unspecified
+  holding period: unspecified
+  sizing: equal‑weight across selected assets
+  costs: unspecified
+red_flags:
+- The study does not report transaction costs; crypto trading fees and slippage can erode
+  returns.
+- 'Liquidity constraints: many low‑vol crypto assets may have thin trading volumes, limiting
+  capacity.'
+- Sample period and survivorship bias are unclear; results may not hold in different market
+  regimes.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-10; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

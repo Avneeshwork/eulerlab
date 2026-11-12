@@ -1,0 +1,39 @@
+id: pandey-2017-volatility-effect-and-the-role-of-firm-quality-factor-in-ret
+title: 'Volatility effect and the role of firm quality factor in returns: Evidence from the
+  Indian stock market'
+authors: Asheesh Pandey, S. Sehgal
+year: 2017
+kind: paper
+source_url: https://www.semanticscholar.org/paper/ba30a2ddcacbe50c315554482a56302ef74bfcd6
+pdf: ''
+added: '2026-11-12'
+status: idea
+markets:
+- Indian equities (BSE‑500), Mar 2000–Nov 2013
+summary: The authors ask whether volatility predicts returns in India using daily data for
+  493 BSE‑500 stocks from Mar 2000 to Nov 2013; they sort stocks by volatility and compare
+  returns; they find high‑volatility stocks significantly outperform low‑volatility ones and
+  that a firm‑quality factor (cash‑flow variability) helps explain the pattern.
+trade_idea: Long the most volatile stocks (and optionally short the least volatile) to capture
+  the reported volatility premium.
+implementation: |-
+  universe: BSE‑500 constituents (Indian equities)
+  data: daily adjusted close, volume, turnover
+  signal: feature: "ts_std(ret(1),63)" (63‑day rolling standard deviation of daily returns)
+  entry: rank_and_hold: go long top N most volatile stocks, equal‑weighted
+  exit: unspecified
+  holding period: unspecified (paper does not state)
+  sizing: equal weight per stock
+  costs: round‑trip intraday ≈9 bps, delivery STT 0.1 % each side (if using delivery trades)
+red_flags:
+- The sample ends in 2013, so regime change after 2013 may invalidate the effect.
+- The study does not account for transaction costs; 9 bps round‑trip plus 0.1 % STT could
+  erode the premium.
+- Only BSE‑500 stocks are used, introducing survivorship bias and limiting capacity for high‑turnover
+  volatility trades.
+- Drafted by the paper agent (groq) from the abstract only found on semantic_scholar 2026-11-12;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

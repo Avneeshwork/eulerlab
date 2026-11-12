@@ -1,0 +1,49 @@
+id: jagtap-2026-cross-border-arbitrage-in-cryptocurrency-markets-evidence-fr
+title: 'Cross-Border Arbitrage in Cryptocurrency Markets: Evidence from the India-United States
+  Corridor'
+authors: Udayan Jagtap, Safdar Inam
+year: 2026
+kind: paper
+source_url: https://doi.org/10.2139/ssrn.7427518
+pdf: ''
+added: '2026-11-10'
+status: idea
+markets:
+- Cryptocurrency (BTC, ETH, USDT) on Indian exchanges vs US exchanges, daily data July 2022‑June 2025;
+  high‑frequency order‑book snapshot for ~2.8 days.
+summary: The authors ask whether Bitcoin, Ether and Tether trade at the same price on Indian
+  exchanges and US exchanges. They use 2,942 daily price observations from July 2022‑June 2025
+  and a short high‑frequency order‑book sample (≈2.8 days). They compare log‑prices, test
+  for cointegration, and measure quoted spreads and depth. They find Indian prices are on
+  average 5.38 % above US prices (97.18 % of observations), a statistically huge premium (t‑stat ≈ 20).
+  High‑frequency data show a 48.19 bp average spread and shallow depth. Using a square‑root
+  impact model they show an optimal arbitrageur can capture one‑third of the cost‑adjusted
+  premium, leaving about 0.6 % per round‑trip after costs.
+trade_idea: Buy the cryptocurrency on the cheaper US venue and simultaneously sell on the
+  more expensive Indian venue when the observed price premium exceeds the quoted spread and
+  impact costs; the paper suggests the residual premium (~0.6 % per cycle) is capturable.
+implementation: |-
+  universe: Bitcoin, Ether, Tether traded on two Indian exchanges and comparable US exchanges.
+  data: Daily closing prices July 2022‑June 2025; high‑frequency order‑book snapshot (≈2.8 days) for spread and depth.
+  signal: log‑price premium = log(price_India) – log(price_US).
+  entry: Enter when premium > quoted spread (≈48 bp) plus a safety buffer (e.g., 20 bp).
+  exit: Close the position when the premium narrows to zero or after a fixed intra‑day horizon (unspecified).
+  holding_period: Intra‑day (minutes to hours), as the premium reverts quickly; paper does not specify exact horizon.
+  sizing: Not specified; the paper derives that an optimal arbitrageur captures one‑third of the premium regardless of volume, implying proportional sizing to available depth.
+  costs: Quoted spread ≈48.19 bp; depth 0.24 BTC (offer) / 0.11 BTC (bid); square‑root impact model assumed but impact coefficient not estimated.
+red_flags:
+- The high‑frequency execution analysis is based on only ~2.8 days of data, which may not
+  represent typical market conditions or liquidity regimes.
+- Transfer latency and regulatory compliance costs between the US and India are not quantified,
+  yet they can easily exceed the 0.6 % net premium the paper claims.
+- The premium is non‑stationary and shifts over time; the paper does not test whether the
+  0.6 % net return persists out‑of‑sample or after accounting for survivorship bias.
+- Drafted by the paper agent (groq) from the abstract from Crossref found on ssrn 2026-11-10;
+  not yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Average Indian‑US premium = 5.38 % (97.18 % of observations); t‑stat after
+  serial‑correction ≈ 19‑22. Quoted spread = 48.19 bp; depth = 0.24 BTC offer, 0.11 BTC bid.
+  Optimally captured premium ≈ one‑third of cost‑adjusted premium, yielding ≈0.6 % net per
+  arbitrage cycle.
+hypothesis: ''
+strategies: []

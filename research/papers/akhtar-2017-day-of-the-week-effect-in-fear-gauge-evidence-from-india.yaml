@@ -1,0 +1,35 @@
+id: akhtar-2017-day-of-the-week-effect-in-fear-gauge-evidence-from-india
+title: 'Day-of-The-Week Effect in Fear Gauge: Evidence from India'
+authors: Samreen Akhtar, Valeed Ahmad Ansari, Saghir Ahmad Ansari
+year: 2017
+kind: paper
+source_url: https://autopapers.ssrn.com/sol3/papers.cfm?abstract_id=3159898
+pdf: ''
+added: '2026-11-12'
+status: idea
+markets:
+- India – Nifty 50 index and NIFTY VIX, daily frequency (period not specified)
+summary: The authors examine whether the Indian fear gauge (VIX) and its underlying index
+  (Nifty 50) exhibit a day‑of‑the‑week effect. Using daily data they compare returns and volatility
+  across weekdays, looking for consistent patterns. They find evidence that certain weekdays
+  have higher (or lower) VIX levels and associated market returns.
+trade_idea: If VIX is consistently higher on a particular weekday (e.g., Monday) and lower
+  on another (e.g., Friday), a trader could buy VIX futures at the open of the high‑VIX day
+  and close at the low‑VIX day, capturing the predictable spread.
+implementation: 'universe: VIX futures (or index futures) on the Indian market; data: daily
+  VIX and Nifty levels; signal: day‑of‑week dummy (e.g., Monday = 1, else = 0); entry: long
+  VIX futures at market open on the identified high‑VIX weekday; exit: close position at market
+  close on the identified low‑VIX weekday; holding period: 1‑4 days (unspecified); sizing:
+  unspecified; costs: round‑trip intraday cost ≈9 bps for large stocks (apply similarly to
+  futures) and 0.1 % STT per side for delivery trades (if used).'
+red_flags:
+- No explicit sample period or number of years reported – results may be regime‑dependent.
+- Liquidity of VIX futures is not discussed; large positions could move the market.
+- Transaction costs are only mentioned for equities; actual futures costs (exchange fees,
+  margin) are omitted.
+- Drafted by the paper agent (groq) from the abstract only found on ssrn 2026-11-12; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

@@ -1,0 +1,36 @@
+id: joshipura-2021-leverage-constraints-or-preference-for-lottery-what-explains
+title: 'Leverage constraints or preference for lottery: What explains the low-risk effect
+  in India?'
+authors: Mayank Harshvadan Joshipura
+year: 2021
+kind: paper
+source_url: https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3831378
+pdf: ''
+added: '2026-11-12'
+status: idea
+markets:
+- Indian equities, Jan 2000‑Sep 2018
+summary: The authors ask why low‑risk (low‑beta) stocks earn higher returns in India. Using
+  NSE data from Jan 2000 to Sep 2018 they construct a Betting‑against‑Correlation (BAC) factor
+  to capture leverage‑constraint effects and an SMAX factor for lottery‑preference effects.
+  They compare the explanatory power of each factor and find leverage constraints dominate.
+trade_idea: Long stocks with the lowest systematic beta and short those with the highest beta,
+  expecting the low‑beta side to outperform net of transaction costs.
+implementation: |-
+  universe: All NSE‑listed equities Jan 2000‑Sep 2018
+  data: daily price and volume data (unspecified adjustments)
+  signal: beta estimate per stock (unspecified method)
+  entry: unspecified
+  exit: unspecified
+  holding period: unspecified (paper does not state rebalancing frequency)
+  sizing and costs: unspecified (paper does not quantify position sizing or transaction costs)
+red_flags:
+- No explicit description of beta estimation method or look‑ahead bias controls.
+- Results are based on a sample ending in 2018; regime shift after 2020 may alter the effect.
+- Potential survivorship bias because only currently listed NSE stocks may have been used.
+- Drafted by the paper agent (groq) from the abstract only found on ssrn 2026-11-12; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

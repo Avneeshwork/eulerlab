@@ -1,0 +1,34 @@
+id: chernov-2025-unpriced-risks-rethinking-cross-sectional-asset-pricing
+title: 'Unpriced Risks: Rethinking Cross-Sectional Asset Pricing'
+authors: Mikhail Chernov, Magnus Dahlquist, Lars Lochstoer
+year: 2025
+kind: paper
+source_url: https://doi.org/10.3386/w34009
+pdf: ''
+added: '2026-11-10'
+status: rejected
+markets:
+- Equities (unspecified region and period)
+- Currencies (unspecified)
+- Sovereign bonds (unspecified)
+summary: The authors argue that characteristic‑based factor returns contain large unpriced
+  components that lower Sharpe ratios. They decompose factor returns into priced (mean‑variance
+  efficient) and unpriced parts, show how hedging the unpriced part can realign factors with
+  efficiency, and discuss practical hedge‑portfolio construction for equities, currencies,
+  and sovereign bonds.
+trade_idea: 'Not a testable trading idea: The paper proposes a generic hedging methodology
+  without specifying a concrete signal, universe, or trading rules, so it is not a directly
+  testable trading idea.'
+implementation: unspecified
+red_flags:
+- No specific factor, signal, or portfolio construction rules are provided, making back‑testing
+  impossible.
+- The paper does not report transaction costs, liquidity constraints, or turnover limits.
+- Sample period, asset universe, and data frequency are not disclosed, preventing assessment
+  of regime or survivorship bias.
+- Read by the research agent (groq) from the abstract from OpenAlex found on nber 2026-11-10
+  and judged not a testable trading idea; not read by the operator.
+reported_results: Unpriced risks account for 30‑99% of factor return variance, and hedging
+  can more than double Sharpe ratios. No detailed statistics or t‑values are given.
+hypothesis: ''
+strategies: []

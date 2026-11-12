@@ -1,0 +1,36 @@
+id: 2018-liquidity-risk-for-institutional-investors-impact-on-low-vol
+title: Liquidity Risk for Institutional Investors Impact on Low-volatility Anomaly
+authors: Tsai , Li-Jen
+year: 2018
+kind: paper
+source_url: https://core.ac.uk/works/51969488
+pdf: ''
+added: '2026-11-12'
+status: idea
+markets:
+- Taiwan equities, sample period not specified (paper published 2018)
+summary: The study examines Taiwan equities and finds (1) a low‑volatility anomaly, (2) institutional
+  net buying positively linked to that anomaly, and (3) during a 1‑week holding period institutional
+  investors pause buying high‑volatility stocks, causing those stocks to underperform low‑volatility
+  stocks; it also links US interbank liquidity risk to the Taiwanese market.
+trade_idea: Long low‑volatility stocks and short high‑volatility stocks for a 1‑week horizon,
+  based on the premise that institutional investors withdraw from high‑volatility names, leading
+  to relative price declines.
+implementation: 'universe: unspecified; data: Taiwan stock returns and institutional net‑buying
+  flows; signal: institutional net‑buying intensity on high‑volatility stocks (or proxy low‑volatility
+  ranking); entry: go long low‑volatility, short high‑volatility at week start; exit: close
+  positions after 1 week; holding period: 1 week; sizing: unspecified; costs: not accounted
+  for in the paper.'
+red_flags:
+- Only Taiwan equities are examined; results may not transfer to Indian or US markets due
+  to different market microstructure.
+- The paper does not incorporate transaction costs, which for Indian intraday trades are ~9 bps
+  and delivery trades incur 0.1 % STT each side, potentially eroding the weekly return.
+- Institutional net‑buying data may be unavailable or delayed for many markets, forcing reliance
+  on proxies that could introduce look‑ahead bias.
+- Drafted by the paper agent (groq) from the abstract only found on core 2026-11-12; not yet
+  read by the operator, so every number above must be checked against the paper before it
+  drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []

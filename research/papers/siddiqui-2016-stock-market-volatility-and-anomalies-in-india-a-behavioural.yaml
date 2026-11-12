@@ -1,0 +1,40 @@
+id: siddiqui-2016-stock-market-volatility-and-anomalies-in-india-a-behavioural
+title: 'Stock Market Volatility and Anomalies in India: A Behavioural Approach'
+authors: Taufeeque Ahmad Siddiqui, Isha Narula
+year: 2016
+kind: paper
+source_url: https://doi.org/10.1177/2319510x17708368
+pdf: ''
+added: '2026-11-12'
+status: idea
+markets:
+- Indian equities (Nifty and small‑cap), period not specified in the abstract
+summary: The authors ask whether volatility‑based behavioural anomalies exist in the Indian
+  stock market. They analyse daily returns of Nifty and small‑cap stocks using GARCH, EGARCH
+  and CGARCH models. They find persistent herding, a low‑volatility anomaly where low‑volatility
+  stocks earn higher returns, and long‑ and short‑run volatility persistence.
+trade_idea: Long stocks with the lowest recent volatility (e.g., low EGARCH conditional variance)
+  and avoid or short high‑volatility stocks, expecting the low‑volatility anomaly to generate
+  excess returns.
+implementation: |-
+  universe: Indian equities (Nifty constituents and small‑cap stocks)
+  data: daily price and volume data
+  signal: low volatility measure (e.g., EGARCH conditional variance or library low_volatility feature)
+  entry: go long the N lowest‑volatility stocks each rebalance
+  exit: unspecified
+  holding period: unspecified
+  sizing: unspecified
+  costs: unspecified
+red_flags:
+- The paper does not disclose the sample period, making it impossible to assess regime dependence
+  or survivorship bias.
+- Transaction costs and market impact are omitted; Indian round‑trip costs of ~9 bps could
+  erode the reported anomaly.
+- Liquidity filters are not described; the strategy may select illiquid stocks that cannot
+  be scaled.
+- Drafted by the paper agent (groq) from the abstract only found on openalex 2026-11-12; not
+  yet read by the operator, so every number above must be checked against the paper before
+  it drives a decision.
+reported_results: Not reported.
+hypothesis: ''
+strategies: []
