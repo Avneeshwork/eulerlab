@@ -3,6 +3,22 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118)
+
+Operator: "first fix infra related work then we make multiuser"; the platform is to be multi-user, open source with a hosted subscription; "we will host on vps later".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4548 | One setting for where data lives: `EULERLAB_DATA_DIR`, 328 literals in 198 files replaced, hygiene `data-literal` check | DONE 2026-11-12 — `eulerlab.paths`, ADR-163; `uv run pytest tests/test_paths.py` |
+| T-4549 | The job table in `src/` (`eulerlab.jobs`), read by the launchd writer and by a scheduler process with catch-up, skip-and-log, Telegram on failure, heartbeat and run log | DONE 2026-11-12 — `make scheduler`, `make scheduler-list`; `uv run pytest tests/test_scheduler.py` |
+| T-4550 | `make health`: scheduler heartbeat, each job's latest slot, the live book's clock, the kill switch; exit 1 when red; under `ops` in `GET /api/health` | DONE 2026-11-12 — `eulerlab.health`; `tests/test_health.py` |
+| T-4551 | Dead-man switch in the kill-switch process: trips when an armed live book's clock is two minutes quiet in market hours; the clock writes a heartbeat each tick | DONE 2026-11-12 — `oms/deadman.py`, `make deadman`; `tests/test_deadman.py`. Cannot square off (S-060) |
+| T-4552 | Containers: one Python image for api, scheduler, killswitch; `web/Dockerfile`; `docker-compose.yml` with the repo bind-mounted and data in a volume; `.env.killswitch` for the watcher alone | DONE 2026-11-12 — `docker compose config` validates. Not built or run yet: no Docker daemon where this was written |
+| T-4553 | Operator: `docker compose build && docker compose up -d` on the Mac (Docker Desktop) or the VPS; then `make health` inside: `docker compose exec scheduler python -m eulerlab.health` | TODO. Operator |
+| T-4554 | Storage design: Postgres for state, object storage for data, one data-access layer enforcing `as_of` and `workspace_id` | DONE 2026-11-12 — ADR-165 (proposed). Implementation is issue #114, after #112 and #113 |
+| T-4555 | Broker-side stop at entry for every live position, so a dead process still leaves a stop (issue #125); until then the dead-man switch's message says square off by hand | TODO |
+| T-4556 | When the VPS exists: move the launchd jobs off the Mac (`make schedule ACTION=uninstall JOB=...` each) so one scheduler owns the table; register the VPS's static IP with Angel One | TODO. Operator, after T-4553 |
+
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 
 Operator: trade H-0202 and H-0194 with real money on Angel One, enter an amount and deploy, everything on the workbench; ₹1,000 total, with leverage.
