@@ -22,7 +22,7 @@ Operator: "first fix infra related work then we make multiuser"; the platform is
 | T-4558 | `features/trials.py` (`trials.jsonl`) onto `append_log`: it also counts toward the noise bar | TODO. Issue #114 |
 | T-4559 | The agent log and the kill-switch log onto `append_log` | TODO. Issue #114 |
 | T-4560 | Operator: on the server, set `POSTGRES_PASSWORD` in `.env`, `docker compose up -d`, then `docker compose exec api make db-migrate db-import`, then set `EULERLAB_DATABASE_URL` in `.env` and restart | TODO. Operator, after T-4553 |
-| T-4561 | Order journals onto `append_log`: needs journal generations, because paper books reset their journal by deleting `orders.jsonl` and deployments can be deleted and recreated | TODO. Design first. Issue #114 |
+| T-4561 | Order journals onto `append_log`, with generations: a reset starts the next generation instead of deleting `orders.jsonl`; `make db-import` copies journals under `oms/` and `deployments/` | DONE 2026-11-12 — ADR-166, migration 002; `uv run --extra db pytest tests/test_db.py` (16 tests) |
 
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 

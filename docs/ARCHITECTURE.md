@@ -2009,8 +2009,16 @@ at once get 7 and 8, never two 7s. The switch is made in three steps:
 that disagrees with rows already imported, then verifies the chain from the
 database), then set the variable for every process. Switching on before the
 import raises `NotImported` rather than reading an empty ledger, which would
-shrink the noise bar's trial count. Order journals, `trials.jsonl`, the agent
-log and the kill-switch log are still files (T-4558 to T-4561).
+shrink the noise bar's trial count.
+
+The order journal follows the same rule (ADR-166), with one addition: paper
+books reset. On a file a reset deletes `orders.jsonl`; in the database,
+`journal.reset` starts the stream's next generation (`<name>@2`, `@3`, ...,
+recorded in `stream_generation`), and the journal reads only the current one.
+The orders a reset book forgot are still in the table. A committed insert is
+the durable write that the file's fsync was, so the intent is still on record
+before the order is sent. `trials.jsonl`, the agent log and the kill-switch
+log are still files (T-4558, T-4559).
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three

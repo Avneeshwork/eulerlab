@@ -10,6 +10,11 @@ second home. `stream_for(path)` answers which home a path has:
   named by the path relative to the data directory;
 - the path is anywhere else (a test's `tmp_path`, a scratch copy): `None`.
 
+A stream can be reset (ADR-166): `Stream.next_generation` starts generation
+n + 1, stored under `<name>@<n+1>`, and leaves every earlier generation in
+place. `stream_for` returns the current generation. Generation 1 is the plain
+name, which is what the importer fills and what the ledger (never reset) uses.
+
 A stream whose file still holds more lines than the database raises
 `NotImported`: the switch was made before `make db-import`, and reading the
 database then would undercount the trial ledger, which loosens the noise bar.
@@ -23,10 +28,12 @@ table's own trigger refuses a number that is not the next (migration 001).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from eulerlab import db
 from eulerlab.paths import data_dir
@@ -44,6 +51,27 @@ class Stream:
     kind: str
     name: str
     workspace: str = db.WORKSPACE
+    generation: int = 1
+
+    @property
+    def key(self) -> str:
+        """The `stream` column: the name, plus `@n` after the first generation."""
+        return self.name if self.generation == 1 else f"{self.name}@{self.generation}"
+
+    def next_generation(self, reason: str) -> Stream:
+        """Start an empty generation after the current one (a reset). Returns it."""
+        with db.connect() as conn:
+            conn.execute(
+                "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                (f"{self.workspace}:{self.name}:generation",),
+            )
+            n = _current_generation(conn, self.workspace, self.name) + 1
+            conn.execute(
+                "INSERT INTO stream_generation (workspace_id, stream, generation, reason)"
+                " VALUES (%s, %s, %s, %s)",
+                (self.workspace, self.name, n, reason),
+            )
+        return Stream(self.kind, self.name, self.workspace, n)
 
     def read(self) -> list[str]:
         """Every line, in order."""
@@ -51,7 +79,7 @@ class Stream:
             rows = conn.execute(
                 "SELECT seq, body FROM append_log WHERE workspace_id = %s AND stream = %s"
                 " ORDER BY seq",
-                (self.workspace, self.name),
+                (self.workspace, self.key),
             ).fetchall()
         return [str(body) for _, body in rows]
 
@@ -59,7 +87,7 @@ class Stream:
         with db.connect() as conn:
             row = conn.execute(
                 "SELECT count(*) FROM append_log WHERE workspace_id = %s AND stream = %s",
-                (self.workspace, self.name),
+                (self.workspace, self.key),
             ).fetchone()
         return int(row[0]) if row else 0
 
@@ -67,19 +95,19 @@ class Stream:
         """Add one line, built from the line before it, atomically."""
         with db.connect() as conn:
             conn.execute(
-                "SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{self.workspace}:{self.name}",)
+                "SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{self.workspace}:{self.key}",)
             )
             last = conn.execute(
                 "SELECT seq, body FROM append_log WHERE workspace_id = %s AND stream = %s"
                 " ORDER BY seq DESC LIMIT 1",
-                (self.workspace, self.name),
+                (self.workspace, self.key),
             ).fetchone()
             seq = int(last[0]) + 1 if last else 1
             body, event_time = build(str(last[1]) if last else None, seq)
             conn.execute(
                 "INSERT INTO append_log (workspace_id, kind, stream, seq, body, event_time)"
                 " VALUES (%s, %s, %s, %s, %s, %s)",
-                (self.workspace, self.kind, self.name, seq, body, event_time),
+                (self.workspace, self.kind, self.key, seq, body, event_time),
             )
         return body
 
@@ -89,12 +117,12 @@ class Stream:
             return 0
         with db.connect() as conn:
             conn.execute(
-                "SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{self.workspace}:{self.name}",)
+                "SELECT pg_advisory_xact_lock(hashtext(%s))", (f"{self.workspace}:{self.key}",)
             )
             row = conn.execute(
                 "SELECT coalesce(max(seq), 0) FROM append_log"
                 " WHERE workspace_id = %s AND stream = %s",
-                (self.workspace, self.name),
+                (self.workspace, self.key),
             ).fetchone()
             start = int(row[0]) + 1 if row else 1
             with conn.cursor() as cur:
@@ -103,9 +131,35 @@ class Stream:
                         "INSERT INTO append_log"
                         " (workspace_id, kind, stream, seq, body, event_time)"
                         " VALUES (%s, %s, %s, %s, %s, %s)",
-                        (self.workspace, self.kind, self.name, start + offset, body, event_time),
+                        (self.workspace, self.kind, self.key, start + offset, body, event_time),
                     )
         return len(lines)
+
+
+def _current_generation(conn: Any, workspace: str, name: str) -> int:
+    row = conn.execute(
+        "SELECT coalesce(max(generation), 1) FROM stream_generation"
+        " WHERE workspace_id = %s AND stream = %s",
+        (workspace, name),
+    ).fetchone()
+    return int(row[0]) if row else 1
+
+
+def file_lines(path: Path) -> list[str]:
+    """A stream file's lines, blank ones skipped and a torn final line dropped.
+
+    A crash mid-write leaves a final line that is not JSON; the event never
+    completed (the order journal's own rule), so it is not a line to import.
+    """
+    if not path.exists():
+        return []
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    if lines:
+        try:
+            json.loads(lines[-1])
+        except json.JSONDecodeError:
+            lines.pop()
+    return lines
 
 
 def stream_name(path: Path) -> str | None:
@@ -123,16 +177,17 @@ def stream_for(path: Path, kind: str) -> Stream | None:
     name = stream_name(path)
     if not name:
         return None
-    stream = Stream(kind, name)
-    if path.exists():
-        in_file = sum(1 for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip())
-        if in_file and stream.count() < in_file:
-            msg = (
-                f"{name}: the file holds {in_file} lines the database does not;"
-                " run `make db-import` before switching the database on"
-            )
-            raise NotImported(msg)
-    return stream
+    first = Stream(kind, name)
+    in_file = len(file_lines(path))
+    if in_file and first.count() < in_file:
+        msg = (
+            f"{name}: the file holds {in_file} lines the database does not;"
+            " run `make db-import` before switching the database on"
+        )
+        raise NotImported(msg)
+    with db.connect() as conn:
+        generation = _current_generation(conn, first.workspace, name)
+    return Stream(kind, name, first.workspace, generation)
 
 
 def parse_time(text: str) -> datetime:

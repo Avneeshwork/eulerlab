@@ -22,6 +22,8 @@ import pytest
 from eulerlab import db, evidence, paths
 from eulerlab.db import importer
 from eulerlab.db.stream import NotImported, Stream, stream_for, stream_name
+from eulerlab.oms import journal
+from eulerlab.oms.states import Event, OrderState
 from eulerlab.validation import ledger
 
 psycopg = pytest.importorskip("psycopg")
@@ -231,6 +233,8 @@ def test_import_copies_the_file_byte_for_byte_and_is_safe_twice(
     new = ledger.append(kind="ic", subject="after", params={}, outcome={}, path=path)
     assert new.seq == 6 and ledger.verify_chain(path).intact
     assert path.read_text().splitlines() == file_lines  # the file is never touched
+    # Run again after the database has moved on: still safe, nothing added.
+    assert importer.import_ledger(path).added == 0
 
 
 def test_import_refuses_a_file_that_disagrees(
@@ -260,3 +264,93 @@ def test_switching_on_before_the_import_refuses_instead_of_undercounting(
         ledger.append(kind="ic", subject="x", params={}, outcome={}, path=path)
     importer.import_ledger(path)
     assert ledger.count(path) == 4
+
+
+# --- order journals and generations (ADR-166) ---------------------------------------------------
+
+
+def _book(tmp_path: Path) -> Path:
+    return tmp_path / "oms" / "paper" / "orders.jsonl"
+
+
+def _order(j: journal.Journal, coid: str) -> None:
+    j.append(coid, Event.CREATED, OrderState.INTENT, {"qty": 1})
+    j.append(coid, Event.SEND_OK, OrderState.SENT)
+
+
+def test_a_reset_on_files_deletes_the_journal(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv(db.ENV_VAR, raising=False)
+    path = tmp_path / "orders.jsonl"
+    _order(journal.Journal(path), "a")
+    journal.reset(path, "test")
+    assert not path.exists() and journal.Journal(path).read() == []
+
+
+def test_the_journal_writes_and_replays_from_postgres(database: str, tmp_path: Path) -> None:
+    path = _book(tmp_path)
+    j = journal.Journal(path)
+    _order(j, "a")
+    _order(j, "b")
+    assert not path.exists()
+    again = journal.Journal(path)  # a restart: nothing cached
+    assert [e.seq for e in again.read()] == [1, 2, 3, 4]
+    assert again.replay() == {"a": OrderState.SENT, "b": OrderState.SENT}
+    assert journal.verify_replay(again) == []
+
+
+def test_a_reset_starts_a_new_generation_and_keeps_the_old_one(
+    database: str, tmp_path: Path
+) -> None:
+    path = _book(tmp_path)
+    _order(journal.Journal(path), "a")
+    journal.reset(path, "paper --reset")
+    fresh = journal.Journal(path)
+    assert fresh.read() == []
+    _order(fresh, "b")
+    assert [e.seq for e in journal.Journal(path).read()] == [1, 2]
+    assert journal.Journal(path).replay() == {"b": OrderState.SENT}
+    # The forgotten orders are still on record, under generation 1.
+    first = Stream(journal.KIND, "oms/paper/orders.jsonl")
+    assert len(first.read()) == 2
+    assert stream_for(path, journal.KIND) == Stream(journal.KIND, first.name, generation=2)
+
+
+def test_generations_cannot_be_edited_or_skipped(database: str, tmp_path: Path) -> None:
+    path = _book(tmp_path)
+    journal.reset(path, "one")
+    with psycopg.connect(database, autocommit=True) as conn:
+        for sql in (
+            "UPDATE stream_generation SET reason = 'x'",
+            "DELETE FROM stream_generation",
+            "TRUNCATE stream_generation",
+            "INSERT INTO stream_generation (stream, generation, reason)"
+            " VALUES ('oms/paper/orders.jsonl', 4, 'skip')",
+        ):
+            with pytest.raises(psycopg.errors.RaiseException):
+                conn.execute(sql)
+
+
+def test_import_copies_a_journal_and_drops_a_torn_last_line(
+    database: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = _book(tmp_path)
+    url = os.environ[db.ENV_VAR]
+    monkeypatch.delenv(db.ENV_VAR)
+    _order(journal.Journal(path), "a")
+    with path.open("a") as handle:
+        handle.write('{"seq": 3, "at": "2026')  # a crash mid-write
+    monkeypatch.setenv(db.ENV_VAR, url)
+    with pytest.raises(NotImported):
+        journal.Journal(path)
+    assert importer.journal_files() == [path]
+    done = importer.import_journal(path)
+    assert (done.in_file, done.added) == (2, 2)
+    j = journal.Journal(path)
+    assert [e.seq for e in j.read()] == [1, 2]
+    j.append("a", Event.ACK, OrderState.ACKNOWLEDGED)
+    assert journal.Journal(path).read()[-1].seq == 3
+    # A reset after the switch does not make the file look unimported.
+    journal.reset(path, "after the switch")
+    assert importer.import_journal(path).added == 0
