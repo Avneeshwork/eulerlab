@@ -7,7 +7,9 @@
 # alone: it needs Telegram to speak and KILLSWITCH_TOKEN to reset, and never a
 # broker key (CLAUDE.md: kill switches run with separate credentials).
 #
-# What is not here yet: Postgres (issue #114) and per-user anything (#113).
+# Postgres (ADR-165) runs here but nothing uses it until EULERLAB_DATABASE_URL
+# is set in `.env`, after `make db-migrate` and `make db-import`. Not here yet:
+# per-user anything (#113).
 
 name: eulerlab
 
@@ -24,8 +26,27 @@ x-python: &python
   volumes:
     - ./:/app
     - eulerlab-data:/data
+  depends_on:
+    postgres:
+      condition: service_healthy
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eulerlab
+      POSTGRES_DB: eulerlab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - eulerlab-pg:/var/lib/postgresql/data
+    # Not published: only the other containers reach it.
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "eulerlab", "-d", "eulerlab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     <<: *python
     command: uvicorn eulerlab.api.server:app --host 0.0.0.0 --port 8000
@@ -68,3 +89,4 @@ services:
 
 volumes:
   eulerlab-data:
+  eulerlab-pg:

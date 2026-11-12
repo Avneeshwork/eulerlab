@@ -31,11 +31,11 @@ WORKDIR /app
 # Dependencies first, so a code change does not re-resolve them.
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --extra web --extra angel --extra dev
+    uv sync --frozen --no-install-project --extra web --extra angel --extra db --extra dev
 
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --extra web --extra angel --extra dev
+    uv sync --frozen --extra web --extra angel --extra db --extra dev
 
 RUN mkdir -p /data && git config --global --add safe.directory /app
 

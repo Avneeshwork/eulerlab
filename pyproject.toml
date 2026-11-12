@@ -63,6 +63,12 @@ dev = [
     "ruff>=0.6",
     "types-pyyaml>=6.0",
 ]
+# Postgres for state shared across processes and servers (ADR-165). Optional:
+# unset EULERLAB_DATABASE_URL and everything stays in files, as on the Mac. Free;
+# replaces nothing yet; needed once two servers share one ledger and journal.
+db = [
+    "psycopg[binary]>=3.2",
+]
 
 [build-system]
 requires = ["hatchling"]

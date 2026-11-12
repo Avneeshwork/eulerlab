@@ -3,7 +3,7 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
-## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118)
+## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 
 Operator: "first fix infra related work then we make multiuser"; the platform is to be multi-user, open source with a hosted subscription; "we will host on vps later".
 
@@ -18,6 +18,11 @@ Operator: "first fix infra related work then we make multiuser"; the platform is
 | T-4554 | Storage design: Postgres for state, object storage for data, one data-access layer enforcing `as_of` and `workspace_id` | DONE 2026-11-12 — ADR-165 (proposed). Implementation is issue #114, after #112 and #113 |
 | T-4555 | Broker-side stop at entry for every live position, so a dead process still leaves a stop (issue #125); until then the dead-man switch's message says square off by hand | TODO |
 | T-4556 | When the VPS exists: move the launchd jobs off the Mac (`make schedule ACTION=uninstall JOB=...` each) so one scheduler owns the table; register the VPS's static IP with Angel One | TODO. Operator, after T-4553 |
+| T-4557 | Postgres for state, first slice: `eulerlab.db` (optional setting, migrations, `append_log` that refuses edits), the trial ledger on it, `make db-migrate`, `make db-import`, a `postgres` service in compose | DONE 2026-11-12 — ADR-165; `uv run --extra db pytest tests/test_db.py` (11 tests; they start a throwaway Postgres or skip) |
+| T-4558 | `features/trials.py` (`trials.jsonl`) onto `append_log`: it also counts toward the noise bar | TODO. Issue #114 |
+| T-4559 | The agent log and the kill-switch log onto `append_log` | TODO. Issue #114 |
+| T-4560 | Operator: on the server, set `POSTGRES_PASSWORD` in `.env`, `docker compose up -d`, then `docker compose exec api make db-migrate db-import`, then set `EULERLAB_DATABASE_URL` in `.env` and restart | TODO. Operator, after T-4553 |
+| T-4561 | Order journals onto `append_log`: needs journal generations, because paper books reset their journal by deleting `orders.jsonl` and deployments can be deleted and recreated | TODO. Design first. Issue #114 |
 
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 

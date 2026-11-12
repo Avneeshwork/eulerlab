@@ -36,7 +36,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from eulerlab.db.stream import stream_for
 from eulerlab.paths import data_path
+from eulerlab.validation.ledger import KIND as ledger_kind
 
 DERIVED = data_path("derived")
 
@@ -56,6 +58,13 @@ class Store:
 
     @property
     def rows(self) -> int:
+        # The trial ledger lives in Postgres when the database is on (ADR-165).
+        # A census that kept counting the old file would shrink the noise bar's
+        # denominator, the exact failure this module exists to prevent.
+        if self.name == ledger_kind:
+            stream = stream_for(self.path, ledger_kind)
+            if stream is not None:
+                return stream.count()
         if not self.path.exists():
             return 0
         if self.path.is_dir():

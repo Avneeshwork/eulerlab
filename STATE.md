@@ -1,9 +1,9 @@
 # STATE — where this project is right now
 
-**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
+**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), Postgres for shared state (ADR-165, T-4557 to T-4561; the trial ledger can live there, off by default), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
 **Next:** build and start the containers (`docker compose up -d`, T-4553), then the regulatory research for a subscription platform (#112) and the multi-user design (#113). Also: live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528).
 
-*Last updated: 2026-11-12 (server infrastructure). One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-12 (server infrastructure, trial ledger in Postgres). One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -78,7 +78,9 @@ what is open is in `TASKS.md`.*
   (it cannot square off, S-060). `docker compose up -d` runs api, scheduler,
   killswitch and web; validated, not yet built or run (T-4553). The platform is
   to become multi-user, open source with a hosted subscription: issues #111-#132,
-  storage design in ADR-165.
+  storage design in ADR-165. With `EULERLAB_DATABASE_URL` set (after `make
+  db-migrate db-import`), the trial ledger lives in Postgres, where edits are
+  refused by the table; unset, it stays a file (T-4557).
 - **Real money, armed from the workbench (ADR-162, 2026-11-09).** H-0194 (fade a
   3% no-news gap, 09:20 to 15:10, MIS) on Angel One: Live & Risk → Deployment,
   amount + leverage + loss cap, type DEPLOY, one session per deploy. Operator's

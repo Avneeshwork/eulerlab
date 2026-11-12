@@ -1994,6 +1994,24 @@ setting may sit in `.env`; `paths` loads it before the first module-level
 constant is built. `make hygiene` fails on any new `data/...` literal under
 `src/` (`data-literal`), so the rule cannot erode one commit at a time.
 
+**Postgres, when it is switched on (ADR-165).** `EULERLAB_DATABASE_URL`
+unset, nothing changes: every store writes its files. Set, the trial ledger
+reads and writes one table, `append_log`, for any ledger path under the data
+directory; a path outside it (every test's `tmp_path`) stays a file, so both
+homes stay tested. A row is the old file line byte for byte, because the
+ledger's hash covers the JSON text (jsonb would reorder keys and refuse NaN).
+The table refuses UPDATE, DELETE, TRUNCATE and any seq that is not the next,
+so append-only is enforced by the database, where the file could only detect
+an edit through the chain. An append runs under a per-stream advisory lock and
+builds its hash from the row that really came last, so two processes logging
+at once get 7 and 8, never two 7s. The switch is made in three steps:
+`make db-migrate`, `make db-import` (copies each ledger file, refuses a file
+that disagrees with rows already imported, then verifies the chain from the
+database), then set the variable for every process. Switching on before the
+import raises `NotImported` rather than reading an empty ledger, which would
+shrink the noise bar's trial count. Order journals, `trials.jsonl`, the agent
+log and the kill-switch log are still files (T-4558 to T-4561).
+
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three
 have been pulled out. The seam is that **nothing in `panels` or `intraday_runs`
