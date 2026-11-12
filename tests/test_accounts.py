@@ -241,6 +241,18 @@ def test_a_thread_started_by_a_request_runs_as_that_request(people: dict[str, st
     finally:
         accounts.unbind(token)
     assert seen == ["beta", "default"]  # the bare thread fell back to the operator
+    # A pool may run one wrapped function in several threads at once.
+    from concurrent.futures import ThreadPoolExecutor
+
+    token = accounts.bind(accounts.Principal("u", "", "beta", "researcher"))
+    try:
+        with ThreadPoolExecutor(4) as pool:
+            got = list(
+                pool.map(accounts.carry(lambda _: accounts.current().workspace_id), range(8))
+            )
+    finally:
+        accounts.unbind(token)
+    assert got == ["beta"] * 8
 
 
 def test_every_thread_an_api_route_starts_carries_the_principal() -> None:

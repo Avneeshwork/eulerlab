@@ -106,7 +106,9 @@ def carry[T](fn: Callable[..., T]) -> Callable[..., T]:
     context = contextvars.copy_context()
 
     def run(*args: Any, **kwargs: Any) -> T:
-        return context.run(fn, *args, **kwargs)
+        # A copy per call: a pool may run the same wrapped function in
+        # several threads at once, and one Context cannot be entered twice.
+        return context.copy().run(fn, *args, **kwargs)
 
     return run
 
