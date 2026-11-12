@@ -1,0 +1,55 @@
+id: H-0242
+title: Buy the second consecutive gap-down after a volume spike
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Long at the open of stocks gapping down 1.5% or more for the second morning running, with prior-day
+  value ratio of 2 or more, open to close, nets positive after costs.
+rationale: Builds on H-0211 and H-0209 (gap-down longs with participation). Two gaps down plus a volume
+  spike look like forced liquidation or capitulation. Forced sellers push the open past fair value and
+  liquidity providers earn the rebound through the day.
+source:
+  research: autopilot
+  paper: baltussen-2025-end-of-day-reversal
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when gap <= -0.015 and gap[lag 1] <= -0.015 and value_ratio[lag 1] >= 2; long; open
+    to close; rank by gap asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: gap
+    op: <=
+    value: -0.015
+  - signal: gap
+    lag: 1
+    op: <=
+    value: -0.015
+  - signal: value_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  rank_by:
+    signal: gap
+    order: asc
+red_flags:
+- High-volume consecutive gap-downs are often news-driven, with real continuation
+- H-0223, H-0235 and H-0237 (dip longs) all lost heavily
+- Possible circuit-limit or ASM-listed names are untradable
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

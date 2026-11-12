@@ -1,0 +1,56 @@
+id: H-0244
+title: Swing long on a bounce off a 250-day low with heavy delivery
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Buying stocks that hit a 250-day closing low four sessions ago, rose 4% or more in 3 sessions,
+  and show delivery ratio 1.5 or more, held 20 sessions, earns positive net return.
+rationale: Builds on H-0207 (52-week low with volume and delivery, net 326 bps). It waits for the turn
+  to be confirmed by price and by delivery buying, instead of buying the falling knife, which has lost
+  in H-0180, H-0216 and H-0230.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when at_low(250)[lag 4] and ret(3)[lag 1] >= 0.04 and delivery_ratio[lag 1] >= 1.5; long;
+    hold 20 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: at_low
+    lag: 4
+    n: 250
+  - signal: ret
+    lag: 1
+    n: 3
+    op: '>='
+    value: 0.04
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.5
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Possibly few positions, as H-0226 had zero
+- Dead-cat bounces in distressed names
+- Close-based signals with lag 4 can pick delisting-risk stocks
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

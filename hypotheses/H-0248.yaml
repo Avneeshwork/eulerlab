@@ -1,0 +1,63 @@
+id: H-0248
+title: Long gap-ups backed by heavy prior-day delivery (mirror of H-0209)
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Buying at the open, and selling at the close, NSE stocks that gap up 2% or more after a session
+  with delivery at least 1.5 times its 20-day mean earns a positive mean net return above the 12.24 bps
+  round-trip cost.
+rationale: Builds on H-0175 and H-0209. H-0175 found that gap-ups after thin delivery fade by the close,
+  since the gap looks like speculative noise. H-0209 found that gap-downs after heavy delivery bounce,
+  since the selling looks like forced flow. If delivery separates informed from speculative flow, a gap-up
+  after heavy delivery, where holders took shares and kept them, should hold or extend rather than fade.
+  This is the one untested corner of the gap by delivery grid. H-0221 (results mornings only) lost money,
+  so the test is on all days, with no results filter. The condition uses delivery, not prices alone, as
+  the lessons require. It sorts by delivery_ratio so the heaviest accumulation is picked first.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when gap >= 0.02 and delivery_ratio[lag 1] >= 1.5; long; open to close; rank by delivery_ratio[lag
+    1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: gap
+    op: '>='
+    value: 0.02
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.5
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Gap-ups in India usually fade intraday (H-0175, H-0212, H-0220 all profit from shorting them), so this
+  long may simply be the losing side of the same effect.
+- A high delivery ratio after a price spike can mean distribution by promoters or institutions, not accumulation.
+- Buying at the open of a gap-up means paying the auction price and wide spreads, so fill slippage may
+  exceed the 12 bps cost model.
+- The most extreme gaps may be circuit-limit or corporate-action days (bonus, split, results), which would
+  contaminate the sample.
+- H-0221 (results mornings, gap-up, high delivery, long) lost 128 bps, so any edge may be absent outside
+  event days, or the signal may reduce to news.
+- The delivery_ratio rank may pick illiquid names, and the result may rest on a handful of dates.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

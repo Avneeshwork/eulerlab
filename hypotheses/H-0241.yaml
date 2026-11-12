@@ -1,0 +1,46 @@
+id: H-0241
+title: Fade gap-ups on mornings after net bulk-deal buying
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Short at the open of stocks with positive net bulk buying disclosed the evening before and a gap
+  of 2% or more, open to close, nets positive after costs.
+rationale: Builds on H-0199 and H-0166. The bulk-deal news is public, so the opening gap should already
+  price it. Late retail chasing the deal headline should then reverse intraday. This tests whether deal-driven
+  gap-ups are over-reaction rather than under-reaction.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when bulk_buy and gap >= 0.02; short; open to close; rank by gap desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: short
+  when:
+  - signal: bulk_buy
+  - signal: gap
+    op: '>='
+    value: 0.02
+  rank_by:
+    signal: gap
+red_flags:
+- Bulk-deal data only from 2021-07, so very few trades
+- Strong deal-backed names may trend up all day
+- Several stocks per day are hard to short in some small caps
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
