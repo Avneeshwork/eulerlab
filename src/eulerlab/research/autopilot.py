@@ -42,10 +42,13 @@ from typing import Any
 
 import yaml
 
+from eulerlab import constitution
 from eulerlab.agents import runtime
 from eulerlab.agents.runtime import Context, Item, WorkerResult
 from eulerlab.agents.workers import autopilot as writer
 from eulerlab.intraday import rule_engine
+from eulerlab.research import experiments
+from eulerlab.validation import firewall
 
 NAME = "autopilot"
 HYPOTHESES = Path("hypotheses")
@@ -53,7 +56,7 @@ RESEARCH = Path("docs/RESEARCH")
 DEFAULT_ENTRIES_PER_WEEK = 10
 ENTRIES_PER_GATE = 2
 """`make validate` and `make gate` each append one ledger entry."""
-PAPER_CAPITAL = 1_000_000.0
+
 
 Git = Callable[[Sequence[str]], tuple[int, str]]
 
@@ -142,6 +145,11 @@ def keep(hypothesis: str) -> dict[str, str]:
         done["report"] = "stored"
     except Exception as exc:  # a report failure must not lose the verdict
         done["report"] = f"failed: {type(exc).__name__}: {exc}"[:200]
+    try:
+        constitution.require("start_paper_book", who="the autopilot")
+    except constitution.NotAllowed as exc:
+        done["paper"] = f"not deployed: {exc}"
+        return done
     if blocker := runner.paper_blocker(hypothesis):
         done["paper"] = f"not deployed: {blocker}"
         return done
@@ -156,7 +164,7 @@ def keep(hypothesis: str) -> dict[str, str]:
     made = deployments.create(
         hypothesis,
         mode="paper",
-        capital=PAPER_CAPITAL,
+        capital=constitution.load().capital.test_capital_inr,
         start=intraday_book.first_session(today, end),
     )
     done["paper"] = f"paper book {made.id} (runs with `make paper-daily`)"
@@ -245,6 +253,50 @@ def same_bet(
             screens[h]["clean"] = False
         else:
             taken[h] = mine
+
+
+# --- the experiment store and the firewall (ADR-172) -----------------------------------
+
+
+def family_of(spec: rule_engine.RuleSpec) -> str:
+    """Kind and the signals the rule conditions on: one cell of the coverage map."""
+    return f"{spec.kind}:{'+'.join(sorted({c.signal for c in spec.when}))}"
+
+
+def remember(
+    hypothesis: str,
+    spec: rule_engine.RuleSpec,
+    screen: dict[str, Any],
+    daily: dict[date, float],
+    end: date,
+    now: datetime,
+) -> None:
+    """Record the screen with its daily returns, and put the firewall's numbers on it.
+
+    The others are read before this rule is added, so it is judged against the
+    search that came before it. Information only: nothing here changes `clean`.
+    """
+    others = experiments.universe(skip=[spec.fingerprint()])
+    found = firewall.assess(daily, spec.fingerprint(), others)
+    screen["firewall"] = found.as_dict()
+    experiments.record(
+        purpose="screen",
+        hypothesis=hypothesis,
+        fingerprint=spec.fingerprint(),
+        family=family_of(spec),
+        first=spec.first,
+        end=end,
+        metrics={
+            "count": screen.get("count"),
+            "net_sharpe": (screen.get("net") or {}).get("sharpe"),
+            "passes_screen": screen.get("passes_screen"),
+            "clean": screen.get("clean"),
+            **found.as_dict(),
+        },
+        daily=daily,
+        asked_by=NAME,
+        now=now,
+    )
 
 
 # --- the write-up ------------------------------------------------------------------------
@@ -349,6 +401,24 @@ def note(
             + ", ".join(f"{h} {gates[h]['verdict']}" for h in older)
             + ".",
         ]
+    walls = {h: s["firewall"] for h, s in screens.items() if s.get("firewall")}
+    if walls:
+        lines += [
+            "",
+            "**After the search** (ADR-172, information only). Rules tried so far, the "
+            "families they form, the Sharpe the best family of noise would show, the chance "
+            "this rule's Sharpe is not noise, and whether it kept half its pre-2024 Sharpe "
+            "on 2024 onwards.",
+            "",
+            "| Card | Rules tried | Families | Noise bar | Deflated Sharpe | Holds on selection |",
+            "|---|---|---|---|---|---|",
+        ]
+        said = {True: "yes", False: "no", None: "too short to say"}
+        lines += [
+            f"| {h} | {w['rules_tried']} | {w['families']} | {w['noise_bar']} | "
+            f"{w['deflated_sharpe']} | {said[w['holds_on_selection']]} |"
+            for h, w in walls.items()
+        ]
     if kept:
         lines += ["", "**Kept.**"]
         lines += [f"- {h}: report {v.get('report')}; {v.get('paper')}" for h, v in kept.items()]
@@ -375,6 +445,8 @@ def pipeline(
     ctx: Context, *, run_git: Git = git, data: rule_engine.Data | None = None
 ) -> WorkerResult:
     day = ctx.now.date()
+    rules = constitution.load()
+    constitution.require("register_hypothesis", who="the autopilot")
     found = writer.write_cards(ctx)
     cards = found["cards"]
     ids = [c["id"] for c in cards]
@@ -403,13 +475,25 @@ def pipeline(
             spec = rule_engine.card_spec(c["id"])
             assert spec is not None
             ctx.step(f"Screening {c['id']}: {c['rule'][:150]}")
+            if engine.data.end > rules.periods.backtest_end:
+                msg = f"the screen's data ends {engine.data.end}, inside the forward test"
+                raise experiments.SealedPeriod(msg)
             screens[c["id"]] = engine.screen(spec)
+            returns = engine.returns.pop(spec.fingerprint(), None)
+            if returns:
+                remember(c["id"], spec, screens[c["id"]], returns, engine.data.end, ctx.now)
         if any(s["clean"] for s in screens.values()):
             ctx.step("Checking each clean rule against the bets already passed")
             same_bet(engine, screens, peers(engine, ctx.root))
     survivors = [h for h in ids if screens[h]["clean"]]
 
-    allowance = int(ctx.options.get("gate_entries_per_week", DEFAULT_ENTRIES_PER_WEEK))
+    allowance = min(
+        int(ctx.options.get("gate_entries_per_week", DEFAULT_ENTRIES_PER_WEEK)),
+        rules.caps.gate_entries_per_week,
+    )
+    if rules.actions["use_ledger_entry"] != "act":
+        ctx.notes.append("the constitution does not let the autopilot gate; survivors wait")
+        allowance = 0
     used = entries_this_week(ctx.root, ctx.now)
     gates: dict[str, dict[str, Any]] = {}
     kept: dict[str, dict[str, str]] = {}
@@ -426,6 +510,19 @@ def pipeline(
         with log.open("a", encoding="utf-8") as handle:
             row = {"at": datetime.now(UTC).isoformat(timespec="seconds"), **result}
             handle.write(json.dumps(row) + "\n")
+        spec = rule_engine.card_spec(h)
+        if spec is not None:
+            experiments.record(
+                purpose="gate",
+                hypothesis=h,
+                fingerprint=spec.fingerprint(),
+                family=family_of(spec),
+                first=spec.first,
+                end=min(rule_engine.END, rules.periods.backtest_end),
+                metrics={"verdict": result["verdict"], "entries": result["entries"]},
+                asked_by=NAME,
+                now=ctx.now,
+            )
         if result["verdict"] in ("PROMOTE", "PAPER"):
             kept[h] = keep(h)
 

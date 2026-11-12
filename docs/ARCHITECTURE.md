@@ -3536,6 +3536,74 @@ make feedback TEXT=... / Telegram "feedback ..."
 The guardian's thresholds are A-125. It reads the autopilot's own gate log as a
 file, so nothing the runtime loads reaches the gating code.
 
+### The constitution, the monthly budget, the experiment store and the scorecard (ADR-171 to ADR-173)
+
+**The constitution.** `config/constitution.yaml` is operator-owned, like the
+mandate, and the guardian halts every agent if it changes. It holds what the
+operator decided on 2026-11-13:
+
+| Block | Holds | Read by |
+|---|---|---|
+| `capital` | test capital Rs 1,00,000; leverage, at most 1 | the autopilot's paper books |
+| `periods` | `discovery_end` 2023-12-31, `backtest_end` 2025-12-31, `forward_start` 2026-01-01 | the experiment store, the firewall figures |
+| `budget` | Rs 1,000 a month for paid models; a price per model; the rupee rate | `llm/spend.py` |
+| `caps` | gate ledger entries a week | the autopilot (the smaller of this and its own) |
+| `actions` | per action `act`, `propose` or `never` | `constitution.require(action)` |
+
+`eulerlab/constitution.py` loads it. A file that gives `live_account` or
+`edit_gate_or_mandate` anything but `never`, or leverage above 1, does not
+load, and then every caller fails closed. No agent module can reach the order
+path anyway (`agents/boundaries.py`); this makes the rule the operator's
+written one.
+
+**The monthly budget.** Each model request already leaves its tokens in
+`data/derived/llm_usage.jsonl`. For a request on a paid provider:
+
+```
+cost_inr = (prompt_tokens x input_price + completion_tokens x output_price) / 1e6 x usd_inr
+```
+
+with prices in US dollars per million tokens (research 189). A provider marked
+`free` in `config/llm.yaml` costs nothing; a paid model with no price is
+charged at the dearest listed. `runtime._model_asker` calls
+`spend.refuse_if_spent(provider)` before every agent request: once the IST
+calendar month's total reaches the budget, a paid provider raises
+`MonthBudgetSpent` and a free one still answers. The autopilot then writes its
+cards with Groq.
+
+**The experiment store** (`research/experiments.py`). One appended line per
+evaluation in `data/derived/experiments.jsonl` (Postgres's `append_log` when
+the database is on): purpose (`screen`, `sweep`, `selection`, `gate`,
+`forward`), card, rule fingerprint, family, parents, window, metrics, and the
+name of a file under `data/derived/experiment_returns/` holding its daily net
+returns. A row that is not `forward` and reads a day after `backtest_end` is
+refused (`SealedPeriod`): the forward test is sealed where the record is
+made. Today the autopilot's screens and gate runs write here; sweeps, the
+idea lab and `make validate` do not yet (T-4576).
+
+**The firewall figures** (`validation/firewall.py`), on every autopilot
+screen and in its research note. Information only: they change no verdict.
+
+| Figure | How |
+|---|---|
+| rules tried | distinct fingerprints in the store with daily returns, plus this one |
+| families | average-linkage clusters of their daily returns at correlation 0.7 (`search_bar.family_bar`, S-057) |
+| noise bar | the expected best Sharpe of that many families of noise, with the spread of family Sharpes |
+| deflated Sharpe | the chance this rule's Sharpe is above zero given that many families (`statistics.deflated_sharpe`) |
+| holds on selection | yes when `Sharpe(selection) + nudge >= 0.5 x Sharpe(discovery)` and the discovery Sharpe is positive; "too short" under 60 sessions in either period |
+
+The nudge is one draw in [-0.25, 0.25] fixed by the rule's fingerprint, and
+only the yes or no comes back, so the answer is too coarse to tune against
+(the reusable holdout, research 189; constants are A-136). Both periods were
+read by earlier research (ADR-143); only 2026 is unseen, and only for rules
+made from now.
+
+**The scorecard.** `make scorecard` prints the month's spend against the
+budget and per agent, tests recorded and their families, the noise bar, the
+most searched families, the week's gate entries and verdicts, and paper books
+by status. It reads stored records only. Strategies confirmed forward and
+operator minutes a week print as not measured (T-4575).
+
 ### Live-price paper and readiness (ADR-153)
 
 The paper books fill at the official open and close. `deploy/live_shadow.py`

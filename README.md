@@ -24,6 +24,9 @@ On a server (ADR-164): `cp .env.example .env`, fill it in, then
 `docker compose up -d` runs the API, the scheduler, the kill-switch watcher and
 the UI; `make health` says whether it is all alive.
 
+`make scorecard` prints how much of the work the agents are doing on their own,
+and what it cost this month (ADR-173).
+
 ---
 
 ## The five documents, and what each is for

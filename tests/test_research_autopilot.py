@@ -284,6 +284,10 @@ def folder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / "docs" / "RESEARCH").mkdir(parents=True)
     (tmp_path / "research" / "papers").mkdir(parents=True)
     (tmp_path / "hypotheses" / "H-0173.yaml").write_text("id: H-0173\ntitle: old\n")
+    (tmp_path / "config").mkdir()
+    rules = Path(__file__).parents[1] / "config" / "constitution.yaml"
+    (tmp_path / "config" / "constitution.yaml").write_text(rules.read_text())
+    monkeypatch.setenv("EULERLAB_DATA_DIR", str(tmp_path / "data"))
     return tmp_path
 
 
@@ -325,6 +329,13 @@ def test_cards_are_committed_before_anything_is_screened(
     raw = yaml.safe_load((folder / "hypotheses" / "H-0174.yaml").read_text())
     assert raw["result"].startswith("Autopilot screen 2026-11-07")
     assert list((folder / "docs" / "RESEARCH").glob("001-autopilot-2026-11-07.md"))
+    # every screen is in the experiment store with its daily returns (ADR-172)
+    from eulerlab.research import experiments
+
+    kept = experiments.rows(folder / experiments.PATH)
+    assert [r["hypothesis"] for r in kept] == ["H-0174", "H-0175"]
+    assert all(r["purpose"] == "screen" and r["returns"] for r in kept)
+    assert "rules_tried" in kept[0]["metrics"]
 
 
 def test_a_failed_commit_stops_the_run_before_the_screen(

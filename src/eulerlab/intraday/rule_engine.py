@@ -485,6 +485,8 @@ Event = dm.Event
 class Engine:
     def __init__(self, data: Data) -> None:
         self.data = data
+        self.returns: dict[str, dict[date, float]] = {}
+        """Daily net returns of each rule screened, by fingerprint."""
 
     @cached_property
     def short(self) -> frozenset[date]:
@@ -643,6 +645,8 @@ class Engine:
         out["checks"] = checks(pieces, window, out)
         out["passes_screen"] = count > 0 and dm.passes(out)
         out["clean"] = out["passes_screen"] and not any(c["flag"] for c in out["checks"])
+        # Kept for the experiment store (ADR-172): the caller takes it by fingerprint.
+        self.returns[spec.fingerprint()] = daily(pieces, window)
         return out
 
 
