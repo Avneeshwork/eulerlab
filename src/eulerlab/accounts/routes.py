@@ -21,11 +21,12 @@ class Login(BaseModel):
 
 
 @router.post("/login")
-def login(body: Login, response: Response) -> dict[str, Any]:
+def login(body: Login, request: Request, response: Response) -> dict[str, Any]:
     if not accounts.enabled():
         return {"auth": "off", "principal": accounts.current().__dict__}
     try:
-        token = store.login(body.email, body.password)
+        address = request.client.host if request.client else ""
+        token = store.login(body.email, body.password, address=address)
         principal = store.from_session(token, None)
     except store.AccessDenied as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
@@ -56,3 +57,40 @@ def me() -> dict[str, Any]:
         "auth": "on" if accounts.enabled() else "off",
         "principal": accounts.current().__dict__,
     }
+
+
+# --- the workspace's gate (ADR-169) -------------------------------------------------------------
+
+gate_router = APIRouter()
+
+
+class GateRules(BaseModel):
+    rules: dict[str, float]
+
+
+@gate_router.get("/api/gate/rules")
+def gate_rules() -> dict[str, Any]:
+    """What this workspace is held to, and which thresholds it may tighten."""
+    from eulerlab import gates
+    from eulerlab.accounts import gate
+
+    base = gates.load_mandate()
+    floors = {key: gate._at(base, key)[0][gate._at(base, key)[1]] for key in gate.TIGHTENABLE}
+    return {
+        "workspace": accounts.current().workspace_id,
+        "own": gate.own_rules(),
+        "platform": floors,
+        "stricter_is": gate.TIGHTENABLE,
+    }
+
+
+@gate_router.post("/api/accounts/gate")
+def set_gate_rules(body: GateRules) -> dict[str, Any]:
+    """Owner only (`/api/accounts`). Stricter than the platform, or refused."""
+    from eulerlab.accounts import gate
+
+    try:
+        version = gate.set_rules(body.rules)
+    except gate.Looser as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"version": version, "own": gate.own_rules()}

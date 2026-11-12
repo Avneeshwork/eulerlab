@@ -84,8 +84,9 @@ what is open is in `TASKS.md`.*
   generation (ADR-166); unset, they stay files (T-4557 to T-4561). The nightly backup exports the
   database to B2 (T-4562); the kill-switch log stays a file (ADR-167).
   Login and roles exist (`EULERLAB_AUTH=on`, ADR-168); books, journals, ledger,
-  trials and agent log are kept apart per workspace (T-4563 to T-4566). Agent
-  files and research results are still shared (T-4569).
+  trials, agent log and agent files are kept apart per workspace, and a
+  workspace may tighten the gate but not loosen it (ADR-169, T-4563 to T-4568).
+  Research results and model keys are still shared (T-4569, T-4570).
 - **Real money, armed from the workbench (ADR-162, 2026-11-09).** H-0194 (fade a
   3% no-news gap, 09:20 to 15:10, MIS) on Angel One: Live & Risk → Deployment,
   amount + leverage + loss cap, type DEPLOY, one session per deploy. Operator's

@@ -272,3 +272,114 @@ def test_every_thread_an_api_route_starts_carries_the_principal() -> None:
         for match in re.finditer(r"\.(submit|map)\((?!carry\()([\w.]+)", text):
             loose.append(f"{path.name}: .{match.group(1)}({match.group(2)}")
     assert not loose, loose
+
+
+# --- failed logins (T-4568) --------------------------------------------------------------------------
+
+
+def test_repeated_wrong_passwords_lock_the_email_for_a_while(people: dict[str, str]) -> None:
+    for _ in range(store.MAX_FAILURES):
+        with pytest.raises(store.AccessDenied, match="wrong"):
+            store.login("owner@x.in", "not the password")
+    # Now even the right password is refused, and another account is untouched.
+    with pytest.raises(store.AccessDenied, match="too many"):
+        store.login("owner@x.in", "a long password")
+    assert store.login("res@x.in", "a long password")
+
+
+def test_many_failures_from_one_address_lock_that_address(people: dict[str, str]) -> None:
+    for i in range(store.MAX_FAILURES_PER_ADDRESS):
+        with pytest.raises(store.AccessDenied):
+            store.login(f"nobody{i}@x.in", "guess guess guess", address="203.0.113.9")
+    with pytest.raises(store.AccessDenied, match="too many"):
+        store.login("res@x.in", "a long password", address="203.0.113.9")
+    assert store.login("res@x.in", "a long password", address="198.51.100.2")
+
+
+# --- the workspace's gate (ADR-169) -------------------------------------------------------------------
+
+
+def test_a_workspace_may_tighten_the_gate_and_never_loosen_it(people: dict[str, str]) -> None:
+    from eulerlab import gates
+    from eulerlab.accounts import gate
+
+    base = gates.load_mandate()
+    floor = base["simple"]["min_probabilistic_sharpe"]
+    assert gate.effective() == base  # the operator: mandate.yaml as written
+
+    token = accounts.bind(accounts.Principal("u1", "", "alpha", "owner"))
+    try:
+        assert gate.effective() == base  # no rules of its own yet
+        with pytest.raises(gate.Looser, match="loosen"):
+            gate.set_rules({"simple.min_probabilistic_sharpe": floor - 0.05})
+        with pytest.raises(gate.Looser, match="loosen"):
+            gate.set_rules({"statistical.max_pbo": base["statistical"]["max_pbo"] + 0.1})
+        for not_theirs in (
+            "mode",
+            "process.require_signed_evidence",
+            "simple.require_positive_each_half",
+        ):
+            with pytest.raises(gate.Looser, match="platform"):
+                gate.set_rules({not_theirs: 1})
+        assert gate.own_rules() == {}  # nothing refused was stored
+        assert gate.set_rules({"simple.min_probabilistic_sharpe": 0.99}) == 1
+        assert (
+            gate.set_rules({"simple.min_probabilistic_sharpe": 0.98, "forward_test.min_days": 90})
+            == 2
+        )
+        mine = gate.effective()
+        assert mine["simple"]["min_probabilistic_sharpe"] == 0.98
+        assert mine["forward_test"]["min_days"] == 90
+        assert mine["process"] == base["process"] and mine["mode"] == base["mode"]
+    finally:
+        accounts.unbind(token)
+
+    token = accounts.bind(accounts.Principal("u2", "", "beta", "owner"))
+    try:
+        assert gate.effective() == base  # alpha's rules are alpha's alone
+    finally:
+        accounts.unbind(token)
+    assert gates.load_mandate() == base  # mandate.yaml is never written
+
+
+def test_a_stored_rule_the_platform_has_since_passed_falls_back_to_the_platform() -> None:
+    from eulerlab.accounts import gate
+
+    base = {"simple": {"min_probabilistic_sharpe": 0.95}}
+    assert gate.tighten(base, {"simple.min_probabilistic_sharpe": 0.97})["simple"] == {
+        "min_probabilistic_sharpe": 0.97
+    }
+    assert base["simple"]["min_probabilistic_sharpe"] == 0.95  # the input is not changed
+
+
+def test_only_an_owner_sets_the_gate_through_the_api(people: dict[str, str]) -> None:
+    app = _app()
+    app.include_router(auth_routes.gate_router)
+    researcher = TestClient(app)
+    _login(researcher, "res@x.in")
+    assert researcher.get("/api/gate/rules").json()["workspace"] == "alpha"
+    body = {"rules": {"simple.min_probabilistic_sharpe": 0.99}}
+    assert researcher.post("/api/accounts/gate", json=body).status_code == 403
+    owner = TestClient(app)
+    _login(owner, "owner@x.in")
+    assert owner.post("/api/accounts/gate", json=body).json()["own"] == body["rules"]
+    loose = {"rules": {"simple.min_probabilistic_sharpe": 0.5}}
+    assert owner.post("/api/accounts/gate", json=loose).status_code == 422
+
+
+# --- agents' files (T-4569) ---------------------------------------------------------------------------
+
+
+def test_each_workspace_has_its_own_agents_folder(
+    people: dict[str, str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.agents import spec
+
+    monkeypatch.setattr(spec, "ROOT", tmp_path / "agents")
+    assert spec.home() == tmp_path / "agents"  # the operator, as before
+    token = accounts.bind(accounts.Principal("u", "", "alpha", "owner"))
+    try:
+        assert spec.home() == tmp_path / "workspaces" / "alpha" / "agents"
+        assert spec.home(tmp_path / "x") == tmp_path / "x"  # an explicit folder still wins
+    finally:
+        accounts.unbind(token)

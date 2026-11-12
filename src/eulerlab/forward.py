@@ -254,9 +254,10 @@ def backtest_sharpe(strategy_id: str, path: Path = LEDGER_PATH) -> float | None:
 def rules(mandate: dict[str, Any] | None = None) -> dict[str, Any]:
     """`forward_test:` from the mandate; {} until the operator writes it."""
     if mandate is None:
-        from eulerlab import gates
+        # The platform's rule, tightened by this workspace's own (ADR-169).
+        from eulerlab.accounts import gate
 
-        mandate = gates.load_mandate()
+        mandate = gate.effective()
     section = mandate.get("forward_test")
     return section if isinstance(section, dict) else {}
 

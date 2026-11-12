@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from eulerlab import db, workspace
 from eulerlab.accounts import ROLES, Principal, Role
@@ -80,22 +81,59 @@ def _principal(conn: object, user_id: str, wanted: str | None) -> Principal:
     raise AccessDenied(msg)
 
 
-def login(email: str, password: str) -> str:
-    """A new session token for these credentials. Shown once; stored hashed."""
+MAX_FAILURES = 5
+"""Wrong passwords for one email inside `WINDOW` before logins for it are refused."""
+MAX_FAILURES_PER_ADDRESS = 20
+WINDOW = timedelta(minutes=15)
+
+
+def _too_many(conn: Any, email: str, address: str) -> bool:
+    since = datetime.now(UTC) - WINDOW
+    by_email = conn.execute(
+        "SELECT count(*) FROM login_failures WHERE email = %s AND at > %s", (email, since)
+    ).fetchone()
+    if by_email and int(by_email[0]) >= MAX_FAILURES:
+        return True
+    if not address:
+        return False
+    by_address = conn.execute(
+        "SELECT count(*) FROM login_failures WHERE address = %s AND at > %s", (address, since)
+    ).fetchone()
+    return bool(by_address and int(by_address[0]) >= MAX_FAILURES_PER_ADDRESS)
+
+
+def login(email: str, password: str, *, address: str = "") -> str:
+    """A new session token for these credentials. Shown once; stored hashed.
+
+    Five wrong passwords for an email, or twenty from one address, inside
+    fifteen minutes and further tries are refused without checking the
+    password, so a guesser gets a handful of tries, not thousands. The right
+    password does not clear the count: an attacker must not be able to reset
+    it by logging in to an account of their own.
+    """
+    email = email.strip().lower()
     with db.connect() as conn:
+        if _too_many(conn, email, address):
+            msg = "too many failed logins; try again in 15 minutes"
+            raise AccessDenied(msg)
         row = conn.execute(
             "SELECT id, password_hash FROM users WHERE email = %s AND disabled_at IS NULL",
-            (email.strip().lower(),),
+            (email,),
         ).fetchone()
-        if not row or not verify_password(password, str(row[1])):
-            msg = "wrong email or password"
-            raise AccessDenied(msg)
-        token = new_token()
+        ok = bool(row) and verify_password(password, str(row[1]))  # type: ignore[index]
+        if ok:
+            token = new_token()
+            conn.execute(
+                "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (%s, %s, %s)",
+                (token_hash(token), row[0], datetime.now(UTC) + timedelta(days=SESSION_DAYS)),  # type: ignore[index]
+            )
+            return token
+        # Recorded and committed here: raising inside this block would roll it back.
         conn.execute(
-            "INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (%s, %s, %s)",
-            (token_hash(token), row[0], datetime.now(UTC) + timedelta(days=SESSION_DAYS)),
+            "INSERT INTO login_failures (email, address) VALUES (%s, %s)", (email, address)
         )
-    return token
+    msg = "wrong email or password"
+    raise AccessDenied(msg)
 
 
 def logout(token: str) -> None:

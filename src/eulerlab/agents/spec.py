@@ -27,8 +27,21 @@ ROOT = data_path("agents")
 
 
 def home(root: Path | None = None) -> Path:
-    """`root`, or `ROOT` read now, so a test can point every agent at a folder."""
-    return root if root is not None else ROOT
+    """`root`, or the agents' folder of the workspace of whoever is asking.
+
+    The default workspace's is `ROOT`, read now so a test can point every
+    agent at a folder. Another workspace's is under its own folder (ADR-168),
+    so its tasks, inbox, outputs, plans and settings (the switches and lowered
+    budgets) are its own. Every agent module reaches its files through here.
+    """
+    if root is not None:
+        return root
+    from eulerlab import accounts, workspace
+
+    workspace_id = accounts.current().workspace_id
+    if workspace_id == workspace.DEFAULT_ID:
+        return ROOT
+    return workspace.Workspace(workspace_id).root / "agents"
 
 
 NAME_PATTERN = r"^[a-z][a-z0-9_]{1,31}$"

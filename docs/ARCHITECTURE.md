@@ -2048,8 +2048,22 @@ journals, agent log), and `deployments.root()` puts each workspace's books in
 its own folder. A thread does not inherit the request's principal, so every
 thread an API route starts is wrapped in `accounts.carry`; without it, a
 backtest started in workspace B would log its trials into the operator's
-ledger. Still shared by every workspace: agents' tasks, inbox and outputs and
-research results (T-4569).
+ledger. Agents' files (tasks, inbox, outputs, plans, the switches and
+lowered budgets) are per workspace too: every agent module finds its folder
+through `agents.spec.home()`, which returns the workspace's own. Still shared
+by every workspace: research results, reports, hypotheses and evidence packs
+(T-4569), and model keys, which come from the server's environment (T-4570).
+
+**The gate per workspace (ADR-169).** `mandate.yaml` is the floor for
+everyone. An owner may store stricter values for the numeric thresholds in
+`accounts.gate.TIGHTENABLE`; `gate.effective()` applies them and the gate run
+passes the result to `gates.decide`. A looser value, or any other key, is
+refused. The default workspace is held to `mandate.yaml` exactly.
+
+**Failed logins.** Five wrong passwords for one email, or twenty from one
+address, inside fifteen minutes, and further tries are refused without
+checking the password (`login_failures`, counted in the database so it holds
+across servers).
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three

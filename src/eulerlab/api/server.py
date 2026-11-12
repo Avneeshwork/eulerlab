@@ -203,6 +203,7 @@ app.include_router(risk_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(fii_dii_routes.router)
 app.include_router(auth_routes.router)
+app.include_router(auth_routes.gate_router)
 # Login, when EULERLAB_AUTH=on (ADR-168). Added before CORS below, and the last
 # middleware added runs first, so CORS wraps it: a refused request still carries
 # the CORS headers the UI needs.
