@@ -8,9 +8,11 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from eulerlab import gates
+from eulerlab.accounts import gate as workspace_gate
+from eulerlab.paths import data_path
 from eulerlab.validation import ledger
 
-EVIDENCE = Path("data/derived/evidence")
+EVIDENCE = data_path("derived/evidence")
 HYPOTHESES = Path("hypotheses")
 
 
@@ -31,7 +33,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     pack = json.loads(pack_path.read_text(encoding="utf-8"))
-    decision = gates.decide(pack, hypothesis_path=HYPOTHESES / f"{args.hypothesis}.yaml")
+    # The platform's mandate, tightened by this workspace's own rules if it
+    # has any (ADR-169). For the default workspace this is mandate.yaml itself.
+    mandate = workspace_gate.effective()
+    decision = gates.decide(
+        pack, hypothesis_path=HYPOTHESES / f"{args.hypothesis}.yaml", mandate=mandate
+    )
     print(decision.render())
 
     allowed, reason = gates.may_read_holdout(decision)
@@ -50,7 +57,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     entry = ledger.append(
         kind="gate",
         subject=args.hypothesis,
-        params={"mandate_version": gates.load_mandate().get("version")},
+        params={
+            "mandate_version": mandate.get("version"),
+            **({"workspace_rules": own} if (own := workspace_gate.own_rules()) else {}),
+        },
         outcome={
             "verdict": str(decision.verdict),
             "failed_rules": [f.rule for f in decision.failures],

@@ -35,12 +35,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from eulerlab.env import load_env
 from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config, sync_directory
+from eulerlab.paths import data_path
 
 API_BASE = "https://api-t1.fyers.in"
 EXPIRED_PREFIX = "/data/history/fno/expired/"
 DEFAULT_REDIRECT_URI = "https://trade.fyers.in/api-login/redirect-uri/index.html"
-LANDING_ROOT = Path("data/landing/fyers_expired_fo")
-SESSION_META_PATH = Path("data/cache/fyers_session.json")
+LANDING_ROOT = data_path("landing/fyers_expired_fo")
+SESSION_META_PATH = data_path("cache/fyers_session.json")
 MAX_EXPIRED_REQUESTS_PER_DAY = 10
 MAX_CANDLE_DAYS = 100
 MAX_EXPIRY_QUERY_DAYS = 366

@@ -32,6 +32,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -41,8 +43,8 @@ from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import stock_fo_screen as fo
 
 IST = ZoneInfo("Asia/Kolkata")
-OUT = Path("data/derived/nse_queries_intraday.json")
-EVENTS = Path("data/derived/nse_query_events.json")
+OUT = data_path("derived/nse_queries_intraday.json")
+EVENTS = data_path("derived/nse_query_events.json")
 SPURT = ("Spurt in Volume", "Price movement")
 NEWS = ("News Verification",)
 OPEN_MINUTES = 0

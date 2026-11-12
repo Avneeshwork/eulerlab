@@ -31,8 +31,9 @@ from eulerlab.ingest.cloud import (
     S3ObjectStore,
     load_storage_config,
 )
+from eulerlab.paths import data_path
 
-DEFAULT_ROOT = Path("data/landing")
+DEFAULT_ROOT = data_path("landing")
 SKIP_NAMES = frozenset({"manifest.jsonl", "unresolved.jsonl"})
 KEEP_TREES = frozenset({"macro"})
 """Trees never pruned: day files that are appended to all day (`macro.append`).

@@ -35,10 +35,11 @@ from typing import Any
 
 import yaml
 
+from eulerlab.paths import data_path
 from eulerlab.validation import ledger
 
 MANDATE_PATH = Path("mandate.yaml")
-HOLDOUT_STATE = Path("data/derived/holdout_reads.jsonl")
+HOLDOUT_STATE = data_path("derived/holdout_reads.jsonl")
 
 
 class Verdict(StrEnum):

@@ -33,6 +33,7 @@ from datetime import date
 
 from eulerlab.ingest.fetch import Fetcher, Outcome
 from eulerlab.ingest.landing import Landing
+from eulerlab.paths import data_path
 
 SEGMENT = "corp_actions"
 URL = (
@@ -108,7 +109,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Backfill NSE corporate actions.")
     parser.add_argument("--from-year", type=int, default=FIRST_YEAR)
     parser.add_argument("--to-year", type=int, default=None)
-    parser.add_argument("--landing", default="data/landing/nse")
+    parser.add_argument("--landing", default=str(data_path("landing/nse")))
     args = parser.parse_args()
 
     from pathlib import Path

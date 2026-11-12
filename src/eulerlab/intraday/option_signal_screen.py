@@ -45,9 +45,10 @@ from eulerlab.intraday import india_five_screen as india_five
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
 from eulerlab.options import nifty_history
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/option_signals.json")
-PARTS = Path("data/derived/option_signals_parts")
+OUT = data_path("derived/option_signals.json")
+PARTS = data_path("derived/option_signals_parts")
 BATCH = 40
 START = date(2021, 6, 1)
 """Option days read from here: a year of put-call history before the window."""

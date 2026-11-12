@@ -24,8 +24,9 @@ from eulerlab.ingest.cloud import (
 from eulerlab.ingest.landing import Landing
 from eulerlab.ingest.manifest import TREES
 from eulerlab.ingest.prune_local import prune_tree
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse")
+DEFAULT_LANDING = data_path("landing/nse")
 DEFAULT_CONFIG = Path("config/storage.yaml")
 
 MAX_DISCOVERY_SWEEPS = 5
@@ -155,7 +156,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--landing-root",
         type=Path,
-        default=Path("data/landing"),
+        default=data_path("landing"),
         help="root under which every dataset tree is discovered and mirrored",
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)

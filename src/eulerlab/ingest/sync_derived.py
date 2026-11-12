@@ -25,8 +25,9 @@ from eulerlab.ingest.cloud import (
     sync_directory,
 )
 from eulerlab.ingest.landing import sha256_of
+from eulerlab.paths import data_path
 
-DERIVED = Path("data/derived")
+DERIVED = data_path("derived")
 DEFAULT_CONFIG = Path("config/storage.yaml")
 
 

@@ -8,6 +8,11 @@ are not trials, and nothing here may raise or lower the trial count.
 What is logged: which agent ran, under which brief, with which model, how many
 requests it used, what it wrote, and every operator decision on its inbox.
 What is not: model replies or paper text. Those stay in the run's own folder.
+
+With `EULERLAB_DATABASE_URL` set, the log of the agents' home under the data
+directory is a stream in Postgres's `append_log` (ADR-165): the table refuses
+edits, and each entry links to the row that really came last, under the
+stream's lock, so two servers running agents cannot fork the chain.
 """
 
 from __future__ import annotations
@@ -21,8 +26,11 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.agents.spec import home
+from eulerlab.db.stream import parse_time, stream_for
 
 GENESIS = "0" * 64
+KIND = "agent_log"
+"""The log's kind in the database's append-only log."""
 _LOCK = threading.Lock()
 
 
@@ -58,28 +66,29 @@ def compute_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(material.encode()).hexdigest()
 
 
+def _entry(line: str) -> Entry:
+    row = json.loads(line)
+    return Entry(
+        seq=int(row["seq"]),
+        at=str(row["at"]),
+        kind=str(row["kind"]),
+        agent=str(row["agent"]),
+        detail=dict(row["detail"]),
+        prev_hash=str(row["prev_hash"]),
+        entry_hash=str(row["entry_hash"]),
+    )
+
+
 def read(root: Path | None = None) -> list[Entry]:
-    root = home(root)
-    path = path_for(root)
-    if not path.exists():
+    path = path_for(home(root))
+    stream = stream_for(path, KIND)
+    if stream is not None:
+        lines = stream.read()
+    elif path.exists():
+        lines = path.read_text(encoding="utf-8").splitlines()
+    else:
         return []
-    out: list[Entry] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        out.append(
-            Entry(
-                seq=int(row["seq"]),
-                at=str(row["at"]),
-                kind=str(row["kind"]),
-                agent=str(row["agent"]),
-                detail=dict(row["detail"]),
-                prev_hash=str(row["prev_hash"]),
-                entry_hash=str(row["entry_hash"]),
-            )
-        )
-    return out
+    return [_entry(line) for line in lines if line.strip()]
 
 
 def append(
@@ -92,18 +101,31 @@ def append(
 ) -> Entry:
     """Add one entry linked to the last. No update and no delete exist."""
     root = home(root)
-    with _LOCK:
-        existing = read(root)
+
+    def build(last: Entry | None, seq: int) -> Entry:
         payload: dict[str, Any] = {
-            "seq": len(existing) + 1,
+            "seq": seq,
             "at": (at or datetime.now(UTC)).isoformat(timespec="seconds"),
             "kind": kind,
             "agent": agent,
             "detail": json.loads(json.dumps(detail, default=str)),
-            "prev_hash": existing[-1].entry_hash if existing else GENESIS,
+            "prev_hash": last.entry_hash if last else GENESIS,
         }
-        entry = Entry(**payload, entry_hash=compute_hash(payload))
-        path = path_for(root)
+        return Entry(**payload, entry_hash=compute_hash(payload))
+
+    path = path_for(root)
+    stream = stream_for(path, KIND)
+    if stream is not None:
+
+        def line(last: str | None, seq: int) -> tuple[str, datetime]:
+            entry = build(_entry(last) if last else None, seq)
+            return json.dumps(asdict(entry), sort_keys=True), parse_time(entry.at)
+
+        return _entry(stream.append(line))
+
+    with _LOCK:
+        existing = read(root)
+        entry = build(existing[-1] if existing else None, len(existing) + 1)
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(asdict(entry), sort_keys=True) + "\n")

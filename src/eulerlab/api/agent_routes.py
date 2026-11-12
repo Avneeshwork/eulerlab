@@ -18,6 +18,7 @@ from typing import Any, Literal
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab.accounts import carry
 from eulerlab.agents import briefs, inbox, log, org, runtime
 from eulerlab.agents import calendar as agent_calendar
 from eulerlab.agents.spec import all_effective, load_specs, write_setting
@@ -193,7 +194,7 @@ def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
     """
     # Imported here: `tools/` is importable because the server runs from the
     # repo root, and the schedule must come from the list that writes the plists.
-    from tools import schedule_daily
+    from eulerlab import jobs as job_table
 
     now = datetime.now(UTC)
     today = now.astimezone(runtime.IST).date()
@@ -209,7 +210,7 @@ def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
     except (OSError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
     built = agent_calendar.build(
-        list(schedule_daily.JOBS.values()), makefile, specs, start=first, days=span, now=now
+        list(job_table.JOBS.values()), makefile, specs, start=first, days=span, now=now
     )
     rows = [{"id": d["id"], "title": d["title"]} for d in chart["departments"]]
     rows.append({"id": "feeds", "title": "Data feeds (no agent)"})
@@ -251,7 +252,7 @@ def _background(key: str, job: Any) -> bool:
             with _LOCK:
                 _RUNNING.discard(key)
 
-    _POOL.submit(work)
+    _POOL.submit(carry(work))
     return True
 
 
@@ -517,7 +518,7 @@ def _gate_on_approve(item_id: str) -> str:
         card = promote.eligible(agent, item)
     except promote.Refused as exc:
         return "" if agent != "lab" else f"not sent to the gate: {exc}"
-    _GATE_POOL.submit(promote.gate, item_id, card)
+    _GATE_POOL.submit(carry(promote.gate), item_id, card)
     return "sent to the gate: registering, validating and gating it now"
 
 
@@ -641,7 +642,7 @@ def agent_run(name: str, request: RunRequest) -> dict[str, Any]:
             with _LOCK:
                 _RUNNING.discard(name)
 
-    _POOL.submit(work)
+    _POOL.submit(carry(work))
     return {"ok": True, "started": True}
 
 

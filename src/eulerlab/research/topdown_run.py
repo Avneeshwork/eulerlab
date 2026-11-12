@@ -21,7 +21,9 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-OUT = Path("data/derived/topdown_screen.json")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/topdown_screen.json")
 
 FULL = ("2016-01-01", "2026-09-30")
 HALVES = (("2016-01-01", "2020-12-31"), ("2021-01-01", "2026-09-30"))

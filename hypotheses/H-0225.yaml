@@ -1,0 +1,54 @@
+id: H-0225
+title: New 250-day high on a volume surge, hold 40 sessions
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks closing at a 250-session high on 2.5x or more normal traded value earn positive net return
+  over the next 40 sessions.
+rationale: 'Direct implementation of george-hwang-2004-52-week-high: new highs on heavy volume are a slow-diffusion
+  signal. H-0173 tried the delivery version with a 20-day hold, and H-0182 used a 60-day high with a 30-day
+  hold. This version uses value, which is available for every stock, and a longer hold.'
+source:
+  research: autopilot
+  paper: george-hwang-2004-52-week-high
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when at_high(250)[lag 1] and value_ratio[lag 1] >= 2.5; long; hold 40 sessions; rank by
+    value_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 40
+  side: long
+  when:
+  - signal: at_high
+    lag: 1
+    n: 250
+  - signal: value_ratio
+    lag: 1
+    op: '>='
+    value: 2.5
+  rank_by:
+    signal: value_ratio
+    lag: 1
+red_flags:
+- Gains may be market beta in a rising Indian market (2016-2024), so compare against an index.
+- 40-day overlapping holds mean few independent samples.
+- Small and mid caps with high value spikes may be hard to fill at the open.
+- Similar variants (H-0173, H-0182) were not shown to work.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-10: 530 positions 2016-01-01 to 2024-11-30; net 319.96 bps each; net
+  Sharpe 0.776, halves -0.042 / 1.592, 0.712 at 2x costs. Flagged: not a few lucky days. Screen fail;
+  not gated.'

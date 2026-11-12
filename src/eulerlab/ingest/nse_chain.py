@@ -34,7 +34,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-LANDING = Path("data/landing/option_chain")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/option_chain")
 
 BASE = "https://www.nseindia.com"
 CHAIN_URL = f"{BASE}/api/option-chain-v3"

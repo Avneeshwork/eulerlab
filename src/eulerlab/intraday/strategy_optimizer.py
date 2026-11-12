@@ -20,6 +20,7 @@ from typing import Any
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
+from eulerlab.paths import data_path
 
 DEV_START = date(2024, 1, 1)
 DEV_END = date(2024, 11, 30)
@@ -346,9 +347,8 @@ def _store_library_results(result: dict[str, Any]) -> dict[str, str]:
     return written
 
 
-def optimize(
-    *, output: Path = Path("data/derived/new_strategy_optimization.json")
-) -> dict[str, Any]:
+def optimize(*, output: Path | None = None) -> dict[str, Any]:
+    output = output if output is not None else data_path("derived/new_strategy_optimization.json")
     symbols = (rs.GOLD, *rs.STOCKS)
     with ThreadPoolExecutor(max_workers=len(symbols)) as pool:
         loaded = dict(

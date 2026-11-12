@@ -1,0 +1,48 @@
+id: H-0227
+title: 'Promoter acquisition drift: buy any SAST promoter purchase, hold 60 sessions'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks with a SAST promoter acquisition disclosed before the session earn positive net return over
+  60 sessions after the open entry.
+rationale: Promoters are the best-informed insiders and buy publicly after the news, so the price may
+  under-react. Prior promoter-buy rules (H-0179, H-0203, H-0201) added filters and gave tiny samples.
+  This one has no extra filter, a long hold, and ranks by size of the acquisition.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when promoter_buy > 0; long; hold 60 sessions; rank by promoter_buy desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 60
+  side: long
+  when:
+  - signal: promoter_buy
+    op: '>'
+    value: 0.0
+  rank_by:
+    signal: promoter_buy
+red_flags:
+- Data starts 2021-07, so the sample is small and covers one market regime.
+- Many acquisitions are creeping acquisitions or preferential allotments, not open-market buying.
+- H-0201 (intraday) lost, so any gain may come only from slow drift and market beta.
+- Disclosure timing may lag the actual purchase, so part of the move is already in the price.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-10: 120 positions 2021-07-01 to 2024-11-30; net 1015.66 bps each; net
+  Sharpe 1.58, halves 0.42 / 2.738, 1.537 at 2x costs. Flagged: a new bet (moves with H-0162, 0.765).
+  Not gated (bias check).'

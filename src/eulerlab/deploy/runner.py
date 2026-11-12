@@ -533,7 +533,10 @@ def run_all(only: str | Collection[str] = "") -> int:
     # Two runners replaying the same deployment would race on its journal and
     # state file; the second waits, then finds nothing new to send.
     with exclusive("paper_daily"):
-        return _run_all(only)
+        # Every workspace's books, each seen only by its own run (ADR-168).
+        from eulerlab import accounts
+
+        return max(accounts.for_each_workspace(lambda: _run_all(only)).values())
 
 
 def _run_all(only: str | Collection[str]) -> int:

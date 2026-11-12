@@ -23,15 +23,15 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator, Sequence
 from datetime import date, datetime
-from pathlib import Path
 
 from eulerlab.env import load_env, require
 from eulerlab.intraday.tweezer import IST, Candle
+from eulerlab.paths import data_path
 
 BUCKET = "eulerdata"
 PREFIX = "nse/kite_minute"
 ENDPOINT = "https://s3.us-west-004.backblazeb2.com"
-CACHE = Path("data/landing/kite_minute")
+CACHE = data_path("landing/kite_minute")
 
 
 def _client() -> object:

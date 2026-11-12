@@ -50,8 +50,9 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.filecache import FileMemo
+from eulerlab.paths import data_path
 
-RESULTS_PATH = Path("data/derived/adopted_results.jsonl")
+RESULTS_PATH = data_path("derived/adopted_results.jsonl")
 
 EQUITY = 1_000_000.0
 """The account every intraday scan is sized against. Matches the sweep's own

@@ -19,8 +19,9 @@ from eulerlab.costs.schedule import Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday.screen_common import intraday_fee
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/stock_intraday_candidates.json")
+OUT = data_path("derived/stock_intraday_candidates.json")
 TRAIN_START = date(2022, 1, 1)
 TRAIN_END = date(2023, 12, 31)
 EVAL_START = date(2024, 1, 1)

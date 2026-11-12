@@ -50,10 +50,12 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 ARCHIVE = "https://data.binance.vision/data/spot/monthly/klines"
 TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
 
-LANDING = Path("data/landing/crypto")
+LANDING = data_path("landing/crypto")
 UNIVERSE_FILE = Path("config/universe_crypto.txt")
 
 USER_AGENT = "EulerLab/0.1 (research; contact via repository)"

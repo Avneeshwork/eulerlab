@@ -14,11 +14,12 @@ from datetime import date
 from pathlib import Path
 
 from eulerlab.ingest.landing import Landing, ManifestEntry
+from eulerlab.paths import data_path
 
 BASE_URL = "https://faculty.iima.ac.in/iffm/Indian-Fama-French-Momentum/DATA"
 RELEASE = "2025-12"
 RELEASE_DATE = date(2025, 12, 31)
-LANDING = Landing(Path("data/landing/india_factors"))
+LANDING = Landing(data_path("landing/india_factors"))
 USER_AGENT = "EulerLab research data fetch/1.0"
 
 FILES = {

@@ -19,14 +19,14 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
+from eulerlab.paths import data_path
 
 RUN_ID = "nse_delivery_spike_next_day_long"
-DELIVERY = Path("data/derived/delivery.jsonl")
+DELIVERY = data_path("derived/delivery.jsonl")
 AVERAGE_OVER = 20
 SPIKE = 2.0
 UP = 0.02

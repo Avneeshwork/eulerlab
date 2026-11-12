@@ -36,8 +36,9 @@ from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.holidays import load_holidays
 from eulerlab.ingest.landing import Landing
 from eulerlab.ingest.nse_urls import FileFormat, Segment, candidates
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse")
+DEFAULT_LANDING = data_path("landing/nse")
 SATURDAY = 5
 
 IST = ZoneInfo("Asia/Kolkata")

@@ -90,9 +90,9 @@ def landed(day: date) -> Landed:
 
 def trading_day(now: datetime) -> date | None:
     """Today, if NSE trades today and has closed; else None."""
-    from eulerlab.ingest.coverage import expected_nse, nse_closures
+    from eulerlab.ingest.coverage import expected_nse, nse_closures, nse_weekend_sessions
 
-    day = expected_nse(now, nse_closures())
+    day = expected_nse(now, nse_closures(), nse_weekend_sessions())
     return day if day == now.astimezone(IST).date() else None
 
 

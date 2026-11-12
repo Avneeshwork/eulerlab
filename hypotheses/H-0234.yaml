@@ -1,0 +1,53 @@
+id: H-0234
+title: 'Fixed-rule combination: swing: when day_return[lag 1] <= -0.04 and ret(5)[lag 1] <= -0.08; long;
+  hold 20'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: 'swing: when day_return[lag 1] <= -0.04 and ret(5)[lag 1] <= -0.08; long; hold 20 sessions; rank
+  by day_return[lag 1] desc earns more than costs in both halves and at 2x costs.'
+rationale: Written by fixed rules from the signal vocabulary, because the model could not answer. No paper
+  behind it.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (fixed rules), ADR-150
+  day: '2026-11-11'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when day_return[lag 1] <= -0.04 and ret(5)[lag 1] <= -0.08; long; hold 20 sessions; rank
+    by day_return[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: day_return
+    lag: 1
+    op: <=
+    value: -0.04
+  - signal: ret
+    lag: 1
+    n: 5
+    op: <=
+    value: -0.08
+  rank_by:
+    signal: day_return
+    lag: 1
+red_flags:
+- No economic reason was written before the test.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 228 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-11: 998 positions 2016-01-01 to 2024-11-30; net -56.0 bps each; net
+  Sharpe -0.24, halves -1.123 / 0.763, -0.351 at 2x costs. Flagged: positive in most years. Screen fail;
+  not gated.'

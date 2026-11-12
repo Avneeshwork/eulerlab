@@ -45,13 +45,14 @@ from pydantic import BaseModel, ConfigDict
 
 from eulerlab.config import CONFIG_DIR
 from eulerlab.ingest import news
+from eulerlab.paths import data_path
 
 CURRENTS = "https://api.currentsapi.services/v1/search"
 KEY_NAMES = ("CURRENT_NEWS_API", "CURRENTS_API_KEY")
 NEWSDATA = "https://newsdata.io/api/1/latest"
 NEWSDATA_KEYS = ("News_Data_io", "NEWSDATA_API_KEY")
 LANDING = news.LANDING
-DERIVED = Path("data/derived/market_news.jsonl")
+DERIVED = data_path("derived/market_news.jsonl")
 CLASS = "market"
 # Currents allows at most 7 days in one search on the free plan, and answers 400
 # "Max range is 7 days" to exactly 7 (measured 2026-11-04).

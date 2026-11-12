@@ -32,7 +32,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import IO
 
-LOCK_DIR = Path("data/derived/.locks")
+from eulerlab.paths import data_path
+
+LOCK_DIR = data_path("derived/.locks")
 
 
 class Busy(RuntimeError):

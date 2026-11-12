@@ -39,10 +39,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-ROOT = Path("data/workspaces")
+from eulerlab.paths import data_path
 
-SHARED_LANDING = Path("data/landing")
-SHARED_DERIVED = Path("data/derived")
+ROOT = data_path("workspaces")
+
+SHARED_LANDING = data_path("landing")
+SHARED_DERIVED = data_path("derived")
 """Market data, one copy, readable by every workspace.
 
 Deliberately NOT under `ROOT`. A path that cannot be reached from a workspace
@@ -204,8 +206,20 @@ def resolve(principal: str | None) -> Workspace:
     workspace, because a typo in a tenant id must not silently hand back
     somebody else's evidence.
     """
+    from eulerlab import accounts
+
+    mine = accounts.current().workspace_id
     if principal is None or not principal.strip():
-        return Workspace(id=DEFAULT_ID, name="Default")
+        # No workspace named: the one the request logged in to (ADR-168). With
+        # accounts off that is the default, as before.
+        if mine == DEFAULT_ID:
+            return Workspace(id=DEFAULT_ID, name="Default")
+        principal = mine
+    elif accounts.enabled() and normalise_id(principal) != mine:
+        # A workspace named in a request body or query string is the caller's
+        # word, not proof. With accounts on, only the logged-in one resolves.
+        msg = f"workspace {principal!r} is not the one this request is logged in to"
+        raise WorkspaceError(msg)
     workspace = load(principal)
     if workspace is None:
         msg = f"no such workspace: {principal!r}"

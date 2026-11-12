@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
+from eulerlab.paths import data_path
 from eulerlab.strategies import AssetClass, Timeframe
 
 UNIVERSE_FILES = {
@@ -66,7 +67,7 @@ def capabilities() -> list[Capability]:
     # to prevent, one level up.
     from eulerlab.features.panel import PANEL_PATH
 
-    minute = Path("data/landing/kite_minute")
+    minute = data_path("landing/kite_minute")
 
     daily_detail = (
         f"panel present, {PANEL_PATH.stat().st_size / 1e9:.2f} GB"
@@ -482,16 +483,16 @@ def _minute_symbols() -> set[str]:
     without a local cache may still stream from B2 — so this is reported as
     "cached locally", not as "exists".
     """
-    root = Path("data/landing/kite_minute")
+    root = data_path("landing/kite_minute")
     if not root.exists():
         return set()
     return {p.name for p in root.iterdir() if p.is_dir()}
 
 
-CRYPTO_LANDING = Path("data/landing/crypto")
-FX_LANDING = Path("data/landing/fx")
-MF_ENRICHED = Path("data/landing/mf/enriched")
-MF_HISTORY = Path("data/landing/mf/history")
+CRYPTO_LANDING = data_path("landing/crypto")
+FX_LANDING = data_path("landing/fx")
+MF_ENRICHED = data_path("landing/mf/enriched")
+MF_HISTORY = data_path("landing/mf/history")
 
 
 def crypto_instruments(query: str = "", limit: int = 60) -> list[Instrument]:

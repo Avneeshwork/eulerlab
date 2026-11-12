@@ -40,9 +40,10 @@ from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import option_signal_screen as sig
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/stock_fo.json")
-FO_DAILY = Path("data/derived/stock_fo_daily.jsonl")
+OUT = data_path("derived/stock_fo.json")
+FO_DAILY = data_path("derived/stock_fo_daily.jsonl")
 FO_FROM = "2021-07-01"
 MAX_RETURN = 0.20
 BETA_DAYS, BETA_MIN = 60, 50
@@ -169,7 +170,7 @@ def build_fo_daily(path: Path = FO_DAILY, *, workers: int = 4) -> None:
 
     have = {json.loads(line)["d"] for line in path.open()} if path.exists() else set()
     entries = {}
-    for line in Path("data/landing/nse/manifest.jsonl").read_text(encoding="utf-8").splitlines():
+    for line in data_path("landing/nse/manifest.jsonl").read_text(encoding="utf-8").splitlines():
         entry = json.loads(line)
         if entry.get("segment") != "fo":
             continue

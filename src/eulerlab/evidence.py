@@ -36,7 +36,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-DERIVED = Path("data/derived")
+from eulerlab.db.stream import stream_for
+from eulerlab.features.trials import KIND as trials_kind
+from eulerlab.paths import data_path
+from eulerlab.validation.ledger import KIND as ledger_kind
+
+IN_DATABASE = {"trial_ledger": ledger_kind, "trials": trials_kind}
+"""Stores with a database home: the census counts the stream when it is on."""
+
+DERIVED = data_path("derived")
 
 
 @dataclass(frozen=True)
@@ -54,6 +62,14 @@ class Store:
 
     @property
     def rows(self) -> int:
+        # The trial ledger and the trials counter live in Postgres when the
+        # database is on (ADR-165). A census that kept counting the old files
+        # would shrink the noise bar's denominator, the exact failure this
+        # module exists to prevent.
+        if self.name in IN_DATABASE:
+            stream = stream_for(self.path, IN_DATABASE[self.name])
+            if stream is not None:
+                return stream.count()
         if not self.path.exists():
             return 0
         if self.path.is_dir():

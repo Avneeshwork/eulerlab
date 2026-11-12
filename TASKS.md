@@ -3,6 +3,39 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
+
+Operator: "first fix infra related work then we make multiuser"; the platform is to be multi-user, open source with a hosted subscription; "we will host on vps later".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4548 | One setting for where data lives: `EULERLAB_DATA_DIR`, 328 literals in 198 files replaced, hygiene `data-literal` check | DONE 2026-11-12 — `eulerlab.paths`, ADR-163; `uv run pytest tests/test_paths.py` |
+| T-4549 | The job table in `src/` (`eulerlab.jobs`), read by the launchd writer and by a scheduler process with catch-up, skip-and-log, Telegram on failure, heartbeat and run log | DONE 2026-11-12 — `make scheduler`, `make scheduler-list`; `uv run pytest tests/test_scheduler.py` |
+| T-4550 | `make health`: scheduler heartbeat, each job's latest slot, the live book's clock, the kill switch; exit 1 when red; under `ops` in `GET /api/health` | DONE 2026-11-12 — `eulerlab.health`; `tests/test_health.py` |
+| T-4551 | Dead-man switch in the kill-switch process: trips when an armed live book's clock is two minutes quiet in market hours; the clock writes a heartbeat each tick | DONE 2026-11-12 — `oms/deadman.py`, `make deadman`; `tests/test_deadman.py`. Cannot square off (S-060) |
+| T-4552 | Containers: one Python image for api, scheduler, killswitch; `web/Dockerfile`; `docker-compose.yml` with the repo bind-mounted and data in a volume; `.env.killswitch` for the watcher alone | DONE 2026-11-12 — `docker compose config` validates. Not built or run yet: no Docker daemon where this was written |
+| T-4553 | Operator: `docker compose build && docker compose up -d` on the Mac (Docker Desktop) or the VPS; then `make health` inside: `docker compose exec scheduler python -m eulerlab.health` | TODO. Operator |
+| T-4554 | Storage design: Postgres for state, object storage for data, one data-access layer enforcing `as_of` and `workspace_id` | DONE 2026-11-12 — ADR-165 (proposed). Implementation is issue #114, after #112 and #113 |
+| T-4555 | Broker-side stop at entry for every live position, so a dead process still leaves a stop (issue #125); until then the dead-man switch's message says square off by hand | TODO |
+| T-4556 | When the VPS exists: move the launchd jobs off the Mac (`make schedule ACTION=uninstall JOB=...` each) so one scheduler owns the table; register the VPS's static IP with Angel One | TODO. Operator, after T-4553 |
+| T-4557 | Postgres for state, first slice: `eulerlab.db` (optional setting, migrations, `append_log` that refuses edits), the trial ledger on it, `make db-migrate`, `make db-import`, a `postgres` service in compose | DONE 2026-11-12 — ADR-165; `uv run --extra db pytest tests/test_db.py` (11 tests; they start a throwaway Postgres or skip) |
+| T-4558 | `features/trials.py` (`trials.jsonl`) onto `append_log`: it also counts toward the noise bar | DONE 2026-11-12 — `trials.lines` is the one reader (agent budget, ledger fold-in); the census counts the stream; `make db-import` copies the file. `uv run --extra db pytest tests/test_db.py` (17 tests) |
+| T-4559 | The agent log onto `append_log`; the kill-switch log stays a file (ADR-167) and is now in the nightly backup | DONE 2026-11-12 — `agents/log.py`; `uv run --extra db pytest tests/test_db.py` |
+| T-4560 | Operator: on the server, set `POSTGRES_PASSWORD` in `.env`, `docker compose up -d`, then `docker compose exec api make db-migrate db-import`, then set `EULERLAB_DATABASE_URL` in `.env` and restart | TODO. Operator, after T-4553 |
+| T-4561 | Order journals onto `append_log`, with generations: a reset starts the next generation instead of deleting `orders.jsonl`; `make db-import` copies journals under `oms/` and `deployments/` | DONE 2026-11-12 — ADR-166, migration 002; `uv run --extra db pytest tests/test_db.py` (16 tests) |
+| T-4562 | Back up Postgres off the server: `make agents-backup` exports every stream to `db_export/` first and sends what changed to B2; `make db-restore` loads it into an empty database | DONE 2026-11-12 — ADR-167, `db/export.py`; `uv run --extra db pytest tests/test_db.py` (20 tests) |
+| T-4563 | Accounts and login (#113, slice 1): users, workspaces, memberships, sessions, API tokens (migration 003); `RequireLogin` on every `/api` request; roles owner, researcher, viewer; `/login` in the workbench; `make account` | DONE 2026-11-12 — ADR-168; `uv run --extra db pytest tests/test_accounts.py` |
+| T-4564 | Scope every store by `accounts.current().workspace_id`: deployments and books, order journals, trial ledger, trials, agent log (#113, slice 2) | DONE 2026-11-12 — `stream_for` and `deployments.root()`; request threads via `accounts.carry` |
+| T-4565 | Per-workspace gate settings (#113, slice 3): the platform mandate is the floor, an owner may only tighten it | DONE 2026-11-12 — ADR-169, `accounts/gate.py`, migration 004; `uv run --extra db pytest tests/test_accounts.py`. Agent budgets are per workspace through `agents.spec.home()`; model keys are T-4570 |
+| T-4566 | The isolation test: two workspaces, same strategy, different capital; neither reads the other's books, ledger or agent log (#113, slice 4) | DONE 2026-11-12 — `uv run --extra db pytest tests/test_accounts.py` |
+| T-4567 | Operator: rewrite `CLAUDE.md`'s single-operator rules for a multi-user product (#113's last condition); a draft will be proposed, not committed | TODO. Operator |
+| T-4568 | Slow down repeated failed logins (per email and per address) before the server faces the internet | DONE 2026-11-12 — `accounts/store.py`, `login_failures` |
+| T-4569 | Scope what was still shared: agents' files (`agents.spec.home()`); results, strategies and reports (`workspace.resolve` refuses a workspace the request is not logged in to); the daily paper run and auto-updater visit every workspace (`accounts.for_each_workspace`) | DONE 2026-11-12 — `uv run --extra db pytest tests/test_accounts.py`. Hypotheses and evidence packs stay shared: they are the repository's library |
+| T-4570 | Per-workspace keys, encrypted at rest: `accounts/secrets.py`, sealed under `EULERLAB_SECRET_KEY`; the model client reads through it; the nightly export carries accounts, gate rules and sealed keys | DONE 2026-11-12 — ADR-170, migration 005 |
+| T-4571 | Real money per workspace: broker keys from `accounts.secrets`, one live clock and kill switch per workspace, each with its own registered static IP question (SEBI) | TODO. Design and the operator's approval first; today live trading is the default workspace only |
+| T-4572 | Workbench screens for workspace settings: members, API tokens, gate rules, keys (the API exists; today they are `make account` and API calls) | TODO |
+| T-4573 | Operator: keep a copy of `EULERLAB_SECRET_KEY` outside the server and the backup; rotating it is not built | TODO. Operator, with T-4560 |
+
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 
 Operator: trade H-0202 and H-0194 with real money on Angel One, enter an amount and deploy, everything on the workbench; ₹1,000 total, with leverage.
@@ -960,7 +993,7 @@ Verify: `uv run pytest -q tests/test_market_history.py tests/test_india_papers.p
 | T-3995 | **Open, high and low for every stock** | DONE — `make rebuild-ohlc` re-read all 2,898 panel days from NSE's archive; `SWAP=1` replaced the panel after all 5,378,038 stored closes were reproduced exactly. The close-only panel is `price_panel.close_only.jsonl` |
 | T-3996 | **The real expiry and holiday calendar** | DONE — 144 expiries in `nifty_expiries.json`, each confirmed by its own day's F&O file (two scheduled dates had moved: June 2023, September 2025). They match the weekday rule on every past month, so `india_expiry_day`'s result stands. `nse_calendar.json`: 2,902 trading days, 166 closures. A-041 |
 | T-3997 | Nothing reads the delivery table yet | OPEN — index history, OHLC and the futures are used by the strategies in T-4000 to T-4002; delivery % is used by nothing, and no chart or API shows any of them |
-| T-3998 | Scheduled holidays and unscheduled closures look the same | OPEN — both calendars are dates with a file. NSE's holiday circulars would separate them (A-041) |
+| T-3998 | Scheduled holidays and unscheduled closures look the same | PARTLY DONE 2026-11-10 — coverage and the Angel fill now read NSE's published list (current year only), so a listed holiday is known before it happens. Past closures still mix both kinds; a future weekend session is unknown until its file lands (A-041) |
 | T-3999 | Items 5-9 of research 065 | TODO — FPI flows, ETF corporate actions, point-in-time index membership, market cap, dated fundamentals |
 
 ---

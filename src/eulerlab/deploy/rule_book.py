@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.deploy.deployments import Deployment
+from eulerlab.paths import data_path
 
 SLOTS = 10
 """Positions a day for the ban rules: the backtest's ten ₹1 lakh slots."""
@@ -48,7 +49,7 @@ LOOKBACK = 20
 MIN_NAMES = 100
 MIN_PRICE = 10.0
 ETF = "NIFTYBEES"
-REPORTS = Path("data/landing/nse_reports/manifest.jsonl")
+REPORTS = data_path("landing/nse_reports/manifest.jsonl")
 
 Trade = dict[str, Any]
 Generator = Callable[..., tuple[list[Trade], list[date]]]

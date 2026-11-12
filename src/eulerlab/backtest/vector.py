@@ -43,7 +43,6 @@ from bisect import bisect_right
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from eulerlab.backtest.strategy import MarketView, Strategy, decide, normalise
@@ -58,6 +57,7 @@ from eulerlab.features.panel import (
     trading_days,
 )
 from eulerlab.master.sessions import regular_days, short_sessions
+from eulerlab.paths import data_path
 
 IST = ZoneInfo("Asia/Kolkata")
 FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)
@@ -145,7 +145,7 @@ def build_total_return_index(
     store = (
         factor_store
         if factor_store is not None
-        else load_price_factor_store(Path("data/derived/total_return_factors.jsonl"))
+        else load_price_factor_store(data_path("derived/total_return_factors.jsonl"))
     )
     through = max(
         (record.event_time.date() for record in store.query(as_of=FAR_FUTURE)),

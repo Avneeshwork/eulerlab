@@ -26,13 +26,14 @@ from eulerlab.intraday import earnings_reaction_screen as earnings
 from eulerlab.intraday import expiry_pinning_screen as pinning
 from eulerlab.intraday import nr7_breakout_screen as nr7
 from eulerlab.intraday import overnight_reversal_screen as overnight
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/india_five_intraday.json")
+OUT = data_path("derived/india_five_intraday.json")
 START = date(2021, 8, 19)
 """The first day of the minute archive."""
 
 
-CACHE = Path("data/derived/india_five_cache")
+CACHE = data_path("derived/india_five_cache")
 """One file per stock: what each screen extracted from it, and its sessions.
 Written as each stock finishes, so a run that dies resumes where it stopped
 and downloads nothing twice. Delete the folder after changing an extractor."""

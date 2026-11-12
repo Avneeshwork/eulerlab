@@ -14,8 +14,9 @@ from eulerlab.master.registry import Registry
 from eulerlab.master.store import MASTER_PATH, BuildStamp, save
 from eulerlab.master.symbology import build_symbol_map
 from eulerlab.master.symbology import save as save_symbols
+from eulerlab.paths import data_path
 
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
 RENAMES_PATH = Path("config/symbol_renames.json")
 
 
@@ -82,7 +83,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"  written: {out} ({out.stat().st_size / 1e6:.1f} MB)")
 
     symbol_map = build_symbol_map(registry, last)
-    unresolved_log = Path("data/landing/kite_minute/unresolved.jsonl")
+    unresolved_log = data_path("landing/kite_minute/unresolved.jsonl")
     if unresolved_log.exists():
         stuck = sorted(
             {

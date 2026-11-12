@@ -1,0 +1,54 @@
+id: H-0219
+title: 'Fade low-delivery gap-downs: long 2% gap-downs on thin delivery'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Buying stocks that gap down 2% or more after a session with delivery at or below 0.8 times its
+  20-day mean earns positive net return from open to close after 12 bps of costs.
+rationale: This is the long mirror of H-0175, which shorted low-delivery gap-ups. A gap that follows speculative,
+  non-delivery trading has no investor conviction behind it, so it should mean-revert in both directions.
+  H-0209 found the opposite delivery condition (high delivery) also works long, so this tests whether
+  delivery separates the two cases.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when gap <= -0.02 and delivery_ratio[lag 1] <= 0.8; long; open to close; rank by gap
+    asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: gap
+    op: <=
+    value: -0.02
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.8
+  rank_by:
+    signal: gap
+    order: asc
+red_flags:
+- Gap-down stocks that are illiquid may have wide opening auctions and bad fills.
+- The H-0209 result (high delivery works long) may mean both delivery states work, so delivery adds nothing.
+- Gap-downs cluster in crash days (2020), so a few market-wide days may drive the result.
+- Gap-downs can be circuit or news driven, which makes the long side risky.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-10: 4053 trades 2016-01-01 to 2024-11-30; net 60.38 bps each; net Sharpe
+  1.659, halves 2.002 / 1.232, 1.331 at 2x costs. Flagged: not a few lucky days. Not gated (bias check).'

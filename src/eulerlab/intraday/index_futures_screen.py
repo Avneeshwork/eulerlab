@@ -33,9 +33,10 @@ from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
 from eulerlab.options.strategies import _cost
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/index_futures.json")
-INDEX = Path("data/derived/index_history.jsonl")
+OUT = data_path("derived/index_futures.json")
+INDEX = data_path("derived/index_history.jsonl")
 NOTIONAL = 1_000_000.0
 SLIPPAGE_BPS = 1.0
 EXIT_MINUTE = 370

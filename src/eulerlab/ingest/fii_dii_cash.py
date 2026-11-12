@@ -43,12 +43,13 @@ from zoneinfo import ZoneInfo
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.holidays import parse_nse_date
 from eulerlab.ingest.landing import Landing
+from eulerlab.paths import data_path
 
 URL = "https://www.nseindia.com/api/fiidiiTradeReact"
 TREE = "fii_dii"
 SEGMENT = "cash"
-DEFAULT_LANDING = Path("data/landing") / TREE
-DERIVED = Path("data/derived/fii_dii_cash.jsonl")
+DEFAULT_LANDING = data_path("landing") / TREE
+DERIVED = data_path("derived/fii_dii_cash.jsonl")
 IST = ZoneInfo("Asia/Kolkata")
 
 TOLERANCE_CRORE = 0.05

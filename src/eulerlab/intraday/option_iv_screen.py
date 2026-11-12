@@ -39,9 +39,10 @@ from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import option_signal_screen as sig
 from eulerlab.intraday import stock_fo_screen as fo
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/option_iv.json")
-OPTIONS_DAILY = Path("data/derived/stock_options_daily.jsonl")
+OUT = data_path("derived/option_iv.json")
+OPTIONS_DAILY = data_path("derived/stock_options_daily.jsonl")
 RATE = 0.065  # ASSUMPTION: A-113
 MIN_DAYS = 7
 SKEW_TARGET, SKEW_LOW, SKEW_HIGH = 0.95, 0.90, 0.98
@@ -140,7 +141,7 @@ def build_options_daily(path: Path = OPTIONS_DAILY, *, workers: int = 4) -> None
         with path.open(encoding="utf-8") as handle:
             have = {json.loads(line[: line.index(",")] + "}")["d"] for line in handle}
     entries = {}
-    for line in Path("data/landing/nse/manifest.jsonl").read_text(encoding="utf-8").splitlines():
+    for line in data_path("landing/nse/manifest.jsonl").read_text(encoding="utf-8").splitlines():
         entry = json.loads(line)
         if entry.get("segment") != "fo":
             continue

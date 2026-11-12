@@ -1977,8 +1977,106 @@ The remaining top-level modules. Small, and load-bearing in the way plumbing is:
 | `workspace` | what is shared between tenants and what emphatically is not (ADR-040) |
 | `cloud_results` | results mirrored to the bucket the market data lives in (ADR-042) |
 | `config`, `env` | typed config from `config/`, and one place that loads `.env` |
+| `paths` | where data lives: `EULERLAB_DATA_DIR`, the one setting every `data/...` path is built from |
 | `notify` | telling the operator when an unattended job fails |
+| `jobs`, `scheduler` | the job table, and the process that runs it on a server (ADR-164) |
+| `health` | one page: is the scheduler, the live book's clock and the kill switch alive |
+| `oms/deadman` | trips the kill switch when an armed live book's clock goes quiet |
 | `schemas` | **stub.** Not the order schema — that lives in `oms/` |
+
+**Where data lives.** Every module used to spell `Path("data/landing/...")`
+itself: 328 literals in 201 files, each one an assumption that the process runs
+from the repository root on the operator's Mac. `paths.data_path("landing/nse")`
+replaces them. It reads one setting, `EULERLAB_DATA_DIR`, and falls back to
+`data` relative to the working directory, so the Mac behaves exactly as before
+while a container or server points the same code at a mounted volume. The
+setting may sit in `.env`; `paths` loads it before the first module-level
+constant is built. `make hygiene` fails on any new `data/...` literal under
+`src/` (`data-literal`), so the rule cannot erode one commit at a time.
+
+**Postgres, when it is switched on (ADR-165).** `EULERLAB_DATABASE_URL`
+unset, nothing changes: every store writes its files. Set, the trial ledger
+reads and writes one table, `append_log`, for any ledger path under the data
+directory; a path outside it (every test's `tmp_path`) stays a file, so both
+homes stay tested. A row is the old file line byte for byte, because the
+ledger's hash covers the JSON text (jsonb would reorder keys and refuse NaN).
+The table refuses UPDATE, DELETE, TRUNCATE and any seq that is not the next,
+so append-only is enforced by the database, where the file could only detect
+an edit through the chain. An append runs under a per-stream advisory lock and
+builds its hash from the row that really came last, so two processes logging
+at once get 7 and 8, never two 7s. The switch is made in three steps:
+`make db-migrate`, `make db-import` (copies each ledger file, refuses a file
+that disagrees with rows already imported, then verifies the chain from the
+database), then set the variable for every process. Switching on before the
+import raises `NotImported` rather than reading an empty ledger, which would
+shrink the noise bar's trial count.
+
+The order journal follows the same rule (ADR-166), with one addition: paper
+books reset. On a file a reset deletes `orders.jsonl`; in the database,
+`journal.reset` starts the stream's next generation (`<name>@2`, `@3`, ...,
+recorded in `stream_generation`), and the journal reads only the current one.
+The orders a reset book forgot are still in the table. A committed insert is
+the durable write that the file's fsync was, so the intent is still on record
+before the order is sent. The trials counter (`derived/trials.jsonl`, every
+configuration evaluated) moved the same way, and the evidence census counts
+its stream, so both stores the noise bar counts read from one place
+(T-4558). The agent log moved too (T-4559). The kill-switch log and the
+trip file stay files on purpose (ADR-167): a trip must not depend on the
+database being up. With the database on, the nightly `make agents-backup`
+first exports every stream to `db_export/` (`db/export.py`, one JSON-lines
+file per stream and generation) and sends what changed with the rest of the
+memory; `make db-restore` loads an export into an empty database, where the
+table's triggers re-check every stream as it goes in.
+
+**Accounts and login (ADR-168).** `EULERLAB_AUTH` unset: no login, and every
+request is the operator, owner of the `default` workspace. Set to `on` (with
+the database), `accounts.middleware.RequireLogin` stands in front of every
+`/api` route: it proves the request (an HttpOnly session cookie from
+`POST /api/auth/login`, or `Authorization: Bearer` with a token from
+`make account`), chooses the workspace (`X-Workspace`, else the user's first
+membership; one the user is not in is refused, never swapped), applies the
+role table in `accounts.allowed`, and binds the result so any code can ask
+`accounts.current()`. Owners do everything; researchers everything except
+real money, broker logins, members and agent settings; viewers read. The
+workbench sends any 401 to `/login`. Only `/api/health` and the login itself
+are open.
+
+Workspaces are kept apart in the storage layer, not in the routes:
+`db.stream.stream_for` gives each stream the workspace of `accounts.current()`,
+so the same path in two workspaces is two streams (the ledger, trials, order
+journals, agent log), and `deployments.root()` puts each workspace's books in
+its own folder. A thread does not inherit the request's principal, so every
+thread an API route starts is wrapped in `accounts.carry`; without it, a
+backtest started in workspace B would log its trials into the operator's
+ledger. Agents' files (tasks, inbox, outputs, plans, the switches and
+lowered budgets) are per workspace too: every agent module finds its folder
+through `agents.spec.home()`, which returns the workspace's own. Results,
+saved strategies and reports already lived under `Workspace`; the gap was
+that routes took the workspace's name from the request. `workspace.resolve`
+now returns the logged-in workspace when none is named and refuses any other
+name while accounts are on. Scheduled jobs have no request, so the daily
+paper run and the auto-updater go through `accounts.for_each_workspace`,
+which runs the work once as each workspace. Shared on purpose: market data,
+and the hypotheses and evidence packs in the repository, which are the
+platform's own library.
+
+**Keys per workspace (ADR-170).** The default workspace's keys are in `.env`.
+Any other workspace's are rows in `workspace_secrets`, sealed with the
+server's `EULERLAB_SECRET_KEY`; `accounts.secrets.for_env` is the one lookup
+and never falls back to the server's key, so a user's agents cannot spend the
+operator's model budget. Broker keys are not wired to it yet (T-4571): real
+money is still the operator's book alone.
+
+**The gate per workspace (ADR-169).** `mandate.yaml` is the floor for
+everyone. An owner may store stricter values for the numeric thresholds in
+`accounts.gate.TIGHTENABLE`; `gate.effective()` applies them and the gate run
+passes the result to `gates.decide`. A looser value, or any other key, is
+refused. The default workspace is held to `mandate.yaml` exactly.
+
+**Failed logins.** Five wrong passwords for one email, or twenty from one
+address, inside fifteen minutes, and further tries are refused without
+checking the password (`login_failures`, counted in the database so it holds
+across servers).
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three
@@ -2149,7 +2247,10 @@ participant OI, index closes and delivery, and India minute bars, plus their
 dependents. It repeats every 600 s until today's cash bhavcopy is in the NSE
 manifest and today's minute bars are in the Kite manifest, or until 21:00 IST.
 With no Kite token minted today, the bhavcopy alone is enough. A holiday exits
-at once. `coverage.expected_nse` counts today from 15:31 (`NSE_DUE`). An NSE
+at once. `coverage.expected_nse` counts today from 15:31 (`NSE_DUE`). A session
+is a weekday not in `coverage.nse_closures()` (past days with no bhavcopy, plus
+NSE's published holiday list from `make holidays`, minus any day with a landed
+bhavcopy), or a landed weekend session (`nse_weekend_sessions()`). An NSE
 row whose only absent session is today reads `missing` with "today's data not
 in yet".
 
@@ -2689,7 +2790,11 @@ waits a day to show the drawdown.
 
 ## Scheduled jobs
 
-`tools/schedule_daily.py` writes launchd jobs; `make schedule JOB=...`.
+The job table is `eulerlab.jobs`: fourteen jobs, each with its IST time, its
+command (a Makefile target) and the reason for that time. Two things read it.
+On the Mac, `tools/schedule_daily.py` writes each job as a launchd plist
+(`make schedule JOB=...`). On a server, `eulerlab.scheduler` runs the table as
+one process (`make scheduler`, ADR-164); the section after the table says how.
 
 | Job | When | Runs |
 |---|---|---|
@@ -2705,6 +2810,47 @@ waits a day to show the drawdown.
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
 run say nothing on a weekend, an NSE holiday, or outside 15:05 to 15:45 IST.
+
+### Running on a server (ADR-164)
+
+`make scheduler` is the launchd replacement. Every 30 seconds it works out, in
+IST, which slots of the table have come due since its last look and runs each
+in its own thread, so a long `make daily` never holds up the 22:00 data agent.
+It writes what it ran to `data/scheduler/state.json`, so a restart does not run
+a slot twice, and a slot missed while it was down is handled by the job's
+`catch_up` flag: a data pull runs late, within three hours (a gap in market
+history cannot be bought back); a clock-tied job (the 09:16 live-price sweep,
+the 15:20 gap signal, the 09:10 depth recorder, the 15:10 close sweep) is
+skipped and the skip is logged, because run late it would mislead. A non-zero
+exit is reported to Telegram as `daily_guard.sh` reports `make daily`. Every
+run is a line in `data/scheduler/runs.jsonl`; `data/scheduler/heartbeat.json`
+says when it last looked. It knows nothing about NSE holidays on purpose: each
+job already decides what a holiday means for it, and two places deciding would
+disagree.
+
+`make health` (`eulerlab.health`) is the one page: the scheduler's heartbeat,
+each job's latest slot against its run, the live book's clock, and the kill
+switch. It exits 1 when anything is red, so it is also the containers' health
+check, and `GET /api/health` carries it under `ops`.
+
+**The dead-man switch** (`oms/deadman.py`) closes the gap that the live book's
+clock (`deploy/live_money.Clock`) was a thread inside the API process with
+nothing watching it. The clock now writes `live_money/heartbeat.json` on every
+tick. The dead-man switch runs in the kill-switch process, with its own
+`.env.killswitch` and no broker key, reads that file and `deploy.json`, and
+during market hours on a session the book is armed for trips the kill switch
+when the heartbeat is two minutes old, once per session, with a Telegram
+message. It cannot square off: the process that could is the one that went
+quiet (S-019). The message says to square off by hand and the broker's 15:12
+auto square-off stays the last line until broker-side stops land (#125).
+
+**Containers.** `Dockerfile` builds one Python image; `docker-compose.yml`
+starts it as `api`, `scheduler` and `killswitch`, plus `web` from
+`web/Dockerfile`. The repository is bind-mounted at `/app` so the research
+autopilot's commits land in the checkout, and data lives in a named volume
+through `EULERLAB_DATA_DIR=/data` (ADR-163). `docker compose up -d` on a VPS
+is the whole deployment; `make` on the Mac is unchanged. What is not there
+yet: Postgres (#114) and anything per-user (#113).
 
 ## Kite login from the Instruments page
 

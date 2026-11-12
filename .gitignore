@@ -8,6 +8,8 @@ data/
 .env
 .env.*
 !.env.example
+!.env.killswitch.example
+!.env.example
 *.pem
 *.key
 secrets/

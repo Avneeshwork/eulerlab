@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -37,8 +39,8 @@ from eulerlab.intraday import mft_screen as mft
 from eulerlab.intraday import quant_screen as qs
 from eulerlab.intraday import screen_common as sc
 
-OUT = Path("data/derived/onex_screen.json")
-NEWS_CACHE = Path("data/derived/nse_news_times.json")
+OUT = data_path("derived/onex_screen.json")
+NEWS_CACHE = data_path("derived/nse_news_times.json")
 IST = ZoneInfo("Asia/Kolkata")
 TRADE = 100_000.0
 CAPITAL = 1_000_000.0

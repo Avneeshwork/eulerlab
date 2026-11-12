@@ -30,6 +30,8 @@ from itertools import pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -37,8 +39,8 @@ from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import other_data_screen as od
 from eulerlab.intraday import screen_common as sc
 
-OUT = Path("data/derived/daily_universe.json")
-PANEL = Path("data/derived/price_panel.jsonl")
+OUT = data_path("derived/daily_universe.json")
+PANEL = data_path("derived/price_panel.jsonl")
 TOP = 500
 VALUE_DAYS = 20
 TRADE = 100_000.0
@@ -355,7 +357,7 @@ def main() -> int:
     args = parser.parse_args()
     if args.tug_of_war:
         found = evaluate_h0163(Context())
-        Path("data/derived/tug_of_war_daily_all_nse.json").write_text(json.dumps(found, indent=1))
+        data_path("derived/tug_of_war_daily_all_nse.json").write_text(json.dumps(found, indent=1))
         for one in found:
             print(
                 f"H-0163 {one['size']}: {one['trades']} trades; {one['per_trade_bps']}; net Sharpe "

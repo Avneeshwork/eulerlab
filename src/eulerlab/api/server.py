@@ -62,8 +62,12 @@ from eulerlab import (
     strategy_results,
     walk_run,
 )
+from eulerlab import health as ops_health
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
+from eulerlab.accounts import carry
+from eulerlab.accounts import routes as auth_routes
+from eulerlab.accounts.middleware import RequireLogin
 from eulerlab.api import (
     agent_routes,
     assistant_routes,
@@ -101,6 +105,7 @@ from eulerlab.intraday.paper_scan import ALL_SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.market_history import INDEX_UNIVERSE, index_panel_rows
+from eulerlab.paths import data_path
 from eulerlab.research.budget import price_search, searches_run
 from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
 from eulerlab.strategies import archive as strategy_archive
@@ -197,6 +202,12 @@ app.include_router(fyers_routes.router)
 app.include_router(risk_routes.router)
 app.include_router(agent_routes.router)
 app.include_router(fii_dii_routes.router)
+app.include_router(auth_routes.router)
+app.include_router(auth_routes.gate_router)
+# Login, when EULERLAB_AUTH=on (ADR-168). Added before CORS below, and the last
+# middleware added runs first, so CORS wraps it: a refused request still carries
+# the CORS headers the UI needs.
+app.add_middleware(RequireLogin)
 
 # The UI is served by Next.js on another port in development. Restricted to
 # localhost: this API can start real computation and read the research data,
@@ -609,6 +620,7 @@ def health() -> dict[str, Any]:
     dispersion = sharpe_dispersion()
     return {
         "ok": True,
+        "ops": ops_health.summary(),
         "panel_loaded": PANEL.loaded(),
         "trials_logged": trial_count(),
         "noise_bar": round(shown.value, 3),
@@ -1778,7 +1790,7 @@ def run_batch(request: BatchRunRequest) -> dict[str, Any]:
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job
-    threading.Thread(target=_run_batch, args=(job, request), daemon=True).start()
+    threading.Thread(target=carry(_run_batch), args=(job, request), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -1846,7 +1858,7 @@ def backtest(request: BacktestRequest) -> dict[str, Any]:
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job
-    thread = threading.Thread(target=_run_backtest, args=(job, request), daemon=True)
+    thread = threading.Thread(target=carry(_run_backtest), args=(job, request), daemon=True)
     thread.start()
     return {"ok": True, "job": job.id}
 
@@ -1988,7 +2000,7 @@ def tweezer(request: TweezerRequest) -> dict[str, Any]:
     job = Job(id=uuid.uuid4().hex[:12])
     with JOBS_LOCK:
         JOBS[job.id] = job
-    threading.Thread(target=_run_tweezer, args=(job, request), daemon=True).start()
+    threading.Thread(target=carry(_run_tweezer), args=(job, request), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -2270,7 +2282,7 @@ def _landing_source(name: str) -> dict[str, Any]:
     held = _LANDING_COUNTS.get(name)
     if held is not None and time.monotonic() - held[0] < LANDING_COUNT_TTL:
         return held[1]
-    root = Path("data/landing") / name
+    root = data_path("landing") / name
     if not root.exists():
         return {"name": name, "present": False, "files": 0, "newest": None}
     files = 0
@@ -2503,7 +2515,7 @@ def data_feed(request: FeedRequest | None = None) -> dict[str, Any]:
     with JOBS_LOCK:
         JOBS[job.id] = job
     threading.Thread(
-        target=_run_feed, args=(job, request.only, request.mirror), daemon=True
+        target=carry(_run_feed), args=(job, request.only, request.mirror), daemon=True
     ).start()
     return {"ok": True, "job": job.id}
 
@@ -2543,7 +2555,7 @@ def data_sync() -> dict[str, Any]:
         job.result = {"kind": "sync"}
         JOBS[job.id] = job
 
-    threading.Thread(target=_run_sync, args=(job,), daemon=True).start()
+    threading.Thread(target=carry(_run_sync), args=(job,), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -2618,7 +2630,7 @@ def data_prune(request: PruneRequest) -> dict[str, Any]:
         job = Job(id=uuid.uuid4().hex[:12])
         job.result = {"kind": "prune"}
         JOBS[job.id] = job
-    threading.Thread(target=_run_prune, args=(job, request.dry_run), daemon=True).start()
+    threading.Thread(target=carry(_run_prune), args=(job, request.dry_run), daemon=True).start()
     return {"ok": True, "job": job.id}
 
 
@@ -3765,7 +3777,7 @@ def _bounded[T](work: Callable[..., T], *args: Any, timeout: float) -> T:
     """
     pool = ThreadPoolExecutor(1)
     try:
-        return pool.submit(work, *args).result(timeout=timeout)
+        return pool.submit(carry(work), *args).result(timeout=timeout)
     finally:
         pool.shutdown(wait=False, cancel_futures=True)
 
@@ -5040,7 +5052,7 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
 
 _HISTORY_POINTS: dict[tuple[str, str], dict[str, Any] | None] = {}
 
-OPTIONS_HISTORY_CACHE = Path("data/cache/options_history.jsonl")
+OPTIONS_HISTORY_CACHE = data_path("cache/options_history.jsonl")
 """Each day's straddle point, kept across restarts. A landed bhavcopy never
 changes, so neither does its point; after a restart the first chart waited
 29 s to download and parse 60 of them again (2026-10-27)."""
@@ -5114,7 +5126,7 @@ def options_history(underlying: str = "NIFTY", days: int = 30) -> dict[str, Any]
 
     # Four at a time: each day is a download from B2, then a parse.
     with ThreadPoolExecutor(max_workers=4, thread_name_prefix="options-history") as pool:
-        list(pool.map(compute, missing))
+        list(pool.map(carry(compute), missing))
 
     points: list[dict[str, Any]] = []
     skipped: list[str] = []

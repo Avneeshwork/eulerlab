@@ -36,9 +36,10 @@ from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import earnings_reaction_screen as earnings
 from eulerlab.intraday import india_papers as ip
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/news_intraday.json")
-PARTS = Path("data/derived/news_intraday_parts")
+OUT = data_path("derived/news_intraday.json")
+PARTS = data_path("derived/news_intraday_parts")
 EVENTS = PARTS / "events.pkl"
 BATCH = 40
 CATEGORIES = {

@@ -34,7 +34,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-DIGEST_PATH = Path("data/derived/company_digest.json")
+from eulerlab.paths import data_path
+
+DIGEST_PATH = data_path("derived/company_digest.json")
 TREE = "fundamentals"
 
 CRORE = 1e7

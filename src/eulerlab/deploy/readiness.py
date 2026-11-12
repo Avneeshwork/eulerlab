@@ -37,13 +37,14 @@ from typing import Any
 import yaml
 
 from eulerlab.deploy import live_shadow
+from eulerlab.paths import data_path
 
 MANDATE = Path("mandate.yaml")
-KITE_PROOF = Path("data/oms/kite_proof.json")
-ANGEL_PROOF = Path("data/oms/angel_proof.json")
-KILL_LOG = Path("data/oms/killswitch_log.jsonl")
-LIVE_GO = Path("data/desk/live_go.json")
-GUARDIAN_LOG = Path("data/agents/guardian/log.jsonl")
+KITE_PROOF = data_path("oms/kite_proof.json")
+ANGEL_PROOF = data_path("oms/angel_proof.json")
+KILL_LOG = data_path("oms/killswitch_log.jsonl")
+LIVE_GO = data_path("desk/live_go.json")
+GUARDIAN_LOG = data_path("agents/guardian/log.jsonl")
 COST_BPS = 12.24
 """A ₹1 lakh NSE cash intraday round trip (research 171). Recheck with T-906."""
 DRILL_DAYS = 30

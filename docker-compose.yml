@@ -1,0 +1,92 @@
+# EulerLab on a server (ADR-164): `docker compose up -d`.
+#
+# Four Python services from one image, plus the workbench. The repository is
+# bind-mounted at /app so agent commits land in the checkout; data lives in the
+# `eulerlab-data` volume (EULERLAB_DATA_DIR=/data). Secrets come from `.env`
+# as on the Mac, except the kill-switch process, which gets `.env.killswitch`
+# alone: it needs Telegram to speak and KILLSWITCH_TOKEN to reset, and never a
+# broker key (CLAUDE.md: kill switches run with separate credentials).
+#
+# Postgres (ADR-165) runs here but nothing uses it until EULERLAB_DATABASE_URL
+# is set in `.env`, after `make db-migrate` and `make db-import`. Not here yet:
+# per-user anything (#113).
+
+name: eulerlab
+
+x-python: &python
+  build: .
+  image: eulerlab:latest
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    EULERLAB_DATA_DIR: /data
+    TZ: Asia/Kolkata
+  volumes:
+    - ./:/app
+    - eulerlab-data:/data
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: eulerlab
+      POSTGRES_DB: eulerlab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - eulerlab-pg:/var/lib/postgresql/data
+    # Not published: only the other containers reach it.
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "eulerlab", "-d", "eulerlab"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    <<: *python
+    command: uvicorn eulerlab.api.server:app --host 0.0.0.0 --port 8000
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  scheduler:
+    <<: *python
+    command: python -m eulerlab.scheduler
+    healthcheck:
+      test: ["CMD", "python", "-m", "eulerlab.health"]
+      interval: 60s
+      timeout: 20s
+      start_period: 90s
+      retries: 3
+
+  killswitch:
+    <<: *python
+    # Separate credentials: only this file, never .env.
+    env_file:
+      - path: .env.killswitch
+        required: false
+    command: python -m eulerlab.oms.deadman
+    healthcheck:
+      test: ["CMD", "python", "-m", "eulerlab.oms.deadman", "--check"]
+      interval: 60s
+      timeout: 20s
+      retries: 3
+
+  web:
+    build: ./web
+    image: eulerlab-web:latest
+    restart: unless-stopped
+    environment:
+      EULERLAB_API: http://api:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  eulerlab-data:
+  eulerlab-pg:

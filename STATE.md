@@ -1,9 +1,9 @@
 # STATE — where this project is right now
 
-**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
-**Next:** live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528). Sprints 29–31 — compliance, then first capital (operator). For micro-05: log in from Instruments → FYERS (or `make fyers-auth`), then `make microstructure-five-futures`.
+**Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), Postgres for shared state (ADR-165 to ADR-167, T-4557 to T-4562, off by default), multi-user (#113: login and per-workspace records done; gate settings wait on a decision), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
+**Next:** build and start the containers (`docker compose up -d`, T-4553), then the regulatory research for a subscription platform (#112) and the multi-user design (#113). Also: live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528).
 
-*Last updated: 2026-11-08 (screener). One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-12 (server infrastructure, trial ledger in Postgres). One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -69,6 +69,25 @@ what is open is in `TASKS.md`.*
   -44% to -63%), H-0098 1.72 (drawdown -10%), the other momentum cards
   0.57-1.12 with drawdowns of 35-60%. H-0065 and H-0096 skipped. No unseen data is left;
   paper trading is the only out-of-sample test. **No capital traded.**
+- **Running on a server (ADR-163, ADR-164, 2026-11-12).** `EULERLAB_DATA_DIR` is
+  the one setting for where data lives (unset: `data` under the repo, as before).
+  The fourteen launchd jobs are a table in `eulerlab.jobs`; `make scheduler` runs it
+  anywhere, catching up data jobs and skipping clock-tied ones it missed.
+  `make health` is the one page. The live book's clock leaves a heartbeat and a
+  dead-man switch in the kill-switch process trips the switch when it goes quiet
+  (it cannot square off, S-060). `docker compose up -d` runs api, scheduler,
+  killswitch and web; validated, not yet built or run (T-4553). The platform is
+  to become multi-user, open source with a hosted subscription: issues #111-#132,
+  storage design in ADR-165. With `EULERLAB_DATABASE_URL` set (after `make
+  db-migrate db-import`), the trial ledger, the trials counter, the agent log
+  and the order journals live in Postgres, where edits are refused by the table and a paper reset starts a new
+  generation (ADR-166); unset, they stay files (T-4557 to T-4561). The nightly backup exports the
+  database to B2 (T-4562); the kill-switch log stays a file (ADR-167).
+  Login and roles exist (`EULERLAB_AUTH=on`, ADR-168); books, journals, ledger,
+  trials, agent log and agent files are kept apart per workspace, and a
+  workspace may tighten the gate but not loosen it (ADR-169, T-4563 to T-4568).
+  Results, paper runs and model keys are per workspace too (ADR-170). Real
+  money is still the default workspace only (T-4571).
 - **Real money, armed from the workbench (ADR-162, 2026-11-09).** H-0194 (fade a
   3% no-news gap, 09:20 to 15:10, MIS) on Angel One: Live & Risk → Deployment,
   amount + leverage + loss cap, type DEPLOY, one session per deploy. Operator's

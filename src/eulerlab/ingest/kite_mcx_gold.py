@@ -29,9 +29,10 @@ from eulerlab.ingest.kite_minute import (
     MinuteStore,
     candles_to_table,
 )
+from eulerlab.paths import data_path
 
-LANDING_ROOT = Path("data/landing/mcx_gold")
-MASTER_ROOT = Path("data/landing/mcx/instruments")
+LANDING_ROOT = data_path("landing/mcx_gold")
+MASTER_ROOT = data_path("landing/mcx/instruments")
 CONTRACT = re.compile(r"^GOLD\d{2}[A-Z]{3}FUT$")
 MIN_INTERVAL_S = 0.34
 

@@ -63,6 +63,14 @@ dev = [
     "ruff>=0.6",
     "types-pyyaml>=6.0",
 ]
+# Postgres for state shared across processes and servers (ADR-165). Optional:
+# unset EULERLAB_DATABASE_URL and everything stays in files, as on the Mac. Free;
+# replaces nothing yet; needed once two servers share one ledger and journal.
+db = [
+    "psycopg[binary]>=3.2",
+    # Seals each workspace's own keys (ADR-170). Free; already installed by the broker SDKs.
+    "cryptography>=42",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -127,6 +135,9 @@ known-first-party = ["eulerlab", "tools"]
 python_version = "3.12"
 strict = true
 files = ["src", "tools", "tests"]
+# Resolve eulerlab from src/, so the commit hook can check one staged test
+# file alone: the editable install has no py.typed and reads as untyped.
+mypy_path = "src"
 warn_unreachable = true
 disallow_any_unimported = true
 plugins = ["pydantic.mypy"]

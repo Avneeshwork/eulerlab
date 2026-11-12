@@ -39,6 +39,8 @@ from itertools import pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -48,8 +50,8 @@ from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import screen_common as sc
 from eulerlab.intraday import stock_fo_screen as fo
 
-OUT = Path("data/derived/mft_screen.json")
-INDEX = Path("data/derived/index_history.jsonl")
+OUT = data_path("derived/mft_screen.json")
+INDEX = data_path("derived/index_history.jsonl")
 TRADE = 500_000.0
 """₹1 lakh of margin at Zerodha's 5x MIS leverage (research 168)."""
 MAX_OPEN = 10

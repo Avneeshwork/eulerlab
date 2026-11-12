@@ -33,8 +33,9 @@ from typing import Any
 
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import daily_universe_screen as du
+from eulerlab.paths import data_path
 
-REPORTS = Path("data/landing/nse_reports/manifest.jsonl")
+REPORTS = data_path("landing/nse_reports/manifest.jsonl")
 SLOTS = 10
 VARIANT = (
     "variant: covers at the official close, which an MIS short cannot reach "

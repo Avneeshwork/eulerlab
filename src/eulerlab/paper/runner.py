@@ -41,14 +41,15 @@ from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Side
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel
-from eulerlab.oms import ems, reconcile
+from eulerlab.oms import ems, journal, reconcile
 from eulerlab.oms.journal import Journal
 from eulerlab.oms.killswitch import KillSwitch
 from eulerlab.oms.oms import OMS, Execution
 from eulerlab.oms.paper_broker import PaperBroker, PaperFaults
 from eulerlab.oms.states import OrderState
+from eulerlab.paths import data_path
 
-PAPER_DIR = Path("data/oms/paper")
+PAPER_DIR = data_path("oms/paper")
 
 
 class OMSExecutor:
@@ -277,7 +278,8 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if args.reset:
-        for name in ("orders.jsonl", "paper_broker.json", "KILL_SWITCH"):
+        journal.reset(PAPER_DIR / "orders.jsonl", "paper --reset")
+        for name in ("paper_broker.json", "KILL_SWITCH"):
             (PAPER_DIR / name).unlink(missing_ok=True)
 
     rows = read_panel()

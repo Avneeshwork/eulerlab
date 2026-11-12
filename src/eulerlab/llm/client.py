@@ -143,15 +143,15 @@ class Reply:
 def _api_key(provider: Provider) -> str | None:
     if not provider.api_key_var:
         return None
-    import os
+    # The operator's key comes from .env; any other workspace's from its own
+    # encrypted store, never the server's environment (ADR-170).
+    from eulerlab.accounts import secrets
 
-    from eulerlab.env import load_env
-
-    load_env()
-    value = os.environ.get(provider.api_key_var, "").strip()
+    value = secrets.for_env(provider.api_key_var)
     if not value:
         msg = (
-            f"{provider.name} needs {provider.api_key_var} set in .env.\n"
+            f"{provider.name} needs {provider.api_key_var} set in .env"
+            " (or, in a workspace, by its owner under Settings).\n"
             f"Or switch to a provider that needs no key — `ollama` runs locally."
         )
         raise LLMUnavailable(msg)

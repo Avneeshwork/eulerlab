@@ -43,8 +43,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eulerlab.paths import data_path
+
 BASE_URL = "https://quantpedia.com/api/v1"
-LANDING = Path("data/landing/quantpedia")
+LANDING = data_path("landing/quantpedia")
 TIMEOUT_SECONDS = 30
 PAUSE_SECONDS = 1.0
 DEFAULT_LIMIT = 50

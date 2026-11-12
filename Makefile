@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo
+.PHONY: topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account
 
 help:
 	@echo "EulerLab — targets"
@@ -128,13 +128,13 @@ help:
 # Everything this machine runs: the news tone model (ADR-135) and scikit-learn for
 # the screener's tree ranker (ADR-136), which holds nothing without it.
 install:
-	uv sync --extra dev --extra web --extra news --extra research-ml --extra angel
+	uv sync --extra dev --extra web --extra news --extra research-ml --extra angel --extra db
 	cd web && npm install
 	uv run pre-commit install
 
 # Without the news tone model (about 1.2 GB): the brief lists headlines unscored.
 install-lite:
-	uv sync --extra dev --extra web
+	uv sync --extra dev --extra web --extra db
 	cd web && npm install
 	uv run pre-commit install
 
@@ -618,6 +618,50 @@ guardian:
 agents-resume:
 	@test -n "$(REASON)" || (echo 'usage: make agents-resume REASON="why it is safe to resume"'; exit 2)
 	@uv run python -m eulerlab.agents.guardian clear --reason "$(REASON)"
+
+# --- running on a server (ADR-164) ------------------------------------------------
+# The same fourteen jobs launchd runs on the Mac, as one process that catches up
+# after a restart. `make health` is the one page that says whether it is all alive.
+scheduler:
+	@uv run --extra web --extra angel python -m eulerlab.scheduler
+
+scheduler-list:
+	@uv run python -m eulerlab.scheduler --list
+
+scheduler-tick:
+	@uv run --extra web --extra angel python -m eulerlab.scheduler --tick
+
+# The dead-man switch: in the kill-switch process, trips the switch when the live
+# book's clock goes quiet in market hours. Needs no broker credential.
+deadman:
+	@uv run python -m eulerlab.oms.deadman
+
+health:
+	@uv run python -m eulerlab.health
+
+# Postgres (ADR-165), only when EULERLAB_DATABASE_URL is set. Order on a new
+# install: db-migrate, db-import, then set the variable for every process.
+db-migrate:
+	@uv run --extra db python -m eulerlab.db
+
+db-import:
+	@uv run --extra db python -m eulerlab.db.importer
+
+# The database as files under db_export/ (the nightly agents-backup does this
+# first, then sends them to B2). db-restore loads them into an EMPTY database,
+# after `make agents-restore` has fetched them.
+db-export:
+	@uv run --extra db python -m eulerlab.db.export
+
+db-restore:
+	@uv run --extra db python -m eulerlab.db.export --restore
+
+# Accounts (ADR-168), for a server with EULERLAB_AUTH=on. Examples:
+#   make account ARGS="workspace Alpha"
+#   make account ARGS="user you@example.com alpha owner"     (asks for a password)
+#   make account ARGS="token you@example.com alpha laptop"   (prints the token once)
+account:
+	@uv run --extra db python -m eulerlab.accounts $(ARGS)
 
 kill-status:
 	@uv run python -m eulerlab.oms.killswitch

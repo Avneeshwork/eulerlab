@@ -31,8 +31,9 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.agents.runtime import Context, Item, WorkerResult, untrusted
+from eulerlab.paths import data_path
 
-WORKSPACES = Path("data/workspaces")
+WORKSPACES = data_path("workspaces")
 TRADING_DAYS = 252
 
 STRESS_WINDOWS: tuple[tuple[str, str, str], ...] = (

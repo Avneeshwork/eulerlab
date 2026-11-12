@@ -53,8 +53,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 REPO = Path(__file__).resolve().parents[3]
-WORKTREES = Path("data/agents/engineering/worktrees")
+WORKTREES = data_path("agents/engineering/worktrees")
 BRANCH_PREFIX = "agent-fix/"
 
 NEVER: tuple[str, ...] = (

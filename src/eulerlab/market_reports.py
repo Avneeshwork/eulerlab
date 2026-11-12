@@ -25,9 +25,10 @@ from typing import Any
 
 from eulerlab.ingest.landing import Landing, ManifestEntry
 from eulerlab.ingest.nse_eod import IST
+from eulerlab.paths import data_path
 
-LANDING = Path("data/landing/nse_reports")
-OUT = Path("data/derived/market_reports.json")
+LANDING = data_path("landing/nse_reports")
+OUT = data_path("derived/market_reports.json")
 DEAL_DAYS = 30
 FILING_DAYS = 10
 MTF_LOOKBACK = 5

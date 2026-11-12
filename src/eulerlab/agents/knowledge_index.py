@@ -23,6 +23,7 @@ from typing import Any
 import yaml
 
 from eulerlab.agents.spec import home
+from eulerlab.paths import data_path
 
 SOURCES: tuple[tuple[str, str, str], ...] = (
     ("paper", "research/papers", "*.yaml"),
@@ -39,7 +40,7 @@ SOURCES: tuple[tuple[str, str, str], ...] = (
     ("metric", "docs/METRICS", "HOW_TO_ANSWER.md"),
     ("record", "docs", "GLOSSARY.md"),
 )
-EXTRA = (Path("data/quality/grades.json"),)
+EXTRA = (data_path("quality/grades.json"),)
 SNIPPET = 1500
 WORD = re.compile(r"[a-z0-9][a-z0-9_\-]{1,}")
 STOP = frozenset(
@@ -176,7 +177,8 @@ def newest_source(base: Path = Path()) -> float:
     stamps = [p.stat().st_mtime for _, p in _files(base)]
     stamps += [(base / p).stat().st_mtime for p in EXTRA if (base / p).exists()]
     stamps += [
-        p.stat().st_mtime for p in (base / "data/landing/quantpedia").glob("*/strategy/*.json")
+        p.stat().st_mtime
+        for p in (base / data_path("landing/quantpedia")).glob("*/strategy/*.json")
     ]
     return max(stamps, default=0.0)
 

@@ -34,10 +34,11 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 from itertools import pairwise
-from pathlib import Path
 from typing import Any
 
-OUT = Path("data/derived/session_studies.json")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/session_studies.json")
 START, END = date(2016, 1, 1), date(2026, 9, 30)
 NOTIONAL = Decimal(1_000_000)
 

@@ -22,6 +22,8 @@ from datetime import date, datetime, time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -30,8 +32,8 @@ from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import new_signals_screen as ns
 from eulerlab.intraday import onex_screen as onex
 
-OUT = Path("data/derived/more_signals.json")
-CORP_MANIFEST = Path("data/landing/nse/manifest.jsonl")
+OUT = data_path("derived/more_signals.json")
+CORP_MANIFEST = data_path("landing/nse/manifest.jsonl")
 Event = dm.Event
 
 

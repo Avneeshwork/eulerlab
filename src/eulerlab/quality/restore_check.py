@@ -19,8 +19,9 @@ from datetime import date
 from pathlib import Path
 
 from eulerlab.ingest import cloud
+from eulerlab.paths import data_path
 
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
 STORAGE = Path("config/storage.yaml")
 
 

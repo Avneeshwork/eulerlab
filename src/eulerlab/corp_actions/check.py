@@ -35,11 +35,12 @@ from eulerlab.corp_actions.prices import (
     parse_closes,
 )
 from eulerlab.ingest.landing import ManifestEntry
+from eulerlab.paths import data_path
 
 IST = ZoneInfo("Asia/Kolkata")
 FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)
-LANDING = Path("data/landing/nse")
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
+LANDING = data_path("landing/nse")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 # Deliberately duplicated, not imported from parse.py: a check that reuses the
 # implementation it is checking proves nothing.

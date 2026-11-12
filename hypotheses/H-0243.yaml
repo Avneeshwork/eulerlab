@@ -1,0 +1,58 @@
+id: H-0243
+title: Swing long on quiet-base breakouts with a volume surge
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Buying stocks at a 120-day closing high on 2x volume after a 60-day return of 15% or less, held
+  60 sessions, earns positive net return.
+rationale: Builds on H-0225 (52-week high plus volume, net 320 bps) and gupta-2025-gross-profitability-and-momentum-evidence-from-india
+  (near-high momentum). A breakout from a flat base with volume shows new demand with little previous
+  run-up, so the drift should be longer and less crowded.
+source:
+  research: autopilot
+  paper: gupta-2025-gross-profitability-and-momentum-evidence-from-india
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when at_high(120)[lag 1] and value_ratio[lag 1] >= 2 and ret(60)[lag 1] <= 0.15; long;
+    hold 60 sessions; rank by value_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 60
+  side: long
+  when:
+  - signal: at_high
+    lag: 1
+    n: 120
+  - signal: value_ratio
+    lag: 1
+    op: '>='
+    value: 2.0
+  - signal: ret
+    lag: 1
+    n: 60
+    op: <=
+    value: 0.15
+  rank_by:
+    signal: value_ratio
+    lag: 1
+red_flags:
+- Overlaps with H-0225, whose halves disagreed (-0.04 / 1.59)
+- Long holds mostly capture market beta in rising years
+- Overlapping positions in the same days make trades non-independent
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-12: 346 positions 2016-01-01 to 2024-11-30; net 379.63 bps each; net
+  Sharpe 0.772, halves 0.422 / 1.136, 0.718 at 2x costs. Flagged: not a few lucky days. Not gated (bias
+  check).'

@@ -32,8 +32,9 @@ from eulerlab.ingest.kite_minute import (
     uncovered_chunks,
 )
 from eulerlab.ingest.nse_eod import weekend_sessions
+from eulerlab.paths import data_path
 
-LANDING_ROOT = Path("data/landing/kite_index_minute")
+LANDING_ROOT = data_path("landing/kite_index_minute")
 MIN_INTERVAL_S = 0.34
 """Kite allows 3 historical requests a second."""
 

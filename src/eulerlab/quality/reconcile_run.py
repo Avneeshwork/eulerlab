@@ -20,13 +20,14 @@ from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
+from eulerlab.paths import data_path
 from eulerlab.quality.findings import Report, Severity
 from eulerlab.quality.reconcile import coverage_summary, reconcile_day
 from eulerlab.quality.row_checks import Bar
 from eulerlab.quality.sources import bars_from_bhavcopy, daily_bar_from_minutes
 
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
-MINUTE_MANIFEST = Path("data/landing/kite_minute/manifest.jsonl")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
+MINUTE_MANIFEST = data_path("landing/kite_minute/manifest.jsonl")
 
 
 def _client() -> object:

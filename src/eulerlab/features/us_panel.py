@@ -32,7 +32,9 @@ from dataclasses import dataclass, fields
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
-PANEL_PATH = Path("data/derived/us_panel.jsonl")
+from eulerlab.paths import data_path
+
+PANEL_PATH = data_path("derived/us_panel.jsonl")
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,7 +277,7 @@ def _parse(lines: Iterable[bytes]) -> list[UsRow]:
     return out
 
 
-def sectors(*, root: Path = Path("data/landing/us")) -> dict[str, str]:
+def sectors(*, root: Path | None = None) -> dict[str, str]:
     """Symbol → GICS sector, from the landed constituent snapshot.
 
     Used for grouping the map only. The snapshot is today's membership, so a
@@ -283,6 +285,7 @@ def sectors(*, root: Path = Path("data/landing/us")) -> dict[str, str]:
     unclassified heading rather than being dropped — a missing label is a gap
     in the data, not a reason to hide the company.
     """
+    root = root if root is not None else data_path("landing/us")
     from eulerlab.ingest import landing_reader
 
     files = sorted((root / "sp500").glob("????-??-??.jsonl.gz"))

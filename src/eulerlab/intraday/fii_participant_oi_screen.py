@@ -27,9 +27,10 @@ from eulerlab.ingest.landing import Landing
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import screen_common as sc
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/fii_participant_oi_stock_strategies.json")
-LANDING = Path("data/landing/nse")
+OUT = data_path("derived/fii_participant_oi_stock_strategies.json")
+LANDING = data_path("landing/nse")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS")
 CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)

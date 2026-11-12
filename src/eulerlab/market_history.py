@@ -42,16 +42,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from eulerlab.bitemporal.provenance import knowable_at, session_close
+from eulerlab.paths import data_path
 
 if TYPE_CHECKING:
     from eulerlab.features.panel import PanelRow
 
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
-INDEX_HISTORY = Path("data/derived/index_history.jsonl")
-DELIVERY = Path("data/derived/delivery.jsonl")
-CALENDAR = Path("data/derived/nse_calendar.json")
-EXPIRIES = Path("data/derived/nifty_expiries.json")
-NIFTY_FUTURES = Path("data/derived/nifty_futures.jsonl")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
+INDEX_HISTORY = data_path("derived/index_history.jsonl")
+DELIVERY = data_path("derived/delivery.jsonl")
+CALENDAR = data_path("derived/nse_calendar.json")
+EXPIRIES = data_path("derived/nifty_expiries.json")
+NIFTY_FUTURES = data_path("derived/nifty_futures.jsonl")
 
 
 def _entries(segment: str) -> list[dict[str, Any]]:

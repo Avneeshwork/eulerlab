@@ -7,15 +7,15 @@ import json
 import statistics
 from datetime import UTC, datetime
 from itertools import pairwise
-from pathlib import Path
 from typing import Any
 
 from eulerlab.fair_value import factors
+from eulerlab.paths import data_path
 
 MODEL_VERSION = "india-common-residual-income-v4.1"
 INDIA_ERP = 0.06920182533929162
 INDIA_ERP_AS_OF = "2026-07-01"
-SNAPSHOTS = Path("data/derived/fair_value")
+SNAPSHOTS = data_path("derived/fair_value")
 EXPLICIT_YEARS = 10
 ROE_ANCHOR_YEARS = 5
 

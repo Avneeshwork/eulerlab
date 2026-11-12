@@ -1,0 +1,59 @@
+id: H-0247
+title: Two straight days of heavy delivery with no price move, then hold 20 sessions
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Buying stocks with delivery ratio of 1.5 or more on both of the last two sessions and 2-session
+  return of 2% or less, held 20 sessions, earns positive net return.
+rationale: Builds on H-0218 (heavy delivery with a flat day, net 85 bps) and H-0173. Persistent delivery
+  without a price rise suggests patient accumulation absorbing supply. A single day can be noise, and
+  requiring two days is a stricter test of the same idea.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when delivery_ratio[lag 1] >= 1.5 and delivery_ratio[lag 2] >= 1.5 and ret(2)[lag 1] <=
+    0.02; long; hold 20 sessions; rank by delivery_ratio[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.5
+  - signal: delivery_ratio
+    lag: 2
+    op: '>='
+    value: 1.5
+  - signal: ret
+    lag: 1
+    n: 2
+    op: <=
+    value: 0.02
+  rank_by:
+    signal: delivery_ratio
+    lag: 1
+red_flags:
+- Heavy delivery can also be distribution by sellers, so the sign is ambiguous
+- H-0218 had unstable halves (0.09 / 1.2)
+- Delivery % is inflated around index rebalances and corporate actions
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-12: 1031 positions 2016-01-01 to 2024-11-30; net 50.62 bps each; net
+  Sharpe 0.257, halves -0.5 / 1.053, 0.121 at 2x costs. Flagged: not carried by five names, not a few
+  lucky days. Screen fail; not gated.'

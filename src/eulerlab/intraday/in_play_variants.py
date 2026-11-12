@@ -27,9 +27,10 @@ from typing import Any
 
 from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
+from eulerlab.paths import data_path
 from eulerlab.validation.statistics import expected_max_sharpe
 
-OUT = Path("data/derived/in_play_variants.json")
+OUT = data_path("derived/in_play_variants.json")
 SELECTION_END = date(2023, 12, 31)
 TOP_N = (5, 10)
 MIN_RELATIVE_VOLUME = (2.0, 3.0)

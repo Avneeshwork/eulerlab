@@ -58,13 +58,13 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 from eulerlab import notify, telegram_words
+from eulerlab.paths import data_path
 
 API = "https://api.telegram.org/bot{token}/{method}"
-OFFSET_FILE = Path("data/derived/.telegram_offset")
+OFFSET_FILE = data_path("derived/.telegram_offset")
 POLL_SECONDS = 25
 """Long-poll length. Telegram holds the request open until a message arrives."""
 

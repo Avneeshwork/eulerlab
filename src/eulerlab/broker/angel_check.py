@@ -38,9 +38,11 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-READONLY_FILE = Path("data/oms/angel_readonly.json")
-PROOF_FILE = Path("data/oms/angel_proof.json")
-TOKENS_FILE = Path("data/master/angel_nse_tokens.json")
+from eulerlab.paths import data_path
+
+READONLY_FILE = data_path("oms/angel_readonly.json")
+PROOF_FILE = data_path("oms/angel_proof.json")
+TOKENS_FILE = data_path("master/angel_nse_tokens.json")
 QUOTE_BATCH = 50
 # ASSUMPTION: A-127 — getMarketData takes at most 50 tokens a request and its FULL
 # reply is {"data": {"fetched": [{tradingSymbol, symbolToken, ltp, open, close,

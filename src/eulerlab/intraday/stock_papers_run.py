@@ -18,15 +18,15 @@ import json
 import time
 from collections.abc import Sequence
 from datetime import date
-from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import india_papers_run as base
 from eulerlab.intraday import session_papers as sp
 from eulerlab.intraday import stock_papers as stp
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/stock_intraday_papers.json")
+OUT = data_path("derived/stock_intraday_papers.json")
 REVERSAL_SETTINGS = ((5, False), (5, True), (10, False), (10, True))
 """(groups, long only). Quintiles are the paper's main table; deciles and the
 losers alone are its own robustness cases. All four are reported together."""

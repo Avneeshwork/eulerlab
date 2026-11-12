@@ -46,8 +46,10 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
-TRIP_PATH = Path("data/oms/KILL_SWITCH")
-TRIP_LOG_PATH = Path("data/oms/killswitch_log.jsonl")
+from eulerlab.paths import data_path
+
+TRIP_PATH = data_path("oms/KILL_SWITCH")
+TRIP_LOG_PATH = data_path("oms/killswitch_log.jsonl")
 LIMITS_PATH = Path("config/killswitch.yaml")
 
 TOKEN_VAR = "KILLSWITCH_TOKEN"

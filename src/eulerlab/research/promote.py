@@ -33,9 +33,10 @@ from typing import Any
 
 import yaml
 
+from eulerlab.paths import data_path
 from eulerlab.research import card as card_mod
 
-FOLDER = Path("data/agents/promote")
+FOLDER = data_path("agents/promote")
 MARKER = "registered.json"
 """Written beside a lab card once it is registered, so one card is never registered twice."""
 

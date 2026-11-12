@@ -68,6 +68,7 @@ from eulerlab.backtest.vector import build_adjusted_index
 from eulerlab.costs.schedule import Side
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel
+from eulerlab.oms import journal
 from eulerlab.oms.paper_broker import PaperFaults
 from eulerlab.paper import runner
 
@@ -303,7 +304,8 @@ def compare(
         asset_class="equity",
     )
 
-    for name in ("orders.jsonl", "paper_broker.json", "KILL_SWITCH"):
+    journal.reset(root / "orders.jsonl", "attribution run")
+    for name in ("paper_broker.json", "KILL_SWITCH"):
         (root / name).unlink(missing_ok=True)
     injected = faults or PaperFaults()
     injected.reject_symbols |= set(reject_symbols or ())

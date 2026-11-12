@@ -46,6 +46,8 @@ from enum import StrEnum
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 IST = ZoneInfo("Asia/Kolkata")
 
 # When each feed becomes knowable. The error here is deliberately one-sided:
@@ -169,7 +171,7 @@ def read_manifest(path: Path) -> Iterator[Provenance]:
 def main() -> int:
     """Print the vintage breakdown. This is the operator-checkable command."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", default="data/landing/nse/manifest.jsonl")
+    parser.add_argument("--manifest", default=str(data_path("landing/nse/manifest.jsonl")))
     args = parser.parse_args()
 
     path = Path(args.manifest)

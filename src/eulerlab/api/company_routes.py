@@ -20,10 +20,11 @@ from eulerlab.bitemporal.store import BitemporalStore
 from eulerlab.fair_value import valuation
 from eulerlab.features import company as digest
 from eulerlab.features import company_page
+from eulerlab.paths import data_path
 
 router = APIRouter(prefix="/api")
 
-NAMES_PATH = Path("data/derived/nse_names.json")
+NAMES_PATH = data_path("derived/nse_names.json")
 PRICE_DAYS = 1260
 """About five years of sessions: the longest range the page's chart offers."""
 
@@ -159,7 +160,7 @@ def _cached_prices(
 
     adjusted_factors = _cached_factor_store(str(PRICE_FACTORS), factor_stamps[0], factor_stamps[1])
     total_return_factors = _cached_factor_store(
-        "data/derived/total_return_factors.jsonl", factor_stamps[2], None
+        str(data_path("derived/total_return_factors.jsonl")), factor_stamps[2], None
     )
     adjusted = build_adjusted_index(mine, factor_store=adjusted_factors).get(symbol) or {}
     total_returns, total_return_factor_through = build_total_return_index(
@@ -189,7 +190,7 @@ def _prices(symbol: str) -> dict[str, Any]:
     factors = (
         PRICE_FACTORS,
         MANUAL_PRICE_FACTORS,
-        Path("data/derived/total_return_factors.jsonl"),
+        data_path("derived/total_return_factors.jsonl"),
     )
     # Avoid two simultaneous opens of the large panel for the same ticker.
     with _price_lock(symbol):

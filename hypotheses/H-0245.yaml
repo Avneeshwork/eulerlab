@@ -1,0 +1,59 @@
+id: H-0245
+title: Post-results drift after a three-session gain with delivery support
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Buying stocks whose results came out three sessions before entry, with a 3-session return of 4%
+  or more and prior-day delivery ratio of 1.2 or more, held 20 sessions, earns positive net return.
+rationale: Builds on H-0172 and H-0215 (post-results drift, which found little). It lets the market digest
+  the results for three sessions, then buys only those still rising with delivery support, which suggests
+  slow-reacting institutional accumulation. This follows the under-reaction logic behind post-earnings
+  drift.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when results_morning[lag 3] and ret(3)[lag 1] >= 0.04 and delivery_ratio[lag 1] >= 1.2;
+    long; hold 20 sessions; rank by ret(3)[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 20
+  side: long
+  when:
+  - signal: results_morning
+    lag: 3
+  - signal: ret
+    lag: 1
+    n: 3
+    op: '>='
+    value: 0.04
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.2
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 3
+red_flags:
+- Results data only from 2021-07, so a small sample
+- Earlier results-based swing rules (H-0204, H-0205, H-0215) lost
+- Results-morning flag misses results released during market hours
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-12: 80 positions 2021-07-01 to 2024-11-30; net -110.32 bps each; net
+  Sharpe -0.296, halves -1.568 / 0.718, -0.362 at 2x costs. Flagged: enough trades, positive in most years.
+  Screen fail; not gated.'

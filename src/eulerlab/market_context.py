@@ -38,10 +38,11 @@ import numpy.typing as npt
 
 from eulerlab.features.panel import PanelRow
 from eulerlab.filecache import FileMemo, stamp
+from eulerlab.paths import data_path
 
-INDEX_HISTORY = Path("data/derived/index_history.jsonl")
-DELIVERY = Path("data/derived/delivery.jsonl")
-POSITIONS_CACHE = Path("data/cache/participant_positions.jsonl")
+INDEX_HISTORY = data_path("derived/index_history.jsonl")
+DELIVERY = data_path("derived/delivery.jsonl")
+POSITIONS_CACHE = data_path("cache/participant_positions.jsonl")
 
 STRIP = (
     "Nifty 50",

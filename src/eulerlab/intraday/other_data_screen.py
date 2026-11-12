@@ -31,6 +31,8 @@ from datetime import date, datetime, time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -42,15 +44,15 @@ from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import onex_screen as onex
 from eulerlab.intraday import screen_common as sc
 
-OUT = Path("data/derived/other_data_screen.json")
+OUT = data_path("derived/other_data_screen.json")
 TRADE = 100_000.0
 CAPITAL = 1_000_000.0
 MAX_OPEN = 10
 SLIPPAGE_BPS = 2.0
 ETF = "NIFTYBEES"
 PCTL_DAYS = 250
-DELIVERY = Path("data/derived/delivery.jsonl")
-EARNINGS = Path("data/derived/nse_earnings_announcements.jsonl")
+DELIVERY = data_path("derived/delivery.jsonl")
+EARNINGS = data_path("derived/nse_earnings_announcements.jsonl")
 
 
 def delivery_fee(price: float, quantity: int, side: Side, day: date) -> float:
@@ -178,7 +180,7 @@ def participant_positions() -> dict[date, dict[str, dict[str, int]]]:
     from eulerlab.ingest import landing_reader
 
     out: dict[date, dict[str, dict[str, int]]] = {}
-    manifest = Path("data/landing/nse/manifest.jsonl")
+    manifest = data_path("landing/nse/manifest.jsonl")
     for line in manifest.read_text(encoding="utf-8").splitlines():
         entry = json.loads(line)
         if entry.get("segment") != "participant_oi":

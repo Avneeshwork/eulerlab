@@ -24,12 +24,13 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from eulerlab.corp_actions.build_factors import load_actions
+from eulerlab.paths import data_path
 from eulerlab.quality.findings import Finding, Report, Severity
 from eulerlab.quality.manifest_checks import LANDING_ROOT, run_manifest_checks
 from eulerlab.quality.row_checks import Bar, run_row_checks
 from eulerlab.quality.sources import bars_from_bhavcopy
 
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 
 def _cash_files(manifest: Path) -> list[tuple[str, str]]:
@@ -100,7 +101,7 @@ def _corporate_action_days() -> set[tuple[str, date]]:
     and the session the price actually gapped on.
     """
     try:
-        actions, _ = load_actions(Path("data/landing/nse"))
+        actions, _ = load_actions(data_path("landing/nse"))
     except (OSError, ValueError):
         return set()
     out: set[tuple[str, date]] = set()

@@ -22,9 +22,10 @@ from pathlib import Path
 
 from eulerlab.options.arbitrage import check_calendar_monotonicity, run_chain_checks
 from eulerlab.options.chain import build_chains, quotes_from_fo_bhavcopy
+from eulerlab.paths import data_path
 from eulerlab.quality.findings import Report, Severity
 
-MANIFEST = Path("data/landing/nse/manifest.jsonl")
+MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 
 def _fo_files(manifest: Path) -> list[tuple[str, str]]:

@@ -20,6 +20,10 @@ make verify      # 8 checks, ~2,700 tests — expect all green
 make workbench   # the UI on :3000
 ```
 
+On a server (ADR-164): `cp .env.example .env`, fill it in, then
+`docker compose up -d` runs the API, the scheduler, the kill-switch watcher and
+the UI; `make health` says whether it is all alive.
+
 ---
 
 ## The five documents, and what each is for

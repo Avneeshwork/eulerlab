@@ -15,8 +15,9 @@ from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import inside_bar_screen as ib
 from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import screen_common as sc
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/github_donchian_stock_strategies.json")
+OUT = data_path("derived/github_donchian_stock_strategies.json")
 SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "TCS", "INFY")
 CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)

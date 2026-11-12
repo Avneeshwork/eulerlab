@@ -28,10 +28,12 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 INTERVAL = 300.0
 """Seconds between checks. A check that finds nothing reads two small files."""
 
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 
 @dataclass
@@ -114,9 +116,13 @@ def books_behind(through: str) -> list[str]:
 
 def update_paper(through: str) -> list[str]:
     """Run the paper books that are behind the panel; return their ids."""
+    from eulerlab import accounts
     from eulerlab.deploy import runner
 
-    behind = books_behind(through) if through else []
+    # Ids are unique across workspaces (they carry a hash of the creation
+    # time), and `run_all` visits every workspace and runs the ones named.
+    found = accounts.for_each_workspace(lambda: books_behind(through)) if through else {}
+    behind = [book for books in found.values() for book in books]
     if behind:
         runner.run_all(behind)
     return behind

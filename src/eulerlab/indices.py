@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
+from eulerlab.paths import data_path
+
 INDIA = (
     ("NSE:NIFTY 50", "NIFTY 50"),
     ("NSE:NIFTY BANK", "BANK NIFTY"),
@@ -458,7 +460,7 @@ def world_sectors(*, on: str = "") -> tuple[list[SectorMove], str]:
     return out, ""
 
 
-LANDING = Path("data/landing/marketdata")
+LANDING = data_path("landing/marketdata")
 """Where a sweep is written. Landed rather than fetched per render.
 
 The arithmetic forces it. A full sweep is **29 FMP calls** — six India indices

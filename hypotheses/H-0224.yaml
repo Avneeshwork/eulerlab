@@ -1,0 +1,63 @@
+id: H-0224
+title: Buy pullbacks in strong stocks when the dip is on thin delivery
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Stocks up 30% or more over 120 sessions that fell 4% or more over 5 sessions on delivery at 0.8x
+  or below the 20-day mean, return positive net over the next 10 sessions.
+rationale: Medium-term winners hold investor demand. A short dip on low delivery is speculative selling,
+  not distribution, so the trend should resume. It is the opposite delivery condition to H-0206 (which
+  required delivery at 1.3x or above, and lost).
+source:
+  research: autopilot
+  paper: george-hwang-2004-52-week-high
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when ret(120)[lag 1] >= 0.3 and ret(5)[lag 1] <= -0.04 and delivery_ratio[lag 1] <= 0.8;
+    long; hold 10 sessions; rank by ret(5)[lag 1] asc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 10
+  side: long
+  when:
+  - signal: ret
+    lag: 1
+    n: 120
+    op: '>='
+    value: 0.3
+  - signal: ret
+    lag: 1
+    n: 5
+    op: <=
+    value: -0.04
+  - signal: delivery_ratio
+    lag: 1
+    op: <=
+    value: 0.8
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 5
+    order: asc
+red_flags:
+- Momentum stocks reverse sharply in market sell-offs, and 2020 could dominate.
+- Overlapping 10-day holds inflate the apparent Sharpe.
+- Only the 5-day dip is ranked, not the quality of the trend.
+- Costs on swing are small, so a positive result may come from market beta rather than the signal.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-10: 1486 positions 2016-01-01 to 2024-11-30; net -67.58 bps each; net
+  Sharpe -0.472, halves -1.049 / 0.096, -0.654 at 2x costs. Flagged: positive in most years. Screen fail;
+  not gated.'

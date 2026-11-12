@@ -24,14 +24,16 @@ from itertools import pairwise
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
 from eulerlab.intraday import daily_more_screen as dm
 from eulerlab.intraday import daily_universe_screen as du
 
-OUT = Path("data/derived/new_signals.json")
-PANEL = Path("data/derived/price_panel.jsonl")
+OUT = data_path("derived/new_signals.json")
+PANEL = data_path("derived/price_panel.jsonl")
 LIMIT_MOVE = 0.095
 VIX_JUMP = 0.15
 REACTION = 0.05

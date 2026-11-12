@@ -29,11 +29,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-RESULTS_PATH = Path("data/derived/strategy_results.jsonl")
+from eulerlab.paths import data_path
+
+RESULTS_PATH = data_path("derived/strategy_results.jsonl")
 
 LEGACY = (
-    (Path("data/derived/adopted_results.jsonl"), "home"),
-    (Path("data/derived/us_all_results.jsonl"), "us_cross"),
+    (data_path("derived/adopted_results.jsonl"), "home"),
+    (data_path("derived/us_all_results.jsonl"), "us_cross"),
 )
 """The two files this replaces, with the `kind` each one implied by its name."""
 

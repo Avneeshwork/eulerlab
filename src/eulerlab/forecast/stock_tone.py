@@ -25,9 +25,10 @@ from typing import Any
 from eulerlab.forecast import news_rules
 from eulerlab.forecast.news_tone import CLEAR
 from eulerlab.ingest.market_news import Scorer
+from eulerlab.paths import data_path
 
-SCORES = Path("data/derived/stock_news_scores.jsonl")
-OUT = Path("data/derived/stock_news_tone.json")
+SCORES = data_path("derived/stock_news_scores.jsonl")
+OUT = data_path("derived/stock_news_tone.json")
 # Headlines kept per stock in `OUT`, newest first.
 KEEP = 30
 

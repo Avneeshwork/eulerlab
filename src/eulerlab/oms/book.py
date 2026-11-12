@@ -14,8 +14,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from eulerlab.db.stream import stream_for
 from eulerlab.oms import reconcile
-from eulerlab.oms.journal import Journal, verify_replay
+from eulerlab.oms.journal import KIND, Journal, verify_replay
 from eulerlab.paper import runner
 
 
@@ -30,7 +31,9 @@ def main(argv: list[str] | None = None) -> int:
     # journal, and a caller checking this command's output needs to be able to
     # tell "the book is empty" from "the command did not run".
     print(f"book: {root}")
-    if not (root / "orders.jsonl").exists():
+    path = root / "orders.jsonl"
+    stream = stream_for(path, KIND)
+    if not (stream.count() if stream is not None else path.exists()):
         print("no journal yet — nothing has traded. Run `make paper` to create one.")
         print("\nreconciliation: nothing to compare")
         return 0

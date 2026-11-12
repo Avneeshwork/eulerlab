@@ -41,10 +41,12 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
-PROVISIONAL_PATH = Path("data/derived/provisional_daily.jsonl")
-MINUTE_ROOT = Path("data/landing/kite_minute")
-NSE_MANIFEST = Path("data/landing/nse/manifest.jsonl")
-PANEL_PATH = Path("data/derived/price_panel.jsonl")
+from eulerlab.paths import data_path
+
+PROVISIONAL_PATH = data_path("derived/provisional_daily.jsonl")
+MINUTE_ROOT = data_path("landing/kite_minute")
+NSE_MANIFEST = data_path("landing/nse/manifest.jsonl")
+PANEL_PATH = data_path("derived/price_panel.jsonl")
 
 SESSION_OPEN = "09:15"
 SESSION_LAST_MINUTE = "15:29"
@@ -327,9 +329,9 @@ def _append(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def latest_session(now: datetime | None = None) -> date:
     """The session the coverage table expects by now (15:31 IST cut-off)."""
-    from eulerlab.ingest.coverage import expected_nse, nse_closures
+    from eulerlab.ingest.coverage import expected_nse, nse_closures, nse_weekend_sessions
 
-    return expected_nse(now or datetime.now(UTC), nse_closures())
+    return expected_nse(now or datetime.now(UTC), nse_closures(), nse_weekend_sessions())
 
 
 def main() -> int:

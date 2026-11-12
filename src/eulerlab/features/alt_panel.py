@@ -48,6 +48,7 @@ from pathlib import Path
 
 from eulerlab.features.panel import PanelRow
 from eulerlab.ingest import amfi, crypto, landing_reader
+from eulerlab.paths import data_path
 
 
 def crypto_daily(
@@ -372,7 +373,7 @@ def _crypto_from_cloud(symbols: list[str], start: date | None) -> list[PanelRow]
 
 _Bar = tuple[float, float, float, float, float]
 
-ROLLUP_CACHE = Path("data/cache/crypto_daily.json")
+ROLLUP_CACHE = data_path("cache/crypto_daily.json")
 """Daily bars per landed crypto file, kept between runs (T-4369).
 
 A landed file never changes (the landing zone is immutable), so its daily

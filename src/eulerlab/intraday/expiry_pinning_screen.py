@@ -16,14 +16,14 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
-from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
+from eulerlab.paths import data_path
 
 RUN_ID = "nse_stock_expiry_pin_to_max_oi_strike"
-CALENDAR = Path("data/derived/nse_calendar.json")
+CALENDAR = data_path("derived/nse_calendar.json")
 SIGNAL_MINUTE = 255
 """13:30: the entry. The signal is the 13:29 close."""
 

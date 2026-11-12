@@ -33,8 +33,9 @@ from pathlib import Path
 
 from eulerlab.master.identity import InstrumentId
 from eulerlab.master.registry import Instrument, Registry
+from eulerlab.paths import data_path
 
-MASTER_PATH = Path("data/master/instruments.jsonl")
+MASTER_PATH = data_path("master/instruments.jsonl")
 SCHEMA_VERSION = 1
 
 

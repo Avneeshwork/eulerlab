@@ -47,8 +47,9 @@ from pathlib import Path
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.landing import Landing, ManifestEntry
 from eulerlab.ingest.nse_eod import IST, session_days
+from eulerlab.paths import data_path
 
-DEFAULT_LANDING = Path("data/landing/nse_reports")
+DEFAULT_LANDING = data_path("landing/nse_reports")
 API = "https://www.nseindia.com/api"
 ARCHIVE = "https://nsearchives.nseindia.com"
 EVENING_CUTOFF = (21, 0)

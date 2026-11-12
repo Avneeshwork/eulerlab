@@ -23,6 +23,8 @@ from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from eulerlab.paths import data_path
+
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
 
@@ -32,7 +34,7 @@ from eulerlab.intraday import mft_screen as mft
 from eulerlab.intraday import minute_six_screen as six
 from eulerlab.intraday import screen_common as sc
 
-OUT = Path("data/derived/quant_screen.json")
+OUT = data_path("derived/quant_screen.json")
 SIDE = 5
 MIN_NAMES = 20
 DECIDE = 5

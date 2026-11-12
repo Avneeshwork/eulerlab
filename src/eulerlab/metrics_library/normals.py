@@ -23,8 +23,10 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-OUT = Path("data/derived/metric_normals.json")
-OPTIONS_CACHE = Path("data/cache/options_history.jsonl")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/metric_normals.json")
+OPTIONS_CACHE = data_path("cache/options_history.jsonl")
 API = "http://127.0.0.1:8000"
 POINTS = (5, 25, 50, 75, 95)
 

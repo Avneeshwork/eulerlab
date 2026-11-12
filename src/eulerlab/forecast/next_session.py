@@ -55,12 +55,13 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from eulerlab.config import CONFIG_DIR
+from eulerlab.paths import data_path
 
 VERSION = "ns-1"
 LABEL = "A forecast, scored every day. Nothing trades on it."
-LOG = Path("data/derived/forecasts/next_session.jsonl")
-INDEX_HISTORY = Path("data/derived/index_history.jsonl")
-US_PANEL = Path("data/derived/us_panel.jsonl")
+LOG = data_path("derived/forecasts/next_session.jsonl")
+INDEX_HISTORY = data_path("derived/index_history.jsonl")
+US_PANEL = data_path("derived/us_panel.jsonl")
 IST = ZoneInfo("Asia/Kolkata")
 OPEN = time(9, 15)
 # Expected high-low range over sigma for a driftless random walk (Parkinson 1980).

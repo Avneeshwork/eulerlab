@@ -1,0 +1,59 @@
+id: H-0228
+title: 'Buy the gap-down recovery: 4% gap-down, closed up with strong delivery'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that gapped down 4% or more, closed above their open the same day with delivery at 1.3x
+  or above, rise over the next 10 sessions.
+rationale: A big gap-down that intraday buyers absorb shows demand at the lower price. High delivery means
+  the buying was by investors rather than day traders. It is the same shape as H-0204, but without the
+  results filter that limited it. It keeps the day-return recovery signal.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when gap[lag 1] <= -0.04 and day_return[lag 1] > 0 and delivery_ratio[lag 1] >= 1.3; long;
+    hold 10 sessions; rank by day_return[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 10
+  side: long
+  when:
+  - signal: gap
+    lag: 1
+    op: <=
+    value: -0.04
+  - signal: day_return
+    lag: 1
+    op: '>'
+    value: 0.0
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.3
+  rank_by:
+    signal: day_return
+    lag: 1
+red_flags:
+- H-0204 (a similar results-based rule) lost, so there may be no effect at all.
+- Gap-downs are concentrated in crash days (March 2020), which dominate returns.
+- Falling stocks can keep falling after a one-day bounce.
+- Entry at the next open after a recovery day may already miss the rebound.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-10: 212 positions 2016-01-01 to 2024-11-30; net -35.62 bps each; net
+  Sharpe -0.084, halves -0.313 / 0.462, -0.146 at 2x costs. Flagged: positive in most years. Screen fail;
+  not gated.'

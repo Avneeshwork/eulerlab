@@ -28,9 +28,10 @@ import numpy as np
 
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import india_papers as ip
+from eulerlab.paths import data_path
 
-OUT = Path("data/derived/move_cost_map.json")
-PARTS = Path("data/derived/move_cost_map_parts")
+OUT = data_path("derived/move_cost_map.json")
+PARTS = data_path("derived/move_cost_map_parts")
 """One file per batch of stocks, so a run that dies resumes. Loading minute files
 leaks memory a process never gives back (india_five_screen.BATCH), so each batch
 is its own process."""

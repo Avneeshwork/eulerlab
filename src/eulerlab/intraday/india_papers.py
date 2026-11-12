@@ -60,9 +60,10 @@ from pathlib import Path
 
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import session_papers as sp
+from eulerlab.paths import data_path
 
 MINUTES = sp.SESSION_MINUTES
-MINUTE_ROOT = Path("data/landing/kite_minute")
+MINUTE_ROOT = data_path("landing/kite_minute")
 
 FIRST_TRADABLE = 1
 """09:16. The first print is skipped everywhere; see the module docstring."""

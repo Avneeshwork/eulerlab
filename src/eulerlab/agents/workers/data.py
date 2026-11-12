@@ -58,6 +58,7 @@ from eulerlab.agents.runtime import (
     latest_output,
     untrusted,
 )
+from eulerlab.paths import data_path
 from eulerlab.quality import contract
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -403,7 +404,6 @@ def _cloud() -> tuple[Any, Any]:
 
 def _upkeep(ctx: Context) -> tuple[list[Item], dict[str, Any]]:
     """Upload, delete what the bucket holds, merge what differs (ADR-132). Never raises."""
-    from pathlib import Path
 
     from eulerlab.ingest import filelock, merge_back
 
@@ -418,7 +418,7 @@ def _upkeep(ctx: Context) -> tuple[list[Item], dict[str, Any]]:
             from eulerlab.ingest.sync_cloud import mirror_trees
 
             printed = io.StringIO()
-            root = Path("data/landing")
+            root = data_path("landing")
             with contextlib.redirect_stdout(printed):
                 mirror_trees(trees, store, config, root / "nse", root, then_delete=True)
             reports = merge_back.run(

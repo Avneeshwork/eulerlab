@@ -1,0 +1,56 @@
+id: H-0221
+title: Follow results-morning gap-ups backed by prior delivery
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: Stocks that disclose results before the open, gap up 2% or more, and had delivery at 1.2x or above
+  the 20-day mean the day before, rise from open to close.
+rationale: Builds on H-0198 (short results-morning gap-ups on low delivery, Sharpe 1.0). Where earlier
+  delivery was already high, informed holders were accumulating before the results, so the gap-up is more
+  likely information than noise and should extend. H-0177 and H-0168 show fading or shorting results mornings
+  is dangerous.
+source:
+  research: autopilot
+  paper: ''
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-10'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when results_morning and gap >= 0.02 and delivery_ratio[lag 1] >= 1.2; long; open to
+    close; rank by gap desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2021-07-01 to 2024-11-30
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: results_morning
+  - signal: gap
+    op: '>='
+    value: 0.02
+  - signal: delivery_ratio
+    lag: 1
+    op: '>='
+    value: 1.2
+  rank_by:
+    signal: gap
+red_flags:
+- Results data starts 2021-07, so there are only a few hundred trades at most.
+- H-0172 (a results gap-up swing) was not shown to work, so the drift may be slow rather than intraday.
+- Opening auction prices after results may already include the whole move, so there is no open-to-close
+  drift.
+- The result may depend on one bull-market year.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 218 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-10: 149 trades 2021-07-01 to 2024-11-30; net -128.32 bps each; net Sharpe
+  -1.986, halves -1.487 / -2.443, -2.144 at 2x costs. Flagged: positive in most years. Screen fail; not
+  gated.'

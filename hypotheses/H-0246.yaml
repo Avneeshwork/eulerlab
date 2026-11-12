@@ -1,0 +1,61 @@
+id: H-0246
+title: 'Calm 12-month winners: slow-moving momentum, 60-session hold'
+status: draft
+family: autopilot_event_rules
+source_kind: paper
+parent: ''
+claim: Buying stocks with 250-day return of 25% or more and 20-day return between -3% and +3%, held 60
+  sessions, ranked by 250-day return, earns positive net return.
+rationale: Builds on van-vliet-blitz-2018-conservative-formula (calm stocks with momentum are underpriced).
+  Swing positions avoid the 12 bps intraday round trip. A flat last month filters out stocks already extended
+  or in a short-term reversal.
+source:
+  research: autopilot
+  paper: van-vliet-blitz-2018-conservative-formula
+  written_by: the research autopilot (claude-sonnet), ADR-150
+  day: '2026-11-12'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when ret(250)[lag 1] >= 0.25 and ret(20)[lag 1] >= -0.03 and ret(20)[lag 1] <= 0.03; long;
+    hold 60 sessions; rank by ret(250)[lag 1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2016-01-01 to 2024-11-30
+engine:
+  kind: swing
+  hold: 60
+  side: long
+  when:
+  - signal: ret
+    lag: 1
+    n: 250
+    op: '>='
+    value: 0.25
+  - signal: ret
+    lag: 1
+    n: 20
+    op: '>='
+    value: -0.03
+  - signal: ret
+    lag: 1
+    n: 20
+    op: <=
+    value: 0.03
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 250
+red_flags:
+- Price-only momentum has no event edge and may only be market beta
+- No low-volatility or payout screen, so the paper's full factor is not reproduced
+- Momentum crashes after market rebounds can dominate the result
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 238 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: 'Autopilot screen 2026-11-12: 359 positions 2016-01-01 to 2024-11-30; net 625.92 bps each; net
+  Sharpe 0.965, halves 0.49 / 1.372, 0.923 at 2x costs. Clean survivor; waiting for the week''s gate allowance.'

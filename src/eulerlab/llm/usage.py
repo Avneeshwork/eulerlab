@@ -19,7 +19,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-LOG = Path("data/derived/llm_usage.jsonl")
+from eulerlab.paths import data_path
+
+LOG = data_path("derived/llm_usage.jsonl")
 _WHO: ContextVar[tuple[str, str]] = ContextVar("llm_caller", default=("assistant", ""))
 
 

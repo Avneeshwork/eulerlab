@@ -33,8 +33,10 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
+
 IST = ZoneInfo("Asia/Kolkata")
-NAMES_PATH = Path("data/derived/nse_names.json")
+NAMES_PATH = data_path("derived/nse_names.json")
 ASK_ENV = "EULERLAB_TELEGRAM_ASK"
 JOB_PREFIX = "com.eulerlab."
 TOP = 5

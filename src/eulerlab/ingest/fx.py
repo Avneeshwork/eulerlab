@@ -61,7 +61,9 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-LANDING = Path("data/landing/fx")
+from eulerlab.paths import data_path
+
+LANDING = data_path("landing/fx")
 FEED = "https://datafeed.dukascopy.com/datafeed"
 USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
 

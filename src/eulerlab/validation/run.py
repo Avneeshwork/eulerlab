@@ -37,6 +37,7 @@ from eulerlab.backtest import event_driven
 from eulerlab.backtest.strategies import RankAndHold
 from eulerlab.features.library import BY_NAME
 from eulerlab.features.panel import PanelRow, read_panel, trading_days
+from eulerlab.paths import data_path
 from eulerlab.validation import holdout as holdout_mod
 from eulerlab.validation import ledger, search_bar, stress
 from eulerlab.validation.cpcv import cpcv_splits, leakage_check
@@ -49,7 +50,7 @@ from eulerlab.validation.statistics import (
 )
 
 HYPOTHESES = Path("hypotheses")
-EVIDENCE = Path("data/derived/evidence")
+EVIDENCE = data_path("derived/evidence")
 
 
 @dataclass
@@ -198,7 +199,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # --- 1. the ledger must be trustworthy before anything else runs ---
-    ledger.migrate_from_trials(Path("data/derived/trials.jsonl"))
+    ledger.migrate_from_trials(data_path("derived/trials.jsonl"))
     chain = ledger.verify_chain()
     print(f"trial ledger   : {chain.detail}")
     if not chain.intact:

@@ -32,7 +32,10 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-LEDGER_PATH = Path("data/derived/trial_ledger.jsonl")
+from eulerlab.db.stream import parse_time, stream_for
+from eulerlab.paths import data_path
+
+LEDGER_PATH = data_path("derived/trial_ledger.jsonl")
 GENESIS = "0" * 64
 """The chain's anchor. Fixed and public so the whole chain is verifiable from
 the file with no external secret."""
@@ -81,27 +84,37 @@ def compute_hash(payload: dict[str, object]) -> str:
     return hashlib.sha256(material.encode()).hexdigest()
 
 
-def read(path: Path = LEDGER_PATH) -> list[LedgerEntry]:
+KIND = "trial_ledger"
+"""The ledger's kind in the database's append-only log (ADR-165)."""
+
+
+def _lines(path: Path) -> list[str]:
+    """The ledger's lines: from Postgres when the database is on (`db/stream.py`),
+    else from the file. One place decides, so every reader below agrees."""
+    stream = stream_for(path, KIND)
+    if stream is not None:
+        return stream.read()
     if not path.exists():
         return []
-    out: list[LedgerEntry] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        out.append(
-            LedgerEntry(
-                seq=int(row["seq"]),
-                logged_at=str(row["logged_at"]),
-                kind=str(row["kind"]),
-                subject=str(row["subject"]),
-                params=dict(row["params"]),
-                outcome=dict(row["outcome"]),
-                prev_hash=str(row["prev_hash"]),
-                entry_hash=str(row["entry_hash"]),
-            )
-        )
-    return out
+    return path.read_text(encoding="utf-8").splitlines()
+
+
+def _entry(line: str) -> LedgerEntry:
+    row = json.loads(line)
+    return LedgerEntry(
+        seq=int(row["seq"]),
+        logged_at=str(row["logged_at"]),
+        kind=str(row["kind"]),
+        subject=str(row["subject"]),
+        params=dict(row["params"]),
+        outcome=dict(row["outcome"]),
+        prev_hash=str(row["prev_hash"]),
+        entry_hash=str(row["entry_hash"]),
+    )
+
+
+def read(path: Path = LEDGER_PATH) -> list[LedgerEntry]:
+    return [_entry(line) for line in _lines(path) if line.strip()]
 
 
 def append(
@@ -118,18 +131,31 @@ def append(
     `seq` or a `prev_hash` from outside — both are derived from the existing
     chain, so a caller cannot insert a row in the middle even by accident.
     """
+
+    def build(last: str | None, seq: int) -> LedgerEntry:
+        payload: dict[str, object] = {
+            "seq": seq,
+            "logged_at": datetime.now(UTC).isoformat(),
+            "kind": kind,
+            "subject": subject,
+            "params": params,
+            "outcome": outcome,
+            "prev_hash": _entry(last).entry_hash if last else GENESIS,
+        }
+        return LedgerEntry(**payload, entry_hash=compute_hash(payload))  # type: ignore[arg-type]
+
+    stream = stream_for(path, KIND)
+    if stream is not None:
+        # Built under the stream's lock, from the row that really came last,
+        # so two processes logging at once cannot fork the chain.
+        def line(last: str | None, seq: int) -> tuple[str, datetime]:
+            entry = build(last, seq)
+            return json.dumps(asdict(entry), sort_keys=True), parse_time(entry.logged_at)
+
+        return _entry(stream.append(line))
+
     existing = read(path)
-    prev_hash = existing[-1].entry_hash if existing else GENESIS
-    payload: dict[str, object] = {
-        "seq": len(existing) + 1,
-        "logged_at": datetime.now(UTC).isoformat(),
-        "kind": kind,
-        "subject": subject,
-        "params": params,
-        "outcome": outcome,
-        "prev_hash": prev_hash,
-    }
-    entry = LedgerEntry(**payload, entry_hash=compute_hash(payload))  # type: ignore[arg-type]
+    entry = build(json.dumps(asdict(existing[-1])) if existing else None, len(existing) + 1)
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as handle:
@@ -192,7 +218,8 @@ def count(path: Path = LEDGER_PATH) -> int:
     read from the chain rather than tracked separately so it cannot drift from
     the evidence.
     """
-    return len(read(path))
+    stream = stream_for(path, KIND)
+    return stream.count() if stream is not None else len(read(path))
 
 
 SHARPE_KEY = "sharpe"
@@ -308,12 +335,13 @@ def migrate_from_trials(source: Path, path: Path = LEDGER_PATH) -> int:
     over rows that were never hash-linked can only attest to what it has held
     since, and claiming otherwise would be the same dishonesty one layer up.
     """
-    if not source.exists() or read(path):
+    from eulerlab.features import trials
+
+    rows = trials.lines(source)
+    if not rows or read(path):
         return 0
     added = 0
-    for line in source.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
+    for line in rows:
         row = json.loads(line)
         append(
             kind="ic",

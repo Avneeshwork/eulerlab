@@ -37,11 +37,12 @@ from eulerlab.ingest.angel_mcx_gold import _make_client
 from eulerlab.ingest.backfill_minute import DEFAULT_UNIVERSE, complete_days
 from eulerlab.ingest.kite_minute import Chunk, MinuteStore, candles_to_table, read_universe
 from eulerlab.ingest.nse_eod import session_days
+from eulerlab.paths import data_path
 
-OLD_ROOT = Path("data/landing/angel_minute")
+OLD_ROOT = data_path("landing/angel_minute")
 """Where the first fills landed, before storage was made uniform. Raw; kept."""
-STOCK_ROOT = Path("data/landing/kite_minute")
-INDEX_ROOT = Path("data/landing/kite_index_minute")
+STOCK_ROOT = data_path("landing/kite_minute")
+INDEX_ROOT = data_path("landing/kite_index_minute")
 SOURCE = "angel_one"
 SCRIP_MASTER = (
     "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"

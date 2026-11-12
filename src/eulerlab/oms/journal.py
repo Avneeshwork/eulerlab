@@ -27,6 +27,13 @@ history, and the property actually needed here is *did we lose an event*,
 which strictly increasing sequence numbers answer at a fraction of the
 complexity. Recovery runs on a bad day, and a simpler recovery path is worth
 more than a stronger tamper proof.
+
+**Two homes (ADR-165, ADR-166).** With `EULERLAB_DATABASE_URL` set, a journal
+under the data directory is a stream in Postgres's `append_log`: a committed
+insert is the durable write that the fsync is here. A reset (`reset`) then
+starts a new generation of the stream instead of deleting the file, so the
+orders a reset book forgot are still on record. Elsewhere, or with the
+database off, the journal is the file described above.
 """
 
 from __future__ import annotations
@@ -38,9 +45,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from eulerlab.db.stream import parse_time, stream_for
 from eulerlab.oms.states import Event, OrderState
+from eulerlab.paths import data_path
 
-JOURNAL_PATH = Path("data/oms/orders.jsonl")
+JOURNAL_PATH = data_path("oms/orders.jsonl")
+KIND = "order_journal"
+"""The journal's kind in the database's append-only log."""
 
 
 class CorruptJournal(RuntimeError):
@@ -99,6 +110,7 @@ class Journal:
     def __init__(self, path: Path = JOURNAL_PATH) -> None:
         self.path = path
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._stream = stream_for(path, KIND)
         self._cache: list[JournalEntry] | None = None
         self._next_seq = self._scan_next_seq()
 
@@ -119,14 +131,34 @@ class Journal:
         system's page cache, and a power loss or a hard kill takes it with no
         trace — which puts us back to sending orders we have no record of.
         """
-        entry = JournalEntry(
-            seq=self._next_seq,
-            at=_now(),
-            client_order_id=client_order_id,
-            event=event,
-            state=state,
-            detail=detail or {},
-        )
+
+        def make(seq: int) -> JournalEntry:
+            return JournalEntry(
+                seq=seq,
+                at=_now(),
+                client_order_id=client_order_id,
+                event=event,
+                state=state,
+                detail=detail or {},
+            )
+
+        if self._stream is not None:
+            # The database numbers it, under the stream's lock: the commit is
+            # the durable write, and returns only once it is.
+            made: list[JournalEntry] = []
+
+            def line(_last: str | None, seq: int) -> tuple[str, datetime]:
+                made.append(make(seq))
+                return made[-1].to_json(), parse_time(made[-1].at)
+
+            self._stream.append(line)
+            entry = made[-1]
+            self._next_seq = entry.seq + 1
+            if self._cache is not None:
+                self._cache.append(entry)
+            return entry
+
+        entry = make(self._next_seq)
         # Opened and closed per event rather than held open. The fsync
         # dominates the cost of a write by orders of magnitude, so keeping a
         # handle buys nothing measurable and costs a file descriptor that has
@@ -160,9 +192,14 @@ class Journal:
         """
         if self._cache is not None:
             return list(self._cache)
-        if not self.path.exists():
+        if self._stream is not None:
+            lines = self._stream.read()
+            torn_tail_possible = False  # a row is whole or absent
+        elif not self.path.exists():
             return []
-        lines = self.path.read_text(encoding="utf-8").splitlines()
+        else:
+            lines = self.path.read_text(encoding="utf-8").splitlines()
+            torn_tail_possible = True
         entries: list[JournalEntry] = []
         for index, line in enumerate(lines):
             if not line.strip():
@@ -170,7 +207,7 @@ class Journal:
             try:
                 entries.append(JournalEntry.from_obj(json.loads(line)))
             except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                if index == len(lines) - 1:
+                if torn_tail_possible and index == len(lines) - 1:
                     # A crash during the final write. That event never
                     # completed, so it never happened.
                     break
@@ -201,6 +238,20 @@ class Journal:
 
     def history(self, client_order_id: str) -> list[JournalEntry]:
         return [e for e in self.read() if e.client_order_id == client_order_id]
+
+
+def reset(path: Path, reason: str) -> None:
+    """Start this journal again from empty.
+
+    On a file, the file is deleted, as the paper books always did. In the
+    database, a new generation begins and the old one stays on record
+    (ADR-166); the frozen pre-switch file, if any, is left alone.
+    """
+    stream = stream_for(path, KIND)
+    if stream is None:
+        path.unlink(missing_ok=True)
+    else:
+        stream.next_generation(reason)
 
 
 def verify_replay(journal: Journal) -> list[str]:

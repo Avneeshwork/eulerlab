@@ -30,7 +30,9 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-CACHE_DIR = Path("data/derived/backtest_cache")
+from eulerlab.paths import data_path
+
+CACHE_DIR = data_path("derived/backtest_cache")
 
 
 def data_version() -> str:

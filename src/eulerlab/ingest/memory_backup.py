@@ -10,6 +10,13 @@ now, none of them in the bucket:
     research/papers/          the library, which the research agent adds to daily
     data/derived/trials.jsonl the trial ledger every test is logged in first
 
+**The database and the kill-switch logs (T-4562).** With the database on
+(ADR-165), the ledger, the trials counter, the agent log and the order
+journals are rows, so `backup` first exports them to `db_export/`
+(`db/export.py`) and sends that tree; `make db-restore` loads it back into an
+empty database. The kill-switch logs stay files on purpose (ADR-166) and are
+sent as their own trees.
+
 **Compared by content, not size.** The landing-zone mirror compares sizes and
 refuses to replace a bucket copy with a smaller file, which is right for raw
 data that only grows. Memory files are rewritten (a plan, a task's state) and
@@ -32,6 +39,7 @@ from typing import Protocol
 
 from eulerlab.ingest.cloud import MissingCredentials, load_storage_config
 from eulerlab.ingest.landing import sha256_of
+from eulerlab.paths import data_path
 
 DEFAULT_CONFIG = Path("config/storage.yaml")
 
@@ -46,10 +54,18 @@ class Tree:
 
 
 TREES: tuple[Tree, ...] = (
-    Tree("agents", Path("data/agents"), "memory/agents/"),
+    Tree("agents", data_path("agents"), "memory/agents/"),
     Tree("drafts", Path("research/agent_drafts"), "memory/research/agent_drafts/"),
     Tree("papers", Path("research/papers"), "memory/research/papers/"),
-    Tree("ledger", Path("data/derived"), "derived/", pattern="trials.jsonl"),
+    Tree("ledger", data_path("derived"), "derived/", pattern="trials.jsonl"),
+    Tree("database", data_path("db_export"), "memory/database/"),
+    Tree("kill-log", data_path("oms"), "memory/oms/", pattern="**/killswitch_log.jsonl"),
+    Tree(
+        "kill-dep",
+        data_path("deployments"),
+        "memory/deployments/",
+        pattern="*/killswitch_log.jsonl",
+    ),
 )
 
 SKIP_PARTS = frozenset({"worktrees", "__pycache__", ".git"})
@@ -130,6 +146,18 @@ def restore(store: Store, prefix: str, trees: Sequence[Tree] = TREES) -> list[Re
     return out
 
 
+def export_database() -> None:
+    """With the database on, write its streams to `db_export/` for the backup."""
+    from eulerlab import db
+
+    if not db.configured():
+        return
+    from eulerlab.db.export import export
+
+    streams, changed = export()
+    print(f"database: exported {streams} streams, {changed} files changed")
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="agents-backup", description=__doc__)
     parser.add_argument("--restore", action="store_true", help="download into empty folders")
@@ -144,6 +172,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except MissingCredentials as exc:
         print(f"agents-backup: {exc}")
         return 2
+    if not args.restore:
+        export_database()
     results = (
         restore(store, config.prefix)
         if args.restore

@@ -19,7 +19,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-PATH = Path("data/derived/timings.jsonl")
+from eulerlab.paths import data_path
+
+PATH = data_path("derived/timings.jsonl")
 
 
 def record(

@@ -34,11 +34,12 @@ from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from eulerlab.paths import data_path
 from eulerlab.quotes import Quote
 
 IST = ZoneInfo("Asia/Kolkata")
-PATH = Path("data/derived/last_seen_quotes.json")
-MINUTE_ROOT = Path("data/landing/kite_minute")
+PATH = data_path("derived/last_seen_quotes.json")
+MINUTE_ROOT = data_path("landing/kite_minute")
 
 LIVE = "saved live quotes"
 MINUTE = "held minute bars"

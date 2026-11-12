@@ -44,6 +44,7 @@ from typing import Any
 from eulerlab.ingest import fii_dii_cash as cash
 from eulerlab.ingest.fetch import Fetcher, FetchPolicy, Outcome, UrllibTransport
 from eulerlab.ingest.landing import Landing
+from eulerlab.paths import data_path
 
 TRENDLYNE = "trendlyne"
 GROWW = "groww"
@@ -54,7 +55,7 @@ TRENDLYNE_URL = "https://trendlyne.com/macro-data/fii-dii/latest/cash-pastmonth/
 GROWW_URL = "https://groww.in/fii-dii-data"
 STOCKEZEE_URL = "https://stockezee.com/fii-dii-historical-data"
 
-BHAVCOPY_MANIFEST = Path("data/landing/nse/manifest.jsonl")
+BHAVCOPY_MANIFEST = data_path("landing/nse/manifest.jsonl")
 
 TRENDLYNE_TOLERANCE = 0.15
 """Trendlyne rounds buy, sell and net to 0.1 crore each, so a correct row can

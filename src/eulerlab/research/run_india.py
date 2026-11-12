@@ -21,11 +21,13 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-OUT = Path("data/derived/india_papers.json")
-GITHUB_OUT = Path("data/derived/github_daily.json")
-EVIDENCE_OUT = Path("data/derived/evidence_daily.json")
-EVENTS_OUT = Path("data/derived/events_daily.json")
-SCREENER_OUT = Path("data/derived/screener_models.json")
+from eulerlab.paths import data_path
+
+OUT = data_path("derived/india_papers.json")
+GITHUB_OUT = data_path("derived/github_daily.json")
+EVIDENCE_OUT = data_path("derived/evidence_daily.json")
+EVENTS_OUT = data_path("derived/events_daily.json")
+SCREENER_OUT = data_path("derived/screener_models.json")
 START, END = "2016-01-01", "2026-09-30"
 
 

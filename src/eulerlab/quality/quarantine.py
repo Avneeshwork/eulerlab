@@ -20,7 +20,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-PATH = Path("data/quality/quarantine.jsonl")
+from eulerlab.paths import data_path
+
+PATH = data_path("quality/quarantine.jsonl")
 
 
 @dataclass(frozen=True)
