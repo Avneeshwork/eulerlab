@@ -79,16 +79,11 @@ def week_start(now: datetime) -> datetime:
 
 
 def spent_this_week(now: datetime | None = None, path: Path | None = None) -> int:
-    path = path or trials.TRIALS_PATH
-    if not path.exists():
-        return 0
     import json
 
     since = week_start(now or datetime.now(UTC))
     used = 0
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
+    for line in trials.lines(path or trials.TRIALS_PATH):
         row = json.loads(line)
         if not str(row.get("feature", "")).startswith(PREFIX):
             continue

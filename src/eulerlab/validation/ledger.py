@@ -335,12 +335,13 @@ def migrate_from_trials(source: Path, path: Path = LEDGER_PATH) -> int:
     over rows that were never hash-linked can only attest to what it has held
     since, and claiming otherwise would be the same dishonesty one layer up.
     """
-    if not source.exists() or read(path):
+    from eulerlab.features import trials
+
+    rows = trials.lines(source)
+    if not rows or read(path):
         return 0
     added = 0
-    for line in source.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
+    for line in rows:
         row = json.loads(line)
         append(
             kind="ic",

@@ -2017,8 +2017,10 @@ books reset. On a file a reset deletes `orders.jsonl`; in the database,
 recorded in `stream_generation`), and the journal reads only the current one.
 The orders a reset book forgot are still in the table. A committed insert is
 the durable write that the file's fsync was, so the intent is still on record
-before the order is sent. `trials.jsonl`, the agent log and the kill-switch
-log are still files (T-4558, T-4559).
+before the order is sent. The trials counter (`derived/trials.jsonl`, every
+configuration evaluated) moved the same way, and the evidence census counts
+its stream, so both stores the noise bar counts read from one place
+(T-4558). The agent log and the kill-switch log are still files (T-4559).
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three

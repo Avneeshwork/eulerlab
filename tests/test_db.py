@@ -22,6 +22,7 @@ import pytest
 from eulerlab import db, evidence, paths
 from eulerlab.db import importer
 from eulerlab.db.stream import NotImported, Stream, stream_for, stream_name
+from eulerlab.features import trials
 from eulerlab.oms import journal
 from eulerlab.oms.states import Event, OrderState
 from eulerlab.validation import ledger
@@ -354,3 +355,35 @@ def test_import_copies_a_journal_and_drops_a_torn_last_line(
     # A reset after the switch does not make the file look unimported.
     journal.reset(path, "after the switch")
     assert importer.import_journal(path).added == 0
+
+
+# --- the trials counter ------------------------------------------------------------------------
+
+
+def _trial(feature: str) -> trials.Trial:
+    return trials.Trial(
+        trials.now_iso(), feature, 21, 21, "2020-01-01", "2024-12-31", 48, 0.01, 1.2
+    )
+
+
+def test_the_trials_counter_counts_from_postgres(
+    database: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.research import agent_trials
+
+    path = tmp_path / "derived" / "trials.jsonl"
+    url = os.environ[db.ENV_VAR]
+    monkeypatch.delenv(db.ENV_VAR)
+    trials.append(_trial("old"), path)
+    trials.append(_trial(f"{agent_trials.PREFIX}card|x"), path)
+    monkeypatch.setenv(db.ENV_VAR, url)
+    with pytest.raises(NotImported):
+        trials.count(path)
+    assert importer.trials_files() == [path]
+    assert importer.import_stream(path, trials.KIND).added == 2
+    assert trials.append(_trial("new"), path) == 3
+    assert len(path.read_text().splitlines()) == 2  # the file is never touched
+    assert [json.loads(ln)["feature"] for ln in trials.lines(path)][2] == "new"
+    assert agent_trials.spent_this_week(path=path) == 1
+    store = next(s for s in evidence.stores() if s.name == "trials")
+    assert evidence.Store(store.name, path, store.holds, store.counts_toward_bar).rows == 3
