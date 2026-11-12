@@ -94,3 +94,30 @@ def set_gate_rules(body: GateRules) -> dict[str, Any]:
     except gate.Looser as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"version": version, "own": gate.own_rules()}
+
+
+# --- the workspace's own keys (ADR-170) ----------------------------------------------------------
+
+
+class Secret(BaseModel):
+    name: str
+    value: str
+
+
+@gate_router.get("/api/accounts/secrets")
+def secret_names() -> dict[str, Any]:
+    """Owner only. Which keys are set; never a value."""
+    from eulerlab.accounts import secrets
+
+    return {"workspace": accounts.current().workspace_id, "names": secrets.names()}
+
+
+@gate_router.post("/api/accounts/secrets")
+def set_secret(body: Secret) -> dict[str, Any]:
+    from eulerlab.accounts import secrets
+
+    try:
+        secrets.put(body.name, body.value)
+    except (ValueError, secrets.NoSecretKey) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"names": secrets.names()}

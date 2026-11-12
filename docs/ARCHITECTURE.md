@@ -2050,9 +2050,22 @@ thread an API route starts is wrapped in `accounts.carry`; without it, a
 backtest started in workspace B would log its trials into the operator's
 ledger. Agents' files (tasks, inbox, outputs, plans, the switches and
 lowered budgets) are per workspace too: every agent module finds its folder
-through `agents.spec.home()`, which returns the workspace's own. Still shared
-by every workspace: research results, reports, hypotheses and evidence packs
-(T-4569), and model keys, which come from the server's environment (T-4570).
+through `agents.spec.home()`, which returns the workspace's own. Results,
+saved strategies and reports already lived under `Workspace`; the gap was
+that routes took the workspace's name from the request. `workspace.resolve`
+now returns the logged-in workspace when none is named and refuses any other
+name while accounts are on. Scheduled jobs have no request, so the daily
+paper run and the auto-updater go through `accounts.for_each_workspace`,
+which runs the work once as each workspace. Shared on purpose: market data,
+and the hypotheses and evidence packs in the repository, which are the
+platform's own library.
+
+**Keys per workspace (ADR-170).** The default workspace's keys are in `.env`.
+Any other workspace's are rows in `workspace_secrets`, sealed with the
+server's `EULERLAB_SECRET_KEY`; `accounts.secrets.for_env` is the one lookup
+and never falls back to the server's key, so a user's agents cannot spend the
+operator's model budget. Broker keys are not wired to it yet (T-4571): real
+money is still the operator's book alone.
 
 **The gate per workspace (ADR-169).** `mandate.yaml` is the floor for
 everyone. An owner may store stricter values for the numeric thresholds in

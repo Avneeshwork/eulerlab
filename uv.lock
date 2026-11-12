@@ -769,6 +769,7 @@ crypto = [
     { name = "ccxt" },
 ]
 db = [
+    { name = "cryptography" },
     { name = "psycopg", extra = ["binary"] },
 ]
 dev = [
@@ -800,6 +801,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.43.73" },
     { name = "boto3-stubs", marker = "extra == 'dev'", specifier = ">=1.43.73" },
     { name = "ccxt", marker = "extra == 'crypto'", specifier = ">=4.4" },
+    { name = "cryptography", marker = "extra == 'db'", specifier = ">=42" },
     { name = "fastapi", marker = "extra == 'web'", specifier = ">=0.115" },
     { name = "kiteconnect", specifier = ">=5.2.1" },
     { name = "logzero", marker = "extra == 'angel'", specifier = ">=1.7" },

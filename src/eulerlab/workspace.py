@@ -206,8 +206,20 @@ def resolve(principal: str | None) -> Workspace:
     workspace, because a typo in a tenant id must not silently hand back
     somebody else's evidence.
     """
+    from eulerlab import accounts
+
+    mine = accounts.current().workspace_id
     if principal is None or not principal.strip():
-        return Workspace(id=DEFAULT_ID, name="Default")
+        # No workspace named: the one the request logged in to (ADR-168). With
+        # accounts off that is the default, as before.
+        if mine == DEFAULT_ID:
+            return Workspace(id=DEFAULT_ID, name="Default")
+        principal = mine
+    elif accounts.enabled() and normalise_id(principal) != mine:
+        # A workspace named in a request body or query string is the caller's
+        # word, not proof. With accounts on, only the logged-in one resolves.
+        msg = f"workspace {principal!r} is not the one this request is logged in to"
+        raise WorkspaceError(msg)
     workspace = load(principal)
     if workspace is None:
         msg = f"no such workspace: {principal!r}"

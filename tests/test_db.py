@@ -337,7 +337,8 @@ def test_export_then_restore_into_an_empty_database_gives_back_every_row(
     _order(journal.Journal(_book(tmp_path)), "b")
     target = tmp_path / "export"
     streams, changed = db_export.export(target)
-    assert (streams, changed) == (3, 4)  # ledger, journal gen 1 and 2, the generations file
+    # ledger, journal gen 1 and 2, the generations file, and the six account tables
+    assert (streams, changed) == (3, 4 + len(db_export.TABLES))
     assert db_export.export(target) == (3, 0)  # unchanged: nothing for the backup to send
     with pytest.raises(RuntimeError, match="empty"):
         db_export.load(target)

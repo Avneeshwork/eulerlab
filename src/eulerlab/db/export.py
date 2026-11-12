@@ -12,6 +12,12 @@ version, which ties the image to the database's version; and a logical copy
 of two append-only tables is all there is to keep. The export is also
 readable with a text editor, which a dump is not.
 
+The account tables go too (`TABLES`: users, workspaces, memberships, API
+tokens, each workspace's gate rules and sealed keys), one file each under
+`tables/`. They hold hashes and ciphertext only, so the export is no more
+sensitive than the database. Sessions and failed-login counts are left out:
+after a restore everyone logs in again.
+
 `load` is the way back: into an empty database only, in order, so the table's
 own triggers re-check that every stream is contiguous as it goes in.
 `make db-restore` runs it after `make agents-restore` has fetched the files.
@@ -30,6 +36,16 @@ from eulerlab.paths import data_path
 
 EXPORT_DIR = data_path("db_export")
 GENERATIONS = "stream_generation.jsonl"
+TABLES: dict[str, str] = {
+    # table: its order, so the export is stable and a restore meets every
+    # foreign key (users and workspaces before what refers to them).
+    "users": "id",
+    "workspaces": "id",
+    "memberships": "user_id, workspace_id",
+    "api_tokens": "token_hash",
+    "workspace_gate": "workspace_id, version",
+    "workspace_secrets": "workspace_id, name",
+}
 SUFFIX = ".rows.jsonl"
 
 
@@ -46,6 +62,10 @@ def _write_if_changed(path: Path, text: str) -> bool:
 
 def _iso(value: Any) -> str:
     return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
+def _plain(value: Any) -> Any:
+    return value if value is None or isinstance(value, str | int | float | bool) else _iso(value)
 
 
 def export(target: Path = EXPORT_DIR) -> tuple[int, int]:
@@ -82,7 +102,21 @@ def export(target: Path = EXPORT_DIR) -> tuple[int, int]:
                 " FROM stream_generation ORDER BY workspace_id, stream, generation"
             )
         ]
+        tables: dict[str, list[str]] = {}
+        for table, order in TABLES.items():
+            cursor = conn.execute(f"SELECT * FROM {table} ORDER BY {order}")
+            columns = [c.name for c in cursor.description or []]
+            tables[table] = [
+                json.dumps(
+                    {c: _plain(v) for c, v in zip(columns, row, strict=True)}, sort_keys=True
+                )
+                for row in cursor.fetchall()
+            ]
     changed = 0
+    for table, lines in tables.items():
+        changed += _write_if_changed(
+            target / "tables" / f"{table}.jsonl", "\n".join(lines) + "\n" if lines else ""
+        )
     for (workspace, stream), lines in rows_by_stream.items():
         path = target / workspace / (stream + SUFFIX)
         changed += _write_if_changed(path, "\n".join(lines) + "\n")
@@ -101,6 +135,21 @@ def load(source: Path = EXPORT_DIR) -> int:
         if row and int(row[0]):
             msg = "the database already holds rows; restore only into an empty one"
             raise RuntimeError(msg)
+        for table in TABLES:
+            path = source / "tables" / f"{table}.jsonl"
+            if not path.exists():
+                continue
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                r = json.loads(line)
+                columns = ", ".join(r)
+                marks = ", ".join(["%s"] * len(r))
+                # `default` is created by migration 003; everything else is new.
+                conn.execute(
+                    f"INSERT INTO {table} ({columns}) VALUES ({marks}) ON CONFLICT DO NOTHING",
+                    list(r.values()),
+                )
         for path in files:
             relative = path.relative_to(source).as_posix()
             workspace, _, stream = relative.partition("/")

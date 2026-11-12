@@ -16,6 +16,12 @@ from eulerlab.accounts import store
 
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
+    if args == ["secret-key"]:
+        from eulerlab.accounts import secrets
+
+        print(f"{secrets.KEY_VAR}={secrets.new_key()}")
+        print("Put that line in .env. Keep a copy: without it stored keys cannot be opened.")
+        return 0
     if not db.configured():
         print(f"accounts live in the database: set {db.ENV_VAR} first")
         return 2

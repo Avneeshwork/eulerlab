@@ -50,6 +50,13 @@ def test_the_role_table() -> None:
     assert "owner" in accounts.allowed("researcher", "GET", "/api/kite/callback")
     assert accounts.allowed("viewer", "GET", "/api/research/x") == ""
     assert "read" in accounts.allowed("viewer", "POST", "/api/research/run")
+    # Real money and the shared data jobs are the default workspace's, whatever the role.
+    assert "platform" in accounts.allowed("owner", "POST", "/api/live-money/deploy", "alpha")
+    assert "platform" in accounts.allowed("owner", "GET", "/api/live-money", "alpha")
+    assert "platform" in accounts.allowed("owner", "POST", "/api/kite/login", "alpha")
+    assert "platform" in accounts.allowed("owner", "POST", "/api/data/feed", "alpha")
+    assert accounts.allowed("owner", "GET", "/api/data/status", "alpha") == ""
+    assert accounts.allowed("owner", "POST", "/api/backtest", "alpha") == ""
 
 
 def test_passwords_hash_and_verify() -> None:
@@ -110,7 +117,9 @@ def test_on_roles_decide_and_the_workspace_is_the_members(people: dict[str, str]
     owner = TestClient(_app())
     _login(owner, "owner@x.in")
     assert owner.get("/api/whoami").json()["workspace"] == "alpha"
-    assert owner.post("/api/live-money/deploy").status_code == 200
+    # An owner, but of another workspace: the real-money book is not theirs.
+    assert owner.post("/api/live-money/deploy").status_code == 403
+    assert owner.post("/api/research/run").status_code == 200
 
     researcher = TestClient(_app())
     _login(researcher, "res@x.in")
@@ -381,5 +390,146 @@ def test_each_workspace_has_its_own_agents_folder(
     try:
         assert spec.home() == tmp_path / "workspaces" / "alpha" / "agents"
         assert spec.home(tmp_path / "x") == tmp_path / "x"  # an explicit folder still wins
+    finally:
+        accounts.unbind(token)
+
+
+# --- a named workspace is not proof (T-4569) ---------------------------------------------------------
+
+
+def test_a_request_cannot_name_its_way_into_another_workspace(people: dict[str, str]) -> None:
+    from eulerlab import workspace
+
+    token = accounts.bind(accounts.Principal("u", "", "alpha", "researcher"))
+    try:
+        assert workspace.resolve(None).id == "alpha"  # nothing named: the one logged in to
+        assert workspace.resolve("alpha").id == "alpha"
+        with pytest.raises(workspace.WorkspaceError, match="not the one"):
+            workspace.resolve("beta")
+        with pytest.raises(workspace.WorkspaceError, match="not the one"):
+            workspace.resolve("default")
+    finally:
+        accounts.unbind(token)
+
+
+def test_off_a_named_workspace_resolves_as_before(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from eulerlab import workspace
+
+    monkeypatch.setenv(accounts.ENV_VAR, "off")
+    monkeypatch.setattr(workspace, "ROOT", tmp_path / "workspaces")
+    workspace.create("Gamma")
+    assert workspace.resolve(None).id == "default"
+    assert workspace.resolve("gamma").id == "gamma"
+
+
+# --- scheduled jobs visit every workspace (T-4569) --------------------------------------------------
+
+
+def test_a_scheduled_job_runs_once_per_workspace_as_that_workspace(people: dict[str, str]) -> None:
+    seen = accounts.for_each_workspace(lambda: accounts.current().workspace_id)
+    assert seen == {"default": "default", "alpha": "alpha", "beta": "beta"}
+    assert accounts.current().workspace_id == "default"  # and it puts the operator back
+
+
+def test_off_a_scheduled_job_runs_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(accounts.ENV_VAR, "off")
+    assert accounts.for_each_workspace(lambda: 1) == {"default": 1}
+
+
+# --- each workspace's own keys (ADR-170) ------------------------------------------------------------
+
+
+def test_a_workspace_key_is_sealed_and_only_its_own_workspace_reads_it(
+    people: dict[str, str], database: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import psycopg
+
+    from eulerlab.accounts import secrets
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "the-operators-key")
+    monkeypatch.delenv(secrets.KEY_VAR, raising=False)
+    assert secrets.for_env("ANTHROPIC_API_KEY") == "the-operators-key"  # the operator: .env
+
+    token = accounts.bind(accounts.Principal("u1", "", "alpha", "owner"))
+    try:
+        # Another workspace never falls back to the server's key.
+        assert secrets.for_env("ANTHROPIC_API_KEY") == ""
+        with pytest.raises(secrets.NoSecretKey):
+            secrets.put("ANTHROPIC_API_KEY", "alphas-key")
+        monkeypatch.setenv(secrets.KEY_VAR, secrets.new_key())
+        with pytest.raises(ValueError, match="named like"):
+            secrets.put("lower-case", "x")
+        secrets.put("ANTHROPIC_API_KEY", "alphas-key")
+        secrets.put("ANTHROPIC_API_KEY", "alphas-new-key")  # replaced, not duplicated
+        assert secrets.for_env("ANTHROPIC_API_KEY") == "alphas-new-key"
+        assert secrets.names() == ["ANTHROPIC_API_KEY"]
+    finally:
+        accounts.unbind(token)
+
+    with psycopg.connect(database) as conn:
+        stored = conn.execute("SELECT ciphertext FROM workspace_secrets").fetchall()
+    assert len(stored) == 1 and "alphas" not in stored[0][0]  # not readable in the table
+
+    token = accounts.bind(accounts.Principal("u2", "", "beta", "owner"))
+    try:
+        assert secrets.for_env("ANTHROPIC_API_KEY") == "" and secrets.names() == []
+    finally:
+        accounts.unbind(token)
+
+
+def test_the_api_lists_key_names_and_never_a_value(
+    people: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.accounts import secrets
+
+    monkeypatch.setenv(secrets.KEY_VAR, secrets.new_key())
+    app = _app()
+    app.include_router(auth_routes.gate_router)
+    owner = TestClient(app)
+    _login(owner, "owner@x.in")
+    r = owner.post("/api/accounts/secrets", json={"name": "ANTHROPIC_API_KEY", "value": "sk-abc"})
+    assert r.json() == {"names": ["ANTHROPIC_API_KEY"]} and "sk-abc" not in r.text
+    assert "sk-abc" not in owner.get("/api/accounts/secrets").text
+    researcher = TestClient(app)
+    _login(researcher, "res@x.in")
+    assert researcher.get("/api/accounts/secrets").status_code == 403
+
+
+def test_the_backup_carries_accounts_and_a_restore_brings_them_back(
+    people: dict[str, str], server: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import uuid
+
+    import psycopg
+
+    from eulerlab import db
+    from eulerlab.accounts import gate, secrets
+    from eulerlab.db import export as db_export
+
+    monkeypatch.setenv(secrets.KEY_VAR, secrets.new_key())
+    token = accounts.bind(accounts.Principal(store.user_id_for("owner@x.in"), "", "alpha", "owner"))
+    try:
+        gate.set_rules({"simple.min_probabilistic_sharpe": 0.99})
+        secrets.put("ANTHROPIC_API_KEY", "alphas-key")
+    finally:
+        accounts.unbind(token)
+    target = tmp_path / "export"
+    db_export.export(target)
+    assert "a long password" not in (target / "tables" / "users.jsonl").read_text()
+    assert "alphas-key" not in (target / "tables" / "workspace_secrets.jsonl").read_text()
+
+    name = f"t_{uuid.uuid4().hex[:12]}"
+    with psycopg.connect(server, autocommit=True) as conn:
+        conn.execute(f'CREATE DATABASE "{name}"')
+    monkeypatch.setenv(db.ENV_VAR, server.replace("/postgres?", f"/{name}?"))
+    db.migrate()
+    db_export.load(target)
+    assert store.login("owner@x.in", "a long password")  # the same password still works
+    token = accounts.bind(accounts.Principal("u", "", "alpha", "owner"))
+    try:
+        assert gate.own_rules() == {"simple.min_probabilistic_sharpe": 0.99}
+        assert secrets.get("ANTHROPIC_API_KEY") == "alphas-key"
     finally:
         accounts.unbind(token)

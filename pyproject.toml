@@ -68,6 +68,8 @@ dev = [
 # replaces nothing yet; needed once two servers share one ledger and journal.
 db = [
     "psycopg[binary]>=3.2",
+    # Seals each workspace's own keys (ADR-170). Free; already installed by the broker SDKs.
+    "cryptography>=42",
 ]
 
 [build-system]

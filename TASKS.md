@@ -30,8 +30,11 @@ Operator: "first fix infra related work then we make multiuser"; the platform is
 | T-4566 | The isolation test: two workspaces, same strategy, different capital; neither reads the other's books, ledger or agent log (#113, slice 4) | DONE 2026-11-12 — `uv run --extra db pytest tests/test_accounts.py` |
 | T-4567 | Operator: rewrite `CLAUDE.md`'s single-operator rules for a multi-user product (#113's last condition); a draft will be proposed, not committed | TODO. Operator |
 | T-4568 | Slow down repeated failed logins (per email and per address) before the server faces the internet | DONE 2026-11-12 — `accounts/store.py`, `login_failures` |
-| T-4569 | Scope what is still shared by every workspace: research results, reports, hypotheses and evidence packs; and run the scheduler's jobs per workspace. Agents' files are done (`agents.spec.home()`) | DOING. Issue #113 |
-| T-4570 | Per-workspace model keys and broker credentials, encrypted at rest (today they are the server's environment variables, shared by every workspace) | TODO. Issue #113; needs a key-management decision |
+| T-4569 | Scope what was still shared: agents' files (`agents.spec.home()`); results, strategies and reports (`workspace.resolve` refuses a workspace the request is not logged in to); the daily paper run and auto-updater visit every workspace (`accounts.for_each_workspace`) | DONE 2026-11-12 — `uv run --extra db pytest tests/test_accounts.py`. Hypotheses and evidence packs stay shared: they are the repository's library |
+| T-4570 | Per-workspace keys, encrypted at rest: `accounts/secrets.py`, sealed under `EULERLAB_SECRET_KEY`; the model client reads through it; the nightly export carries accounts, gate rules and sealed keys | DONE 2026-11-12 — ADR-170, migration 005 |
+| T-4571 | Real money per workspace: broker keys from `accounts.secrets`, one live clock and kill switch per workspace, each with its own registered static IP question (SEBI) | TODO. Design and the operator's approval first; today live trading is the default workspace only |
+| T-4572 | Workbench screens for workspace settings: members, API tokens, gate rules, keys (the API exists; today they are `make account` and API calls) | TODO |
+| T-4573 | Operator: keep a copy of `EULERLAB_SECRET_KEY` outside the server and the backup; rotating it is not built | TODO. Operator, with T-4560 |
 
 ## First real money: H-0194 on Angel One (2026-11-09, research 184, ADR-162)
 

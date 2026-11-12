@@ -18,6 +18,9 @@ role may do:
   money, a broker login or another member's access;
 - **viewer**: reads only.
 
+Whatever the role, only the `default` workspace reaches real money, broker
+sessions and the shared data jobs (`PLATFORM_ONLY`, `PLATFORM_WRITES`).
+
 The workspace comes from the `X-Workspace` header, else the user's first
 membership; a workspace the user is not a member of is refused, never
 replaced by another (the rule `workspace.resolve` already keeps).
@@ -50,6 +53,13 @@ OWNER_ONLY = (
     "/api/accounts",
 )
 """Real money, broker sessions and membership: an owner's decisions alone."""
+PLATFORM_ONLY = ("/api/live-money", "/api/kite", "/api/fyers")
+"""The default workspace alone, read or write: there is one live clock, one
+broker session and one real-money book on the server, and they are the
+operator's (S-061). An owner of another workspace must not see or act on them."""
+PLATFORM_WRITES = ("/api/data/", "/api/cloud/mirror", "/api/strategies/archive")
+"""Shared market data, the bucket and the shared strategy library: every
+workspace reads them, only the default workspace changes them."""
 OWNER_ONLY_SUFFIX = ("/settings",)
 """`/api/agents/{name}/settings`: an agent's model, budget and keys."""
 
@@ -113,8 +123,46 @@ def carry[T](fn: Callable[..., T]) -> Callable[..., T]:
     return run
 
 
-def allowed(role: Role, method: str, path: str) -> str:
-    """'' when this role may make this request, else why not."""
+def workspace_ids() -> list[str]:
+    """Every workspace on this install: `default` alone when accounts are off."""
+    if not enabled():
+        return [DEFAULT_ID]
+    from eulerlab import db
+
+    with db.connect() as conn:
+        found = [str(row[0]) for row in conn.execute("SELECT id FROM workspaces ORDER BY id")]
+    return [DEFAULT_ID, *(w for w in found if w != DEFAULT_ID)]
+
+
+def for_each_workspace[T](work: Callable[[], T]) -> dict[str, T]:
+    """Run `work` once as each workspace's own system user, for scheduled jobs.
+
+    A job the scheduler starts has no request and so runs as the operator; a
+    job that must act on every workspace's books (the daily paper run) goes
+    through here, and inside `work` every store sees that workspace alone.
+    """
+    out: dict[str, T] = {}
+    for workspace_id in workspace_ids():
+        principal = (
+            OPERATOR
+            if workspace_id == DEFAULT_ID
+            else Principal("system", "", workspace_id, "owner")
+        )
+        token = bind(principal)
+        try:
+            out[workspace_id] = work()
+        finally:
+            unbind(token)
+    return out
+
+
+def allowed(role: Role, method: str, path: str, workspace_id: str = DEFAULT_ID) -> str:
+    """'' when this role, in this workspace, may make this request, else why not."""
+    if workspace_id != DEFAULT_ID:
+        if path.startswith(PLATFORM_ONLY):
+            return "live trading and broker sessions belong to the platform's own workspace"
+        if path.startswith(PLATFORM_WRITES) and method.upper() not in READS:
+            return "shared market data is changed only by the platform's own workspace"
     if role == "owner":
         return ""
     if path.startswith(OWNER_ONLY) or path.endswith(OWNER_ONLY_SUFFIX):

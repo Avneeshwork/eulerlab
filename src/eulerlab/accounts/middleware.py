@@ -81,7 +81,9 @@ class RequireLogin:
         except store.AccessDenied as exc:
             await _refuse(send, 401, str(exc))
             return
-        why = accounts.allowed(principal.role, str(scope.get("method", "GET")), path)
+        why = accounts.allowed(
+            principal.role, str(scope.get("method", "GET")), path, principal.workspace_id
+        )
         if why:
             await _refuse(send, 403, why)
             return
