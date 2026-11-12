@@ -31,6 +31,7 @@ order ids are `hash(strategy, session, symbol, seq)`.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import threading
@@ -44,7 +45,9 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
-ROOT = Path("data/live_money")
+from eulerlab.paths import data_path
+
+ROOT = data_path("live_money")
 DEPLOY_FILE = ROOT / "deploy.json"
 STRATEGY = "H-0194"
 BOOK_ID = "H-0194-live"
@@ -810,7 +813,17 @@ class Clock:
                 self.last = f"error: {type(exc).__name__}: {exc}"
                 session = now_ist().date()
                 log(session, "tick error", error=traceback.format_exc()[-1500:])
+            self.beat()
             self._stop.wait(self.every)
+
+    def beat(self, at: datetime | None = None, root: Path = ROOT) -> None:
+        """Every tick leaves its time, so the dead-man switch (`oms/deadman.py`), in
+        another process, can tell a live book from a dead one."""
+        at = at or now_ist()
+        with contextlib.suppress(OSError):
+            write(
+                root / "heartbeat.json", {"at": at.isoformat(timespec="seconds"), "last": self.last}
+            )
 
 
 CLOCK = Clock()

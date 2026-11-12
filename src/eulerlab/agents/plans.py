@@ -33,14 +33,14 @@ def today_slots(
 
     try:
         # `tools/` is importable from the repo root, where the API and `make` run.
-        from tools import schedule_daily
+        from eulerlab import jobs as job_table
 
         makefile = Path("Makefile").read_text(encoding="utf-8")
     except (ImportError, OSError) as exc:
         return [], f"schedule not read: {type(exc).__name__}"
     day = now.astimezone(IST).date()
     built = calendar.build(
-        list(schedule_daily.JOBS.values()), makefile, specs, start=day, days=1, now=now, root=root
+        list(job_table.JOBS.values()), makefile, specs, start=day, days=1, now=now, root=root
     )
     return list(built["slots"]), ""
 

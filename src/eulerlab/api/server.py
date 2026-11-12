@@ -62,6 +62,7 @@ from eulerlab import (
     strategy_results,
     walk_run,
 )
+from eulerlab import health as ops_health
 from eulerlab import results as result_store
 from eulerlab import workspace as workspace_mod
 from eulerlab.api import (
@@ -101,6 +102,7 @@ from eulerlab.intraday.paper_scan import ALL_SIGNALS as PAPER_SIGNALS
 from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.market_history import INDEX_UNIVERSE, index_panel_rows
+from eulerlab.paths import data_path
 from eulerlab.research.budget import price_search, searches_run
 from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
 from eulerlab.strategies import archive as strategy_archive
@@ -609,6 +611,7 @@ def health() -> dict[str, Any]:
     dispersion = sharpe_dispersion()
     return {
         "ok": True,
+        "ops": ops_health.summary(),
         "panel_loaded": PANEL.loaded(),
         "trials_logged": trial_count(),
         "noise_bar": round(shown.value, 3),
@@ -2270,7 +2273,7 @@ def _landing_source(name: str) -> dict[str, Any]:
     held = _LANDING_COUNTS.get(name)
     if held is not None and time.monotonic() - held[0] < LANDING_COUNT_TTL:
         return held[1]
-    root = Path("data/landing") / name
+    root = data_path("landing") / name
     if not root.exists():
         return {"name": name, "present": False, "files": 0, "newest": None}
     files = 0
@@ -5040,7 +5043,7 @@ def _chain_payload(underlying: str, day: str, expiry: str, *, summary: bool) -> 
 
 _HISTORY_POINTS: dict[tuple[str, str], dict[str, Any] | None] = {}
 
-OPTIONS_HISTORY_CACHE = Path("data/cache/options_history.jsonl")
+OPTIONS_HISTORY_CACHE = data_path("cache/options_history.jsonl")
 """Each day's straddle point, kept across restarts. A landed bhavcopy never
 changes, so neither does its point; after a restart the first chart waited
 29 s to download and parse 60 of them again (2026-10-27)."""

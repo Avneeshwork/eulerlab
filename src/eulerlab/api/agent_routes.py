@@ -193,7 +193,7 @@ def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
     """
     # Imported here: `tools/` is importable because the server runs from the
     # repo root, and the schedule must come from the list that writes the plists.
-    from tools import schedule_daily
+    from eulerlab import jobs as job_table
 
     now = datetime.now(UTC)
     today = now.astimezone(runtime.IST).date()
@@ -209,7 +209,7 @@ def agents_calendar(start: str = "", days: int = 7) -> dict[str, Any]:
     except (OSError, ValueError) as exc:
         return {"ok": False, "error": str(exc)}
     built = agent_calendar.build(
-        list(schedule_daily.JOBS.values()), makefile, specs, start=first, days=span, now=now
+        list(job_table.JOBS.values()), makefile, specs, start=first, days=span, now=now
     )
     rows = [{"id": d["id"], "title": d["title"]} for d in chart["departments"]]
     rows.append({"id": "feeds", "title": "Data feeds (no agent)"})

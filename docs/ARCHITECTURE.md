@@ -1977,8 +1977,22 @@ The remaining top-level modules. Small, and load-bearing in the way plumbing is:
 | `workspace` | what is shared between tenants and what emphatically is not (ADR-040) |
 | `cloud_results` | results mirrored to the bucket the market data lives in (ADR-042) |
 | `config`, `env` | typed config from `config/`, and one place that loads `.env` |
+| `paths` | where data lives: `EULERLAB_DATA_DIR`, the one setting every `data/...` path is built from |
 | `notify` | telling the operator when an unattended job fails |
+| `jobs`, `scheduler` | the job table, and the process that runs it on a server (ADR-164) |
+| `health` | one page: is the scheduler, the live book's clock and the kill switch alive |
+| `oms/deadman` | trips the kill switch when an armed live book's clock goes quiet |
 | `schemas` | **stub.** Not the order schema — that lives in `oms/` |
+
+**Where data lives.** Every module used to spell `Path("data/landing/...")`
+itself: 328 literals in 201 files, each one an assumption that the process runs
+from the repository root on the operator's Mac. `paths.data_path("landing/nse")`
+replaces them. It reads one setting, `EULERLAB_DATA_DIR`, and falls back to
+`data` relative to the working directory, so the Mac behaves exactly as before
+while a container or server points the same code at a mounted volume. The
+setting may sit in `.env`; `paths` loads it before the first module-level
+constant is built. `make hygiene` fails on any new `data/...` literal under
+`src/` (`data-literal`), so the rule cannot erode one commit at a time.
 
 `api/` is worth a note. `server.py` held four unrelated jobs — parsing HTTP,
 loading panels, running intraday signals, building reports — and the first three
@@ -2692,7 +2706,11 @@ waits a day to show the drawdown.
 
 ## Scheduled jobs
 
-`tools/schedule_daily.py` writes launchd jobs; `make schedule JOB=...`.
+The job table is `eulerlab.jobs`: fourteen jobs, each with its IST time, its
+command (a Makefile target) and the reason for that time. Two things read it.
+On the Mac, `tools/schedule_daily.py` writes each job as a launchd plist
+(`make schedule JOB=...`). On a server, `eulerlab.scheduler` runs the table as
+one process (`make scheduler`, ADR-164); the section after the table says how.
 
 | Job | When | Runs |
 |---|---|---|
@@ -2708,6 +2726,47 @@ waits a day to show the drawdown.
 launchd runs a missed job when the Mac wakes. That suits a data pull and not a
 message tied to the clock, so `gap_signal.out_of_session` makes a scheduled
 run say nothing on a weekend, an NSE holiday, or outside 15:05 to 15:45 IST.
+
+### Running on a server (ADR-164)
+
+`make scheduler` is the launchd replacement. Every 30 seconds it works out, in
+IST, which slots of the table have come due since its last look and runs each
+in its own thread, so a long `make daily` never holds up the 22:00 data agent.
+It writes what it ran to `data/scheduler/state.json`, so a restart does not run
+a slot twice, and a slot missed while it was down is handled by the job's
+`catch_up` flag: a data pull runs late, within three hours (a gap in market
+history cannot be bought back); a clock-tied job (the 09:16 live-price sweep,
+the 15:20 gap signal, the 09:10 depth recorder, the 15:10 close sweep) is
+skipped and the skip is logged, because run late it would mislead. A non-zero
+exit is reported to Telegram as `daily_guard.sh` reports `make daily`. Every
+run is a line in `data/scheduler/runs.jsonl`; `data/scheduler/heartbeat.json`
+says when it last looked. It knows nothing about NSE holidays on purpose: each
+job already decides what a holiday means for it, and two places deciding would
+disagree.
+
+`make health` (`eulerlab.health`) is the one page: the scheduler's heartbeat,
+each job's latest slot against its run, the live book's clock, and the kill
+switch. It exits 1 when anything is red, so it is also the containers' health
+check, and `GET /api/health` carries it under `ops`.
+
+**The dead-man switch** (`oms/deadman.py`) closes the gap that the live book's
+clock (`deploy/live_money.Clock`) was a thread inside the API process with
+nothing watching it. The clock now writes `live_money/heartbeat.json` on every
+tick. The dead-man switch runs in the kill-switch process, with its own
+`.env.killswitch` and no broker key, reads that file and `deploy.json`, and
+during market hours on a session the book is armed for trips the kill switch
+when the heartbeat is two minutes old, once per session, with a Telegram
+message. It cannot square off: the process that could is the one that went
+quiet (S-019). The message says to square off by hand and the broker's 15:12
+auto square-off stays the last line until broker-side stops land (#125).
+
+**Containers.** `Dockerfile` builds one Python image; `docker-compose.yml`
+starts it as `api`, `scheduler` and `killswitch`, plus `web` from
+`web/Dockerfile`. The repository is bind-mounted at `/app` so the research
+autopilot's commits land in the checkout, and data lives in a named volume
+through `EULERLAB_DATA_DIR=/data` (ADR-163). `docker compose up -d` on a VPS
+is the whole deployment; `make` on the Mac is unchanged. What is not there
+yet: Postgres (#114) and anything per-user (#113).
 
 ## Kite login from the Instruments page
 

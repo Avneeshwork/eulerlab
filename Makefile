@@ -619,6 +619,26 @@ agents-resume:
 	@test -n "$(REASON)" || (echo 'usage: make agents-resume REASON="why it is safe to resume"'; exit 2)
 	@uv run python -m eulerlab.agents.guardian clear --reason "$(REASON)"
 
+# --- running on a server (ADR-164) ------------------------------------------------
+# The same fourteen jobs launchd runs on the Mac, as one process that catches up
+# after a restart. `make health` is the one page that says whether it is all alive.
+scheduler:
+	@uv run --extra web --extra angel python -m eulerlab.scheduler
+
+scheduler-list:
+	@uv run python -m eulerlab.scheduler --list
+
+scheduler-tick:
+	@uv run --extra web --extra angel python -m eulerlab.scheduler --tick
+
+# The dead-man switch: in the kill-switch process, trips the switch when the live
+# book's clock goes quiet in market hours. Needs no broker credential.
+deadman:
+	@uv run python -m eulerlab.oms.deadman
+
+health:
+	@uv run python -m eulerlab.health
+
 kill-status:
 	@uv run python -m eulerlab.oms.killswitch
 
