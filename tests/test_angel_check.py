@@ -149,6 +149,12 @@ def test_an_unrecognised_quote_reply_is_refused() -> None:
 def test_readonly_reads_everything_and_writes_no_secret(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.setattr(angel, "TOKENS_FILE", tmp_path / "tokens.json")
     monkeypatch.setattr(time, "sleep", lambda _: None)
+    # The scrip master is a 38 MB public download; a test must not reach the
+    # internet (it failed behind a proxy on 2026-11-12). A fresh token cache
+    # means the master is not consulted.
+    angel._save_tokens(
+        {"SBIN": "3045"}, tmp_path / "tokens.json", master_at=datetime.now(UTC).isoformat()
+    )
     client = FakeClient()
     out = tmp_path / "ro.json"
     report = angel.readonly(client, "refresh-token-value", "SBIN", out)
