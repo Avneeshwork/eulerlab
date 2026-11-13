@@ -157,3 +157,16 @@ make angel-minute FROM=2026-11-09
 
 Do not pass a range that spans an NSE holiday: `angel-minute` asks Angel for
 every weekday and lands zero-row files for the holiday.
+
+## The Angel backfill stopped (rate limit, login, crash)
+
+`make angel-backfill-supervise ACTION=install` loads a launchd agent
+(`tools/com.eulerlab.angel-backfill.plist`) that runs
+`tools/angel_backfill_supervised.sh`: one resumable history pass, B2
+upload-and-delete of the minute trees every 30 minutes and at the end, and
+exit 1 unless the pass fetched nothing new and failed nothing. launchd
+restarts it five minutes after any non-zero exit, so a limit or a killed
+process costs five minutes, not the night. It waits for a hand-started run to
+end before fetching. Log: `data/logs/angel_backfill.log`, each pass's detail in
+`data/logs/angel_history_pass.log`. `ACTION=status` shows it; `ACTION=uninstall`
+stops it.

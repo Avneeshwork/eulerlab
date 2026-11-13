@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Installed by `make angel-backfill-supervise ACTION=install` (@REPO@ and @HOME@ filled in).
+     KeepAlive restarts tools/angel_backfill_supervised.sh after a non-zero exit,
+     at most once every ThrottleInterval seconds; exit 0 means the history is
+     complete and in B2, and launchd leaves it stopped. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.eulerlab.angel-backfill</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>@REPO@/tools/angel_backfill_supervised.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>@REPO@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@HOME@/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key><false/>
+  </dict>
+  <key>ThrottleInterval</key><integer>300</integer>
+  <key>Nice</key><integer>5</integer>
+  <key>StandardOutPath</key><string>@REPO@/data/logs/angel_backfill.log</string>
+  <key>StandardErrorPath</key><string>@REPO@/data/logs/angel_backfill.err</string>
+</dict>
+</plist>
