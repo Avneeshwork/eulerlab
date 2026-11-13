@@ -1,6 +1,7 @@
 # STATE — where this project is right now
 
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), Postgres for shared state (ADR-165 to ADR-167, T-4557 to T-4562, off by default), multi-user (#113: login and per-workspace records done; gate settings wait on a decision), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
+**Blocked:** every agent, the nightly autopilot included, has been halted by the guardian since 2026-11-13 because `gates.py` changed in commit 09a0024. Only the operator can resume them (T-4596). Research 192 has the agent fund's first real-data numbers.
 **Next:** build and start the containers (`docker compose up -d`, T-4553), then the regulatory research for a subscription platform (#112) and the multi-user design (#113). Also: live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528).
 
 *Last updated: 2026-11-13 (the agent fund: issues #135 to #149 built in code, ADR-171 to ADR-183). One page, and it stays one page: a summary, not a
