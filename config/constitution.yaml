@@ -54,6 +54,27 @@ caps:
   # this and config/agents/autopilot.yaml's own number applies.
   gate_entries_per_week: 10
 
+decay:
+  # The decay monitor (ADR-178) compares a strategy's paper returns with its
+  # backtest, session by session. Its alarm level is set per strategy so that
+  # a strategy still as good as its backtest is wrongly called decayed in no
+  # more than this share of `horizon_sessions`-long stretches.
+  # ASSUMPTION: A-139. The thread's values; the operator has not chosen them.
+  false_alarm: 0.05
+  horizon_sessions: 250
+  # A strategy is put on watch (no new capital) at this share of the alarm level.
+  watch_at: 0.7
+
+routing:
+  # Which model each kind of work goes to (ADR-180). Names are providers in
+  # config/llm.yaml; `none` means code only, no model. Scoring is always code.
+  # ASSUMPTION: A-141. The thread's proposal inside the Rs 1,000 budget: the
+  # dearest listed model is not used by default.
+  frontier: claude-opus      # code changes, red team, new lineages, the weekly memo
+  mid: claude-sonnet         # mutation of rules, on-call
+  small: groq                # triage, tone, summaries
+  scoring: none
+
 # What an agent may do by itself.
 #   act      it does it, inside the caps above
 #   propose  it writes the proposal; the operator decides

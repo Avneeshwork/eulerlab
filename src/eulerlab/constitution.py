@@ -103,6 +103,21 @@ class Caps(_Model):
     gate_entries_per_week: int = Field(ge=0)
 
 
+class Decay(_Model):
+    false_alarm: float = Field(gt=0, lt=0.5)
+    horizon_sessions: int = Field(ge=20)
+    watch_at: float = Field(gt=0, lt=1)
+
+
+class Routing(_Model):
+    """Provider names from `config/llm.yaml`, by how demanding the work is."""
+
+    frontier: str
+    mid: str
+    small: str
+    scoring: Literal["none"]
+
+
 class Constitution(_Model):
     version: int
     owner: str
@@ -111,6 +126,8 @@ class Constitution(_Model):
     periods: Periods
     budget: Budget
     caps: Caps
+    decay: Decay
+    routing: Routing
     actions: dict[str, Level]
 
     @model_validator(mode="after")

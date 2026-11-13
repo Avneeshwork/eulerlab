@@ -108,9 +108,7 @@ def test_a_second_night_does_not_try_a_rule_twice(tmp_path: Path) -> None:
     _night(tmp_path, world)
     first = len(world.calls)
     _night(tmp_path, world)
-    rows = [
-        r for r in read_rows(tmp_path / "evolve.jsonl", evolve.KIND) if r["event"] == "try"
-    ]
+    rows = [r for r in read_rows(tmp_path / "evolve.jsonl", evolve.KIND) if r["event"] == "try"]
     assert len(rows) == len(world.calls) > first
     assert len({r["fingerprint"] for r in rows}) == len(rows)
 
