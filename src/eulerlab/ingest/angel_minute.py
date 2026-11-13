@@ -249,6 +249,16 @@ def read_delisted(path: Path = DELISTED) -> dict[str, str]:
     return {row["symbol"]: row["token"] for row in csv.DictReader(lines) if row.get("token")}
 
 
+def expired(exc: Exception) -> bool:
+    """Whether Angel refused the request because the login has lapsed.
+
+    Seen 2026-11-13: about five hours into the history backfill every request
+    came back "Invalid Token" (1,524 of them) until the process was restarted.
+    """
+    text = str(exc).lower()
+    return "invalid token" in text or "token expired" in text or "ag8001" in text
+
+
 def history(args: argparse.Namespace) -> int:
     """`--history`: every symbol, newest month first, into `HISTORY_ROOT`.
 
@@ -275,7 +285,13 @@ def history(args: argparse.Namespace) -> int:
         for symbol in symbols:
             folder = KITE_FOLDERS.get(symbol, symbol)
             try:
-                got = fetch_span(client, store, folder, tokens[symbol], a, b)
+                try:
+                    got = fetch_span(client, store, folder, tokens[symbol], a, b)
+                except RuntimeError as exc:
+                    if not expired(exc):
+                        raise
+                    client = _make_client()  # a fresh login; the session lasts hours, not a night
+                    got = fetch_span(client, store, folder, tokens[symbol], a, b)
             except RuntimeError as exc:
                 counts["failed"] += 1
                 print(f"  failed: {exc}")

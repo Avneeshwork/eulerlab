@@ -164,3 +164,10 @@ def test_after_the_close_an_auction_stock_ending_at_1528_is_complete() -> None:
 
     assert open_session_day(dt(2026, 11, 13, 15, 0, tzinfo=ist)) == date(2026, 11, 13)
     assert open_session_day(dt(2026, 11, 13, 21, 0, tzinfo=ist)) == date(2026, 11, 14)
+
+
+def test_a_lapsed_login_is_recognised() -> None:
+    from eulerlab.ingest.angel_minute import expired
+
+    assert expired(RuntimeError("Angel candles ENGINERSIN 2021-03-16..2021-03-31: Invalid Token"))
+    assert not expired(RuntimeError("Angel candles X: Something went wrong"))
