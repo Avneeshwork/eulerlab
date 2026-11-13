@@ -30,7 +30,7 @@ from __future__ import annotations
 import math
 import re
 import statistics
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict
@@ -127,28 +127,38 @@ def _is_number(token: str) -> bool:
     return bool(re.fullmatch(r"-?\d+(?:\.\d+)?", token))
 
 
-def parse(text: str) -> Node:
-    """Text to a checked tree. Refuses unknown operators, wrong arity, bad windows, oversize."""
+def parse(
+    text: str,
+    ops: Mapping[str, Op] | None = None,
+    *,
+    max_depth: int = MAX_DEPTH,
+    max_nodes: int = MAX_NODES,
+) -> Node:
+    """Text to a checked tree. Refuses unknown operators, wrong arity, bad windows, oversize.
+
+    `ops` is the operator table: this module's by default, or another language's
+    built on the same grammar (`research/lang.py`, ADR-175).
+    """
     tokens = _tokens(text.removeprefix(PREFIX))
     if not tokens:
         msg = "empty formula"
         raise FormulaError(msg)
-    node, used = _expr(tokens, 0)
+    node, used = _expr(tokens, 0, OPS if ops is None else ops)
     if used != len(tokens):
         msg = f"unexpected {' '.join(tokens[used:])!r} after the formula"
         raise FormulaError(msg)
-    check(node)
+    check(node, max_depth=max_depth, max_nodes=max_nodes)
     return node
 
 
-def _expr(tokens: list[str], i: int) -> tuple[Node, int]:
+def _expr(tokens: list[str], i: int, ops: Mapping[str, Op]) -> tuple[Node, int]:
     token = tokens[i]
     if _is_number(token):
         return Node(op="const", value=float(token)), i + 1
-    if token not in OPS:
-        msg = f"unknown operator {token!r}; the language has {sorted(OPS)}"
+    if token not in ops:
+        msg = f"unknown operator {token!r}; the language has {sorted(ops)}"
         raise FormulaError(msg)
-    spec = OPS[token]
+    spec = ops[token]
     if spec.args == 0 and spec.params == 0:
         return Node(op=token), i + 1
     if i + 1 >= len(tokens) or tokens[i + 1] != "(":
@@ -160,7 +170,7 @@ def _expr(tokens: list[str], i: int) -> tuple[Node, int]:
         if i >= len(tokens):
             msg = f"{token}( is never closed"
             raise FormulaError(msg)
-        item, i = _expr(tokens, i)
+        item, i = _expr(tokens, i, ops)
         items.append(item)
         if i < len(tokens) and tokens[i] == ",":
             i += 1
@@ -183,13 +193,13 @@ def _expr(tokens: list[str], i: int) -> tuple[Node, int]:
     return Node(op=token, args=args, params=tuple(params)), i
 
 
-def check(node: Node) -> None:
+def check(node: Node, *, max_depth: int = MAX_DEPTH, max_nodes: int = MAX_NODES) -> None:
     """The limits an agent's formula must respect."""
-    if depth(node) > MAX_DEPTH:
-        msg = f"depth {depth(node)} exceeds {MAX_DEPTH}"
+    if depth(node) > max_depth:
+        msg = f"depth {depth(node)} exceeds {max_depth}"
         raise FormulaError(msg)
-    if size(node) > MAX_NODES:
-        msg = f"{size(node)} operators exceed {MAX_NODES}"
+    if size(node) > max_nodes:
+        msg = f"{size(node)} operators exceed {max_nodes}"
         raise FormulaError(msg)
     for n in _walk(node):
         for p in n.params:

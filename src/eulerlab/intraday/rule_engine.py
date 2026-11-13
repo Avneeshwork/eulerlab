@@ -36,7 +36,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -255,6 +255,19 @@ class RuleSpec(BaseModel):
             f"{self.kind}: when {' and '.join(parts)}; {side}; {hold}; "
             f"rank by {one(self.rank_by)} {self.rank_by.order}"
         )
+
+
+class Rule(Protocol):
+    """What a screen needs of a rule: this module's `RuleSpec`, or `research/lang.py`'s `Spec`."""
+
+    @property
+    def kind(self) -> Literal["intraday", "swing"]: ...
+    @property
+    def hold(self) -> int: ...
+    @property
+    def first(self) -> date: ...
+    def fingerprint(self) -> str: ...
+    def describe(self) -> str: ...
 
 
 def _c(signal: str, op: str | None = None, value: float | None = None, **kw: Any) -> dict[str, Any]:
@@ -573,7 +586,8 @@ class Engine:
                 return d.by_day(c.signal).get(at, frozenset()) & liquid
         return liquid
 
-    def events(self, spec: RuleSpec) -> list[Event]:
+    def events(self, spec: Rule) -> list[Event]:
+        assert isinstance(spec, RuleSpec), "a v2 spec is run by research/fast_eval.FastEngine"
         d = self.data
         out: list[Event] = []
         first = spec.first
@@ -599,21 +613,21 @@ class Engine:
                 out.append((day, symbol, side, -rank if spec.rank_by.order == "desc" else rank))
         return out
 
-    def window(self, spec: RuleSpec) -> list[date]:
+    def window(self, spec: Rule) -> list[date]:
         return [x for x in self.data.sessions if spec.first <= x <= self.data.end]
 
-    def swings(self, spec: RuleSpec) -> list[Any]:
+    def swings(self, spec: Rule) -> list[Any]:
         """A swing rule's positions (`other_data_screen.Swing`), at most ten open."""
         return list(dm.swing_book(self.data, self.events(spec), spec.hold))
 
-    def pieces(self, spec: RuleSpec) -> list[Any]:
+    def pieces(self, spec: Rule) -> list[Any]:
         """The trades (intraday) or the daily pieces of each position (swing)."""
         events = self.events(spec)
         if spec.kind == "intraday":
             return list(dm.day_book(self.data, events))
         return [p for s in dm.swing_book(self.data, events, spec.hold) for p in s.pieces()]
 
-    def screen(self, spec: RuleSpec) -> dict[str, Any]:
+    def screen(self, spec: Rule) -> dict[str, Any]:
         """Research 176's screen figures plus the bias checks (`checks`)."""
         events = self.events(spec)
         window = self.window(spec)
