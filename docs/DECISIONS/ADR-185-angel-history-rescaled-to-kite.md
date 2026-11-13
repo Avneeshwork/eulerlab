@@ -1,0 +1,9 @@
+# ADR-185 — Angel's minute history is rescaled to Kite's level, one factor per symbol
+
+**Date:** 2026-11-13. **Status:** accepted (operator, "Rescale Angel to Kite"). Research 193, T-4605.
+
+- **Context.** Angel One's minute bars reach back to 3 Oct 2016; Kite's start 19 Aug 2021. The two vendors adjust old prices differently (RELIANCE 2021-08-20 close: Kite 1,020.00, Angel 1,074.13), so joining them as served puts a false jump at the seam.
+- **Options.** (a) Rescale Angel by the Kite/Angel ratio on the weeks both hold. (b) Refetch every year from Angel alone and drop Kite's history. (c) Keep Angel's history for unadjusted work only.
+- **Choice.** (a). `ingest/angel_rescale.py` measures, per symbol, the median Kite/Angel close ratio over 20 Aug to 15 Sep 2021, and refuses the symbol when any day's ratio drifts more than 0.5% from it or when the scaled seam return (18 Aug to 20 Aug, each close rebuilt as the last half hour's volume-weighted price, as NSE set it then) misses NSE's bhavcopy return by more than 0.5%. Volume gets its own median daily ratio. `intraday/store.fetch(history=True)` serves Angel's bars before 19 Aug 2021 multiplied by these factors, for passing symbols only; the raw files are never edited.
+- **Why.** Keeps Kite's five years, already used by every result, unchanged, and needs about 450 extra requests rather than refetching 30 million bars.
+- **Cost if wrong.** One constant fixes the level at the seam only. If Angel left a corporate action between 2016 and 2021 unadjusted (a demerger, say) while Kite would have adjusted it, the history has a jump at that action that this check cannot see; a check of Angel's daily returns against NSE's corporate-action list is T-4609.

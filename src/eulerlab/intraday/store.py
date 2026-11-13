@@ -23,6 +23,7 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator, Sequence
 from datetime import date, datetime
+from pathlib import Path
 
 from eulerlab.env import load_env, require
 from eulerlab.intraday.tweezer import IST, Candle
@@ -32,6 +33,10 @@ BUCKET = "eulerdata"
 PREFIX = "nse/kite_minute"
 ENDPOINT = "https://s3.us-west-004.backblazeb2.com"
 CACHE = data_path("landing/kite_minute")
+HISTORY_PREFIX = "nse/angel_minute_history"
+HISTORY_CACHE = data_path("landing/angel_minute_history")
+"""Angel's bars before Kite's start (research 193), read only with `history=True`
+and only rescaled to Kite's level by `ingest/angel_rescale.py`'s factors."""
 
 
 def _client() -> object:
@@ -57,13 +62,16 @@ def available_symbols(client: object | None = None) -> list[str]:
     return sorted(found)
 
 
-def _keys_for(symbol: str, client: object) -> list[str]:
+def _keys_for(symbol: str, client: object, prefix: str = PREFIX, cache: Path = CACHE) -> list[str]:
+    """B2's keys for `symbol`, plus local files not uploaded yet (a running backfill)."""
     paginator = client.get_paginator("list_objects_v2")  # type: ignore[attr-defined]
-    keys: list[str] = []
-    for page in paginator.paginate(Bucket=BUCKET, Prefix=f"{PREFIX}/{symbol}/"):
-        keys.extend(
+    keys: set[str] = set()
+    for page in paginator.paginate(Bucket=BUCKET, Prefix=f"{prefix}/{symbol}/"):
+        keys.update(
             obj["Key"] for obj in page.get("Contents", []) if obj["Key"].endswith(".parquet")
         )
+    if (cache / symbol).is_dir():
+        keys.update(f"{prefix}/{symbol}/{p.name}" for p in (cache / symbol).glob("*.parquet"))
     return sorted(keys)
 
 
@@ -87,8 +95,16 @@ def _overlaps(key: str, start: date | None, end: date | None) -> bool:
     return not (end and chunk_start > end)
 
 
-def fetch(symbol: str, *, start: date | None = None, end: date | None = None) -> list[Candle]:
+def fetch(
+    symbol: str, *, start: date | None = None, end: date | None = None, history: bool = False
+) -> list[Candle]:
     """All minute candles for `symbol`, downloading what is not cached.
+
+    `history=True` adds Angel One's bars from before Kite's first session
+    (back to 3 Oct 2016), multiplied by the symbol's Kite/Angel factor so the
+    series has no jump where the vendors meet. A symbol whose factor failed
+    its checks (`angel_rescale.load_factors`) gets no history, never an
+    unscaled one.
 
     **One bar per timestamp**, which is not what concatenating the chunks
     gives. The archive's 60-day windows overlap: `NIFTYBEES` on 2026-06-02 is
@@ -107,14 +123,43 @@ def fetch(symbol: str, *, start: date | None = None, end: date | None = None) ->
     fetched, and a re-fetch is more likely to be a correction than a
     regression.
     """
+    client = _client()
+    out = _read(symbol, client, PREFIX, CACHE, start, end)
+    if history and (start is None or start < KITE_START):
+        from eulerlab.ingest.angel_rescale import load_factors
+
+        factor = load_factors().get(symbol)
+        if factor is not None:
+            last = min(end, KITE_START) if end else KITE_START
+            older = [
+                c
+                for c in _read(symbol, client, HISTORY_PREFIX, HISTORY_CACHE, start, last)
+                if c.ts.date() < KITE_START
+            ]
+            out = [factor.apply(c) for c in older] + out
+    return out
+
+
+KITE_START = date(2021, 8, 19)
+"""The first day Kite's backfill covers; Angel's bars before it are history."""
+
+
+def _read(
+    symbol: str,
+    client: object,
+    prefix: str,
+    cache: Path,
+    start: date | None,
+    end: date | None,
+) -> list[Candle]:
+    """One tree's candles for `symbol`, one bar per timestamp (see `fetch`)."""
     import pyarrow.parquet as pq
 
-    client = _client()
     out: list[Candle] = []
-    for key in _keys_for(symbol, client):
+    for key in _keys_for(symbol, client, prefix, cache):
         if not _overlaps(key, start, end):
             continue
-        local = CACHE / key.removeprefix(f"{PREFIX}/")
+        local = cache / key.removeprefix(f"{prefix}/")
         if not local.exists():
             local.parent.mkdir(parents=True, exist_ok=True)
             body = client.get_object(Bucket=BUCKET, Key=key)["Body"].read()  # type: ignore[attr-defined]

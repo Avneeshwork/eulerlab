@@ -3880,8 +3880,11 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            delisted names (`config/angel_delisted_tokens.csv`, NSE's own tokens) land apart, in
            `angel_minute_history` (`make angel-history`, research 193): month-sized requests,
            a long month split at the 15th, since Angel returns at most 8,000 candles and drops
-           the earliest silently. Kept apart because Kite and Angel adjust old prices differently;
-           no reader opens it yet (T-4605)
+           the earliest silently. Kept apart because Kite and Angel adjust old prices differently.
+           `ingest/angel_rescale.py` (ADR-185) measures one Kite/Angel factor per symbol over
+           20 Aug-15 Sep 2021 and refuses a symbol whose daily ratio drifts over 0.5% or whose
+           scaled seam return misses NSE's bhavcopy by over 0.5%; `intraday/store.fetch(history=True)`
+           serves the bars before 19 Aug 2021 times that factor, passing symbols only
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it
