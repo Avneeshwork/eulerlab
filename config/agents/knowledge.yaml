@@ -2,10 +2,12 @@
 name: knowledge
 title: Knowledge agent
 reports_to: research
+role: chief_of_staff               # ADR-181
 job: Answers questions about our papers, idea cards, results and datasets, looks every number up instead of remembering it, and names the source of each one.
 worker: eulerlab.agents.workers.knowledge
 schedule: "on demand; its index rebuilds after the close"
 uses_model: true
+provider: groq          # kept on free Groq for cost; its role routes elsewhere (ADR-181)
 daily_requests: 150
 never:
   - write anything outside its own folder

@@ -585,6 +585,7 @@ export function OrgChartView() {
             <b>
               {person.title} {!person.enabled && <Badge tone="down">off</Badge>}
               {person.uses_model && <Badge>uses a model</Badge>}
+              {person.role && <Badge>{person.role.replace(/_/g, ' ')}</Badge>}
             </b>
             <span>{person.job}</span>
             <span className="tfine">
@@ -730,6 +731,37 @@ export function OrgChartView() {
         </nav>
         <aside className="org-panel ai-card">{panel}</aside>
       </div>
+      {chart.roles?.length > 0 && (
+        <table className="ttable" aria-label="The nine roles">
+          <caption className="tfine">Nine roles, the decision each feeds, its model and the last 30 days (ADR-181)</caption>
+          <thead>
+            <tr>
+              <th>Role</th>
+              <th>Feeds</th>
+              <th>Model</th>
+              <th>Agents</th>
+              <th>Requests</th>
+              <th>Rs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {chart.roles.map((r) => (
+              <tr key={r.role}>
+                <td>{r.role.replace(/_/g, ' ')}</td>
+                <td>{r.decision}</td>
+                <td>{r.routed === 'none' ? 'code only' : r.routed}</td>
+                <td>
+                  {r.agents
+                    .map((a) => (r.own_provider[a] ? `${a} (on ${r.own_provider[a]})` : a))
+                    .join(', ') || 'none yet'}
+                </td>
+                <td>{r.requests_30d}</td>
+                <td>{r.inr_30d.toFixed(0)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       </div>
     </CardContext.Provider>
   );

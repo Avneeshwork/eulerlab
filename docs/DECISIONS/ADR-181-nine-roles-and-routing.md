@@ -1,0 +1,9 @@
+# ADR-181 — Fifteen agents play nine roles, and the constitution routes each role to a model tier
+
+**Date:** 2026-11-13. **Status:** accepted; the heads are folded in, not retired (T-4593). Issue #145 under #134.
+
+- **Context.** Fifteen agent definitions grew one at a time; three Groq-run heads split tasks and decide little. Spend was counted per agent, so nobody could see what each kind of decision cost.
+- **Options.** (a) Rewrite the agents into nine new workers. (b) Give each definition a `role` from nine, route model choice by role, count spend by role, and keep the workers.
+- **Choice.** (b). `agents/roles.py` holds the nine (scout, generator, engineer, evaluator, red team, allocator, execution analyst, on-call, chief of staff), each with the decision it feeds and a tier. The constitution's `routing` maps tiers to providers (frontier claude-opus, mid claude-sonnet, small groq, scoring none). An agent with no provider of its own follows its role's route (`runtime.routed_provider`); an agent that names one keeps it and is listed in `roles.exceptions`. The org chart on the AI tab and the scorecard show each role's agents, model and last-30-day requests and rupees.
+- **Why.** Rewriting working agents for a label risks breaking what runs every night. The four agents that had no provider and whose role routes to a paid model (skeptic, lab, knowledge, market brief) were pinned to `groq`, so the table made no agent dearer; changing that is the operator's call.
+- **Cost if wrong.** The heads still run and still use Groq; retiring them needs their plans and checklists moved to code first (T-4593). Spend per forward-confirmed strategy cannot be measured until a strategy is confirmed forward. No caps were set, so no model price was relied on. The web change was not type-checked here (no `node_modules` in the container).

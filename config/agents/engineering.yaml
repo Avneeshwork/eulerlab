@@ -3,6 +3,7 @@
 name: engineering
 title: Engineering agent
 reports_to: platform
+role: engineer               # ADR-181
 job: Fixes code problems the doctor and the daily quality check find, and codes the signals research cards name that the library lacks, each on its own branch, proven by lint, types, tests and the engine self-test, for you to merge. Tries free Groq first, then Claude Opus. Reviews branches against the house rules.
 worker: eulerlab.agents.workers.engineering
 schedule: "daily 16:15 IST quality check and fixes (agents-close), on demand, and Sunday 07:30"

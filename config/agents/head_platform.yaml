@@ -3,6 +3,7 @@
 name: head_platform
 title: Head of Data and Platform
 reports_to: ceo
+role: chief_of_staff               # ADR-181
 job: Splits your tasks for data and platform among its agents by what each can do, writes each agent's plan for the day, checks every finished task against a written checklist, sends one back at most twice, and passes the result up to you.
 worker: eulerlab.agents.workers.manager
 schedule: "08:45 on weekdays and 17:00 daily (make agents-work), and whenever you give it a task"

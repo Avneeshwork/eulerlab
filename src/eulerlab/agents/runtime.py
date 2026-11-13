@@ -157,6 +157,19 @@ def resolve_provider(wanted: str = "") -> str:
     return loaded.assistant or loaded.default
 
 
+def routed_provider(spec: Any) -> str:
+    """The agent's own provider, else its role's route in the constitution (ADR-181)."""
+    if spec.provider:
+        return str(spec.provider)
+    role = getattr(spec, "role", "")
+    if not role:
+        return ""
+    from eulerlab.agents import roles
+
+    routed = roles.provider_for(role)
+    return "" if routed == "none" else routed
+
+
 def model_asker(provider: str) -> Asker:
     """One provider's asker, for a worker that tries models in turn (ADR-127)."""
     return _model_asker(provider)
@@ -214,7 +227,7 @@ class Context:
             msg = f"{self.name} has used its {self.agent.daily_requests} requests for today"
             raise BudgetSpent(msg)
         if self.asker is None:
-            provider = resolve_provider(self.agent.spec.provider)
+            provider = resolve_provider(routed_provider(self.agent.spec))
             self.model = provider
             self.asker = _model_asker(provider)
         self.requests += 1

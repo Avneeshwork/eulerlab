@@ -2815,6 +2815,8 @@ export type AgentSkill = {
 export type OrgPerson = {
   name: string;
   title: string;
+  /** One of the nine roles (ADR-181). */
+  role: string;
   job: string;
   enabled: boolean;
   schedule: string;
@@ -2838,7 +2840,19 @@ export type OrgChart = {
   goals: OrgGoal[];
   departments: OrgDepartment[];
   outside: { id: string; title: string; note: string }[];
+  /** The nine roles (ADR-181), with the last 30 days' paid-model spend of each. */
+  roles: OrgRole[];
   problems: string[];
+};
+export type OrgRole = {
+  role: string;
+  decision: string;
+  tier: string;
+  routed: string;
+  agents: string[];
+  inr_30d: number;
+  requests_30d: number;
+  own_provider: Record<string, string>;
 };
 
 /** Tasks (ADR-124): `/api/agents/tasks`. A task's state is the fold of its history. */

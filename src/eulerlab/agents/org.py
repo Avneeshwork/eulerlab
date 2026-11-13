@@ -190,6 +190,7 @@ def person(spec: AgentSpec, enabled: bool | None = None) -> dict[str, Any]:
     return {
         "name": spec.name,
         "title": spec.title,
+        "role": spec.role,
         "job": spec.job,
         "enabled": spec.enabled if enabled is None else enabled,
         "schedule": spec.schedule,
@@ -198,6 +199,27 @@ def person(spec: AgentSpec, enabled: bool | None = None) -> dict[str, Any]:
         "can_do": [s.model_dump() for s in spec.can_do],
         "never": list(spec.never),
     }
+
+
+def role_table(specs: dict[str, AgentSpec]) -> list[dict[str, Any]]:
+    """The nine roles (ADR-181): decision fed, model route, agents, last 30 days' spend."""
+    from eulerlab.agents import roles
+
+    spent = roles.spend(dict(specs))
+    odd = roles.exceptions(dict(specs))
+    return [
+        {
+            "role": r.name,
+            "decision": r.decision,
+            "tier": r.tier,
+            "routed": roles.provider_for(r.name),
+            "agents": spent[r.name]["agents"],
+            "inr_30d": spent[r.name]["inr"],
+            "requests_30d": spent[r.name]["requests"],
+            "own_provider": {a: odd[a]["own"] for a in spent[r.name]["agents"] if a in odd},
+        }
+        for r in roles.ROLES.values()
+    ]
 
 
 def chart(org: Org, specs: dict[str, AgentSpec], company: Company) -> dict[str, Any]:
@@ -225,5 +247,6 @@ def chart(org: Org, specs: dict[str, AgentSpec], company: Company) -> dict[str, 
             for d in org.departments
         ],
         "outside": [o.model_dump() for o in org.outside],
+        "roles": role_table(specs),
         "problems": problems(org, specs, company),
     }

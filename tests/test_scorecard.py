@@ -74,6 +74,8 @@ def test_spend_search_and_gate_use_come_from_the_records(home: Path) -> None:
         "budget_inr": 1000.0,
         "left_inr": 820.0,
         "by_agent_inr": {"autopilot": 180.0},
+        # no agent definitions in this scratch folder, so no role to file it under
+        "by_role_30d": {"unassigned": {"inr": 180.0, "requests": 1}},
     }
     assert card["search"]["all_time"] == {"screen": 3, "rules": 3}
     assert card["search"]["most_searched"] == {"intraday:gap": 3}

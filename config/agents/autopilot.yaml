@@ -5,6 +5,7 @@
 name: autopilot
 title: Research autopilot
 reports_to: research
+role: generator               # ADR-181
 job: Writes about ten new NSE stock rules a night (half intraday, half swing) in the rule engine's language, commits them before any run, screens them, gates the clean survivors within a weekly allowance, and stores reports and paper books for passes.
 worker: eulerlab.agents.workers.autopilot
 provider: claude-sonnet

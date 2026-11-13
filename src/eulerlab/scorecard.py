@@ -57,6 +57,17 @@ def _paper_books() -> dict[str, int]:
     return dict(Counter(d.status for d in found))
 
 
+def _roles(at: datetime) -> dict[str, dict[str, Any]]:
+    """Paid rupees and requests per role over 30 days (ADR-181); roles with neither left out."""
+    from eulerlab.agents import roles
+    from eulerlab.agents.spec import load_specs
+
+    spent = roles.spend(dict(load_specs()), at)
+    return {
+        k: {"inr": v["inr"], "requests": v["requests"]} for k, v in spent.items() if v["requests"]
+    }
+
+
 def build(now: datetime | None = None, root: Path | None = None) -> dict[str, Any]:
     at = now or datetime.now(UTC)
     rules = constitution.load()
@@ -78,6 +89,7 @@ def build(now: datetime | None = None, root: Path | None = None) -> dict[str, An
             "budget_inr": rules.budget.monthly_ai_inr,
             "left_inr": round(max(rules.budget.monthly_ai_inr - spent, 0.0), 2),
             "by_agent_inr": {k: round(v, 2) for k, v in spend.by_agent(at).items() if v > 0},
+            "by_role_30d": _roles(at),
         },
         "search": {
             "all_time": experiments.counts(),
@@ -114,6 +126,11 @@ def render(card: dict[str, Any]) -> str:
         f"   (Rs {ai['left_inr']:,.0f} left)"
         + ("   SPENT: agents use free models only" if ai["left_inr"] <= 0 else ""),
         *[f"    {agent:<18} Rs {inr:,.0f}" for agent, inr in ai["by_agent_inr"].items()],
+        "  by role, last 30 days:",
+        *[
+            f"    {role:<18} Rs {v['inr']:,.0f} over {v['requests']} requests"
+            for role, v in ai["by_role_30d"].items()
+        ],
         "",
         "-- the search --",
         f"  tests recorded, all time    {search['all_time'] or 'none'}",
