@@ -203,3 +203,40 @@ def parse_time(text: str) -> datetime:
     """An ISO time from a line; a naive one is UTC, as every writer here stamps UTC."""
     at = datetime.fromisoformat(text)
     return at if at.tzinfo else at.replace(tzinfo=UTC)
+
+
+ROW_FILES: dict[str, str] = {
+    "experiments": "derived/experiments.jsonl",
+    "jobs": "jobs/*.jsonl",
+    "ladder": "derived/ladder.jsonl",
+    "knowledge": "derived/knowledge/*.jsonl",
+    "llm_values": "derived/llm_values.jsonl",
+    "incidents": "agents/incidents.jsonl",
+    "agent_changes": "agents/changes.jsonl",
+}
+"""Plain row files (ADR-174): kind -> where its files sit under the data directory.
+
+Each is a list of JSON objects with an `at` time, written only at its end by
+`add_row` and read by `read_rows`. `make db-import` copies every file listed
+here, so a new store needs one line in this table and no importer code.
+"""
+
+
+def add_row(path: Path, kind: str, row: dict[str, Any]) -> None:
+    """Append one JSON object, to Postgres when the path has a home there, else the file."""
+    line = json.dumps(row, sort_keys=True, default=str)
+    stream = stream_for(path, kind)
+    if stream is not None:
+        at = parse_time(str(row["at"]))
+        stream.append(lambda _last, _seq: (line, at))
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
+def read_rows(path: Path, kind: str) -> list[dict[str, Any]]:
+    """Every row, oldest first, from wherever `add_row` put them."""
+    stream = stream_for(path, kind)
+    lines = stream.read() if stream is not None else file_lines(path)
+    return [json.loads(line) for line in lines]

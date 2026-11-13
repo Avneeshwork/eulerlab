@@ -411,6 +411,62 @@ def test_engine_cards_reach_the_gate_and_the_paper_book(
     assert engine_book.is_engine_card("H-0999")
 
 
+def test_a_run_killed_mid_batch_resumes_without_screening_or_gating_twice(
+    folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Issue #136: the rerun finishes; no finished step is repeated, no entry spent twice."""
+    from eulerlab import jobrun
+    from eulerlab.research import autopilot
+
+    screened: list[str] = []
+    gated: list[str] = []
+    die = {"at": "H-0175"}
+
+    def fake_screen(self: engine.Engine, spec: engine.RuleSpec) -> dict[str, Any]:
+        screened.append(spec.kind)
+        return {
+            "clean": True,
+            "passes_screen": True,
+            "kind": spec.kind,
+            "rule": spec.describe(),
+            "count": 500,
+            "first": "2016-01-01",
+            "per_bps": {"net_mean": 10.0},
+            "net": {"sharpe": 1.0},
+            "halves": {"first": {"sharpe": 1.0}, "second": {"sharpe": 1.0}},
+            "net_at_2x_costs": {"sharpe": 0.5},
+            "checks": [],
+        }
+
+    def fake_gate(h: str, out_dir: Path) -> dict[str, Any]:
+        if h == die["at"]:
+            raise KeyboardInterrupt  # the machine goes down during the second gate
+        gated.append(h)
+        return {"hypothesis": h, "verdict": "KILL", "entries": 2}
+
+    monkeypatch.setattr(engine.Engine, "screen", fake_screen)
+    monkeypatch.setattr(autopilot, "gate_one", fake_gate)
+    monkeypatch.setattr(autopilot, "gate_settled", lambda h, since: None)
+    monkeypatch.setattr("eulerlab.agents.runtime.outputs", lambda *a, **k: [])
+    ctx = _Ctx(folder / "agents", _answer())
+    with pytest.raises(KeyboardInterrupt):
+        autopilot.pipeline(ctx, run_git=lambda a: (0, ""), data=_gappy())  # type: ignore[arg-type]
+    assert (len(screened), gated) == (2, ["H-0174"])
+    cards_before = sorted(p.name for p in (folder / "hypotheses").glob("*.yaml"))
+
+    die["at"] = ""
+    again = _Ctx(folder / "agents", _answer())
+    result = autopilot.pipeline(again, run_git=lambda a: (0, ""), data=_gappy())  # type: ignore[arg-type]
+    assert again.requests == 0, "the cards were not written a second time"
+    assert sorted(p.name for p in (folder / "hypotheses").glob("*.yaml")) == cards_before
+    assert len(screened) == 2, "no rule was screened a second time"
+    assert gated == ["H-0174", "H-0175"]
+    assert autopilot.entries_this_week(again.root, again.now) == 4
+    assert [g["hypothesis"] for g in result.data["gates"]] == ["H-0174", "H-0175"]
+    assert any("not repeated" in n for n in again.notes)
+    assert jobrun.status("autopilot")["finished"] is True
+
+
 @pytest.mark.skipif(not os.environ.get("RULE_ENGINE_REPRO"), reason="needs the panel; ~3 minutes")
 def test_engine_reproduces_research_176() -> None:
     legacy = {

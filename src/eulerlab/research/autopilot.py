@@ -37,12 +37,13 @@ import json
 import subprocess
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from eulerlab import constitution
+from eulerlab import constitution, jobrun
 from eulerlab.agents import runtime
 from eulerlab.agents.runtime import Context, Item, WorkerResult
 from eulerlab.agents.workers import autopilot as writer
@@ -132,6 +133,35 @@ def gate_one(hypothesis: str, out_dir: Path) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / f"gate-{hypothesis}.txt").write_text(buffer.getvalue(), encoding="utf-8")
     return {"hypothesis": hypothesis, "verdict": verdict, "entries": 2 if code == 0 else 1}
+
+
+def gate_settled(hypothesis: str, since: date) -> dict[str, Any] | None:
+    """What the trial ledger says a gate step did, for a run that died before noting it.
+
+    None when the ledger has no entry for the card since `since`: nothing was
+    spent and the step may run. A validation with no gate verdict after it is
+    reported as it is, with the one entry it used; the card is not gated again
+    on its own, and a dead letter asks for a look.
+    """
+    from eulerlab.validation import ledger
+
+    mine = [
+        e
+        for e in ledger.read()
+        if e.subject == hypothesis and e.logged_at[:10] >= since.isoformat()
+    ]
+    if not mine:
+        return None
+    for entry in reversed(mine):
+        if entry.kind == "gate":
+            verdict = str(entry.outcome.get("verdict", "KILL"))
+            return {"hypothesis": hypothesis, "verdict": verdict, "entries": len(mine)}
+    jobrun.dead_letter(
+        NAME,
+        f"gate:{hypothesis}",
+        "the run died after validation and before the gate; the ledger has the validation only",
+    )
+    return {"hypothesis": hypothesis, "verdict": "VALIDATE ONLY", "entries": len(mine)}
 
 
 def keep(hypothesis: str) -> dict[str, str]:
@@ -447,10 +477,15 @@ def pipeline(
     day = ctx.now.date()
     rules = constitution.load()
     constitution.require("register_hypothesis", who="the autopilot")
-    found = writer.write_cards(ctx)
+    # Every step's result is kept (ADR-174): a run killed here resumes below, and
+    # nothing already written, screened or gated is done a second time.
+    job = jobrun.open(
+        NAME, day.isoformat(), ledger_used=lambda: entries_this_week(ctx.root, ctx.now)
+    )
+    found = job.do("write", lambda: writer.write_cards(ctx))
     cards = found["cards"]
     ids = [c["id"] for c in cards]
-    if ids:
+    if ids and "register" not in job.done:
         ok, out = commit(
             [c["path"] for c in cards],
             f"docs(research): pre-register {ids[0]} to {ids[-1]}, autopilot batch {day} (ADR-150)",
@@ -463,28 +498,45 @@ def pipeline(
                 status="failed",
                 data={"cards": cards},
             )
+        job.do("register", lambda: ids)
         ctx.step(f"Pre-registered {len(ids)} card(s) in one commit")
     queue = waiting(ctx.root)
     if not ids and not queue:
+        job.finish("no new cards and no survivors waiting")
         return WorkerResult("no new cards and no survivors waiting", data={"cards": []})
 
+    engines: list[rule_engine.Engine] = []
+
+    def engine() -> rule_engine.Engine:
+        if not engines:
+            engines.append(rule_engine.Engine(data or rule_engine.Data()))
+        return engines[0]
+
+    def screen_one(hypothesis: str) -> dict[str, Any]:
+        spec = rule_engine.card_spec(hypothesis)
+        assert spec is not None
+        if engine().data.end > rules.periods.backtest_end:
+            msg = f"the screen's data ends {engine().data.end}, inside the forward test"
+            raise experiments.SealedPeriod(msg)
+        out = engine().screen(spec)
+        returns = engine().returns.pop(spec.fingerprint(), None)
+        if returns:
+            remember(hypothesis, spec, out, returns, engine().data.end, ctx.now)
+        return out
+
+    def compare(found: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        same_bet(engine(), found, peers(engine(), ctx.root))
+        return found
+
     screens: dict[str, dict[str, Any]] = {}
-    if ids:
-        engine = rule_engine.Engine(data or rule_engine.Data())
-        for c in cards:
-            spec = rule_engine.card_spec(c["id"])
-            assert spec is not None
+    for c in cards:
+        if f"screen:{c['id']}" not in job.done:
             ctx.step(f"Screening {c['id']}: {c['rule'][:150]}")
-            if engine.data.end > rules.periods.backtest_end:
-                msg = f"the screen's data ends {engine.data.end}, inside the forward test"
-                raise experiments.SealedPeriod(msg)
-            screens[c["id"]] = engine.screen(spec)
-            returns = engine.returns.pop(spec.fingerprint(), None)
-            if returns:
-                remember(c["id"], spec, screens[c["id"]], returns, engine.data.end, ctx.now)
-        if any(s["clean"] for s in screens.values()):
+        screens[c["id"]] = job.do(f"screen:{c['id']}", partial(screen_one, c["id"]))
+    if any(s["clean"] for s in screens.values()):
+        if "same_bet" not in job.done:
             ctx.step("Checking each clean rule against the bets already passed")
-            same_bet(engine, screens, peers(engine, ctx.root))
+        screens = job.do("same_bet", lambda: compare(screens))
     survivors = [h for h in ids if screens[h]["clean"]]
 
     allowance = min(
@@ -494,27 +546,20 @@ def pipeline(
     if rules.actions["use_ledger_entry"] != "act":
         ctx.notes.append("the constitution does not let the autopilot gate; survivors wait")
         allowance = 0
-    used = entries_this_week(ctx.root, ctx.now)
     gates: dict[str, dict[str, Any]] = {}
     kept: dict[str, dict[str, str]] = {}
-    for h in [*queue, *survivors]:
-        if used + ENTRIES_PER_GATE > allowance:
-            ctx.notes.append(f"week's gate allowance used ({used} of {allowance}); {h} waits")
-            continue
-        ctx.step(f"Gating {h} (validate, then gate)")
-        result = gate_one(h, ctx.out_dir)
-        used += result["entries"]
-        gates[h] = result
+
+    def note_gate(result: dict[str, Any]) -> bool:
         log = gate_log(ctx.root)
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("a", encoding="utf-8") as handle:
-            row = {"at": datetime.now(UTC).isoformat(timespec="seconds"), **result}
+            row = {"at": ctx.now.astimezone(UTC).isoformat(timespec="seconds"), **result}
             handle.write(json.dumps(row) + "\n")
-        spec = rule_engine.card_spec(h)
+        spec = rule_engine.card_spec(result["hypothesis"])
         if spec is not None:
             experiments.record(
                 purpose="gate",
-                hypothesis=h,
+                hypothesis=result["hypothesis"],
                 fingerprint=spec.fingerprint(),
                 family=family_of(spec),
                 first=spec.first,
@@ -523,26 +568,55 @@ def pipeline(
                 asked_by=NAME,
                 now=ctx.now,
             )
-        if result["verdict"] in ("PROMOTE", "PAPER"):
-            kept[h] = keep(h)
+        return True
 
-    for h, s in screens.items():
-        set_result(h, result_line(s, gates.get(h), day))
-    for h, g in gates.items():
-        if h not in screens:
-            path = HYPOTHESES / f"{h}.yaml"
-            raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-            set_result(
-                h, f"{raw.get('result', '')} Gate {day.isoformat()}: {g['verdict']}.".strip()
+    for h in [*queue, *survivors]:
+        step = f"gate:{h}"
+        if step not in job.done:
+            used = entries_this_week(ctx.root, ctx.now)
+            if used + ENTRIES_PER_GATE > allowance:
+                ctx.notes.append(f"week's gate allowance used ({used} of {allowance}); {h} waits")
+                continue
+            ctx.step(f"Gating {h} (validate, then gate)")
+        try:
+            result = job.do(
+                step,
+                partial(gate_one, h, ctx.out_dir),
+                cost=jobrun.Cost(ledger_entries=ENTRIES_PER_GATE),
+                once=True,
+                settle=partial(gate_settled, h, day),
             )
-    note_path = next_note(day)
-    note(note_path, day, cards, screens, gates, kept, found.get("model", ""), found["dropped"])
+        except jobrun.Refused as exc:
+            ctx.notes.append(f"{h} waits: {exc}")
+            continue
+        gates[h] = result
+        job.do(f"gate-noted:{h}", partial(note_gate, result))
+        if result["verdict"] in ("PROMOTE", "PAPER"):
+            kept[h] = job.do(f"keep:{h}", partial(keep, h))
+
+    def write_up() -> str:
+        for h, s in screens.items():
+            set_result(h, result_line(s, gates.get(h), day))
+        for h, g in gates.items():
+            if h not in screens:
+                path = HYPOTHESES / f"{h}.yaml"
+                raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                set_result(
+                    h, f"{raw.get('result', '')} Gate {day.isoformat()}: {g['verdict']}.".strip()
+                )
+        path = next_note(day)
+        note(path, day, cards, screens, gates, kept, found.get("model", ""), found["dropped"])
+        return str(path)
+
+    note_path = Path(job.do("note", write_up))
     touched = [str(note_path), *[f"hypotheses/{h}.yaml" for h in {*screens, *gates}]]
     ok, out = commit(
         touched, f"docs(research): autopilot results {day} (research {note_path.name[:3]})", run_git
     )
     if not ok:
         ctx.notes.append(f"results written but not committed: {out[:200]}")
+    if job.replayed:
+        ctx.notes.append(f"resumed {job.id}: {len(job.replayed)} finished step(s) not repeated")
 
     items = _items(cards, screens, gates, kept, note_path)
     summary = (
@@ -552,6 +626,7 @@ def pipeline(
         + f"; research {note_path.name[:3]}"
     )
     _tell(summary, kept)
+    job.finish(summary)
     return WorkerResult(
         summary,
         items=items,

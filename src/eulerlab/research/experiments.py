@@ -44,7 +44,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from eulerlab import constitution
-from eulerlab.db.stream import stream_for
+from eulerlab.db.stream import add_row, read_rows
 from eulerlab.paths import data_path
 
 PATH = data_path("derived/experiments.jsonl")
@@ -121,29 +121,13 @@ def record(
     }
     body = json.dumps(row, sort_keys=True, default=str)
     row["id"] = hashlib.sha256(body.encode()).hexdigest()[:16]
-    line = json.dumps(row, sort_keys=True, default=str)
-    path = _path(path)
-    stream = stream_for(path, KIND)
-    if stream is not None:
-        stream.append(lambda _last, _seq: (line, datetime.fromisoformat(at)))
-    else:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(line + "\n")
+    add_row(_path(path), KIND, row)
     return str(row["id"])
 
 
 def rows(path: Path | None = None, *, purpose: Purpose | None = None) -> list[dict[str, Any]]:
     """Every recorded evaluation, oldest first."""
-    path = _path(path)
-    stream = stream_for(path, KIND)
-    if stream is not None:
-        lines = stream.read()
-    elif path.exists():
-        lines = path.read_text(encoding="utf-8").splitlines()
-    else:
-        lines = []
-    out = [json.loads(line) for line in lines if line.strip()]
+    out = read_rows(_path(path), KIND)
     return [r for r in out if purpose is None or r.get("purpose") == purpose]
 
 

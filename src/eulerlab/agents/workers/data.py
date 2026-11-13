@@ -48,7 +48,7 @@ from datetime import datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from eulerlab import timings
+from eulerlab import jobrun, timings
 from eulerlab.agents import jobs
 from eulerlab.agents.runtime import (
     BudgetSpent,
@@ -350,6 +350,11 @@ def _fetch(
     ctx.step(f"Downloading: {', '.join(steps)}")
     result = jobs.rerun(steps)
     report["tried"] = list(result.steps)
+    if not result.ok and "already running" not in result.detail:
+        # Left for the on-call agent, which may run these same steps again (ADR-174).
+        jobrun.dead_letter(
+            "data", "feed", result.detail, remedy={"rerun": list(result.steps)}, now=ctx.now
+        )
     caught = caught_up(tryable, _coverage_rows())
     caught_names = [n for n, _ in caught]
     left = [r.name for r in tryable if r.name not in caught_names]
