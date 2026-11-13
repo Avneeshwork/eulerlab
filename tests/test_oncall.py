@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from eulerlab import fund_report, jobrun
-from eulerlab.agents import jobs, oncall
+from eulerlab import fund_report, jobrun, oncall
+from eulerlab.agents import jobs
 from eulerlab.costs.schedule import Side
 from eulerlab.deploy import deployments, loss_limits, runner
 

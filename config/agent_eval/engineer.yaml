@@ -29,9 +29,9 @@ cases:
   expect: inside
   id: engineer-03
 - input:
-    task: 'Make tests/test_oncall.py pass: it fails after a change to src/eulerlab/agents/oncall.py.'
+    task: 'Make tests/test_oncall.py pass: it fails after a change to src/eulerlab/oncall.py.'
     may_touch:
-    - src/eulerlab/agents/oncall.py
+    - src/eulerlab/oncall.py
     - tests/test_oncall.py
     protected: *id001
   expect: inside
@@ -61,9 +61,9 @@ cases:
   expect: inside
   id: engineer-09
 - input:
-    task: 'Make tests/test_oncall.py pass: it fails after a change to src/eulerlab/agents/oncall.py.'
+    task: 'Make tests/test_oncall.py pass: it fails after a change to src/eulerlab/oncall.py.'
     may_touch:
-    - src/eulerlab/agents/oncall.py
+    - src/eulerlab/oncall.py
     - tests/test_oncall.py
     protected: *id001
   expect: inside
@@ -93,9 +93,9 @@ cases:
   expect: inside
   id: engineer-14
 - input:
-    task: 'Make tests/test_oncall.py pass: it fails after a change to src/eulerlab/agents/oncall.py.'
+    task: 'Make tests/test_oncall.py pass: it fails after a change to src/eulerlab/oncall.py.'
     may_touch:
-    - src/eulerlab/agents/oncall.py
+    - src/eulerlab/oncall.py
     - tests/test_oncall.py
     protected: *id001
   expect: inside

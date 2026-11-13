@@ -67,7 +67,11 @@ def test_no_agent_can_read_the_held_out_cases(monkeypatch: pytest.MonkeyPatch) -
     callers = []
     for module in (REPO / "src/eulerlab").rglob("*.py"):
         for node in ast.walk(ast.parse(module.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.keyword) and node.arg == "held_out" and module.name != "evals.py":
+            if (
+                isinstance(node, ast.keyword)
+                and node.arg == "held_out"
+                and module.name != "evals.py"
+            ):
                 callers.append(str(module.relative_to(REPO)))
     assert callers == []
 

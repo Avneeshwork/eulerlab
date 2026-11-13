@@ -322,7 +322,7 @@ agents-preopen:
 	-@uv run python -m eulerlab.agents.runtime head_portfolio
 	-@uv run python -m eulerlab.agents.work
 	-@uv run python -m eulerlab.agents.runtime watchdog
-	-@uv run python -m eulerlab.agents.oncall
+	-@uv run python -m eulerlab.oncall
 	-@uv run python -m eulerlab.fund_report --send
 
 knowledge-keeper:
@@ -375,7 +375,7 @@ ladder:
 
 # On-call: dead letters get an allowlisted fix or a ticket; paper books reconciled (ADR-182).
 oncall:
-	@uv run python -m eulerlab.agents.oncall
+	@uv run python -m eulerlab.oncall
 
 # The daily fund report; SEND=1 also sends its eight lines to Telegram (ADR-182).
 fund-report:

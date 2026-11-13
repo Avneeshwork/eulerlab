@@ -24,8 +24,7 @@ LINES = 8
 
 
 def build(now: datetime | None = None) -> dict[str, Any]:
-    from eulerlab import constitution
-    from eulerlab.agents import oncall
+    from eulerlab import constitution, oncall
     from eulerlab.deploy import deployments, ladder, loss_limits
     from eulerlab.llm import spend
 

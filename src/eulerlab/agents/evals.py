@@ -79,7 +79,7 @@ def cases(role: str, *, held_out: bool = False, root: Path = CASES) -> list[dict
 
 
 def on_call(case: Mapping[str, Any]) -> str:
-    from eulerlab.agents import oncall
+    from eulerlab import oncall
 
     return oncall.remedy_of(case)[0]
 

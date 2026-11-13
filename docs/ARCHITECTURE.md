@@ -3604,6 +3604,29 @@ most searched families, the week's gate entries and verdicts, and paper books
 by status. It reads stored records only. Strategies confirmed forward and
 operator minutes a week print as not measured (T-4575).
 
+### The agent fund's machinery (ADR-174 to ADR-183)
+
+Ten pieces, each its own module, built on 2026-11-13 and tested on made-up
+data only. They run under the constitution: no agent touches the live
+account, paid models stop at Rs 1,000 a month, and 2026 is read only by the
+forward test.
+
+| Piece | Module | What it does |
+|---|---|---|
+| Durable jobs (ADR-174) | `jobrun.py` | A job is named steps; each step's result is a kept row, so a killed job resumes where it stopped. Budget and ledger caps are checked before a step starts (`Refused`). A once-only step that started and never finished is settled by looking at the world, never re-run blind. Failures after retries leave a dead letter. The autopilot runs on it. |
+| Language v2 and the fast evaluator (ADR-175) | `research/lang.py`, `research/fast_eval.py` | Rules as formula trees over fields that each carry the sessions before they are known; a tree that reads a field too early is refused when parsed. Shapes: event, cross-section, minute. Signals are cached tables; events go through the engine's own books, so costs have one path. |
+| Model cutoffs (ADR-176) | `llm/cutoff.py`, `config/model_cutoffs.yaml` | Each model's training cutoff, sourced. A value a model judged is stamped with it; a backtest may not use a judged value for a day before the cutoff. |
+| Evolutionary search (ADR-177) | `research/evolve.py` | Eight islands of v2 rules, a Thompson bandit over islands, mutation, crossover and model proposals checked by code; survivors become `engine_v2` cards in the autopilot's gate queue. Every child is an experiment-store row. |
+| Decay monitor (ADR-178) | `deploy/decay.py` | A one-sided CUSUM of live returns against the backtest, its level calibrated per strategy by block bootstrap to the constitution's false-alarm rate: healthy, watch or decayed. |
+| Incubation ladder (ADR-179) | `deploy/ladder.py` | registered, paper, live-price paper, then a list for the operator; decay, a loss limit or a guardian hold moves a book down. The 2026 forward test is scored once. `live_money` refuses arm, login and send inside any agent's run. |
+| Knowledge base (ADR-180) | `research/knowledge.py` | One claim per paper; each card names its claim; results are the experiment store and the ledger. `claim_record` answers what was tried near an idea, what replicated, what failed and why. |
+| Nine roles (ADR-181) | `agents/roles.py` | Every agent has one of nine roles; a role's tier picks the model through the constitution's `routing` unless the agent names its own. Spend by role on the org chart and the scorecard. |
+| On-call and the fund report (ADR-182) | `oncall.py`, `fund_report.py` | Dead letters get one of three allowlisted remedies or a ticket for engineering; each is an incident row and a runbook line. A reconciliation break puts a paper book into reduce-only and pages the operator. Eight lines to Telegram after the close. |
+| Agent evals (ADR-183) | `agents/evals.py`, `config/agent_eval/` | Twenty code-scored cases per role, five held out where no agent can read them. A self-change goes to canary only if it beats the current version on held-out cases and is kept after a week only if no worse live. A role below its floor is switched off. |
+
+At the close, `make agents-close` runs the ladder, on-call and the fund report
+after the agents. `make agents-evolve` and `make agent-evals` run alone.
+
 ### Live-price paper and readiness (ADR-153)
 
 The paper books fill at the official open and close. `deploy/live_shadow.py`

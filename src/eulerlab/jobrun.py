@@ -27,7 +27,7 @@ broker) and returns what happened, or None when nothing did. This is the order
 journal's rule for an UNKNOWN order, applied to jobs.
 
 A step that still fails after its retries leaves a row in the dead-letter
-list, which the on-call agent reads (`agents/workers/oncall.py`).
+list, which the on-call agent reads (`oncall.py`, ADR-182).
 
 Rows are in `data/jobs/<name>.jsonl`, or Postgres when the database is on.
 A step's result must be JSON. Seconds taken are recorded for every step;
