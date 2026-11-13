@@ -192,8 +192,7 @@ def facts_for(strategy: str, stage: Stage, verdict: str) -> Facts:
         None,
     )
     state = deployments.read_state(book) if book else None
-    values = [float(v) for _, v in (state or {}).get("curve") or []]
-    live = forward._returns(values)
+    live = forward.state_returns(state, book.capital if book else None)
     shadow = live_shadow.read_summary().get(strategy) or {}
     reading = decay.read(backtest_returns(strategy), live)
     limit = ""

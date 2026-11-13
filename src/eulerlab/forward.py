@@ -218,6 +218,35 @@ def _returns(values: Sequence[float]) -> list[float]:
     return [b / a - 1.0 for a, b in pairwise(values) if a]
 
 
+def growth_values(state: dict[str, Any] | None, capital: float | None = None) -> list[float]:
+    """The book's equity as an index, with every deposit and withdrawal taken out.
+
+    A paper book's `curve` is equity in rupees, so moving ₹20,000 into a book
+    showed as a 200% day and moving it out as a -20% day (2026-10-16, seen
+    2026-11-13 on the india_sharpe_momentum_opt books). Returns, Sharpe and
+    drawdown must be read from this, never from the raw curve.
+    """
+    from eulerlab.risk.book import growth
+
+    curve = [
+        (date.fromisoformat(str(d)[:10]), float(v)) for d, v in (state or {}).get("curve") or []
+    ]
+    if not curve:
+        return []
+    flows = [
+        (date.fromisoformat(str(f["applied_day"])[:10]), float(f["amount"]))
+        for f in (state or {}).get("flows") or []
+        if f.get("applied_day") and isinstance(f.get("amount"), int | float)
+    ]
+    start = float((state or {}).get("capital") or capital or curve[0][1])
+    return [v for _, v in growth(curve, flows, start)]
+
+
+def state_returns(state: dict[str, Any] | None, capital: float | None = None) -> list[float]:
+    """Daily returns of a paper book from its state, deposits and withdrawals taken out."""
+    return _returns(growth_values(state, capital))
+
+
 def _sharpe(returns: Sequence[float]) -> float | None:
     if len(returns) < 2:
         return None
@@ -297,8 +326,7 @@ def report(
     rule: dict[str, Any],
 ) -> Report:
     """One deployment's forward record from its own equity curve (`state.json`)."""
-    curve = (state or {}).get("curve") or []
-    values = [float(v) for _, v in curve]
+    values = growth_values(state, getattr(deployment, "capital", None))
     returns = _returns(values)
     out = Report(
         deployment=deployment.id,

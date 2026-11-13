@@ -40,7 +40,7 @@ where you find out what has already been found wrong.
 
 ---
 
-## Eighty-seven times this project was wrong
+## Eighty-nine times this project was wrong
 
 Ordered by how much they mattered, not by when they happened.
 
@@ -473,6 +473,10 @@ figure produced outside the result store before this date was frictionless.
 **86. The paper books ignored a surveillance list landed before the open.** (2026-11-08) Every stock paper book (H-0161, H-0168, H-0187, the engine books) took the ASM/GSM snapshot on or before the *previous session*, so the list NSE published on Saturday 7 Nov (265 symbols) did not count for Monday 9 Nov, and a book with no earlier snapshot would not trade at all; the live-price plan did the same. The list was knowable before the open. Now each book takes the latest snapshot dated before the trade day (`day - 1 calendar day`), and the evening plan the latest on or before tonight. No trade was affected: no paper book had traded yet. Found by the research 178 work; fixed in `deploy/delivery_fade_book.py`, `deploy/daily_books.py`, `deploy/engine_book.py`, `deploy/live_shadow.py`.
 
 **87. ETFs were in the stock rules' universe, priced at a stale open.** (2026-11-08) The engine's universe (the 500 most traded NSE symbols) included ETFs and fund units such as NIFTYBEES and GOLDBEES, whose official opening print often lags the market. H-0194's edge came mostly from them (research 180), and Monday's live-price plan listed LIQUIDIETF and SILVERBEES as H-0175 candidates. Measured from 09:20 instead of the official open, H-0168 keeps 1.2 of its 45.9 bps gross, so it is labelled unproven; H-0161 (29.0 vs 28.8 bps), H-0187 (34.9) and H-0175 (43.2) keep an edge. Fixed for money: paper books and the live-price plan drop INF ISINs (`rule_engine.LiveData`, `live_shadow.fund_symbols`). The research window still includes them, so research 176's reproduction holds; whether past screens should be re-run without them is open (T-4535).
+
+**88. Paper-book returns counted capital moves as returns.** (2026-11-13) `forward.report` and the ladder's decay check (`deploy/ladder.facts_for`) read daily returns from a book's equity curve in rupees, ignoring its `flows`. The ₹20,000 moved from book 75607e to c9b000 on 2026-10-16 read as -20% and +200% days, and ₹50,000 added to india_illiquid_winners on 2026-10-22 as +172%. So those books' forward Sharpe, total return and drawdown on the Live page and in the readiness check were wrong. The decay monitor put 75607e at S = 13.5, heading for "watch", from the withdrawal alone (after the fix, 1.5). The risk page and loss limits were already right (`risk.book.growth`). Fixed: `forward.growth_values` and `state_returns` take flows out, and both callers use them. Numbers invalidated: any forward Sharpe or drawdown shown for 75607e, c9b000 and 093106 before 2026-11-13 (research 192).
+
+**89. `make rule-engine-check` no longer reproduces research 176.** (2026-11-13) ADR-175 says the fast evaluator reproduces research 176's ten results, but that was only unit-tested. On the Mac, the fast tables match the slow engine exactly. The slow engine no longer matches the stored `data/derived/daily_more.json` (2026-11-07): every rule is off by 1-16 trades (H-0168: 1,061 vs 1,077 trades, Sharpe 1.92 vs 1.91). Likely cause: ADR-157 (2026-11-09), which added weekend sessions and stopped entries on short sessions. The check also needs `EULERLAB_NO_CLOUD=0` for pruned 2023 deal files. No verdict changes. Open: T-4597 (research 192).
 
 ## What the project has actually concluded
 

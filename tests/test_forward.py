@@ -124,6 +124,29 @@ def test_the_forward_record_and_the_mandate_rule() -> None:
     assert empty.days == 0 and empty.ready is False
 
 
+def test_a_deposit_or_withdrawal_is_not_a_return() -> None:
+    """2026-10-16: ₹20,000 moved between two paper books read as +200% and -20% days."""
+    d = _deployment("H-0030", DAY)
+    curve = [["2026-10-14", 10000.0], ["2026-10-15", 10100.0], ["2026-10-16", 30300.0]]
+    state = {
+        "capital": 10000.0,
+        "curve": curve,
+        "flows": [{"amount": 20000.0, "applied_day": "2026-10-16"}],
+    }
+    returns = forward.state_returns(state)
+    assert returns[0] == pytest.approx(0.01)
+    assert returns[1] == pytest.approx(30300.0 / 30100.0 - 1.0)
+    out = forward.report(d, state, tested_sharpe=None, rule={})
+    assert out.total_return == pytest.approx(1.01 * 30300.0 / 30100.0 - 1.0)
+    assert out.max_drawdown == 0.0
+    withdrawn = {
+        "capital": 30000.0,
+        "curve": [["2026-10-15", 30000.0], ["2026-10-16", 10000.0]],
+        "flows": [{"amount": -20000.0, "applied_day": "2026-10-16"}],
+    }
+    assert forward.state_returns(withdrawn) == [pytest.approx(0.0)]
+
+
 def test_the_rule_comes_only_from_the_mandate() -> None:
     assert forward.rules({"statistical": {}}) == {}
     assert forward.rules({"forward_test": {"min_days": 60}}) == {"min_days": 60}

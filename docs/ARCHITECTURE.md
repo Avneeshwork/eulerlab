@@ -3800,8 +3800,11 @@ the web page refuses to start it; it runs from `make agent NAME=lab` and
 A promoted hypothesis `H-NNNN` deploys to paper as `forward.GatedCard`: its
 card's one configuration built by `codegen.build_one`, with the card's
 rebalance. The version lock fingerprints the card text and the trading code.
-`forward.report` measures each forward deployment from its `state.json` curve:
-days, annualised Sharpe, max drawdown, and the ledger's best backtest Sharpe.
+`forward.report` measures each forward deployment from its `state.json` curve,
+with deposits and withdrawals (`flows`) taken out (`forward.growth_values`, the
+same index as `risk.book.growth`; HISTORY #88): days, annualised Sharpe, max
+drawdown, and the ledger's best backtest Sharpe. The ladder's decay check reads
+the same returns (`forward.state_returns`).
 `ready_for_live` applies `mandate.yaml` `forward_test:` (`min_days`,
 `min_sharpe_ratio_of_backtest`, `max_drawdown`); with no such section it says
 "not set". Live preflight also needs a fresh Kite session and a proven adapter;
