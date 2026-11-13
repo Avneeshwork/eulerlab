@@ -35,7 +35,7 @@ SYMBOLS = ("RELIANCE", "HDFCBANK", "ICICIBANK", "INFY", "TCS")
 CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 SLIPPAGE_BPS = 2.0
 VOLATILITY_SCREEN = "nse_fii_decline_dii_absorption_volatility"
 

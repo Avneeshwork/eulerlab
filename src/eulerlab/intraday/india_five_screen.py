@@ -3,7 +3,7 @@
 `make india-five-intraday` writes `data/derived/india_five_intraday.json`; the
 five strategy cards in `strategies/studies.py` read their run from it. Each
 rule is fixed before it is run and none is tuned on the result. Minute files
-after 2024-11-30 are never opened.
+after the research window's end are never opened.
 """
 
 from __future__ import annotations
@@ -131,7 +131,7 @@ def run_all(
     known = earnings.events(announcements.load())
     result: dict[str, Any] = {
         "source": "Kite NSE one-minute OHLCV for every stock with minute files; "
-        "files crossing 2024-11-30 are excluded",
+        "files crossing the research window's end are excluded",
         "research": "docs/RESEARCH/112-five-indian-intraday-rules-on-fo-stocks.md",
         "universe": len(symbols),
         "left_out": left_out,

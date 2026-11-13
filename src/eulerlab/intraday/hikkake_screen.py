@@ -27,7 +27,7 @@ CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)
 SLIPPAGE_BPS = 2.0
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 EXIT_MINUTE = 355
 TICK = 0.05
 ATR_LENGTH = 20
@@ -233,7 +233,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         *[{day.day for day in days if EVAL_START <= day.day <= DATA_END} for days in data.values()]
     )
     return {
-        "source": "Kite NSE one-minute OHLCV archive; files crossing 2024-11-30 are excluded",
+        "source": "Kite NSE one-minute OHLCV archive; files crossing the research window's end are excluded",
         "universe": list(SYMBOLS),
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "evaluation_sessions_common": len(common),
@@ -244,7 +244,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
             "Pattern and 6x ATR(20) stops are both active; the tighter stop is used. There is no profit target in the source specification.",
             "One trade per stock/session; all positions flatten at 15:10.",
             "If the entry trigger and pattern stop are both inside the same 5-minute bar, assume stop-first.",
-            "No data after 2024-11-30 is opened.",
+            "No data after the research window's end is opened.",
         ],
         "runs": [_run(data)],
     }

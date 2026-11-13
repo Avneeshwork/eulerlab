@@ -47,7 +47,7 @@ from eulerlab.paths import data_path
 OUT = data_path("derived/tug_of_war.json")
 DAILY_OUT = data_path("derived/tug_of_war_daily.json")
 PANEL = data_path("derived/price_panel.jsonl")
-DAILY_START = date(2016, 1, 1)
+DAILY_START = cs.RESEARCH_START
 MOMENTUM_FROM, MOMENTUM_TO = 252, 21
 MONTH = 20
 HISTORY = 250

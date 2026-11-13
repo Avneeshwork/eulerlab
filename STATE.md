@@ -139,8 +139,8 @@ what is open is in `TASKS.md`.*
   (HISTORY #85; their paper books stopped); H-0175 paper-trades. A "new bet"
   check now keeps such repeats from the gate.
 - **The agent fund (ADR-171 to ADR-183, 2026-11-13).** `config/constitution.yaml`
-  is yours: Rs 1 lakh test capital, history to 2025-12-31, 2026 the forward
-  test, Rs 1,000 a month for paid models, and no agent on the live account
+  is yours: Rs 1 lakh test capital, history to 2025-12-31 (every screen and
+  the rule engine now read it there, ADR-184), 2026 the forward test, Rs 1,000 a month for paid models, and no agent on the live account
   (the file cannot say otherwise; `live_money` refuses any call from an
   agent's run). Built on it: resumable jobs, an experiment store with daily
   returns, a v2 rule language that refuses look-ahead when parsed, an

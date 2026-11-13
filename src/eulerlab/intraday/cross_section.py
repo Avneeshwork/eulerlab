@@ -26,9 +26,10 @@ from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import screen_common as sc
 
-DATA_END = rs.DATA_END
-"""2024-11-30. Minute files that cross it are never opened (`research_screen`):
-everything later stays unseen until it is used once as a holdout."""
+RESEARCH_START, DATA_END = rs.RESEARCH_START, rs.DATA_END
+"""The research window's end, the constitution's `backtest_end` (ADR-184).
+Minute files that cross it are never opened (`research_screen`), and the 2026
+forward test is refused outright (`constitution.sealed`)."""
 
 CAPITAL = 1_000_000.0
 SLIPPAGE_BPS = 2.0

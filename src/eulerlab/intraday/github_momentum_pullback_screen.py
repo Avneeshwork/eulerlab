@@ -28,7 +28,7 @@ CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)
 SLIPPAGE_BPS = 2.0
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 EXIT_MINUTE = 355
 
 
@@ -265,7 +265,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         *[{day.day for day in days if EVAL_START <= day.day <= DATA_END} for days in data.values()]
     )
     return {
-        "source": "Kite NSE one-minute OHLCV archive; files crossing 2024-11-30 are excluded",
+        "source": "Kite NSE one-minute OHLCV archive; files crossing the research window's end are excluded",
         "universe": list(SYMBOLS),
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "evaluation_sessions_common": len(common),
@@ -275,7 +275,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
             "Source README and code conflict on relative-volume threshold (1.5x versus 2.0x) and pullback lower bound (0.3% versus a docstring's 3%); code defaults are frozen.",
             "Equal ₹200,000 notional per stock; date-aware NSE intraday charges plus 2 bp assumed slippage per side.",
             "Completed-bar signals enter at next traded minute open. Same-bar stop and target resolves to stop; gaps through stops fill at the open.",
-            "Each stock trades at most once a session; positions flatten by 15:10. No data after 2024-11-30 is opened.",
+            "Each stock trades at most once a session; positions flatten by 15:10. No data after the research window's end is opened.",
         ],
         "runs": [_run(data)],
     }

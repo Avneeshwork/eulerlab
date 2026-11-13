@@ -1,0 +1,9 @@
+# ADR-184 — One research window, read from the constitution, sealed before 2026
+
+**Date:** 2026-11-13. **Status:** accepted. T-4578.
+
+- **Context.** The operator moved the backtest end to 2025-12-31 and made 2026 the forward test (`config/constitution.yaml`, ADR-171). The research window still ended 2024-11-30, written as its own `date(2024, 11, 30)` in 17 intraday modules, and the start 2016-01-01 in three more.
+- **Options.** (a) Change each literal to 2025-12-31. (b) One function that reads the end from the constitution, with every copy pointing at it.
+- **Choice.** (b). `constitution.research_window()` returns `(2016-01-01, periods.backtest_end)`. `research_screen.DATA_END` and `RESEARCH_START` are set from it; `cross_section`, `daily_more_screen`, `daily_universe_screen`, `tug_of_war_screen`, `rule_engine` and the 16 minute screens read those. `EULERLAB_RESEARCH_END` may move the end earlier, to reproduce an old result, never later. `constitution.sealed()` refuses any end on or after 2026-01-01 or `forward_start`, even when the file says otherwise. `make hygiene` fails on a new module-level window literal (`window-literal`).
+- **Left as written.** `options/index_expiry_screen.END` ("the holdout starts after it", H-0041), `options/expiry_straddle_screen.END` (kept equal to it), `intraday/strategy_optimizer.DEV_END` (a development/test split with `TEST_START` 2025-01-01), and `research/full_history`, `research/session_studies` (they read through the spent holdout on purpose, ADR-143). Options are also outside the trading scope.
+- **Cost if wrong.** Every screen re-run now reads 2024-12 to 2025-12 as well, so its numbers will differ from the stored ones; that is expected, not a regression. Run with `EULERLAB_RESEARCH_END=2024-11-30` to compare like with like. The 2024-12 to 2025-12 data were already read once by ADR-143, so they are not unseen data.

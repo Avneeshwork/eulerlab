@@ -1,7 +1,7 @@
 """Cost-aware NSE minute screens for research note 088.
 
 Eight source-inspired candidates use the fixed four-stock universe and the
-strict 2024-11-30 data cutoff. Volume-profile candidates use a typical-price
+strict research-window cutoff. Volume-profile candidates use a typical-price
 OHLCV proxy; they are not faithful volume-at-price replications.
 """
 
@@ -31,7 +31,7 @@ SLIPPAGE_BPS = 2.0
 TRAIN_START = date(2022, 1, 1)
 TRAIN_END = date(2023, 12, 31)
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 EXIT_MINUTE = 355  # 15:10
 
 
@@ -475,7 +475,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
             "Equal ₹2.5 lakh notional per stock, with 2 bps assumed slippage per side plus date-aware NSE charges.",
             "Signals use completed bars and enter at the next traded minute open; no signal uses the 09:15 print.",
             "Each strategy is limited to one trade per stock/session except the time-adaptive rule, which allows one per predefined segment.",
-            "Every open position is closed by 15:10. No period after 2024-11-30 is read.",
+            "Every open position is closed by 15:10. No period after the research window's end is read.",
             "Volume profile assigns each minute's full volume to HLC3; #4, #5, #7 and #8 are proxy screens, not faithful market-profile tests.",
         ],
         "runs": runs,

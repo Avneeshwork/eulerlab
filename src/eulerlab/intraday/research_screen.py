@@ -18,12 +18,15 @@ from typing import Any
 
 import pyarrow.parquet as pq
 
+from eulerlab import constitution
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import screen_common as sc
 from eulerlab.paths import data_path
 
-DATA_END = date(2024, 11, 30)
+RESEARCH_START, DATA_END = constitution.research_window()
+"""The one research window (ADR-184): 2016-01-01 to the constitution's
+`backtest_end`. Every screen and the rule engine read it from here."""
 EVAL_START = date(2024, 1, 1)
 TRAIN_START = date(2022, 1, 1)
 TRAIN_END = date(2023, 12, 31)

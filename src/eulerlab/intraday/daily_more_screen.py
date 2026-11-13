@@ -31,7 +31,7 @@ from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import other_data_screen as od
 
 OUT = data_path("derived/daily_more.json")
-FIRST = date(2016, 1, 1)
+FIRST = cs.RESEARCH_START
 REPORTS_FIRST = date(2021, 7, 1)
 END = cs.DATA_END
 TRADE = 100_000.0

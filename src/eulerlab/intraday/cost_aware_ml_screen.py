@@ -34,7 +34,7 @@ HORIZON = 30
 TRAIN_START = date(2022, 1, 1)
 TRAIN_END = date(2023, 12, 31)
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 EXIT_MINUTE = 355  # 15:10, before the broker MIS square-off.
 SEED = 20261015
 
@@ -295,7 +295,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         combined[day] = current_total / previous_total - 1.0 if previous_total > 0 else 0.0
         daily.append(combined[day])
     return {
-        "source": "Kite NSE one-minute OHLCV; only files ending on or before 2024-11-30 are opened",
+        "source": "Kite NSE one-minute OHLCV; only files ending on or before the research window's end are opened",
         "window": [TRAIN_START.isoformat(), DATA_END.isoformat()],
         "universe": list(SYMBOLS),
         "train": [TRAIN_START.isoformat(), TRAIN_END.isoformat()],
@@ -317,12 +317,12 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         "assumptions": [
             "Indicators are calculated from information through the signal minute; VWAP resets each session.",
             "Three-class target is cost-aware: +1/-1 only when the next-open to 30-minute later open return clears modeled two-sided costs; otherwise 0.",
-            "Train only on 2022-2023; 2024-01-01 through 2024-11-30 is a fixed evaluation sample, not an untouched future holdout.",
+            "Train only on 2022-2023; 2024-01-01 through the research window's end is a fixed evaluation sample, not an untouched future holdout.",
             "Signals enter at the next traded minute open and exit 30 minutes later at a traded minute open; no trades cross sessions.",
             "At most one overlapping position per stock; each stock sleeve starts with ₹200,000; date-aware NSE intraday charges plus 2 bp assumed slippage each way.",
             "Five isolated stock sleeves each begin with ₹200,000; trade size is recalculated from that sleeve's live equity before each signal, and a sleeve stops after its equity is exhausted.",
             "Five fixed liquid stocks, survivorship bias; short availability and borrow constraints are not modeled.",
-            "No data after 2024-11-30 is opened.",
+            "No data after the research window's end is opened.",
         ],
     }
 

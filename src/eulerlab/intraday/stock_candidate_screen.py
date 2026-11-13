@@ -1,6 +1,6 @@
 """Price-only screen of three new NSE intraday research candidates.
 
-The sample stops at 2024-11-30. 2025 onward is outside this reader's cutoff.
+The sample stops at the research window's end (`constitution.research_window`).
 Rules are frozen source-inspired adaptations, not exact paper replications.
 """
 
@@ -25,7 +25,7 @@ OUT = data_path("derived/stock_intraday_candidates.json")
 TRAIN_START = date(2022, 1, 1)
 TRAIN_END = date(2023, 12, 31)
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 CAPITAL = 1_000_000.0
 SLIPPAGE_BPS = 2.0
 PAIR_SLOTS = (("HDFCBANK", "ICICIBANK"), ("TCS", "INFY"))
@@ -539,7 +539,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
             "Two basis points slippage per side, in addition to date-aware NSE intraday charges.",
             "All signals use completed bars and enter at the next traded minute open.",
             "The first 09:15 print is excluded; all positions close by 15:10.",
-            "Screening adaptations, not exact source replications; no holdout after 2024-11-30 was read.",
+            "Screening adaptations, not exact source replications; no holdout after the research window's end was read.",
         ],
         "runs": [
             _screen_single_leg(data, evaluation_sessions),

@@ -18,6 +18,9 @@ Checks
   tracked-junk    logs, editor files or a second JS lockfile under git
   data-literal    a src module spelling the data directory itself
                   (``Path("data/...")``) instead of ``eulerlab.paths.data_path``
+  window-literal  a src module setting its own research window end or start
+                  with a ``date(...)`` literal instead of
+                  ``constitution.research_window`` (ADR-184)
 
 Usage
   uv run python tools/hygiene.py            fail on anything not in the baseline
@@ -52,6 +55,18 @@ WARN_ONLY = {"test-only"}
 SKIPPED_HOOKS = REPO / "data" / "logs" / "skipped_hooks.jsonl"
 DATA_LITERAL = re.compile(r"""Path\(\s*["']data(/|["'])|["']data/[a-z]""")
 DATA_LITERAL_ALLOWED = {"src/eulerlab/paths.py"}
+WINDOW_NAMES = {"DATA_END", "END", "DEV_END", "RESEARCH_END", "RESEARCH_START"}
+WINDOW_DATES = {(2024, 11, 30), (2016, 1, 1)}
+WINDOW_LITERAL_ALLOWED = {
+    "src/eulerlab/constitution.py",  # the one definition
+    # A holdout or test boundary, not the data end (ADR-184): left as written.
+    "src/eulerlab/options/index_expiry_screen.py",
+    "src/eulerlab/options/expiry_straddle_screen.py",
+    "src/eulerlab/intraday/strategy_optimizer.py",
+    # Studies that read through the spent holdout on purpose (ADR-143).
+    "src/eulerlab/research/full_history.py",
+    "src/eulerlab/research/session_studies.py",
+}
 
 
 def _module_name(path: Path) -> str:
@@ -185,6 +200,40 @@ def check_data_literals() -> list[str]:
     return found
 
 
+def _date_literal(node: ast.expr) -> tuple[int, ...] | None:
+    if not (isinstance(node, ast.Call) and getattr(node.func, "id", None) == "date"):
+        return None
+    parts = [a.value for a in node.args if isinstance(a, ast.Constant)]
+    return tuple(p for p in parts if isinstance(p, int)) if len(parts) == 3 else None
+
+
+def window_literals(source: str) -> list[str]:
+    """Module-level names in `source` set to a research-window date literal."""
+    found = []
+    for node in ast.parse(source).body:
+        if not isinstance(node, ast.Assign | ast.AnnAssign) or node.value is None:
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        names = [n.id for t in targets for n in ast.walk(t) if isinstance(n, ast.Name)]
+        values = node.value.elts if isinstance(node.value, ast.Tuple) else [node.value]
+        for name, value in zip(names, values, strict=False):
+            when = _date_literal(value)
+            if when and (name in WINDOW_NAMES or when in WINDOW_DATES):
+                found.append(name)
+    return found
+
+
+def check_window_literals() -> list[str]:
+    """Src files that set their own research window instead of reading the
+    constitution's, so the window cannot drift apart again (ADR-184)."""
+    found = []
+    for path in sorted(SRC.rglob("*.py")):
+        rel = path.relative_to(REPO).as_posix()
+        if rel not in WINDOW_LITERAL_ALLOWED and window_literals(path.read_text()):
+            found.append(rel)
+    return found
+
+
 def collect() -> dict[str, list[str]]:
     dead, test_only = check_modules()
     return {
@@ -196,6 +245,7 @@ def collect() -> dict[str, list[str]]:
         "card-duplicate": check_cards(),
         "tracked-junk": check_junk(),
         "data-literal": check_data_literals(),
+        "window-literal": check_window_literals(),
     }
 
 

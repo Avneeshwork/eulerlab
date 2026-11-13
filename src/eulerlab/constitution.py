@@ -23,6 +23,7 @@ action stops instead of running under a rule the operator did not write.
 
 from __future__ import annotations
 
+import os
 from datetime import date
 from pathlib import Path
 from typing import Literal
@@ -32,6 +33,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from eulerlab.filecache import read_yaml
 
 PATH = Path("config/constitution.yaml")
+REPO_PATH = Path(__file__).resolve().parents[2] / PATH
+"""The repository's own copy, whatever the working directory (ADR-184)."""
+
+RESEARCH_START = date(2016, 1, 1)
+"""The research window's first day, for every screen and the rule engine."""
+SEALED_FROM = date(2026, 1, 1)
+"""The 2026 forward test. No research window may reach it, whatever the file says."""
+RESEARCH_END_ENV = "EULERLAB_RESEARCH_END"
+"""An earlier end, to reproduce a result made on a shorter window. Never a later one."""
 
 Level = Literal["act", "propose", "never"]
 
@@ -188,3 +198,37 @@ def refuse_agents(action: str, what: str) -> None:
             "agent's to do. Real money is the operator's own action, each time."
         )
         raise NotAllowed(msg)
+
+
+def research_window(path: Path = REPO_PATH) -> tuple[date, date]:
+    """(first, last) day the research screens and the rule engine may read (ADR-184).
+
+    The end is the constitution's `backtest_end`. `EULERLAB_RESEARCH_END` may
+    move it earlier, for reproducing an old result, never later. A window
+    reaching the forward period or 2026 is refused, so the forward test stays
+    sealed even if the file is edited carelessly.
+    """
+    end = load(path).periods.backtest_end
+    override = os.environ.get(RESEARCH_END_ENV, "").strip()
+    if override:
+        asked = date.fromisoformat(override)
+        if asked > end:
+            msg = f"{RESEARCH_END_ENV}={asked} is after the constitution's backtest_end {end}"
+            raise NotAllowed(msg)
+        end = asked
+    return RESEARCH_START, sealed(end, path)
+
+
+def sealed(end: date, path: Path = REPO_PATH) -> date:
+    """`end`, if it stays before the forward test; otherwise refuse."""
+    periods = load(path).periods
+    if end >= SEALED_FROM or end >= periods.forward_start or end > periods.backtest_end:
+        msg = (
+            f"a research window ending {end} reaches the forward test "
+            f"(backtest_end {periods.backtest_end}, sealed from {SEALED_FROM})"
+        )
+        raise NotAllowed(msg)
+    if end < RESEARCH_START:
+        msg = f"a research window ending {end} ends before it starts ({RESEARCH_START})"
+        raise NotAllowed(msg)
+    return end

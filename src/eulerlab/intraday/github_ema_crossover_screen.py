@@ -29,7 +29,7 @@ FAST = 5
 SLOW = 15
 SLIPPAGE_BPS = 2.0
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 EXIT_MINUTE = 355  # 15:10
 
 
@@ -183,7 +183,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         *[{day.day for day in days if EVAL_START <= day.day <= DATA_END} for days in data.values()]
     )
     return {
-        "source": "Kite NSE one-minute OHLCV archive; files crossing 2024-11-30 are excluded",
+        "source": "Kite NSE one-minute OHLCV archive; files crossing the research window's end are excluded",
         "universe": list(SYMBOLS),
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "evaluation_sessions_common": len(common),

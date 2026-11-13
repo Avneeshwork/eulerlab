@@ -1,6 +1,6 @@
 """Fixed NSE minute screen of the GitHub inside-bar breakout rule.
 
-Price data are read only through 2024-11-30. A 5-minute inside bar is followed
+Price data are read only through the research window's end. A 5-minute inside bar is followed
 by a completed close beyond that inside bar's high/low. Entry is the next
 5-minute bar open, with the opposite inside-bar extreme as the structural stop
 and a 2R target. This confirmation-and-next-open adaptation is deliberately
@@ -29,7 +29,7 @@ CAPITAL = 1_000_000.0
 NOTIONAL = CAPITAL / len(SYMBOLS)
 SLIPPAGE_BPS = 2.0
 EVAL_START = date(2024, 1, 1)
-DATA_END = date(2024, 11, 30)
+DATA_END = rs.DATA_END
 EXIT_MINUTE = 355  # 15:10, before broker MIS square-off.
 BAR_MINUTES = 5
 
@@ -222,7 +222,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
         *[{day.day for day in days if EVAL_START <= day.day <= DATA_END} for days in data.values()]
     )
     return {
-        "source": "Kite NSE one-minute OHLCV archive; files crossing 2024-11-30 are excluded",
+        "source": "Kite NSE one-minute OHLCV archive; files crossing the research window's end are excluded",
         "universe": list(SYMBOLS),
         "window": [EVAL_START.isoformat(), DATA_END.isoformat()],
         "evaluation_sessions_common": len(common),
@@ -234,7 +234,7 @@ def run_all(*, root: Path | None = None) -> dict[str, Any]:
             "Stops fill at the level unless the bar opens beyond it, when they fill at the open.",
             "If stop and target both touch within a 5-minute bar, the stop is assumed first.",
             "The first 09:15 print bin is excluded; incomplete 5-minute bars are skipped.",
-            "No data after 2024-11-30 is opened.",
+            "No data after the research window's end is opened.",
         ],
         "runs": [_run(data)],
     }

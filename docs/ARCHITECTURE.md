@@ -792,7 +792,11 @@ The signals are `gap`, `ret(n)`, `day_return`, `delivery_ratio`, `value_ratio`,
 at its official open. A signal that reads a close needs `lag >= 1`, so a rule
 that looks ahead does not parse. The window starts on the first day every
 signal's data exists (2016-01-01, or 2021-07-01 for deals and results) and
-ends at `DATA_END`. The card cannot choose it. The universe, costs, sizing
+ends at `DATA_END`, the constitution's `backtest_end` (2025-12-31) read by
+`constitution.research_window()` (ADR-184). The card cannot choose it, and no
+window may reach 2026: `constitution.sealed()` refuses it whatever the file
+says. `EULERLAB_RESEARCH_END=YYYY-MM-DD` moves the end earlier, never later,
+to reproduce a result made on a shorter window. The universe, costs, sizing
 and books are research 173's (`daily_more_screen.day_book`/`swing_book`).
 Research 176's ten rules, written as specs (`REFERENCE`), reproduce its
 published counts and Sharpes exactly (`make rule-engine-check`).
@@ -1993,6 +1997,12 @@ while a container or server points the same code at a mounted volume. The
 setting may sit in `.env`; `paths` loads it before the first module-level
 constant is built. `make hygiene` fails on any new `data/...` literal under
 `src/` (`data-literal`), so the rule cannot erode one commit at a time.
+
+**One research window (ADR-184).** The same goes for dates. `make hygiene`
+fails on a new module-level `date(...)` literal for a research window's start
+or end (`window-literal`); the one definition is
+`constitution.research_window()`. Five modules whose dates are a holdout or
+test boundary, not the data end, are listed as allowed in `tools/hygiene.py`.
 
 **Postgres, when it is switched on (ADR-165).** `EULERLAB_DATABASE_URL`
 unset, nothing changes: every store writes its files. Set, the trial ledger
