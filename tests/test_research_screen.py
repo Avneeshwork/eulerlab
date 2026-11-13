@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -16,8 +16,9 @@ def test_archive_file_crossing_cutoff_is_not_opened(tmp_path: Path) -> None:
     root = tmp_path / "bars"
     folder = root / "GOLDBEES"
     folder.mkdir(parents=True)
-    allowed = folder / "2024-10-02_2024-11-30.parquet"
-    crossing = folder / "2024-12-01_2025-01-29.parquet"
+    end = rs.DATA_END
+    allowed = folder / f"{end - timedelta(days=59)}_{end}.parquet"
+    crossing = folder / f"{end - timedelta(days=29)}_{end + timedelta(days=30)}.parquet"
     allowed.write_bytes(b"eligible")
     crossing.write_bytes(b"must never be read")
 
