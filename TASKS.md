@@ -3,6 +3,18 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Minute history from Angel One (2026-11-13, research 193)
+
+Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 Oct 2016, so 8 years needs no other source.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4604 | Backfill Angel minute history 2016-10-03..2021-08-18 and the six delisted names into `angel_minute_history` (`make angel-history`) | DOING. Started 2026-11-13 on the Mac, newest month first, about 14 h |
+| T-4605 | Operator: choose how readers use `angel_minute_history`, whose old prices are adjusted differently from Kite's (research 193 finding 5). Options: rescale Angel by the ratio on the overlap day, refetch all years from one vendor, or read it only for unadjusted work | TODO. Operator |
+| T-4606 | Angel adds closing-auction minutes (15:20-15:29) for F&O stocks that Kite does not. Decide whether readers drop them so Kite and Angel days match | TODO |
+| T-4607 | Find NSE tokens for HDFC, MINDTREE and TATACOFFEE (left before UDiFF, July 2024) so their minute history can be fetched; ICICIPRULI is not in Angel's master either, so Angel fills skip it | TODO |
+| T-4608 | Upload `angel_minute_history` to B2 with `make upload-verified TREES=angel_minute_history` once T-4604 finishes | TODO |
+
 ## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)
 
 Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 is the forward test; no agent acts on the live account; Rs 1,000 a month for AI. "Start working and complete by morning." Built on the server-move branch (PR #133) in a cloud container with no market data: unit tests only.

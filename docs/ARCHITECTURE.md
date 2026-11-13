@@ -3871,10 +3871,17 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            and from 18:00 IST (`TRY_FROM`, A-014) today's due files too; a row no allowed
            step can update (MCX index bars, Kite only) becomes "Needs you"; without a Kite token
            "India minute bars" fetches from Angel One (`daily_feed.angel_minute_fill`, last two
-           complete sessions) into Kite's own stores `kite_minute` and `kite_index_minute`, in Kite's
+           complete sessions, plus any session of the last 14 days that holds fewer symbols than
+           the fullest one, `short_sessions`) into Kite's own stores `kite_minute` and `kite_index_minute`, in Kite's
            file layout and `+0530` timestamps, manifest `"source": "angel_one"`, so backtests read
            them unchanged and Kite does not refetch those days; the card's first
            sentence says what was downloaded and what is still not in
+           Angel's history before Kite's five years (3 Oct 2016 to 18 Aug 2021) and the
+           delisted names (`config/angel_delisted_tokens.csv`, NSE's own tokens) land apart, in
+           `angel_minute_history` (`make angel-history`, research 193): month-sized requests,
+           a long month split at the 15th, since Angel returns at most 8,000 candles and drops
+           the earliest silently. Kept apart because Kite and Angel adjust old prices differently;
+           no reader opens it yet (T-4605)
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it

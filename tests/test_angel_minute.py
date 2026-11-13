@@ -97,3 +97,70 @@ def test_the_first_fills_are_copied_into_the_uniform_stores_once(tmp_path: Path)
     assert (tmp_path / "index" / "NIFTY50" / "2026-11-08_2026-11-08.parquet").exists()
     assert (tmp_path / "kite" / "ACME" / "2026-11-08_2026-11-08.parquet").exists()
     assert (tmp_path / "angel" / "ACME" / "2026-11-08_2026-11-08.parquet").exists()  # kept
+
+
+# --- history before Kite's start (research 193, 2026-11-13) -------------------
+
+
+def test_history_spans_are_calendar_months_split_when_too_long() -> None:
+    from eulerlab.ingest.angel_minute import MONTH_SESSIONS, history_spans
+    from eulerlab.ingest.nse_eod import session_days
+
+    spans = history_spans(date(2017, 1, 10), date(2017, 3, 31))
+    assert spans[0][0] == date(2017, 1, 10)  # clipped to --from
+    assert spans[-1][1] == date(2017, 3, 31)
+    for a, b in spans:
+        assert len(session_days(a, b)) <= MONTH_SESSIONS
+    # the same month boundaries whatever --from says, so a rerun refetches nothing
+    assert set(history_spans(date(2017, 2, 1), date(2017, 3, 31))) <= set(spans)
+
+
+def test_a_reply_at_angels_candle_cap_is_never_landed(tmp_path: Path, monkeypatch: Any) -> None:
+    import pytest
+
+    from eulerlab.ingest.angel_minute import CANDLE_CAP, fetch_span
+
+    monkeypatch.setattr("eulerlab.ingest.angel_minute.time.sleep", lambda _s: None)
+    bars = [["2017-03-01T13:25:00+05:30", 1.0, 2.0, 0.5, 1.5, 10]] * CANDLE_CAP
+    store = MinuteStore(tmp_path)
+    with pytest.raises(RuntimeError, match="truncated"):
+        fetch_span(
+            _Client([{"status": True, "data": bars}]),
+            store,
+            "ACME",
+            "2",
+            date(2017, 3, 1),
+            date(2017, 3, 31),
+        )
+    assert not store.manifest_path.exists() or not store.manifest_path.read_text().strip()
+
+
+def test_an_empty_span_lands_once_so_it_is_not_asked_for_again(tmp_path: Path) -> None:
+    from eulerlab.ingest.angel_minute import fetch_span
+
+    store = MinuteStore(tmp_path)
+    client = _Client([{"status": True, "data": []}])
+    assert fetch_span(client, store, "ACME", "2", date(2016, 6, 1), date(2016, 6, 15)) == 0
+    assert fetch_span(client, store, "ACME", "2", date(2016, 6, 1), date(2016, 6, 15)) == -1
+    assert client.calls == 1
+
+
+def test_delisted_tokens_file_skips_its_notes(tmp_path: Path) -> None:
+    from eulerlab.ingest.angel_minute import read_delisted
+
+    path = tmp_path / "d.csv"
+    path.write_text("# a note\nsymbol,token,isin,last_seen\nIDFC,11957,X,2024-09-02\n")
+    assert read_delisted(path) == {"IDFC": "11957"}
+    assert read_delisted(tmp_path / "missing.csv") == {}
+
+
+def test_after_the_close_an_auction_stock_ending_at_1528_is_complete() -> None:
+    from zoneinfo import ZoneInfo
+
+    from eulerlab.ingest.angel_minute import open_session_day
+
+    ist = ZoneInfo("Asia/Kolkata")
+    from datetime import datetime as dt
+
+    assert open_session_day(dt(2026, 11, 13, 15, 0, tzinfo=ist)) == date(2026, 11, 13)
+    assert open_session_day(dt(2026, 11, 13, 21, 0, tzinfo=ist)) == date(2026, 11, 14)

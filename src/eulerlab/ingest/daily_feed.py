@@ -46,6 +46,7 @@ append the same day.
 from __future__ import annotations
 
 import datetime as dt
+import functools
 import io
 import json
 import re
@@ -467,12 +468,13 @@ def angel_minute_fill() -> str:
     from eulerlab.ingest.nse_eod import session_days
 
     manifest = angel_minute.STOCK_ROOT / "manifest.jsonl"
-    ends = (
-        str(json.loads(line).get("end", ""))
+    rows = [
+        json.loads(line)
         for line in (manifest.read_text(encoding="utf-8") if manifest.exists() else "").splitlines()
         if line.strip()
-    )
-    window = angel_window(max(ends, default=""), dt.datetime.now(dt.UTC))
+    ]
+    now = dt.datetime.now(dt.UTC)
+    window = angel_window(max((str(r.get("end", "")) for r in rows), default=""), now)
     closed = nse_closures()  # NSE's listed holidays: asking Angel for one lands empty files
     days = (
         [
@@ -485,13 +487,55 @@ def angel_minute_fill() -> str:
         if window
         else []
     )
-    if not days:
-        return "no Kite token today; minute bars already up to date"
     days = days[-ANGEL_SESSIONS:]
-    span = ["--from", days[0].isoformat(), "--to", days[-1].isoformat()]
-    text = _captured(lambda: angel_minute.main(span))
-    last = next((ln.strip() for ln in reversed(text.splitlines()) if "done:" in ln), "")
-    return f"no Kite token today, so from Angel One: {days[0]}..{days[-1]} {last}"[:200]
+    since = (now.date() - dt.timedelta(days=14)).isoformat()
+    sessions = set(session_days(dt.date.fromisoformat(since), now.date()))
+    short = [
+        d
+        for d in short_sessions(rows, since)
+        if d in sessions
+        and d not in closed
+        and d not in days
+        and (not window or d.isoformat() < window[0])
+    ]
+    if not days and not short:
+        return "no Kite token today; minute bars already up to date"
+    lasts: list[str] = []
+    for day in short:  # a session some symbols missed: only the missing ones are asked for
+        text = _captured(functools.partial(angel_minute.main, ["--from", day.isoformat()]))
+        lasts.append(next((ln.strip() for ln in reversed(text.splitlines()) if "done:" in ln), ""))
+    if days:
+        span = ["--from", days[0].isoformat(), "--to", days[-1].isoformat()]
+        text = _captured(lambda: angel_minute.main(span))
+        lasts.append(next((ln.strip() for ln in reversed(text.splitlines()) if "done:" in ln), ""))
+    covered = sorted([*short, *days])
+    note = f"no Kite token today, so from Angel One: {covered[0]}..{covered[-1]} {lasts[-1]}"
+    return note[:200]
+
+
+def short_sessions(rows: Sequence[dict[str, Any]], since: str) -> list[dt.date]:
+    """Sessions from `since` that hold fewer one-day files than the fullest such session.
+
+    The Angel fallback used to start the day after the store's last day, so a
+    session it landed only partly was never asked for again: on 9 and 13 Nov
+    2026 the 217 F&O stocks came back without their closing minutes that
+    evening, were counted incomplete, and the next run began a day later
+    (HISTORY). A held symbol costs no request, so retrying a short session
+    asks only for what it is missing.
+    """
+    held: dict[dt.date, set[str]] = {}
+    first = dt.date.fromisoformat(since)
+    for row in rows:
+        if "path" not in row or str(row.get("end", "")) < since:
+            continue
+        day = max(dt.date.fromisoformat(str(row["start"])), first)
+        while day <= dt.date.fromisoformat(str(row["end"])):
+            held.setdefault(day, set()).add(str(row.get("symbol", "")))
+            day += dt.timedelta(days=1)
+    if not held:
+        return []
+    full = max(len(v) for v in held.values())
+    return [d for d in sorted(held) if len(held[d]) < full]
 
 
 def _mcx_index_minute(progress: Callable[[str], None] | None = None) -> str:

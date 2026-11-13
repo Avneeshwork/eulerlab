@@ -26,7 +26,7 @@ import argparse
 import json
 import time
 from collections.abc import Mapping, Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -47,6 +47,19 @@ SOURCE = "angel_one"
 SCRIP_MASTER = (
     "https://margincalculator.angelbroking.com/OpenAPI_File/files/OpenAPIScripMaster.json"
 )
+HISTORY_ROOT = data_path("landing/angel_minute_history")
+"""Angel's history before Kite's (and of names Kite no longer lists). Kept apart
+from `kite_minute` because the two vendors adjust old prices differently
+(research 193): RELIANCE on 2021-08-20 closes 1023.10 at Kite, 1074.13 at Angel."""
+DELISTED = Path("config/angel_delisted_tokens.csv")
+"""Symbols that left NSE, with the exchange token NSE's own UDiFF bhavcopy gave them."""
+CANDLE_CAP = 8000
+"""Angel returns at most 8000 candles a request and silently drops the earliest
+beyond that (measured 2026-11-13: RELIANCE 2017-03-01..31 came back from
+13:25 on the 1st). A reply this long is treated as truncated, never landed."""
+MONTH_SESSIONS = 21
+"""A month with more weekday sessions than this is asked for in two halves:
+21 x 375 = 7875 candles fits under `CANDLE_CAP`, 22 does not."""
 REQUEST_DELAY_S = 1.0
 """SmartAPI documents 3 requests a second but refused at 0.4 s on 2026-11-09; 1 s holds."""
 
@@ -107,6 +120,58 @@ def nse_tokens(rows: Sequence[Mapping[str, Any]]) -> dict[str, str]:
     return out
 
 
+def _candles(client: Any, symbol: str, token: str, start: date, end: date) -> list[list[Any]]:
+    """Angel's one-minute candles for `start`..`end`, timestamps in Kite's format.
+
+    Rate-limit replies are retried with growing cool-downs; anything else
+    raises `RuntimeError`, which callers count as one failed request.
+    """
+    params = {
+        "exchange": "NSE",
+        "symboltoken": token,
+        "interval": "ONE_MINUTE",
+        "fromdate": f"{start.isoformat()} 09:00",
+        "todate": f"{end.isoformat()} 23:59",
+    }
+    reply: Any = None
+    for cooldown in (0, 2, 5, 15, 30):
+        if cooldown:
+            time.sleep(cooldown)
+        try:
+            reply = client.getCandleData(params)
+        except Exception as exc:  # SmartAPI raises on its plain-text rate-limit reply
+            if "rate" in str(exc).lower():
+                continue
+            raise RuntimeError(f"Angel candles {symbol} {start}..{end}: {exc}") from exc
+        if isinstance(reply, dict) and reply.get("status") is True:
+            break
+        detail = str((reply or {}).get("message", "")) if isinstance(reply, dict) else ""
+        if "rate" not in detail.lower() and "something went wrong" not in detail.lower():
+            break
+    if not isinstance(reply, dict) or reply.get("status") is not True:
+        detail = str(reply.get("message")) if isinstance(reply, dict) else "no reply"
+        raise RuntimeError(f"Angel candles {symbol} {start}..{end}: {detail}")
+    return [[kite_ts(c[0]), *c[1:]] for c in list(reply.get("data") or []) if c]
+
+
+SESSION_OVER = (15, 45)
+"""IST time after which today's session counts as over for Angel's bars."""
+
+
+def open_session_day(now: datetime | None = None) -> date:
+    """The day `complete_days` should treat as still trading.
+
+    Today until 15:45 IST, tomorrow after it. Angel's last bar for an F&O
+    stock is not a fixed minute: after the 15:14 continuous close it serves
+    closing-auction minutes ending at 15:28 on 13 Nov 2026 and 15:29 on
+    11 Nov. `complete_days` knows only 15:14 and 15:29, so 217 stocks were
+    called incomplete every evening (HISTORY). After the close, a session
+    is over whatever its last minute says.
+    """
+    ist = (now or datetime.now(ZoneInfo("Asia/Kolkata"))).astimezone(ZoneInfo("Asia/Kolkata"))
+    return ist.date() + timedelta(days=1) if (ist.hour, ist.minute) >= SESSION_OVER else ist.date()
+
+
 def fetch_day(
     client: Any,
     store: MinuteStore,
@@ -125,41 +190,110 @@ def fetch_day(
     chunk = Chunk(symbol, int(token), day, day, from_time="09:00:00", to_time="23:59:00")
     if store.has(chunk) or held(store, symbol, day):
         return -1
-    params = {
-        "exchange": "NSE",
-        "symboltoken": token,
-        "interval": "ONE_MINUTE",
-        "fromdate": f"{day.isoformat()} 09:00",
-        "todate": f"{day.isoformat()} 23:59",
-    }
-    reply: Any = None
-    for cooldown in (0, 2, 5, 15, 30):
-        if cooldown:
-            time.sleep(cooldown)
-        try:
-            reply = client.getCandleData(params)
-        except Exception as exc:  # SmartAPI raises on its plain-text rate-limit reply
-            if "rate" in str(exc).lower():
-                continue
-            raise RuntimeError(f"Angel candles {symbol} {day}: {exc}") from exc
-        if isinstance(reply, dict) and reply.get("status") is True:
-            break
-        detail = str((reply or {}).get("message", "")) if isinstance(reply, dict) else ""
-        if "rate" not in detail.lower() and "something went wrong" not in detail.lower():
-            break
-    if not isinstance(reply, dict) or reply.get("status") is not True:
-        detail = str(reply.get("message")) if isinstance(reply, dict) else "no reply"
-        raise RuntimeError(f"Angel candles {symbol} {day}: {detail}")
-    candles = [[kite_ts(c[0]), *c[1:]] for c in list(reply.get("data") or []) if c]
-    kept, candles = complete_days(
-        chunk, candles, today or datetime.now(ZoneInfo("Asia/Kolkata")).date()
-    )
+    candles = _candles(client, symbol, token, day, day)
+    kept, candles = complete_days(chunk, candles, today or open_session_day())
     if kept is None:
         return -2
     table = candles_to_table(candles)
     store.write(chunk, table, source=SOURCE)
     _note(store, symbol, day)
     return int(table.num_rows)
+
+
+def history_spans(start: date, end: date) -> list[tuple[date, date]]:
+    """Calendar months from `start` to `end`, a long month split at the 15th.
+
+    Fixed calendar boundaries, not counts of sessions from `start`, so a later
+    run with a different `--from` asks for the same keys and refetches nothing.
+    """
+    out: list[tuple[date, date]] = []
+    cursor = date(start.year, start.month, 1)
+    while cursor <= end:
+        nxt = date(cursor.year + cursor.month // 12, cursor.month % 12 + 1, 1)
+        last = nxt - timedelta(days=1)
+        if len(session_days(cursor, last)) > MONTH_SESSIONS:
+            out += [(cursor, cursor.replace(day=15)), (cursor.replace(day=16), last)]
+        else:
+            out.append((cursor, last))
+        cursor = nxt
+    return [(max(a, start), min(b, end)) for a, b in out if b >= start and a <= end]
+
+
+def fetch_span(
+    client: Any, store: MinuteStore, symbol: str, token: str, start: date, end: date
+) -> int:
+    """One symbol, `start`..`end` in one request, into `store`. -1 if held.
+
+    An empty reply is landed too, as a zero-row file: before a listing or
+    after a delisting there is nothing to have, and asking again would not
+    change it. A reply at `CANDLE_CAP` raises: it is missing its first bars.
+    """
+    chunk = Chunk(symbol, int(token), start, end, from_time="09:00:00", to_time="23:59:00")
+    if store.has(chunk):
+        return -1
+    candles = _candles(client, symbol, token, start, end)
+    if len(candles) >= CANDLE_CAP:
+        raise RuntimeError(f"Angel candles {symbol} {start}..{end}: {len(candles)}, truncated")
+    table = candles_to_table(candles)
+    store.write(chunk, table, source=SOURCE)
+    return int(table.num_rows)
+
+
+def read_delisted(path: Path = DELISTED) -> dict[str, str]:
+    """`symbol -> token` from the delisted-names file (`#` lines are notes)."""
+    import csv
+
+    if not path.exists():
+        return {}
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if not ln.startswith("#")]
+    return {row["symbol"]: row["token"] for row in csv.DictReader(lines) if row.get("token")}
+
+
+def history(args: argparse.Namespace) -> int:
+    """`--history`: every symbol, newest month first, into `HISTORY_ROOT`.
+
+    Newest first so a run stopped early leaves every symbol with its most
+    recent years, which is what an eight-year target needs first.
+    """
+    end = args.end or (KITE_START - timedelta(days=1))
+    spans = list(reversed(history_spans(args.start, end)))
+    tokens = nse_tokens(download_master())
+    tokens.update(read_delisted(args.delisted))
+    symbols = (
+        [*read_delisted(args.delisted)]
+        if args.only_delisted
+        else [*INDICES, *read_universe(args.universe), *read_delisted(args.delisted)]
+    )
+    symbols = [s for s in dict.fromkeys(symbols) if s in tokens]
+    if args.limit:
+        symbols = symbols[: args.limit]
+    store = MinuteStore(args.root if args.root != STOCK_ROOT else HISTORY_ROOT)
+    client = _make_client()
+    print(f"angel-history: {len(spans)} span(s) {args.start}..{end}, {len(symbols)} symbols")
+    counts = {"landed": 0, "held": 0, "empty": 0, "failed": 0, "bars": 0}
+    for a, b in spans:
+        for symbol in symbols:
+            folder = KITE_FOLDERS.get(symbol, symbol)
+            try:
+                got = fetch_span(client, store, folder, tokens[symbol], a, b)
+            except RuntimeError as exc:
+                counts["failed"] += 1
+                print(f"  failed: {exc}")
+                time.sleep(REQUEST_DELAY_S)
+                continue
+            if got == -1:
+                counts["held"] += 1
+                continue
+            counts["landed" if got else "empty"] += 1
+            counts["bars"] += got
+            time.sleep(REQUEST_DELAY_S)
+        print(f"  {a}..{b}: {counts}", flush=True)
+    print(f"  done: {counts}")
+    return 1 if counts["failed"] else 0
+
+
+KITE_START = date(2021, 8, 19)
+"""The first session Kite's five-year backfill holds (fetched 2026-08-18)."""
 
 
 def migrate(old: Path = OLD_ROOT, stocks: Path = STOCK_ROOT, indices: Path = INDEX_ROOT) -> int:
@@ -205,6 +339,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--index-root", type=Path, default=INDEX_ROOT)
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument(
+        "--history", action="store_true", help=f"backfill before Kite's start into {HISTORY_ROOT}"
+    )
+    parser.add_argument("--delisted", type=Path, default=DELISTED)
+    parser.add_argument(
+        "--only-delisted", action="store_true", help="with --history: only the delisted names"
+    )
+    parser.add_argument(
         "--migrate", action="store_true", help=f"copy {OLD_ROOT} into the uniform stores, once"
     )
     args = parser.parse_args(argv)
@@ -215,6 +356,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.start is None:
         parser.error("--from is required")
     load_env()
+    if args.history:
+        return history(args)
     days = session_days(args.start, args.end or args.start)
     symbols = [*INDICES, *read_universe(args.universe)]
     if args.limit:

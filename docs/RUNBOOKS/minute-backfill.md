@@ -126,3 +126,34 @@ returns `400 interval exceeds max limit: 60 days`.
 
 `--limit 2` runs two symbols end to end in seconds. Worth doing after any change
 to the downloader, before committing to a 40-minute run.
+
+---
+
+## Angel One: history before Kite's five years (research 193)
+
+`make angel-history` fetches 3 Oct 2016 to 18 Aug 2021 for the union, the
+three indices and `config/angel_delisted_tokens.csv`, into
+`data/landing/angel_minute_history`. Newest month first, so a stopped run
+leaves every name with its latest years. Re-run to resume. About 50,000
+requests at one a second, so about 14 hours. Log: whatever you redirect it to
+(the 2026-11-13 run wrote `data/logs/angel_history.log`).
+
+**"truncated" failures.** Angel returns at most 8,000 candles and silently
+drops the earliest. The fetcher refuses such a reply. If one appears, the
+month was split wrongly: lower `MONTH_SESSIONS`.
+
+**Do not merge this tree into `kite_minute`.** Kite and Angel adjust old
+prices differently (RELIANCE 2021-08-20 close: Kite 1,020.00, Angel 1,074.13).
+Joining them unadjusted puts a false jump at 19 Aug 2021.
+
+## A session is short in `kite_minute` after an Angel fill
+
+Find it: count one-day files per date in the manifest. The daily fill now
+re-asks short sessions of the last 14 days by itself. For an older one:
+
+```bash
+make angel-minute FROM=2026-11-09
+```
+
+Do not pass a range that spans an NSE holiday: `angel-minute` asks Angel for
+every weekday and lands zero-row files for the holiday.

@@ -655,3 +655,27 @@ def test_the_agent_may_run_the_minute_step_because_angel_needs_no_login() -> Non
     assert jobs.allowed_steps(["India minute bars", "MCX index minute bars"]) == (
         "India minute bars",
     )
+
+
+def test_a_session_angel_landed_only_partly_is_asked_for_again() -> None:
+    from datetime import date
+
+    from eulerlab.ingest import daily_feed
+
+    rows = [
+        {"path": "A/x", "symbol": "A", "start": "2026-11-09", "end": "2026-11-09"},
+        {"path": "B/x", "symbol": "B", "start": "2026-11-09", "end": "2026-11-09"},
+        {"path": "A/y", "symbol": "A", "start": "2026-11-11", "end": "2026-11-11"},
+        {"path": "B/y", "symbol": "B", "start": "2026-11-04", "end": "2026-11-11"},  # Kite's span
+        {"path": "A/z", "symbol": "A", "start": "2026-11-12", "end": "2026-11-12"},
+        {"symbol": "C", "reason": "not a file"},
+    ]
+    assert daily_feed.short_sessions(rows, "2026-11-01") == [
+        date(2026, 11, 4),
+        date(2026, 11, 5),
+        date(2026, 11, 6),
+        date(2026, 11, 7),
+        date(2026, 11, 8),
+        date(2026, 11, 10),
+        date(2026, 11, 12),
+    ]

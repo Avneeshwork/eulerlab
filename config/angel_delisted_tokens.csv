@@ -1,0 +1,15 @@
+# Names in config/universe_top250_union.txt that NSE no longer lists under any
+# symbol our stores hold. The token is NSE's own: the FinInstrmId column of the
+# UDiFF CM bhavcopy (data/landing/nse/cm, on B2), read 2026-11-13. Angel's
+# SmartAPI serves history for these tokens (probe 2026-11-13, research 193).
+# A rename that kept its token (ZOMATO -> ETERNAL 5097, TATAMOTORS -> TMPV
+# 3456, GMRINFRA -> GMRAIRPORT, ...) is not here: its history is already held
+# under the new symbol. HDFC, MINDTREE and TATACOFFEE left NSE before UDiFF
+# (July 2024), so no token was found for them and they are not fetched.
+symbol,token,isin,last_seen
+DHANI,15384,INE274G01010,2024-12-02
+IDFC,11957,INE043D01016,2024-09-02
+JPASSOCIAT,11461,INE455F01025,2024-12-02
+PEL,2412,INE140A01024,2024-12-02
+TATAMTRDVR,16965,IN9155A01020,2024-07-08
+TV18BRDCST,14208,INE886H01027,2024-09-02
