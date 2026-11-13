@@ -198,3 +198,20 @@ def test_the_tables_reproduce_research_176_on_real_data() -> None:
     slow, quick = engine.Engine(data), fast_eval.FastEngine(data)
     for h, spec in engine.reference_specs().items():
         assert quick.screen(spec) == slow.screen(spec), h
+
+
+def test_a_card_with_a_v2_rule_runs_on_the_plain_engine(
+    fast: fast_eval.FastEngine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The gate and the paper books build a plain `Engine`: a v2 card must work there too."""
+    monkeypatch.setenv("EULERLAB_DATA_DIR", str(tmp_path / "data"))
+    body = {"shape": "cross_section", "kind": "swing", "hold": 5, "top": 3, "every": 5}
+    spec = lang.Spec(**body, score="rank(neg(delay(ret(5), 1)))", first=fast.data.sessions[10])
+    (tmp_path / "H-9001.yaml").write_text(
+        "id: H-9001\nengine_v2: " + spec.model_dump_json(exclude_defaults=True) + "\n"
+    )
+    read = engine.card_spec("H-9001", tmp_path)
+    assert isinstance(read, lang.Spec) and read.fingerprint() == spec.fingerprint()
+    plain = engine.Engine(fast.data)
+    assert plain.events(read) == fast.events(spec) != []
+    assert plain.screen(read)["count"] > 0

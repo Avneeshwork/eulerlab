@@ -288,14 +288,16 @@ def same_bet(
 # --- the experiment store and the firewall (ADR-172) -----------------------------------
 
 
-def family_of(spec: rule_engine.RuleSpec) -> str:
+def family_of(spec: rule_engine.Rule) -> str:
     """Kind and the signals the rule conditions on: one cell of the coverage map."""
-    return f"{spec.kind}:{'+'.join(sorted({c.signal for c in spec.when}))}"
+    if isinstance(spec, rule_engine.RuleSpec):
+        return f"{spec.kind}:{'+'.join(sorted({c.signal for c in spec.when}))}"
+    return f"{spec.kind}:{'+'.join(getattr(spec, 'complexity', {}).get('fields', []))}"
 
 
 def remember(
     hypothesis: str,
-    spec: rule_engine.RuleSpec,
+    spec: rule_engine.Rule,
     screen: dict[str, Any],
     daily: dict[date, float],
     end: date,

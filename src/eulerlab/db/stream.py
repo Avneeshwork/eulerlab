@@ -208,6 +208,7 @@ def parse_time(text: str) -> datetime:
 ROW_FILES: dict[str, str] = {
     "experiments": "derived/experiments.jsonl",
     "jobs": "jobs/*.jsonl",
+    "evolve": "derived/evolve.jsonl",
     "ladder": "derived/ladder.jsonl",
     "knowledge": "derived/knowledge/*.jsonl",
     "llm_values": "derived/llm_values.jsonl",

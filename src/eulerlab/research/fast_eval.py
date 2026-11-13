@@ -209,13 +209,17 @@ def market_series(sessions: Sequence[date]) -> dict[str, dict[date, float]]:
 
 
 def real_store(engine: rule_engine.Engine) -> Store:
-    """The store on the platform's own data: cached tables, market fields and sectors."""
+    """The store on the platform's own data: market fields, sectors, and tables kept on disk.
+
+    Only the research data's tables are kept on disk. A paper book's engine
+    reads a window that moves every day, and would leave a new set each time.
+    """
     from eulerlab.fundamentals import sectors
 
     impact, models = cutoff.series("news_impact")
     return Store(
         engine,
-        cache=store_dir(),
+        cache=store_dir() if type(engine.data) is rule_engine.Data else None,
         market={**market_series(engine.data.sessions), "news_impact": impact},
         judged_by={"news_impact": models},
         sectors={symbol: tag.sector for symbol, tag in sectors.load().items()},
@@ -233,12 +237,26 @@ class FastEngine(rule_engine.Engine):
     def events(self, spec: rule_engine.Rule) -> list[rule_engine.Event]:
         v2 = lang.from_rule(spec) if isinstance(spec, rule_engine.RuleSpec) else spec
         assert isinstance(v2, lang.Spec)
-        for name in v2.complexity["fields"]:
-            if lang.FIELDS[name].judged:
-                # A model's judgement is no signal on sessions it may have read about.
-                for model in sorted(self.store.judged_by.get(name) or {""}):
-                    cutoff.require_after(model, v2.first, what=name)
-        return lang.events(v2, self.evaluator, self.store.tradable, self.store.ok_day)
+        return _events(v2, self.store, self.evaluator)
+
+
+def _events(spec: lang.Spec, store: Store, evaluator: lang.Evaluator) -> list[rule_engine.Event]:
+    for name in spec.complexity["fields"]:
+        if lang.FIELDS[name].judged:
+            # A model's judgement is no signal on sessions it may have read about.
+            for model in sorted(store.judged_by.get(name) or {""}):
+                cutoff.require_after(model, spec.first, what=name)
+    return lang.events(spec, evaluator, store.tradable, store.ok_day)
+
+
+def events_for(engine: rule_engine.Engine, spec: rule_engine.Rule) -> list[rule_engine.Event]:
+    """A v2 rule's entries on any engine: its tables are built once and kept on the engine."""
+    assert isinstance(spec, lang.Spec)
+    kept = engine.__dict__.get("_tables")
+    if kept is None:
+        store = real_store(engine)
+        kept = engine.__dict__["_tables"] = (store, lang.Evaluator(store))
+    return _events(spec, *kept)
 
 
 def evaluate(

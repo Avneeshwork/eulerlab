@@ -587,7 +587,11 @@ class Engine:
         return liquid
 
     def events(self, spec: Rule) -> list[Event]:
-        assert isinstance(spec, RuleSpec), "a v2 spec is run by research/fast_eval.FastEngine"
+        if not isinstance(spec, RuleSpec):
+            # A language-v2 rule: its entries come from the tables (ADR-175).
+            from eulerlab.research import fast_eval
+
+            return fast_eval.events_for(self, spec)
         d = self.data
         out: list[Event] = []
         first = spec.first
@@ -755,17 +759,25 @@ def checks(
 # --- cards ------------------------------------------------------------------------------
 
 
-def _read_card_spec(path: Path) -> RuleSpec | None:
+def _read_card_spec(path: Path) -> Rule | None:
     raw = read_yaml(path) or {}
     block = raw.get("engine") if isinstance(raw, dict) else None
-    return RuleSpec.model_validate(block) if isinstance(block, dict) else None
+    if isinstance(block, dict):
+        return RuleSpec.model_validate(block)
+    v2 = raw.get("engine_v2") if isinstance(raw, dict) else None
+    if isinstance(v2, dict):
+        # A language-v2 rule (ADR-175): same screen, books and gate path.
+        from eulerlab.research import lang
+
+        return lang.Spec.model_validate(v2)
+    return None
 
 
 _CARD_SPECS = FileMemo(_read_card_spec, size=4096)
 
 
-def card_spec(hypothesis: str, root: Path = HYPOTHESES) -> RuleSpec | None:
-    """The `engine:` block of a card, or None when it has none.
+def card_spec(hypothesis: str, root: Path = HYPOTHESES) -> Rule | None:
+    """The `engine:` (or `engine_v2:`) block of a card, or None when it has neither.
 
     Kept per card until its file changes: the strategy list asks this once per
     row from several callers, 388 parses per request (2026-11-08). `RuleSpec`
