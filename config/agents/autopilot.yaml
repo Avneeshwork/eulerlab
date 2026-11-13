@@ -11,7 +11,10 @@ worker: eulerlab.agents.workers.autopilot
 provider: claude-sonnet
 schedule: Every day 17:00 IST, after research and before the idea lab (make agents-ideas)
 uses_model: true
-daily_requests: 5
+# 5 one-shot requests plus up to 12 for the research loop (ADR-186, operator's go
+# 2026-11-14 for #162). Each loop round resends the thread so far, so it costs more
+# tokens than a one-shot request.
+daily_requests: 17
 needs_approval: false
 never:
   - edit gates.py or mandate.yaml, or read a holdout
@@ -20,6 +23,12 @@ never:
   - trade live money or push to GitHub
 options:
   cards: 10
+  # The research loop (#162, ADR-186): the model looks up what was tried and
+  # screens drafts on 2016-2023 before writing; every screen is an experiment row.
+  # false goes back to the one-shot prompt alone.
+  explore: true
+  explore_rounds: 12
+  explore_screens: 8
   # Ledger entries a week for gating clean survivors: validate and gate add one
   # each, so 10 is five gate runs. The operator's number to change.
   gate_entries_per_week: 10

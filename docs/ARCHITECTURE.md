@@ -3627,6 +3627,41 @@ forward test.
 At the close, `make agents-close` runs the ladder, on-call and the fund report
 after the agents. `make agents-evolve` and `make agent-evals` run alone.
 
+### Traces and the research loop (ADR-186)
+
+**Traces.** Every request to a model goes through `assistant.chat._post`, so that
+is where `llm/trace.py` records it: one line in
+`data/derived/llm_traces/YYYY-MM-DD.jsonl` with the whole request (messages,
+tools), the whole reply, the agent and run that asked, seconds and tokens, all
+scrubbed of `.env` values. A run's `output.json` lists its trace ids (`traces`),
+and each model step on the progress trail names its trace.
+`make agent-replay RUN=<run id>` lists a run's requests; `TRACE=<id>` sends one
+again (optionally `PROVIDER=` or `SYSTEM_FILE=`) through the same locks and prints
+the diff. A tool loop is replayed one request at a time, not re-driven.
+
+**The loop.** `Context.converse(system, user, toolbox, rounds=)` is the multi-turn
+form of `Context.ask`: the assistant's tool loop (`chat.ask` with a `toolbox`),
+under the same daily request budget (each round is one request), the monthly
+rupees, the shared rules, the brief and the lessons. The autopilot uses it when
+`explore: true`:
+
+```
+signals ──► claim_record / family_record ──► screen_rule (≤ 8) ──► read figures ──► revise
+   │                                             │
+   │                                 data cut at discovery_end (2023-12-31);
+   │                                 one experiment-store row each (asked_by autopilot)
+   ▼
+cards as JSON ──► the same parse, lesson and repeat checks ──► hypotheses/H-NNNN.yaml
+                  card carries `exploration`: screens, its own discovery figures, trace ids
+```
+
+`research/agent_tools.py` holds the tools; none writes anything but a screen row,
+and none reaches the gate, the ledger or the order path. A rule already in the
+store is not screened again. The full-window screen in `research/autopilot.py`
+then runs on every card as before, so the firewall counts both the loop's looks
+and the card's own screen. If the loop fails (no tool support, an outage), the
+one-shot prompt writes the night's cards.
+
 ### Live-price paper and readiness (ADR-153)
 
 The paper books fill at the official open and close. `deploy/live_shadow.py`

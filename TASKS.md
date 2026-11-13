@@ -35,6 +35,11 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4597 | Re-store research 176's reference results after ADR-157 (or confirm another cause), so `make rule-engine-check` passes; set `EULERLAB_NO_CLOUD=0` in that target | TODO (HISTORY #89) |
 | T-4598 | The ladder's decay check reads backtests only from the experiment store, which is empty; fall back to the stored gate report | TODO (research 192) |
 | T-4599 | The generator eval reads the Mac's live lesson store: three cases fail there and pass in CI. Isolate it, or change the cases' expectations | TODO (research 192) |
+| T-4600 | Traces of every model request and the autopilot's research loop (#165, #162) | DONE 2026-11-14 in code, unit-tested with a scripted model — `uv run pytest -q tests/test_llm_trace.py tests/test_research_loop.py`, ADR-186. HISTORY #90 found on the way |
+| T-4601 | Run one real autopilot night with the loop on the Mac (after T-4596), read its traces with `make agent-replay RUN=<run id>`, and compare its cards' screens and survivors with a one-shot night | TODO. Needs the agents resumed and a Claude key |
+| T-4602 | Research tools two: IC of a formula by horizon, an event study with a placebo, both on discovery data and recorded (#162, #129) | TODO |
+| T-4603 | Research tools three: read-only SQL over the columnar store and a sandboxed Python tool with CPU, memory and time limits and no network (#162, #166, S-021) | TODO. Needs #166 |
+| T-4604 | Prune traces on a schedule (180 days), trace the translator path, and show a run's traces as a timeline on the AI tab (#165) | TODO |
 
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 

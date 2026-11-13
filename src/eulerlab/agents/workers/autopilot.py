@@ -194,6 +194,24 @@ GRID: tuple[tuple[str, dict[str, Any]], ...] = (
 )
 """Fixed-rule building blocks for when the model cannot answer."""
 
+EXPLORE_SYSTEM = (
+    "You are the research autopilot of a quant platform for NSE stocks. You research before "
+    "you write: you have tools to see the signal vocabulary, what was tried near an idea, how "
+    "each family of rules has done, and to screen a draft rule on 2016 to 2023 only. Work like "
+    "a researcher: start from an economic reason (who is forced to trade, who under-reacts, "
+    "what information arrives), check what was tried near it, screen a few drafts, read the "
+    "figures (net bps against the 12 bps intraday round trip, both halves, 2x costs, years "
+    "positive, flags) and change your idea when they say it is weak. Every screen is recorded "
+    "and raises the bar every rule must clear, so screen only drafts worth it and never tune a "
+    "number to fit. Rules you write are then tested on the whole window with no further "
+    "changes. Price-only stock rules have repeatedly died here. When you are done, answer with "
+    "the JSON the user message asks for, and nothing else."
+)
+"""The system prompt of the research loop (#162, ADR-186)."""
+
+EXPLORE_ROUNDS = 12
+EXPLORE_SCREENS = 8
+
 
 def fallback(count: int, seed: int, known: dict[str, str]) -> list[dict[str, Any]]:
     """Pairs of grid conditions, half intraday and half swing, new fingerprints only."""
@@ -294,7 +312,56 @@ def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_coun
         "holdout": {"starts": HOLDOUT_START, "status": "unread"},
         "result": "",
     }
+    explored = card.get("exploration")
+    if explored:
+        screens = explored.get("screens") or []
+        own = next((x for x in screens if x.get("fingerprint") == spec.fingerprint()), None)
+        body["exploration"] = {
+            "screens": len(screens),
+            "this_rule_screened": own is not None,
+            "discovery_figures": own or {},
+            "traces": list(explored.get("traces") or []),
+        }
+        body["red_flags"].insert(
+            len(flags),
+            f"Written after {len(screens)} exploratory screen(s) on 2016-2023 in the research "
+            "loop (ADR-186); each is in the experiment store and counts in the firewall's bar.",
+        )
     return yaml.safe_dump(body, sort_keys=False, allow_unicode=True, width=100)
+
+
+def explore(ctx: Context, count: int, day: date) -> tuple[str, dict[str, Any]]:
+    """The research loop: the model looks things up and screens drafts, then writes cards.
+
+    Returns (answer, record): the record holds the screens it took and the traces
+    of its requests, for the cards' `exploration` block. Raises what `converse`
+    raises; `write_cards` falls back to the one-shot path."""
+    from eulerlab import constitution
+    from eulerlab.research import agent_tools
+
+    tools = agent_tools.ResearchTools(
+        asked_by=ctx.name,
+        discovery_end=constitution.load().periods.discovery_end,
+        now=ctx.now,
+        max_screens=int(ctx.options.get("explore_screens", EXPLORE_SCREENS)),
+        engine=agent_tools.discovery_engine,
+    )
+    user = (
+        prompt(day, count)
+        + "\n\nBefore you answer, use the tools. Name in each card's rationale the screens "
+        "that informed it. A card may be a rule you screened or a new one."
+    )
+    answer = ctx.converse(
+        EXPLORE_SYSTEM,
+        user,
+        tools,
+        rounds=int(ctx.options.get("explore_rounds", EXPLORE_ROUNDS)),
+    )
+    return answer, {
+        "screens": list(tools.screened),
+        "traces": list(ctx.last_traces),
+        "tool_calls": dict(tools.calls),
+    }
 
 
 def _ask(ctx: Context, user: str) -> tuple[str, str]:
@@ -320,6 +387,25 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
     asks = 0
+    explored: dict[str, Any] = {}
+    if ctx.options.get("explore") and ctx.can_ask():
+        try:
+            answer, explored = explore(ctx, count, day)
+            model = ctx.model
+            new, lost = accept(parse(answer), dict(known))
+            dropped += lost
+            for card in new:
+                card["exploration"] = explored
+            kept = _balance(new, count)
+            asks += 1
+            ctx.step(
+                f"Research loop: {len(explored['screens'])} screen(s), "
+                f"{len(new)} card(s) written, {len(kept)} of {count} kept"
+            )
+        except BudgetSpent as exc:
+            ctx.notes.append(f"research loop skipped: {exc}")
+        except Exception as exc:  # the one-shot path below still writes the night's cards
+            ctx.notes.append(f"research loop failed ({type(exc).__name__}: {str(exc)[:200]})")
     while len(kept) < count and ctx.can_ask() and asks < MAX_ASKS:
         want = {"intraday": count // 2, "swing": count - count // 2}
         for c in kept:
@@ -370,7 +456,12 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
                 "model": model or "fixed rules",
             }
         )
-    return {"cards": written, "dropped": dropped, "model": model}
+    return {
+        "cards": written,
+        "dropped": dropped,
+        "model": model,
+        "explored": {k: v for k, v in explored.items() if k != "traces"} if explored else {},
+    }
 
 
 def _balance(cards: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:
