@@ -1,0 +1,193 @@
+# Agent eval cases for the scout role (ADR-183). Scored by code. Held-out cases are in heldout/.
+role: scout
+cases:
+- input:
+    papers:
+    - id: 2018-liquidity-risk-for-institutional-investors-impact-on-low-vol
+      title: Liquidity Risk for Institutional Investors Impact on Low-volatility Anomaly
+      markets: &id001
+      - Taiwan equities, sample period not specified (paper published 2018)
+    - id: acharya-2013-foreign-fund-flows-stock-returns-india
+      title: 'Foreign Fund Flows and Stock Returns: Evidence from India'
+      markets:
+      - Indian individual stocks, daily, 2006-2011
+  expect: acharya-2013-foreign-fund-flows-stock-returns-india
+  id: scout-01
+- input:
+    papers:
+    - id: agarwalla-2014-betting-against-beta-india
+      title: Betting Against Beta in the Indian Market
+      markets:
+      - BSE stocks, 1998-2013
+    - id: asness-porter-stevens-2000-industry-relative
+      title: Predicting Stock Returns Using Industry-Relative Firm Characteristics
+      markets: &id002
+      - US stocks (NYSE, AMEX, NASDAQ), 1963-1998
+  expect: agarwalla-2014-betting-against-beta-india
+  id: scout-02
+- input:
+    papers:
+    - id: batten-2018-intraday-technical-analysis-gold
+      title: Does intraday technical analysis have value in precious metal markets?
+      markets:
+      - Gold and silver, five-minute OTC data, 2008-2014 (paper)
+      - GOLDBEES five-minute bars, 2021-2026 (here; ETF proxy, not MCX futures)
+      - GOLD26DECFUT, MCX standard Gold futures, five-minute bars, 2026-05-14 to 2026-10-14 (here; one
+        contract only)
+    - id: ajar-2019-earnings-announcement-timing-india
+      title: Does earnings surprise determine the timing of the earnings announcement? Evidence from India
+      markets:
+      - BSE SENSEX stocks (paper)
+      - NSE F&O stocks (here)
+  expect: ajar-2019-earnings-announcement-timing-india
+  id: scout-03
+- input:
+    papers:
+    - id: della-corte-2015-market-closure-reversal
+      title: Market Closure and Short-Term Reversal
+      markets: &id003
+      - International equities and futures (paper)
+    - id: baltussen-2025-end-of-day-reversal
+      title: End-of-Day Reversal
+      markets:
+      - US stocks, 1993 onward (paper)
+      - 100 largest NSE stocks (here)
+  expect: baltussen-2025-end-of-day-reversal
+  id: scout-05
+- input:
+    papers:
+    - id: batra-2003-fii-trading-strategies-india
+      title: FII Trading Strategies
+      markets:
+      - Indian aggregate equity market, daily and monthly, 2000-2002
+    - id: george-hwang-2004-52-week-high
+      title: The 52-Week High and Momentum Investing
+      markets: &id004
+      - US stocks, 1963-2001
+  expect: batra-2003-fii-trading-strategies-india
+  id: scout-06
+- input:
+    papers:
+    - id: github-2025-accelerating-dual-momentum
+      title: Accelerating dual momentum (GitHub, AleksLi1)
+      markets:
+      - SPY, VBR, TLT, TIP (repository)
+    - id: bowen-2010-high-frequency-equity-pairs
+      title: 'High Frequency Equity Pairs Trading: Transaction Costs, Speed of Execution and Patterns
+        in Returns'
+      markets:
+      - FTSE 100 constituent pairs, high-frequency data, 2007 (source study)
+      - HDFCBANK/ICICIBANK and TCS/INFY, one-minute NSE bars (local adaptation)
+  expect: bowen-2010-high-frequency-equity-pairs
+  id: scout-07
+- input:
+    papers:
+    - id: harvey-et-al-2018-volatility-targeting
+      title: The Impact of Volatility Targeting
+      markets:
+      - US and global equities, bonds, credit, commodities, currencies
+    - id: chui-2023-momentum-reversals-liquidity-india
+      title: 'Momentum, reversals and liquidity: Indian evidence'
+      markets:
+      - BSE stocks, 2000-2021
+  expect: chui-2023-momentum-reversals-liquidity-india
+  id: scout-09
+- input:
+    papers:
+    - id: dey-2025-smart-trading-in-nifty-50-ml-with-ma-rsi-volume-analysis
+      title: 'Smart Trading in NIFTY-50: ML with MA, RSI & Volume Analysis'
+      markets:
+      - "Indian equities (NIFTY\u201150 constituents) 2000\u20112021"
+    - id: kang-2026-the-liquidity-premium-and-long-run-risk
+      title: The Liquidity Premium and Long-Run Risk
+      markets:
+      - "US equities, 1964\u20112023 (full sample), pre\u20112000 and post\u20112000 subsamples"
+  expect: dey-2025-smart-trading-in-nifty-50-ml-with-ma-rsi-volume-analysis
+  id: scout-10
+- input:
+    papers:
+    - id: oh-2018-cross-sectional-skewness
+      title: Cross-sectional Skewness
+      markets:
+      - unspecified (the paper mentions stock returns generally, no specific market or period)
+    - id: gao-2018-market-intraday-momentum
+      title: 'Intraday Momentum: The First Half-Hour Return Predicts the Last Half-Hour Return'
+      markets:
+      - S&P 500 ETF and ten other ETFs (paper)
+      - NIFTYBEES (here)
+  expect: gao-2018-market-intraday-momentum
+  id: scout-11
+- input:
+    papers:
+    - id: wen-2026-winners-glide-losers-stumble-a-behavioral-reversal-tilt-to-m
+      title: 'Winners Glide, Losers Stumble: A Behavioral Reversal Tilt to Momentum'
+      markets:
+      - "US equities (approximately 1920\u20112025, daily/monthly data)"
+      - Twelve international equity markets (unspecified countries and periods)
+    - id: github-engulfing-volume-rsi
+      title: 'Engulfing candle with volume and RSI filters: GitHub example'
+      markets:
+      - NSE liquid stocks, 5-minute OHLCV adaptation
+  expect: github-engulfing-volume-rsi
+  id: scout-13
+- input:
+    papers:
+    - id: github-keltner-channel-breakout
+      title: Keltner Channel close breakout with EMA midline exit
+      markets:
+      - NSE liquid stocks, 5-minute OHLCV adaptation
+    - id: 2018-liquidity-risk-for-institutional-investors-impact-on-low-vol
+      title: Liquidity Risk for Institutional Investors Impact on Low-volatility Anomaly
+      markets: *id001
+  expect: github-keltner-channel-breakout
+  id: scout-14
+- input:
+    papers:
+    - id: asness-porter-stevens-2000-industry-relative
+      title: Predicting Stock Returns Using Industry-Relative Firm Characteristics
+      markets: *id002
+    - id: github-siemens-10-strategies-screen
+      title: 'NSE Quant Backtest: ten systematic strategies on Siemens India'
+      markets:
+      - Siemens India, daily bars, 2020-2024
+  expect: github-siemens-10-strategies-screen
+  id: scout-15
+- input:
+    papers:
+    - id: borjigin-2025-intertemporal-pricing-of-time-bound-stablecoins-measuring-an
+      title: 'Intertemporal Pricing of Time-Bound Stablecoins: Measuring and Controlling the Liquidity-of-Time
+        Premium'
+      markets:
+      - US equities (ADRs) vs foreign home markets
+      - Overnight index futures vs cash index
+      - "Pre\u2011market vs prior\u2011close equity prices"
+    - id: hedging-demand-2024-intraday-momentum-india
+      title: Hedging Demand and Intraday Momentum within the Indian Stock Market
+      markets:
+      - Nifty 50 futures, intraday (paper)
+      - NIFTYBEES (here)
+  expect: hedging-demand-2024-intraday-momentum-india
+  id: scout-17
+- input:
+    papers:
+    - id: indian-market-microstructure-strategy-leads
+      title: Further Indian intraday strategy leads from market-microstructure research
+      markets:
+      - National Stock Exchange of India equities
+      - BSE equities (day-trader microstructure source)
+    - id: della-corte-2015-market-closure-reversal
+      title: Market Closure and Short-Term Reversal
+      markets: *id003
+  expect: indian-market-microstructure-strategy-leads
+  id: scout-18
+- input:
+    papers:
+    - id: george-hwang-2004-52-week-high
+      title: The 52-Week High and Momentum Investing
+      markets: *id004
+    - id: jithendranathan-2026-participant-oi-volatility-india
+      title: 'Trading Activity, Open Interest, and Volatility: Evidence from the Indian Derivatives Market'
+      markets:
+      - Indian equity derivatives, participant-level, multi-instrument
+  expect: jithendranathan-2026-participant-oi-volatility-india
+  id: scout-19

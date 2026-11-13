@@ -59,6 +59,10 @@ PROTECTED = (
     Path("mandate.yaml"),
     Path("src/eulerlab/gates.py"),
     Path("config/constitution.yaml"),
+    *(
+        Path(f"config/agent_eval/heldout/{r}.yaml")
+        for r in ("on_call", "red_team", "generator", "scout", "engineer")
+    ),  # ADR-183
 )
 """Operator-owned files (CLAUDE.md). A change no operator acknowledged halts every agent."""
 

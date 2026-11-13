@@ -1,0 +1,24 @@
+# Held-out cases for the red_team role (ADR-183). No agent reads this file: read_document refuses
+# config/, the knowledge index does not index it, and tests/test_agent_evals.py proves both.
+role: red_team
+cases:
+- input:
+    formula: gt(value_ratio,3)
+  expect: leak
+  id: red_team-04
+- input:
+    formula: ge(delay(delivery_ratio,1),1.5)
+  expect: clean
+  id: red_team-08
+- input:
+    formula: lt(dii_net,0)
+  expect: leak
+  id: red_team-12
+- input:
+    formula: gt(fii_futures_net,0)
+  expect: leak
+  id: red_team-16
+- input:
+    formula: gt(news_impact,0)
+  expect: leak
+  id: red_team-20

@@ -1,0 +1,133 @@
+# Agent eval cases for the on_call role (ADR-183). Scored by code. Held-out cases are in heldout/.
+role: on_call
+cases:
+- input:
+    name: data
+    step: feed
+    error: HTTP 500
+    remedy:
+      rerun:
+      - NSE end-of-day
+  expect: rerun_feed
+  id: on_call-01
+- input:
+    name: data
+    step: feed
+    error: HTTP 501
+    remedy:
+      rerun:
+      - participant OI
+  expect: rerun_feed
+  id: on_call-02
+- input:
+    name: data
+    step: feed
+    error: HTTP 502
+    remedy:
+      rerun:
+      - FII/DII cash flows
+  expect: rerun_feed
+  id: on_call-03
+- input:
+    name: data
+    step: feed
+    error: HTTP 500
+    remedy:
+      rerun:
+      - FX
+  expect: rerun_feed
+  id: on_call-05
+- input:
+    name: data
+    step: feed
+    error: HTTP 501
+    remedy:
+      rerun:
+      - NSE end-of-day
+  expect: rerun_feed
+  id: on_call-06
+- input:
+    name: data
+    step: feed
+    error: HTTP 502
+    remedy:
+      rerun:
+      - participant OI
+  expect: rerun_feed
+  id: on_call-07
+- input:
+    name: data
+    step: feed
+    error: HTTP 500
+    remedy:
+      rerun:
+      - price panel
+  expect: rerun_feed
+  id: on_call-09
+- input:
+    name: data
+    step: feed
+    error: HTTP 501
+    remedy:
+      rerun:
+      - FX
+  expect: rerun_feed
+  id: on_call-10
+- input:
+    name: watchdog
+    step: check0
+    error: break
+    remedy:
+      kind: reconcile
+      book: paper-x
+  expect: reconcile
+  id: on_call-11
+- input:
+    name: watchdog
+    step: check0
+    error: break
+    remedy:
+      kind: trip_kill
+      book: paper-x
+  expect: trip_kill
+  id: on_call-13
+- input:
+    name: watchdog
+    step: check1
+    error: break
+    remedy:
+      kind: trip_kill
+      book: paper-x
+  expect: trip_kill
+  id: on_call-14
+- input:
+    name: autopilot
+    step: write
+    error: KeyError
+    remedy:
+      kind: shell
+  expect: ticket
+  id: on_call-15
+- input:
+    name: autopilot
+    step: write
+    error: KeyError
+    remedy:
+      kind: delete
+  expect: ticket
+  id: on_call-17
+- input:
+    name: autopilot
+    step: write
+    error: KeyError
+    remedy:
+      kind: upload
+  expect: ticket
+  id: on_call-18
+- input:
+    name: autopilot
+    step: write
+    error: KeyError
+    remedy: {}
+  expect: ticket
+  id: on_call-19

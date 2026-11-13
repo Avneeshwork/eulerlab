@@ -1,0 +1,67 @@
+# Held-out cases for the generator role (ADR-183). No agent reads this file: read_document refuses
+# config/, the knowledge index does not index it, and tests/test_agent_evals.py proves both.
+role: generator
+cases:
+- input:
+    engine: &id002
+      kind: intraday
+      side: short
+      when:
+      - signal: at_high
+        lag: 1
+        n: 60
+      - signal: ret
+        lag: 1
+        n: 5
+        op: '>='
+        value: 0.08
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: &id001
+      02afec4cf326ed7e: H-0001
+  expect: dropped
+  id: generator-04
+- input:
+    engine:
+      kind: intraday
+      side: long
+      when:
+      - signal: day_return
+        lag: 1
+        op: <=
+        value: -0.04
+      - signal: at_low
+        lag: 1
+        n: 60
+      rank_by:
+        signal: day_return
+        lag: 1
+    known: *id001
+  expect: kept
+  id: generator-08
+- input:
+    engine: *id002
+    known: *id001
+  expect: dropped
+  id: generator-12
+- input:
+    engine:
+      kind: intraday
+      side: long
+      when:
+      - signal: moon_phase
+        op: '>'
+        value: 1
+    known: *id001
+  expect: dropped
+  id: generator-16
+- input:
+    engine:
+      kind: weekly
+      side: long
+      when: []
+    known: *id001
+  expect: dropped
+  id: generator-20
