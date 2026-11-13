@@ -75,14 +75,17 @@ class Book:
 
 def books(config: Path = CONFIG) -> tuple[list[Book], dict[str, str]]:
     """(books to shadow, {strategy: why it is not shadowed})."""
+    from eulerlab.deploy import ladder
     from eulerlab.intraday import rule_engine
 
-    if not config.exists():
-        return [], {}
-    raw = yaml.safe_load(config.read_text(encoding="utf-8")) or {}
+    raw = (yaml.safe_load(config.read_text(encoding="utf-8")) or {}) if config.exists() else {}
+    entries = list(raw.get("books") or [])
+    listed = {str(e["strategy"]) for e in entries}
+    # A strategy the ladder moved to live-price paper is shadowed from its card (ADR-179).
+    entries += [{"strategy": s} for s in ladder.at_stage("live_price_paper") if s not in listed]
     out: list[Book] = []
     skipped: dict[str, str] = {}
-    for entry in raw.get("books") or []:
+    for entry in entries:
         sid = str(entry["strategy"])
         block = entry.get("engine")
         try:
@@ -106,6 +109,8 @@ def books(config: Path = CONFIG) -> tuple[list[Book], dict[str, str]]:
 
 
 def unsupported(spec: Any) -> str:
+    if not hasattr(spec, "rank_by"):
+        return "a language-v2 rule cannot be planned from the evening's data yet"
     if spec.kind != "intraday":
         return "swing books are not shadowed (their fills are at an open and a close days apart)"
     morning = [c.signal for c in [*spec.when, spec.rank_by] if c.lag == 0 and c.signal != "gap"]

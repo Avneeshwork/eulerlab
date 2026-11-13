@@ -2,6 +2,7 @@
 name: knowledge_keeper
 title: Knowledge keeper
 reports_to: research
+role: scout               # ADR-181
 job: Recomputes what is normal for each metric, watches SEBI, RBI and NSE for new notices, finds gaps in the metrics library and drafts page updates for the operator to approve.
 worker: eulerlab.agents.workers.knowledge_keeper
 schedule: "daily after the close; mode=weekly on Sundays"

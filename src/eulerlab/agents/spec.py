@@ -86,6 +86,9 @@ class AgentSpec(BaseModel):
     Empty is allowed here so a test can build a spec; `agents/org.py` refuses
     a committed definition without one."""
 
+    role: str = ""
+    """One of the nine roles in `agents/roles.py` (ADR-181). Empty only in a test's spec."""
+
     job: str = Field(min_length=10, max_length=400)
     """What it does, in a sentence the operator reads on the control room."""
 
@@ -117,6 +120,16 @@ class AgentSpec(BaseModel):
 
     options: dict[str, Any] = Field(default_factory=dict)
     """Worker-specific settings, validated by the worker itself."""
+
+    @field_validator("role")
+    @classmethod
+    def _known_role(cls, value: str) -> str:
+        from eulerlab.agents.roles import ROLES
+
+        if value and value not in ROLES:
+            msg = f"role {value!r} is not one of {', '.join(ROLES)}"
+            raise ValueError(msg)
+        return value
 
     @field_validator("provider")
     @classmethod

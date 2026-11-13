@@ -1,0 +1,47 @@
+# Held-out cases for the on_call role (ADR-183). No agent reads this file: read_document refuses
+# config/, the knowledge index does not index it, and tests/test_agent_evals.py proves both.
+role: on_call
+cases:
+- input:
+    name: data
+    step: feed
+    error: HTTP 503
+    remedy:
+      rerun:
+      - price panel
+  expect: rerun_feed
+  id: on_call-04
+- input:
+    name: data
+    step: feed
+    error: HTTP 503
+    remedy:
+      rerun:
+      - FII/DII cash flows
+  expect: rerun_feed
+  id: on_call-08
+- input:
+    name: watchdog
+    step: check1
+    error: break
+    remedy:
+      kind: reconcile
+      book: paper-x
+  expect: reconcile
+  id: on_call-12
+- input:
+    name: autopilot
+    step: write
+    error: KeyError
+    remedy:
+      kind: restart
+  expect: ticket
+  id: on_call-16
+- input:
+    name: autopilot
+    step: write
+    error: KeyError
+    remedy:
+      kind: rerun
+  expect: ticket
+  id: on_call-20

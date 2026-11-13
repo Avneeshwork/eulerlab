@@ -2,10 +2,12 @@
 name: skeptic
 title: Skeptic agent
 reports_to: research
+role: red_team               # ADR-181
 job: Attacks a stored result before the gate sees it - one lucky year, a few lucky days, costs, Indian stress windows - and writes the five ways it could be fake.
 worker: eulerlab.agents.workers.skeptic
 schedule: "on demand, for a result you name"
 uses_model: true
+provider: groq          # kept on free Groq for cost; its role routes elsewhere (ADR-181)
 daily_requests: 20
 never:
   - change a number in the evidence

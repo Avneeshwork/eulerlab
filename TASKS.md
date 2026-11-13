@@ -3,6 +3,35 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)
+
+Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 is the forward test; no agent acts on the live account; Rs 1,000 a month for AI. "Start working and complete by morning." Built on the server-move branch (PR #133) in a cloud container with no market data: unit tests only.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4574 | Operator: decide whether the firewall figures refuse a rule, and at what values (deflated Sharpe, holds on selection). Today they are shown only (#139) | TODO. Operator, after T-4577 shows real numbers |
+| T-4575 | Measure the scorecard's two missing lines: strategies confirmed by the 2026 forward test (the ladder, #146) and operator minutes a week | TODO |
+| T-4576 | Write every scoring path to the experiment store: optimiser sweeps, the idea lab, `make validate`, the rule-engine check; backfill the cards already screened where daily returns can be recomputed (#137, #122) | TODO |
+| T-4577 | Run the new pieces on real data on the Mac: `make scorecard`, one autopilot night, and check the firewall figures on H-0161 and H-0168 | TODO. Needs the Mac's data; not run |
+| T-4578 | The research window still ends 2024-11-30 (`rs.DATA_END`). Extend the daily-bar engine to the constitution's 2025-12-31 and re-run research 176's reproduction on the old window (#139) | TODO. Needs real data; `daily_more_screen` reads the module constant `END` |
+| T-4579 | Screens size each trade at Rs 1 lakh on Rs 10 lakh capital (research 173's frame); the operator's test capital is Rs 1 lakh in total. Measure what costs and share rounding do to each PROMOTE at that size | TODO. Paper books started by the autopilot already use Rs 1 lakh |
+| T-4580 | Constitution file with capital, periods, budget, caps and action levels; guardian protects it; autopilot reads its cap and capital (#135) | DONE 2026-11-13 — `uv run pytest tests/test_constitution.py`, ADR-171 |
+| T-4581 | Hard monthly budget for paid models, priced per request (#135, #136 in part) | DONE 2026-11-13 — `tests/test_constitution.py`, `llm/spend.py` |
+| T-4582 | Experiment store with daily returns; the forward period sealed where records are made; firewall figures on every autopilot screen (#137, #139 first part) | DONE 2026-11-13 — `uv run pytest tests/test_experiments.py tests/test_research_autopilot.py`, ADR-172 |
+| T-4583 | `make scorecard` (#138) | DONE 2026-11-13 — `uv run pytest tests/test_scorecard.py`, ADR-173 |
+| T-4584 | The rest of #134: job runner (#136), fast evaluator (#140), look-ahead controls (#141), language v2 (#142), evolutionary engine (#143), knowledge base (#144), nine roles (#145), ladder (#146), decay monitor (#147), on-call (#148), agent evals (#149) | DONE 2026-11-13 in code, unit-tested on made-up data — `uv run pytest -q`, ADR-174 to ADR-183. What needs real data or time is T-4585 to T-4595 |
+| T-4585 | Run five nightly jobs on the server through `jobrun`, killing one mid-run, and check it resumes with no step paid twice (#136) | TODO. Needs the server |
+| T-4586 | Build the fast evaluator's tables from the real panel; check it reproduces research 176's ten results and time `make fast-eval-bench` (#140) | TODO. Needs the Mac's data |
+| T-4587 | Language v2: per-stock F&O open interest and basis, PCR, holders, index rebalances, results surprises as fields; a screen for minute rules (#142, #126 to #129) | TODO |
+| T-4588 | `make llm-probe` against each model; find a sourced training cutoff for the Groq model that judges news (#141) | TODO. Groq's cutoff has no source yet |
+| T-4589 | Run `make agents-evolve` for two weeks of nights beside the autopilot and compare what each gets through the gate per rupee (#143) | TODO. Needs the Mac's data; not scheduled |
+| T-4590 | Put each paper book's decay state on Live & Risk and run the monitor on a real book's record (#147) | TODO |
+| T-4591 | Watch the first three strategies climb the ladder; recheck A-140's five sessions (#146) | TODO. Needs paper books running |
+| T-4592 | Mark the paper-form cards that replicate their paper (`source.replicates`) and answer issue #144's reversal question on the real library (#144) | TODO |
+| T-4593 | Retire the three department heads once their plans and checklists are code; recheck A-141 after 30 days of spend by role (#145) | TODO |
+| T-4594 | Five straight sessions of the fund report from the server; a daily slippage figure from the live-price shadow for it (#148) | TODO. Needs the server |
+| T-4595 | Model-answered baselines for the scout and engineer evals; one real self-change through a week of canary (#149) | TODO. Needs model budget on the Mac |
+
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 
 Operator: "first fix infra related work then we make multiuser"; the platform is to be multi-user, open source with a hosted subscription; "we will host on vps later".

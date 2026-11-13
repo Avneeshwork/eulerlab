@@ -4,6 +4,7 @@
 name: research
 title: Research agent
 reports_to: research
+role: scout               # ADR-181
 job: Goes first each day. Finds papers on the brief's topic, or the day's topic from its own list, keeps every paper it reads in the library, drafts idea cards for the idea lab to backtest, drops repeats of ideas already tested, asks the data agent for data it lacks, and ranks the drafts for you.
 worker: eulerlab.agents.workers.research
 schedule: "Every day 17:00 IST, before the idea lab (make agents-ideas)"

@@ -2,6 +2,7 @@
 name: portfolio
 title: Portfolio agent
 reports_to: portfolio
+role: allocator               # ADR-181
 job: Proposes sizes for strategies that passed the gate and flags a deployed book that has drifted outside what its backtest showed.
 worker: eulerlab.agents.workers.portfolio
 schedule: "16:15 on weekdays"

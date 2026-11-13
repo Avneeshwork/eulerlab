@@ -3,6 +3,7 @@
 name: data
 title: Data agent
 reports_to: platform
+role: on_call               # ADR-181
 job: Grades every dataset, re-runs the feed steps of anything behind, uploads to B2 and deletes local copies B2 holds, merges files that differ from B2 with no duplicate rows, asks AI help for what is still wrong, and answers other agents' data requests.
 worker: eulerlab.agents.workers.data
 schedule: "every two hours from 06:00 to 20:00 IST (make schedule JOB=data-watch), and 08:45 and 16:15 on weekdays"

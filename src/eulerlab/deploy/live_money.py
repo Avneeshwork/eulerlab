@@ -45,6 +45,7 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from eulerlab import constitution
 from eulerlab.paths import data_path
 
 ROOT = data_path("live_money")
@@ -222,6 +223,7 @@ def arm(
     tripped: Tripped = _tripped,
 ) -> dict[str, Any]:
     """The operator's go for one session. Refused without `confirm == "DEPLOY"`."""
+    constitution.refuse_agents("live_account", "arm a live session")
     at = at or now_ist()
     sized = size(settings)
     if confirm != "DEPLOY":
@@ -464,6 +466,7 @@ class AngelDesk:
     def __init__(self) -> None:
         from eulerlab.broker import angel_check
 
+        constitution.refuse_agents("live_account", "log in to the live broker account")
         self.client, _ = angel_check.login()
         self._tokens: dict[str, str] = {}
 
@@ -485,6 +488,7 @@ class AngelDesk:
         self, coid: str, session: date, symbol: str, buy: bool, quantity: int, *, check: bool = True
     ) -> dict[str, Any]:
         """`check=False` only for exits: closing is what a tripped switch wants done."""
+        constitution.refuse_agents("live_account", "send a live order")
         from eulerlab.backtest.events import Order
         from eulerlab.costs.schedule import Side
         from eulerlab.oms import ems

@@ -1,0 +1,271 @@
+# Agent eval cases for the generator role (ADR-183). Scored by code. Held-out cases are in heldout/.
+role: generator
+cases:
+- input:
+    engine:
+      kind: swing
+      hold: 5
+      side: long
+      when:
+      - signal: results_morning
+      - signal: value_ratio
+        lag: 1
+        op: '>='
+        value: 3.0
+      rank_by:
+        signal: value_ratio
+        lag: 1
+    known: &id001
+      02afec4cf326ed7e: H-0001
+  expect: kept
+  id: generator-01
+- input:
+    engine:
+      kind: intraday
+      side: short
+      when:
+      - signal: ret
+        lag: 1
+        n: 5
+        op: <=
+        value: -0.08
+      - signal: at_low
+        lag: 1
+        n: 60
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: kept
+  id: generator-02
+- input:
+    engine:
+      kind: swing
+      hold: 5
+      side: long
+      when:
+      - signal: ret
+        lag: 1
+        n: 5
+        op: '>='
+        value: 0.08
+      - signal: results_morning
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: kept
+  id: generator-03
+- input:
+    engine:
+      kind: intraday
+      side: short
+      when:
+      - signal: ret
+        lag: 1
+        n: 5
+        op: '>='
+        value: 0.08
+      - signal: delivery_ratio
+        lag: 1
+        op: '>='
+        value: 1.5
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: kept
+  id: generator-05
+- input:
+    engine:
+      kind: swing
+      hold: 20
+      side: long
+      when:
+      - signal: day_return
+        lag: 1
+        op: <=
+        value: -0.04
+      - signal: gap
+        absolute: true
+        op: '>='
+        value: 0.02
+      rank_by:
+        signal: day_return
+        lag: 1
+    known: *id001
+  expect: kept
+  id: generator-06
+- input:
+    engine: &id002
+      kind: intraday
+      side: short
+      when:
+      - signal: at_high
+        lag: 1
+        n: 60
+      - signal: ret
+        lag: 1
+        n: 5
+        op: '>='
+        value: 0.08
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: dropped
+  id: generator-07
+- input:
+    engine:
+      kind: intraday
+      side: long
+      when:
+      - signal: gap
+        absolute: true
+        op: '>='
+        value: 0.02
+      - signal: ret
+        lag: 1
+        n: 5
+        op: <=
+        value: -0.08
+      rank_by:
+        signal: gap
+        absolute: true
+    known: *id001
+  expect: kept
+  id: generator-09
+- input:
+    engine:
+      kind: swing
+      hold: 5
+      side: long
+      when:
+      - signal: ret
+        lag: 1
+        n: 5
+        op: <=
+        value: -0.08
+      - signal: value_ratio
+        lag: 1
+        op: '>='
+        value: 3.0
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: kept
+  id: generator-10
+- input:
+    engine:
+      kind: swing
+      hold: 20
+      side: long
+      when:
+      - signal: value_ratio
+        lag: 1
+        op: '>='
+        value: 3.0
+      - signal: gap
+        absolute: true
+        op: '>='
+        value: 0.02
+      rank_by:
+        signal: value_ratio
+        lag: 1
+    known: *id001
+  expect: kept
+  id: generator-11
+- input:
+    engine:
+      kind: intraday
+      side: long
+      when:
+      - signal: ret
+        lag: 1
+        n: 5
+        op: <=
+        value: -0.08
+      - signal: at_high
+        lag: 1
+        n: 60
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: kept
+  id: generator-13
+- input:
+    engine:
+      kind: intraday
+      side: long
+      when:
+      - signal: gap
+        op: '~'
+        value: 0.02
+    known: *id001
+  expect: dropped
+  id: generator-14
+- input:
+    engine:
+      kind: intraday
+      side: short
+      when:
+      - signal: at_high
+        lag: 1
+        n: 60
+      - signal: ret
+        lag: 1
+        n: 5
+        op: '>='
+        value: 0.08
+      rank_by:
+        signal: ret
+        lag: 1
+        n: 5
+    known: *id001
+  expect: dropped
+  id: generator-15
+- input:
+    engine:
+      kind: intraday
+      side: sideways
+      when:
+      - signal: gap
+        op: '>='
+        value: 0.02
+    known: *id001
+  expect: dropped
+  id: generator-17
+- input:
+    engine: *id002
+    known: *id001
+  expect: dropped
+  id: generator-18
+- input:
+    engine:
+      kind: swing
+      hold: 20
+      side: long
+      when:
+      - signal: gap
+        absolute: true
+        op: '>='
+        value: 0.02
+      - signal: ret
+        lag: 1
+        n: 5
+        op: <=
+        value: -0.08
+      rank_by:
+        signal: gap
+        absolute: true
+    known: *id001
+  expect: kept
+  id: generator-19

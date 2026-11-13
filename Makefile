@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account
+.PHONY: topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder oncall fund-report agent-evals agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard
 
 help:
 	@echo "EulerLab — targets"
@@ -322,6 +322,8 @@ agents-preopen:
 	-@uv run python -m eulerlab.agents.runtime head_portfolio
 	-@uv run python -m eulerlab.agents.work
 	-@uv run python -m eulerlab.agents.runtime watchdog
+	-@uv run python -m eulerlab.oncall
+	-@uv run python -m eulerlab.fund_report --send
 
 knowledge-keeper:
 	@uv run python -m eulerlab.agents.runtime knowledge_keeper $(if $(MODE),--arg mode=$(MODE),)
@@ -345,6 +347,7 @@ agents-close:
 	-@uv run python -m eulerlab.agents.runtime data
 	-@uv run python -m eulerlab.agents.runtime operations
 	-@uv run python -m eulerlab.agents.runtime portfolio
+	-@uv run python -m eulerlab.deploy.ladder
 	-@uv run python -m eulerlab.agents.runtime knowledge_keeper
 	-@uv run python tools/render_metrics_handbook.py
 	-@uv run python -m eulerlab.agents.runtime engineering --arg mode=quality
@@ -366,9 +369,37 @@ agents-weekly:
 agents-autopilot:
 	@uv run python -m eulerlab.research.autopilot
 
+# Move each gated strategy along the incubation ladder, or SHOW=1 to only print it (ADR-179).
+ladder:
+	@uv run python -m eulerlab.deploy.ladder $(if $(SHOW),--show,)
+
+# On-call: dead letters get an allowlisted fix or a ticket; paper books reconciled (ADR-182).
+oncall:
+	@uv run python -m eulerlab.oncall
+
+# The daily fund report; SEND=1 also sends its eight lines to Telegram (ADR-182).
+fund-report:
+	@uv run python -m eulerlab.fund_report $(if $(SEND),--send,)
+
+# Evals per role on public and held-out cases; BASELINE=1 stores today's as baseline (ADR-183).
+agent-evals:
+	@uv run python -m eulerlab.agents.evals $(if $(BASELINE),--baseline,)
+
+# One night of the evolutionary search; survivors join the autopilot's gate queue (ADR-177).
+agents-evolve:
+	@uv run python -m eulerlab.research.evolve
+
 # The engine reproduces research 176's ten published results (about three minutes).
 rule-engine-check:
-	@RULE_ENGINE_REPRO=1 uv run pytest -q tests/test_research_autopilot.py -k reproduces
+	@RULE_ENGINE_REPRO=1 uv run pytest -q tests/test_research_autopilot.py tests/test_lang_fast_eval.py -k reproduce
+
+# What a model remembers of past index closes, by month, beside its published cutoff (ADR-176).
+llm-probe:
+	@uv run python -m eulerlab.llm.cutoff --provider $(PROVIDER)
+
+# How many candidate rules an hour the fast evaluator scores on this machine (ADR-175).
+fast-eval-bench:
+	@uv run python -m eulerlab.research.fast_eval --count $(or $(COUNT),1000)
 
 agents-ideas:
 	-@uv run python -m eulerlab.agents.lessons seed
@@ -638,6 +669,11 @@ deadman:
 
 health:
 	@uv run python -m eulerlab.health
+
+# The autonomy scorecard (ADR-173): spend, search, gate use and paper books,
+# from stored records only. Runs no test and asks no model.
+scorecard:
+	@uv run python -m eulerlab.scorecard
 
 # Postgres (ADR-165), only when EULERLAB_DATABASE_URL is set. Order on a new
 # install: db-migrate, db-import, then set the variable for every process.

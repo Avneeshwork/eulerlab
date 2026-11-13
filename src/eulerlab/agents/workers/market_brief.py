@@ -39,6 +39,7 @@ import json
 import math
 import urllib.error
 import urllib.request
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -586,6 +587,7 @@ def run(ctx: Context) -> WorkerResult:
                 news_tone.QUESTION, untrusted("news", news_tone.numbered(news_found["items"]))
             )
             news_found["impacts"] = news_tone.parse_impact(answer, news_found["items"])
+            _stamp_impacts(news_found["impacts"], ctx)
         except Exception as exc:
             notes.append(f"news impact not judged: {type(exc).__name__}: {str(exc)[:120]}")
     try:
@@ -859,3 +861,23 @@ def _parse(stamp: str, ctx: Context) -> datetime:
         return datetime.fromisoformat(stamp)
     except ValueError:
         return ctx.now - timedelta(days=2)
+
+
+def _stamp_impacts(impacts: Sequence[Mapping[str, Any]], ctx: Context) -> None:
+    """Keep the model's net judgement of the day's news, with the model's cutoff (ADR-176)."""
+    from eulerlab.llm import client, cutoff
+
+    if not impacts:
+        return
+    net = sum((i["direction"] == "up") - (i["direction"] == "down") for i in impacts)
+    try:
+        model = client.load_config().get(ctx.model).model
+    except Exception:
+        model = ctx.model
+    cutoff.stamp(
+        "news_impact",
+        round(net / len(impacts), 4),
+        model,
+        about=ctx.now.astimezone(ZoneInfo("Asia/Kolkata")).date(),
+        now=ctx.now,
+    )

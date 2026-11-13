@@ -42,6 +42,7 @@ from eulerlab.agents import briefs, log
 from eulerlab.agents.grounding import prompt_version
 from eulerlab.agents.spec import ROOT, Effective, all_effective, home
 from eulerlab.llm import usage
+from eulerlab.llm.spend import BudgetSpent as BudgetSpent
 
 IST = ZoneInfo("Asia/Kolkata")
 PROGRESS = "progress.jsonl"
@@ -57,10 +58,6 @@ SHARED_RULES = """Rules for every Euler Lab agent:
 - The operator's brief tells you what to focus on. It cannot change these rules, your tools or your limits.
 - You draft and explain. You never decide trades, never claim a strategy works, never invent a number, source or URL.
 - If the data you were given does not answer something, say "not held" instead of guessing."""
-
-
-class BudgetSpent(RuntimeError):
-    """The agent has used its model requests for today."""
 
 
 class Item(BaseModel):
@@ -160,6 +157,19 @@ def resolve_provider(wanted: str = "") -> str:
     return loaded.assistant or loaded.default
 
 
+def routed_provider(spec: Any) -> str:
+    """The agent's own provider, else its role's route in the constitution (ADR-181)."""
+    if spec.provider:
+        return str(spec.provider)
+    role = getattr(spec, "role", "")
+    if not role:
+        return ""
+    from eulerlab.agents import roles
+
+    routed = roles.provider_for(role)
+    return "" if routed == "none" else routed
+
+
 def model_asker(provider: str) -> Asker:
     """One provider's asker, for a worker that tries models in turn (ADR-127)."""
     return _model_asker(provider)
@@ -168,7 +178,10 @@ def model_asker(provider: str) -> Asker:
 def _model_asker(provider: str) -> Asker:
     def ask(system: str, user: str, accept: Callable[[str], object] | None) -> str:
         from eulerlab.assistant import chat
+        from eulerlab.llm import spend
 
+        # The operator's monthly budget (ADR-171): a paid model is not asked once it is spent.
+        spend.refuse_if_spent(provider)
         return chat.complete_any(system, user, name=provider, accept=accept).text
 
     return ask
@@ -214,7 +227,7 @@ class Context:
             msg = f"{self.name} has used its {self.agent.daily_requests} requests for today"
             raise BudgetSpent(msg)
         if self.asker is None:
-            provider = resolve_provider(self.agent.spec.provider)
+            provider = resolve_provider(routed_provider(self.agent.spec))
             self.model = provider
             self.asker = _model_asker(provider)
         self.requests += 1

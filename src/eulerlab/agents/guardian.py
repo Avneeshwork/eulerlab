@@ -55,7 +55,15 @@ MADE_UP_MARKS = ("unsupported figure", "figures not in", "made-up figure", "not 
 TOO_GOOD_SHARPE = 3.0
 """A screened net Sharpe above this is held for the skeptic and the operator."""
 
-PROTECTED = (Path("mandate.yaml"), Path("src/eulerlab/gates.py"))
+PROTECTED = (
+    Path("mandate.yaml"),
+    Path("src/eulerlab/gates.py"),
+    Path("config/constitution.yaml"),
+    *(
+        Path(f"config/agent_eval/heldout/{r}.yaml")
+        for r in ("on_call", "red_team", "generator", "scout", "engineer")
+    ),  # ADR-183
+)
 """Operator-owned files (CLAUDE.md). A change no operator acknowledged halts every agent."""
 
 HALT_FILE = "HALT"
@@ -178,7 +186,12 @@ def protected_changed(f: Facts) -> Trip | None:
     if not base:
         _write_baseline(f.root, now, why="first check")
         return None
-    changed = [p for p, h in now.items() if base.get(p) != h]
+    added = {p: h for p, h in now.items() if p not in base}
+    if added:
+        # A file protected since the baseline was written (the constitution,
+        # ADR-171) joins it as it stands; only a later change to it is a trip.
+        _write_baseline(f.root, {**base, **added}, why=f"now protected: {', '.join(added)}")
+    changed = [p for p, h in now.items() if p in base and base[p] != h]
     if not changed:
         return None
     return Trip(

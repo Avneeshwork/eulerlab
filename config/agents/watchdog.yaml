@@ -4,6 +4,7 @@
 name: watchdog
 title: Watchdog
 reports_to: platform
+role: on_call               # ADR-181
 job: Checks every agent's runs, model requests, tokens and tasks across the last day, re-runs a cheap agent that failed or missed its run, and gives what is left to the agent's head or to you.
 worker: eulerlab.agents.workers.watchdog
 schedule: "after the 08:45, 16:15 and 17:00 agent runs"

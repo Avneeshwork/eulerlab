@@ -2,10 +2,12 @@
 name: market_brief
 title: Market brief agent
 reports_to: portfolio
+role: chief_of_staff               # ADR-181
 job: Writes the pre-open brief at 08:45 and the after-close brief once the day's data is in, and rewrites it whenever the data refreshes.
 worker: eulerlab.agents.workers.market_brief
 schedule: "08:45 and 16:15 on weekdays, and after each data refresh"
 uses_model: true
+provider: groq          # kept on free Groq for cost; its role routes elsewhere (ADR-181)
 daily_requests: 12
 never:
   - feed a strategy or a deployment

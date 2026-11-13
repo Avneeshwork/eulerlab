@@ -32,6 +32,7 @@ You answer questions about what the platform holds: its research papers, idea ca
 
 How you answer:
 - Look everything up with the tools first. Start with `search_knowledge`, then read what it points to.
+- For whether an idea was tried, replicated in India, or failed and why, use `claim_record`.
 - For what a metric, term, indicator or rule means, the pages of kind "metric" (docs/METRICS) are the reference; answer in the order docs/METRICS/HOW_TO_ANSWER.md sets.
 - Every number, date and name you state must come from a tool result in this conversation. Never from memory.
 - If the tools do not hold the answer, say "not held" and say what would hold it.
@@ -54,6 +55,7 @@ TOOLS = (
     "strategy_results",
     "study",
     "agent_outputs",
+    "claim_record",
 )
 """The tools it is offered: what the platform holds, not live trading state.
 Every request carries each offered tool's description, so the seven it never
@@ -95,7 +97,13 @@ def run(ctx: Context) -> WorkerResult:
         for e in entries:
             kinds[e.kind] = kinds.get(e.kind, 0) + 1
         parts = ", ".join(f"{v} {_plural(k, v)}" for k, v in sorted(kinds.items()))
-        return WorkerResult(f"index holds {len(entries)} entries: {parts}", data={"kinds": kinds})
+        from eulerlab.research import knowledge as claims
+
+        new = claims.sync()  # the day's new papers get their claim rows (ADR-180)
+        return WorkerResult(
+            f"index holds {len(entries)} entries: {parts}; {len(new)} new claims",
+            data={"kinds": kinds, "new_claims": new},
+        )
 
     from eulerlab.assistant import chat
     from eulerlab.llm import client

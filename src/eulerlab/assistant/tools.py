@@ -270,6 +270,12 @@ def _search_knowledge(args: Mapping[str, Any]) -> str:
     )
 
 
+def _claim_record(args: Mapping[str, Any]) -> str:
+    from eulerlab.research import knowledge
+
+    return knowledge.answer(str(args.get("ask") or ""), str(args.get("about") or ""))
+
+
 def _data_quality(args: Mapping[str, Any]) -> str:
     from eulerlab.quality import contract
 
@@ -580,6 +586,21 @@ TOOLS: dict[str, Tool] = {
         "notes, decisions, runbooks, history and the data quality grades. Returns paths to read.",
         _text("query", "Words to search for.", True),
         _search_knowledge,
+    ),
+    "claim_record": Tool(
+        "What was tried and how it went (ADR-180): ask=tried_near with words for the cards "
+        "closest to an idea; ask=replicated for papers whose own form was re-tested here; "
+        "ask=failed (optionally with words) for what the screen or gate dropped and why. "
+        "Each line names the card, its claim, its paper and its file.",
+        {
+            "type": "object",
+            "properties": {
+                "ask": {"type": "string", "enum": ["tried_near", "replicated", "failed"]},
+                "about": {"type": "string", "description": "The idea, in words."},
+            },
+            "required": ["ask"],
+        },
+        _claim_record,
     ),
     "data_quality": Tool(
         "Each dataset's quality grade (A clean to D unusable), its freshness and its first problem.",

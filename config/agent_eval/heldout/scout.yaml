@@ -1,0 +1,70 @@
+# Held-out cases for the scout role (ADR-183). No agent reads this file: read_document refuses
+# config/, the knowledge index does not index it, and tests/test_agent_evals.py proves both.
+role: scout
+cases:
+- input:
+    papers:
+    - id: aziz-2014-momentum-illiquidity-india
+      title: Momentum and Illiquidity Premium in Indian Stock Market
+      markets:
+      - Indian stocks, 2000-2012
+    - id: borjigin-2025-intertemporal-pricing-of-time-bound-stablecoins-measuring-an
+      title: 'Intertemporal Pricing of Time-Bound Stablecoins: Measuring and Controlling the Liquidity-of-Time
+        Premium'
+      markets:
+      - US equities (ADRs) vs foreign home markets
+      - Overnight index futures vs cash index
+      - "Pre\u2011market vs prior\u2011close equity prices"
+  expect: aziz-2014-momentum-illiquidity-india
+  id: scout-04
+- input:
+    papers:
+    - id: chan-jegadeesh-lakonishok-1996-announcement-drift
+      title: Momentum Strategies
+      markets:
+      - US stocks; Indian drift 2002-2017 in Theoretical Economics Letters (research 113)
+    - id: gnaydin-2020-predicting-equity-returns-in-developed-markets
+      title: Predicting equity returns in developed markets
+      markets:
+      - equities in 26 developed countries (including US), period unspecified
+  expect: chan-jegadeesh-lakonishok-1996-announcement-drift
+  id: scout-08
+- input:
+    papers:
+    - id: github-connors-rsi2-intraday
+      title: 'Connors RSI(2) pullback: GitHub example adaptation'
+      markets:
+      - NSE liquid stocks, 5-minute OHLCV adaptation
+    - id: shalinigayathri-2024-bollinger-rsi-india
+      title: Optimizing Trading Strategies By Bollinger Bands And RSI Approaches For Stock Forecasting
+      markets:
+      - ITC and Tata Coffee, 2019-2023
+  expect: github-connors-rsi2-intraday
+  id: scout-12
+- input:
+    papers:
+    - id: gupta-2025-gross-profitability-and-momentum-evidence-from-india
+      title: 'Gross Profitability and Momentum: Evidence from India'
+      markets:
+      - "Indian equities, Oct\u202F2002 \u2013 Sep\u202F2022"
+    - id: batten-2018-intraday-technical-analysis-gold
+      title: Does intraday technical analysis have value in precious metal markets?
+      markets:
+      - Gold and silver, five-minute OTC data, 2008-2014 (paper)
+      - GOLDBEES five-minute bars, 2021-2026 (here; ETF proxy, not MCX futures)
+      - GOLD26DECFUT, MCX standard Gold futures, five-minute bars, 2026-05-14 to 2026-10-14 (here; one
+        contract only)
+  expect: gupta-2025-gross-profitability-and-momentum-evidence-from-india
+  id: scout-16
+- input:
+    papers:
+    - id: joshipura-2021-leverage-constraints-or-preference-for-lottery-what-explains
+      title: 'Leverage constraints or preference for lottery: What explains the low-risk effect in India?'
+      markets:
+      - "Indian equities, Jan\u202F2000\u2011Sep\u202F2018"
+    - id: github-2025-accelerating-dual-momentum
+      title: Accelerating dual momentum (GitHub, AleksLi1)
+      markets:
+      - SPY, VBR, TLT, TIP (repository)
+  expect: joshipura-2021-leverage-constraints-or-preference-for-lottery-what-explains
+  id: scout-20

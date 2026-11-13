@@ -4,10 +4,12 @@
 name: lab
 title: Idea lab
 reports_to: research
+role: evaluator               # ADR-181
 job: Comes after research. Backtests every new research draft it can build (IC screen, then a backtest, trials logged first), hands a draft whose signal the library lacks to engineering, and sends survivors attacked by the skeptic to your inbox. Writes no ideas of its own.
 worker: eulerlab.agents.workers.lab
 schedule: Every day 17:00 IST, after research (make agents-ideas)
 uses_model: true
+provider: groq          # kept on free Groq for cost; its role routes elsewhere (ADR-181)
 daily_requests: 4
 needs_approval: true
 never:

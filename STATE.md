@@ -3,7 +3,7 @@
 **Status:** COMPLETE — every code sprint in the build plan (0–28) plus the workbench. In flight: the move to a server (ADR-164, T-4548 to T-4556), Postgres for shared state (ADR-165 to ADR-167, T-4557 to T-4562, off by default), multi-user (#113: login and per-workspace records done; gate settings wait on a decision), the first step toward a multi-user platform (issues #111-#132); five microstructure rules (T-4285; strategy 5 waits on a FYERS token).
 **Next:** build and start the containers (`docker compose up -d`, T-4553), then the regulatory research for a subscription platform (#112) and the multi-user design (#113). Also: live-price paper from the first session after the jobs are loaded (T-4525), then the pilot decision (T-4528).
 
-*Last updated: 2026-11-12 (server infrastructure, trial ledger in Postgres). One page, and it stays one page: a summary, not a
+*Last updated: 2026-11-13 (the agent fund: issues #135 to #149 built in code, ADR-171 to ADR-183). One page, and it stays one page: a summary, not a
 log. What was built and when is in `docs/HISTORY.md` and `docs/DECISIONS/`;
 what is open is in `TASKS.md`.*
 
@@ -137,6 +137,18 @@ what is open is in `TASKS.md`.*
   H-0175, H-0178 PROMOTE, but H-0174 and H-0178 are H-0161's bet again
   (HISTORY #85; their paper books stopped); H-0175 paper-trades. A "new bet"
   check now keeps such repeats from the gate.
+- **The agent fund (ADR-171 to ADR-183, 2026-11-13).** `config/constitution.yaml`
+  is yours: Rs 1 lakh test capital, history to 2025-12-31, 2026 the forward
+  test, Rs 1,000 a month for paid models, and no agent on the live account
+  (the file cannot say otherwise; `live_money` refuses any call from an
+  agent's run). Built on it: resumable jobs, an experiment store with daily
+  returns, a v2 rule language that refuses look-ahead when parsed, an
+  evolutionary search, a decay monitor, a ladder from gate to live-price paper
+  that ends at a list for you, a claim-linked knowledge base, nine agent roles
+  with model routing, an on-call desk with reconciliation to reduce-only, an
+  eight-line fund report, and role evals with held-out cases. `make scorecard`
+  is the page. All unit-tested on made-up data; none run on real data or on
+  the server yet (T-4577, T-4585 to T-4595).
 - **Self-running organisation (ADR-152, ADR-153, 2026-11-08).** Agents read
   lessons (HISTORY, findings, your feedback) on every model request; two are
   enforced as code on the autopilot. A guardian after every run halts every

@@ -274,3 +274,28 @@ def test_feedback_routes_to_a_lesson_and_a_task(tmp_path: Path) -> None:
     b = feedback.route("check the kite token every morning", root=tmp_path, agents=set())
     assert b.kind == "task" and tasks.load(tmp_path)[b.target].owner == "head_platform"
     assert [r.id for r in feedback.history(tmp_path)] == [a.id, b.id]
+
+
+def test_a_newly_protected_file_joins_the_baseline_and_then_trips_on_change(
+    tmp_path: Path,
+) -> None:
+    """The constitution became protected after baselines existed (ADR-171)."""
+    import json
+
+    repo = tmp_path / "repo"
+    (repo / "src/eulerlab").mkdir(parents=True)
+    (repo / "config").mkdir()
+    (repo / "mandate.yaml").write_text("a: 1\n", encoding="utf-8")
+    (repo / "src/eulerlab/gates.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "config/constitution.yaml").write_text("version: 1\n", encoding="utf-8")
+    root = tmp_path / "agents"
+    old = {k: v for k, v in guardian.fingerprints(repo).items() if "constitution" not in k}
+    (root / "guardian").mkdir(parents=True)
+    (root / "guardian" / "baseline.json").write_text(json.dumps({"files": old}))
+    out = _out()
+    assert guardian.after_run(out, root, repo=repo, tell=lambda _t: None) == []
+    assert not guardian.halted(root)
+    (repo / "config/constitution.yaml").write_text("version: 2\n", encoding="utf-8")
+    acted = guardian.after_run(out, root, repo=repo, tell=lambda _t: None)
+    assert [t.rule for t in acted] == ["protected_changed"]
+    assert "constitution" in acted[0].why

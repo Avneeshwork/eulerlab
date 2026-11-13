@@ -1,0 +1,63 @@
+# Agent eval cases for the red_team role (ADR-183). Scored by code. Held-out cases are in heldout/.
+role: red_team
+cases:
+- input:
+    formula: rank(ret(5))
+  expect: leak
+  id: red_team-01
+- input:
+    formula: le(delay(day_return,1),-0.04)
+  expect: clean
+  id: red_team-02
+- input:
+    formula: lt(delay(dii_net,2),0)
+  expect: clean
+  id: red_team-03
+- input:
+    formula: mul(gap, fii_net)
+  expect: leak
+  id: red_team-05
+- input:
+    formula: ts_mean(delivery_ratio, 20)
+  expect: leak
+  id: red_team-06
+- input:
+    formula: mul(gap, delay(fii_net, 1))
+  expect: clean
+  id: red_team-07
+- input:
+    formula: gt(delay(value_ratio,1),3)
+  expect: clean
+  id: red_team-09
+- input:
+    formula: gt(delay(news_impact,1),0)
+  expect: clean
+  id: red_team-10
+- input:
+    formula: rank(delay(ret(5), 1))
+  expect: clean
+  id: red_team-11
+- input:
+    formula: lt(fii_net,0)
+  expect: leak
+  id: red_team-13
+- input:
+    formula: gt(results_morning,0)
+  expect: clean
+  id: red_team-14
+- input:
+    formula: ge(gap,0.02)
+  expect: clean
+  id: red_team-15
+- input:
+    formula: lt(delay(fii_net,1),0)
+  expect: clean
+  id: red_team-17
+- input:
+    formula: ge(delivery_ratio,1.5)
+  expect: leak
+  id: red_team-18
+- input:
+    formula: le(day_return,-0.04)
+  expect: leak
+  id: red_team-19

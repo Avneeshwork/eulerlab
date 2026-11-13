@@ -35,6 +35,12 @@ def asking(agent: str, run: str) -> Iterator[None]:
         _WHO.reset(token)
 
 
+def agent_run() -> tuple[str, str]:
+    """(agent, run id) when this code is running inside an agent's run, else ("", "")."""
+    agent, run = _WHO.get()
+    return (agent, run) if run else ("", "")
+
+
 def tokens(usage: Any) -> tuple[int, int]:
     """(prompt, completion) from an OpenAI-style or Anthropic-style `usage` block."""
     if not isinstance(usage, dict):

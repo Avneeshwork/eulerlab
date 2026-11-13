@@ -34,7 +34,7 @@ from pathlib import Path
 
 from eulerlab import db
 from eulerlab.agents import log as agent_log
-from eulerlab.db.stream import Stream, file_lines, parse_time, stream_name
+from eulerlab.db.stream import ROW_FILES, Stream, file_lines, parse_time, stream_name
 from eulerlab.features import trials
 from eulerlab.oms import journal
 from eulerlab.paths import data_dir
@@ -86,6 +86,12 @@ def agent_log_files(root: Path | None = None) -> list[Path]:
     return [path] if path.exists() else []
 
 
+def row_files(root: Path | None = None) -> list[tuple[Path, str]]:
+    """Every plain row file (`stream.ROW_FILES`) that exists, with its kind."""
+    base = root or data_dir()
+    return [(p, kind) for kind, pattern in ROW_FILES.items() for p in sorted(base.glob(pattern))]
+
+
 def import_ledger(path: Path) -> Imported:
     return import_stream(path, ledger.KIND)
 
@@ -105,6 +111,9 @@ def _check(path: Path, kind: str) -> tuple[bool, str]:
     if kind == trials.KIND:
         n, in_file = trials.count(path), len(file_lines(path))
         return n >= in_file, f"{n} trials read back from the database ({in_file} in the file)"
+    if kind in ROW_FILES:
+        n, in_file = Stream(kind, str(stream_name(path))).count(), len(file_lines(path))
+        return n >= in_file, f"{n} rows in the database ({in_file} in the file)"
     try:
         n = len(journal.Journal(path).read())
     except journal.CorruptJournal as exc:
@@ -128,7 +137,7 @@ def import_stream(path: Path, kind: str) -> Imported:
             raise Diverged(msg)
     rest = lines[len(have) :]
     added = stream.append_many(
-        [(line, parse_time(str(json.loads(line)[TIME_KEY[kind]]))) for line in rest]
+        [(line, parse_time(str(json.loads(line)[TIME_KEY.get(kind, "at")]))) for line in rest]
     )
     whole, detail = _check(path, kind)
     if not whole:
@@ -146,6 +155,7 @@ def main() -> int:
     files += [(p, trials.KIND) for p in trials_files()]
     files += [(p, agent_log.KIND) for p in agent_log_files()]
     files += [(p, journal.KIND) for p in journal_files()]
+    files += row_files()
     if not files:
         print("no ledger or journal files under the data directory; nothing to import")
         return 0

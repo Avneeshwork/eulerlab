@@ -50,7 +50,15 @@ from typing import Any
 from eulerlab.agents import boundaries
 from eulerlab.agents.runtime import Context, Item, WorkerResult, untrusted
 
-OPERATOR_OWNED = ("src/eulerlab/gates.py", "mandate.yaml")
+OPERATOR_OWNED = (
+    "src/eulerlab/gates.py",
+    "mandate.yaml",
+    *(
+        f"config/agent_eval/heldout/{r}.yaml"
+        for r in ("on_call", "red_team", "generator", "scout", "engineer")
+    ),
+)
+"""Files no agent's change may touch: the gate, the mandate, the held-out evals (ADR-183)."""
 ASSUMPTION = re.compile(r"#\s*ASSUMPTION:(?!\s*A-\d{3})")
 LIBRARY = Path("src/eulerlab/features/library.py")
 
