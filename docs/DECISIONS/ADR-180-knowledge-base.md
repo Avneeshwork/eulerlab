@@ -1,0 +1,9 @@
+# ADR-180 — Paper, claim, card and result are linked by id, and agents ask three questions of them
+
+**Date:** 2026-11-13. **Status:** accepted; tested on a made-up library only. Issue #144 under #134.
+
+- **Context.** Cards and papers were files with no record of which claim a card tests, whether the paper's own result was reproduced, or how the test went. Each agent run re-read the files to work it out.
+- **Options.** (a) New Postgres tables for papers, claims, cards and results, plus embeddings. (b) Claim rows only, linked to the cards and results where they already live, searched with the existing BM25 index.
+- **Choice.** (b). `research/knowledge.py`: one claim per paper (`claim:<paper id>`: market, signal, horizon, reported effect, sample years, read from the paper file) in `data/derived/knowledge/claims.jsonl` or Postgres, added at the close by the knowledge agent and never edited. A card names its claim in `source.claim`; a card with no paper tests `agent:<id>`; `source.replicates: true` marks the paper's own form. Results are the experiment store's rows and the ledger's verdict. The `claim_record` tool answers `tried_near`, `replicated` and `failed`, each line with card, claim, paper and file, and adds the lessons and HISTORY entries that name those cards.
+- **Why.** Cards and results already have one home each; copying them into tables would make two. BM25 already finds the right file; embeddings would add a dependency and a cost for recall the agent does not need, since it reads what it finds.
+- **Cost if wrong.** Claims come from the paper file's own fields, so a paper with a vague `markets` line gets `sample: unstated`. Horizon is a word match. Older cards name no claim and fall back to their paper. No card in the library yet sets `replicates`, so `replicated` answers "none" until one does (T-4592).

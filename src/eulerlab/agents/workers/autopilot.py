@@ -31,6 +31,7 @@ from eulerlab.agents import lessons
 from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, model_asker, untrusted
 from eulerlab.intraday import rule_engine as engine
 from eulerlab.llm.spend import MonthBudgetSpent
+from eulerlab.research import knowledge
 
 HYPOTHESES = Path("hypotheses")
 PAPERS = Path("research/papers")
@@ -129,7 +130,8 @@ def prompt(day: date, count: int, *, intraday: int | None = None, retry: str = "
         f"Write {count} new rules: {half} intraday and {count - half} swing. Answer with "
         '{"cards": [{"title": "<under 90 characters>", "claim": "<one sentence a test can '
         'falsify>", "rationale": "<why it should earn money, naming the paper id or earlier '
-        'card it builds on>", "paper": "<paper id or empty>", "engine": {...}, '
+        'card it builds on>", "paper": "<paper id or empty>", "replicates": <true only when '
+        'the rule is the paper\'s own form, untouched>, "engine": {...}, '
         '"red_flags": ["<specific ways it could be fake>"]}]}' + again
     )
 
@@ -262,6 +264,8 @@ def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_coun
         "source": {
             "research": "autopilot",
             "paper": str(card.get("paper") or ""),
+            "claim": knowledge.card_claim({"id": h, "source": {"paper": card.get("paper")}}),
+            "replicates": bool(card.get("paper")) and card.get("replicates") is True,
             "written_by": f"the research autopilot ({model or 'fixed rules'}), ADR-150",
             "day": day.isoformat(),
         },

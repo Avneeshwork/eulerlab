@@ -66,7 +66,7 @@ decay:
   watch_at: 0.7
 
 routing:
-  # Which model each kind of work goes to (ADR-180). Names are providers in
+  # Which model each kind of work goes to (ADR-181). Names are providers in
   # config/llm.yaml; `none` means code only, no model. Scoring is always code.
   # ASSUMPTION: A-141. The thread's proposal inside the Rs 1,000 budget: the
   # dearest listed model is not used by default.

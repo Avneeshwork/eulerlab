@@ -505,7 +505,12 @@ def card_yaml(hypothesis: str, member: Member, *, day: date, tried: int) -> str:
         "claim": f"{spec.describe()} earns more than costs in both halves and at 2x costs.",
         "rationale": f"Bred by the evolutionary search (ADR-177), generation {member.generation} "
         f"of lineage {member.root}, island {member.island}. No paper behind it.",
-        "source": {"research": "evolve", "experiment": member.id, "day": day.isoformat()},
+        "source": {
+            "research": "evolve",
+            "claim": f"agent:{hypothesis}",
+            "experiment": member.id,
+            "day": day.isoformat(),
+        },
         "engine_v2": spec.model_dump(mode="json", exclude_defaults=True),
         "red_flags": [
             f"Chosen from {tried} candidates tried by the search; the simple gate does not "
