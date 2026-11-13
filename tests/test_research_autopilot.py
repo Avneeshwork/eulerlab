@@ -332,7 +332,7 @@ def test_cards_are_committed_before_anything_is_screened(
     # every screen is in the experiment store with its daily returns (ADR-172)
     from eulerlab.research import experiments
 
-    kept = experiments.rows(folder / experiments.PATH)
+    kept = experiments.rows()
     assert [r["hypothesis"] for r in kept] == ["H-0174", "H-0175"]
     assert all(r["purpose"] == "screen" and r["returns"] for r in kept)
     assert "rules_tried" in kept[0]["metrics"]

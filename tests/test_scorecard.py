@@ -62,8 +62,6 @@ def test_spend_search_and_gate_use_come_from_the_records(home: Path) -> None:
             metrics={},
             daily={d: ((i * (k + 3)) % 7 - 3) / 1000 for i, d in enumerate(days)},
             now=NOW,
-            path=experiments.PATH,
-            returns_root=experiments.RETURNS,
         )
     log = home / "agents" / "autopilot" / "gates.jsonl"
     log.parent.mkdir(parents=True)

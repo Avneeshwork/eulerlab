@@ -47,8 +47,9 @@ from eulerlab import constitution
 from eulerlab.db.stream import add_row, read_rows
 from eulerlab.paths import data_path
 
-PATH = data_path("derived/experiments.jsonl")
-RETURNS = data_path("derived/experiment_returns")
+PATH = "derived/experiments.jsonl"
+RETURNS = "derived/experiment_returns"
+"""Under the data directory, looked up on every call so a test or a server can move it."""
 KIND = "experiments"
 
 Purpose = Literal["screen", "sweep", "selection", "gate", "forward"]
@@ -60,11 +61,11 @@ class SealedPeriod(PermissionError):
 
 
 def _path(path: Path | None) -> Path:
-    return path if path is not None else PATH
+    return path if path is not None else data_path(PATH)
 
 
 def _root(root: Path | None) -> Path:
-    return root if root is not None else RETURNS
+    return root if root is not None else data_path(RETURNS)
 
 
 def _returns_file(daily: Mapping[date, float], root: Path) -> str:

@@ -169,3 +169,22 @@ def require(action: str, *, who: str = "an agent", path: Path = PATH) -> None:
             f"({path}). Only the operator changes that."
         )
         raise NotAllowed(msg)
+
+
+def refuse_agents(action: str, what: str) -> None:
+    """Raise when called from inside an agent's run. For the doors no agent may open.
+
+    `require` asks the file; this does not, because `ALWAYS_NEVER` actions have
+    no setting to ask. It is called at the door itself (arming a live session,
+    logging in to the live broker, sending a live order), so it holds whatever
+    path led there.
+    """
+    from eulerlab.llm import usage
+
+    agent, run = usage.agent_run()
+    if run:
+        msg = (
+            f"{agent} (run {run}) may not {what}: {action.replace('_', ' ')} is never an "
+            "agent's to do. Real money is the operator's own action, each time."
+        )
+        raise NotAllowed(msg)

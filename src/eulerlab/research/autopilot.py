@@ -166,7 +166,7 @@ def gate_settled(hypothesis: str, since: date) -> dict[str, Any] | None:
 
 def keep(hypothesis: str) -> dict[str, str]:
     """A stored library report and a paper deployment for a PROMOTE or PAPER card."""
-    from eulerlab.deploy import deployments, intraday_book, runner
+    from eulerlab.deploy import ladder
     from eulerlab.research import library_reports
 
     done: dict[str, str] = {}
@@ -176,28 +176,9 @@ def keep(hypothesis: str) -> dict[str, str]:
     except Exception as exc:  # a report failure must not lose the verdict
         done["report"] = f"failed: {type(exc).__name__}: {exc}"[:200]
     try:
-        constitution.require("start_paper_book", who="the autopilot")
+        done["paper"] = ladder.start_paper(hypothesis, datetime.now(UTC).date())
     except constitution.NotAllowed as exc:
         done["paper"] = f"not deployed: {exc}"
-        return done
-    if blocker := runner.paper_blocker(hypothesis):
-        done["paper"] = f"not deployed: {blocker}"
-        return done
-    if any(
-        d.strategy_id == hypothesis and d.mode == "paper" for d in deployments.all_deployments()
-    ):
-        done["paper"] = "already has a paper book"
-        return done
-    end = intraday_book.holdout_end()
-    assert end is not None  # paper_blocker refuses without it
-    today = datetime.now(UTC).date()
-    made = deployments.create(
-        hypothesis,
-        mode="paper",
-        capital=constitution.load().capital.test_capital_inr,
-        start=intraday_book.first_session(today, end),
-    )
-    done["paper"] = f"paper book {made.id} (runs with `make paper-daily`)"
     return done
 
 
