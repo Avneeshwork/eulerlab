@@ -1,0 +1,9 @@
+# ADR-176 — A value a model judged is stamped with the model's cutoff and cannot be backtested before it
+
+**Date:** 2026-11-13. **Status:** accepted; the probe has not been run on a real model (T-4588). Issue #141 under #134.
+
+- **Context.** A language model recalls what the market did before its training cutoff, and telling it to ignore that does not work (research 190). EulerLab already has a model judge the direction of each day's news. Backtesting such a number on years the model has read is look-ahead that no lag can remove.
+- **Options.** (a) Trust a prompt instruction. (b) Never backtest a model-judged value. (c) Record model and cutoff with each value and refuse windows that start on or before the cutoff.
+- **Choice.** (c). `llm/cutoff.py`: `stamp` records each judged value with its model and published cutoff (`config/model_cutoffs.yaml`, four Claude models, June 2026). `require_after` raises `BeforeCutoff`; a model with no published cutoff is refused always. The market brief stamps its news judgement as `news_impact`, which is a signal-only field in language v2, and `FastEngine.events` calls `require_after` for every rule that reads a judged field. `probe` asks a model for past Nifty closes and reports recall by month beside the cutoff (`make llm-probe PROVIDER=...`).
+- **Why.** The refusal is in the evaluator, not in a prompt, so it holds whatever the model says. (b) would forbid the one fair test, sessions after the cutoff.
+- **Cost if wrong.** A published cutoff can be earlier than what a model in fact recalls; the probe exists to catch that and flags any month recalled after the cutoff. Groq's model, which judges the news today, has no sourced cutoff, so `news_impact` cannot be backtested at all yet. Only the news judgement is stamped; the brief's forecasts are not.

@@ -73,6 +73,8 @@ class FieldInfo:
     """True when the field takes a window, as `ret(5)`."""
     what: str
     market_wide: bool = False
+    judged: bool = False
+    """True when a language model judged the value: backtests only after its cutoff (ADR-176)."""
 
 
 FIELDS: dict[str, FieldInfo] = {
@@ -85,9 +87,12 @@ FIELDS.update(
         "dii_net": FieldInfo(1, False, "DII net buying in cash, rupees crore", True),
         "fii_futures_net": FieldInfo(1, False, "FII net index-futures contracts", True),
         "dii_futures_net": FieldInfo(1, False, "DII net index-futures contracts", True),
+        "news_impact": FieldInfo(
+            1, False, "share of the day's stories a model judged up, minus down", True, True
+        ),
     }
 )
-"""Daily fields. The four market-wide ones are signals only (ADR-175)."""
+"""Daily fields. The market-wide ones are signals only (ADR-175)."""
 
 MINUTE_FIELDS: dict[str, FieldInfo] = {
     name: FieldInfo(0, False, f"the minute bar's {name}")

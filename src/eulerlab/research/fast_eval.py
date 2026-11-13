@@ -42,6 +42,7 @@ import pyarrow.parquet as pq
 from numpy.typing import NDArray
 
 from eulerlab.intraday import rule_engine
+from eulerlab.llm import cutoff
 from eulerlab.paths import data_path
 from eulerlab.research import experiments, lang
 
@@ -63,6 +64,7 @@ class Store:
         cache: Path | None = None,
         market: dict[str, dict[date, float]] | None = None,
         sectors: dict[str, str] | None = None,
+        judged_by: dict[str, set[str]] | None = None,
     ) -> None:
         self.engine = engine
         data = engine.data
@@ -74,6 +76,8 @@ class Store:
         self._cache = cache
         self._market = market or {}
         self._sectors = sectors or {}
+        self.judged_by = judged_by or {}
+        """For each model-judged field, the models whose judgements fill it (ADR-176)."""
         self._tables: dict[tuple[str, int], lang.Matrix] = {}
 
     @cached_property
@@ -208,10 +212,12 @@ def real_store(engine: rule_engine.Engine) -> Store:
     """The store on the platform's own data: cached tables, market fields and sectors."""
     from eulerlab.fundamentals import sectors
 
+    impact, models = cutoff.series("news_impact")
     return Store(
         engine,
         cache=store_dir(),
-        market=market_series(engine.data.sessions),
+        market={**market_series(engine.data.sessions), "news_impact": impact},
+        judged_by={"news_impact": models},
         sectors={symbol: tag.sector for symbol, tag in sectors.load().items()},
     )
 
@@ -227,6 +233,11 @@ class FastEngine(rule_engine.Engine):
     def events(self, spec: rule_engine.Rule) -> list[rule_engine.Event]:
         v2 = lang.from_rule(spec) if isinstance(spec, rule_engine.RuleSpec) else spec
         assert isinstance(v2, lang.Spec)
+        for name in v2.complexity["fields"]:
+            if lang.FIELDS[name].judged:
+                # A model's judgement is no signal on sessions it may have read about.
+                for model in sorted(self.store.judged_by.get(name) or {""}):
+                    cutoff.require_after(model, v2.first, what=name)
         return lang.events(v2, self.evaluator, self.store.tradable, self.store.ok_day)
 
 

@@ -1,0 +1,15 @@
+# Each model's published training-data cutoff: the last day its training data
+# can contain (ADR-176). A value a model judged (news impact, a forecast) may
+# be backtested only on sessions after this day, because the model can recall
+# what the market did before it.
+#
+# A model that is not listed has no cutoff we could source. Its values can be
+# used going forward and cannot be backtested at all.
+#
+# Sources and fetch dates are in docs/RESEARCH/190-model-training-cutoffs.md.
+# Where a provider gives a month, the last day of that month is used.
+models:
+  claude-fable-5-2: 2026-06-30
+  claude-opus-5-5: 2026-06-30
+  claude-sonnet-5-5: 2026-06-30
+  claude-haiku-5-5: 2026-06-30
