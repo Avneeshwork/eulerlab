@@ -69,3 +69,29 @@ vendor documents its rule here.
 **Open questions.** Which adjustment Kite applies, so the two can be joined;
 whether the union universe (top 250 by turnover, 2021-2026 year-ends) is the
 right list before 2021, when other names were large.
+
+## Addendum, same day: the rescale (ADR-185)
+
+The operator chose to rescale Angel to Kite. Angel's bars for 20 Aug to
+15 Sep 2021 were fetched (842 requests) and `make angel-rescale` measured
+each of the 421 names in `angel_minute_history`:
+
+- **335 pass.** 329 are joined to Kite: on Kite's first three sessions no
+  day's ratio drifts more than 0.48% from the factor, and the scaled seam
+  return (18 to 20 Aug, closes rebuilt as the last half hour's VWAP) misses
+  NSE's bhavcopy return by 0.03% at the median, 0.17% at the 95th
+  percentile, 0.38% at worst. 74 of them need a factor other than 1 (ABFRL
+  2.08, AARTIIND 1.15). Six delisted names have no Kite series, so Angel's
+  bars are served as they are.
+- **7 are refused** and get no history: GNFC (drift 0.98%) and six whose seam
+  misses by more than 0.5% (ADANIENSOL, BCG, HCC, NEULANDLAB, PGEL, TARIL).
+  CARTRADE listed on 20 Aug 2021 and has nothing before the seam.
+- **78 have no Angel bars before 2021-08-19**: listed later (LICI, ZOMATO's
+  peers, SWIGGY) or indices, which `store.fetch` does not serve.
+- **The ratio moves later in the window for some names:** POWERGRID 33% (its
+  2021 bonus), IOC 3.0%, HINDPETRO 1.5%, VEDL 1.0%, BANKBARODA 0.8%. These are
+  high-dividend stocks, so one vendor appears to adjust for dividends and the
+  other not. A first run that took the factor over the whole window refused
+  these eight; taking it next to the seam fixes the level there, but it means
+  Angel's 2016-2021 bars carry Angel's treatment of dividends, not Kite's
+  (T-4609).

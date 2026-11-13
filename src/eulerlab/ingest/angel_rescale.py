@@ -8,9 +8,10 @@ The overlap is `CALIBRATION`, Kite's first weeks (Angel's bars for it are
 fetched by `make angel-history FROM=2021-08-19 TO=2021-09-15`). Per symbol:
 
 - **factor**: the median of Kite close / Angel close over every minute both hold;
-- **drift**: the largest gap between one day's median ratio and the factor. A
-  pure adjustment difference is one constant, so a drift above `MAX_DRIFT`
-  means the two vendors are not the same series and the symbol is refused;
+- **drift**: over Kite's first `SEAM_DAYS` sessions, the largest gap between
+  one day's median ratio and the factor (their median). A pure adjustment
+  difference is one constant, so a drift above `MAX_DRIFT` means the two
+  vendors are not the same series there and the symbol is refused;
 - **seam**: the return from Angel's last session before Kite's start, scaled,
   to Kite's first close, against the same return in NSE's bhavcopy panel
   (unadjusted, and no corporate action falls between those two days). A miss
@@ -49,6 +50,11 @@ MAX_SEAM = 0.005
 """Half a percent: the scaled seam return, close to close as `closing_price`
 rebuilds NSE's close, may miss the bhavcopy's return by this much."""
 MIN_DAYS = 5
+SEAM_DAYS = 3
+"""The factor is the ratio on Kite's first three sessions, the ones next to the
+seam. The first run (2026-11-13) took the whole window and refused eight
+symbols, POWERGRID by 33%, because a bonus or a large dividend inside the
+window moved one vendor's ratio and not the other's."""
 
 
 @dataclass(frozen=True)
@@ -62,6 +68,11 @@ class Factor:
     bhav_return: float | None
     status: str
     """"ok", or why the symbol gets no history."""
+    later_move: float = 0.0
+    """The largest move of a day's ratio across the whole window. Not a check: a
+    corporate action inside the window (POWERGRID's 2021 bonus) moves it, and
+    only the ratio at the seam matters."""
+    note: str = ""
 
     def apply(self, candle: Candle) -> Candle:
         f = self.factor
@@ -91,7 +102,7 @@ def closing_price(day: Sequence[Candle]) -> float:
     tail = [c for c in day if (c.ts.hour, c.ts.minute) >= (15, 0) and c.volume > 0]
     volume = sum(c.volume for c in tail)
     if not volume:
-        return sorted(day, key=lambda c: c.ts)[-1].close
+        return max(day, key=lambda c: c.ts).close
     return sum(c.close * c.volume for c in tail) / volume
 
 
@@ -112,13 +123,15 @@ def measure(
     days = len(ratios)
     if days < MIN_DAYS:
         return Factor(symbol, 0.0, 0.0, days, 0.0, None, None, f"only {days} overlap days")
-    factor = statistics.median(r for v in ratios.values() for r in v)
-    drift = max(abs(statistics.median(v) / factor - 1) for v in ratios.values())
+    seam_days = sorted(ratios)[:SEAM_DAYS]
+    factor = statistics.median(r for d in seam_days for r in ratios[d])
+    drift = max(abs(statistics.median(ratios[d]) / factor - 1) for d in seam_days)
+    later = max(abs(statistics.median(v) / factor - 1) for v in ratios.values())
 
     k_days, a_days = _by_day(kite), _by_day(angel)
     vol = [
         sum(c.volume for c in k_days[d]) / sum(c.volume for c in a_days[d])
-        for d in ratios
+        for d in seam_days
         if d in a_days and sum(c.volume for c in a_days[d]) > 0
     ]
     volume_factor = statistics.median(vol) if vol else 1.0
@@ -142,7 +155,7 @@ def measure(
         status = f"seam {seam:+.2%} against bhavcopy {bhav_ret:+.2%}"
     else:
         status = "ok"
-    return Factor(symbol, factor, volume_factor, days, drift, seam, bhav_ret, status)
+    return Factor(symbol, factor, volume_factor, days, drift, seam, bhav_ret, status, later)
 
 
 def bhav_closes(
@@ -188,6 +201,7 @@ def run(
     symbols: Sequence[str],
     read: Callable[[str, str, date, date], list[Candle]],
     panel: Path = PANEL,
+    delisted: frozenset[str] = frozenset(),
 ) -> list[Factor]:
     """Measure every symbol. `read(tree, symbol, start, end)`; tree is "kite" or "angel"."""
     days = {SEAM_BEFORE, date(2021, 8, 20), date(2021, 8, 17), date(2021, 8, 16)}
@@ -197,6 +211,11 @@ def run(
         kite = read("kite", symbol, *CALIBRATION)
         angel = read("angel", symbol, *CALIBRATION)
         before = read("angel", symbol, date(2021, 8, 9), SEAM_BEFORE)
+        if not kite and symbol in delisted:
+            # No Kite series to join: Angel's bars are the whole history, so
+            # there is no seam to break and nothing to scale to.
+            out.append(Factor(symbol, 1.0, 1.0, 0, 0.0, None, None, "ok", note="Angel only"))
+            continue
         out.append(measure(symbol, kite, angel, before, bhav.get(symbol, {})))
     return out
 
@@ -217,7 +236,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return store._read(symbol, client, store.PREFIX, store.CACHE, start, end)
         return store._read(symbol, client, store.HISTORY_PREFIX, store.HISTORY_CACHE, start, end)
 
-    factors = run(names, read)
+    from eulerlab.ingest.angel_minute import read_delisted
+
+    factors = run(names, read, delisted=frozenset(read_delisted()))
     FACTORS.parent.mkdir(parents=True, exist_ok=True)
     FACTORS.write_text(
         json.dumps(

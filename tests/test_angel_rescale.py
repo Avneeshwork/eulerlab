@@ -29,13 +29,13 @@ DAYS = [
 ]
 
 
-def _pair(drift: float = 0.0) -> tuple[list[Candle], list[Candle]]:
+def _pair(drift: float = 0.0, on: int = 2) -> tuple[list[Candle], list[Candle]]:
     kite: list[Candle] = []
     angel: list[Candle] = []
     for i, d in enumerate(DAYS):
         a = 100.0 + i
         angel += _day(d, a, volume=200.0)
-        kite += _day(d, a * 0.95 * (1 + (drift if i == 2 else 0.0)), volume=170.0)
+        kite += _day(d, a * 0.95 * (1 + (drift if i >= on else 0.0)), volume=170.0)
     return kite, angel
 
 
@@ -56,6 +56,29 @@ def test_a_ratio_that_wanders_is_refused() -> None:
     before = _day(date(2021, 8, 18), 99.0)
     f = measure("ACME", kite, angel, before, {})
     assert f.status.startswith("drift")
+
+
+def test_a_corporate_action_later_in_the_window_does_not_move_the_seam_factor() -> None:
+    kite, angel = _pair(drift=0.33, on=4)  # a bonus on the fifth day, one vendor only
+    before = _day(date(2021, 8, 18), 99.0)
+    bhav = {date(2021, 8, 18): 99.0, date(2021, 8, 20): 100.0}
+    f = measure("ACME", kite, angel, before, bhav)
+    assert f.status == "ok" and abs(f.factor - 0.95) < 1e-12
+    assert abs(f.later_move - 0.33) < 1e-9
+
+
+def test_a_delisted_name_with_no_kite_series_is_served_as_angel_has_it(tmp_path: Path) -> None:
+    from eulerlab.ingest.angel_rescale import run
+
+    angel = _day(date(2021, 8, 20), 50.0)
+
+    def read(tree: str, _s: str, _a: date, _b: date) -> list[Candle]:
+        return [] if tree == "kite" else angel
+
+    panel = tmp_path / "p.jsonl"
+    panel.write_text("")
+    [f] = run(["IDFC"], read, panel=panel, delisted=frozenset({"IDFC"}))
+    assert (f.status, f.factor, f.note) == ("ok", 1.0, "Angel only")
 
 
 def test_a_false_jump_at_the_seam_is_refused() -> None:
