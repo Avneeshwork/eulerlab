@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard
+.PHONY: topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder oncall fund-report agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard
 
 help:
 	@echo "EulerLab — targets"
@@ -322,6 +322,8 @@ agents-preopen:
 	-@uv run python -m eulerlab.agents.runtime head_portfolio
 	-@uv run python -m eulerlab.agents.work
 	-@uv run python -m eulerlab.agents.runtime watchdog
+	-@uv run python -m eulerlab.agents.oncall
+	-@uv run python -m eulerlab.fund_report --send
 
 knowledge-keeper:
 	@uv run python -m eulerlab.agents.runtime knowledge_keeper $(if $(MODE),--arg mode=$(MODE),)
@@ -370,6 +372,14 @@ agents-autopilot:
 # Move each gated strategy along the incubation ladder, or SHOW=1 to only print it (ADR-179).
 ladder:
 	@uv run python -m eulerlab.deploy.ladder $(if $(SHOW),--show,)
+
+# On-call: dead letters get an allowlisted fix or a ticket; paper books reconciled (ADR-182).
+oncall:
+	@uv run python -m eulerlab.agents.oncall
+
+# The daily fund report; SEND=1 also sends its eight lines to Telegram (ADR-182).
+fund-report:
+	@uv run python -m eulerlab.fund_report $(if $(SEND),--send,)
 
 # One night of the evolutionary search; survivors join the autopilot's gate queue (ADR-177).
 agents-evolve:
