@@ -272,11 +272,15 @@ chain that reaches an ISIN takes its key; one that never does (a company gone
 before late 2011) gets its own `NOISIN` id with no ISIN, so dead companies stay
 in the history. Nothing is matched by ticker and no ISIN is guessed.
 
-**The old years' jump mask (ADR-188).** Moves over 40% before 2015 that no
-confirmed factor explains are not traded on: `features/panel_mask.py` writes
-`panel_mask.jsonl` beside the panel, each entry with an `event_time` and the
-`knowledge_time` its evidence existed, and `MarketView` drops masked rows once
-`as_of` reaches that time. Without the file nothing changes.
+**Unusual old-year prices (ADR-188).** A move over 40% before 2015 that no
+confirmed factor explains is checked against the bhavcopy: open and close
+inside the day's range, turnover over volume inside it, and the next session's
+PREVCLOSE equal to the close unless a corporate action falls between. Only a
+failing row is excluded, with its reason; every other row stays as printed,
+flagged "unusual, unverified". `features/panel_mask.py` writes the entries to
+`panel_mask.jsonl` with `event_time` and `knowledge_time`, and `MarketView`
+drops an excluded row once `as_of` reaches that time. Without the file nothing
+changes.
 
 ## 3.4 Corporate actions: the mathematics of adjustment
 
