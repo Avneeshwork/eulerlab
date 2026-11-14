@@ -9,12 +9,12 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 
 | ID | Task | Status |
 |---|---|---|
-| T-4604 | Backfill Angel minute history 2018-11-01..2021-08-18 (operator, 2026-11-14: 8 years, not to 2016) and the six delisted names into `angel_minute_history` (`make angel-history`) | DOING. Started 2026-11-13 on the Mac, newest month first, about 14 h |
+| T-4604 | Backfill Angel minute history 2018-11-01..2021-08-18 (operator, 2026-11-14: 8 years, not to 2016) and the six delisted names into `angel_minute_history` (`make angel-history`) | DONE 2026-11-14: every span 2018-11..2021-08 held, final pass landed 0 failed 0 |
 | T-4605 | Operator: choose how readers use `angel_minute_history`, whose old prices are adjusted differently from Kite's (research 193 finding 5) | DONE. Operator chose rescale (ADR-185): `make angel-rescale`, read with `store.fetch(history=True)` |
 | T-4609 | Check Angel's 2016-2021 daily returns against NSE's corporate-action list, to find actions Angel left unadjusted that one seam factor cannot fix (ADR-185 cost if wrong) | TODO |
 | T-4606 | Angel adds closing-auction minutes (15:20-15:29) for F&O stocks that Kite does not. Decide whether readers drop them so Kite and Angel days match | TODO |
 | T-4607 | Find NSE tokens for HDFC, MINDTREE and TATACOFFEE (left before UDiFF, July 2024) so their minute history can be fetched; ICICIPRULI is not in Angel's master either, so Angel fills skip it | TODO |
-| T-4608 | Upload `angel_minute_history` to B2 with `make upload-verified TREES=angel_minute_history` once T-4604 finishes | TODO |
+| T-4608 | Upload `angel_minute_history` to B2 with `make upload-verified TREES=angel_minute_history` once T-4604 finishes | DONE 2026-11-14 by the supervisor; local copies verified and deleted |
 
 ## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)
 
