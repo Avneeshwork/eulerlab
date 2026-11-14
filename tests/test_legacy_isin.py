@@ -55,21 +55,23 @@ def test_a_renamed_symbol_follows_its_change_to_the_anchor(tmp_path: Path) -> No
     assert report.filled == 6 and not report.left_out
 
 
-def test_a_long_silence_is_not_bridged(tmp_path: Path) -> None:
+def test_a_long_silence_starts_a_new_instrument(tmp_path: Path) -> None:
     rows = [(0, "GONE", ""), (6, "GONE", "INE111A01011"), (7, "GONE", "INE111A01011")]
     # The market kept trading; ISINs start on day 6 for everyone.
     rows += [(i, "DAILY", "INE999A01011" if i >= 6 else "") for i in range(10)]
     got, report = _filled(tmp_path, rows, [])
-    assert (DAYS[0], "GONE") not in got
-    assert report.left_out["gap in trading"] == 1
+    assert got[(DAYS[0], "GONE")].startswith(li.NO_ISIN_PREFIX)
+    assert got[(DAYS[6], "GONE")] == "INE111A01011"
+    assert got[(DAYS[0], "DAILY")] == "INE999A01011"
+    assert report.no_isin == 1 and not report.left_out
 
 
-def test_a_symbol_another_company_takes_over_is_ambiguous(tmp_path: Path) -> None:
+def test_a_symbol_another_company_takes_over_is_cut_there(tmp_path: Path) -> None:
     rows = [(i, "ABC", "") for i in range(4)] + [(i, "ABC", "INE222A01011") for i in range(4, 6)]
-    takeover = li.SymbolChange("XYZ", "ABC", date(2011, 1, 5))
-    got, report = _filled(tmp_path, rows, [takeover])
-    assert (DAYS[0], "ABC") not in got
-    assert report.left_out["symbol taken over"] >= 1
+    takeover = li.SymbolChange("XYZ", "ABC", date(2011, 1, 5))  # session 2
+    got, _ = _filled(tmp_path, rows, [takeover])
+    assert got[(DAYS[0], "ABC")].startswith(li.NO_ISIN_PREFIX)
+    assert got[(DAYS[2], "ABC")] == "INE222A01011"
 
 
 def test_an_anchor_with_two_isins_is_left_out(tmp_path: Path) -> None:
@@ -79,18 +81,41 @@ def test_an_anchor_with_two_isins_is_left_out(tmp_path: Path) -> None:
     assert report.left_out["anchor has two ISINs"] == 1
 
 
-def test_two_symbols_resolving_to_one_isin_on_a_day_are_both_left_out(tmp_path: Path) -> None:
+def test_two_symbols_merging_into_one_keep_their_own_ids(tmp_path: Path) -> None:
     rows = [(0, "A", ""), (0, "B", ""), (1, "B", ""), (2, "C", "INE555A01011")]
     changes = [
         li.SymbolChange("A", "C", date(2011, 1, 5)),
         li.SymbolChange("B", "C", date(2011, 1, 5)),
     ]
-    got, report = _filled(tmp_path, rows, changes)
-    assert (DAYS[0], "A") not in got and (DAYS[0], "B") not in got
-    assert report.left_out["two symbols, one ISIN"] == 2
+    got, _ = _filled(tmp_path, rows, changes)
+    a, b = got[(DAYS[0], "A")], got[(DAYS[0], "B")]
+    assert a != b and a.startswith(li.NO_ISIN_PREFIX) and b.startswith(li.NO_ISIN_PREFIX)
 
 
-def test_a_symbol_that_never_gains_an_isin_is_left_out(tmp_path: Path) -> None:
-    got, report = _filled(tmp_path, [(0, "DELISTED", ""), (1, "OTHER", "INE666A01011")], [])
-    assert (DAYS[0], "DELISTED") not in got
-    assert report.left_out["no anchor"] == 1
+def test_a_company_that_never_gains_an_isin_gets_its_own_id(tmp_path: Path) -> None:
+    rows = [(0, "DELISTED", ""), (1, "DELISTED", ""), (2, "OTHER", "INE666A01011")]
+    out = tmp_path / "out.jsonl"
+    master = tmp_path / "instruments_no_isin.jsonl"
+    report = li.fill(_staging(tmp_path, rows), out, [], max_gap=3, master_out=master)
+    ids = {json.loads(line)["isin"] for line in out.read_text().splitlines()}
+    own = li.no_isin_id("DELISTED", DAYS[0])
+    assert own in ids and report.no_isin == 2 and report.no_isin_ids == {own}
+    saved = [json.loads(line) for line in master.read_text().splitlines()][1:]
+    assert saved[0]["id"] == own and saved[0]["isins"][0]["value"] == ""
+    assert saved[0]["tickers"][0]["value"] == "DELISTED"
+    assert li.no_isin_id("DELISTED", DAYS[0]) == own  # deterministic
+
+
+def test_a_second_series_row_keeps_the_larger_print(tmp_path: Path) -> None:
+    path = tmp_path / "staging.jsonl"
+    rows = [
+        {"d": DAYS[0], "s": "BOOTS", "isin": "", "c": 564.0, "t": 2820.0},
+        {"d": DAYS[0], "s": "BOOTS", "isin": "", "c": 567.0, "t": 1432537.5},
+        {"d": DAYS[1], "s": "BOOTS", "isin": "INE777A01011", "c": 570.0, "t": 1.0},
+    ]
+    path.write_text("".join(json.dumps(r, sort_keys=True) + "\n" for r in rows))
+    out = tmp_path / "out.jsonl"
+    report = li.fill(path, out, [], max_gap=3)
+    kept = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [(r["d"], r["c"]) for r in kept] == [(DAYS[0], 567.0), (DAYS[1], 570.0)]
+    assert report.left_out == {"second series row": 1}

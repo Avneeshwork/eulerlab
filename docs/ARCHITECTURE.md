@@ -267,10 +267,10 @@ dividend factors that had been silently dropped.
 **Before late 2011 the bhavcopy has no ISIN (ADR-187).** A pre-ISIN row gets an
 instrument ID only through `master/legacy_isin`: its symbol is walked forward
 through NSE's own symbol-change list to the first day it appears with an ISIN,
-and the chain must trade without a gap over 60 sessions, never be taken over
-by another company's change, and reach an anchor with one ISIN. Anything else
-is left out and counted, never matched by ticker. Companies delisted before
-late 2011 are therefore missing from those years.
+cut at any gap over 60 sessions and at every change, linked one to one. A
+chain that reaches an ISIN takes its key; one that never does (a company gone
+before late 2011) gets its own `NOISIN` id with no ISIN, so dead companies stay
+in the history. Nothing is matched by ticker and no ISIN is guessed.
 
 ## 3.4 Corporate actions: the mathematics of adjustment
 
