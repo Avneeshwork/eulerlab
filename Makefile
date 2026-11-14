@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: angel-history angel-rescale angel-backfill-supervise topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder oncall fund-report agent-evals agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard
+.PHONY: legacy-isin angel-history angel-rescale angel-backfill-supervise topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder oncall fund-report agent-evals agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard
 
 help:
 	@echo "EulerLab — targets"
@@ -109,7 +109,8 @@ help:
 	@echo "  make ic FEATURE=momentum_12_1 [HORIZON=21] [ALL=1]"
 	@echo "                    information coefficient tear sheet"
 	@echo "  make build-panel [FROM=2023-01-01]  adjusted price panel for features"
-	@echo "  make build-factors  build price + total-return adjustment factors"
+	@echo "  make build-factors [OUT=dir]  build price + total-return adjustment factors"
+	@echo "  make legacy-isin STAGING=.. OUT=..  ISINs for pre-2011 rows by symbol-change chain"
 	@echo "                    (cached and resumable; see RUNBOOKS/b2-transaction-cap.md)"
 	@echo ""
 	@echo "  -- order path (sprints 19-28) --"
@@ -478,7 +479,13 @@ build-panel:
 	@uv run python -m eulerlab.features.build_panel $(if $(FROM),--from $(FROM),) $(if $(TO),--to $(TO),)
 
 build-factors:
-	uv run python -m eulerlab.corp_actions.build_factors $(if $(LIMIT_FILES),--limit-files $(LIMIT_FILES),)
+	uv run python -m eulerlab.corp_actions.build_factors $(if $(LIMIT_FILES),--limit-files $(LIMIT_FILES),) $(if $(OUT),--out $(OUT),)
+
+# Pre-2011 panel rows have no ISIN; give them one through NSE's symbol-change
+# list, or leave them out and count them (ADR-187). Writes OUT, never the panel.
+legacy-isin:
+	@test -n "$(STAGING)" -a -n "$(OUT)" || (echo "usage: make legacy-isin STAGING=rows.jsonl OUT=filled.jsonl"; exit 2)
+	uv run python -m eulerlab.master.legacy_isin $(STAGING) $(OUT)
 
 # One command to keep every dataset current, safe to schedule. Each step is
 # idempotent: already-current data costs nothing, so re-running is cheap and

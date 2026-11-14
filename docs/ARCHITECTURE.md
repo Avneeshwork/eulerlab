@@ -264,6 +264,14 @@ lost **21.9%** of matches. Joining on the internal ID recovered them, which
 changed adjustment-factor coverage from 78.1% to 98.1% and recovered 3,073
 dividend factors that had been silently dropped.
 
+**Before late 2011 the bhavcopy has no ISIN (ADR-187).** A pre-ISIN row gets an
+instrument ID only through `master/legacy_isin`: its symbol is walked forward
+through NSE's own symbol-change list to the first day it appears with an ISIN,
+and the chain must trade without a gap over 60 sessions, never be taken over
+by another company's change, and reach an anchor with one ISIN. Anything else
+is left out and counted, never matched by ticker. Companies delisted before
+late 2011 are therefore missing from those years.
+
 ## 3.4 Corporate actions: the mathematics of adjustment
 
 When a company splits its stock 1-for-1, the price halves overnight. A holder
