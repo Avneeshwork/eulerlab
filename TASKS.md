@@ -53,7 +53,7 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4612 | Index closes before 2012 and corporate actions before 2005: find a free source, or accept the gap (research 194) | TODO |
 | T-4613 | Cost schedule for 2000-2014 (STT, stamp duty, exchange charges by date), so research can start before 2015 | DONE 2026-11-14 — `uv run pytest tests/test_costs.py`, research 196, A-147 to A-150; each rate at least today's |
 | T-4614 | 90 corporate-action factors with Aug-Sep 2026 ex-dates are missing from the live factor files (built 2026-08-19). Adding them can change what paper books replay; operator to decide when (ADR-189) | DONE 2026-11-14 — operator: "do this". 1 price and 90 total-return rows added, every earlier row unchanged; backup in `data/derived/backup-2026-11-14-before-aug-sep-factors/`. HISTORY 2026-11-14 |
-| T-4615 | Rebuild the factor files on a schedule (weekly, after the corporate-actions feed) so they do not go stale again; each rebuild must leave earlier rows unchanged or say why | TODO |
+| T-4615 | Rebuild the factor files on a schedule (weekly, after the corporate-actions feed) so they do not go stale again; each rebuild must leave earlier rows unchanged or say why | DONE 2026-11-14 — `make factors-weekly`, job `factors-weekly` (Sunday 06:00) in `jobs.py`; install with `make schedule ACTION=install JOB=factors-weekly`. Its first run adds the actions announced after 2026-08-19 |
 
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 

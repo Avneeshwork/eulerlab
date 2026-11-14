@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -174,3 +175,94 @@ def test_splits_of_a_company_without_an_isin_are_keyed_to_its_own_id(tmp_path: P
     )
     copies = bf.no_isin_actions(actions, master)
     assert [(a.isin, a.ex_date) for a in copies] == [("NOISIN0123456789", date(2005, 6, 1))]
+
+
+def test_the_weekly_refresh_lands_the_year_again_and_only_the_latest_is_read(
+    tmp_path: Path,
+) -> None:
+    """T-4615: a year landed once under 1 January never learned of later actions."""
+    from eulerlab.corp_actions import build_factors as bf
+    from eulerlab.corp_actions.feed import refresh
+
+    root = tmp_path / "nse"
+    landing = Landing(root)
+    assert fetch_year(_fetcher(Serve(REAL_SHAPED)), landing, 2015) == "downloaded"
+    later = REAL_SHAPED.replace(b'"Bonus 1 : 1250"', b'"Bonus 1 : 1"')
+    assert refresh(_fetcher(Serve(later)), landing, date(2015, 6, 7)) == {2015: "downloaded"}
+    assert refresh(_fetcher(Serve(later)), landing, date(2015, 6, 7)) == {2015: "skipped"}
+    files = bf._action_files(root)
+    assert files == [
+        next(e.path for e in landing.entries().values() if e.trade_date == "2015-06-07")
+    ]
+    actions, _ = bf.load_actions(root)
+    assert [a.raw_subject for a in actions] == ["Bonus 1 : 1"]  # the revised one, once
+
+
+def test_january_lands_the_year_just_ended_once_more() -> None:
+    import tempfile
+
+    from eulerlab.corp_actions.feed import refresh
+
+    with tempfile.TemporaryDirectory() as tmp:
+        landing = Landing(Path(tmp))
+        done = refresh(_fetcher(Serve(REAL_SHAPED)), landing, date(2016, 1, 10))
+        assert done == {2015: "downloaded", 2016: "downloaded"}
+        assert {e.trade_date for e in landing.entries().values()} == {"2015-12-31", "2016-01-10"}
+
+
+def _factors(path: Path, rows: list[tuple[str, str, float]]) -> Path:
+    path.write_text(
+        "".join(
+            json.dumps(
+                {"isin": i, "event_time": t, "knowledge_time": t, "factor": f}, sort_keys=True
+            )
+            + "\n"
+            for i, t, f in rows
+        )
+    )
+    return path
+
+
+def test_the_guard_swaps_additions_and_refuses_a_changed_row(tmp_path: Path) -> None:
+    from eulerlab.corp_actions.build_factors import swap_if_unchanged
+
+    t1, t2 = "2026-08-20T15:30:00+05:30", "2026-10-01T15:30:00+05:30"
+    live = _factors(tmp_path / "live.jsonl", [("INE000A01011", t1, 2.0)])
+    added = _factors(tmp_path / "new.jsonl", [("INE000A01011", t1, 2.0), ("INE000B01011", t2, 5.0)])
+    assert swap_if_unchanged([(added, live)]) == 0
+    assert len(live.read_text().splitlines()) == 2
+    changed = _factors(tmp_path / "bad.jsonl", [("INE000A01011", t1, 1.5)])
+    assert swap_if_unchanged([(changed, live)]) == 3
+    assert len(live.read_text().splitlines()) == 2  # kept
+
+
+def test_the_guard_keeps_rows_before_2015_as_they_are(tmp_path: Path) -> None:
+    from eulerlab.corp_actions.build_factors import swap_if_unchanged
+
+    old, t = "2007-06-28T15:30:00+05:30", "2026-08-20T15:30:00+05:30"
+    live = _factors(
+        tmp_path / "live.jsonl", [("NOISIN0123456789", old, 5.0), ("INE000A01011", t, 2.0)]
+    )
+    # A rebuild without the no-ISIN row and with a pre-2015 row the price check had dropped.
+    rebuilt = _factors(
+        tmp_path / "new.jsonl", [("INE000C01011", old, 3.0), ("INE000A01011", t, 2.0)]
+    )
+    assert swap_if_unchanged([(rebuilt, live)]) == 0
+    rows = [json.loads(line) for line in live.read_text().splitlines()]
+    assert [(r["isin"], r["event_time"]) for r in rows] == [
+        ("INE000A01011", t),
+        ("NOISIN0123456789", old),
+    ]
+
+
+def test_the_guard_keeps_two_actions_on_one_day(tmp_path: Path) -> None:
+    from eulerlab.corp_actions.build_factors import swap_if_unchanged
+
+    t = "2026-04-02T15:30:00+05:30"
+    live = _factors(tmp_path / "live.jsonl", [("INE012Q01021", t, 2.0), ("INE012Q01021", t, 1.5)])
+    same = _factors(tmp_path / "new.jsonl", [("INE012Q01021", t, 1.5), ("INE012Q01021", t, 2.0)])
+    before = live.read_bytes()
+    assert swap_if_unchanged([(same, live)]) == 0
+    assert live.read_bytes() == before
+    lost = _factors(tmp_path / "lost.jsonl", [("INE012Q01021", t, 2.0)])
+    assert swap_if_unchanged([(lost, live)]) == 3

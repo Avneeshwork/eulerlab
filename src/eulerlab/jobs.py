@@ -173,6 +173,21 @@ JOBS = {
             "the after-close brief, book drift and step timings for the day."
         ),
     ),
+    "factors-weekly": Job(
+        name="factors-weekly",
+        label="com.eulerlab.factorsweekly",
+        command="cd {repo} && make factors-weekly",
+        hour=6,
+        minute=0,
+        weekdays=(SUNDAY,),
+        log="factors_weekly",
+        what="make factors-weekly, every Sunday",
+        why_then=(
+            "Sunday 06:00 IST, no session and before agents-weekly at 07:00: this year's\n"
+            "corporate actions landed again and both factor files rebuilt, swapped in only\n"
+            "if no earlier row changes (T-4615). They were stale from 2026-08-19 to 11-14."
+        ),
+    ),
     "agents-weekly": Job(
         name="agents-weekly",
         label="com.eulerlab.agentsweekly",

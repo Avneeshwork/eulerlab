@@ -292,6 +292,14 @@ checks proved wrong.
 
 ## 3.4 Corporate actions: the mathematics of adjustment
 
+**Keeping the factors current (T-4615).** The corporate-actions feed lands
+each year once, under 1 January; `feed --refresh` lands the current year again
+under the run's date, and the factor build reads only each year's latest list,
+so an action is never counted twice. `build_factors --guard` builds beside the
+live files and swaps only if every live row from 2015 on is still there with
+the same factors (one day may hold two actions), keeping unchanged rows byte
+for byte. A refused rebuild leaves the live files alone and says which rows.
+
 When a company splits its stock 1-for-1, the price halves overnight. A holder
 loses nothing — they now own twice as many shares — but a naive price series
 shows a **−50% crash**.
@@ -2845,6 +2853,7 @@ one process (`make scheduler`, ADR-164); the section after the table says how.
 | `com.eulerlab.agentspreopen` | 08:45 Monday to Friday | `make agents-preopen` (data, operations, pre-open brief) |
 | `com.eulerlab.briefweekend` | 09:30 Saturday and Sunday | `make agent NAME=market_brief`: the markets-closed note, once per break (ADR-105) |
 | `com.eulerlab.agentsclose` | 16:15 Monday to Friday | `make agents-close` (data, operations, portfolio, knowledge keeper, handbook). The after-close note runs in `make daily` once the day's data is in (ADR-105) |
+| `com.eulerlab.factorsweekly` | 06:00 on Sunday | `make factors-weekly` (this year's corporate actions landed again, both factor files rebuilt, swapped in only if no row from 2015 on changes; rows before 2015 kept as they are; new rows printed, T-4615) |
 | `com.eulerlab.agentsweekly` | 07:00 on Sunday | `make agents-weekly` (Quantpedia sync, knowledge keeper weekly pass, knowledge index, code review) |
 | `com.eulerlab.agentsideas` | 17:00 every day | `make agents-ideas` (research, then the idea lab, then engineering, then memory to B2; ADR-128) |
 

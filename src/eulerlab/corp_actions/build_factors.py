@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -36,7 +37,7 @@ from eulerlab.corp_actions.prices import (
     instrument_key,
 )
 from eulerlab.ingest import landing_reader
-from eulerlab.ingest.landing import Landing
+from eulerlab.ingest.landing import Landing, ManifestEntry
 from eulerlab.paths import data_path
 
 MANIFEST = data_path("landing/nse/manifest.jsonl")
@@ -57,17 +58,30 @@ def cached_dates(path: Path) -> set[str]:
     }
 
 
+def _covered_year(entry: ManifestEntry) -> str:
+    """The calendar year a landed list covers, from its request (`from_date=01-01-YYYY`)."""
+    found = re.search(r"from_date=\d\d-\d\d-(\d{4})", entry.url)
+    return found.group(1) if found else entry.path
+
+
 def _action_files(landing_root: Path) -> list[str]:
-    """Every corporate-action file landed, on disk or pruned to B2 (ADR-187).
+    """Every year's latest corporate-action list, on disk or pruned to B2 (ADR-187).
 
     The manifest lists files the prune removed; globbing the disk alone found
-    none once they were pruned, and the factors were rebuilt empty."""
-    found = {p.relative_to(landing_root).as_posix() for p in landing_root.glob(ACTIONS_GLOB)}
+    none once they were pruned, and the factors were rebuilt empty. A year is
+    landed again by the weekly refresh (T-4615); only its latest list is read,
+    so an action is never counted twice and a revised one replaces the old."""
+    latest: dict[str, ManifestEntry] = {}
     if (landing_root / "manifest.jsonl").exists():
-        found |= {
-            e.path for e in Landing(landing_root).entries().values() if e.segment == "corp_actions"
-        }
-    return sorted(found)
+        for entry in Landing(landing_root).entries().values():
+            if entry.segment != "corp_actions":
+                continue
+            year = _covered_year(entry)
+            if year not in latest or entry.knowledge_time > latest[year].knowledge_time:
+                latest[year] = entry
+    listed = {e.path for e in Landing(landing_root).entries().values()} if latest else set()
+    local = {p.relative_to(landing_root).as_posix() for p in landing_root.glob(ACTIONS_GLOB)}
+    return sorted({e.path for e in latest.values()} | (local - listed))
 
 
 def _read_landed(landing_root: Path, relative: str) -> bytes:
@@ -207,7 +221,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="instruments without an ISIN (legacy-isin); their splits and bonuses are keyed to them",
     )
+    parser.add_argument(
+        "--guard",
+        action="store_true",
+        help="build beside the live files and swap only if every earlier row is unchanged",
+    )
     args = parser.parse_args(argv)
+    if args.guard:
+        if args.out is not None:
+            parser.error("--guard builds its own staging copy; do not pass --out")
+        args.out = PRICE_FACTORS.parent / ".factors-staging"
     price_path, tr_path, cache = PRICE_FACTORS, TOTAL_RETURN_FACTORS, CLOSE_CACHE
     if args.out is not None:
         args.out.mkdir(parents=True, exist_ok=True)
@@ -279,6 +302,81 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(report.summary())
     print(f"\nwritten: {price_path}")
     print(f"written: {tr_path}")
+    if args.guard:
+        return swap_if_unchanged([(price_path, PRICE_FACTORS), (tr_path, TOTAL_RETURN_FACTORS)])
+    return 0
+
+
+FROZEN_BEFORE = "2015"
+"""Factor rows before 2015 are kept as they are: they were checked against the
+prices (ADR-188), and an old year gains no new corporate actions."""
+
+
+Rows = dict[tuple[str, str], list[dict[str, object]]]
+"""(instrument, event time) -> its rows. One day can carry two actions (a
+bonus and a split), so a key holds a list, never a single factor."""
+
+
+def _factor_rows(path: Path) -> Rows:
+    out: Rows = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line:
+                row = json.loads(line)
+                out.setdefault((str(row["isin"]), str(row["event_time"])), []).append(row)
+    return out
+
+
+def _factors_of(rows: list[dict[str, object]]) -> list[float]:
+    return sorted(float(str(r["factor"])) for r in rows)
+
+
+def swap_if_unchanged(pairs: Sequence[tuple[Path, Path]]) -> int:
+    """Replace each live factor file with its rebuild only if every live row is
+    still there with the same factor (T-4615). A rebuild that drops or changes
+    an earlier row changes history every engine has already used, so it is
+    refused and the differences printed; the live files stay as they are.
+
+    Rows before 2015 are taken from the live file unchanged (`FROZEN_BEFORE`),
+    and so is every unchanged row, byte for byte. Added rows are new corporate
+    actions; they can change what a paper book replays after their ex-date, so
+    they are listed by instrument."""
+    problems: list[str] = []
+    merged: list[tuple[Path, Path, list[dict[str, object]]]] = []
+    added: dict[str, list[tuple[str, str]]] = {}
+    for new, live in pairs:
+        before, after = _factor_rows(live), _factor_rows(new)
+        combined: Rows = {}
+        for key, rows in before.items():
+            if key[1][:4] < FROZEN_BEFORE:
+                combined[key] = rows
+                continue
+            got = after.get(key)
+            if got is None:
+                problems.append(f"{live.name}: {key} is gone")
+            elif len(got) != len(rows) or any(
+                abs(x - y) > 1e-12 for x, y in zip(_factors_of(got), _factors_of(rows), strict=True)
+            ):
+                problems.append(f"{live.name}: {key} {_factors_of(rows)} -> {_factors_of(got)}")
+            combined[key] = rows
+        fresh = {k: v for k, v in after.items() if k[1][:4] >= FROZEN_BEFORE and k not in before}
+        combined.update(fresh)
+        added[live.name] = sorted(fresh)
+        merged.append((new, live, [r for k in sorted(combined) for r in combined[k]]))
+    if problems:
+        print(f"\nREFUSED: {len(problems)} earlier row(s) would change; live files kept")
+        for line in problems[:20]:
+            print(f"  {line}")
+        return 3
+    for new, live, rows in merged:
+        with new.open("w", encoding="utf-8") as handle:
+            for row in rows:
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+        new.replace(live)
+    for name, keys in added.items():
+        print(f"{name}: {len(keys)} new row(s)")
+        for isin, when in keys[:50]:
+            print(f"  {isin} ex {when[:10]}")
     return 0
 
 

@@ -89,6 +89,51 @@ def fetch_year(fetcher: Fetcher, landing: Landing, year: int) -> str:
     return "downloaded"
 
 
+def refresh(fetcher: Fetcher, landing: Landing, today: date) -> dict[int, str]:
+    """Land this year's list again, keyed by `today` (T-4615).
+
+    `fetch_year` lands a year once, under 1 January, and never asks again, so
+    the 2026 list fetched on 2026-08-19 never learned of a later action and
+    the factors went stale. The weekly job lands the current year under the
+    run's date; in January, the year just ended gets one last list under
+    31 December. The factor build reads only each year's latest list."""
+    out: dict[int, str] = {}
+    targets = [(today.year, today)]
+    if today.month == 1:
+        targets.insert(0, (today.year - 1, date(today.year - 1, 12, 31)))
+    for year, marker in targets:
+        out[year] = _land_list(fetcher, landing, year, marker)
+    return out
+
+
+def _land_list(fetcher: Fetcher, landing: Landing, year: int, marker: date) -> str:
+    if landing.has(marker, SEGMENT):
+        return "skipped"
+    result = fetcher.get(url_for_year(year))
+    if result.outcome is Outcome.ABSENT:
+        return "absent"
+    if result.outcome is Outcome.FAILED or result.payload is None:
+        return "failed"
+    text = result.payload.decode("utf-8", errors="replace").strip()
+    try:
+        rows = json.loads(text) if text.startswith("[") else None
+    except json.JSONDecodeError:
+        rows = None
+    if not isinstance(rows, list) or not rows:
+        return "malformed"
+    landing.write(
+        trade_date=marker,
+        segment=SEGMENT,
+        file_format="json",
+        url=url_for_year(year),
+        payload=result.payload,
+        rows=len(rows),
+        inner_name=f"corporate_actions_{year}.json",
+        suffix="json",
+    )
+    return "downloaded"
+
+
 def backfill(
     fetcher: Fetcher, landing: Landing, *, from_year: int = FIRST_YEAR, to_year: int | None = None
 ) -> dict[str, int]:
@@ -110,6 +155,9 @@ def main() -> int:
     parser.add_argument("--from-year", type=int, default=FIRST_YEAR)
     parser.add_argument("--to-year", type=int, default=None)
     parser.add_argument("--landing", default=str(data_path("landing/nse")))
+    parser.add_argument(
+        "--refresh", action="store_true", help="land this year's list again (weekly job)"
+    )
     args = parser.parse_args()
 
     from pathlib import Path
@@ -119,6 +167,13 @@ def main() -> int:
     fetcher = Fetcher(transport)
     landing = Landing(Path(args.landing))
 
+    if args.refresh:
+        from eulerlab.ingest.nse_eod import today_ist
+
+        done = refresh(fetcher, landing, today_ist())
+        for year, outcome in done.items():
+            print(f"{year}: {outcome}")
+        return 0 if all(o in ("downloaded", "skipped") for o in done.values()) else 1
     counts = backfill(fetcher, landing, from_year=args.from_year, to_year=args.to_year)
     for outcome, n in sorted(counts.items()):
         print(f"{outcome}: {n}")
