@@ -51,3 +51,6 @@ web/public/handbook.html
 
 # Empty per-day app logs written at start-up; never committed (ADR-161).
 logs/
+
+# make install markers (HISTORY 2026-11-14, installs)
+.make/

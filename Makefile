@@ -132,18 +132,44 @@ help:
 	@echo "  make daily        refresh everything + sync + prune (schedulable)"
 	@echo "  make india-live   Indian data from 15:31, retried until in (schedulable)"
 
+# Installs run again only when their lockfile changes (HISTORY 2026-11-14, installs). A marker
+# file under .make/ (gitignored) remembers the last install; make compares its
+# time with pyproject.toml + uv.lock, web/package*.json and the hook config.
+# A missing .venv or web/node_modules always reinstalls. FORCE=1 reinstalls anyway.
+STAMP := .make
+PY_ALWAYS := $(if $(or $(FORCE),$(if $(wildcard .venv/pyvenv.cfg),,missing)),_always,)
+WEB_ALWAYS := $(if $(or $(FORCE),$(if $(wildcard web/node_modules/.package-lock.json),,missing)),_always,)
+HOOK_ALWAYS := $(if $(or $(FORCE),$(if $(wildcard .git/hooks/pre-commit),,missing)),_always,)
+
+.PHONY: _always install-lite install-news remove-news
+_always:
+
 # Everything this machine runs: the news tone model (ADR-135) and scikit-learn for
 # the screener's tree ranker (ADR-136), which holds nothing without it.
-install:
-	uv sync --extra dev --extra web --extra news --extra research-ml --extra angel --extra db
-	cd web && npm install
-	uv run pre-commit install
+# --inexact: keeps extras added by hand (crypto); it only adds, never removes.
+install: $(STAMP)/py-full $(STAMP)/web $(STAMP)/hooks
+	@echo "install: up to date (FORCE=1 reinstalls)"
 
 # Without the news tone model (about 1.2 GB): the brief lists headlines unscored.
-install-lite:
+# This one stays exact: removing the model is its job.
+install-lite: $(STAMP)/py-lite $(STAMP)/web $(STAMP)/hooks
+	@echo "install-lite: up to date (FORCE=1 reinstalls)"
+
+$(STAMP)/py-full: pyproject.toml uv.lock $(PY_ALWAYS)
+	uv sync --inexact --extra dev --extra web --extra news --extra research-ml --extra angel --extra db
+	@mkdir -p $(STAMP) && rm -f $(STAMP)/py-lite && touch $@
+
+$(STAMP)/py-lite: pyproject.toml uv.lock $(PY_ALWAYS)
 	uv sync --extra dev --extra web --extra db
-	cd web && npm install
+	@mkdir -p $(STAMP) && rm -f $(STAMP)/py-full && touch $@
+
+$(STAMP)/web: web/package.json web/package-lock.json $(WEB_ALWAYS)
+	cd web && npm install --silent
+	@mkdir -p $(STAMP) && touch $@
+
+$(STAMP)/hooks: .pre-commit-config.yaml $(HOOK_ALWAYS)
 	uv run pre-commit install
+	@mkdir -p $(STAMP) && touch $@
 
 # Add or remove only the news tone model; nothing else changes.
 install-news:
@@ -151,6 +177,7 @@ install-news:
 
 remove-news:
 	uv pip uninstall transformers torch
+	@rm -f $(STAMP)/py-full
 
 verify:
 	@uv run python tools/verify.py
@@ -534,9 +561,9 @@ legacy-isin:
 api:
 	uv run --extra web --extra angel uvicorn eulerlab.api.server:app --host 127.0.0.1 --port 8000 --reload --reload-dir src
 
-ui:
+ui: $(STAMP)/web
 	-@uv run python tools/render_metrics_handbook.py
-	cd web && npm install --silent && npm run dev
+	cd web && npm run dev
 
 # Download and merge every backtest result from the bucket, whatever its size.
 # The mirror after a batch skips files whose size matches; this does not.
@@ -555,8 +582,8 @@ web-check:
 # The UI built once and served as built: what to run when using the app, not
 # changing it. `make ui` compiles each screen on first visit and ships a
 # development bundle several times the size.
-ui-fast:
-	cd web && npm install --silent && npm run build && npm run start
+ui-fast: $(STAMP)/web
+	cd web && npm run build && npm run start
 
 workbench:
 	@echo "starting the API on :8000 and the UI on :3000"
