@@ -93,8 +93,12 @@ def record(
     now: datetime | None = None,
     path: Path | None = None,
     returns_root: Path | None = None,
+    spec: Mapping[str, Any] | None = None,
 ) -> str:
-    """Append one evaluation. Returns its id."""
+    """Append one evaluation. Returns its id.
+
+    `spec` is the rule itself (its model dump), so the forward shadow (#156) can
+    score a rule that has no card. Rows written before 2026-11-14 have none."""
     if purpose not in PURPOSES:
         msg = f"purpose {purpose!r} is not one of {', '.join(PURPOSES)}"
         raise ValueError(msg)
@@ -120,6 +124,8 @@ def record(
         "metrics": dict(metrics),
         "returns": _returns_file(daily, _root(returns_root)) if daily else None,
     }
+    if spec is not None:
+        row["spec"] = dict(spec)
     body = json.dumps(row, sort_keys=True, default=str)
     row["id"] = hashlib.sha256(body.encode()).hexdigest()[:16]
     add_row(_path(path), KIND, row)

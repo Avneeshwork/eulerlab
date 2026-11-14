@@ -3677,6 +3677,156 @@ forward test.
 At the close, `make agents-close` runs the ladder, on-call and the fund report
 after the agents. `make agents-evolve` and `make agent-evals` run alone.
 
+### Traces and the research loop (ADR-190)
+
+**Traces.** Every request to a model goes through `assistant.chat._post`, so that
+is where `llm/trace.py` records it: one line in
+`data/derived/llm_traces/YYYY-MM-DD.jsonl` with the whole request (messages,
+tools), the whole reply, the agent and run that asked, seconds and tokens, all
+scrubbed of `.env` values. A run's `output.json` lists its trace ids (`traces`),
+and each model step on the progress trail names its trace.
+`make agent-replay RUN=<run id>` lists a run's requests; `TRACE=<id>` sends one
+again (optionally `PROVIDER=` or `SYSTEM_FILE=`) through the same locks and prints
+the diff. A tool loop is replayed one request at a time, not re-driven.
+
+**The loop.** `Context.converse(system, user, toolbox, rounds=)` is the multi-turn
+form of `Context.ask`: the assistant's tool loop (`chat.ask` with a `toolbox`),
+under the same daily request budget (each round is one request), the monthly
+rupees, the shared rules, the brief and the lessons. The autopilot uses it when
+`explore: true`:
+
+```
+signals ──► claim_record / family_record ──► screen_rule (≤ 8) ──► read figures ──► revise
+   │                                             │
+   │                                 data cut at discovery_end (2023-12-31);
+   │                                 one experiment-store row each (asked_by autopilot)
+   ▼
+cards as JSON ──► the same parse, lesson and repeat checks ──► hypotheses/H-NNNN.yaml
+                  card carries `exploration`: screens, its own discovery figures, trace ids
+```
+
+`research/agent_tools.py` holds the tools; none writes anything but a screen row,
+and none reaches the gate, the ledger or the order path. A rule already in the
+store is not screened again. The full-window screen in `research/autopilot.py`
+then runs on every card as before, so the firewall counts both the loop's looks
+and the card's own screen. If the loop fails (no tool support, an outage), the
+one-shot prompt writes the night's cards.
+
+### Features, measurements and the agenda (ADR-191)
+
+The loop's bench, all on data cut at `discovery_end`:
+
+| Tool | What it does | What it writes |
+|---|---|---|
+| `agenda`, `ask_question`, `record_finding` | open questions, least explored first; findings with the looks and screens behind them | `data/derived/agenda.jsonl` events |
+| `language` | language v2's fields and operators, and the features agents defined | nothing |
+| `define_feature` | a named formula, kept only if code finds it honest (below) | `data/derived/features.jsonl`, kept or refused |
+| `feature_ic` | rank IC of a score against the return from the entry open over 1, 5, 20 sessions, net of the day's mean; t-stat on non-overlapping sessions | experiment row, family `ic:<fields>` |
+| `event_study` | mean return after an event at each horizon, t-stat by day, and the share of 50 random same-size draws of stock-sessions it beats | experiment row, family `event:<fields>` |
+| `screen_formula` | a language-v2 rule through the same screen as `screen_rule` | experiment row with daily returns |
+
+**A feature's checks** (`research/feature_registry.py`), all code:
+
+1. it compiles, and `lang.check_lookahead` finds no field read before it is known;
+2. cut the panel at 50% and at 75% of its sessions: the early values must not change (catches an operator that looks forward);
+3. two evaluations are identical;
+4. at least 5% of tradable stock-sessions have a value;
+5. its pooled cross-sectional rank correlation with every field (as `delay(field, 1)`) and every kept feature is under 0.95.
+
+`expand(text)` swaps each feature name for its formula, so a card's `engine_v2`
+block holds only base fields and reads the same with no registry. No `exec`,
+no `eval`: a feature is a tree of the language's operators. Language v2 has
+`open_price` (known at the open), `close_price` and `traded_value` (known after
+the close) for this; they are raw, not split-adjusted.
+
+**Forward returns** for IC and events: `open[t] → close[t+h-1]`, ratio outside
+the split guard (0.6, 1.6) dropped, minus that session's mean over tradable
+stocks. A score at session t is what lang can read at t's open, so the return
+starts at the price the rule would trade.
+
+The loop prompt now runs: agenda → language → define/measure → screen → record a
+finding → cards (either `engine` or `engine_v2`). Cards carry `exploration.looks`,
+`features_kept` and `questions` beside the screens.
+
+### Screens across cores (ADR-195)
+
+```
+specs ─► chunks (len / (workers x 4)) ─► worker 1 .. n, each with its own engine copy
+                                          (fork on Linux, spawn on macOS; one process if the pool fails)
+       ◄── results in input order, byte-identical to one process
+       ─► referee: engine rules whose fingerprint hash is in the share (1%) re-screened by the slow
+          engine; count, per-trade bps, net Sharpe, pass and clean must match, else a row in
+          data/derived/parity.jsonl
+```
+
+Inside a screen each trade's costs are computed once, and each fill's fee once
+a process (`intraday_fee`, `delivery_fee` are memoised), since a population's
+rules buy the same stocks on the same mornings. `make fast-eval-bench
+WORKERS=0` measures it on every core.
+
+### Combining weak signals (ADR-192)
+
+`research/combine.py` turns 2 to 20 language-v2 formulas into one book:
+
+```
+signals ─► rank, z-score per session ─┐
+target: open t → close t+h-1, net of ├─► per-session X'X, X'y, IC (once)
+  the session's (and sector's) mean   │        │ cumulative sums
+                                      │        ▼
+                        each month: fit on sessions whose target closed before it
+                        (ic: mean IC; ridge: (X'X + aI)^-1 X'y), shrink halfway to equal,
+                        scale to returns by one slope on the same past
+                                               │
+                        forecast that month ───┴─► enter where |forecast| > the day's
+                        round-trip cost (12.2 bps intraday, 26 bps delivery); swing long only
+                                               │
+                        rule_engine.Engine books, halves, 2x costs, checks ─► one experiment row
+```
+
+h is 1 for intraday and hold + 1 for swing (entry at the open, exit at the
+close `hold` sessions later). The result carries each month's weights, each
+input's IC by horizon (1, 2, 5, 10, 20), entries per session and the share of
+gross profit paid in costs. A `Combined` rule has a fingerprint; repeats are
+refused. Entry points: `combine_signals` in the research loop, `make combine
+FORMULAS="f1;f2" KIND=swing HOLD=5`.
+
+### Fill prices (ADR-194)
+
+`intraday/fill_price.PriceModel` is the one pricer the engine's books call when
+an engine is built with `prices=`:
+
+```
+fill = reference x (1 + side x extra / 10,000)        side: +1 buy, -1 sell
+extra = max(0, half spread + k x vol x sqrt(order / mean value) - 2 bps already charged)
+```
+
+| Input | Source | Read from |
+|---|---|---|
+| reference | official open/close; with `MinuteReference`, the 09:15-09:20 or 15:10-15:20 VWAP of (high+low+close)/3 | the panel; minute bars via `intraday/store.fetch` |
+| half spread | median quoted half spread over at least 100 snapshots | `data/landing/kite_depth/*/part-*.parquet` (Nifty 50) |
+| half spread, else | 1.5 / 3 / 6 / 12 / 25 bps at ₹500 / 100 / 25 / 5 / 0 crore a day (A-154) | 20-session mean traded value before the day |
+| impact | k = 1 (A-155), daily vol of the 20 close-to-close returns before the day | the panel |
+
+An intraday trade is priced at both its open entry and close exit; a swing at
+its entry open and exit close (marks stay at the close). `make reprice`
+compares research 176's rules under both. The default engine is unchanged.
+
+### The forward shadow (ADR-193)
+
+`research/forward_shadow.py`, `make forward-shadow` each evening and `make
+forward-haircut` for the report:
+
+| Step | What |
+|---|---|
+| population | every fingerprint with a screen or sweep figure, rebuilt from the row's `spec`, its card, or research 176's rules |
+| sample | cards first, then up to 400 by fingerprint hash, so the same rules are followed |
+| score | `LiveData` from `forward_start` - 400 days; a `FastEngine` that enters nothing before `forward_start` and counts no earlier session |
+| store | one row per rule per evening in `data/derived/forward_shadow.jsonl` (stream `forward_shadow`) |
+| report | slope of forward on backtest Sharpe (the haircut) with a bootstrap 95% interval, rank correlation, by source, family, hold and score quintile |
+
+Each row also has the figures since the rule was first recorded, for a
+stricter read. Nothing in the research loop reads this file.
+
 ### Live-price paper and readiness (ADR-153)
 
 The paper books fill at the official open and close. `deploy/live_shadow.py`

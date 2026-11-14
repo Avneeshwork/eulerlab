@@ -32,6 +32,7 @@ import traceback
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal, Protocol
 from zoneinfo import ZoneInfo
@@ -41,7 +42,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from eulerlab.agents import briefs, log
 from eulerlab.agents.grounding import prompt_version
 from eulerlab.agents.spec import ROOT, Effective, all_effective, home
-from eulerlab.llm import usage
+from eulerlab.llm import trace, usage
 from eulerlab.llm.spend import BudgetSpent as BudgetSpent
 
 IST = ZoneInfo("Asia/Kolkata")
@@ -98,6 +99,8 @@ class Output(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
     lessons: list[str] = Field(default_factory=list)
     """Ids of the lessons the run's model requests carried (ADR-152)."""
+    traces: list[str] = Field(default_factory=list)
+    """Ids of every model request the run sent, in full in `llm/trace.py` (#165)."""
 
 
 @dataclass
@@ -206,6 +209,8 @@ class Context:
     lessons: list[str] = field(default_factory=list)
     args: dict[str, Any] = field(default_factory=dict)
     """Arguments from the command line or the control room (a question, a topic)."""
+    last_traces: list[str] = field(default_factory=list)
+    """The trace ids of the last `ask`: what a card written from it should cite (#165)."""
 
     @property
     def name(self) -> str:
@@ -244,9 +249,82 @@ class Context:
             f"Asking {self.model or 'the model'} (request {self.requests} of {self.budget_left} allowed)",
             "model",
         )
-        answer = self.asker(f"{system}\n\n{rules}", user, accept)
-        self.step(f"The model answered ({len(answer):,} characters)", "model")
+        with trace.collect() as ids:
+            answer = self.asker(f"{system}\n\n{rules}", user, accept)
+        self.last_traces = list(ids)
+        self.step(
+            f"The model answered ({len(answer):,} characters"
+            + (f", trace {ids[-1]}" if ids else "")
+            + ")",
+            "model",
+        )
         return answer
+
+    def converse(
+        self,
+        system: str,
+        user: str,
+        toolbox: Any,
+        *,
+        rounds: int,
+        post: Any = None,
+    ) -> str:
+        """Several model requests with tools (the research loop, #162, ADR-190).
+
+        `toolbox` offers read-only tools (`research/agent_tools.py`); the model
+        calls them and reads the answers between requests, through the
+        assistant's tool loop (`assistant.chat.ask`) and so the same host,
+        retention and redaction locks. Each round is one request against the
+        agent's daily budget, so `rounds` is cut to what is left, and the
+        operator's monthly rupees are checked first. The rules, brief and
+        lessons are the same as `ask` gives. The traces of every round are kept
+        in `last_traces`. `post` replaces the network (tests)."""
+        from eulerlab.assistant import chat
+        from eulerlab.llm import spend
+
+        if not self.agent.spec.uses_model:
+            msg = f"{self.name} is defined without a model"
+            raise BudgetSpent(msg)
+        left = self.budget_left - self.requests
+        if left < 2:
+            msg = f"{self.name} has under two requests left today, too few for a tool loop"
+            raise BudgetSpent(msg)
+        provider = resolve_provider(routed_provider(self.agent.spec))
+        self.model = provider
+        spend.refuse_if_spent(provider)
+        chosen = chat.selected_provider(name=provider)
+        rules = SHARED_RULES
+        if self.brief:
+            rules += "\n\nThe operator's brief:\n" + self.brief
+        learned = self._lessons(f"{system}\n{user}")
+        if learned:
+            rules += "\n\n" + learned
+        version = prompt_version(system, SHARED_RULES)
+        if version not in self.prompts:
+            self.prompts.append(version)
+        allowed = min(rounds, left)
+        self.step(f"Researching with {provider}: up to {allowed} requests with tools", "model")
+        send = chat._post if post is None else partial(trace.traced, post)
+        with trace.collect() as ids:
+            try:
+                answer = chat.ask(
+                    [{"role": "user", "content": user}],
+                    post=send,
+                    chosen=chosen,
+                    system=f"{system}\n\n{rules}",
+                    rounds=allowed,
+                    toolbox=toolbox,
+                )
+            finally:
+                # Every round that was sent counts, answered or not.
+                self.requests += max(len(ids), 1)
+        self.last_traces = list(ids)
+        self.step(
+            f"The model answered after {len(ids)} request(s) and {len(answer.used)} tool call(s)"
+            + (f", last trace {ids[-1]}" if ids else ""),
+            "model",
+        )
+        return answer.text
 
     def _lessons(self, prompt: str) -> str:
         """The lessons this request carries (ADR-152). Never fails the request."""
@@ -351,6 +429,7 @@ def run(
     )
     ctx.notes = Trail(lambda note: ctx.step(note, "note"))
     result: WorkerResult
+    traces: list[str] = []
     if agent.enabled:
         ctx.step(
             f"Started {agent.spec.title}"
@@ -372,7 +451,7 @@ def run(
     else:
         try:
             run_worker = worker or _load_worker(agent.spec.worker)
-            with usage.asking(name, run_id):
+            with usage.asking(name, run_id), trace.collect() as traces:
                 result = run_worker(ctx)
         except BudgetSpent as exc:
             result = WorkerResult(str(exc), status="over_budget")
@@ -402,6 +481,7 @@ def run(
         prompts=sorted(set(ctx.prompts)),
         data=result.data,
         lessons=list(ctx.lessons),
+        traces=traces,
     )
     ctx.step(f"Finished: {output.status} · {output.summary}", "end")
     ctx.write("output.json", output.model_dump())

@@ -195,7 +195,11 @@ def h0173_events(ctx: Context) -> list[Event]:
 # --- books ---------------------------------------------------------------------------
 
 
-def day_book(ctx: Context, events: Sequence[Event]) -> list[cs.Trade]:
+Pricer = Callable[[str, date, int, str, float], float]
+"""(symbol, day, +1 buy / -1 sell, "open" | "close", order value) -> fill price (#119)."""
+
+
+def day_book(ctx: Context, events: Sequence[Event], pricer: Pricer | None = None) -> list[cs.Trade]:
     by_day: dict[date, list[tuple[float, str, int]]] = defaultdict(list)
     for day, symbol, side, rank in events:
         by_day[day].append((rank, symbol, side))
@@ -207,17 +211,24 @@ def day_book(ctx: Context, events: Sequence[Event]) -> list[cs.Trade]:
                 continue
             quantity = cs.sized(TRADE, bar.open)
             if quantity:
-                out.append(
-                    cs.Trade(symbol, day, side, quantity, 0, bar.open, 374, bar.close, "close")
-                )
+                entry, exit_ = bar.open, bar.close
+                if pricer is not None:
+                    entry = pricer(symbol, day, side, "open", TRADE)
+                    exit_ = pricer(symbol, day, -side, "close", TRADE)
+                out.append(cs.Trade(symbol, day, side, quantity, 0, entry, 374, exit_, "close"))
     return out
 
 
-def swing_book(ctx: Context, events: Sequence[Event], hold: int) -> list[od.Swing]:
+def swing_book(
+    ctx: Context, events: Sequence[Event], hold: int, pricer: Pricer | None = None
+) -> list[od.Swing]:
+    # The data's own end, not the research window's: a paper book's data runs past
+    # 2024-11-30, and every swing it entered was dropped here (HISTORY #91).
+    last = getattr(ctx, "end", END)
     found = []
     for day, symbol, _, rank in events:
         i = ctx.index[day]
-        if i + hold >= len(ctx.sessions) or ctx.sessions[i + hold] > END:
+        if i + hold >= len(ctx.sessions) or ctx.sessions[i + hold] > last:
             continue
         window = ctx.sessions[i : i + hold + 1]
         bars = ctx.panel[symbol]
@@ -227,15 +238,12 @@ def swing_book(ctx: Context, events: Sequence[Event], hold: int) -> list[od.Swin
         if not quantity:
             continue
         marks = tuple((d, bars[d].close) for d in window[:-1])
+        entry, exit_ = bars[day].open, bars[window[-1]].close
+        if pricer is not None:
+            entry = pricer(symbol, day, 1, "open", TRADE)
+            exit_ = pricer(symbol, window[-1], -1, "close", TRADE)
         found.append(
-            (
-                day,
-                rank,
-                symbol,
-                od.Swing(
-                    symbol, day, window[-1], quantity, bars[day].open, bars[window[-1]].close, marks
-                ),
-            )
+            (day, rank, symbol, od.Swing(symbol, day, window[-1], quantity, entry, exit_, marks))
         )
     return od.cap_swings(found)
 

@@ -90,9 +90,16 @@ FIELDS.update(
         "news_impact": FieldInfo(
             1, False, "share of the day's stories a model judged up, minus down", True, True
         ),
+        # Raw daily values, for features an agent defines itself (#163, ADR-191). Prices
+        # are as traded, not split-adjusted: a ratio across a split is wrong (S-070).
+        "open_price": FieldInfo(0, False, "the session's official open, rupees"),
+        "close_price": FieldInfo(1, False, "the session's official close, rupees"),
+        "traded_value": FieldInfo(1, False, "the session's traded value, rupees"),
     }
 )
 """Daily fields. The market-wide ones are signals only (ADR-175)."""
+RAW_FIELDS = frozenset({"open_price", "close_price", "traded_value"})
+"""Read straight from the panel's bars rather than through `rule_engine.Engine.value`."""
 
 MINUTE_FIELDS: dict[str, FieldInfo] = {
     name: FieldInfo(0, False, f"the minute bar's {name}")

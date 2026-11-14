@@ -28,7 +28,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime
 from datetime import time as clock
 from functools import cached_property
@@ -135,6 +135,16 @@ class Store:
                 if day in series:
                     out[t, :] = series[day]
             return out
+        if name in lang.RAW_FIELDS:
+            attr = {"open_price": "open", "close_price": "close", "traded_value": "value"}[name]
+            panel = self.engine.data.panel
+            for j, symbol in enumerate(self.symbols):
+                bars = panel.get(symbol, {})
+                for t, day in enumerate(self.days):
+                    bar = bars.get(day)
+                    if bar is not None:
+                        out[t, j] = float(getattr(bar, attr))
+            return out
         # Lag 0 on purpose: the table holds each session's own value, and a rule
         # reads it through `delay`, which `lang.check_lookahead` has already checked.
         signal = rule_engine.Signal.model_construct(
@@ -229,8 +239,13 @@ def real_store(engine: rule_engine.Engine) -> Store:
 class FastEngine(rule_engine.Engine):
     """An engine whose entries come from the tables. Books, costs and checks are inherited."""
 
-    def __init__(self, data: rule_engine.Data, store: Store | None = None) -> None:
-        super().__init__(data)
+    def __init__(
+        self,
+        data: rule_engine.Data,
+        store: Store | None = None,
+        prices: Any = None,
+    ) -> None:
+        super().__init__(data, prices)
         self.store = store or real_store(self)
         self.evaluator = lang.Evaluator(self.store)
 
@@ -259,6 +274,116 @@ def events_for(engine: rule_engine.Engine, spec: rule_engine.Rule) -> list[rule_
     return _events(spec, *kept)
 
 
+def _dump(spec: rule_engine.Rule) -> dict[str, Any] | None:
+    dump = getattr(spec, "model_dump", None)
+    return dump(mode="json") if callable(dump) else None
+
+
+# --- many rules across cores, with the slow engine as referee (#167, ADR-195) ---------------
+
+_SHARED: dict[str, Any] = {}
+"""The engine a worker screens with: inherited by a forked worker, sent once to a spawned one."""
+
+
+def _share(engine: rule_engine.Engine) -> None:
+    _SHARED["engine"] = engine
+
+
+def _screen_chunk(
+    chunk: Sequence[rule_engine.Rule],
+) -> list[tuple[dict[str, Any], dict[date, float]]]:
+    engine = _SHARED["engine"]
+    out = []
+    for spec in chunk:
+        found = engine.screen(spec)
+        out.append((found, engine.returns.pop(spec.fingerprint(), {})))
+    return out
+
+
+def _context() -> Any:
+    import multiprocessing as mp
+    import sys
+
+    # macOS's system libraries are not fork-safe, which is why Python spawns there.
+    method = "fork" if sys.platform == "linux" else "spawn"
+    return mp.get_context(method)
+
+
+def screen_many(
+    specs: Sequence[rule_engine.Rule], engine: rule_engine.Engine, *, workers: int = 1
+) -> list[tuple[dict[str, Any], dict[date, float]]]:
+    """(screen, daily returns) for every spec, in the order given, across `workers` processes.
+
+    Each worker screens contiguous chunks with its own copy of the engine, so the
+    figures are byte-identical to one process's. A pool that cannot start (an
+    engine that cannot be sent to a spawned worker) falls back to one process."""
+    if workers <= 1 or len(specs) < 2 * workers:
+        _share(engine)
+        return _screen_chunk(specs)
+    from concurrent.futures import ProcessPoolExecutor
+
+    size = max(1, -(-len(specs) // (workers * 4)))
+    chunks = [list(specs[i : i + size]) for i in range(0, len(specs), size)]
+    _share(engine)
+    try:
+        with ProcessPoolExecutor(
+            max_workers=workers, mp_context=_context(), initializer=_share, initargs=(engine,)
+        ) as pool:
+            parts = list(pool.map(_screen_chunk, chunks))
+    except Exception:
+        return _screen_chunk(specs)
+    return [x for part in parts for x in part]
+
+
+PARITY = "derived/parity.jsonl"
+PARITY_KIND = "parity"
+COMPARED = ("count", "per_bps", "passes_screen", "clean")
+
+
+def referee(
+    specs: Sequence[rule_engine.Rule],
+    found: Sequence[Mapping[str, Any]],
+    data: rule_engine.Data,
+    *,
+    share: float = 0.01,
+    now: datetime | None = None,
+    path: Path | None = None,
+) -> dict[str, Any]:
+    """Re-screen a sample of the engine rules with the slow engine; any difference is a row.
+
+    The sample is fixed by each fingerprint's hash, so a rule is always in it or
+    never. Language-v2 rules have no slow path of their own and are not refereed."""
+    from eulerlab.db.stream import add_row
+
+    slow = rule_engine.Engine(data)
+    cut = int(share * 0xFFFF)
+    checked = mismatched = 0
+    for spec, fast in zip(specs, found, strict=True):
+        fp = spec.fingerprint()
+        if not isinstance(spec, rule_engine.RuleSpec) or int(fp[:4], 16) > cut:
+            continue
+        checked += 1
+        ref = slow.screen(spec)
+        slow.returns.pop(fp, None)
+        diff = {k: (fast.get(k), ref.get(k)) for k in COMPARED if fast.get(k) != ref.get(k)}
+        net = ((fast.get("net") or {}).get("sharpe"), (ref.get("net") or {}).get("sharpe"))
+        if net[0] != net[1]:
+            diff["net_sharpe"] = net
+        if diff:
+            mismatched += 1
+            add_row(
+                path or data_path(PARITY),
+                PARITY_KIND,
+                {
+                    "at": (now or datetime.now(UTC)).isoformat(timespec="seconds"),
+                    "fingerprint": fp,
+                    "rule": spec.describe()[:200],
+                    "diff": {k: list(v) for k, v in diff.items()},
+                },
+            )
+    return {"checked": checked, "mismatched": mismatched}
+
+
 def evaluate(
     specs: Sequence[rule_engine.Rule],
     engine: rule_engine.Engine,
@@ -268,12 +393,13 @@ def evaluate(
     parents: dict[str, Sequence[str]] | None = None,
     record: bool = True,
     now: datetime | None = None,
+    workers: int = 1,
 ) -> list[dict[str, Any]]:
     """Screen every spec. Each result carries its `daily` returns and, when recorded, its `id`."""
     out: list[dict[str, Any]] = []
-    for spec in specs:
-        found = engine.screen(spec)
-        daily = engine.returns.pop(spec.fingerprint(), {})
+    for spec, (found, daily) in zip(
+        specs, screen_many(specs, engine, workers=workers), strict=True
+    ):
         found["daily"] = daily
         if record:
             found["id"] = experiments.record(
@@ -292,12 +418,13 @@ def evaluate(
                 parents=tuple((parents or {}).get(spec.fingerprint(), ())),
                 asked_by=asked_by,
                 now=now,
+                spec=_dump(spec),
             )
         out.append(found)
     return out
 
 
-def bench(count: int, data: rule_engine.Data | None = None) -> dict[str, Any]:
+def bench(count: int, data: rule_engine.Data | None = None, workers: int = 1) -> dict[str, Any]:
     """Seconds to build the tables and to screen `count` fixed-rule candidates, unrecorded."""
     from eulerlab.agents.workers import autopilot as writer
 
@@ -314,10 +441,11 @@ def bench(count: int, data: rule_engine.Data | None = None) -> dict[str, Any]:
     evaluate(specs[:1], engine, asked_by="bench", record=False)
     built = time.monotonic() - began
     began = time.monotonic()
-    evaluate(specs, engine, asked_by="bench", record=False)
+    evaluate(specs, engine, asked_by="bench", record=False, workers=workers)
     took = time.monotonic() - began
     return {
         "candidates": len(specs),
+        "workers": workers,
         "first_seconds": round(built, 1),
         "seconds": round(took, 1),
         "per_hour": round(len(specs) / took * 3600) if took else None,
@@ -327,10 +455,13 @@ def bench(count: int, data: rule_engine.Data | None = None) -> dict[str, Any]:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fast-eval", description=__doc__)
     parser.add_argument("--count", type=int, default=1000)
+    parser.add_argument("--workers", type=int, default=1, help="processes; 0 for every core")
     args = parser.parse_args(argv)
-    found = bench(args.count)
+    import os
+
+    found = bench(args.count, workers=args.workers or os.cpu_count() or 1)
     print(
-        f"{found['candidates']} candidates in {found['seconds']} s "
+        f"{found['candidates']} candidates on {found['workers']} process(es) in {found['seconds']} s "
         f"({found['per_hour']} an hour); the first one, with its tables, took "
         f"{found['first_seconds']} s"
     )

@@ -271,6 +271,16 @@ def _private_usage_log(
 
 
 @pytest.fixture(autouse=True)
+def _private_traces(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No test appends to the real trace store (#165)."""
+    from eulerlab.llm import trace
+
+    monkeypatch.setattr(trace, "ROOT", tmp_path_factory.mktemp("traces"))
+
+
+@pytest.fixture(autouse=True)
 def _private_forecasts(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
 ) -> None:

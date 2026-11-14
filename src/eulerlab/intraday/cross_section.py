@@ -19,6 +19,7 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import date
+from functools import cached_property
 from pathlib import Path
 from typing import Any
 
@@ -125,8 +126,9 @@ class Trade:
     def gross(self) -> float:
         return self.direction * (self.exit - self.entry) * self.quantity
 
-    @property
+    @cached_property
     def costs(self) -> float:
+        """Read five or more times a trade by the screen and its checks; computed once (#167)."""
         return sc.round_trip_cost(
             self.entry,
             self.exit,

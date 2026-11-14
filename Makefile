@@ -1,6 +1,8 @@
 .DEFAULT_GOAL := help
+empty :=
+space := $(empty) $(empty)
 
-.PHONY: factors-weekly legacy-isin angel-history angel-rescale angel-backfill-supervise topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder oncall fund-report agent-evals agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard
+.PHONY: factors-weekly legacy-isin angel-history angel-rescale angel-backfill-supervise topdown-screen angel-readonly angel-proof agents-autopilot live-shadow-plan live-shadow-open live-shadow-close live-shadow-evening live-shadow-summary readiness lessons-seed lessons feedback guardian agents-resume rule-engine-check ladder oncall fund-report agent-evals agents-evolve fast-eval-bench llm-probe full-history nse-reports-intraday option-iv stock-fo minute-six news-intraday tug-of-war option-signals cash-volume cash-events in-play-variants cash-five move-cost-map minute-scalps results-gap-fade expiry-straddle fundamentals-annual screener-models screener data-merge-back agents-watchdog kite-readonly strategy-map board-meetings holidays handbook knowledge-keeper metrics-normals metrics-accept nse-reports market-reports index-minute depth-record depth-day upload-verified help install verify daily daily-run india-live feed coverage test lint fmt types docs-check state acceptance montecarlo tweezer-report india-papers github-daily evidence-daily events-daily tune-sharpe-momentum paper-daily nifty-options options-strategies intraday-papers india-intraday stock-intraday stock-intraday-candidates company-github-intraday github-followup-intraday github-momentum-pullback-intraday inside-bar-intraday github-keltner-intraday github-donchian-intraday github-pivot-intraday github-engulfing-intraday github-momentum-burst-intraday github-rsi2-intraday india-five-intraday nse-earnings-announcements gold-stock-intraday-screen gold-stock-intraday-optimize cost-aware-ml-intraday mcx-gold-minute mcx-gold-backtest angel-mcx-gold-minute library-sync upload-tree fundamentals-update fundamentals-run gap-forecast gap-signal telegram-bot ingest-nse-daily market-history rebuild-ohlc session-studies chaos paper api ui ui-fast web-check results-pull results-dedupe workbench attribution kill-status kill-stop reconcile-book mcx-instruments mcx-index-minute data-quality agent agents agent-brief agents-preopen agents-close agents-weekly agents-ideas agents-work agents-backup agents-restore papers-duplicates agents-capabilities agent-fix-apply relock quantpedia-sync agent-eval fii-dii fii-dii-history microstructure-five microstructure-five-futures microstructure-five-b2 fyers-auth fyers-expired-fo db-migrate db-import db-export db-restore account scorecard agenda reprice combine forward-shadow forward-haircut agent-replay agent-research
 
 help:
 	@echo "EulerLab — targets"
@@ -390,6 +392,33 @@ fund-report:
 agent-evals:
 	@uv run python -m eulerlab.agents.evals $(if $(BASELINE),--baseline,)
 
+# Model requests in full (#165): RUN=<run id> lists a run's traces; TRACE=<id> sends one
+# again, with PROVIDER=<name> or SYSTEM_FILE=<path> to compare, and prints the diff.
+agent-replay:
+	@uv run python -m eulerlab.llm.trace $(if $(TRACE),--trace $(TRACE),) $(if $(RUN),--run $(RUN),) $(if $(PROVIDER),--provider $(PROVIDER),) $(if $(SYSTEM_FILE),--system-file $(SYSTEM_FILE),)
+
+# The research agenda (#164): no arguments lists it; ASK="..." WHY="..." adds a question;
+# CLOSE=<id> STATUS=answered|dead|open NOTE="..." closes or reopens one.
+agenda:
+	@uv run python -m eulerlab.research.agenda $(if $(ASK),--ask "$(ASK)",) $(if $(WHY),--why "$(WHY)",) $(if $(CLOSE),--close $(CLOSE),) $(if $(STATUS),--status $(STATUS),) $(if $(NOTE),--note "$(NOTE)",)
+
+# Many weak signals as one walk-forward book (#155): FORMULAS="f1;f2;..." KIND=swing|intraday
+# HOLD=5 METHOD=ic|ridge. Recorded as one screen in the experiment store.
+combine:
+	@uv run python -m eulerlab.research.combine $(foreach f,$(subst ;, ,$(subst $(space),__,$(FORMULAS))),--formula "$(subst __, ,$(f))") --kind $(or $(KIND),swing) --hold $(or $(HOLD),5) --method $(or $(METHOD),ic)
+
+# Research 176's rules under the fill-price model (#119): spread and impact on top of the
+# official prints; MINUTE=1 uses minute VWAPs as the reference, K= sets the impact coefficient.
+reprice:
+	@uv run python -m eulerlab.intraday.fill_price $(if $(MINUTE),--minute,) $(if $(K),--k $(K),)
+
+# Every screened rule scored forward each evening, compute only (#156); then the haircut report.
+forward-shadow:
+	@uv run python -m eulerlab.research.forward_shadow $(if $(LIMIT),--limit $(LIMIT),)
+
+forward-haircut:
+	@uv run python -m eulerlab.research.forward_shadow --report
+
 # One night of the evolutionary search; survivors join the autopilot's gate queue (ADR-177).
 agents-evolve:
 	@uv run python -m eulerlab.research.evolve
@@ -402,9 +431,10 @@ rule-engine-check:
 llm-probe:
 	@uv run python -m eulerlab.llm.cutoff --provider $(PROVIDER)
 
-# How many candidate rules an hour the fast evaluator scores on this machine (ADR-175).
+# How many candidate rules an hour the fast evaluator scores on this machine (ADR-175);
+# WORKERS=0 uses every core (ADR-195).
 fast-eval-bench:
-	@uv run python -m eulerlab.research.fast_eval --count $(or $(COUNT),1000)
+	@uv run python -m eulerlab.research.fast_eval --count $(or $(COUNT),1000) --workers $(or $(WORKERS),1)
 
 agents-ideas:
 	-@uv run python -m eulerlab.agents.lessons seed
