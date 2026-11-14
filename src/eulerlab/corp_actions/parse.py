@@ -33,6 +33,10 @@ _RIGHTS_PREMIUM = re.compile(r"Premium\s*Rs\.?\s*([\d.]+)", re.IGNORECASE)
 _SPLIT_VALUES = re.compile(
     r"(?:Rs|Re)\.?\s*([\d.]+).*?\bTo\b.*?(?:Rs|Re)\.?\s*([\d.]+)", re.IGNORECASE | re.DOTALL
 )
+# NSE's wording before about 2011: "Fv Split Rs.10/- To Rs.2/-", "Spl-Rs10 To
+# Rs5", "Split-Rs.10 To Rs.5" (research 195). Only a split that names both face
+# values is parsed; "Split Us 1 Into 2 Parts" stays unparsed.
+_OLD_SPLIT = re.compile(r"\b(?:FV\s*SPLIT|SPLIT|SPL)\b")
 # "Rs", "Rs.", "Rs-", "Rs -" all appear for the same thing; "Per Share" is not
 # required, since "Final Dividend - Rs 15/-" is real observed data.
 _DIVIDEND_AMOUNT = re.compile(r"(?:Rs|Re)\.?\s*-?\s*([\d.]+)", re.IGNORECASE)
@@ -168,7 +172,12 @@ def _classify_clause(clause: str) -> ParsedComponent:
             )
         return ParsedComponent(Kind.UNPARSED, clause)
 
-    if "FACE VALUE" in upper or "SUB-DIVISION" in upper or "SUBDIVISION" in upper:
+    if (
+        "FACE VALUE" in upper
+        or "SUB-DIVISION" in upper
+        or "SUBDIVISION" in upper
+        or _OLD_SPLIT.search(upper)
+    ):
         m = _SPLIT_VALUES.search(clause)
         if m:
             from_val, to_val = _to_float(m.group(1)), _to_float(m.group(2))

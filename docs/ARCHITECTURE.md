@@ -272,6 +272,12 @@ chain that reaches an ISIN takes its key; one that never does (a company gone
 before late 2011) gets its own `NOISIN` id with no ISIN, so dead companies stay
 in the history. Nothing is matched by ticker and no ISIN is guessed.
 
+**The old years' jump mask (ADR-188).** Moves over 40% before 2015 that no
+confirmed factor explains are not traded on: `features/panel_mask.py` writes
+`panel_mask.jsonl` beside the panel, each entry with an `event_time` and the
+`knowledge_time` its evidence existed, and `MarketView` drops masked rows once
+`as_of` reaches that time. Without the file nothing changes.
+
 ## 3.4 Corporate actions: the mathematics of adjustment
 
 When a company splits its stock 1-for-1, the price halves overnight. A holder

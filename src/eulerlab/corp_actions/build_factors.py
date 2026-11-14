@@ -88,6 +88,29 @@ def load_actions(landing_root: Path) -> tuple[list[CorporateAction], int]:
     return sorted(actions, key=lambda a: (a.ex_date, a.isin)), skipped
 
 
+def no_isin_actions(actions: Sequence[CorporateAction], master_path: Path) -> list[CorporateAction]:
+    """Splits and bonuses of companies that never traded with an ISIN (ADR-187).
+
+    The action's symbol is resolved on its ex-date through the no-ISIN master,
+    which bounds every ticker by the days it was observed trading, so a reused
+    symbol resolves to whoever held it then. A copy of the action is keyed to
+    that instrument's own id. Dividends and rights need a price lookup by ISIN
+    and are not copied."""
+    from dataclasses import replace
+
+    from eulerlab.master import store
+
+    registry, _ = store.load(master_path)
+    out: list[CorporateAction] = []
+    for action in actions:
+        if not any(c.kind in (Kind.BONUS, Kind.SPLIT) for c in action.components):
+            continue
+        instrument = registry.resolve(action.symbol, action.ex_date)
+        if instrument is not None:
+            out.append(replace(action, isin=str(instrument.instrument_id)))
+    return out
+
+
 def needed_price_keys(actions: Sequence[CorporateAction]) -> set[tuple[str, str]]:
     """(instrument_key, ex_date) for every action that needs a market price.
 
@@ -178,6 +201,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="write the two factor files and the close cache here, not data/derived",
     )
+    parser.add_argument(
+        "--no-isin-master",
+        type=Path,
+        default=None,
+        help="instruments without an ISIN (legacy-isin); their splits and bonuses are keyed to them",
+    )
     args = parser.parse_args(argv)
     price_path, tr_path, cache = PRICE_FACTORS, TOTAL_RETURN_FACTORS, CLOSE_CACHE
     if args.out is not None:
@@ -188,6 +217,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     actions, skipped = load_actions(args.landing)
     print(f"loaded {len(actions):,} corporate actions ({skipped:,} rows skipped)")
+    if args.no_isin_master is not None:
+        extra = no_isin_actions(actions, args.no_isin_master)
+        print(f"{len(extra):,} splits and bonuses keyed to instruments without an ISIN")
+        actions = sorted([*actions, *extra], key=lambda a: (a.ex_date, a.isin))
     if not actions:
         # On 2026-11-14 a pruned landing loaded nothing and this wrote both
         # factor files empty, i.e. no adjustment anywhere (HISTORY).

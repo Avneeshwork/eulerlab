@@ -138,3 +138,39 @@ def test_no_actions_leaves_the_factor_files_alone(
     empty.mkdir()
     assert bf.main(["--landing", str(empty), "--manifest", str(empty / "manifest.jsonl")]) == 1
     assert factors.read_text() == "kept\n"
+
+
+def test_splits_of_a_company_without_an_isin_are_keyed_to_its_own_id(tmp_path: Path) -> None:
+    """ADR-187: resolved by symbol on the ex-date through the no-ISIN master."""
+    from eulerlab.corp_actions import build_factors as bf
+    from eulerlab.corp_actions.parse import parse_rows
+    from eulerlab.master import store
+    from eulerlab.master.identity import InstrumentId
+    from eulerlab.master.registry import Registry
+
+    registry = Registry()
+    own = InstrumentId(issuer="NOISIN0123456789")
+    for day in (date(2005, 1, 3), date(2005, 12, 30)):
+        registry.observe(day, instrument_id=own, ticker="DEADCO", isin="")
+    master = tmp_path / "instruments_no_isin.jsonl"
+    store.save(registry, store.BuildStamp("x", 1, "2005-01-03", "2005-12-30"), master)
+
+    def row(subject: str, ex: str) -> dict[str, object]:
+        return {
+            "symbol": "DEADCO",
+            "isin": "INE999Z01011",
+            "series": "EQ",
+            "faceVal": "10",
+            "subject": subject,
+            "exDate": ex,
+        }
+
+    actions, _ = parse_rows(
+        [
+            row("Fv Split Rs.10/- To Rs.2/-", "01-Jun-2005"),
+            row("Dividend - Rs 2 Per Share", "01-Jul-2005"),
+            row("Bonus 1:1", "01-Jun-2009"),  # after the company stopped trading
+        ]
+    )
+    copies = bf.no_isin_actions(actions, master)
+    assert [(a.isin, a.ex_date) for a in copies] == [("NOISIN0123456789", date(2005, 6, 1))]

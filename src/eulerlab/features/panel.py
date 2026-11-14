@@ -53,6 +53,7 @@ from eulerlab.bitemporal.store import BitemporalStore, Record
 from eulerlab.corp_actions.build_factors import PRICE_FACTORS, cached_dates
 from eulerlab.corp_actions.prices import instrument_key
 from eulerlab.filecache import FileMemo
+from eulerlab.master.legacy_isin import NO_ISIN_PREFIX
 from eulerlab.paths import data_path
 from eulerlab.quality.sources import bars_from_bhavcopy
 
@@ -176,7 +177,9 @@ def load_price_factor_store(path: Path = PRICE_FACTORS) -> BitemporalStore:
         # company (ADR-012), and joining on the raw string lost 21.9% of
         # lookups in Sprint 5. The panel would have failed more quietly still:
         # a missed factor is silently 1.0, i.e. no adjustment at all.
-        key = instrument_key(str(row["isin"]))
+        raw = str(row["isin"])
+        # An instrument with no ISIN (pre-2011, ADR-187) is keyed by its own id.
+        key = instrument_key(raw) or (raw if raw.startswith(NO_ISIN_PREFIX) else None)
         if key is None:
             continue
         store.append(

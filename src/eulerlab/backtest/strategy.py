@@ -50,6 +50,16 @@ class MarketView:
     history: Mapping[str, Sequence[PanelRow]]
     """Per symbol, oldest first, ending on or before `as_of`."""
 
+    def __post_init__(self) -> None:
+        # Rows the panel's mask excludes (unexplained jumps before 2015,
+        # A-146) are taken out once `as_of` reaches the mask entry's knowledge
+        # time. No mask file, no change: the live panel has none (ADR-188).
+        from eulerlab.features import panel_mask
+
+        mask = panel_mask.active()
+        if mask is not None:
+            object.__setattr__(self, "history", mask.apply(self.history, self.as_of))
+
     def symbols(self) -> list[str]:
         return sorted(self.history)
 

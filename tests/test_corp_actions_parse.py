@@ -260,3 +260,18 @@ def test_a_missing_face_value_is_none_not_zero() -> None:
     ]
     actions, _ = parse_rows(rows)
     assert actions[0].face_value is None
+
+
+def test_the_older_split_wordings_parse() -> None:
+    """NSE's wording before about 2011 (research 195): 177 jumps had no factor."""
+    for subject, values in (
+        ("Fv Split Rs.10/- To Rs.2/-", (10.0, 2.0)),
+        ("Fv Split Rs.10/- To Re.1/", (10.0, 1.0)),
+        ("Fv Split Rs.10 To Rs.5", (10.0, 5.0)),
+        ("Fv Split-Rs.10/-To Rs.2/-", (10.0, 2.0)),
+        ("Spl-Rs10 To Rs5", (10.0, 5.0)),
+    ):
+        split = parse_subject(subject)[0]
+        assert split.kind is Kind.SPLIT, subject
+        assert (split.face_value_from, split.face_value_to) == values, subject
+    assert parse_subject("Split Us 1 Into 2 Parts")[0].kind is Kind.UNPARSED
