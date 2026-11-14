@@ -269,7 +269,7 @@ class Context:
         rounds: int,
         post: Any = None,
     ) -> str:
-        """Several model requests with tools (the research loop, #162, ADR-186).
+        """Several model requests with tools (the research loop, #162, ADR-190).
 
         `toolbox` offers read-only tools (`research/agent_tools.py`); the model
         calls them and reads the answers between requests, through the

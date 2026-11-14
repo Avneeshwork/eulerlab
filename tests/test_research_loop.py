@@ -1,4 +1,4 @@
-"""The research loop (#162, ADR-186): tools the model calls, screens cut at the discovery end,
+"""The research loop (#162, ADR-190): tools the model calls, screens cut at the discovery end,
 and the autopilot writing its cards after looking."""
 
 from __future__ import annotations
@@ -284,7 +284,7 @@ def test_explore_system_prompt_names_the_bar() -> None:
         assert tool in writer.EXPLORE_SYSTEM
 
 
-# --- formula cards (ADR-187) ------------------------------------------------------------------
+# --- formula cards (ADR-191) ------------------------------------------------------------------
 
 V2 = {
     "shape": "event",

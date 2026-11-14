@@ -11,7 +11,7 @@ worker: eulerlab.agents.workers.autopilot
 provider: claude-sonnet
 schedule: Every day 17:00 IST, after research and before the idea lab (make agents-ideas)
 uses_model: true
-# 5 one-shot requests plus up to 12 for the research loop (ADR-186, operator's go
+# 5 one-shot requests plus up to 12 for the research loop (ADR-190, operator's go
 # 2026-11-14 for #162). Each loop round resends the thread so far, so it costs more
 # tokens than a one-shot request.
 daily_requests: 17
@@ -23,7 +23,7 @@ never:
   - trade live money or push to GitHub
 options:
   cards: 10
-  # The research loop (#162, ADR-186): the model looks up what was tried and
+  # The research loop (#162, ADR-190): the model looks up what was tried and
   # screens drafts on 2016-2023 before writing; every screen is an experiment row.
   # false goes back to the one-shot prompt alone.
   explore: true

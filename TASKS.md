@@ -35,21 +35,21 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4597 | Re-store research 176's reference results after ADR-157 (or confirm another cause), so `make rule-engine-check` passes; set `EULERLAB_NO_CLOUD=0` in that target | TODO (HISTORY #89) |
 | T-4598 | The ladder's decay check reads backtests only from the experiment store, which is empty; fall back to the stored gate report | TODO (research 192) |
 | T-4599 | The generator eval reads the Mac's live lesson store: three cases fail there and pass in CI. Isolate it, or change the cases' expectations | TODO (research 192) |
-| T-4600 | Traces of every model request and the autopilot's research loop (#165, #162) | DONE 2026-11-14 in code, unit-tested with a scripted model — `uv run pytest -q tests/test_llm_trace.py tests/test_research_loop.py`, ADR-186. HISTORY #90 found on the way |
-| T-4601 | Run one real autopilot night with the loop on the Mac (after T-4596), read its traces with `make agent-replay RUN=<run id>`, and compare its cards' screens and survivors with a one-shot night | TODO. Needs the agents resumed and a Claude key |
-| T-4602 | Research tools two: IC of a formula by horizon, an event study with a placebo, both on discovery data and recorded (#162, #129); agents define features as checked formulas (#163); the research agenda (#164) | DONE 2026-11-14 in code, unit-tested on made-up data — `uv run pytest -q tests/test_research_bench.py tests/test_research_loop.py`, ADR-187 |
-| T-4603 | Research tools three: read-only SQL over the columnar store and a sandboxed Python tool with CPU, memory and time limits and no network (#162, #166, S-021) | TODO. Needs #166 |
-| T-4604 | Prune traces on a schedule (180 days), trace the translator path, and show a run's traces as a timeline on the AI tab (#165) | TODO |
-| T-4605 | A split-adjusted price table for the raw price fields, so agent features that divide prices are right across splits (S-070) | TODO |
-| T-4606 | Count IC and event-study looks in the firewall's bar (S-071), and show the agenda and the feature registry on the AI tab (#164) | TODO |
-| T-4607 | Run `make combine` on the Mac for a swing and an intraday book from signals that failed alone; write the research note (net Sharpe walk-forward, turnover, cost share) that closes #155 | TODO. Built 2026-11-14 (ADR-188) |
-| T-4608 | Show `forward_shadow.expected_live` beside the gate report's Sharpe and use the haircut as the decay monitor's prior (#156); the operator decides whether it enters `gates.py` | TODO. Operator decision |
-| T-4609 | Schedule `make forward-shadow` in the Mac's evening job (later the server, #115); first report after 60 forward sessions on 200+ rules | TODO |
-| T-4610 | A card shape for a combined book, refitted walk-forward by every engine, so it can be gated, paper-traded and shadowed (S-072) | TODO |
-| T-4611 | Run `make reprice` (and `MINUTE=1` where minute bars exist) on the Mac; write the research note listing research 176's net bps before and after, which closes #119 | TODO. Built 2026-11-14 (ADR-190) |
-| T-4612 | Calibrate A-146 from the live-price shadow's spreads and A-147 from paper fills, then build every screen's engine with the fill-price model (operator decision: it changes which rules pass) | TODO |
-| T-4613 | Faster screens, part two (#167): run `make fast-eval-bench WORKERS=0` on the Mac and record it; evolve screens each generation as one batch; books as array operations for the 100x; schedule the 1% referee nightly for a week with no mismatch | TODO. Part one done 2026-11-14 (ADR-191) |
-| T-4614 | Use the data's own end instead of `daily_more_screen.END` in `research/library_reports.py`, `new_signals_screen.py` and `more_signals_screen.py`; find out why all 29 swing cards had no entries in the 2026-10-17 to 2026-11-13 live window (HISTORY #91) | TODO |
+| T-4615 | Traces of every model request and the autopilot's research loop (#165, #162) | DONE 2026-11-14 in code, unit-tested with a scripted model — `uv run pytest -q tests/test_llm_trace.py tests/test_research_loop.py`, ADR-190. HISTORY #90 found on the way |
+| T-4616 | Run one real autopilot night with the loop on the Mac (after T-4596), read its traces with `make agent-replay RUN=<run id>`, and compare its cards' screens and survivors with a one-shot night | TODO. Needs the agents resumed and a Claude key |
+| T-4617 | Research tools two: IC of a formula by horizon, an event study with a placebo, both on discovery data and recorded (#162, #129); agents define features as checked formulas (#163); the research agenda (#164) | DONE 2026-11-14 in code, unit-tested on made-up data — `uv run pytest -q tests/test_research_bench.py tests/test_research_loop.py`, ADR-191 |
+| T-4618 | Research tools three: read-only SQL over the columnar store and a sandboxed Python tool with CPU, memory and time limits and no network (#162, #166, S-021) | TODO. Needs #166 |
+| T-4619 | Prune traces on a schedule (180 days), trace the translator path, and show a run's traces as a timeline on the AI tab (#165) | TODO |
+| T-4620 | A split-adjusted price table for the raw price fields, so agent features that divide prices are right across splits (S-070) | TODO |
+| T-4621 | Count IC and event-study looks in the firewall's bar (S-071), and show the agenda and the feature registry on the AI tab (#164) | TODO |
+| T-4622 | Run `make combine` on the Mac for a swing and an intraday book from signals that failed alone; write the research note (net Sharpe walk-forward, turnover, cost share) that closes #155 | TODO. Built 2026-11-14 (ADR-192) |
+| T-4623 | Show `forward_shadow.expected_live` beside the gate report's Sharpe and use the haircut as the decay monitor's prior (#156); the operator decides whether it enters `gates.py` | TODO. Operator decision |
+| T-4624 | Schedule `make forward-shadow` in the Mac's evening job (later the server, #115); first report after 60 forward sessions on 200+ rules | TODO |
+| T-4625 | A card shape for a combined book, refitted walk-forward by every engine, so it can be gated, paper-traded and shadowed (S-072) | TODO |
+| T-4626 | Run `make reprice` (and `MINUTE=1` where minute bars exist) on the Mac; write the research note listing research 176's net bps before and after, which closes #119 | TODO. Built 2026-11-14 (ADR-194) |
+| T-4627 | Calibrate A-150 from the live-price shadow's spreads and A-151 from paper fills, then build every screen's engine with the fill-price model (operator decision: it changes which rules pass) | TODO |
+| T-4628 | Faster screens, part two (#167): run `make fast-eval-bench WORKERS=0` on the Mac and record it; evolve screens each generation as one batch; books as array operations for the 100x; schedule the 1% referee nightly for a week with no mismatch | TODO. Part one done 2026-11-14 (ADR-195) |
+| T-4629 | Use the data's own end instead of `daily_more_screen.END` in `research/library_reports.py`, `new_signals_screen.py` and `more_signals_screen.py`; find out why all 29 swing cards had no entries in the 2026-10-17 to 2026-11-13 live window (HISTORY #91) | TODO |
 
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 

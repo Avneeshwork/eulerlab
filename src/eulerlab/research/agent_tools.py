@@ -1,6 +1,6 @@
 """The research loop's tools: what an agent may look up, measure and test while it thinks.
 
-Issue #162 (ADR-186) gave the autopilot four tools; #163 and #164 (ADR-187) add
+Issue #162 (ADR-190) gave the autopilot four tools; #163 and #164 (ADR-191) add
 the rest of a researcher's bench: measure a signal before making a rule of it,
 define new signals, test an event, and keep a notebook across nights. Every
 tool is called through the assistant's tool loop (`assistant.chat.ask`), under

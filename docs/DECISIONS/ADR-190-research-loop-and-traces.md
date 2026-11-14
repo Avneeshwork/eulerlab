@@ -1,4 +1,4 @@
-# ADR-186 — Every model request is kept in full, and the autopilot researches with tools before it writes
+# ADR-190 — Every model request is kept in full, and the autopilot researches with tools before it writes
 
 **Date:** 2026-11-14. **Status:** accepted; operator's "go ahead" on 2026-11-14 for issues #165 and #162. Tested on made-up data only; no real night has run (agents halted, T-4596).
 

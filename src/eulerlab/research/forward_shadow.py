@@ -1,4 +1,4 @@
-"""Every screened rule, pass or fail, scored forward: the research process's own haircut (#156, ADR-189).
+"""Every screened rule, pass or fail, scored forward: the research process's own haircut (#156, ADR-193).
 
 The platform did not know how much its backtests shrink out of sample, so a
 screen Sharpe of 2 meant nothing measurable. Forward evidence came only from
@@ -57,7 +57,7 @@ BOOTSTRAP = 1000
 SCORED = ("screen", "sweep")
 """Purposes whose figure is a rule's backtest score."""
 
-# ASSUMPTION: A-145 — 200 rules with 60 forward sessions each are enough to read a haircut.
+# ASSUMPTION: A-149 — 200 rules with 60 forward sessions each are enough to read a haircut.
 
 
 def _path(path: Path | None) -> Path:
@@ -357,7 +357,7 @@ def expected_live(backtest_sharpe: float, found: Mapping[str, Any] | None = None
 def markdown(rows: Sequence[Mapping[str, Any]], *, min_sessions: int = MIN_SESSIONS) -> str:
     h = haircut(rows, min_sessions=min_sessions)
     lines = [
-        "# Forward haircut (#156, ADR-189)",
+        "# Forward haircut (#156, ADR-193)",
         "",
         f"Rules with at least {min_sessions} forward sessions: {h['rules']} "
         f"(the report is read once there are {MIN_RULES}). Shadow rows: {len(rows)}.",

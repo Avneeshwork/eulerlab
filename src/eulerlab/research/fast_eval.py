@@ -279,7 +279,7 @@ def _dump(spec: rule_engine.Rule) -> dict[str, Any] | None:
     return dump(mode="json") if callable(dump) else None
 
 
-# --- many rules across cores, with the slow engine as referee (#167, ADR-191) ---------------
+# --- many rules across cores, with the slow engine as referee (#167, ADR-195) ---------------
 
 _SHARED: dict[str, Any] = {}
 """The engine a worker screens with: inherited by a forked worker, sent once to a spawned one."""

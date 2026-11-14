@@ -1,4 +1,4 @@
-"""The fill-price model (#119, ADR-190): reference, half spread and impact, always against the trade."""
+"""The fill-price model (#119, ADR-194): reference, half spread and impact, always against the trade."""
 
 from __future__ import annotations
 

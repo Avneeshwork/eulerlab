@@ -154,7 +154,7 @@ def parse(answer: str) -> list[dict[str, Any]]:
 
 
 def spec_of(card: dict[str, Any]) -> engine.Rule:
-    """A card's rule: its `engine_v2:` block (agent features expanded, ADR-187) or `engine:`."""
+    """A card's rule: its `engine_v2:` block (agent features expanded, ADR-191) or `engine:`."""
     if isinstance(card.get("engine_v2"), dict):
         from eulerlab.research import agent_tools
 
@@ -224,7 +224,7 @@ EXPLORE_SYSTEM = (
     "repeatedly died here. When you are done, answer with the JSON the user message asks for, "
     "and nothing else."
 )
-"""The system prompt of the research loop (#162 ADR-186, #163 and #164 ADR-187)."""
+"""The system prompt of the research loop (#162 ADR-190, #163 and #164 ADR-191)."""
 
 EXPLORE_ROUNDS = 12
 EXPLORE_SCREENS = 8
@@ -360,7 +360,7 @@ def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_coun
         body["red_flags"].insert(
             len(flags),
             f"Written after {len(screens)} exploratory screen(s) and {len(looks)} look(s) (IC "
-            "or event study) on 2016-2023 in the research loop (ADR-186, ADR-187); each is in "
+            "or event study) on 2016-2023 in the research loop (ADR-190, ADR-191); each is in "
             "the experiment store, and the screens count in the firewall's bar.",
         )
     return yaml.safe_dump(body, sort_keys=False, allow_unicode=True, width=100)

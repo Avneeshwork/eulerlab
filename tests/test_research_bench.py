@@ -1,4 +1,4 @@
-"""The research bench (#163, #164, ADR-187): features an agent defines, IC and event studies,
+"""The research bench (#163, #164, ADR-191): features an agent defines, IC and event studies,
 and the agenda the loop reads and writes."""
 
 from __future__ import annotations

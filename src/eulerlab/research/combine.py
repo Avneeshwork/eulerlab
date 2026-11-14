@@ -1,4 +1,4 @@
-"""Many weak signals, one walk-forward forecast, traded only where it beats cost (#155, ADR-188).
+"""Many weak signals, one walk-forward forecast, traded only where it beats cost (#155, ADR-192).
 
 Every rule here has had to pay a 12 bps round trip on its own, and 124 intraday
 price rules never did. Most systematic equity desks do not trade one signal:
@@ -61,7 +61,7 @@ RIDGE = 1.0
 """Ridge penalty as a multiple of X'X's mean diagonal."""
 DECAY_HORIZONS = (1, 2, 5, 10, 20)
 
-# ASSUMPTION: A-144 — the shrink, ridge penalty and warm-up were chosen by hand, not tuned.
+# ASSUMPTION: A-148 — the shrink, ridge penalty and warm-up were chosen by hand, not tuned.
 
 Method = Literal["ic", "ridge"]
 Kind = Literal["intraday", "swing"]

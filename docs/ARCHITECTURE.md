@@ -3627,7 +3627,7 @@ forward test.
 At the close, `make agents-close` runs the ladder, on-call and the fund report
 after the agents. `make agents-evolve` and `make agent-evals` run alone.
 
-### Traces and the research loop (ADR-186)
+### Traces and the research loop (ADR-190)
 
 **Traces.** Every request to a model goes through `assistant.chat._post`, so that
 is where `llm/trace.py` records it: one line in
@@ -3662,7 +3662,7 @@ then runs on every card as before, so the firewall counts both the loop's looks
 and the card's own screen. If the loop fails (no tool support, an outage), the
 one-shot prompt writes the night's cards.
 
-### Features, measurements and the agenda (ADR-187)
+### Features, measurements and the agenda (ADR-191)
 
 The loop's bench, all on data cut at `discovery_end`:
 
@@ -3698,7 +3698,7 @@ The loop prompt now runs: agenda → language → define/measure → screen → 
 finding → cards (either `engine` or `engine_v2`). Cards carry `exploration.looks`,
 `features_kept` and `questions` beside the screens.
 
-### Screens across cores (ADR-191)
+### Screens across cores (ADR-195)
 
 ```
 specs ─► chunks (len / (workers x 4)) ─► worker 1 .. n, each with its own engine copy
@@ -3714,7 +3714,7 @@ a process (`intraday_fee`, `delivery_fee` are memoised), since a population's
 rules buy the same stocks on the same mornings. `make fast-eval-bench
 WORKERS=0` measures it on every core.
 
-### Combining weak signals (ADR-188)
+### Combining weak signals (ADR-192)
 
 `research/combine.py` turns 2 to 20 language-v2 formulas into one book:
 
@@ -3740,7 +3740,7 @@ gross profit paid in costs. A `Combined` rule has a fingerprint; repeats are
 refused. Entry points: `combine_signals` in the research loop, `make combine
 FORMULAS="f1;f2" KIND=swing HOLD=5`.
 
-### Fill prices (ADR-190)
+### Fill prices (ADR-194)
 
 `intraday/fill_price.PriceModel` is the one pricer the engine's books call when
 an engine is built with `prices=`:
@@ -3754,14 +3754,14 @@ extra = max(0, half spread + k x vol x sqrt(order / mean value) - 2 bps already 
 |---|---|---|
 | reference | official open/close; with `MinuteReference`, the 09:15-09:20 or 15:10-15:20 VWAP of (high+low+close)/3 | the panel; minute bars via `intraday/store.fetch` |
 | half spread | median quoted half spread over at least 100 snapshots | `data/landing/kite_depth/*/part-*.parquet` (Nifty 50) |
-| half spread, else | 1.5 / 3 / 6 / 12 / 25 bps at ₹500 / 100 / 25 / 5 / 0 crore a day (A-146) | 20-session mean traded value before the day |
-| impact | k = 1 (A-147), daily vol of the 20 close-to-close returns before the day | the panel |
+| half spread, else | 1.5 / 3 / 6 / 12 / 25 bps at ₹500 / 100 / 25 / 5 / 0 crore a day (A-150) | 20-session mean traded value before the day |
+| impact | k = 1 (A-151), daily vol of the 20 close-to-close returns before the day | the panel |
 
 An intraday trade is priced at both its open entry and close exit; a swing at
 its entry open and exit close (marks stay at the close). `make reprice`
 compares research 176's rules under both. The default engine is unchanged.
 
-### The forward shadow (ADR-189)
+### The forward shadow (ADR-193)
 
 `research/forward_shadow.py`, `make forward-shadow` each evening and `make
 forward-haircut` for the report:

@@ -427,7 +427,7 @@ llm-probe:
 	@uv run python -m eulerlab.llm.cutoff --provider $(PROVIDER)
 
 # How many candidate rules an hour the fast evaluator scores on this machine (ADR-175);
-# WORKERS=0 uses every core (ADR-191).
+# WORKERS=0 uses every core (ADR-195).
 fast-eval-bench:
 	@uv run python -m eulerlab.research.fast_eval --count $(or $(COUNT),1000) --workers $(or $(WORKERS),1)
 

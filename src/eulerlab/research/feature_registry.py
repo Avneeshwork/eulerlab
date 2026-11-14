@@ -1,4 +1,4 @@
-"""Signals an agent invents: a named formula, kept only if code finds it honest (#163, ADR-187).
+"""Signals an agent invents: a named formula, kept only if code finds it honest (#163, ADR-191).
 
 The rule engine has eleven signals and language v2 a few more fields. When a
 paper needed anything else, the lab wrote the draft off as "unbuildable" and an
@@ -29,7 +29,7 @@ edited.
 expression with its formula, so a card stores the formula itself and reads the
 same whether or not the registry is there. Nothing is passed to `exec` or
 `eval`: a feature is a tree of the language's own operators. Free Python waits
-for a sandbox (T-4603).
+for a sandbox (T-4618).
 """
 
 from __future__ import annotations
@@ -57,7 +57,7 @@ MAX_LIKENESS = 0.95
 CUTS = (0.5, 0.75)
 """Where the measured look-ahead test cuts the sessions, as shares of the window."""
 
-# ASSUMPTION: A-143 — the coverage and likeness bars were chosen by hand, not tuned on results.
+# ASSUMPTION: A-147 — the coverage and likeness bars were chosen by hand, not tuned on results.
 
 
 def _path(path: Path | None) -> Path:

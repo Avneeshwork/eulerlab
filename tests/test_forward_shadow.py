@@ -1,4 +1,4 @@
-"""The forward shadow (#156, ADR-189): every screened rule scored on the forward period,
+"""The forward shadow (#156, ADR-193): every screened rule scored on the forward period,
 and the haircut it measures. Also HISTORY #91: swings past the research window."""
 
 from __future__ import annotations

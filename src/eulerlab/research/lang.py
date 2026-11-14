@@ -90,7 +90,7 @@ FIELDS.update(
         "news_impact": FieldInfo(
             1, False, "share of the day's stories a model judged up, minus down", True, True
         ),
-        # Raw daily values, for features an agent defines itself (#163, ADR-187). Prices
+        # Raw daily values, for features an agent defines itself (#163, ADR-191). Prices
         # are as traded, not split-adjusted: a ratio across a split is wrong (S-070).
         "open_price": FieldInfo(0, False, "the session's official open, rupees"),
         "close_price": FieldInfo(1, False, "the session's official close, rupees"),

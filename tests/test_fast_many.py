@@ -1,4 +1,4 @@
-"""Many rules across cores, and the slow engine as referee (#167, ADR-191)."""
+"""Many rules across cores, and the slow engine as referee (#167, ADR-195)."""
 
 from __future__ import annotations
 
