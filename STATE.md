@@ -128,8 +128,8 @@ what is open is in `TASKS.md`.*
   which is the store of record. `make daily` refreshes, uploads and prunes.
   Daily NSE files now reach back to 2000 (indices 2012, delivery 2002;
   research 194). Rebuilt 2000-2014 prices sit in a research-only history
-  file (ADR-187 to ADR-189); research still starts 2016 until the constitution
-  says otherwise; costs now run from 2000, never cheaper than today (research 196).
+  file (ADR-187 to ADR-189). Research starts 2005-01-01 (operator,
+  2026-11-14); costs run from 2000, never cheaper than today (research 196).
 - **Research autopilot (ADR-150, 2026-11-08).** Each evening in `make agents-ideas`,
   the autopilot writes about ten new NSE stock rules as engine specs, half
   intraday and half swing (Claude Sonnet, up to 5 requests a night, then Groq,

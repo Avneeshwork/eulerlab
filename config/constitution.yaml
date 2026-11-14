@@ -25,6 +25,9 @@ periods:
   # counted), and never read `forward_start` onwards when finding or tuning.
   # ASSUMPTION: A-134. The 2023/2024 boundary is the thread's choice inside the
   # operator's bound, not the operator's own number.
+  # Operator, 2026-11-14: "yes, install factors-weekly and edit the constitution
+  # research_start 2005". The research window's first day (ADR-189).
+  research_start: 2005-01-01
   discovery_end: 2023-12-31
   backtest_end: 2025-12-31
   forward_start: 2026-01-01

@@ -27,13 +27,14 @@ def _with_periods(tmp_path: Path, **periods: str) -> Path:
     return path
 
 
-def test_the_window_runs_from_2016_to_the_constitutions_backtest_end(
+def test_the_window_runs_from_the_constitutions_start_to_its_backtest_end(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv(constitution.RESEARCH_END_ENV, raising=False)
     first, last = constitution.research_window()
-    assert first == date(2016, 1, 1)
-    assert last == constitution.load(FILE).periods.backtest_end == date(2025, 12, 31)
+    periods = constitution.load(FILE).periods
+    assert first == periods.research_start == date(2005, 1, 1)  # operator, 2026-11-14
+    assert last == periods.backtest_end == date(2025, 12, 31)
 
 
 def test_every_screen_and_the_engine_share_the_one_window() -> None:
@@ -44,7 +45,7 @@ def test_every_screen_and_the_engine_share_the_one_window() -> None:
 
 def test_an_earlier_end_reproduces_an_old_window(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(constitution.RESEARCH_END_ENV, "2024-11-30")
-    assert constitution.research_window() == (date(2016, 1, 1), date(2024, 11, 30))
+    assert constitution.research_window() == (date(2005, 1, 1), date(2024, 11, 30))
 
 
 def test_the_environment_cannot_move_the_end_later(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -69,7 +70,7 @@ def test_sealed_refuses_the_forward_period_and_an_empty_window() -> None:
         with pytest.raises(constitution.NotAllowed):
             constitution.sealed(end, FILE)
     with pytest.raises(constitution.NotAllowed, match="ends before it starts"):
-        constitution.sealed(date(2015, 12, 31), FILE)
+        constitution.sealed(date(2004, 12, 31), FILE)
 
 
 def test_no_other_module_defines_its_own_window() -> None:

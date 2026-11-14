@@ -830,7 +830,8 @@ The signals are `gap`, `ret(n)`, `day_return`, `delivery_ratio`, `value_ratio`,
 `promoter_buy`. `lag` counts sessions before the entry session, and entry is
 at its official open. A signal that reads a close needs `lag >= 1`, so a rule
 that looks ahead does not parse. The window starts on the first day every
-signal's data exists (2016-01-01, or 2021-07-01 for deals and results) and
+signal's data exists (the constitution's `research_start`, 2005-01-01 since
+2026-11-14, or 2021-07-01 for deals and results) and
 ends at `DATA_END`, the constitution's `backtest_end` (2025-12-31) read by
 `constitution.research_window()` (ADR-184). The card cannot choose it, and no
 window may reach 2026: `constitution.sealed()` refuses it whatever the file

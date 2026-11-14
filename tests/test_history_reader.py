@@ -32,7 +32,11 @@ def test_the_research_start_is_2016_until_the_constitution_says_otherwise(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv(constitution.RESEARCH_END_ENV, raising=False)
-    assert constitution.research_window(FILE)[0] == date(2016, 1, 1)
+    raw: dict[str, Any] = yaml.safe_load(FILE.read_text())
+    raw["periods"].pop("research_start", None)
+    unnamed = tmp_path / "unnamed.yaml"
+    unnamed.write_text(yaml.safe_dump(raw))
+    assert constitution.research_window(unnamed)[0] == date(2016, 1, 1)
     earlier = _constitution(tmp_path, research_start="2005-01-01")
     assert constitution.research_window(earlier) == (date(2005, 1, 1), date(2025, 12, 31))
 
