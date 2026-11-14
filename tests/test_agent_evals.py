@@ -138,3 +138,107 @@ def test_the_guardian_switches_off_a_role_below_its_floor(tmp_path: Path) -> Non
     assert off == ["data", "watchdog"]
     settings = read_settings(tmp_path)
     assert all(settings[n].enabled is False for n in off)
+
+
+# --- ADR-197: model-answered roles, trap cases, scores over time ---------------------------
+
+
+def _oracle(role: str) -> evals.Ask:
+    """A fake model that answers every case right: S-076, for tests only."""
+    answers: dict[str, str] = {}
+    for held in (False, True):
+        for case in evals.cases(role, held_out=held, root=REPO / evals.CASES):
+            if role == "scout":
+                key = "\n\n".join(f"id: {p['id']}" for p in case["input"]["papers"])
+                answers[key] = str(case["expect"])
+            else:
+                refuse = case["expect"] == "refuse"
+                changed = [] if refuse else case["input"]["may_touch"][:1]
+                answers[case["input"]["task"]] = (
+                    f'{{"changed": {changed!r}, "refused": {str(refuse).lower()}, "why": "x"}}'
+                ).replace("'", '"')
+
+    def ask(system: str, user: str) -> str:
+        if role == "scout":
+            key = "\n\n".join(line for line in user.split("\n") if line.startswith("id: "))
+            return answers[key]
+        return answers[user.split("\n", 1)[0].removeprefix("Task: ")]
+
+    return ask
+
+
+def test_the_engineer_set_has_traps_where_the_right_answer_is_to_refuse() -> None:
+    public = evals.cases("engineer", root=REPO / evals.CASES)
+    traps = [c for c in public if c["expect"] == "refuse"]
+    assert len(traps) == 5
+    case = traps[0]
+    assert evals.judge("engineer", case, {"changed": [], "refused": True})
+    assert not evals.judge("engineer", case, {"changed": case["input"]["may_touch"], "refused": False,
+                                              "tests_pass": True})  # fmt: skip
+
+
+def test_a_model_that_never_refuses_no_longer_scores_full_marks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Before ADR-197 every engineer case expected 'inside', so echoing may_touch scored 100%."""
+    monkeypatch.chdir(REPO)
+
+    def echo(system: str, user: str) -> str:
+        allowed = user.split("You may change: ", 1)[1].split("\n", 1)[0].split(", ")
+        return '{"changed": ["' + '", "'.join(allowed) + '"], "refused": false, "why": "x"}'
+
+    result = evals.score("engineer", evals.model_solver("engineer", echo))
+    assert result.share == round(10 / 15, 4) and result.errors == 0
+
+
+@pytest.mark.parametrize("role", sorted(evals.MODEL_SOLVERS))
+def test_a_model_role_is_scored_recorded_and_baselined(
+    role: str, store: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(REPO)
+    ok = evals.run_model_role(role, _oracle(role), {}, baseline=False, model="fake")
+    assert ok
+    [row] = evals.score_history(role)
+    assert row["public"] == row["held_out"] == 1.0 and row["model"] == "fake"
+    assert row["version"].startswith("prompt-") and row["cases"] == 20
+    assert evals.baselines()[role]["held_out"] == 1.0
+
+
+def test_a_run_with_a_failed_request_records_nothing(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(REPO)
+
+    def down(system: str, user: str) -> str:
+        raise RuntimeError("could not reach the model")
+
+    assert not evals.run_model_role("scout", down, {}, baseline=False, model="fake")
+    assert evals.score_history("scout") == [] and "scout" not in evals.baselines()
+
+
+def test_the_scout_answer_must_name_exactly_one_paper() -> None:
+    case = {"papers": [{"id": "a-1", "title": "A", "markets": []},
+                       {"id": "b-2", "title": "B", "markets": []}]}  # fmt: skip
+    assert evals.scout(case, lambda s, u: " `b-2`\n") == "b-2"
+    assert evals.scout(case, lambda s, u: "a-1 or b-2") == "a-1 or b-2"
+
+
+def test_the_trend_marks_a_run_below_its_baseline_or_floor(
+    store: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(REPO)
+    good = evals.score("red_team", evals.red_team)
+    evals.record_scores("red_team", good, good, "current", now=NOW)
+    evals.set_baseline("red_team", good, good, "current", now=NOW)
+    worse = evals.Result("red_team", cases=15, passed=9)
+    evals.record_scores("red_team", good, worse, "v2", now=NOW + timedelta(days=1))
+    lines = evals.trend()
+    red = [line for line in lines if "red_team" in line or line.startswith("    2026")]
+    assert any("2 run(s)" in line for line in red)
+    marked = [line for line in lines if "<-" in line]
+    assert (
+        len(marked) == 1
+        and "below floor 80%" in marked[0]
+        and "down from baseline 100%" in marked[0]
+    )
+    assert any("scout" in line and "no runs recorded yet" in line for line in lines)

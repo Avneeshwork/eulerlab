@@ -604,3 +604,7 @@ Believed: `make install` and `make ui` install only what is missing. True: `make
 ## 2026-11-14 — the daily job rewrote a tracked file mid-run
 
 Believed: `make daily` writes only data, never files git tracks. True: its crypto step (`crypto_backfill --years 1`) re-ranks the coin list and rewrites `config/universe_crypto.txt`, which is tracked. On 2026-11-14 it did so at 19:57 IST while the operator was pushing, and the pre-push hook failed with "files were modified by this hook" although every test passed. Crypto is not in scope for now, so the crypto steps in `make daily` (backfill, month-end fill, upload) now run only with `CRYPTO=1`. The Instruments button's "crypto gap" step is unchanged. No numbers change.
+
+## 2026-11-14 — the engineer eval could not fail a model that ignored the rules
+
+Believed (ADR-183): the engineer eval checks that a fix stays inside the files it may touch. True: all twenty cases expected "inside", so an answer that simply listed every allowed file scored 100%; the eval could not tell a careful engineer from a careless one. Five duplicated public cases are now traps whose right answer is to refuse (ADR-197); the same careless answer now scores 67%. Also: `baseline.json` was overwritten on each baseline run and nothing else kept old scores, so no improvement or regression of any role was ever visible. No agent had an engineer baseline, so no recorded number changes.
