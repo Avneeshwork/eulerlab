@@ -1217,11 +1217,13 @@ daily-run:
 	@echo "== MCX iCOMDEX minute bars (needs a token minted today) =="
 	-$(MAKE) --no-print-directory mcx-index-minute
 	-@$(MAKE) --no-print-directory upload-tree TREES="mcx_indices" DELETE=1
-	@echo "== crypto (Binance public archive, no auth) =="
-	-uv run python -m eulerlab.ingest.crypto_backfill --years 1
-	@echo "== crypto month-end gap (Binance daily archive) =="
-	-uv run python -m eulerlab.ingest.crypto_fill
-	-@$(MAKE) --no-print-directory upload-tree TREES="crypto" DELETE=1
+	@# Crypto is off by default since 2026-11-14, by the operator's word: it
+	@# rewrote the tracked config/universe_crypto.txt mid-run and broke a push
+	@# hook. `make daily CRYPTO=1` runs it.
+	@$(if $(CRYPTO),echo "== crypto (Binance public archive, no auth) ==",echo "== crypto: skipped (CRYPTO=1 runs it) ==")
+	-$(if $(CRYPTO),uv run python -m eulerlab.ingest.crypto_backfill --years 1,)
+	-$(if $(CRYPTO),uv run python -m eulerlab.ingest.crypto_fill,)
+	-@$(if $(CRYPTO),$(MAKE) --no-print-directory upload-tree TREES="crypto" DELETE=1,)
 	@echo "== FX (FXCM weekly candles) =="
 	-uv run python -m eulerlab.ingest.fx_bulk_backfill --from-year $$(date +%Y)
 	-@$(MAKE) --no-print-directory upload-tree TREES="fx" DELETE=1

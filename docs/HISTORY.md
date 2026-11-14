@@ -600,3 +600,7 @@ Believed: the 2026 corporate actions are landed. True: `feed.fetch_year` lands a
 ## 2026-11-14 — make reinstalled packages on every run
 
 Believed: `make install` and `make ui` install only what is missing. True: `make ui`, `ui-fast` and `workbench` ran `npm install` on every start, and `make install` / `install-lite` re-ran the full `uv sync`, `npm install` and `pre-commit install` each time. The two install targets also undid each other: both were exact syncs, so `install-lite` removed the 1.2 GB news model, `install` downloaded it again, and both removed the `crypto` extra. Now each install leaves a marker under `.make/` (gitignored) and runs again only when `pyproject.toml`/`uv.lock`, `web/package*.json` or `.pre-commit-config.yaml` change, or `.venv`/`web/node_modules` are missing; `FORCE=1` reinstalls anyway. `install` is now `uv sync --inexact`, so it only adds; `install-lite` stays exact. No numbers change.
+
+## 2026-11-14 — the daily job rewrote a tracked file mid-run
+
+Believed: `make daily` writes only data, never files git tracks. True: its crypto step (`crypto_backfill --years 1`) re-ranks the coin list and rewrites `config/universe_crypto.txt`, which is tracked. On 2026-11-14 it did so at 19:57 IST while the operator was pushing, and the pre-push hook failed with "files were modified by this hook" although every test passed. Crypto is not in scope for now, so the crypto steps in `make daily` (backfill, month-end fill, upload) now run only with `CRYPTO=1`. The Instruments button's "crypto gap" step is unchanged. No numbers change.

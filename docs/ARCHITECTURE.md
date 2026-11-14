@@ -2202,7 +2202,9 @@ everything that failed.
 `ingest/daily_feed.STEPS` is the one list of daily steps. The Instruments button
 runs it (`POST /api/data/feed`), as does `make feed`; `make daily` runs the same
 steps plus those in `TERMINAL_ONLY` (Kite minute bars, the one-year crypto
-backfill, the per-folder uploads, pruning). `tests/test_data_pipeline.py` fails if
+backfill, the per-folder uploads, pruning). Its crypto steps run only with
+`CRYPTO=1` (off since 2026-11-14: they rewrote the tracked
+`config/universe_crypto.txt`). `tests/test_data_pipeline.py` fails if
 `make daily` gains a step that is in neither.
 
 `make daily` takes one dataset at a time (ADR-070): download it, upload its
