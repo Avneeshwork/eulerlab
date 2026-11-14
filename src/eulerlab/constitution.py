@@ -37,7 +37,7 @@ REPO_PATH = Path(__file__).resolve().parents[2] / PATH
 """The repository's own copy, whatever the working directory (ADR-184)."""
 
 RESEARCH_START = date(2016, 1, 1)
-"""The research window's first day, for every screen and the rule engine."""
+"""The research window's first day when the constitution names none."""
 SEALED_FROM = date(2026, 1, 1)
 """The 2026 forward test. No research window may reach it, whatever the file says."""
 RESEARCH_END_ENV = "EULERLAB_RESEARCH_END"
@@ -80,11 +80,13 @@ class Periods(_Model):
     discovery_end: date
     backtest_end: date
     forward_start: date
+    research_start: date = RESEARCH_START
+    """The research window's first day (ADR-189). Absent from the file, 2016-01-01."""
 
     @model_validator(mode="after")
     def _in_order(self) -> Periods:
-        if not self.discovery_end < self.backtest_end < self.forward_start:
-            msg = "periods must run discovery_end < backtest_end < forward_start"
+        if not self.research_start < self.discovery_end < self.backtest_end < self.forward_start:
+            msg = "periods must run research_start < discovery_end < backtest_end < forward_start"
             raise ValueError(msg)
         return self
 
@@ -208,7 +210,8 @@ def research_window(path: Path = REPO_PATH) -> tuple[date, date]:
     reaching the forward period or 2026 is refused, so the forward test stays
     sealed even if the file is edited carelessly.
     """
-    end = load(path).periods.backtest_end
+    periods = load(path).periods
+    end = periods.backtest_end
     override = os.environ.get(RESEARCH_END_ENV, "").strip()
     if override:
         asked = date.fromisoformat(override)
@@ -216,7 +219,7 @@ def research_window(path: Path = REPO_PATH) -> tuple[date, date]:
             msg = f"{RESEARCH_END_ENV}={asked} is after the constitution's backtest_end {end}"
             raise NotAllowed(msg)
         end = asked
-    return RESEARCH_START, sealed(end, path)
+    return periods.research_start, sealed(end, path)
 
 
 def sealed(end: date, path: Path = REPO_PATH) -> date:
@@ -228,7 +231,7 @@ def sealed(end: date, path: Path = REPO_PATH) -> date:
             f"(backtest_end {periods.backtest_end}, sealed from {SEALED_FROM})"
         )
         raise NotAllowed(msg)
-    if end < RESEARCH_START:
-        msg = f"a research window ending {end} ends before it starts ({RESEARCH_START})"
+    if end < periods.research_start:
+        msg = f"a research window ending {end} ends before it starts ({periods.research_start})"
         raise NotAllowed(msg)
     return end

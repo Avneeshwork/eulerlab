@@ -40,7 +40,7 @@ a cost, so there is nothing to disable.
 from __future__ import annotations
 
 from bisect import bisect_right
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
@@ -258,6 +258,11 @@ BUY_COST_RESERVE = 0.003
 """Held back from a buy's cash check for its charges; the same as Tier B's."""
 
 
+def _isin_of(histories: Mapping[str, Sequence[PanelRow]], symbol: str) -> str:
+    rows = histories.get(symbol)
+    return rows[-1].isin if rows else ""
+
+
 def run(
     rows: Sequence[PanelRow],
     strategy: Strategy,
@@ -340,13 +345,29 @@ def run(
             out[row.day] = row.close / cumulative
         return out
 
+    # A print the bhavcopy checks proved wrong (ADR-188) is never a price to
+    # trade or mark at, whenever that became known; decisions still see it
+    # through `MarketView` until it was knowable.
+    from eulerlab.features import panel_mask
+
+    mask = panel_mask.active()
+    priced = (
+        histories
+        if mask is None
+        else {s: [r for r in rs if not mask.wrong(r.isin, r.day)] for s, rs in histories.items()}
+    )
     price_index: dict[str, dict[date, float]] = (
         adjusted_index
         if adjusted_index is not None
-        else {symbol: _adjusted(rows_) for symbol, rows_ in histories.items()}
+        else {symbol: _adjusted(rows_) for symbol, rows_ in priced.items()}
     )
+    if mask is not None and adjusted_index is not None:
+        price_index = {
+            s: {d: p for d, p in ps.items() if not mask.wrong(_isin_of(histories, s), d)}
+            for s, ps in price_index.items()
+        }
     ordered_days: dict[str, list[date]] = {
-        symbol: [row.day for row in rows_] for symbol, rows_ in histories.items()
+        symbol: [row.day for row in rows_] for symbol, rows_ in priced.items()
     }
 
     assert_adjustable(rows)

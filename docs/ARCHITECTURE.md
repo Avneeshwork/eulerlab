@@ -282,6 +282,14 @@ flagged "unusual, unverified". `features/panel_mask.py` writes the entries to
 drops an excluded row once `as_of` reaches that time. Without the file nothing
 changes.
 
+**Where the old years live (ADR-189).** The 2000-2014 rows sit in
+`price_panel_2000_2014.jsonl` with their mask, not in `price_panel.jsonl`, so
+the API and the paper books load what they always did. Research reads them
+through `daily_universe_screen.load_panel` when its window starts before 2015;
+the window's start is `periods.research_start` in the constitution, 2016-01-01
+when the file names none. `vector.run` never fills or marks at a row the
+checks proved wrong.
+
 ## 3.4 Corporate actions: the mathematics of adjustment
 
 When a company splits its stock 1-for-1, the price halves overnight. A holder

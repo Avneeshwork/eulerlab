@@ -49,8 +49,10 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4598 | The ladder's decay check reads backtests only from the experiment store, which is empty; fall back to the stored gate report | TODO (research 192) |
 | T-4599 | The generator eval reads the Mac's live lesson store: three cases fail there and pass in CI. Isolate it, or change the cases' expectations | TODO (research 192) |
 | T-4610 | Daily NSE history 2000-2014: cm, fo, delivery, indices, corporate actions landed and in B2 (research 194) | DONE 2026-11-14 — `make check-landing` (24,695 files confirmed in B2), ADR-186 |
-| T-4611 | Rebuild price and total-return factors and the price panel from 2000; check 2015 onward unchanged and jumps over 40% with no corporate action (A-143) | DOING 2026-11-14 — built into `data/derived/rebuild-2026-11-14/` with own ids for companies without an ISIN (ADR-187) and bhavcopy checks on unusual prices (ADR-188: 208 rows excluded, 2,648 flagged); 2015 onward byte-identical. Swap waits for the operator. The vector screens read the panel without `MarketView` and do not apply the mask yet |
+| T-4611 | Rebuild price and total-return factors and the price panel from 2000; check 2015 onward unchanged and jumps over 40% with no corporate action (A-143) | DOING 2026-11-14 — built into `data/derived/rebuild-2026-11-14/` with own ids for companies without an ISIN (ADR-187) and bhavcopy checks on unusual prices (ADR-188: 208 rows excluded, 2,648 flagged); 2015 onward byte-identical. Research-only history file, not appended to `price_panel.jsonl` (ADR-189); swap of the factor files waits for the operator |
 | T-4612 | Index closes before 2012 and corporate actions before 2005: find a free source, or accept the gap (research 194) | TODO |
+| T-4613 | Cost schedule for 2000-2014 (STT, stamp duty, exchange charges by date), so research can start before 2015; `costs/schedule.py` starts 2015 and refuses earlier trades | TODO. Needs research on the historical rates |
+| T-4614 | 90 corporate-action factors with Aug-Sep 2026 ex-dates are missing from the live factor files (built 2026-08-19). Adding them can change what paper books replay; operator to decide when (ADR-189) | TODO |
 
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 

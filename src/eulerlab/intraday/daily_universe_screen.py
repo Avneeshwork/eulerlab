@@ -70,17 +70,38 @@ def fund_symbols(path: Path = PANEL) -> frozenset[str]:
     return frozenset(out)
 
 
+WARM_UP_FROM = date(cs.RESEARCH_START.year - 1, 1, 1)
+"""A year of history before the research window, for look-backs."""
+
+
 def load_panel(
-    path: Path = PANEL, *, start: date = date(2015, 1, 1), end: date = END
+    path: Path = PANEL, *, start: date = WARM_UP_FROM, end: date = END
 ) -> dict[str, dict[date, Bar]]:
+    """Open, close and traded value per symbol and day, `start` to `end`.
+
+    A window starting before 2015 also reads the 2000-2014 history file, less
+    the rows its bhavcopy checks proved wrong (ADR-188, ADR-189). Rows flagged
+    "unusual, unverified" stay, as NSE published them."""
+    from eulerlab.features import panel_mask
+
     out: dict[str, dict[date, Bar]] = defaultdict(dict)
-    with path.open(encoding="utf-8") as handle:
-        for line in handle:
-            row = json.loads(line)
-            day = date.fromisoformat(row["d"])
-            if not start <= day <= end or not row.get("o") or not row.get("c"):
-                continue
-            out[row["s"]][day] = Bar(float(row["o"]), float(row["c"]), float(row.get("t") or 0.0))
+    sources = [path]
+    mask = None
+    if start < panel_mask.HISTORY_END and path == PANEL and panel_mask.HISTORY_PATH.exists():
+        sources.insert(0, panel_mask.HISTORY_PATH)
+        mask = panel_mask.active()
+    for source in sources:
+        with source.open(encoding="utf-8") as handle:
+            for line in handle:
+                row = json.loads(line)
+                day = date.fromisoformat(row["d"])
+                if not start <= day <= end or not row.get("o") or not row.get("c"):
+                    continue
+                if mask is not None and mask.wrong(str(row.get("isin") or ""), day):
+                    continue
+                out[row["s"]][day] = Bar(
+                    float(row["o"]), float(row["c"]), float(row.get("t") or 0.0)
+                )
     return out
 
 

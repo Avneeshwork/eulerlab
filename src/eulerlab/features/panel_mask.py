@@ -47,7 +47,12 @@ from eulerlab.paths import data_path
 if TYPE_CHECKING:
     from eulerlab.features.panel import PanelRow
 
-MASK_PATH = data_path("derived/panel_mask.jsonl")
+HISTORY_PATH = data_path("derived/price_panel_2000_2014.jsonl")
+"""2000-2014 rows, kept apart from `price_panel.jsonl` so the API, the paper
+books and the live engines load exactly what they did (ADR-189). Research
+reads it when its window starts before `HISTORY_END`."""
+HISTORY_END = date(2015, 1, 1)
+MASK_PATH = data_path("derived/price_panel_2000_2014.mask.jsonl")
 IST = ZoneInfo("Asia/Kolkata")
 CLOSE = time(15, 30)
 
@@ -225,13 +230,24 @@ class Mask:
         known = self.excluded.get((row.isin, row.day))
         return known is not None and known <= as_of
 
+    def wrong(self, isin: str, day: date) -> bool:
+        """Excluded, whenever that became known: never a price to fill or mark at."""
+        return (isin, day) in self.excluded
+
+    @property
+    def last_day(self) -> date | None:
+        return max((d for _, d in self.excluded), default=None)
+
     def flag(self, row: PanelRow) -> str | None:
         return self.flagged.get((row.isin, row.day))
 
     def apply(
         self, history: Mapping[str, Sequence[PanelRow]], as_of: date
-    ) -> dict[str, list[PanelRow]]:
+    ) -> Mapping[str, Sequence[PanelRow]]:
         """Each symbol's rows without the excluded ones known by `as_of`."""
+        last = self.last_day
+        if last is None or all(not rows or rows[0].day > last for rows in history.values()):
+            return history  # nothing this old: the common case, one row a symbol
         return {
             symbol: [r for r in rows if not self.hides(r, as_of)]
             for symbol, rows in history.items()
