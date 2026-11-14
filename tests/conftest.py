@@ -29,6 +29,15 @@ def _offline() -> None:
     os.environ.setdefault(landing_reader.OFFLINE_ENV, "1")
 
 
+# A hook run from a linked worktree sets GIT_DIR (and GIT_INDEX_FILE). Inherited,
+# they point every `git` a test runs at the real repository, whatever its cwd:
+# on 2026-11-14 test_hygiene's `git init` set core.bare and a "t" identity in the
+# real config during a pre-push from a worktree (HISTORY #92). Cleared once here
+# for the whole suite, at import, before any fixture or test can run git.
+for _name in [n for n in os.environ if n.startswith("GIT_")]:
+    del os.environ[_name]
+
+
 @pytest.fixture(autouse=True)
 def _private_locks(
     tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
