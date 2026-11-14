@@ -61,7 +61,7 @@ RIDGE = 1.0
 """Ridge penalty as a multiple of X'X's mean diagonal."""
 DECAY_HORIZONS = (1, 2, 5, 10, 20)
 
-# ASSUMPTION: A-148 — the shrink, ridge penalty and warm-up were chosen by hand, not tuned.
+# ASSUMPTION: A-152 — the shrink, ridge penalty and warm-up were chosen by hand, not tuned.
 
 Method = Literal["ic", "ridge"]
 Kind = Literal["intraday", "swing"]

@@ -13,8 +13,8 @@ the engine calls to price a fill when asked to:
 | Part | Where it comes from |
 |---|---|
 | reference | the official print by default; with minute bars (`MinuteReference`), the 09:15-09:20 VWAP for an open fill and the 15:10-15:20 VWAP for a close fill |
-| half spread | the stock's median quoted half spread from the depth recorder (`data/landing/kite_depth`, Nifty 50 since it first ran), else a bucket by its 20-session mean traded value (A-150) |
-| impact | k x daily volatility x sqrt(order value / 20-session mean traded value), k = 1 (A-151), to be calibrated from live-price paper and real fills |
+| half spread | the stock's median quoted half spread from the depth recorder (`data/landing/kite_depth`, Nifty 50 since it first ran), else a bucket by its 20-session mean traded value (A-154) |
+| impact | k x daily volatility x sqrt(order value / 20-session mean traded value), k = 1 (A-155), to be calibrated from live-price paper and real fills |
 
 `side` is +1 for a buy and -1 for a sell, so the price always moves against
 the trade. The 2 bps every book already charges stays, so the total slippage
@@ -55,8 +55,8 @@ OPEN_WINDOW = (clock(9, 15), clock(9, 20))
 CLOSE_WINDOW = (clock(15, 10), clock(15, 20))
 OFFICIAL = "official open and close, 2 bps slippage a side"
 
-# ASSUMPTION: A-150 — half spreads by traded-value bucket, until the depth recorder covers a stock.
-# ASSUMPTION: A-151 — square-root impact with k = 1, until paper fills calibrate it.
+# ASSUMPTION: A-154 — half spreads by traded-value bucket, until the depth recorder covers a stock.
+# ASSUMPTION: A-155 — square-root impact with k = 1, until paper fills calibrate it.
 
 
 def bucket_half_spread(mean_value: float) -> float:
@@ -151,8 +151,8 @@ class PriceModel:
         ref = "minute VWAP 09:15-09:20 / 15:10-15:20" if self.reference else "official open/close"
         return (
             f"modelled: reference {ref}; half spread from {len(self.spreads)} recorded stock(s), "
-            f"else by traded value (A-150); impact {self.k} x daily vol x sqrt(order / 20-session "
-            "mean value) (A-151); at least the 2 bps a side already charged"
+            f"else by traded value (A-154); impact {self.k} x daily vol x sqrt(order / 20-session "
+            "mean value) (A-155); at least the 2 bps a side already charged"
         )
 
     @cached_property

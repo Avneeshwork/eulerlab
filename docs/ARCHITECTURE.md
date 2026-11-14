@@ -3754,8 +3754,8 @@ extra = max(0, half spread + k x vol x sqrt(order / mean value) - 2 bps already 
 |---|---|---|
 | reference | official open/close; with `MinuteReference`, the 09:15-09:20 or 15:10-15:20 VWAP of (high+low+close)/3 | the panel; minute bars via `intraday/store.fetch` |
 | half spread | median quoted half spread over at least 100 snapshots | `data/landing/kite_depth/*/part-*.parquet` (Nifty 50) |
-| half spread, else | 1.5 / 3 / 6 / 12 / 25 bps at ₹500 / 100 / 25 / 5 / 0 crore a day (A-150) | 20-session mean traded value before the day |
-| impact | k = 1 (A-151), daily vol of the 20 close-to-close returns before the day | the panel |
+| half spread, else | 1.5 / 3 / 6 / 12 / 25 bps at ₹500 / 100 / 25 / 5 / 0 crore a day (A-154) | 20-session mean traded value before the day |
+| impact | k = 1 (A-155), daily vol of the 20 close-to-close returns before the day | the panel |
 
 An intraday trade is priced at both its open entry and close exit; a swing at
 its entry open and exit close (marks stay at the close). `make reprice`

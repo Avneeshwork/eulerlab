@@ -57,7 +57,7 @@ BOOTSTRAP = 1000
 SCORED = ("screen", "sweep")
 """Purposes whose figure is a rule's backtest score."""
 
-# ASSUMPTION: A-149 — 200 rules with 60 forward sessions each are enough to read a haircut.
+# ASSUMPTION: A-153 — 200 rules with 60 forward sessions each are enough to read a haircut.
 
 
 def _path(path: Path | None) -> Path:
