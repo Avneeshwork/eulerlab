@@ -60,6 +60,7 @@ dev = [
     "pre-commit>=3.8",
     "pyarrow-stubs>=20.0.0.20260625",
     "pytest>=8.3",
+    "pytest-xdist>=3.6",
     "ruff>=0.6",
     "types-pyyaml>=6.0",
 ]

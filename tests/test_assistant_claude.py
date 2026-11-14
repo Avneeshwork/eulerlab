@@ -168,6 +168,9 @@ def test_only_offered_models_are_listed_or_accepted() -> None:
 def test_a_paid_model_is_never_a_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     config = LLMConfig(default="groq", assistant="groq", providers=[GROQ, CLAUDE])
     monkeypatch.setattr("eulerlab.llm.client.load_config", lambda: config)
+    # The last model that answered is process-wide; another test in the same
+    # worker may have left one, and it is not what this test is about.
+    monkeypatch.setattr(chat, "_LAST_GOOD", [])
     assert [p.name for p in chat._alternatives(GROQ)] == []
 
 

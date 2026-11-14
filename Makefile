@@ -182,8 +182,12 @@ remove-news:
 verify:
 	@uv run python tools/verify.py
 
+# Tests run in parallel, one worker per test file (ADR-196). SERIAL=1 runs
+# them in one process, for a failure that may come from sharing.
+PYTEST_PARALLEL := $(if $(SERIAL),,-n auto --dist loadfile)
+
 test:
-	uv run pytest
+	uv run pytest $(PYTEST_PARALLEL)
 
 lint:
 	uv run ruff check .
@@ -1443,4 +1447,4 @@ check:
 	uv run mypy
 	uv run python tools/hygiene.py
 	uv run python tools/docs_check.py
-	uv run pytest -q --durations=10
+	uv run pytest -q --durations=10 $(PYTEST_PARALLEL)

@@ -72,7 +72,9 @@ repos:
       # runs on push and in `make check` instead.
       - id: pytest
         name: pytest
-        entry: uv run pytest -q
+        # Parallel, one worker per test file (ADR-196). SERIAL=1 git push runs
+        # it in one process.
+        entry: sh -c 'if [ -n "$SERIAL" ]; then uv run pytest -q; else uv run pytest -q -n auto --dist loadfile; fi'
         language: system
         pass_filenames: false
         types: [python]
