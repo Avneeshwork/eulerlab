@@ -49,6 +49,7 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4611 | Run `make reprice` (and `MINUTE=1` where minute bars exist) on the Mac; write the research note listing research 176's net bps before and after, which closes #119 | TODO. Built 2026-11-14 (ADR-190) |
 | T-4612 | Calibrate A-146 from the live-price shadow's spreads and A-147 from paper fills, then build every screen's engine with the fill-price model (operator decision: it changes which rules pass) | TODO |
 | T-4613 | Faster screens, part two (#167): run `make fast-eval-bench WORKERS=0` on the Mac and record it; evolve screens each generation as one batch; books as array operations for the 100x; schedule the 1% referee nightly for a week with no mismatch | TODO. Part one done 2026-11-14 (ADR-191) |
+| T-4614 | Use the data's own end instead of `daily_more_screen.END` in `research/library_reports.py`, `new_signals_screen.py` and `more_signals_screen.py`; find out why all 29 swing cards had no entries in the 2026-10-17 to 2026-11-13 live window (HISTORY #91) | TODO |
 
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 
