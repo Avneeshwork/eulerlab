@@ -170,3 +170,8 @@ process costs five minutes, not the night. It waits for a hand-started run to
 end before fetching. Log: `data/logs/angel_backfill.log`, each pass's detail in
 `data/logs/angel_history_pass.log`. `ACTION=status` shows it; `ACTION=uninstall`
 stops it.
+
+**Start date (operator, 2026-11-14).** The backfill stops at 1 Nov 2018, eight
+years back: "leave Oct 2016 to Oct 2018". Angel has stocks to 3 Oct 2016 if
+that is ever wanted: `make angel-history FROM=2016-10-01`. The months already
+landed (Feb 2020 and later, plus a few from earlier runs) are kept.

@@ -31,9 +31,9 @@ while pgrep -f "eulerlab.ingest.angel_minute --history" >/dev/null; do
 done
 
 
-log "fetch: Angel history from 2016-10-01"
+log "fetch: Angel history from 2018-11-01"
 raw=data/logs/angel_history_pass.log
-uv run --extra angel python -m eulerlab.ingest.angel_minute --history --from 2016-10-01 >"$raw" 2>&1
+uv run --extra angel python -m eulerlab.ingest.angel_minute --history --from 2018-11-01 >"$raw" 2>&1
 fetch_status=$?
 out=$(grep -v '^\[' "$raw")
 print -r -- "$out" | tail -5

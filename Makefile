@@ -43,7 +43,7 @@ help:
 	@echo "                    backfill NSE participant-wise F&O open interest"
 	@echo "  make ingest-minute [YEARS=5] [LIMIT=n]"
 	@echo "                    backfill 1-minute candles for config/universe_top250.txt"
-	@echo "  make angel-history [FROM=2016-10-01]"
+	@echo "  make angel-history [FROM=2018-11-01]"
 	@echo "                    Angel minute history before Kite's, into angel_minute_history"
 	@echo "  make angel-rescale  Kite/Angel factors that join the history to Kite's prices"
 	@echo "  make sync-cloud [DRY=1] [VERIFY=1]"
@@ -1039,9 +1039,9 @@ angel-minute:
 # Angel minute history before Kite's five years (from 3 Oct 2016), plus the
 # delisted names in config/angel_delisted_tokens.csv, into
 # data/landing/angel_minute_history. Newest month first; resumable. Research 193.
-# About 50,000 requests at one a second: run it overnight. FROM=2016-10-01 default.
+# FROM=2018-11-01 default: the operator's 8 years (2026-11-14, "leave Oct 2016 to Oct 2018"); Angel goes back to 2016-10-03.
 angel-history:
-	uv run --extra angel python -m eulerlab.ingest.angel_minute --history --from $(if $(FROM),$(FROM),2016-10-01) $(if $(TO),--to $(TO),) $(ARGS)
+	uv run --extra angel python -m eulerlab.ingest.angel_minute --history --from $(if $(FROM),$(FROM),2018-11-01) $(if $(TO),--to $(TO),) $(ARGS)
 
 # Kite/Angel factor per symbol over 20 Aug to 15 Sep 2021, with drift and seam
 # checks (ADR-185). Needs `make angel-history FROM=2021-08-19 TO=2021-09-15` first.
