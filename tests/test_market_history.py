@@ -36,6 +36,23 @@ def test_index_files_from_before_the_2015_rename_are_accepted() -> None:
     assert ndf._index_rows(b"<html>not the report</html>") is None
 
 
+INDEX_2012 = (
+    "Index Name,Index Date,Open Index Value,High Index Value,Low Index Value,"
+    "Closing Index Value,Points Change,Change(%),Volume,Turnover (Rs. Cr.),P/E,P/B,Div Yield\n"
+    "S&P CNX Nifty,01-06-2012,4910.75,4948.55,4835.45,4841.65,-82.6,-1.68,1,1,16.9,2.9,1.5\n"
+    "CNX Nifty Junior,01-06-2012,9800,9850,9700,9720,-80,-0.8,1,1,15,2,1\n"
+    "CNX 100,01-06-2012,4800,4850,4700,4750,-50,-1,1,1,16,2,1\n"
+)
+
+
+def test_index_files_from_2012_with_the_s_and_p_name_are_accepted() -> None:
+    """NSE's files before early 2013 name the Nifty 'S&P CNX Nifty' (ADR-186)."""
+    assert ndf._index_rows(INDEX_2012.encode()) == 3
+    rows = list(mh.index_rows(INDEX_2012.encode(), "2012-06-01"))
+    assert [r["index"] for r in rows] == ["Nifty 50", "Nifty Next 50", "Nifty 100"]
+    assert mh.canonical_index("S&P CNX 500") == "Nifty 500"
+
+
 def test_old_index_names_become_todays() -> None:
     rows = list(mh.index_rows(INDEX_2015.encode(), "2015-01-05"))
     assert [r["index"] for r in rows] == ["Nifty 50", "Nifty Bank", "India VIX"]

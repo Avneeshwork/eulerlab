@@ -51,8 +51,9 @@ def _index_rows(payload: bytes) -> int | None:
         return None
     rows = list(csv.DictReader(io.StringIO(text)))
     names = {(r.get("Index Name") or "").strip() for r in rows}
-    # "CNX Nifty" until NSE renamed its indices in late 2015.
-    return len(rows) if names & {"Nifty 50", "CNX Nifty"} else None
+    # "CNX Nifty" until NSE renamed its indices in late 2015, and "S&P CNX
+    # Nifty" before that, until early 2013 (files back to 2012-01-02).
+    return len(rows) if names & {"Nifty 50", "CNX Nifty", "S&P CNX Nifty"} else None
 
 
 def _delivery_rows(payload: bytes) -> int | None:

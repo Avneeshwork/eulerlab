@@ -101,9 +101,11 @@ deleted**. Every file is hashed on arrival; `make check-landing` re-hashes them
 and proves nothing changed.
 
 For locally pruned files, the check confirms the recorded size against B2.
-Those listing requests use short timeouts, one attempt and a 15-second overall
-deadline; an unreachable B2 is reported as unconfirmed data and fails closed
-rather than stalling the check.
+It lists only the landing's own segment folders (`cm/`, `fo/`, ...) that hold
+an absent file, each with short timeouts, one attempt and its own 60-second
+deadline (ADR-186); the rest of the bucket is never listed. An unreachable B2
+is reported as unconfirmed data and fails closed rather than stalling the
+check.
 
 Why so strict? Because every number downstream is derived from these files. If
 a raw file can be quietly "fixed", then a result can change without any code

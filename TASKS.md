@@ -48,6 +48,9 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4597 | Re-store research 176's reference results after ADR-157 (or confirm another cause), so `make rule-engine-check` passes; set `EULERLAB_NO_CLOUD=0` in that target | TODO (HISTORY #89) |
 | T-4598 | The ladder's decay check reads backtests only from the experiment store, which is empty; fall back to the stored gate report | TODO (research 192) |
 | T-4599 | The generator eval reads the Mac's live lesson store: three cases fail there and pass in CI. Isolate it, or change the cases' expectations | TODO (research 192) |
+| T-4610 | Daily NSE history 2000-2014: cm, fo, delivery, indices, corporate actions landed and in B2 (research 194) | DONE 2026-11-14 — `make check-landing` (24,695 files confirmed in B2), ADR-186 |
+| T-4611 | Rebuild price and total-return factors and the price panel from 2000; check 2015 onward unchanged and jumps over 40% with no corporate action (A-143) | TODO |
+| T-4612 | Index closes before 2012 and corporate actions before 2005: find a free source, or accept the gap (research 194) | TODO |
 
 ## Run the platform on a server, before multi-user (2026-11-12, ADR-163, ADR-164, ADR-165; issues #111-#118, #114)
 

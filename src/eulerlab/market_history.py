@@ -146,6 +146,9 @@ def canonical_index(name: str) -> str:
     some differently from file to file since."""
     if name in RENAMED:
         return RENAMED[name]
+    if name.startswith("S&P CNX "):
+        # Until early 2013 the files carry S&P's co-brand: "S&P CNX Nifty".
+        return canonical_index(name.removeprefix("S&P "))
     if name.startswith("CNX "):
         return "Nifty " + name.removeprefix("CNX ")
     return name

@@ -32,7 +32,7 @@ def _land_then_delete_locally(tmp_path: Path) -> tuple[Landing, str, int]:
 
 
 def _run(root: Path, remote: dict[str, int] | None, monkeypatch: pytest.MonkeyPatch) -> int:
-    monkeypatch.setattr(vl, "_remote_sizes", lambda prefix: remote)
+    monkeypatch.setattr(vl, "_remote_sizes", lambda prefix, segments=(): remote)
     return vl.main([str(root)])
 
 
@@ -116,3 +116,46 @@ def test_b2_listing_is_interrupted_at_its_deadline(
     monkeypatch.setattr(vl, "REMOTE_LIST_TIMEOUT_S", 0.01)
     with pytest.raises(TimeoutError, match="integrity-check deadline"):
         vl._list_sizes_bounded(SlowStore(), "nse/")  # type: ignore[arg-type]
+
+
+def test_b2_is_listed_per_segment_each_with_its_own_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-186: the whole `nse/` prefix holds every dataset and no longer lists
+    inside one deadline; each landing segment is listed on its own."""
+    asked: list[str] = []
+
+    class Store:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        def list_sizes(self, prefix: str) -> dict[str, int]:
+            asked.append(prefix)
+            return {f"{prefix}x": 1}
+
+    monkeypatch.setattr(vl, "S3ObjectStore", Store)
+    monkeypatch.setattr(vl, "load_storage_config", lambda path: object())
+    monkeypatch.setattr(vl, "STORAGE_CONFIG", Path(__file__))
+    sizes = vl._remote_sizes("nse/", ["cm", "fo"])
+    assert asked == ["nse/cm/", "nse/fo/"]
+    assert sizes == {"nse/cm/x": 1, "nse/fo/x": 1}
+
+
+def test_nothing_is_listed_when_every_file_is_on_disk(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    Landing(tmp_path).write(
+        trade_date=date(2026, 8, 14),
+        segment="cm",
+        file_format="udiff",
+        url="https://example.invalid/f.zip",
+        payload=b"payload",
+        rows=1,
+        inner_name="f.csv",
+    )
+
+    def refuse(prefix: str, segments: object = ()) -> None:
+        raise AssertionError("listed B2 with nothing to confirm")
+
+    monkeypatch.setattr(vl, "_remote_sizes", refuse)
+    assert vl.main([str(tmp_path)]) == 0

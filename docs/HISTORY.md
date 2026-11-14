@@ -574,3 +574,7 @@ Believed: `angel_minute_fill` brings each missed session in. True: two faults to
 ## 2026-11-13 — the Angel history backfill failed every request after its login lapsed
 
 Believed: one Angel login lasts a night's backfill. True: about five hours in (23:53 IST) every request came back "Invalid Token", and the run kept going, logging 1,524 failures from 2021-06 back to 2021-03 until it was restarted. Nothing wrong was stored: a failed span lands no file and no manifest line, so the next pass fetches it. Now a lapsed login gets one fresh login and a retry (`angel_minute.expired`), and the backfill runs under a restart loop (`tools/angel_backfill_supervised.sh`). No numbers affected.
+
+## 2026-11-14 — the pre-2015 backfill downloaded 2001-2008 twice, and check-landing could no longer pass
+
+Believed: pruning after each year of the backfill frees disk without cost. True: `sync_cloud --only nse --then-delete` prunes the whole `nse` tree, so the files landed before the launchd agent took over (2001 to part of 2008) were deleted locally, `Landing.has` then found them missing, and the agent's next units downloaded them again. The bytes were the same; the manifest holds 3,536 extra entries for those days, which nothing reads twice (the latest entry wins). Landing files and the manifest were not edited. Separately, `make check-landing` listed the whole `nse/` prefix under one 15-second deadline and reported INTEGRITY UNVERIFIED on every run once the bucket held minute bars too; it now lists per segment (ADR-186). No numbers are invalid.

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import signal
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 from eulerlab.ingest.cloud import S3ObjectStore, load_storage_config
@@ -25,7 +26,9 @@ from eulerlab.paths import data_path
 
 DEFAULT_LANDING = data_path("landing/nse")
 STORAGE_CONFIG = Path("config/storage.yaml")
-REMOTE_LIST_TIMEOUT_S = 15
+REMOTE_LIST_TIMEOUT_S = 60
+"""Per segment (ADR-186). One deadline over the whole `nse/` prefix stopped
+working once the bucket also held minute bars and every other dataset."""
 
 
 def _list_sizes_bounded(store: S3ObjectStore, prefix: str) -> dict[str, int]:
@@ -46,7 +49,7 @@ def _list_sizes_bounded(store: S3ObjectStore, prefix: str) -> dict[str, int]:
         signal.signal(signal.SIGALRM, previous_handler)
 
 
-def _remote_sizes(prefix: str) -> dict[str, int] | None:
+def _remote_sizes(prefix: str, segments: Sequence[str] = ()) -> dict[str, int] | None:
     """B2 object sizes under prefix, or None when B2 cannot be reached.
 
     None is a legitimate outcome — no credentials, no network — and the caller
@@ -60,7 +63,14 @@ def _remote_sizes(prefix: str) -> dict[str, int] | None:
         # Bound both individual requests and the full multi-page listing so
         # an unavailable endpoint cannot stall this integrity check for minutes.
         store = S3ObjectStore(config, connect_timeout_s=3, read_timeout_s=5, max_attempts=1)
-        return _list_sizes_bounded(store, prefix)
+        if not segments:
+            return _list_sizes_bounded(store, prefix)
+        sizes: dict[str, int] = {}
+        for segment in segments:
+            # Each segment gets its own listing and deadline, and only the
+            # landing's own folders are listed, never the rest of the bucket.
+            sizes.update(_list_sizes_bounded(store, f"{prefix}{segment}/"))
+        return sizes
     except Exception:
         return None
 
@@ -75,7 +85,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"landing zone {root} is empty — nothing ingested yet")
         return 0
 
-    remote = _remote_sizes("nse/")
+    absent = [e for e in entries.values() if not (root / e.path).exists()]
+    segments = sorted({e.path.split("/", 1)[0] for e in absent})
+    remote = _remote_sizes("nse/", segments) if absent else {}
     violations: list[str] = []
     pruned: list[str] = []
     unconfirmed: list[str] = []
