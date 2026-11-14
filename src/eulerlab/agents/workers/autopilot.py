@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 
 from eulerlab.agents import lessons
 from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, model_asker, untrusted
@@ -92,12 +92,12 @@ def tried(root: Path = HYPOTHESES, limit: int = 60) -> str:
     for path in sorted(root.glob("H-*.yaml")):
         raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         result = str(raw.get("result") or "")[:160].replace("\n", " ")
-        if isinstance(raw.get("engine"), dict):
+        if isinstance(raw.get("engine"), dict) or isinstance(raw.get("engine_v2"), dict):
             try:
-                spec = engine.RuleSpec.model_validate(raw["engine"])
-            except ValidationError:
+                rule = spec_of(raw)
+            except ValueError:  # pydantic's ValidationError and FormulaError are both
                 continue
-            lines.append(f"{path.stem} [{spec.kind}] {spec.describe()} :: {result}")
+            lines.append(f"{path.stem} [{rule.kind}] {rule.describe()} :: {result}")
         else:
             other.append(f"{path.stem} {raw.get('title', '')} :: {result}")
     return "\n".join(lines + other[-limit:])
@@ -153,6 +153,15 @@ def parse(answer: str) -> list[dict[str, Any]]:
     return [c for c in cards if isinstance(c, dict)] if isinstance(cards, list) else []
 
 
+def spec_of(card: dict[str, Any]) -> engine.Rule:
+    """A card's rule: its `engine_v2:` block (agent features expanded, ADR-187) or `engine:`."""
+    if isinstance(card.get("engine_v2"), dict):
+        from eulerlab.research import agent_tools
+
+        return agent_tools.parse_formula_spec(card["engine_v2"])
+    return engine.RuleSpec.model_validate(card.get("engine"))
+
+
 def accept(
     raw: list[dict[str, Any]], known: dict[str, str]
 ) -> tuple[list[dict[str, Any]], list[str]]:
@@ -163,9 +172,12 @@ def accept(
     for card in raw:
         title = str(card.get("title") or "untitled")[:120]
         try:
-            spec = engine.RuleSpec.model_validate(card.get("engine"))
+            spec = spec_of(card)
         except ValidationError as exc:
             dropped.append(f"{title}: {exc.errors()[0].get('msg', 'invalid spec')}")
+            continue
+        except ValueError as exc:  # a formula that does not compile or reads ahead
+            dropped.append(f"{title}: {str(exc)[:200]}")
             continue
         broken = lessons.violations(spec)
         if broken:
@@ -196,21 +208,34 @@ GRID: tuple[tuple[str, dict[str, Any]], ...] = (
 
 EXPLORE_SYSTEM = (
     "You are the research autopilot of a quant platform for NSE stocks. You research before "
-    "you write: you have tools to see the signal vocabulary, what was tried near an idea, how "
-    "each family of rules has done, and to screen a draft rule on 2016 to 2023 only. Work like "
-    "a researcher: start from an economic reason (who is forced to trade, who under-reacts, "
-    "what information arrives), check what was tried near it, screen a few drafts, read the "
-    "figures (net bps against the 12 bps intraday round trip, both halves, 2x costs, years "
-    "positive, flags) and change your idea when they say it is weak. Every screen is recorded "
-    "and raises the bar every rule must clear, so screen only drafts worth it and never tune a "
-    "number to fit. Rules you write are then tested on the whole window with no further "
-    "changes. Price-only stock rules have repeatedly died here. When you are done, answer with "
-    "the JSON the user message asks for, and nothing else."
+    "you write, with tools that read 2016 to 2023 only. Work like a researcher: open the "
+    "`agenda` and pick an open question, or ask a new one with an economic reason (who is "
+    "forced to trade, who under-reacts, what information arrives). Read `language` for the "
+    "fields and operators. If a signal you need is missing, define it with `define_feature`; "
+    "code checks it for look-ahead and refuses copies of what exists. Measure before you build: "
+    "`feature_ic` for a score, `event_study` for an event, then `screen_formula` or "
+    "`screen_rule` a few drafts and read the figures (net bps against the 12 bps intraday "
+    "round trip, both halves, 2x costs, years positive, flags). Change your idea when they say "
+    "it is weak. Signals too weak to pay costs alone can be tested together with "
+    "`combine_signals`. Every look and screen is recorded and raises the bar every rule must clear, "
+    "so test only what is worth it and never tune a number to fit. Before you answer, write "
+    "what you learned with `record_finding`, so the next night starts there. Rules you write "
+    "are then tested on the whole window with no further changes. Price-only stock rules have "
+    "repeatedly died here. When you are done, answer with the JSON the user message asks for, "
+    "and nothing else."
 )
-"""The system prompt of the research loop (#162, ADR-186)."""
+"""The system prompt of the research loop (#162 ADR-186, #163 and #164 ADR-187)."""
 
 EXPLORE_ROUNDS = 12
 EXPLORE_SCREENS = 8
+EXPLORE_LOOKS = 16
+
+EXPLORE_ASK = (
+    "\n\nBefore you answer, use the tools. A card may carry either an `engine` spec (see "
+    "`signals`) or an `engine_v2` spec (see `language`; features agents defined may be used by "
+    "name), never both. Name in each card's rationale the agenda question and the looks or "
+    "screens that informed it. A card may be a rule you screened or a new one."
+)
 
 
 def fallback(count: int, seed: int, known: dict[str, str]) -> list[dict[str, Any]]:
@@ -267,8 +292,14 @@ def next_ids(count: int, root: Path = HYPOTHESES) -> list[str]:
     return [f"H-{n:04d}" for n in range(start, start + count)]
 
 
+def _dump(spec: engine.Rule) -> dict[str, Any]:
+    assert isinstance(spec, BaseModel)  # both rule types are pydantic models
+    return spec.model_dump(mode="json", exclude_defaults=True)
+
+
 def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_count: int) -> str:
-    spec: engine.RuleSpec = card["spec"]
+    spec: engine.Rule = card["spec"]
+    v2 = not isinstance(spec, engine.RuleSpec)
     flags = [str(f) for f in card.get("red_flags") or [] if str(f).strip()][:6]
     body = {
         "id": h,
@@ -300,7 +331,7 @@ def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_coun
                 "window": f"{spec.first.isoformat()} to {engine.END.isoformat()}",
             }
         ],
-        "engine": spec.model_dump(mode="json", exclude_defaults=True),
+        ("engine_v2" if v2 else "engine"): _dump(spec),
         "red_flags": [
             *flags,
             "Daily bars: the official open and close stand in for real fills.",
@@ -316,16 +347,21 @@ def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_coun
     if explored:
         screens = explored.get("screens") or []
         own = next((x for x in screens if x.get("fingerprint") == spec.fingerprint()), None)
+        looks = explored.get("looks") or []
         body["exploration"] = {
             "screens": len(screens),
+            "looks": len(looks),
             "this_rule_screened": own is not None,
             "discovery_figures": own or {},
+            "features_kept": list(explored.get("features") or []),
+            "questions": list(explored.get("questions") or []),
             "traces": list(explored.get("traces") or []),
         }
         body["red_flags"].insert(
             len(flags),
-            f"Written after {len(screens)} exploratory screen(s) on 2016-2023 in the research "
-            "loop (ADR-186); each is in the experiment store and counts in the firewall's bar.",
+            f"Written after {len(screens)} exploratory screen(s) and {len(looks)} look(s) (IC "
+            "or event study) on 2016-2023 in the research loop (ADR-186, ADR-187); each is in "
+            "the experiment store, and the screens count in the firewall's bar.",
         )
     return yaml.safe_dump(body, sort_keys=False, allow_unicode=True, width=100)
 
@@ -344,13 +380,10 @@ def explore(ctx: Context, count: int, day: date) -> tuple[str, dict[str, Any]]:
         discovery_end=constitution.load().periods.discovery_end,
         now=ctx.now,
         max_screens=int(ctx.options.get("explore_screens", EXPLORE_SCREENS)),
+        max_looks=int(ctx.options.get("explore_looks", EXPLORE_LOOKS)),
         engine=agent_tools.discovery_engine,
     )
-    user = (
-        prompt(day, count)
-        + "\n\nBefore you answer, use the tools. Name in each card's rationale the screens "
-        "that informed it. A card may be a rule you screened or a new one."
-    )
+    user = prompt(day, count) + EXPLORE_ASK
     answer = ctx.converse(
         EXPLORE_SYSTEM,
         user,
@@ -359,6 +392,9 @@ def explore(ctx: Context, count: int, day: date) -> tuple[str, dict[str, Any]]:
     )
     return answer, {
         "screens": list(tools.screened),
+        "looks": list(tools.looks),
+        "features": [f["name"] for f in tools.features if f["kept"]],
+        "questions": sorted(tools.questions),
         "traces": list(ctx.last_traces),
         "tool_calls": dict(tools.calls),
     }
@@ -400,6 +436,7 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
             asks += 1
             ctx.step(
                 f"Research loop: {len(explored['screens'])} screen(s), "
+                f"{len(explored['looks'])} look(s), {len(explored['features'])} feature(s) kept, "
                 f"{len(new)} card(s) written, {len(kept)} of {count} kept"
             )
         except BudgetSpent as exc:
@@ -445,7 +482,7 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
         path.write_text(
             card_yaml(h, card, day=day, model=model, tried_count=tried_count), encoding="utf-8"
         )
-        spec: engine.RuleSpec = card["spec"]
+        spec: engine.Rule = card["spec"]
         written.append(
             {
                 "id": h,

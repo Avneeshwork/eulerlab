@@ -28,6 +28,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -55,6 +56,7 @@ DELIVERY = data_path("derived/delivery.jsonl")
 EARNINGS = data_path("derived/nse_earnings_announcements.jsonl")
 
 
+@lru_cache(maxsize=1 << 20)  # pure, and the same fill recurs across a population (#167)
 def delivery_fee(price: float, quantity: int, side: Side, day: date) -> float:
     from eulerlab.costs.router import fill_cost
 
@@ -101,6 +103,12 @@ class Swing:
         return (self.exit - self.entry) * self.quantity
 
     def costs_at(self, multiple: float = 1.0) -> tuple[float, float]:
+        buy, sell = self._costs
+        return buy * multiple, sell * multiple
+
+    @cached_property
+    def _costs(self) -> tuple[float, float]:
+        """The buy and sell costs, computed once a position (#167)."""
         q = self.quantity
         buy = (
             delivery_fee(self.entry, q, Side.BUY, self.entry_day)
@@ -110,7 +118,7 @@ class Swing:
             delivery_fee(self.exit, q, Side.SELL, self.exit_day)
             + self.exit * q * SLIPPAGE_BPS / 1e4
         )
-        return buy * multiple, sell * multiple
+        return buy, sell
 
     def pieces(self) -> list[Piece]:
         buy, sell = self.costs_at()

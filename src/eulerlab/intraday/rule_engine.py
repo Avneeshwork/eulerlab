@@ -496,8 +496,11 @@ Event = dm.Event
 
 
 class Engine:
-    def __init__(self, data: Data) -> None:
+    def __init__(self, data: Data, prices: dm.Pricer | None = None) -> None:
         self.data = data
+        self.prices = prices
+        """A fill-price model (`intraday/fill_price.PriceModel`, #119); None fills at the
+        official open and close with 2 bps a side, as research 176 did."""
         self.returns: dict[str, dict[date, float]] = {}
         """Daily net returns of each rule screened, by fingerprint."""
 
@@ -622,21 +625,23 @@ class Engine:
 
     def swings(self, spec: Rule) -> list[Any]:
         """A swing rule's positions (`other_data_screen.Swing`), at most ten open."""
-        return list(dm.swing_book(self.data, self.events(spec), spec.hold))
+        return list(dm.swing_book(self.data, self.events(spec), spec.hold, self.prices))
 
     def pieces(self, spec: Rule) -> list[Any]:
         """The trades (intraday) or the daily pieces of each position (swing)."""
         events = self.events(spec)
         if spec.kind == "intraday":
-            return list(dm.day_book(self.data, events))
-        return [p for s in dm.swing_book(self.data, events, spec.hold) for p in s.pieces()]
+            return list(dm.day_book(self.data, events, self.prices))
+        return [
+            p for s in dm.swing_book(self.data, events, spec.hold, self.prices) for p in s.pieces()
+        ]
 
     def screen(self, spec: Rule) -> dict[str, Any]:
         """Research 176's screen figures plus the bias checks (`checks`)."""
         events = self.events(spec)
         window = self.window(spec)
         if spec.kind == "intraday":
-            trades = dm.day_book(self.data, events)
+            trades = dm.day_book(self.data, events, self.prices)
             net = [(t.gross - t.costs) / t.notional * 1e4 for t in trades]
             gross = [t.gross / t.notional * 1e4 for t in trades]
             pieces: list[Any] = list(trades)
@@ -646,7 +651,7 @@ class Engine:
                 "net_mean": round(statistics.fmean(net), 2) if net else None,
             }
         else:
-            swings = dm.swing_book(self.data, events, spec.hold)
+            swings = dm.swing_book(self.data, events, spec.hold, self.prices)
             net = [(s.gross_total - sum(s.costs_at())) / s.notional * 1e4 for s in swings]
             pieces = [p for s in swings for p in s.pieces()]
             count = len(swings)
@@ -660,6 +665,9 @@ class Engine:
             "per_bps": per,
             **du._summary(pieces, window, dm.CAPITAL),
         }
+        if self.prices is not None:  # every modelled screen says how it priced its fills
+            describe = getattr(self.prices, "describe", None)
+            out["price_model"] = describe() if callable(describe) else "a custom pricer"
         out["checks"] = checks(pieces, window, out)
         out["passes_screen"] = count > 0 and dm.passes(out)
         out["clean"] = out["passes_screen"] and not any(c["flag"] for c in out["checks"])

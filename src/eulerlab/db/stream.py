@@ -214,6 +214,9 @@ ROW_FILES: dict[str, str] = {
     "llm_values": "derived/llm_values.jsonl",
     "incidents": "agents/incidents.jsonl",
     "agent_changes": "agents/changes.jsonl",
+    "agenda": "derived/agenda.jsonl",
+    "features": "derived/features.jsonl",
+    "forward_shadow": "derived/forward_shadow.jsonl",
 }
 """Plain row files (ADR-174): kind -> where its files sit under the data directory.
 

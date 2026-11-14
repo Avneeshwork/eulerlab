@@ -10,7 +10,6 @@ from typing import Any
 
 import pytest
 import yaml
-from test_research_autopilot import GAP_FADE, _data, _gappy
 
 from eulerlab.agents import boundaries, runtime
 from eulerlab.agents.spec import AgentSpec, effective
@@ -20,6 +19,7 @@ from eulerlab.intraday import rule_engine as engine
 from eulerlab.llm import trace
 from eulerlab.llm.client import Provider
 from eulerlab.research import agent_tools, experiments
+from test_research_autopilot import GAP_FADE, _data, _gappy
 
 NOW = datetime(2026, 11, 14, 12, tzinfo=UTC)
 END = date(2023, 12, 31)
@@ -96,9 +96,14 @@ def test_an_engine_reading_past_the_discovery_end_is_refused(folder: Path) -> No
 def test_the_discovery_engine_drops_every_bar_after_the_end(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from eulerlab.research import fast_eval
+
     full = _data({"AAA": [100.0] * 300})
     monkeypatch.setattr(engine, "Data", lambda: full)
+    monkeypatch.setattr(fast_eval, "real_store", fast_eval.Store)
     cut = agent_tools.discovery_engine(date(2022, 6, 30))
+    assert isinstance(cut, fast_eval.FastEngine)
+    assert max(cut.store.days) <= date(2022, 6, 30)
     assert max(cut.data.sessions) <= date(2022, 6, 30)
     assert max(cut.data.panel["AAA"]) <= date(2022, 6, 30)
     assert cut.data.end <= date(2022, 6, 30)
@@ -117,7 +122,21 @@ def test_family_record_tallies_screens(folder: Path) -> None:
 
 def test_the_toolbox_offers_only_its_own_tools() -> None:
     names = {s["function"]["name"] for s in _tools().schemas()}
-    assert names == {"signals", "claim_record", "family_record", "screen_rule"}
+    assert names == {
+        "language",
+        "signals",
+        "claim_record",
+        "family_record",
+        "agenda",
+        "ask_question",
+        "record_finding",
+        "define_feature",
+        "feature_ic",
+        "event_study",
+        "screen_rule",
+        "screen_formula",
+        "combine_signals",
+    }
     assert "no tool" in _tools().call("place_order", "{}")
 
 
@@ -261,3 +280,61 @@ def test_converse_needs_two_requests_left(folder: Path) -> None:
 
 def test_explore_system_prompt_names_the_bar() -> None:
     assert "raises the bar" in writer.EXPLORE_SYSTEM
+    for tool in ("agenda", "define_feature", "feature_ic", "event_study", "record_finding"):
+        assert tool in writer.EXPLORE_SYSTEM
+
+
+# --- formula cards (ADR-187) ------------------------------------------------------------------
+
+V2 = {
+    "shape": "event",
+    "kind": "intraday",
+    "side": "short",
+    "when": "and(gt(gap_ratio, 1.02), results_morning)",
+    "score": "gap_ratio",
+}
+GAP_RATIO = "div(open_price, delay(close_price, 1))"
+
+
+def _keep_gap_ratio() -> None:
+    from eulerlab.paths import data_path
+
+    path = data_path("derived/features.jsonl")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = {"name": "gap_ratio", "formula": GAP_RATIO, "status": "kept", "author": "t", "why": "w"}
+    path.write_text(json.dumps(row) + "\n")
+
+
+def test_a_formula_card_is_written_with_its_features_expanded(
+    folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _keep_gap_ratio()
+    swing = {**GAP_FADE, "kind": "swing", "hold": 3, "side": "with"}
+    answer = json.dumps(
+        {
+            "cards": [
+                {"title": "results gap fade", "claim": "c", "rationale": "r", "engine_v2": V2},
+                {"title": "gap follow", "claim": "c", "rationale": "r", "engine": swing},
+            ]
+        }
+    )
+    monkeypatch.setattr(chat, "_send", lambda chosen, payload: _say(answer))
+    monkeypatch.setattr(chat, "selected_provider", lambda name="", model="": GROQ)
+    out = runtime.run(
+        "autopilot", root=folder / "agents", agents=_autopilot(explore=False), now=NOW
+    )
+    assert out.status == "ok", out.summary
+    first = out.data["cards"][0]
+    card = yaml.safe_load((folder / first["path"]).read_text())
+    assert "engine" not in card
+    assert card["engine_v2"]["when"] == f"and(gt({GAP_RATIO}, 1.02), results_morning)"
+    # The card reads back without the registry: it stores the formula, not the name.
+    (folder / "data" / "derived" / "features.jsonl").unlink()
+    spec = engine.card_spec(first["id"], folder / "hypotheses")
+    assert spec is not None and spec.fingerprint() == writer.spec_of(card).fingerprint()
+
+
+def test_a_formula_card_that_reads_ahead_is_dropped_with_why() -> None:
+    bad = {**V2, "when": "gt(close_price, 100)"}
+    kept, dropped = writer.accept([{"title": "peek", "engine_v2": bad}], {})
+    assert kept == [] and "delay" in dropped[0]

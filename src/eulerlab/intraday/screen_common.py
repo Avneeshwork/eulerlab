@@ -18,6 +18,7 @@ import math
 import statistics
 from collections.abc import Sequence
 from datetime import date
+from functools import lru_cache
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,7 @@ def daily_stats(values: Sequence[float]) -> dict[str, Any]:
     }
 
 
+@lru_cache(maxsize=1 << 20)  # pure, and the same fill recurs across a population (#167)
 def intraday_fee(price: float, quantity: int, side: Side, day: date) -> float:
     """NSE intraday equity charges for one fill, from the time-versioned schedule."""
     from eulerlab.costs.router import fill_cost

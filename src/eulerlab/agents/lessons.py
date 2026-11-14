@@ -236,15 +236,25 @@ def seed_from_history(path: Path = HISTORY, *, root: Path | None = None) -> int:
 
 # --- lessons enforced by code ----------------------------------------------------------
 
-PRICE_ONLY = frozenset({"gap", "ret", "day_return", "at_high", "at_low"})
-"""Engine signals computed from a stock's own prices alone."""
+PRICE_ONLY = frozenset(
+    {"gap", "ret", "day_return", "at_high", "at_low", "open_price", "close_price"}
+)
+"""Engine signals and language-v2 fields computed from a stock's own prices alone."""
+
+
+def _names(spec: Any) -> set[str]:
+    """The fields a rule reads: an engine rule's signals, or a language-v2 rule's fields."""
+    if hasattr(spec, "signals"):
+        return {s.signal for s in spec.signals}
+    found = getattr(spec, "complexity", None)
+    return set(found.get("fields") or []) if isinstance(found, dict) else set()
 
 
 def _price_only_intraday(spec: Any) -> str:
     """Research 153-176: 124 day-trading rules; no price-only rule cleared 12.24 bps."""
     if getattr(spec, "kind", "") != "intraday":
         return ""
-    names = {s.signal for s in spec.signals}
+    names = _names(spec)
     if names and names <= PRICE_ONLY:
         return (
             "an intraday rule on prices alone: 124 such tests (research 153-176) never "
@@ -255,8 +265,8 @@ def _price_only_intraday(spec: Any) -> str:
 
 def _results_short_after_drop(spec: Any) -> str:
     """H-0177 (research 177): shorting a results-morning gap-down lost in both halves."""
-    if getattr(spec, "side", "") != "short":
-        return ""
+    if getattr(spec, "side", "") != "short" or isinstance(getattr(spec, "when", None), str):
+        return ""  # a language-v2 rule's `when` is a formula; this check reads engine conditions
     names = {c.signal: c for c in spec.when}
     gap = names.get("gap")
     if (
@@ -274,7 +284,7 @@ CHECKS: dict[str, Callable[[Any], str]] = {
     "price_only_intraday": _price_only_intraday,
     "results_short_after_drop": _results_short_after_drop,
 }
-"""Name -> a function of a `rule_engine.RuleSpec` that returns why it breaks the lesson, or ''."""
+"""Name -> a function of a rule (engine or v2) giving why it breaks the lesson, or ''."""
 
 BUILT_IN: tuple[tuple[str, str, str], ...] = (
     (
