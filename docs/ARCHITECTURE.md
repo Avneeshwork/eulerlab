@@ -498,7 +498,10 @@ So:
 Two properties of the implementation matter:
 
 1. **Rates are time-versioned.** STT on futures changed **4×** inside the
-   backtest window. A hardcoded rate would misprice years of history.
+   backtest window. A hardcoded rate would misprice years of history. The
+   schedule starts 2000-01-01; before 2015 each rate is the higher of its
+   dated rate and today's, so an old year is never cheaper than trading today
+   (research 196). A trade before 2000 is refused.
 2. **Everything is `Decimal`, not float.** Contract notes reconcile to the
    paisa, and a float that is out by 1e-9 fails that comparison for reasons
    unrelated to correctness.

@@ -95,10 +95,36 @@ def test_the_same_trade_costs_more_at_later_rates() -> None:
 
 
 def test_a_date_before_the_schedule_raises_rather_than_guessing() -> None:
-    """Silently costing a 2010 trade with 2015 rates is the failure mode this
-    prevents."""
+    """Silently costing a 1999 trade with later rates is the failure mode this
+    prevents. The schedule starts 2000-01-01 (research 196)."""
     with pytest.raises(ValueError, match="no cost schedule covers"):
-        rates_on(date(2010, 1, 1))
+        rates_on(date(1999, 12, 31))
+
+
+def test_old_years_are_never_cheaper_than_today() -> None:
+    """Operator, 2026-11-14: each pre-2015 rate is the higher of its dated
+    rate and today's."""
+    from dataclasses import fields
+
+    from eulerlab.costs.schedule import SCHEDULE, TODAY
+
+    old = [r for r in SCHEDULE if r.effective_from < date(2015, 1, 1)]
+    assert old and old[0].effective_from == date(2000, 1, 1)
+    for rates in old:
+        for f in fields(rates):
+            value = getattr(rates, f.name)
+            if isinstance(value, float):
+                assert value >= getattr(TODAY, f.name), (rates.effective_from, f.name)
+
+
+def test_the_dated_pre_2015_rates_that_exceed_today_apply() -> None:
+    assert rates_on(date(2005, 1, 3)).stt_delivery == 0.001  # 0.075% then, 0.1% today
+    assert rates_on(date(2008, 6, 2)).stt_delivery == 0.00125  # above today's 0.1%
+    assert rates_on(date(2012, 7, 2)).stt_delivery == 0.001
+    assert rates_on(date(2009, 9, 30)).exchange_txn_cash == 0.000035
+    assert rates_on(date(2009, 10, 1)).exchange_txn_cash == 0.0000325
+    assert rates_on(date(2008, 6, 2)).gst == 0.18  # service tax 12.36% then, below GST
+    assert rates_on(date(2014, 12, 31)).stamp_delivery_buy == 0.00015
 
 
 def test_equity_rates_did_not_change() -> None:

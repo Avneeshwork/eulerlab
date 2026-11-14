@@ -29,7 +29,7 @@ overstates returns on every single expiry.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, replace
 from datetime import date
 from enum import StrEnum
 
@@ -94,7 +94,7 @@ class RateSet:
 # that agree with one another, not from the CBDT notification or the NSE
 # circular — both NSE sources timed out on repeated fetches and circular
 # FATAX73524 would not decode. See docs/RESEARCH/013.
-SCHEDULE: tuple[RateSet, ...] = (
+_FROM_2015: tuple[RateSet, ...] = (
     RateSet(
         effective_from=date(2015, 1, 1),
         stt_delivery=0.001,
@@ -175,6 +175,79 @@ SCHEDULE: tuple[RateSet, ...] = (
         note="Budget 2026: futures -> 0.05%, options premium and exercise -> 0.15%.",
     ),
 )
+
+TODAY = _FROM_2015[-1]
+
+# Before 2015 (research 196). Each entry holds the rates that changed on that
+# day, from the sources the research note lists; a later entry inherits what an
+# earlier one set. F&O rates before 2015 were not researched: today's apply.
+# ASSUMPTION: A-147 (STT), A-148 (NSE transaction charge), A-149 (stamp duty),
+# A-150 (service tax, SEBI fee).
+_HISTORICAL: tuple[tuple[date, dict[str, float], str], ...] = (
+    (
+        date(2000, 1, 1),
+        {
+            "stt_delivery": 0.0,
+            "stt_intraday_sell": 0.0,
+            "exchange_txn_cash": 0.000035,
+            "stamp_delivery_buy": 0.0001,
+            "stamp_intraday_buy": 0.00002,
+            "gst": 0.08,
+        },
+        "No STT before 2004-10-01; NSE Rs 3.5 a lakh; Maharashtra stamp duty.",
+    ),
+    (date(2004, 9, 10), {"gst": 0.102}, "Service tax 10.2%."),
+    (
+        date(2004, 10, 1),
+        {"stt_delivery": 0.00075, "stt_intraday_sell": 0.00015},
+        "STT begins: 0.075% delivery, 0.015% intraday sell.",
+    ),
+    (
+        date(2005, 6, 1),
+        {"stt_delivery": 0.001, "stt_intraday_sell": 0.0002},
+        "STT 0.1% delivery, 0.02% intraday sell.",
+    ),
+    (date(2006, 4, 18), {"gst": 0.1224}, "Service tax 12.24%."),
+    (
+        date(2006, 6, 1),
+        {"stt_delivery": 0.00125, "stt_intraday_sell": 0.00025},
+        "STT 0.125% delivery, 0.025% intraday sell.",
+    ),
+    (date(2007, 5, 11), {"gst": 0.1236}, "Service tax 12.36%."),
+    (date(2009, 2, 24), {"gst": 0.103}, "Service tax 10.3%."),
+    (date(2009, 10, 1), {"exchange_txn_cash": 0.0000325}, "NSE cash charge cut to Rs 3.25 a lakh."),
+    (date(2012, 4, 1), {"gst": 0.1236}, "Service tax 12.36%."),
+    (date(2012, 7, 1), {"stt_delivery": 0.001}, "STT on delivery back to 0.1%."),
+)
+
+
+def _never_cheaper_than_today() -> tuple[RateSet, ...]:
+    """Each pre-2015 rate is the higher of the dated rate and today's, so a
+    backtest of an old year is never cheaper than trading today (operator,
+    2026-11-14). Exercise is on NOTIONAL, as it was until 2019."""
+    names = {f.name for f in fields(RateSet)}
+    held: dict[str, float] = {}
+    out: list[RateSet] = []
+    for effective, changed, note in _HISTORICAL:
+        held.update(changed)
+        unknown = set(held) - names
+        if unknown:
+            msg = f"unknown rate fields {sorted(unknown)}"
+            raise ValueError(msg)
+        floored = {k: max(v, float(getattr(TODAY, k))) for k, v in held.items()}
+        out.append(
+            replace(
+                TODAY,
+                effective_from=effective,
+                exercise_basis=ExerciseBasis.NOTIONAL,
+                note=f"{note} Each rate at least today's.",
+                **floored,
+            )
+        )
+    return tuple(out)
+
+
+SCHEDULE: tuple[RateSet, ...] = (*_never_cheaper_than_today(), *_FROM_2015)
 
 
 def rates_on(trade_date: date) -> RateSet:
