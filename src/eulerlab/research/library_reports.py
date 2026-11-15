@@ -90,6 +90,12 @@ NOTES = {
 """Caveats stored with a report, shown beside its figures."""
 
 
+NO_POSITIONS = (
+    "Equity curve and Sharpe are the gated run's; its individual positions are not rebuilt "
+    "for this report, so the trade and instrument tabs are empty (ADR-206)."
+)
+
+
 def _fills_for(hypothesis: str, run: Any, cut: date | None = None) -> tuple[list[Any], int]:
     """(two fills per position, distinct symbols) for the report; no swing exits on or after `cut`."""
     from eulerlab.backtest.events import Fill
@@ -99,7 +105,14 @@ def _fills_for(hypothesis: str, run: Any, cut: date | None = None) -> tuple[list
     trades = list(run.trades)
     if trades and isinstance(trades[0], cs.Trade):
         return fh.leg_fills(trades), len({t.symbol for t in trades})
-    swings = [s for s in _swings(hypothesis) if cut is None or s.exit_day < cut]
+    try:
+        known = _swings(hypothesis)
+    except KeyError:
+        # No screen rebuilds this card's positions (H-0151, the portfolio cards):
+        # the report keeps the gate's daily curve and Sharpe without per-position
+        # fills, and says so (`NO_POSITIONS`), rather than not existing at all.
+        return [], 0
+    swings = [s for s in known if cut is None or s.exit_day < cut]
     out = []
     for s in swings:
         buy, sell = s.costs_at()
@@ -222,6 +235,8 @@ def store_one(hypothesis: str) -> dict[str, Any]:
     }
     if hypothesis in NOTES:
         params["caveat"] = NOTES[hypothesis]
+    elif not fills:
+        params["caveat"] = NO_POSITIONS
     version = f"research-window {chosen['start']}..{chosen['end']} as gated"
     stored = results.Run(
         strategy_id=hypothesis,

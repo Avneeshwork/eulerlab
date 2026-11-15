@@ -226,3 +226,12 @@ def test_results_list_every_rule_the_gate_printed_failed_and_passed(tmp_path: Pa
         {"rule": "trial ledger", "passed": True, "detail": ""},
     ]
     assert promote.findings("validation stopped") == []
+
+
+def test_a_card_whose_positions_cannot_be_rebuilt_still_gets_a_report() -> None:
+    from eulerlab.research import library_reports as lr
+    from eulerlab.validation.intraday import IntradayRun
+
+    run = IntradayRun([], [], [], 1_000_000.0)
+    assert lr._fills_for("H-9999", run) == ([], 0)
+    assert "not rebuilt" in lr.NO_POSITIONS
