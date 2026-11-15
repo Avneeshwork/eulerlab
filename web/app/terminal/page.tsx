@@ -554,16 +554,15 @@ export default function TerminalPage() {
               <button type="button" role="tab" aria-selected={liveView === 'desk'} onClick={() => setLiveView('desk')}>
                 Trade desk
               </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={liveView === 'risk'}
-                onClick={() => setLiveView('risk')}
-              >
-                Risk limits &amp; kill switch
-              </button>
             </div>
-            {liveView === 'overview' || liveView === 'performance' || liveView === 'stress' ? (
+            {/* The limits and kill switch sit on Risk overview as one line (operator,
+                2026-11-16); an old `#live/risk` link lands there too. */}
+            {liveView === 'overview' || liveView === 'risk' ? (
+              <>
+                <RiskTab />
+                <RiskBookView view="overview" onReport={(id) => setPage('deployment', id)} />
+              </>
+            ) : liveView === 'performance' || liveView === 'stress' ? (
               <RiskBookView view={liveView} onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'deploy' ? (
               <LiveTab
@@ -575,9 +574,7 @@ export default function TerminalPage() {
               />
             ) : liveView === 'desk' ? (
               <DeskTab titles={Object.fromEntries((fleet?.strategies ?? []).map((s) => [s.id, s.title]))} />
-            ) : (
-              <RiskTab />
-            )}
+            ) : null}
           </>
         )}
 
