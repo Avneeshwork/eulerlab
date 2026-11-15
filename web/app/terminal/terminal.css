@@ -2764,3 +2764,4 @@ textarea:focus-visible {
 /* A paper book's link to its strategy's backtest report. */
 .paper-bt { background: none; border: 0; padding: 0; font: inherit; color: var(--brand); cursor: pointer; }
 .paper-bt:hover { text-decoration: underline; }
+.tbtn-pair { display: inline-flex; gap: 0.4rem; }

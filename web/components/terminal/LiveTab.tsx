@@ -59,6 +59,9 @@ export function LiveTab({
   const noReport = gatedAll.filter((s) => !hasReport(s)).length;
   const blocked = gatedAll.filter((s) => hasReport(s) && s.deploy_blocker).length;
   const TOP = 15;
+  const short = (text: string) => (text.length > 80 ? `${text.slice(0, 79)}…` : text);
+  const yearly = (v: number | null | undefined) =>
+    v === null || v === undefined ? '—' : `${v < 0 ? '−' : '+'}${Math.abs(v * 100).toFixed(1)}%`;
   const gated = showAll ? gatedAll : ready.slice(0, TOP);
   const candidates = fleet.filter((s) => s.clears_bar && s.runnable && hasReport(s));
 
@@ -126,6 +129,9 @@ export function LiveTab({
                 <th>Strategy</th>
                 <th>Verdict</th>
                 <th className="r">Sharpe</th>
+                <th className="r">Per year</th>
+                <th className="r">Trades</th>
+                <th>Tested</th>
                 <th>Bars</th>
                 <th className="r" />
               </tr>
@@ -134,12 +140,25 @@ export function LiveTab({
               {gated.map((strategy) => (
                 <tr key={strategy.id}>
                   <td title={strategy.summary}>
-                    <b>{strategy.title.length > 90 ? `${strategy.title.slice(0, 89)}…` : strategy.title}</b>
+                    {hasReport(strategy) && onStrategyReport ? (
+                      <button className="paper-bt" type="button" onClick={() => onStrategyReport(strategy.id)}>
+                        <b>{short(strategy.title)}</b>
+                      </button>
+                    ) : (
+                      <b>{short(strategy.title)}</b>
+                    )}
                   </td>
                   <td title={strategy.gate_verdict === 'PAPER' ? 'paper only, never live' : 'paper, then live'}>
                     {strategy.gate_verdict || '—'}
                   </td>
                   <td className="r">{sharpeOf(strategy)?.toFixed(2) ?? '—'}</td>
+                  <td className="r">{yearly(strategy.table?.annual_return)}</td>
+                  <td className="r">{strategy.table?.trades?.toLocaleString('en-IN') ?? '—'}</td>
+                  <td className="tfine">
+                    {strategy.table?.period?.[0]
+                      ? `${strategy.table.period[0].slice(0, 4)}–${(strategy.table.period[1] ?? '').slice(0, 4)}`
+                      : '—'}
+                  </td>
                   <td className="tfine">{strategy.timeframe === '1m' ? 'minute' : 'daily'}</td>
                   <td className="r">
                     {!hasReport(strategy) ? (
@@ -149,9 +168,16 @@ export function LiveTab({
                         blocked
                       </span>
                     ) : (
-                      <button className="tbtn sm" type="button" onClick={() => onDeploy(strategy)}>
-                        Paper trade
-                      </button>
+                      <span className="tbtn-pair">
+                        {onStrategyReport && (
+                          <button className="tbtn sm" type="button" onClick={() => onStrategyReport(strategy.id)}>
+                            Report
+                          </button>
+                        )}
+                        <button className="tbtn sm" type="button" onClick={() => onDeploy(strategy)}>
+                          Paper trade
+                        </button>
+                      </span>
                     )}
                   </td>
                 </tr>

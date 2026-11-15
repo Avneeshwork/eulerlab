@@ -178,6 +178,7 @@ export function PaperDeployments({
   const [flowAmounts, setFlowAmounts] = useState<Record<string, string>>({});
   const [showEnded, setShowEnded] = useState(false);
   const [moneyOpen, setMoneyOpen] = useState('');
+  const [limitsOpen, setLimitsOpen] = useState('');
 
   const load = useCallback(() => {
     api
@@ -241,6 +242,12 @@ export function PaperDeployments({
         ? d.status
         : (s.status ?? 'waiting');
     const isOpen = open === d.id;
+    // The lock note ("code changed since it was deployed") is an engineering
+    // chore (`make relock`), not something to read on every card: hidden here.
+    const notes = (s.warnings ?? []).filter((w) => !w.includes('changed since it was deployed'));
+    const drawdown = s.loss_limit?.drawdown ?? 0;
+    const reduceAt = d.limits?.reduce_at ?? null;
+    const limitHit = reduceAt !== null && drawdown >= reduceAt;
     return (
       <article key={d.id} className="paper-card" data-status={status}>
         <header>
@@ -313,16 +320,16 @@ export function PaperDeployments({
           )}
         </div>
 
-        <LossLimits d={d} onAct={act} />
+        {limitsOpen === d.id && <LossLimits d={d} onAct={act} />}
 
         {(d.status_reason || s.reason) && status !== 'ok' && (
           <div className="tnote bad">{d.status_reason || s.reason}</div>
         )}
-        {(s.warnings?.length ?? 0) > 0 && (
+        {notes.length > 0 && (
           <div className="tnote warn">
-            {firstSentence(s.warnings?.[0] ?? '')}
-            {(s.warnings?.length ?? 0) > 1 && ` (+${(s.warnings?.length ?? 1) - 1} more)`}
-            <Info>{s.warnings?.join(' ')}</Info>
+            {firstSentence(notes[0])}
+            {notes.length > 1 && ` (+${notes.length - 1} more)`}
+            <Info>{notes.join(' ')}</Info>
           </div>
         )}
         {s.intended && s.intended.wanted !== undefined && (
@@ -351,6 +358,14 @@ export function PaperDeployments({
           )}
           <button className="tbtn sm" type="button" onClick={() => setOpen(isOpen ? '' : d.id)}>
             {isOpen ? 'Hide' : 'Positions & orders'}
+          </button>
+          <button
+            className={`tbtn sm${limitHit ? ' danger' : ''}`}
+            type="button"
+            onClick={() => setLimitsOpen(limitsOpen === d.id ? '' : d.id)}
+            title={`Down ${((s.loss_limit?.drawdown ?? 0) * 100).toFixed(1)}% from its high`}
+          >
+            {limitsOpen === d.id ? 'Close limits' : limitHit ? 'Loss limit hit' : 'Loss limits'}
           </button>
           {d.mode === 'paper' && d.status === 'active' && (
             <button className="tbtn sm" type="button" onClick={() => setMoneyOpen(moneyOpen === d.id ? '' : d.id)}>
