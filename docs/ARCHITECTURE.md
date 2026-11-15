@@ -4103,6 +4103,8 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            20 Aug-15 Sep 2021 and refuses a symbol whose daily ratio drifts over 0.5% or whose
            scaled seam return misses NSE's bhavcopy by over 0.5%; `intraday/store.fetch(history=True)`
            serves the bars before 19 Aug 2021 times that factor, passing symbols only
+           (`research_screen.load_days(history=True)` does the same from 1 Nov 2018 for the
+           minute screens; `make minute-six` snapshots built with `--history`, T-4634)
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it

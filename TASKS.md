@@ -22,7 +22,7 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 |---|---|---|
 | T-4632 | `fill_price.MinuteReference`: price on the raw basis (same-day ratio to the official print), not the vendor's adjusted VWAP (HISTORY #93) | TODO |
 | T-4633 | Add the DP charge per delivery sell to the cost model, from a broker source with a recheck date (HISTORY #94) | TODO |
-| T-4634 | Rebuild `minute_six` snapshots with `store.fetch(history=True)` so minute screens run from 2018-11 (operator, 2026-11-15: "minute data is from 2018") | TODO |
+| T-4634 | Rebuild `minute_six` snapshots with Angel's rescaled history so minute screens run from 2018-11 (operator, 2026-11-15: "minute data is from 2018") | DOING 2026-11-15 — `research_screen.load_days(history=True)`, `minute_six_screen --parts-only --history`; old 2021+ parts kept in `data/derived/minute_six_parts_kite_2021` |
 
 ## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)
 

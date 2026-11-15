@@ -108,3 +108,58 @@ def test_gold_confirmation_filter_skips_alternating_whipsaws() -> None:
     assert unfiltered["trades"] > 0
     assert filtered["trades"] < unfiltered["trades"]
     assert filtered["trade_reduction_pct"] > 0
+
+
+def _minute_parquet(rows: list[tuple[str, float]]) -> bytes:
+    import io
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    table = pa.table(
+        {
+            "ts": [ts for ts, _ in rows],
+            "open": [p for _, p in rows],
+            "high": [p for _, p in rows],
+            "low": [p for _, p in rows],
+            "close": [p for _, p in rows],
+            "volume": [100 for _ in rows],
+        }
+    )
+    buf = io.BytesIO()
+    pq.write_table(table, buf)
+    return buf.getvalue()
+
+
+def test_history_adds_rescaled_angel_bars_before_kite(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T-4634: Angel bars from 2018-11 to Kite's first day, times the ADR-185 factor."""
+    from types import SimpleNamespace
+
+    from eulerlab.ingest import angel_rescale, landing_reader
+
+    angel = "angel_minute_history/AAA/2018-10-20_2018-11-05.parquet"
+
+    def session(day: str) -> list[tuple[str, float]]:
+        return [
+            (f"{day}T{9 + (15 + m) // 60:02d}:{(15 + m) % 60:02d}:00+0530", 50.0)
+            for m in range(375)
+        ]
+
+    blobs = {angel: _minute_parquet(session("2018-10-31") + session("2018-11-01"))}
+    monkeypatch.setattr(
+        landing_reader,
+        "available",
+        lambda tree, pattern="**/*", **_: [angel] if tree == "angel_minute_history" else [],
+    )
+    monkeypatch.setattr(landing_reader, "read", lambda name, **_: blobs[name])
+    monkeypatch.setattr(ip, "archive_files", lambda symbol: [])
+    factor = SimpleNamespace(factor=2.0, volume_factor=0.5)
+    monkeypatch.setattr(angel_rescale, "load_factors", lambda: {"AAA": factor})
+
+    days = rs.load_days("AAA", cache=False, history=True)
+    assert [d.day for d in days] == [date(2018, 11, 1)]  # 31 Oct is before the floor
+    assert days[0].open_[0] == 100.0  # rescaled to Kite's basis
+    assert rs.load_days("AAA", cache=False) == []  # off by default
+
+    monkeypatch.setattr(angel_rescale, "load_factors", dict)
+    assert rs.load_days("AAA", cache=False, history=True) == []  # no factor, no history

@@ -79,6 +79,25 @@ def _file_start(name: str) -> date:
     return date.fromisoformat(Path(name).stem.split("_", 1)[0])
 
 
+HISTORY_FROM = date(2018, 11, 1)
+"""The first day of Angel's minute history a reader takes (operator, 2026-11-14)."""
+
+
+def history_files(symbol: str, cutoff: date = DATA_END) -> list[str]:
+    """Angel minute files of `symbol` from `HISTORY_FROM` that start before Kite's first day."""
+    from eulerlab.ingest import landing_reader
+    from eulerlab.intraday import store
+
+    names = landing_reader.available("angel_minute_history", f"{symbol}/*.parquet")
+    return sorted(
+        n
+        for n in names
+        if _file_end(n) >= HISTORY_FROM
+        and _file_start(n) < store.KITE_START
+        and _file_end(n) <= cutoff
+    )
+
+
 def load_days(
     symbol: str,
     *,
@@ -86,9 +105,18 @@ def load_days(
     cutoff: date = DATA_END,
     cache: bool = True,
     since: date | None = None,
+    history: bool = False,
 ) -> list[ip.Day]:
-    """Read through a named cutoff; never open a file that crosses it."""
+    """Read through a named cutoff; never open a file that crosses it.
+
+    `history=True` adds Angel's minute bars from `HISTORY_FROM` to the day
+    before Kite's first session, rescaled to Kite's basis by the symbol's
+    ADR-185 factor (`angel_rescale.load_factors`, T-4634). A symbol whose factor
+    failed its checks gets no history, never an unscaled one. Kite's bars win
+    on any day both hold."""
     rows: dict[str, dict[int, tuple[float, float, float, float, float]]] = {}
+    if history and root is None and since is None:
+        _history_rows(symbol, rows, cutoff, cache)
     for _, blob in _files(symbol, root=root, cutoff=cutoff, cache=cache, since=since):
         table = pq.read_table(
             io.BytesIO(blob), columns=["ts", "open", "high", "low", "close", "volume"]
@@ -110,6 +138,42 @@ def load_days(
                     float(volume or 0),
                 )
     return ip.days_from_rows(rows)
+
+
+def _history_rows(
+    symbol: str,
+    rows: dict[str, dict[int, tuple[float, float, float, float, float]]],
+    cutoff: date,
+    cache: bool,
+) -> None:
+    from eulerlab.ingest import angel_rescale, landing_reader
+    from eulerlab.intraday import store
+
+    factor = angel_rescale.load_factors().get(symbol)
+    if factor is None:
+        return
+    f, fv = factor.factor, factor.volume_factor
+    for name in history_files(symbol, cutoff):
+        table = pq.read_table(
+            io.BytesIO(landing_reader.read(name, cache=cache)),
+            columns=["ts", "open", "high", "low", "close", "volume"],
+        )
+        columns = [table.column(n).to_pylist() for n in table.column_names]
+        for stamp, open_, high, low, close, volume in zip(*columns, strict=True):
+            if stamp is None or open_ is None or high is None or low is None or close is None:
+                continue
+            day = date.fromisoformat(stamp[:10])
+            if not HISTORY_FROM <= day < store.KITE_START or day > cutoff:
+                continue
+            minute = (int(stamp[11:13]) - 9) * 60 + int(stamp[14:16]) - 15
+            if 0 <= minute < ip.MINUTES:
+                rows.setdefault(stamp[:10], {})[minute] = (
+                    float(open_) * f,
+                    float(high) * f,
+                    float(low) * f,
+                    float(close) * f,
+                    float(volume or 0) * fv,
+                )
 
 
 def _bars(day: ip.Day) -> tuple[list[float], list[float]]:
