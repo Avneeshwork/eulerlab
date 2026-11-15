@@ -110,3 +110,6 @@
   flex-wrap: wrap;
 }
 .st-filters .info { align-self: center; }
+.st-src { max-width: 15rem; font-size: 12px; }
+.st-src a { color: var(--brand); text-decoration: none; }
+.st-src a:hover { text-decoration: underline; }

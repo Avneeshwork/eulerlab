@@ -58,6 +58,28 @@ function sourceOf(s: FleetStrategy): Exclude<Source, ''> {
   return 'coded';
 }
 
+/**
+ * The paper behind a strategy as a link (operator, 2026-11-16: the Source column
+ * replaces Verdict). `source` is a citation, not a URL, so the link is built from
+ * what it names: an arXiv id, an SSRN id or a GitHub repo go straight there; any
+ * other paper opens a Google Scholar search for it; an internal research note has
+ * no link.
+ */
+function sourceLink(source: string): { label: string; href: string | null } {
+  const tagged = /^\[(paper|github|practitioner|adaptation)\]\s*/i.exec(source);
+  const text = tagged ? source.slice(tagged[0].length) : source;
+  const year = /^(.*?\(\d{4}\))/.exec(text);
+  const label = (year ? year[1] : text).slice(0, 48);
+  const arxiv = /arXiv:?\s*(\d{4}\.\d{4,5})/i.exec(text);
+  if (arxiv) return { label, href: `https://arxiv.org/abs/${arxiv[1]}` };
+  const ssrn = /SSRN\s*(\d{5,8})/i.exec(text);
+  if (ssrn) return { label, href: `https://papers.ssrn.com/sol3/papers.cfm?abstract_id=${ssrn[1]}` };
+  const repo = /([\w.-]+\/[\w.-]+)\s*\(GitHub/i.exec(text);
+  if (repo) return { label, href: `https://github.com/${repo[1]}` };
+  if (tagged || year) return { label, href: `https://scholar.google.com/scholar?q=${encodeURIComponent(text.slice(0, 160))}` };
+  return { label, href: null };
+}
+
 const SOURCE_LABEL: Record<Exclude<Source, ''>, string> = {
   paper: 'From a paper',
   builder: 'My builder',
@@ -522,7 +544,7 @@ export function Library({
               <SortHead label="Sharpe" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Trades" sort="trades" current={sort} descending={descending} onSort={sortBy} />
-              <SortHead label="Verdict" sort="verdict" current={sort} descending={descending} onSort={sortBy} align="left" />
+              <th>Source</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -592,10 +614,19 @@ export function Library({
                     </td>
                     <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
                     <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
-                    <td>
-                      <span className={`st-verdict v-${v}`}>
-                        {VERDICTS.find((x) => x.value === v)?.label}
-                      </span>
+                    <td className="st-src" onClick={(event) => event.stopPropagation()}>
+                      {(() => {
+                        const src = sourceLink(strategy.source);
+                        return src.href ? (
+                          <a href={src.href} target="_blank" rel="noreferrer" title={strategy.source}>
+                            {src.label} ↗
+                          </a>
+                        ) : (
+                          <span className="tfine" title={strategy.source}>
+                            {src.label || '—'}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="st-act" onClick={(event) => event.stopPropagation()}>
                       <button
