@@ -87,6 +87,13 @@ const RUNG_ORDER: Record<string, number> = {
   retired: 4,
 };
 
+/**
+ * In the archive: put away by the operator, or no stored backtest report yet
+ * (the report's period is unset). The second comes back to the main list by
+ * itself once a backtest writes its report (ADR-207).
+ */
+const inArchive = (s: FleetStrategy) => Boolean(s.archived) || !s.table?.period?.[0];
+
 export function Library({
   fleet,
   problem,
@@ -212,7 +219,7 @@ export function Library({
     if (!fleet) return [];
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
-      if (Boolean(s.archived) !== showArchived) return false;
+      if (inArchive(s) !== showArchived) return false;
       if (assetClass && homeMarket(s) !== assetClass) return false;
       if (style && styleOf(s) !== style) return false;
       if (source && sourceOf(s) !== source) return false;
@@ -286,7 +293,7 @@ export function Library({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openStrategy?.id]);
 
-  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter((s) => s.archived).length, [fleet]);
+  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter(inArchive).length, [fleet]);
   // Leaving the archive view when the last one is restored, so the page does
   // not sit on an empty list.
   useEffect(() => {
@@ -452,7 +459,9 @@ export function Library({
             .filter((option) => option.note)
             .map((option) => `${option.label}: ${option.note}`)
             .join(' ')}{' '}
-          Archived: strategies you have put away; their results and trials are kept.
+          Archived: strategies you have put away, and every strategy with no stored backtest
+          report yet. Those come back to the main list by themselves once a backtest
+          writes their report (ADR-207). Results and trials are kept.
         </Info>
         {(archivedCount > 0 || showArchived) && (
           <div className="st-chips" role="group" aria-label="Archive">

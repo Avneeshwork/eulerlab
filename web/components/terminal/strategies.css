@@ -33,7 +33,8 @@
 .st-name b { display: block; font-weight: 600; color: var(--ink); }
 .st-name span { font-size: 12px; color: var(--ink-3); }
 .st-spark { width: 104px; }
-.st-act { text-align: right; }
+.st-act { text-align: right; white-space: nowrap; }
+.st-act .tbtn + .tbtn { margin-left: 0.4rem; }
 
 .st-verdict {
   display: inline-block;
