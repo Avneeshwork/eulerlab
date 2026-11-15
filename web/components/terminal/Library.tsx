@@ -143,8 +143,6 @@ export function Library({
   const [sort, setSort] = useState<Sort>('verdict');
   const [descending, setDescending] = useState(true);
   const [style, setStyle] = useState<Style>('');
-  const [source, setSource] = useState<Source>('');
-  const [verdict, setVerdict] = useState<StrategyVerdict | ''>('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
@@ -223,8 +221,6 @@ export function Library({
       if (inArchive(s) !== showArchived) return false;
       if (assetClass && homeMarket(s) !== assetClass) return false;
       if (style && styleOf(s) !== style) return false;
-      if (source && sourceOf(s) !== source) return false;
-      if (verdict && verdictOf(s) !== verdict) return false;
       if (!needle) return true;
       return [s.id, s.title, s.kind, s.shape, s.summary, s.source].some((field) =>
         field.toLowerCase().includes(needle)
@@ -268,7 +264,7 @@ export function Library({
       });
     }
     return ordered;
-  }, [fleet, query, assetClass, style, source, verdict, sort, descending, showArchived]);
+  }, [fleet, query, assetClass, style, sort, descending, showArchived]);
 
   const sortBy = useCallback(
     (next: Sort) => {
@@ -432,38 +428,27 @@ export function Library({
         ))}
       </div>
 
+      {/* Only the bar length and the archive (operator, 2026-11-16): source and
+          verdict filters and their note are gone. Click a chip again to clear it. */}
       <div className="st-filters">
-        <ChipGroup
-          label="Style"
-          value={style}
-          onChange={(v) => setStyle(v as Style)}
-          options={[
-            { value: 'intraday', label: 'Intraday' },
-            { value: 'daily', label: 'Daily' },
-          ]}
-        />
-        <ChipGroup
-          label="Source"
-          value={source}
-          onChange={(v) => setSource(v as Source)}
-          options={(['paper', 'builder', 'coded'] as const).map((v) => ({ value: v, label: SOURCE_LABEL[v] }))}
-        />
-        <ChipGroup
-          label="Verdict"
-          value={verdict}
-          onChange={(v) => setVerdict(v as StrategyVerdict | '')}
-          options={VERDICTS.map((v) => ({ value: v.value, label: v.label }))}
-        />
-        <Info label="What the filters mean">
-          {VERDICTS.map((v) => `${v.label}: ${v.hint}`).join(' ')}{' '}
-          {classes
-            .filter((option) => option.note)
-            .map((option) => `${option.label}: ${option.note}`)
-            .join(' ')}{' '}
-          Archived: strategies you have put away, and every strategy with no stored backtest
-          report yet. Those come back to the main list by themselves once a backtest
-          writes their report (ADR-207). Results and trials are kept.
-        </Info>
+        <div className="st-chips" role="group" aria-label="Bars">
+          {(
+            [
+              ['intraday', 'Minute level'],
+              ['daily', 'Daily'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              className="tchip sm"
+              type="button"
+              aria-pressed={style === value}
+              onClick={() => setStyle(style === value ? '' : value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         {(archivedCount > 0 || showArchived) && (
           <div className="st-chips" role="group" aria-label="Archive">
             <button
@@ -1305,38 +1290,5 @@ function SortHead({
         <span aria-hidden="true">{active ? (descending ? ' ↓' : ' ↑') : ''}</span>
       </button>
     </th>
-  );
-}
-
-function ChipGroup({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string; title?: string }[];
-}) {
-  return (
-    <div className="st-chips" role="group" aria-label={label}>
-      <span className="st-chips-label">{label}</span>
-      <button className="tchip sm" type="button" aria-pressed={value === ''} onClick={() => onChange('')}>
-        All
-      </button>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          className="tchip sm"
-          type="button"
-          title={option.title}
-          aria-pressed={value === option.value}
-          onClick={() => onChange(value === option.value ? '' : option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }
