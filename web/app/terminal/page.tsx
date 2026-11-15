@@ -40,7 +40,6 @@ import {
   CandlestickChart,
   ChevronRight,
   Database,
-  Info,
   LayoutDashboard,
   ListTree,
   Moon,
@@ -380,15 +379,6 @@ export default function TerminalPage() {
             <Search size={14} aria-hidden="true" />
             <span className="tcmd-label">Search</span>
             <kbd>⌘K</kbd>
-          </button>
-          <button
-            className="ticon"
-            type="button"
-            onClick={() => setExplaining('')}
-            title="What a backtest here actually does, and which asset classes have data."
-            aria-label="How backtests work"
-          >
-            <Info size={16} aria-hidden="true" />
           </button>
           <button
             className="ticon"
