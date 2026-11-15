@@ -411,7 +411,8 @@ export default function TerminalPage() {
       </header>
 
       <div className="tpage">
-        {page !== 'report' && (
+        {/* Charts has no title at all (operator, 2026-11-16): the nav names the page. */}
+        {page !== 'report' && page !== 'charts' && (
           <div className="tpage-head">
             {heading.parent && (
               <nav className="tcrumb" aria-label="Breadcrumb">
@@ -426,8 +427,7 @@ export default function TerminalPage() {
                 button (ADR-102). */}
             <h1 className="tpage-title">
               {heading.title}
-              {/* No info button on Charts (operator, 2026-11-16). */}
-              {page !== 'charts' && <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>}
+              <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>
             </h1>
           </div>
         )}
