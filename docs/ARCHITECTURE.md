@@ -3828,7 +3828,7 @@ A card whose first configuration is `shape: portfolio_strategy` names a
 on the event engine over `features.panel.read_panel_with_history(2002-01-01)`
 (the 2000-2014 history joined by ISIN, trading from 2005-01-01, rows before the
 card's holdout only) inside `costs.router.dp_charges()` (₹23.60 a delivery
-sell), and hands the battery one `BookDay` per session: that session's net
+sell), with LIQUIDBEES priced as a total-return series (`features.panel.with_cash_yield`: IIMA's 91-day T-bill return less 0.69%, ADR-204), and hands the battery one `BookDay` per session: that session's net
 return on the previous equity, on ₹10 lakh, split into gross and costs.
 
 ### Look-ahead test (ADR-200)

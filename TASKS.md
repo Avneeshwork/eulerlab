@@ -25,7 +25,7 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 | T-4635 | Gate's "drop best 5 names" stress is meaningless for portfolio cards (one `BookDay` series, ADR-203): feed per-name P&L or skip it for them | TODO |
 | T-4636 | Angel NIFTY50 index minutes 2021-09-16 to 2021-10-29 are missing (ADR-201): fetch them so minute screens have no hole | TODO |
 | T-4637 | Re-store research 176's reference results on the 2005-2025 window so `make rule-engine-check` passes again (with T-4597) | TODO |
-| T-4638 | LIQUIDBEES' daily dividend (its yield) is not in the panel or the factor store, so cash legs earn 0% (HISTORY #97): add it as a total-return series or factor events | TODO |
+| T-4638 | LIQUIDBEES' daily dividend (its yield) is not in the panel or the factor store, so cash legs earn 0% (HISTORY #97): add it as a total-return series or factor events | DOING 2026-11-15 — research runs fixed (ADR-204); paper/live still flat; H-0253 rerun |
 | T-4634 | Rebuild `minute_six` snapshots with Angel's rescaled history so minute screens run from 2018-11 (operator, 2026-11-15: "minute data is from 2018") | DOING 2026-11-15 — `research_screen.load_days(history=True)`, `minute_six_screen --parts-only --history`; old 2021+ parts kept in `data/derived/minute_six_parts_kite_2021` |
 
 ## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)

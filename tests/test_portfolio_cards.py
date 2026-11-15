@@ -89,3 +89,33 @@ def test_a_portfolio_card_is_found_by_its_configuration(
     assert intraday.portfolio_strategy("H-9999") == "india_volatility_target_nifty"
     assert intraday.portfolio_strategy("H-9998") is None
     assert intraday.supported("H-9999")
+
+
+def test_cash_etf_grows_by_the_risk_free_rate_less_its_fee(monkeypatch: pytest.MonkeyPatch) -> None:
+    """HISTORY #97: LIQUIDBEES' flat ₹1,000 becomes a total-return series."""
+    from eulerlab.fair_value import factors
+    from eulerlab.features import panel
+
+    table = (
+        ("2020-01-01", None, None, None, None, 0.0),
+        ("2020-01-02", None, None, None, None, 0.001),
+        ("2020-01-03", None, None, None, None, 0.001),
+    )
+    monkeypatch.setattr(factors, "_latest_path", lambda segment: "x")
+    monkeypatch.setattr(factors, "_cached", lambda path: ("x", "", table))
+    monkeypatch.setattr(panel, "CASH_ETF_TER", 0.0)
+    rows = [
+        panel.PanelRow(
+            day=date(2020, 1, d),
+            symbol=s,
+            close=1000.0 if s == "LIQUIDBEES" else 50.0,
+            volume=1.0,
+            turnover=1.0,
+        )
+        for d in (1, 2, 3)
+        for s in ("LIQUIDBEES", "OTHER")
+    ]
+    out = panel.with_cash_yield(rows)
+    cash = [r.close for r in out if r.symbol == "LIQUIDBEES"]
+    assert cash == pytest.approx([1000.0, 1001.0, 1002.001])
+    assert [r.close for r in out if r.symbol == "OTHER"] == [50.0, 50.0, 50.0]

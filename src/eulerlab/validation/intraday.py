@@ -297,7 +297,7 @@ def _portfolio(hypothesis_id: str) -> IntradayRun:
     own compounding daily returns."""
     from eulerlab.backtest import event_driven, evidence_daily
     from eulerlab.costs import router
-    from eulerlab.features.panel import read_panel_with_history
+    from eulerlab.features.panel import read_panel_with_history, with_cash_yield
     from eulerlab.research import library_reports as lr
 
     name = portfolio_strategy(hypothesis_id)
@@ -305,7 +305,7 @@ def _portfolio(hypothesis_id: str) -> IntradayRun:
         msg = f"{hypothesis_id} names no evidence_daily strategy"
         raise KeyError(msg)
     cut = lr.holdout_start(hypothesis_id)
-    rows = [r for r in read_panel_with_history(PORTFOLIO_DATA_FROM) if r.day < cut]
+    rows = with_cash_yield([r for r in read_panel_with_history(PORTFOLIO_DATA_FROM) if r.day < cut])
     strategy = evidence_daily.BY_ID[name].build()
     days = sorted({r.day for r in rows})
     warmup = sum(1 for d in days if d < PORTFOLIO_FIRST)
