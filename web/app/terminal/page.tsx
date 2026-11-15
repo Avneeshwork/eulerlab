@@ -434,13 +434,13 @@ export default function TerminalPage() {
               <Stats>
                 <Stat label="Strategies" value={fleet?.strategies.length ?? '—'} />
                 <Stat
-                  label="Beat the noise bar"
+                  label={fleet?.bar_label ? `Beat the ${fleet.bar_label}` : 'Beat the noise bar'}
                   value={fleet ? clearing : '—'}
                   tone={fleet && clearing > 0 ? 'up' : ''}
                   sub={
                     fleet
                       ? fleet.bar_families != null
-                        ? `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_families} idea families`
+                        ? `${fleet.bar_label ?? 'Sharpe'} ${fleet.bar.toFixed(2)} · ${fleet.bar_families} idea families`
                         : `Sharpe ${fleet.bar.toFixed(2)} · ${fleet.bar_trials ?? 0} trials`
                       : undefined
                   }

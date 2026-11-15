@@ -1,4 +1,4 @@
-# ADR-207 — The Deployment page shows only real entries
+# ADR-208 — The Deployment page shows only real entries
 
 **Context.** Operator, 2026-11-16: clean the Live → Deployment page and remove what is not real. It showed 13 paper cards (7 stopped or halted, most never traded), 86 "passed the gate" rows (19 with no stored report, 17 paper cannot run) and long notes on every card.
 **Options.** (a) Delete stopped deployments and unreported cards; (b) hide them behind a toggle, decided from data the page already has; (c) leave it.

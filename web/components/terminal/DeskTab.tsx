@@ -1,6 +1,6 @@
 /**
  * The trade desk (ADR-087): one ticket per live deployment, one row each
- * (ADR-207); a row opens to its orders, failing checks and decision.
+ * (ADR-208); a row opens to its orders, failing checks and decision.
  *
  * Each ticket shows what the book will sell and buy at its next rebalance, an
  * estimated cost, why, and the pre-trade checks. A paper ticket's decision is

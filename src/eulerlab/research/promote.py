@@ -60,6 +60,8 @@ class Promotion:
     finished: str = ""
     validate_output: str = ""
     gate_output: str = ""
+    report_output: str = ""
+    """The library report's store for a PROMOTE or PAPER (ADR-206); empty otherwise."""
 
 
 def eligible(agent: str, item: Any) -> Path:
@@ -119,6 +121,11 @@ def commands(hid: str) -> list[list[str]]:
     ]
 
 
+def report_command(hid: str) -> list[str]:
+    """Store the passed card's library report, in its own process (it loads the panel)."""
+    return [sys.executable, "-m", "eulerlab.research.library_reports", "--only", hid]
+
+
 def _verdict(gate_output: str) -> str:
     """The gate's own `VERDICT:` line (`gates.Decision.render`)."""
     for line in gate_output.splitlines():
@@ -165,6 +172,12 @@ def gate(
         else:
             _, out.gate_output = run(gate_cmd)
             out.verdict = _verdict(out.gate_output)
+            # A pass gets its report and library entry, as the autopilot's do
+            # (ADR-150); until 2026-11-16 this path stopped at the gate (ADR-206).
+            if out.verdict.upper().startswith(("PROMOTE", "PAPER")):
+                code, out.report_output = run(report_command(out.hypothesis))
+                if code != 0:
+                    out.report_output = f"report not stored (exit {code})\n{out.report_output}"
     except Refused as exc:
         out.verdict = f"refused: {exc}"
     except Exception as exc:  # recorded for the operator, not raised into the web server

@@ -216,7 +216,7 @@ class ShownBar:
     families: FamilyBar | None
 
 
-_SHOWN: dict[tuple[int, int, float], FamilyBar | None] = {}
+_SHOWN: dict[tuple[int, int, float, tuple[tuple[str, float], ...]], FamilyBar | None] = {}
 
 
 def _reports_stamp(root: Path) -> tuple[int, int]:
@@ -225,25 +225,56 @@ def _reports_stamp(root: Path) -> tuple[int, int]:
     return len(paths), newest
 
 
-def stored_family_bar(*, join_at: float, root: Path = strategy_map.WORKSPACES) -> FamilyBar | None:
+def stored_family_bar(
+    *,
+    join_at: float,
+    root: Path = strategy_map.WORKSPACES,
+    sharpes: Mapping[str, float] | None = None,
+) -> FamilyBar | None:
     """`family_bar` over every stored report, cached until a report changes.
 
     The library, the dashboard and the deploy checks all ask for it on every
     request, and reading 68 reports and clustering them each time would cost
     seconds; a new or rewritten report changes the stamp and the bar is redone.
+
+    `sharpes` is for the Strategies page's luck bar only (ADR-205): a strategy
+    named in it has its daily returns shifted by a constant to that Sharpe
+    (`realistic_sharpe.shift_to`) before the families are measured. The gate
+    never passes it (`assess` does not call this), so its bar is unchanged.
     """
-    key = (*_reports_stamp(root), join_at)
+    from eulerlab.research import realistic_sharpe
+
+    chosen = tuple(sorted((sharpes or {}).items()))
+    key = (*_reports_stamp(root), join_at, chosen)
     if key not in _SHOWN:
-        _SHOWN.clear()
-        _SHOWN[key] = family_bar(stored_universe(root), join_at=join_at)
+        if len(_SHOWN) > 8:
+            _SHOWN.clear()
+        override = dict(chosen)
+        universe = [
+            realistic_sharpe.shift_to(s.returns, override[s.strategy_id])
+            if s.strategy_id in override
+            else s.returns
+            for s in strategy_map.collect(root)
+        ]
+        _SHOWN[key] = family_bar(universe, join_at=join_at)
     return _SHOWN[key]
 
 
 def shown_bar(
-    rules: Mapping[str, Any], *, ledger_bar: float, root: Path = strategy_map.WORKSPACES
+    rules: Mapping[str, Any],
+    *,
+    ledger_bar: float,
+    root: Path = strategy_map.WORKSPACES,
+    sharpes: Mapping[str, float] | None = None,
 ) -> ShownBar:
-    """The families bar when there is one, else the ledger bar, labelled as such."""
-    bar = stored_family_bar(join_at=float(rules["family_join_correlation"]), root=root)
+    """The families bar when there is one, else the ledger bar, labelled as such.
+
+    With `sharpes` it is the page's luck bar at realistic fills (ADR-205), and
+    `basis` says so.
+    """
+    bar = stored_family_bar(
+        join_at=float(rules["family_join_correlation"]), root=root, sharpes=sharpes
+    )
     if bar is None:
         return ShownBar(
             value=ledger_bar,
@@ -252,6 +283,19 @@ def shown_bar(
                 "measured yet; this is the old bar from the trial count (ADR-108)."
             ),
             families=None,
+        )
+    if sharpes:
+        return ShownBar(
+            value=bar.bar,
+            basis=(
+                f"Luck bar (realistic fills, ADR-205): the best Sharpe luck would give among "
+                f"{bar.families} idea families, clustered from {bar.strategies} stored strategies "
+                f"(daily returns correlated above {rules['family_join_correlation']}). Each one "
+                f"with a realistic-fill Sharpe ({len(sharpes)} on file) counts at that Sharpe, "
+                f"so the measured spread is {bar.sigma}. Display only: the gate's own test is "
+                f"unchanged."
+            ),
+            families=bar,
         )
     return ShownBar(
         value=bar.bar,

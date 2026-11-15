@@ -106,6 +106,7 @@ from eulerlab.intraday.tweezer import Rules
 from eulerlab.llm import client
 from eulerlab.market_history import INDEX_UNIVERSE, index_panel_rows
 from eulerlab.paths import data_path
+from eulerlab.research import realistic_sharpe
 from eulerlab.research.budget import price_search, searches_run
 from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_url
 from eulerlab.strategies import archive as strategy_archive
@@ -558,6 +559,22 @@ def _shown_bar() -> search_bar.ShownBar:
     return search_bar.shown_bar(rules, ledger_bar=ledger_bar)
 
 
+def _page_bar(sharpes: Mapping[str, float]) -> search_bar.ShownBar:
+    """The Strategies page's luck bar at realistic fills (ADR-205). Display only.
+
+    The same families bar as `_shown_bar`, with every strategy that has a
+    realistic-fill Sharpe counted at it. With no realistic figures it is
+    `_shown_bar` itself. The gate's search correction never reads this.
+    """
+    from eulerlab import gates
+
+    if not sharpes:
+        return _shown_bar()
+    rules = gates.load_mandate()["statistical"]["search_correction"]
+    ledger_bar = price_search(0, available_years=11.4).bar_after
+    return search_bar.shown_bar(rules, ledger_bar=ledger_bar, sharpes=sharpes)
+
+
 def _bar() -> float:
     return _shown_bar().value
 
@@ -671,7 +688,10 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     in a list invites sorting descending and taking the top, which is exactly
     the selection procedure PBO measures as overfitting.
     """
-    shown = _shown_bar()
+    # The headline is the Sharpe at fills an order could get, where one has
+    # been measured (ADR-205); the stored Sharpe stays beside it as `sharpe`.
+    realistic = realistic_sharpe.load()
+    shown = _page_bar({card: figure.sharpe for card, figure in realistic.items()})
     bar = shown.value
     tenant = workspace_mod.resolve(workspace or None)
     # Read once for the whole payload rather than per strategy: it is one small
@@ -686,7 +706,13 @@ def fleet(workspace: str = "") -> dict[str, Any]:
     walks = walk_run.read()
     payload = _fleet_payload(tenant, shown, adopted_results, us_all_results, walks)
     put_away = strategy_archive.read(tenant)
+    payload["bar_label"] = "luck bar (realistic fills)" if realistic else "luck bar"
     for item in payload["strategies"]:
+        figure = realistic.get(str(item["id"]))
+        item["realistic"] = figure.model_dump() if figure else None
+        if figure is not None:
+            # Judged on the number the row leads with, as `_clears` is.
+            item["clears_bar"] = figure.sharpe >= bar
         item["table"] = _table_figures(tenant, item, bar)
         # Hidden from the library's default view and nothing else (ADR-069).
         item["archived"] = item["id"] in put_away
@@ -844,7 +870,8 @@ def _table_figures(
     from eulerlab import benchmark
 
     result = item.get("result") or {}
-    sharpe = item.get("sharpe")
+    # The verdict is on the Sharpe the row leads with (ADR-205).
+    sharpe = (item.get("realistic") or {}).get("sharpe", item.get("sharpe"))
     total = result.get("total_return")
     figures: dict[str, Any] = {
         "annual_return": None,
@@ -3075,6 +3102,12 @@ def report(
         "attribution": attribution.analyse(payload),
         "runs": [_run_choice(choice) for choice in runs],
         "history": reports.history(tenant, strategy, target),
+        # The Sharpe at fills an order could get, beside this run's (ADR-205).
+        "realistic": (
+            figure.model_dump()
+            if (figure := realistic_sharpe.load().get(strategy)) is not None
+            else None
+        ),
     }
 
 

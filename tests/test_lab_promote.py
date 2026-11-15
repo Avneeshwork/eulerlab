@@ -99,6 +99,55 @@ def test_gate_runs_validate_then_the_gate_and_records_its_verdict(tmp_path: Path
     assert promote.results(tmp_path / "p")[0]["hypothesis"] == "H-0001"
 
 
+def test_a_pass_gets_its_library_report_stored_in_its_own_process(tmp_path: Path) -> None:
+    calls: list[list[str]] = []
+
+    def run(cmd: Sequence[str]) -> tuple[int, str]:
+        calls.append(list(cmd))
+        if "eulerlab.gate_run" in cmd:
+            return 0, "VERDICT: PROMOTE — all 9 rules passed\n"
+        return 0, "stored" if "eulerlab.research.library_reports" in cmd else "evidence written"
+
+    out = promote.gate(
+        "lab/r/2", _card(tmp_path), hypotheses=tmp_path / "h", folder=tmp_path / "p", run=run
+    )
+    assert [c[2] for c in calls] == [
+        "eulerlab.validation.run",
+        "eulerlab.gate_run",
+        "eulerlab.research.library_reports",
+    ]
+    assert calls[-1][-2:] == ["--only", out.hypothesis]
+    assert out.report_output == "stored"
+
+
+def test_a_kill_stores_no_report(tmp_path: Path) -> None:
+    calls: list[str] = []
+
+    def run(cmd: Sequence[str]) -> tuple[int, str]:
+        calls.append(cmd[2])
+        return (
+            (1, "VERDICT: KILL — 1 of 9 rules failed\n") if "eulerlab.gate_run" in cmd else (0, "")
+        )
+
+    out = promote.gate(
+        "lab/r/3", _card(tmp_path), hypotheses=tmp_path / "h", folder=tmp_path / "p", run=run
+    )
+    assert "eulerlab.research.library_reports" not in calls and out.report_output == ""
+
+
+def test_a_rank_and_hold_card_is_stored_as_a_factor_card(tmp_path: Path) -> None:
+    from eulerlab.research import library_reports as lr
+
+    hyps = tmp_path / "hypotheses"
+    hyps.mkdir()
+    (hyps / "H-0901.yaml").write_text(_card(tmp_path).read_text())
+    (hyps / "H-0902.yaml").write_text(
+        yaml.safe_dump({"configurations": [{"shape": "options_day", "feature": "x"}]})
+    )
+    assert lr.is_factor_card("H-0901", hyps)
+    assert not lr.is_factor_card("H-0902", hyps)
+
+
 def test_a_failed_validation_never_reaches_the_gate(tmp_path: Path) -> None:
     calls: list[str] = []
 
@@ -177,3 +226,12 @@ def test_results_list_every_rule_the_gate_printed_failed_and_passed(tmp_path: Pa
         {"rule": "trial ledger", "passed": True, "detail": ""},
     ]
     assert promote.findings("validation stopped") == []
+
+
+def test_a_card_whose_positions_cannot_be_rebuilt_still_gets_a_report() -> None:
+    from eulerlab.research import library_reports as lr
+    from eulerlab.validation.intraday import IntradayRun
+
+    run = IntradayRun([], [], [], 1_000_000.0)
+    assert lr._fills_for("H-9999", run) == ([], 0)
+    assert "not rebuilt" in lr.NO_POSITIONS

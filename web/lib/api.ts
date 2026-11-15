@@ -516,6 +516,8 @@ export type FleetStrategy = {
   stage: Stage;
   // null means never measured. It is NOT zero and must never render as zero.
   sharpe: number | null;
+  /** The Sharpe at fills an order could get, the row's headline (ADR-205). */
+  realistic?: RealisticSharpe | null;
   trials: number;
   clears_bar: boolean;
   result: StrategyResult;
@@ -537,9 +539,33 @@ export type StrategyTableFigures = {
   verdict: StrategyVerdict;
 };
 
+/** `data/derived/realistic_sharpe.json`, one card's (ADR-205). For a daily intraday
+ *  card it is the 09:25 -> 15:10 reprice with spread and impact; for the rest the
+ *  gate's own Sharpe. `official_sharpe` is the official-fill figure on `official_window`. */
+export type RealisticSharpe = {
+  id: string;
+  sharpe: number;
+  basis: '0925_1510_spread_impact' | 'gated';
+  label: string;
+  window: string;
+  coverage: number | null;
+  official_sharpe: number | null;
+  official_window: string;
+  gate_sharpe: number | null;
+  gate_window: string;
+  verdict: string;
+};
+
+/** The Sharpe a row leads with: realistic fills where measured, else the stored one. */
+export function headlineSharpe(s: { sharpe: number | null; realistic?: RealisticSharpe | null }): number | null {
+  return s.realistic ? s.realistic.sharpe : s.sharpe;
+}
+
 export type Fleet = {
   market?: { symbol: string; since: string; total_return: number | null };
   bar: number;
+  /** "luck bar (realistic fills)" when the bar counts realistic Sharpes (ADR-205). */
+  bar_label?: string;
   /** The count the bar was actually computed from — both ledgers summed. Not
    *  the same as summing each strategy's own trial count, which is what the
    *  header used to show beside a bar derived from a much larger number. */
@@ -861,6 +887,8 @@ export type ReportResponse = {
   report?: FullReport;
   runs?: RunChoice[];
   attribution?: Attribution;
+  /** The strategy's Sharpe at realistic fills, beside this run's (ADR-205). */
+  realistic?: RealisticSharpe | null;
 };
 
 type Num = number | null;

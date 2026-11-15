@@ -903,6 +903,23 @@ two stored reports does it fall back to the ledger-count bar, and its note
 says so. The backtest dialog's "bar if recorded" is now an upper bound: every
 new configuration counted as a new family.
 
+**A 0.5 Sharpe floor (ADR-207, 2026-11-16).** In simple mode, PROMOTE needs a full-sample net Sharpe above `simple.min_full_sample_sharpe` (0.5) and PAPER above `paper.min_full_sample_sharpe` (0.5), both on the gate's own Sharpe.
+
+**The Strategies page leads with realistic fills (ADR-205).** The rule
+engine fills a daily intraday card at the official open and close, which no
+order gets, so its gate Sharpe is an upper bound. `research/realistic_sharpe.py`
+(`make realistic-sharpe`) writes `data/derived/realistic_sharpe.json`: for a
+repriced daily intraday card, the 09:25 → 15:10 Sharpe with the gate's costs
+plus spread and impact (`logs/audit-2026-11-15/audit.py reprice`, 2018-11 to
+2024-11, stocks with minute bars); for swing, minute and portfolio cards, the
+gate's own Sharpe. `/api/fleet` and `/api/report` attach it as `realistic`
+beside the stored `sharpe`, which is unchanged; the row sorts and is judged on
+it, and shows the official-fill Sharpe and the gate's under it. KILL cards are
+off the default list. The page's bar is the **luck bar (realistic fills)**:
+the same family bar, with each strategy that has a realistic Sharpe shifted to
+it by a constant (`shift_to`, A-158), which keeps the correlations and so the
+families. Display only: `assess`, and so the gate, never passes `sharpes`.
+
 The pack records both under `search`; `gates.py` kills a pack whose
 `search.method` is not the mandate's, or whose Romano-Wolf test is missing,
 failed, or run at a looser level than `mandate.yaml` sets. The ledger still

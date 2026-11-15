@@ -333,6 +333,25 @@ def test_short_years_do_not_count_toward_stability() -> None:
     assert all(f.passed for f in gates._check_simple(pack, SIMPLE["simple"]))
 
 
+def test_a_sharpe_at_or_below_the_floor_is_not_promoted() -> None:
+    # ADR-207: the operator's 0.5 floor on the gate's full-sample Sharpe.
+    assert SIMPLE["simple"]["min_full_sample_sharpe"] == 0.5
+    assert MANDATE["paper"]["min_full_sample_sharpe"] == 0.5
+    pack = _simple_pack(0.4, 0.2, 0.1)
+    pack["configurations"] = [{"full_sample_sharpe": 0.45, "probabilistic_sharpe": 0.99}]
+    found = gates._check_simple(pack, SIMPLE["simple"])
+    assert [f.rule for f in found if not f.passed] == ["net positive overall"]
+    paper = gates._check_paper(pack, MANDATE["paper"])
+    assert [f.rule for f in paper if not f.passed] == ["paper: net profitable"]
+
+
+def test_without_the_floor_key_the_bar_is_zero_as_before() -> None:
+    rules = {k: v for k, v in SIMPLE["simple"].items() if k != "min_full_sample_sharpe"}
+    pack = _simple_pack(0.4, 0.2, 0.1)
+    pack["configurations"] = [{"full_sample_sharpe": 0.1, "probabilistic_sharpe": 0.99}]
+    assert all(f.passed for f in gates._check_simple(pack, rules))
+
+
 PAPER_RULES = {**SIMPLE}
 
 
@@ -357,9 +376,9 @@ def test_paper_needs_profit_and_the_paper_psr() -> None:
     losing = gates._check_paper(
         {"configurations": [{"full_sample_sharpe": -0.1, "probabilistic_sharpe": 0.4}]}, rules
     )
-    # Profitable but under the paper PSR floor (0.50 since ADR-198).
+    # Above the Sharpe floor (0.5, ADR-207) but under the paper PSR floor (0.50, ADR-198).
     lucky = gates._check_paper(
-        {"configurations": [{"full_sample_sharpe": 0.3, "probabilistic_sharpe": 0.45}]}, rules
+        {"configurations": [{"full_sample_sharpe": 0.6, "probabilistic_sharpe": 0.45}]}, rules
     )
     assert all(f.passed for f in good)
     assert not any(f.passed for f in losing)

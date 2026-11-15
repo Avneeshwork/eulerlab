@@ -2767,7 +2767,7 @@ textarea:focus-visible {
 .tbtn-pair { display: inline-flex; gap: 0.4rem; }
 .lm-killed { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; padding-block: 0.7rem; }
 .lm-killed .tfine { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Trade desk: one row per ticket, detail beneath (ADR-207). */
+/* Trade desk: one row per ticket, detail beneath (ADR-208). */
 .desk-row { cursor: pointer; }
 .desk-row:hover td { background: var(--wash, rgba(255,255,255,0.03)); }
 .desk-row td b { margin-right: 0.4rem; }

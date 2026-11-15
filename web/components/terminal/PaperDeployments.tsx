@@ -14,7 +14,7 @@ import { Info } from '@/components/terminal/ui';
 import { useCallback, useEffect, useState } from 'react';
 
 import { Spark } from '@/components/terminal/Spark';
-import { api } from '@/lib/api';
+import { api, headlineSharpe } from '@/lib/api';
 import type { Deployment, DeploymentState, FleetStrategy } from '@/lib/api';
 
 const rupees = (value: number | undefined) =>
@@ -206,7 +206,7 @@ export function PaperDeployments({
     if (!onBacktest) return null;
     const f = fleet.find((x) => x.id === id);
     const sharpe = f
-      ? ((f as FleetStrategy & { realistic?: { sharpe: number } | null }).realistic?.sharpe ?? f.sharpe)
+      ? headlineSharpe(f)
       : null;
     const annual = f?.table?.annual_return;
     const figures =

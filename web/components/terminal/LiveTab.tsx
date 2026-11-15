@@ -46,9 +46,7 @@ export function LiveTab({
   // set) and paper trading can run it. The rest are hidden until they do: a
   // strategy waiting on its rebacktest shows up by itself once its report lands.
   const hasReport = (s: FleetStrategy) => !!s.table?.period?.[0];
-  // The Sharpe at fills an order could get when the server has it (ADR-205),
-  // else the stored one. TODO(T-4645): use `headlineSharpe` from lib/api once
-  // agent-realistic-sharpe is merged.
+  // The Sharpe at fills an order could get when the server has it (ADR-205).
   const sharpeOf = paperSharpe;
   const bySharpe = (a: FleetStrategy, b: FleetStrategy) => (sharpeOf(b) ?? -99) - (sharpeOf(a) ?? -99);
   // Passed the gate (PROMOTE or PAPER, ADR-141) and not yet paper-traded.
