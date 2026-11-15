@@ -1,0 +1,30 @@
+id: H-0253
+title: 'Volatility-targeted NIFTYBEES: scale by 3-year over 1-month volatility, rest in LIQUIDBEES, monthly'
+status: draft
+family: volatility_target_index
+source_kind: paper
+parent: ''
+claim: Holding NIFTYBEES at a weight of min(1, 3-year daily volatility / 1-month daily volatility) and LIQUIDBEES for the rest, rebalanced monthly, earns a higher Sharpe than holding NIFTYBEES alone, after costs.
+rationale: Volatility clusters and high volatility comes with poor index returns, so cutting exposure when recent volatility is above its long-run level improves the ratio (Moreira and Muir 2017; Harvey et al. 2018).
+source:
+  paper: harvey-et-al-2018-volatility-targeting
+  written_by: Claude, for the operator's 2026-11-15 instruction "test these for old data also and pass through gate"
+  day: '2026-11-15'
+configurations:
+- shape: portfolio_strategy
+  strategy: india_volatility_target_nifty
+  rebalance: monthly (21 sessions)
+  sizing: 'NIFTYBEES weight min(1, long-run / recent volatility), remainder LIQUIDBEES'
+  universe: the 250 most traded NSE stocks as of each date (backtest.india_papers.liquid_universe)
+  costs: delivery charges from the cost router plus a DP charge of Rs 23.60 per delivery sell (ADR-203)
+  capital: 1x, long only, never more than fully invested
+  window: 2005-01-01 to 2024-11-29 (2000-2014 history file joined, ADR-187 to ADR-189; holdout withheld)
+red_flags:
+- 'Results for 2016-2026 were already seen before this card was written: evidence_daily 2016-01..2026-09 on 2026-10-18 and 2016-01..2024-11 on 2026-11-15. Only 2005-2015 is unseen. The card is written after the fact and the rule is as already implemented; nothing is tuned.'
+- The 2016-2026-09 run read into the 2024-12-01 holdout period, so the holdout is not clean for this rule.
+- 'Pre-2015 prices are NSE bhavcopy prints with ISINs mapped back by symbol-change chains; dead companies carry NOISIN ids (ADR-187 to ADR-189).'
+- The 250 most-traded universe is built from each date's own traded value; ETFs and fund units are in it.
+- One of many published rules screened on 2026-10-18 (research 113); the simple gate does not correct for that search.
+holdout:
+  starts: '2024-12-01'
+  status: unread

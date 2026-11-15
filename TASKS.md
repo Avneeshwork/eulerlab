@@ -16,6 +16,20 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 | T-4607 | Find NSE tokens for HDFC, MINDTREE and TATACOFFEE (left before UDiFF, July 2024) so their minute history can be fetched; ICICIPRULI is not in Angel's master either, so Angel fills skip it | TODO |
 | T-4608 | Upload `angel_minute_history` to B2 with `make upload-verified TREES=angel_minute_history` once T-4604 finishes | DONE 2026-11-14 by the supervisor; local copies verified and deleted |
 
+## Backtest audit (2026-11-15, ADR-200)
+
+| ID | Task | Status |
+|---|---|---|
+| T-4639 | Finish the paused 2026-11-15 rebacktest: H-0253 rerun with the cash yield, 12 reprice cards, 11 + minute library stores, final ranking (`logs/rebacktest-2026-11-15/RESUME.md`) | BLOCKED — paused by the operator 2026-11-15 |
+| T-4640 | Halloween rule: pre-register a card so it can be gated with the LIQUIDBEES yield (operator to decide) | TODO |
+| T-4632 | `fill_price.MinuteReference`: price on the raw basis (same-day ratio to the official print), not the vendor's adjusted VWAP (HISTORY #93) | TODO |
+| T-4633 | Add the DP charge per delivery sell to the cost model, from a broker source with a recheck date (HISTORY #94) | TODO |
+| T-4635 | Gate's "drop best 5 names" stress is meaningless for portfolio cards (one `BookDay` series, ADR-203): feed per-name P&L or skip it for them | TODO |
+| T-4636 | Angel NIFTY50 index minutes 2021-09-16 to 2021-10-29 are missing (ADR-201): fetch them so minute screens have no hole | TODO |
+| T-4637 | Re-store research 176's reference results on the 2005-2025 window so `make rule-engine-check` passes again (with T-4597) | TODO |
+| T-4638 | LIQUIDBEES' daily dividend (its yield) is not in the panel or the factor store, so cash legs earn 0% (HISTORY #97): add it as a total-return series or factor events | DOING 2026-11-15 — research runs fixed (ADR-204); paper/live still flat; H-0253 rerun |
+| T-4634 | Rebuild `minute_six` snapshots with Angel's rescaled history so minute screens run from 2018-11 (operator, 2026-11-15: "minute data is from 2018") | DOING 2026-11-15 — `research_screen.load_days(history=True)`, `minute_six_screen --parts-only --history`; old 2021+ parts kept in `data/derived/minute_six_parts_kite_2021` |
+
 ## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)
 
 Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 is the forward test; no agent acts on the live account; Rs 1,000 a month for AI. "Start working and complete by morning." Built on the server-move branch (PR #133) in a cloud container with no market data: unit tests only.

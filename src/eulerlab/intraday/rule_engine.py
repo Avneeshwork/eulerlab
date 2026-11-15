@@ -444,6 +444,44 @@ class Data(dm.Context):
         return out
 
 
+def as_of_open(data: Data, day: date) -> Data:
+    """`data` as it stood at `day`'s official open: a look-ahead test (ADR-200).
+
+    Every session after `day` is gone; `day`'s own bar keeps its open and loses
+    its close and traded value (NaN); delivery, trade-for-trade lists and
+    results disclosed on or after `day`'s 09:15 are gone; bulk-deal and promoter
+    events keep only those dated on or before `day` (each is dated by the
+    session after its disclosure). The liquid universe is rebuilt from the cut
+    panel. A rule's entries for `day` must be the same on this as on `data`.
+    """
+    from datetime import datetime, time
+
+    nan = float("nan")
+    cut = object.__new__(Data)
+    cut.end = day
+    cut.panel = {
+        s: {d: (b if d < day else du.Bar(b.open, nan, nan)) for d, b in bars.items() if d <= day}
+        for s, bars in data.panel.items()
+    }
+    cut.panel = {s: bars for s, bars in cut.panel.items() if bars}
+    cut.sessions = [d for d in data.sessions if d <= day]
+    cut.index = {d: i for i, d in enumerate(cut.sessions)}
+    cut.liquid = du.liquid_sets(cut.panel, cut.sessions)
+    cut.delivery = {s: {d: v for d, v in m.items() if d < day} for s, m in data.delivery.items()}
+    cut.t2t = {d: v for d, v in data.t2t.items() if d < day}
+    cut.buys = {s: {d: v for d, v in m.items() if d <= day} for s, m in data.buys.items()}
+    cut.sells = {s: {d: v for d, v in m.items() if d <= day} for s, m in data.sells.items()}
+    opening = datetime.combine(day, time(9, 15))
+    cut.results = {
+        s: [t for t in times if t.replace(tzinfo=None) < opening]
+        for s, times in data.results.items()
+    }
+    cut.__dict__["promoters"] = {
+        s: {d: v for d, v in m.items() if d <= day} for s, m in data.promoters.items()
+    }
+    return cut
+
+
 class LiveData(Data):
     """The same data after the holdout end only, for a paper book (`deploy/engine_book.py`).
 
@@ -601,23 +639,30 @@ class Engine:
         for day in d.sessions:
             if not first <= day <= d.end or d.prev(day) is None or day in self.short:
                 continue
-            for symbol in sorted(self._candidates(spec, day)):
-                if not d.tradable(symbol, day):
+            out.extend(self.events_on(spec, day))
+        return out
+
+    def events_on(self, spec: RuleSpec, day: date) -> list[Event]:
+        """The entries one session's open produces (no window check): `events` per day."""
+        d = self.data
+        out: list[Event] = []
+        for symbol in sorted(self._candidates(spec, day)):
+            if not d.tradable(symbol, day):
+                continue
+            if not all(self._holds(c, symbol, day) for c in spec.when):
+                continue
+            rank = self.value(spec.rank_by, symbol, day)
+            if rank is None:
+                continue
+            side = 1 if spec.side == "long" else -1
+            if spec.side in ("against", "with") and spec.direction_of is not None:
+                sign = self.value(spec.direction_of, symbol, day)
+                if sign is None or sign == 0:
                     continue
-                if not all(self._holds(c, symbol, day) for c in spec.when):
-                    continue
-                rank = self.value(spec.rank_by, symbol, day)
-                if rank is None:
-                    continue
-                side = 1 if spec.side == "long" else -1
-                if spec.side in ("against", "with") and spec.direction_of is not None:
-                    sign = self.value(spec.direction_of, symbol, day)
-                    if sign is None or sign == 0:
-                        continue
-                    side = (1 if sign > 0 else -1) * (1 if spec.side == "with" else -1)
-                if spec.kind == "swing" and side < 0:
-                    continue  # delivery is long only
-                out.append((day, symbol, side, -rank if spec.rank_by.order == "desc" else rank))
+                side = (1 if sign > 0 else -1) * (1 if spec.side == "with" else -1)
+            if spec.kind == "swing" and side < 0:
+                continue  # delivery is long only
+            out.append((day, symbol, side, -rank if spec.rank_by.order == "desc" else rank))
         return out
 
     def window(self, spec: Rule) -> list[date]:

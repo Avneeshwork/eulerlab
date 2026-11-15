@@ -807,7 +807,7 @@ From 2026-11-07 (ADR-145, ADR-146) the battery reads any trade through the
 index-option straddles (`options/index_expiry_screen.py`, H-0041, H-0103 to
 H-0105), index-futures rules on index minutes (`intraday/index_futures_screen.py`,
 H-0099 to H-0102), the F&O ban exit (H-0106) and the MFT stock scalps
-(`intraday/mft_screen.py`, H-0111 to H-0130; `intraday/quant_screen.py`, H-0131 to H-0140, five long and five short chosen at 09:20; `intraday/onex_screen.py`, H-0141 to H-0150 at 1x, ₹1 lakh a position, with NSE filings as news; `intraday/other_data_screen.py`, H-0151 to H-0160, whose swing rules are delivery holds marked to market each session as `Piece`s so a day's P&L lands on that day; `intraday/daily_universe_screen.py`, H-0161 and H-0162 on daily bars of the 500 most traded NSE stocks each day, free of today's F&O list; `intraday/daily_more_screen.py`, H-0164 to H-0173 in the same frame; `intraday/new_signals_screen.py`, H-0184 to H-0193, with price-limit closes, India VIX, institutional bulk-deal clients and multi-day delivery). H-0187's paper book is `daily_books.h0187`. H-0161's paper book (`deploy/delivery_fade_book.py`, ADR-148) reads daily bars after the holdout end and skips stocks on the previous evening's ASM/GSM snapshot (`nse_reports` `asm`, `gsm`) or in series BE/BZ (`ingest/trade_for_trade`). H-0168's and H-0162's books (`deploy/daily_books.py`, ADR-149) read results announcements landed one finished day at a time and SAST after the holdout end; a 20-session hold is booked on its exit day with `segment: delivery`, which `study_book.replay` charges at delivery rates. `research/library_reports.py` stores each gated card's research-window run and report in the result store, so the library and Report page show it. The scalps decide on the
+(`intraday/mft_screen.py`, H-0111 to H-0130; `intraday/quant_screen.py`, H-0131 to H-0140, five long and five short chosen at 09:20; `intraday/onex_screen.py`, H-0141 to H-0150 at 1x, ₹1 lakh a position, with NSE filings as news; `intraday/other_data_screen.py`, H-0151 to H-0160, whose swing rules are delivery holds marked to market each session as `Piece`s so a day's P&L lands on that day; `intraday/daily_universe_screen.py`, H-0161 and H-0162 on daily bars of the 500 most traded NSE stocks each day, free of today's F&O list; `intraday/daily_more_screen.py`, H-0164 to H-0173 in the same frame; `intraday/new_signals_screen.py`, H-0184 to H-0193, with price-limit closes, India VIX, institutional bulk-deal clients and multi-day delivery). H-0187's paper book is `daily_books.h0187`. H-0161's paper book (`deploy/delivery_fade_book.py`, ADR-148) reads daily bars after the holdout end and skips stocks on the previous evening's ASM/GSM snapshot (`nse_reports` `asm`, `gsm`) or in series BE/BZ (`ingest/trade_for_trade`). H-0168's and H-0162's books (`deploy/daily_books.py`, ADR-149) read results announcements landed one finished day at a time and SAST after the holdout end; a 20-session hold is booked on its exit day with `segment: delivery`, which `study_book.replay` charges at delivery rates. `research/library_reports.py` stores each gated card's research-window run and report in the result store, so the library and Report page show it; it cuts every trade, session and swing at the card's `holdout.starts`, takes any card with a trade source (`--only`, or `--from-results` for a rebacktest's log), and a new store replaces the old report on screen because the library shows the latest run (ADR-199). The scalps decide on the
 5-minute closes of research 161's snapshots, fill at the next minute's open,
 trade ₹5 lakh (₹1 lakh of margin at 5x MIS), at most ten open, and return on
 ₹10 lakh of margin; their late-entry stress fills five minutes after the
@@ -3814,6 +3814,31 @@ An intraday trade is priced at both its open entry and close exit; a swing at
 its entry open and exit close (marks stay at the close). `make reprice`
 compares research 176's rules under both. The default engine is unchanged.
 
+**Caution (HISTORY #93).** Kite and Angel minute prices are adjusted for later
+splits, bonuses and demergers; the panel is raw. `MinuteReference` returns the
+VWAP on the vendor's basis, so for a stock with a later corporate action the
+fill is on the wrong scale. The 2026-11-15 audit uses same-day ratios instead
+(entry = official open x VWAP 09:15-09:20 / 09:15 bar open; exit = official
+close x VWAP 15:10-15:20 / VWAP 15:00-15:30).
+
+### Portfolio cards through the gate (ADR-203)
+
+A card whose first configuration is `shape: portfolio_strategy` names a
+`backtest/evidence_daily` strategy. `validation.intraday.source` runs it once
+on the event engine over `features.panel.read_panel_with_history(2002-01-01)`
+(the 2000-2014 history joined by ISIN, trading from 2005-01-01, rows before the
+card's holdout only) inside `costs.router.dp_charges()` (₹23.60 a delivery
+sell), with LIQUIDBEES priced as a total-return series (`features.panel.with_cash_yield`: IIMA's 91-day T-bill return less 0.69%, ADR-204), and hands the battery one `BookDay` per session: that session's net
+return on the previous equity, on ₹10 lakh, split into gross and costs.
+
+### Look-ahead test (ADR-200)
+
+`rule_engine.as_of_open(data, day)` is the data as it stood at `day`'s official
+open: later sessions gone, `day`'s close and traded value NaN, delivery and
+trade-for-trade lists before `day`, results before 09:15, and the liquid
+universe rebuilt from the cut panel. `Engine.events_on(spec, day)` gives one
+session's entries; they must be equal on the cut and the full data.
+
 ### The forward shadow (ADR-193)
 
 `research/forward_shadow.py`, `make forward-shadow` each evening and `make
@@ -4088,6 +4113,12 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            20 Aug-15 Sep 2021 and refuses a symbol whose daily ratio drifts over 0.5% or whose
            scaled seam return misses NSE's bhavcopy by over 0.5%; `intraday/store.fetch(history=True)`
            serves the bars before 19 Aug 2021 times that factor, passing symbols only
+           (`research_screen.load_days(history=True)` does the same from 1 Nov 2018 for the
+           minute screens; `make minute-six` snapshots built with `--history`, T-4634; with
+           `EULERLAB_MINUTE_HISTORY=1` the Nifty index minutes and `mft_screen.START` also
+           start 2018-11-01, research runs only, ADR-201)
+           (`EULERLAB_RESEARCH_1X=1` sizes the 5x MFT and quant screens and H-0163 at
+           ₹1 lakh a position, research runs only, ADR-202)
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it

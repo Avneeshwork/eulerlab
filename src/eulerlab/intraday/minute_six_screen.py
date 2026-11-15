@@ -399,8 +399,8 @@ def evaluate(
     return five._halves(run)
 
 
-def extract_batch(symbols: list[str], part: Path) -> None:
-    found, sessions = cs.scan(symbols, {"snaps": extract})
+def extract_batch(symbols: list[str], part: Path, *, history: bool = False) -> None:
+    found, sessions = cs.scan(symbols, {"snaps": extract}, history=history)
     part.parent.mkdir(parents=True, exist_ok=True)
     tmp = part.with_suffix(".partial")
     tmp.write_bytes(pickle.dumps({"snaps": found["snaps"], "sessions": sessions}))
@@ -421,9 +421,8 @@ def load_actions() -> list[Any]:
     return actions
 
 
-def run(output: Path = OUT) -> dict[str, Any]:
-    from eulerlab.features import company
-
+def build_parts(*, history: bool = False) -> list[list[str]]:
+    """Each batch of symbols' snapshots as one part file; a part already built is kept."""
     symbols = cs.universe()
     batches = [symbols[i : i + BATCH] for i in range(0, len(symbols), BATCH)]
     for number, batch in enumerate(batches):
@@ -431,8 +430,17 @@ def run(output: Path = OUT) -> dict[str, Any]:
         if part.exists():
             continue
         command = [sys.executable, "-m", "eulerlab.intraday.minute_six_screen", "--part", str(part)]
+        if history:
+            command.append("--history")
         subprocess.run([*command, "--batch", *batch], check=True)
         print(f"  batch {number + 1}/{len(batches)} done", file=sys.stderr, flush=True)
+    return batches
+
+
+def run(output: Path = OUT) -> dict[str, Any]:
+    from eulerlab.features import company
+
+    batches = build_parts()
     snaps: dict[str, dict[date, Snap]] = {}
     sessions: set[date] = set()
     for number in range(len(batches)):
@@ -505,12 +513,21 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=OUT)
     parser.add_argument("--batch", nargs="+", help=argparse.SUPPRESS)
     parser.add_argument("--part", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--history",
+        action="store_true",
+        help="build snapshots from 2018-11 with Angel's rescaled minute history (T-4634)",
+    )
+    parser.add_argument("--parts-only", action="store_true", help="build the parts, run no rule")
     args = parser.parse_args()
     if args.batch:
         # Through the module, not `__main__`, so the pickled classes can be read by others.
         importlib.import_module("eulerlab.intraday.minute_six_screen").extract_batch(
-            args.batch, args.part
+            args.batch, args.part, history=args.history
         )
+        return 0
+    if args.parts_only:
+        build_parts(history=args.history)
         return 0
     result = run(args.output)
     for one in result["runs"]:

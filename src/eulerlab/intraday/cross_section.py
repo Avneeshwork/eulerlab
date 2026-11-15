@@ -69,6 +69,7 @@ def scan(
     workers: int = LOAD_WORKERS,
     progress: Callable[[int, int, str], None] | None = None,
     since: date | None = None,
+    history: bool = False,
 ) -> tuple[dict[str, dict[str, Any]], list[date]]:
     """({screen: {symbol: extract(...)}}, every session any symbol traded), oldest first.
 
@@ -82,7 +83,9 @@ def scan(
         # Not cached: every stock's history would not fit on this disk (it
         # filled it on 2026-10-16). A file already local is still read from disk.
         # `since`: a paper book's holdout end, so no holdout file is opened.
-        return symbol, rs.load_days(symbol, root=root, cutoff=cutoff, cache=False, since=since)
+        return symbol, rs.load_days(
+            symbol, root=root, cutoff=cutoff, cache=False, since=since, history=history
+        )
 
     with ThreadPoolExecutor(workers) as pool:
         futures = [pool.submit(load, symbol) for symbol in symbols]

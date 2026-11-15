@@ -372,7 +372,8 @@ def test_only_an_owner_sets_the_gate_through_the_api(people: dict[str, str]) -> 
     owner = TestClient(app)
     _login(owner, "owner@x.in")
     assert owner.post("/api/accounts/gate", json=body).json()["own"] == body["rules"]
-    loose = {"rules": {"simple.min_probabilistic_sharpe": 0.5}}
+    # Below the mandate's own floor (0.50 since ADR-198), so it loosens the gate.
+    loose = {"rules": {"simple.min_probabilistic_sharpe": 0.4}}
     assert owner.post("/api/accounts/gate", json=loose).status_code == 422
 
 

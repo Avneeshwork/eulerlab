@@ -417,16 +417,39 @@ def evaluate_premium(
 # --- data ----------------------------------------------------------------------------
 
 
-def load_index(cutoff: date = cs.DATA_END) -> list[ip.Day]:
-    """Nifty 50 one-minute bars from `kite_index_minute`, through the cutoff."""
+KITE_INDEX_START = date(2021, 11, 1)
+"""The first day of `kite_index_minute`; Angel's index history fills before it (ADR-201)."""
+
+
+def load_index(cutoff: date = cs.DATA_END, *, history: bool | None = None) -> list[ip.Day]:
+    """Nifty 50 one-minute bars from `kite_index_minute`, through the cutoff.
+
+    With `history` (default: `rs.minute_history()`), Angel's NIFTY50 minutes from
+    `rs.HISTORY_FROM` to the day before `KITE_INDEX_START` come first. An index is
+    not adjusted for corporate actions, so no factor applies. Angel's history ends
+    2021-09-15, so 16 Sep to 29 Oct 2021 has no index minutes."""
     import pyarrow.parquet as pq
 
     from eulerlab.ingest import landing_reader
 
+    if history is None:
+        history = rs.minute_history()
+    names = sorted(landing_reader.available("kite_index_minute", "NIFTY50/*.parquet"))
+    if history:
+        older = landing_reader.available("angel_minute_history", "NIFTY50/*.parquet")
+        names = (
+            sorted(
+                n
+                for n in older
+                if rs._file_end(n) >= rs.HISTORY_FROM and rs._file_start(n) < KITE_INDEX_START
+            )
+            + names
+        )
     rows: dict[str, dict[int, tuple[float, float, float, float, float]]] = {}
-    for name in sorted(landing_reader.available("kite_index_minute", "NIFTY50/*.parquet")):
+    for name in names:
         if rs._file_end(name) > cutoff:
             continue
+        older_file = name.startswith("angel_minute_history/")
         table = pq.read_table(
             io.BytesIO(landing_reader.read(name, cache=False)),
             columns=["ts", "open", "high", "low", "close"],
@@ -434,6 +457,10 @@ def load_index(cutoff: date = cs.DATA_END) -> list[ip.Day]:
         columns = [table.column(c).to_pylist() for c in table.column_names]
         for stamp, open_, high, low, close in zip(*columns, strict=True):
             if stamp is None or open_ is None or high is None or low is None or close is None:
+                continue
+            if older_file and not (
+                rs.HISTORY_FROM <= date.fromisoformat(stamp[:10]) < KITE_INDEX_START
+            ):
                 continue
             minute = (int(stamp[11:13]) - 9) * 60 + int(stamp[14:16]) - 15
             if 0 <= minute < ip.MINUTES:

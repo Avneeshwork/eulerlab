@@ -359,6 +359,104 @@ def renamed_names(rows: Sequence[PanelRow]) -> frozenset[str]:
     return frozenset(names)
 
 
+def read_panel_with_history(
+    start: date, *, keep_top: int = 800, always: Sequence[str] = ("NIFTYBEES", "LIQUIDBEES")
+) -> list[PanelRow]:
+    """The main panel with the research-only 2000-2014 rows from `start` before it (ADR-203).
+
+    Research only: nothing the API, paper or live books load changes. Rows a
+    bhavcopy check proved wrong are dropped (`panel_mask`, ADR-188, ADR-189);
+    each ISIN is put under the symbol the main panel knows it by today.
+
+    To fit an 8 GB machine, only symbols that rank in the `keep_top` by traded
+    value on at least one day are kept, plus `always`. The liquid universes
+    built from this (250 by 60-session median turnover) do not reach that far
+    down, so a strategy's choices are the same as on the whole panel.
+    """
+    from eulerlab.features import panel_mask
+
+    main = read_panel()
+    if not panel_mask.HISTORY_PATH.exists():
+        return main
+    mask = panel_mask.active()
+    latest = {row.isin: row.symbol for row in main if row.isin}
+    older = [
+        r
+        for r in _parse_jsonl(panel_mask.HISTORY_PATH)
+        if start <= r.day < panel_mask.HISTORY_END
+        and not (mask is not None and mask.wrong(r.isin, r.day))
+    ]
+    renamed = []
+    for r in older:
+        name = latest.get(r.isin)
+        if name is not None and name != r.symbol:
+            r = replace(r, symbol=name)
+        renamed.append(r)
+    older = canonical_symbols(sorted(renamed, key=lambda r: (r.day, r.symbol)))
+    rows = older + [r for r in main if r.day >= panel_mask.HISTORY_END]
+    by_day: dict[date, list[tuple[float, str]]] = {}
+    for r in rows:
+        by_day.setdefault(r.day, []).append((-r.turnover, r.symbol))
+    wanted = set(always)
+    for found in by_day.values():
+        found.sort()
+        wanted.update(symbol for _, symbol in found[:keep_top])
+    return [r for r in rows if r.symbol in wanted]
+
+
+CASH_ETF = "LIQUIDBEES"
+# ASSUMPTION: A-157 — LIQUIDBEES' total expense ratio is 0.69% a year for the whole window.
+CASH_ETF_TER = 0.0069
+
+
+def with_cash_yield(rows: list[PanelRow], symbol: str = CASH_ETF) -> list[PanelRow]:
+    """`symbol`'s rows priced as a total-return series (HISTORY #97, ADR-204).
+
+    LIQUIDBEES pays its overnight yield as a daily dividend reinvested in
+    units, so its price sits at ₹1,000 and a backtest holding it earned 0%.
+    Its close becomes ₹1,000 grown by IIMA's daily risk-free return (the
+    91-day T-bill yield from RBI, `fair_value.factors`) less `CASH_ETF_TER`,
+    from its first row. A day after IIMA's last date carries the last rate.
+    Research only: the API, paper and live books never call this."""
+    from bisect import bisect_right
+
+    from eulerlab.fair_value import factors
+
+    _, _, table = factors._cached(factors._latest_path(factors.DAILY_SEGMENT))
+    rf_days = [date.fromisoformat(d) for d, *_, rf in table if rf is not None]
+    rf_vals = [rf for *_, rf in table if rf is not None]
+    index, level = [], 1.0
+    for value in rf_vals:
+        level *= 1.0 + value
+        index.append(level)
+    held = [r for r in rows if r.symbol == symbol]
+    if not held or not rf_days:
+        return rows
+    first = held[0].day
+
+    def growth(day: date) -> float:
+        i = bisect_right(rf_days, day) - 1
+        j = bisect_right(rf_days, first) - 1
+        g = (index[i] if i >= 0 else 1.0) / (index[j] if j >= 0 else 1.0)
+        if day > rf_days[-1]:  # past IIMA's last date: the last day's rate per session
+            g *= (1.0 + rf_vals[-1]) ** sum(1 for r in held if rf_days[-1] < r.day <= day)
+        return float(g * (1.0 - CASH_ETF_TER) ** ((day - first).days / 365.0))
+
+    out = []
+    for r in rows:
+        if r.symbol == symbol:
+            g = growth(r.day)
+            r = replace(
+                r,
+                close=1000.0 * g,
+                open=1000.0 * g if r.open else r.open,
+                high=1000.0 * g if r.high else r.high,
+                low=1000.0 * g if r.low else r.low,
+            )
+        out.append(r)
+    return out
+
+
 def stored_renames(path: Path = PANEL_PATH) -> frozenset[str] | None:
     """`renamed_names` of the panel file, from its columnar copy; None when the
     copy is missing or was made from a different file. The copy's metadata is

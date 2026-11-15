@@ -360,7 +360,10 @@ def validation_run(hypothesis: str) -> IntradayRun:
 
     ctx = Context()
     if hypothesis == "H-0163":
-        trades = h0163_trades(ctx.panel, ctx.sessions, liquid_ranked(ctx.panel), notional=500_000.0)
+        from eulerlab.intraday import research_screen as rs
+
+        notional = TRADE if rs.one_x() else 500_000.0  # 5x as registered; 1x with ADR-202
+        trades = h0163_trades(ctx.panel, ctx.sessions, liquid_ranked(ctx.panel), notional=notional)
         return IntradayRun(trades, [], _window(ctx, FIRST_0161), CAPITAL)
     if hypothesis == "H-0161":
         trades = h0161_trades(ctx.panel, ctx.sessions, ctx.liquid, ctx.delivery)

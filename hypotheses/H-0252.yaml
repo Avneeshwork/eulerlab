@@ -1,0 +1,30 @@
+id: H-0252
+title: 'Weinstein Stage 2 with Mansfield relative strength: top 20, weekly'
+status: draft
+family: weinstein_stage_two
+source_kind: paper
+parent: ''
+claim: Among the 250 most-traded NSE stocks, holding the 20 in Weinstein Stage 2 (close above a 150-day average that is above its value 21 sessions earlier) with the highest positive Mansfield relative strength against NIFTYBEES over 52 weeks, equal weight, rebalanced weekly and held while unchanged, earns a positive Sharpe after costs.
+rationale: Stage analysis buys stocks that have broken into an uptrend and outrun the market (Weinstein, Secrets for Profiting in Bull and Bear Markets, 1988).
+source:
+  paper: github-2026-trend-radar-minervini
+  written_by: Claude, for the operator's 2026-11-15 instruction "test these for old data also and pass through gate"
+  day: '2026-11-15'
+configurations:
+- shape: portfolio_strategy
+  strategy: nse_github_weinstein_stage2
+  rebalance: weekly (5 sessions), holdings kept while still chosen
+  sizing: '20 held, 1/20 each'
+  universe: the 250 most traded NSE stocks as of each date (backtest.india_papers.liquid_universe)
+  costs: delivery charges from the cost router plus a DP charge of Rs 23.60 per delivery sell (ADR-203)
+  capital: 1x, long only, never more than fully invested
+  window: 2005-01-01 to 2024-11-29 (2000-2014 history file joined, ADR-187 to ADR-189; holdout withheld)
+red_flags:
+- 'Results for 2016-2026 were already seen before this card was written: evidence_daily 2016-01..2026-09 on 2026-10-18 and 2016-01..2024-11 on 2026-11-15. Only 2005-2015 is unseen. The card is written after the fact and the rule is as already implemented; nothing is tuned.'
+- The 2016-2026-09 run read into the 2024-12-01 holdout period, so the holdout is not clean for this rule.
+- 'Pre-2015 prices are NSE bhavcopy prints with ISINs mapped back by symbol-change chains; dead companies carry NOISIN ids (ADR-187 to ADR-189).'
+- The 250 most-traded universe is built from each date's own traded value; ETFs and fund units are in it.
+- One of many published rules screened on 2026-10-18 (research 113); the simple gate does not correct for that search.
+holdout:
+  starts: '2024-12-01'
+  status: unread

@@ -42,6 +42,9 @@ comparable to each other, and it is recorded in A-030.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import date
 from decimal import Decimal
 from enum import StrEnum
@@ -135,7 +138,7 @@ def fill_cost(
 
     from eulerlab.costs.model import cost_of_trade
 
-    return float(
+    charge = float(
         cost_of_trade(
             trade_date=day,
             segment=segment,
@@ -145,6 +148,30 @@ def fill_cost(
             fund_unit=fund_unit,
         ).total
     )
+    if _DP.get() and segment is Segment.EQUITY_DELIVERY and side is Side.SELL:
+        charge += DP_CHARGE_INR
+    return charge
+
+
+# ASSUMPTION: A-156 — Rs 20 + 18% GST per scrip per delivery sell day (Angel One's DP charge).
+DP_CHARGE_INR = 23.60
+"""The depository charge a broker takes on each delivery sell (HISTORY #94, ADR-203)."""
+_DP: ContextVar[bool] = ContextVar("dp_charges", default=False)
+
+
+@contextmanager
+def dp_charges() -> Iterator[None]:
+    """Charge `DP_CHARGE_INR` on every NSE delivery sell inside the block (ADR-203).
+
+    Research runs only: the paper and live books do not use it, so their
+    replays are unchanged until the cost model adds it for everyone (T-4633).
+    A fill split across days pays it once per sell fill, slightly more than a
+    broker charging once per scrip per day."""
+    token = _DP.set(True)
+    try:
+        yield
+    finally:
+        _DP.reset(token)
 
 
 def is_costed(venue: str) -> bool:
