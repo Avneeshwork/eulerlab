@@ -2796,3 +2796,9 @@ textarea:focus-visible {
 .mcard-top { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
 .mcard-last { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .mcard > div { pointer-events: none; }
+/* Charts toolbar: market toggle, interval toggle, search and Load share one height and centre line. */
+.chart-tools { align-items: center; }
+.chart-tools > .mkttoggle, .chart-tools .tsearch, .chart-tools .tbtn { height: 38px; box-sizing: border-box; margin: 0; }
+.chart-tools > .mkttoggle { display: inline-flex; align-items: stretch; }
+.chart-tools > .mkttoggle button { display: inline-flex; align-items: center; }
+.chart-tools form { align-items: center; margin: 0; }

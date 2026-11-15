@@ -244,7 +244,7 @@ export function ChartTab() {
         </section>
       )}
 
-      <div className="ttools" style={{ flexWrap: 'wrap', gap: 8 }}>
+      <div className="ttools chart-tools" style={{ flexWrap: 'wrap', gap: 8 }}>
         <div className="mkttoggle">
           {(Object.keys(PRESETS) as Market[]).map((key) => (
             <button
