@@ -121,3 +121,4 @@
 .st-link { display: inline-flex; align-items: center; justify-content: center; color: var(--brand); }
 .st-act { width: 1%; }
 .st-act .tbtn, .st-act .ticon { vertical-align: middle; }
+.st-divider { width: 1px; align-self: stretch; margin: 6px 4px; background: var(--rule-2, var(--line)); }

@@ -427,43 +427,37 @@ export function Library({
             {option.label}
           </button>
         ))}
-      </div>
-
-      {/* Only the bar length and the archive (operator, 2026-11-16): source and
-          verdict filters and their note are gone. Click a chip again to clear it. */}
-      <div className="st-filters">
-        <div className="st-chips" role="group" aria-label="Bars">
-          {(
-            [
-              ['intraday', 'Minute level'],
-              ['daily', 'Daily'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              className="tchip sm"
-              type="button"
-              aria-pressed={style === value}
-              onClick={() => setStyle(style === value ? '' : value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {/* Second group, same row (operator, 2026-11-16): bar length and the
+            archive. Click a chip again to clear it. */}
+        <span className="st-divider" aria-hidden="true" />
+        {(
+          [
+            ['intraday', 'Minute level'],
+            ['daily', 'Daily'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            className="tchip"
+            type="button"
+            aria-pressed={style === value}
+            onClick={() => setStyle(style === value ? '' : value)}
+          >
+            {label}
+          </button>
+        ))}
         {(archivedCount > 0 || showArchived) && (
-          <div className="st-chips" role="group" aria-label="Archive">
-            <button
-              className="tchip sm"
-              type="button"
-              aria-pressed={showArchived}
-              onClick={() => {
-                setShowArchived((v) => !v);
-                setOpen(null);
-              }}
-            >
-              Archived {archivedCount}
-            </button>
-          </div>
+          <button
+            className="tchip"
+            type="button"
+            aria-pressed={showArchived}
+            onClick={() => {
+              setShowArchived((v) => !v);
+              setOpen(null);
+            }}
+          >
+            Archived {archivedCount}
+          </button>
         )}
       </div>
 
