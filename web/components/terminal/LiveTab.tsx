@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { LiveMoney } from '@/components/terminal/LiveMoney';
 import { PaperDeployments } from '@/components/terminal/PaperDeployments';
 import { api } from '@/lib/api';
+import { belowPaperFloor, paperSharpe } from '@/lib/paperFloor';
 import type { FleetStrategy, Preflight } from '@/lib/api';
 
 export function LiveTab({
@@ -48,14 +49,14 @@ export function LiveTab({
   // The Sharpe at fills an order could get when the server has it (ADR-205),
   // else the stored one. TODO(T-4645): use `headlineSharpe` from lib/api once
   // agent-realistic-sharpe is merged.
-  const sharpeOf = (s: FleetStrategy) =>
-    (s as FleetStrategy & { realistic?: { sharpe: number } | null }).realistic?.sharpe ?? s.sharpe;
+  const sharpeOf = paperSharpe;
   const bySharpe = (a: FleetStrategy, b: FleetStrategy) => (sharpeOf(b) ?? -99) - (sharpeOf(a) ?? -99);
   // Passed the gate (PROMOTE or PAPER, ADR-141) and not yet paper-traded.
   const gatedAll = fleet
     .filter((s) => s.stage === 'promoted' || s.stage === 'paper_candidate')
     .sort(bySharpe);
-  const ready = gatedAll.filter((s) => hasReport(s) && !s.deploy_blocker);
+  const ready = gatedAll.filter((s) => hasReport(s) && !s.deploy_blocker && !belowPaperFloor(s));
+  const weak = gatedAll.filter((s) => hasReport(s) && !s.deploy_blocker && belowPaperFloor(s)).length;
   const noReport = gatedAll.filter((s) => !hasReport(s)).length;
   const blocked = gatedAll.filter((s) => hasReport(s) && s.deploy_blocker).length;
   const TOP = 15;
@@ -117,7 +118,8 @@ export function LiveTab({
           Passed the gate: start a paper book{' '}
           <span className="tfine">
             {ready.length} ready{ready.length > TOP && !showAll ? `, best ${TOP} shown` : ''}
-            {noReport + blocked > 0 && ` · hidden: ${noReport} without a report, ${blocked} paper can't run`}
+            {noReport + blocked + weak > 0 &&
+              ` · hidden: ${weak} below Sharpe 0.5, ${noReport} without a report, ${blocked} paper can't run`}
           </span>
         </h3>
         {gated.length === 0 ? (
@@ -163,6 +165,10 @@ export function LiveTab({
                   <td className="r">
                     {!hasReport(strategy) ? (
                       <span className="tfine">no report yet</span>
+                    ) : belowPaperFloor(strategy) ? (
+                      <span className="tfine" title={belowPaperFloor(strategy)}>
+                        below 0.5
+                      </span>
                     ) : strategy.deploy_blocker ? (
                       <span className="tfine" title={strategy.deploy_blocker}>
                         blocked

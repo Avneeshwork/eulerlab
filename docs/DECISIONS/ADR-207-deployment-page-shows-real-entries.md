@@ -6,3 +6,4 @@
 **Why.** Nothing is deleted, and a strategy whose report lands later (the factor cards being rebacktested) appears without another change.
 **Cost if wrong.** A useful row ranked 16th or lower is one click away rather than on screen.
 **Strategies page, same day.** Operator: keep only real ones, the rest in the archive. A strategy with no stored report counts as archived in the view (`Library.tsx: inArchive`); its `archived` flag is not written, so it returns to the main list once its report lands. Backtest and Deploy sit side by side.
+**Paper floor, same day.** Operator: "less than .5 sharpe should not be in paper". The workbench hides gate rows below 0.5 (realistic Sharpe where measured) and disables Deploy and Start paper for them (`web/lib/paperFloor.ts`). The gate itself is left to the rebacktest thread; server enforcement is T-4646.

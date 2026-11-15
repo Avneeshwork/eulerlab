@@ -28,6 +28,7 @@ import { Bar, Info, Move } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
+import { belowPaperFloor } from '@/lib/paperFloor';
 import type { Fleet, FleetStrategy, OptimizeRow, Recommended, StrategyVerdict } from '@/lib/api';
 import './strategies.css';
 
@@ -623,9 +624,13 @@ export function Library({
                       <button
                         className="tbtn sm ghost-line"
                         type="button"
-                        disabled={!!strategy.deploy_blocker}
+                        disabled={!!strategy.deploy_blocker || !!belowPaperFloor(strategy)}
                         onClick={() => onDeploy(strategy)}
-                        title={strategy.deploy_blocker ? `Cannot paper-trade: ${strategy.deploy_blocker}` : 'Put it on paper trading'}
+                        title={
+                          strategy.deploy_blocker
+                            ? `Cannot paper-trade: ${strategy.deploy_blocker}`
+                            : belowPaperFloor(strategy) || 'Put it on paper trading'
+                        }
                       >
                         Deploy
                       </button>
@@ -678,9 +683,13 @@ export function Library({
             <button
               className="tbtn ghost-line"
               type="button"
-              disabled={!!openStrategy.deploy_blocker}
+              disabled={!!openStrategy.deploy_blocker || !!belowPaperFloor(openStrategy)}
               onClick={() => onDeploy(openStrategy)}
-              title={openStrategy.deploy_blocker ? `Cannot paper-trade: ${openStrategy.deploy_blocker}` : 'Put it on paper trading'}
+              title={
+                openStrategy.deploy_blocker
+                  ? `Cannot paper-trade: ${openStrategy.deploy_blocker}`
+                  : belowPaperFloor(openStrategy) || 'Put it on paper trading'
+              }
             >
               Deploy
             </button>
