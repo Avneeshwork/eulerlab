@@ -2765,3 +2765,5 @@ textarea:focus-visible {
 .paper-bt { background: none; border: 0; padding: 0; font: inherit; color: var(--brand); cursor: pointer; }
 .paper-bt:hover { text-decoration: underline; }
 .tbtn-pair { display: inline-flex; gap: 0.4rem; }
+.lm-killed { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; padding-block: 0.7rem; }
+.lm-killed .tfine { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

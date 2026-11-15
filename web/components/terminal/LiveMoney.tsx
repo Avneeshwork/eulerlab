@@ -308,6 +308,27 @@ export function LiveMoney({
       : { tone: "", text: "Idle" };
   const held = preview?.what_if.positions.length ?? 0;
 
+  // Killed: one line and nothing else. Nothing can be sent until the switch is
+  // cleared with the separate token, so the form would only be noise (operator, 2026-11-16).
+  if (tripped) {
+    return (
+      <div className="tpanel lm lm-killed">
+        <b>Real money · H-0194 gap fade</b>
+        <span className="tbadge" data-tone="down">
+          Killed
+        </span>
+        <span className="tfine" title={status?.kill_switch.reason}>
+          {status?.kill_switch.reason} · clear with <code>make kill-status</code>
+        </span>
+        {onReport && (
+          <button className="paper-bt" type="button" onClick={() => onReport("H-0194")}>
+            Backtest →
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="tpanel lm">
       <div className="lm-head">
