@@ -171,7 +171,7 @@ def keep(hypothesis: str) -> dict[str, str]:
 
     done: dict[str, str] = {}
     try:
-        library_reports.add_recommended([library_reports.store_one(hypothesis)])
+        library_reports.add_recommended(library_reports.store_card(hypothesis))
         done["report"] = "stored"
     except Exception as exc:  # a report failure must not lose the verdict
         done["report"] = f"failed: {type(exc).__name__}: {exc}"[:200]

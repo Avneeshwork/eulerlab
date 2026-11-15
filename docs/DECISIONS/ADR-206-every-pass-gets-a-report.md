@@ -1,0 +1,7 @@
+# ADR-206 — Every PROMOTE or PAPER card gets a stored report, factor cards included
+
+**Context.** Operator, 2026-11-15, on H-0249 (PROMOTE 2026-11-13): "why no backtest report for this and not in strategy library if passed by agent". The idea-lab promote path (ADR-116) stopped at the gate; only the autopilot (ADR-150) stored a report. `library_reports.store_one` only handles intraday/engine cards, so the 2026-11-15 rebacktest archived 14 rank-and-hold cards as "not backtested".
+**Options.** (a) Store by hand when asked; (b) a report step in the promote path and a factor-card store; (c) route idea-lab passes through the autopilot.
+**Choice.** (b). `promote.gate` runs `library_reports --only H` in its own process after a PROMOTE or PAPER. `library_reports.store_card` sends rank-and-hold cards to `store_factor`: `full_history.daily_card` on the daily panel from 2015 (a year of warm-up, stored from 2016), cut before the card's `holdout.starts`, one stored result per configuration. The autopilot's `keep` uses `store_card`.
+**Why.** The stored run is the engine run `make full-history` uses, so a factor card's report matches what its Deploy button would trade; the holdout stays unread.
+**Cost if wrong.** A factor card's stored window starts in 2016, not 2005: pre-2015 rows are research-only and the factor cards were never gated on them. Options cards (H-0103) are out of scope (cash stocks and indexes only) and are not stored.
