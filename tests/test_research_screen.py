@@ -194,3 +194,20 @@ def test_index_history_is_opt_in_and_stops_at_kite(monkeypatch: pytest.MonkeyPat
     assert days[1].close[0] == 20.0  # Kite's day, not Angel's overlap
     monkeypatch.setenv(rs.HISTORY_ENV, "1")
     assert len(five.load_index()) == 2
+
+
+def test_the_research_1x_switch_sizes_the_mft_screens_at_1x(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ADR-202: ₹1 lakh a position with the switch, ₹5 lakh (5x MIS, as registered) without."""
+    import importlib
+
+    from eulerlab.intraday import mft_screen
+
+    monkeypatch.delenv(rs.ONE_X_ENV, raising=False)
+    assert importlib.reload(mft_screen).TRADE == 500_000.0
+    monkeypatch.setenv(rs.ONE_X_ENV, "1")
+    one_x = importlib.reload(mft_screen)
+    assert one_x.TRADE * one_x.MAX_OPEN <= one_x.CAPITAL  # never more exposure than capital
+    monkeypatch.delenv(rs.ONE_X_ENV)
+    importlib.reload(mft_screen)

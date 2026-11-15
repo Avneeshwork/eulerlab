@@ -53,7 +53,7 @@ from eulerlab.intraday import stock_fo_screen as fo
 
 OUT = data_path("derived/mft_screen.json")
 INDEX = data_path("derived/index_history.jsonl")
-TRADE = 500_000.0
+TRADE = 100_000.0 if rs.one_x() else 500_000.0
 """₹1 lakh of margin at Zerodha's 5x MIS leverage (research 168)."""
 MAX_OPEN = 10
 CAPITAL = 1_000_000.0

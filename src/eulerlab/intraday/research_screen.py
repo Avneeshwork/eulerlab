@@ -93,6 +93,18 @@ def minute_history() -> bool:
     return os.environ.get(HISTORY_ENV) == "1"
 
 
+ONE_X_ENV = "EULERLAB_RESEARCH_1X"
+"""Set to 1 to size the 5x screens at 1x: ₹1 lakh a position, ten at most, on ₹10 lakh
+(ADR-202; operator, 2026-11-15: "backtest at 1x only"). Research only: the paper
+books never set it, so their sizing and replays do not change."""
+
+
+def one_x() -> bool:
+    import os
+
+    return os.environ.get(ONE_X_ENV) == "1"
+
+
 def history_files(symbol: str, cutoff: date = DATA_END) -> list[str]:
     """Angel minute files of `symbol` from `HISTORY_FROM` that start before Kite's first day."""
     from eulerlab.ingest import landing_reader

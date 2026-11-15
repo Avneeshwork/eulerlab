@@ -4107,6 +4107,8 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            minute screens; `make minute-six` snapshots built with `--history`, T-4634; with
            `EULERLAB_MINUTE_HISTORY=1` the Nifty index minutes and `mft_screen.START` also
            start 2018-11-01, research runs only, ADR-201)
+           (`EULERLAB_RESEARCH_1X=1` sizes the 5x MFT and quant screens and H-0163 at
+           ₹1 lakh a position, research runs only, ADR-202)
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it
