@@ -24,6 +24,7 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 | T-4640 | Halloween rule: pre-register a card so it can be gated with the LIQUIDBEES yield (operator to decide) | TODO |
 | T-4645 | Deployment page: replace the local realistic-Sharpe read in `LiveTab.tsx` with `headlineSharpe` once `agent-realistic-sharpe` is merged (ADR-207) | TODO |
 | T-4646 | Paper floor: enforce backtest Sharpe >= 0.5 in the server's deploy preflight too; today only the workbench refuses (`web/lib/paperFloor.ts`, ADR-207). Hold until the rebacktest thread's gate change lands | TODO |
+| T-4647 | Check every reader of `index_history.jsonl`, `delivery.jsonl` and `nifty_futures.jsonl` for a last-line or sorted-order assumption: the files hold days out of order since the 2026-11-14 backfill (HISTORY 2026-11-15) | TODO |
 | T-4632 | `fill_price.MinuteReference`: price on the raw basis (same-day ratio to the official print), not the vendor's adjusted VWAP (HISTORY #93) | TODO |
 | T-4633 | Add the DP charge per delivery sell to the cost model, from a broker source with a recheck date (HISTORY #94) | TODO |
 | T-4635 | Gate's "drop best 5 names" stress is meaningless for portfolio cards (one `BookDay` series, ADR-203): feed per-name P&L or skip it for them | TODO |

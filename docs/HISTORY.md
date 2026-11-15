@@ -618,3 +618,7 @@ Believed: `make daily` writes only data, never files git tracks. True: its crypt
 ## 2026-11-14 — the engineer eval could not fail a model that ignored the rules
 
 Believed (ADR-183): the engineer eval checks that a fix stays inside the files it may touch. True: all twenty cases expected "inside", so an answer that simply listed every allowed file scored 100%; the eval could not tell a careful engineer from a careless one. Five duplicated public cases are now traps whose right answer is to refuse (ADR-197); the same careless answer now scores 67%. Also: `baseline.json` was overwritten on each baseline run and nothing else kept old scores, so no improvement or regression of any role was ever visible. No agent had an engineer baseline, so no recorded number changes.
+
+## 2026-11-15 — the Data page read market-history tables' last line as their last day
+
+Believed: the last line of `index_history.jsonl`, `delivery.jsonl` and `nifty_futures.jsonl` is their newest day (`coverage.last_day_jsonl`). True: those tables are extended, not rebuilt, so backfilled older days (weekend special sessions, then the 2000-2014 history on 2026-11-14) sit after 2026-11-13; the last line was 2014-12-31 and the Data page showed "2941 behind" for all three. The data held 2026-11-13 throughout. Fixed: `coverage.max_day_jsonl` takes the latest day in the file, cached by mtime. No numbers are invalid; only the page's status was wrong. Other readers that take a market-history table's last line should be checked (T-4647).
