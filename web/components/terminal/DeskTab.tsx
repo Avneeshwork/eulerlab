@@ -1,5 +1,5 @@
 /**
- * The trade desk (ADR-087): one ticket per active deployment, one row each
+ * The trade desk (ADR-087): one ticket per live deployment, one row each
  * (ADR-207); a row opens to its orders, failing checks and decision.
  *
  * Each ticket shows what the book will sell and buy at its next rebalance, an
@@ -149,7 +149,9 @@ export function DeskTab({ titles = {} }: { titles?: Record<string, string> }) {
     agentsApi
       .tickets()
       .then((r) => {
-        setTickets(r.tickets);
+        // Live books only (operator, 2026-11-16): a paper ticket's decision is a
+        // record only, so paper books are not shown here.
+        setTickets(r.tickets.filter((t) => t.mode !== 'paper'));
         setError(r.ok ? '' : r.error ?? '');
       })
       .catch((e: unknown) => setError(String(e)));
@@ -160,14 +162,14 @@ export function DeskTab({ titles = {} }: { titles?: Record<string, string> }) {
   return (
     <div className="tpanel desk">
       <h3>
-        Next rebalance, every book{' '}
-        <span className="tfine">paper tickets are a record only; a live book waits for Approve</span>
+        Live books: next rebalance{' '}
+        <span className="tfine">a live book sends nothing until its ticket is approved</span>
       </h3>
       {error && <div className="tnote bad">{error}</div>}
       {tickets === null ? (
         <div className="tempty">Reading tickets…</div>
       ) : tickets.length === 0 ? (
-        <div className="tempty">No active deployments, so no tickets.</div>
+        <div className="tempty">No live book is running, so nothing waits for approval. Paper books trade on their own.</div>
       ) : (
         <table className="ttable desk-table">
           <thead>
