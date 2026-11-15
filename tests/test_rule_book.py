@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -282,6 +284,48 @@ def test_library_reports_curve_adds_each_days_net_pnl() -> None:
     run = SimpleNamespace(trades=[trade], sessions=[d0, d1], capital=1000.0)
     days, equity = lr.curve(run)
     assert days == [d0, d1] and equity == [1000.0, 1400.0]
+
+
+def test_library_reports_cut_every_trade_and_session_at_the_holdout(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    from eulerlab.research import library_reports as lr
+
+    (tmp_path / "H-9999.yaml").write_text("id: H-9999\nholdout:\n  starts: '2024-12-01'\n")
+    cut = lr.holdout_start("H-9999", tmp_path)
+    assert cut == date(2024, 12, 1)
+    inside = SimpleNamespace(day=date(2024, 11, 29), gross=1.0, costs=0.0)
+    after = SimpleNamespace(day=cut, gross=9.0, costs=0.0)
+    run = SimpleNamespace(
+        trades=[inside, after],
+        late_trades=[after],
+        sessions=[date(2024, 11, 29), cut, date(2024, 12, 2)],
+        capital=10.0,
+    )
+    kept = lr.before(run, cut)
+    assert kept.trades == [inside] and kept.late_trades == []
+    assert kept.sessions == [date(2024, 11, 29)] and kept.capital == 10.0
+    (tmp_path / "H-9998.yaml").write_text("id: H-9998\n")
+    with pytest.raises(ValueError, match="no holdout"):
+        lr.holdout_start("H-9998", tmp_path)
+
+
+def test_library_reports_take_every_scored_card_from_a_rebacktest(tmp_path: Path) -> None:
+    from eulerlab.research import library_reports as lr
+
+    log = tmp_path / "results.jsonl"
+    rows = [
+        {"id": "H-0175", "sharpe": 9.4},
+        {"id": "H-0176", "error": "KeyError: x"},
+        {"id": "H-0177", "sharpe": None},
+        {"id": "H-0175", "sharpe": 9.4},
+        {"id": "H-0196", "sharpe": -0.2},
+    ]
+    log.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    assert lr.scored(log) == ["H-0175", "H-0196"]
+    assert lr.cards(["H-0001"], log) == ["H-0001", "H-0175", "H-0196"]
+    assert lr.cards(None, None) == list(lr.CARDS)
+    assert "H-0196" not in lr.MINUTE and "H-0115" in lr.MINUTE and "H-0153" not in lr.MINUTE
 
 
 # --- H-0168 and H-0162 paper books (ADR-149) ---------------------------------------------

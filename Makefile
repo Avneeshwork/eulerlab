@@ -899,9 +899,10 @@ index-futures:
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
 
-# Stored reports for research 166-173's gated stock strategies, so the library shows them (no trial).
+# Stored reports for gated stock strategies, so the library shows them (no trial).
+# H="H-0175 H-0196" for chosen cards; FROM=<results.jsonl> for every card a rebacktest scored (ADR-199).
 library-reports:
-	@uv run python -m eulerlab.research.library_reports $(if $(H),--only $(H),)
+	@uv run python -m eulerlab.research.library_reports $(if $(H),--only $(H),) $(if $(FROM),--from-results $(FROM),)
 
 # Research 178: ten rules on signals the rule engine lacks (H-0184 to H-0193).
 new-signals:
