@@ -426,7 +426,8 @@ export default function TerminalPage() {
                 button (ADR-102). */}
             <h1 className="tpage-title">
               {heading.title}
-              <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>
+              {/* No info button on Charts (operator, 2026-11-16). */}
+              {page !== 'charts' && <InfoButton label={`About ${heading.title}`}>{heading.sub}</InfoButton>}
             </h1>
           </div>
         )}

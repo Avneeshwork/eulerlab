@@ -221,28 +221,6 @@ export function ChartTab() {
 
   return (
     <>
-      {!isMacro && (
-        <section className="thero">
-          <div>
-            <div className="thnum">
-              <b style={{ fontSize: 28 }}>{symbol.split(':').pop()}</b>
-              <span className="unit">{symbol}</span>
-            </div>
-          </div>
-          <div className="tsyncbox">
-            <span
-              className="ui-chip"
-              title={
-                ours
-                  ? 'Drawn from the price panel, the same rows a backtest reads.'
-                  : "TradingView's data: a close here can differ from the panel's. Never reconcile a backtest against it."
-              }
-            >
-              {ours ? 'Our own bars' : 'TradingView data'}
-            </span>
-          </div>
-        </section>
-      )}
 
       <div className="ttools chart-tools" style={{ flexWrap: 'wrap', gap: 8 }}>
         <div className="mkttoggle">
