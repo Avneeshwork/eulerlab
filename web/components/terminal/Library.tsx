@@ -529,7 +529,8 @@ export function Library({
                     }}
                   >
                     <td className="st-name">
-                      <b>{strategy.title}</b>
+                      {/* No "H-0162 · " prefix in the list (operator, 2026-11-16); the id stays in the hover title. */}
+                      <b title={strategy.title}>{strategy.title.replace(/^H-\d+\s*·\s*/, '')}</b>
                       <span>
                         {assetClassLabel(homeMarket(strategy))} ·{' '}
                         {styleOf(strategy) === 'intraday' ? 'intraday' : 'daily'} · {SOURCE_LABEL[sourceOf(strategy)].toLowerCase()}
