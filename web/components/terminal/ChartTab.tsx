@@ -20,7 +20,6 @@
  * The macro band below plots our own sweeps (`/api/macro/history`).
  */
 
-import { Info } from '@/components/terminal/ui';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import type { MacroReading } from '@/lib/api';
@@ -243,31 +242,16 @@ export function ChartTab() {
           </div>
         </div>
         <div className="tsyncbox">
-          {ours ? (
-            <>
-              <span className="ui-chip">Our own bars</span>
-              <Info align="right">
-                Drawn from the price panel, the same rows a backtest reads. TradingView&rsquo;s free
-                embed refuses NSE listings, so there are no drawing tools here;{' '}
-                <a
-                  href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  open it on TradingView
-                </a>{' '}
-                for those.
-              </Info>
-            </>
-          ) : (
-            <>
-              <span className="ui-chip">TradingView data</span>
-              <Info align="right">
-                Data, drawing tools and indicators are TradingView&rsquo;s. A close here can differ
-                from the panel&rsquo;s: never reconcile a backtest against this chart.
-              </Info>
-            </>
-          )}
+          <span
+            className="ui-chip"
+            title={
+              ours
+                ? 'Drawn from the price panel, the same rows a backtest reads.'
+                : "TradingView's data: a close here can differ from the panel's. Never reconcile a backtest against it."
+            }
+          >
+            {ours ? 'Our own bars' : 'TradingView data'}
+          </span>
         </div>
       </section>
 
@@ -327,17 +311,6 @@ export function ChartTab() {
         </form>
       </div>
 
-      {market === 'NSE' && (
-        <p className="tfine mktgap" style={{ marginBottom: 10 }}>
-          <span className="ui-chip">ETFs, not indices</span>
-          <Info>
-            NIFTYBEES, BANKBEES and JUNIORBEES are ETFs, named for the funds they are rather than
-            the indices they track: Nippon India&rsquo;s Nifty 50, Nifty Bank and Nifty Next 50
-            funds, drawn from our own price panel. An ETF is close to its index but not the same
-            instrument: it carries tracking error and trades at its own premium.
-          </Info>
-        </p>
-      )}
 
       <div className="chipbar">
         {PRESETS[market].symbols.map(([value, label]) => (

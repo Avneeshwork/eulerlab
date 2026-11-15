@@ -2782,3 +2782,17 @@ textarea:focus-visible {
 .ks-line { padding-block: 0.6rem; margin-bottom: 0.8rem; }
 .ks-head { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
 .ks-reason { flex: 1 1 auto; }
+/* Macro: one large chart, cards below pick what it shows. */
+.mfocus { margin-bottom: 16px; }
+.mfocus-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.mfocus-head > div:first-child { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mfocus-head b { font-size: 15px; }
+.mfocus-last { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mcards-group { margin-bottom: 14px; }
+.mcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.mcard { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px 4px; border: 1px solid var(--line); border-radius: var(--r-xs, 8px); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.mcard:hover { border-color: var(--rule-2, var(--line)); }
+.mcard.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+.mcard-top { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
+.mcard-last { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mcard > div { pointer-events: none; }
