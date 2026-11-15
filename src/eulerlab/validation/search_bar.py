@@ -290,8 +290,8 @@ def shown_bar(
             basis=(
                 f"Luck bar (realistic fills, ADR-205): the best Sharpe luck would give among "
                 f"{bar.families} idea families, clustered from {bar.strategies} stored strategies "
-                f"(daily returns correlated above {rules['family_join_correlation']}). The "
-                f"{len(sharpes)} strategies with a realistic-fill Sharpe count at that Sharpe, "
+                f"(daily returns correlated above {rules['family_join_correlation']}). Each one "
+                f"with a realistic-fill Sharpe ({len(sharpes)} on file) counts at that Sharpe, "
                 f"so the measured spread is {bar.sigma}. Display only: the gate's own test is "
                 f"unchanged."
             ),

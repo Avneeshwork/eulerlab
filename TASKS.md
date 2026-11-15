@@ -22,6 +22,10 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 |---|---|---|
 | T-4639 | Finish the paused 2026-11-15 rebacktest: H-0253 rerun with the cash yield, 12 reprice cards, 11 + minute library stores, final ranking (`logs/rebacktest-2026-11-15/RESUME.md`) | BLOCKED — paused by the operator 2026-11-15 |
 | T-4640 | Halloween rule: pre-register a card so it can be gated with the LIQUIDBEES yield (operator to decide) | TODO |
+| T-4641 | Factor cards not in the 2026-11-15 batch (H-0249, H-0208, H-0044, H-0001, H-0020 to H-0029): validate, gate and store at 1x (`zsh logs/rebacktest-2026-11-15/factor_queue.sh`, one trial each, ADR-206). H-0103 (options) out of scope | BLOCKED — auto mode refused relayed gate runs; operator to run |
+| T-4642 | Stop paper books H-0161, H-0175, H-0202, H-0229 (operator, 2026-11-15). Zero trades so far is the warm-up of `LiveData` (no data before the holdout end, 2026-10-17), not a fault | BLOCKED — auto mode refused the relayed stop; operator to press Stop |
+| T-4643 | Unarchive the factor cards archived 2026-11-15 as "not backtested" (H-0001, H-0021, H-0022, H-0023, H-0027, H-0029, H-0044, H-0208, H-0249) once T-4641 stores their reports | TODO |
+| T-4644 | Store the reprice's daily series so the realistic headline and the page's luck bar need no constant shift (A-158) | TODO |
 | T-4632 | `fill_price.MinuteReference`: price on the raw basis (same-day ratio to the official print), not the vendor's adjusted VWAP (HISTORY #93) | TODO |
 | T-4633 | Add the DP charge per delivery sell to the cost model, from a broker source with a recheck date (HISTORY #94) | TODO |
 | T-4635 | Gate's "drop best 5 names" stress is meaningless for portfolio cards (one `BookDay` series, ADR-203): feed per-name P&L or skip it for them | TODO |
