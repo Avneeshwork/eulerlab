@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
 from eulerlab.intraday import minute_six_screen as six
+from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import screen_common as sc
 from eulerlab.intraday import stock_fo_screen as fo
 
@@ -57,7 +58,9 @@ TRADE = 500_000.0
 MAX_OPEN = 10
 CAPITAL = 1_000_000.0
 """Margin: ten ₹5 lakh positions at 5x."""
-START = date(2021, 11, 1)
+START = rs.HISTORY_FROM if rs.minute_history() else date(2021, 11, 1)
+"""2021-11-01, where Kite's Nifty minutes start; 2018-11-01 with
+`EULERLAB_MINUTE_HISTORY=1` and Angel's history (ADR-201)."""
 BETA_DAYS = 60
 VALUE_DAYS = 20
 EXIT = cs.EXIT

@@ -4104,7 +4104,9 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            scaled seam return misses NSE's bhavcopy by over 0.5%; `intraday/store.fetch(history=True)`
            serves the bars before 19 Aug 2021 times that factor, passing symbols only
            (`research_screen.load_days(history=True)` does the same from 1 Nov 2018 for the
-           minute screens; `make minute-six` snapshots built with `--history`, T-4634)
+           minute screens; `make minute-six` snapshots built with `--history`, T-4634; with
+           `EULERLAB_MINUTE_HISTORY=1` the Nifty index minutes and `mft_screen.START` also
+           start 2018-11-01, research runs only, ADR-201)
       -> upkeep, under the `feed` lock (skipped while `make daily` holds it):
            upload the landing trees `make daily` uploads, delete local files B2 holds at the same size
            merge-back: each local file that differs from its B2 copy is merged into it

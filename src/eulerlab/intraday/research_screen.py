@@ -82,6 +82,16 @@ def _file_start(name: str) -> date:
 HISTORY_FROM = date(2018, 11, 1)
 """The first day of Angel's minute history a reader takes (operator, 2026-11-14)."""
 
+HISTORY_ENV = "EULERLAB_MINUTE_HISTORY"
+"""Set to 1 to run the minute screens from `HISTORY_FROM` (ADR-201). Research only:
+the paper books (`deploy/mis_book.py`) never set it, so their replays do not change."""
+
+
+def minute_history() -> bool:
+    import os
+
+    return os.environ.get(HISTORY_ENV) == "1"
+
 
 def history_files(symbol: str, cutoff: date = DATA_END) -> list[str]:
     """Angel minute files of `symbol` from `HISTORY_FROM` that start before Kite's first day."""
