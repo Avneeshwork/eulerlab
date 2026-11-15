@@ -314,7 +314,8 @@ def test_simple_mode_keeps_the_process_rules(tmp_path: Path) -> None:
 
 
 def test_simple_mode_kills_a_low_probabilistic_sharpe() -> None:
-    found = gates._check_simple(_simple_pack(0.4, 0.2, 0.1, psr=0.80), SIMPLE["simple"])
+    # Below the mandate's PSR floor (0.50 since ADR-198).
+    found = gates._check_simple(_simple_pack(0.4, 0.2, 0.1, psr=0.45), SIMPLE["simple"])
     assert [f.rule for f in found if not f.passed] == ["probabilistic sharpe"]
 
 
@@ -356,8 +357,9 @@ def test_paper_needs_profit_and_the_paper_psr() -> None:
     losing = gates._check_paper(
         {"configurations": [{"full_sample_sharpe": -0.1, "probabilistic_sharpe": 0.4}]}, rules
     )
+    # Profitable but under the paper PSR floor (0.50 since ADR-198).
     lucky = gates._check_paper(
-        {"configurations": [{"full_sample_sharpe": 0.3, "probabilistic_sharpe": 0.6}]}, rules
+        {"configurations": [{"full_sample_sharpe": 0.3, "probabilistic_sharpe": 0.45}]}, rules
     )
     assert all(f.passed for f in good)
     assert not any(f.passed for f in losing)
