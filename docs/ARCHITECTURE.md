@@ -903,6 +903,8 @@ two stored reports does it fall back to the ledger-count bar, and its note
 says so. The backtest dialog's "bar if recorded" is now an upper bound: every
 new configuration counted as a new family.
 
+**A 0.5 Sharpe floor (ADR-207, 2026-11-16).** In simple mode, PROMOTE needs a full-sample net Sharpe above `simple.min_full_sample_sharpe` (0.5) and PAPER above `paper.min_full_sample_sharpe` (0.5), both on the gate's own Sharpe.
+
 **The Strategies page leads with realistic fills (ADR-205).** The rule
 engine fills a daily intraday card at the official open and close, which no
 order gets, so its gate Sharpe is an upper bound. `research/realistic_sharpe.py`
