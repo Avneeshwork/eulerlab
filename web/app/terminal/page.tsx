@@ -571,6 +571,7 @@ export default function TerminalPage() {
                 workspace={workspace}
                 onDeploy={setDeploying}
                 onReport={(id) => setPage('deployment', id)}
+                onStrategyReport={(id) => setPage('report', id)}
               />
             ) : liveView === 'desk' ? (
               <DeskTab />

@@ -164,8 +164,11 @@ function LossLimits({
 export function PaperDeployments({
   fleet,
   onReport,
+  onBacktest,
 }: {
   fleet: FleetStrategy[];
+  /** Open the strategy's backtest report. */
+  onBacktest?: (strategyId: string) => void;
   /** Open the deployment's full report, the backtest report's tabs on its own record. */
   onReport?: (deploymentId: string) => void;
 }) {
@@ -174,6 +177,7 @@ export function PaperDeployments({
   const [open, setOpen] = useState<string>('');
   const [flowAmounts, setFlowAmounts] = useState<Record<string, string>>({});
   const [showEnded, setShowEnded] = useState(false);
+  const [moneyOpen, setMoneyOpen] = useState('');
 
   const load = useCallback(() => {
     api
@@ -195,6 +199,25 @@ export function PaperDeployments({
   }, [busy, load]);
 
   const title = (id: string) => fleet.find((s) => s.id === id)?.title ?? id;
+  // The backtest beside the paper book: its Sharpe (realistic fills where the
+  // server has it, ADR-205) and annual return, linked to the full report.
+  const backtestLink = (id: string) => {
+    if (!onBacktest) return null;
+    const f = fleet.find((x) => x.id === id);
+    const sharpe = f
+      ? ((f as FleetStrategy & { realistic?: { sharpe: number } | null }).realistic?.sharpe ?? f.sharpe)
+      : null;
+    const annual = f?.table?.annual_return;
+    const figures =
+      sharpe === null
+        ? ' report'
+        : `: Sharpe ${sharpe.toFixed(2)}${annual !== null && annual !== undefined ? ` · ${pct(annual)}/yr` : ''}`;
+    return (
+      <button className="tlink paper-bt" type="button" onClick={() => onBacktest(id)}>
+        Backtest{figures} →
+      </button>
+    );
+  };
   // A refused action's reason stays on screen: the reload after it used to
   // clear it at once, so a refusal looked like nothing happening.
   const act = (call: Promise<{ ok: boolean; error?: string }>) =>
@@ -224,7 +247,8 @@ export function PaperDeployments({
           <div>
             <b title={title(d.strategy_id)}>{shortTitle(title(d.strategy_id))}</b>
             <span className="tfine">
-              {d.mode === 'live' ? 'Live' : 'Paper'} · {rupees(d.capital)} · started {d.start}
+              {d.mode === 'live' ? 'Live' : 'Paper'} · {rupees(d.capital)} · started {d.start} ·{' '}
+              {backtestLink(d.strategy_id)}
             </span>
           </div>
           {d.reducing_now && d.status === 'active' && (
@@ -314,6 +338,47 @@ export function PaperDeployments({
         )}
 
         <div className="paper-actions">
+          {onReport && (
+            <button
+              className="tbtn sm go"
+              type="button"
+              disabled={!s.curve?.length}
+              onClick={() => onReport(d.id)}
+              title="The backtest report's tabs on this deployment's own record, beside its backtest"
+            >
+              Detailed analysis
+            </button>
+          )}
+          <button className="tbtn sm" type="button" onClick={() => setOpen(isOpen ? '' : d.id)}>
+            {isOpen ? 'Hide' : 'Positions & orders'}
+          </button>
+          {d.mode === 'paper' && d.status === 'active' && (
+            <button className="tbtn sm" type="button" onClick={() => setMoneyOpen(moneyOpen === d.id ? '' : d.id)}>
+              {moneyOpen === d.id ? 'Close' : 'Add / withdraw'}
+            </button>
+          )}
+          <button
+            className="tbtn sm"
+            type="button"
+            disabled={d.status !== 'active' || !!d.running}
+            onClick={() => act(api.runDeployment(d.id))}
+            title="Bring it up to the latest close now. Safe to repeat: nothing is sent twice."
+          >
+            Run now
+          </button>
+          <button
+            className="tbtn sm ghost-line"
+            type="button"
+            disabled={d.status !== 'active'}
+            onClick={() => act(api.stopDeployment(d.id))}
+            title="Stop trading. Positions are kept, nothing is sold."
+          >
+            Stop
+          </button>
+        </div>
+
+        {moneyOpen === d.id && (
+          <div className="paper-actions">
           <input
             aria-label={`Cash flow amount for ${title(d.strategy_id)}`}
             className="tinput sm"
@@ -346,39 +411,8 @@ export function PaperDeployments({
           >
             Withdraw
           </button>
-          {onReport && (
-            <button
-              className="tbtn sm go"
-              type="button"
-              disabled={!s.curve?.length}
-              onClick={() => onReport(d.id)}
-              title="The backtest report's tabs on this deployment's own record, beside its backtest"
-            >
-              Detailed analysis
-            </button>
-          )}
-          <button className="tbtn sm" type="button" onClick={() => setOpen(isOpen ? '' : d.id)}>
-            {isOpen ? 'Hide' : 'Positions & orders'}
-          </button>
-          <button
-            className="tbtn sm"
-            type="button"
-            disabled={d.status !== 'active' || !!d.running}
-            onClick={() => act(api.runDeployment(d.id))}
-            title="Bring it up to the latest close now. Safe to repeat: nothing is sent twice."
-          >
-            Run now
-          </button>
-          <button
-            className="tbtn sm ghost-line"
-            type="button"
-            disabled={d.status !== 'active'}
-            onClick={() => act(api.stopDeployment(d.id))}
-            title="Stop trading. Positions are kept, nothing is sold."
-          >
-            Stop
-          </button>
-        </div>
+          </div>
+        )}
 
         {(s.pending?.length ?? 0) > 0 && (
           <div className="tfine">
@@ -506,7 +540,7 @@ export function PaperDeployments({
                     <td title={title(d.strategy_id)}>
                       <b>{shortTitle(title(d.strategy_id))}</b>
                       <div className="tfine">
-                        {rupees(d.capital)} · started {d.start}
+                        {rupees(d.capital)} · started {d.start} · {backtestLink(d.strategy_id)}
                       </div>
                     </td>
                     <td>

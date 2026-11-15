@@ -2752,3 +2752,15 @@ textarea:focus-visible {
 }
 .terminal .kite-form input:focus { outline: 2px solid var(--neon-deep); outline-offset: 1px; border-color: var(--rule-2); }
 .kite-error { margin: 0; padding: var(--s2) var(--s3); background: var(--fail-wash); border-radius: var(--r-sm); font-size: var(--t-small); overflow-wrap: anywhere; }
+
+/* Real-money panel (LiveMoney): one header line, one row of inputs, one row of actions. */
+.lm-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.lm-head h3 { margin: 0; flex: 1 1 auto; }
+.lm-row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; margin: 0.6rem 0; }
+.lm-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--t-small); color: var(--ink-2); }
+.lm-row label .tinput { width: 8.5rem; height: 38px; box-sizing: border-box; }
+.lm-row .lm-confirm { width: 8.5rem; }
+.lm-preview { margin: 0.2rem 0 0.4rem; }
+/* A paper book's link to its strategy's backtest report. */
+.paper-bt { background: none; border: 0; padding: 0; font: inherit; color: var(--brand); cursor: pointer; }
+.paper-bt:hover { text-decoration: underline; }
