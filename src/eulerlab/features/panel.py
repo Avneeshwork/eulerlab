@@ -359,6 +359,51 @@ def renamed_names(rows: Sequence[PanelRow]) -> frozenset[str]:
     return frozenset(names)
 
 
+def read_panel_with_history(
+    start: date, *, keep_top: int = 800, always: Sequence[str] = ("NIFTYBEES", "LIQUIDBEES")
+) -> list[PanelRow]:
+    """The main panel with the research-only 2000-2014 rows from `start` before it (ADR-203).
+
+    Research only: nothing the API, paper or live books load changes. Rows a
+    bhavcopy check proved wrong are dropped (`panel_mask`, ADR-188, ADR-189);
+    each ISIN is put under the symbol the main panel knows it by today.
+
+    To fit an 8 GB machine, only symbols that rank in the `keep_top` by traded
+    value on at least one day are kept, plus `always`. The liquid universes
+    built from this (250 by 60-session median turnover) do not reach that far
+    down, so a strategy's choices are the same as on the whole panel.
+    """
+    from eulerlab.features import panel_mask
+
+    main = read_panel()
+    if not panel_mask.HISTORY_PATH.exists():
+        return main
+    mask = panel_mask.active()
+    latest = {row.isin: row.symbol for row in main if row.isin}
+    older = [
+        r
+        for r in _parse_jsonl(panel_mask.HISTORY_PATH)
+        if start <= r.day < panel_mask.HISTORY_END
+        and not (mask is not None and mask.wrong(r.isin, r.day))
+    ]
+    renamed = []
+    for r in older:
+        name = latest.get(r.isin)
+        if name is not None and name != r.symbol:
+            r = replace(r, symbol=name)
+        renamed.append(r)
+    older = canonical_symbols(sorted(renamed, key=lambda r: (r.day, r.symbol)))
+    rows = older + [r for r in main if r.day >= panel_mask.HISTORY_END]
+    by_day: dict[date, list[tuple[float, str]]] = {}
+    for r in rows:
+        by_day.setdefault(r.day, []).append((-r.turnover, r.symbol))
+    wanted = set(always)
+    for found in by_day.values():
+        found.sort()
+        wanted.update(symbol for _, symbol in found[:keep_top])
+    return [r for r in rows if r.symbol in wanted]
+
+
 def stored_renames(path: Path = PANEL_PATH) -> frozenset[str] | None:
     """`renamed_names` of the panel file, from its columnar copy; None when the
     copy is missing or was made from a different file. The copy's metadata is

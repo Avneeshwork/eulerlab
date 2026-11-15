@@ -252,10 +252,107 @@ SOURCES: dict[str, Callable[[], IntradayRun]] = {
 }
 
 
+@dataclass(frozen=True)
+class BookDay:
+    """One session of a portfolio book as a day trade (ADR-203): the day's return on
+    `PORTFOLIO_CAPITAL`, split into gross and costs so the cost stress still works."""
+
+    symbol: str
+    day: date
+    gross: float
+    costs: float
+
+
+PORTFOLIO_CAPITAL = 1_000_000.0
+PORTFOLIO_FIRST = date(2005, 1, 1)
+"""The first session a portfolio card trades; data from `PORTFOLIO_DATA_FROM` warms it up."""
+PORTFOLIO_DATA_FROM = date(2002, 1, 1)
+PORTFOLIO_META: dict[str, dict[str, float]] = {}
+"""Fills, sells, costs and DP charges of the last portfolio run, by card (for reports)."""
+
+
+def portfolio_strategy(hypothesis_id: str) -> str | None:
+    """The `evidence_daily` strategy a card's first configuration names, if it is one."""
+    from pathlib import Path
+
+    import yaml
+
+    path = Path("hypotheses") / f"{hypothesis_id}.yaml"
+    if not path.exists():
+        return None
+    card = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    configs = card.get("configurations") or [{}]
+    first = configs[0] if isinstance(configs[0], dict) else {}
+    if first.get("shape") != "portfolio_strategy":
+        return None
+    return str(first.get("strategy") or "") or None
+
+
+def _portfolio(hypothesis_id: str) -> IntradayRun:
+    """A portfolio card's daily book on the event engine, 2005 onward, with DP charges.
+
+    Rows stop before the card's holdout start, so the holdout is never read.
+    Each session's net return on the previous equity becomes one `BookDay` on
+    `PORTFOLIO_CAPITAL`, so the battery's fixed-capital returns are the book's
+    own compounding daily returns."""
+    from eulerlab.backtest import event_driven, evidence_daily
+    from eulerlab.costs import router
+    from eulerlab.features.panel import read_panel_with_history
+    from eulerlab.research import library_reports as lr
+
+    name = portfolio_strategy(hypothesis_id)
+    if name is None or name not in evidence_daily.BY_ID:
+        msg = f"{hypothesis_id} names no evidence_daily strategy"
+        raise KeyError(msg)
+    cut = lr.holdout_start(hypothesis_id)
+    rows = [r for r in read_panel_with_history(PORTFOLIO_DATA_FROM) if r.day < cut]
+    strategy = evidence_daily.BY_ID[name].build()
+    days = sorted({r.day for r in rows})
+    warmup = sum(1 for d in days if d < PORTFOLIO_FIRST)
+    with router.dp_charges():
+        run = event_driven.run(
+            rows,
+            strategy,
+            starting_cash=PORTFOLIO_CAPITAL,
+            rebalance_every=int(getattr(strategy, "rebalance_every", 21)),
+            warmup=warmup,
+            asset_class="equity",
+        )
+    costs_by_day: dict[date, float] = defaultdict(float)
+    sells = 0
+    for fill in run.fills:
+        costs_by_day[fill.day] += fill.cost
+        sells += str(fill.side).lower().endswith("sell")
+    trades: list[DayTrade] = []
+    sessions: list[date] = []
+    for (_, before), (day, after) in zip(
+        zip(run.days, run.equity, strict=True),
+        list(zip(run.days, run.equity, strict=True))[1:],
+        strict=False,
+    ):
+        if before <= 0:
+            continue
+        net = (after - before) / before * PORTFOLIO_CAPITAL
+        cost = costs_by_day.get(day, 0.0) / before * PORTFOLIO_CAPITAL
+        trades.append(BookDay(name, day, net + cost, cost))
+        sessions.append(day)
+    PORTFOLIO_META[hypothesis_id] = {
+        "fills": float(len(run.fills)),
+        "sells": float(sells),
+        "costs_inr": round(sum(costs_by_day.values()), 2),
+        "dp_inr": round(sells * router.DP_CHARGE_INR, 2),
+        "final_equity": round(run.equity[-1], 2) if run.equity else 0.0,
+    }
+    return IntradayRun(trades, [], sessions, PORTFOLIO_CAPITAL)
+
+
 def source(hypothesis_id: str) -> Callable[[], IntradayRun]:
-    """The trade source for a card: `SOURCES`, else its `engine:` block (ADR-150)."""
+    """The trade source for a card: `SOURCES`, a portfolio card (ADR-203), else its
+    `engine:` block (ADR-150)."""
     if hypothesis_id in SOURCES:
         return SOURCES[hypothesis_id]
+    if portfolio_strategy(hypothesis_id) is not None:
+        return lambda: _portfolio(hypothesis_id)
     from eulerlab.intraday import rule_engine
 
     if rule_engine.card_spec(hypothesis_id) is None:
@@ -265,7 +362,7 @@ def source(hypothesis_id: str) -> Callable[[], IntradayRun]:
 
 
 def supported(hypothesis_id: str) -> bool:
-    if hypothesis_id in SOURCES:
+    if hypothesis_id in SOURCES or portfolio_strategy(hypothesis_id) is not None:
         return True
     from eulerlab.intraday import rule_engine
 

@@ -3821,6 +3821,16 @@ fill is on the wrong scale. The 2026-11-15 audit uses same-day ratios instead
 (entry = official open x VWAP 09:15-09:20 / 09:15 bar open; exit = official
 close x VWAP 15:10-15:20 / VWAP 15:00-15:30).
 
+### Portfolio cards through the gate (ADR-203)
+
+A card whose first configuration is `shape: portfolio_strategy` names a
+`backtest/evidence_daily` strategy. `validation.intraday.source` runs it once
+on the event engine over `features.panel.read_panel_with_history(2002-01-01)`
+(the 2000-2014 history joined by ISIN, trading from 2005-01-01, rows before the
+card's holdout only) inside `costs.router.dp_charges()` (₹23.60 a delivery
+sell), and hands the battery one `BookDay` per session: that session's net
+return on the previous equity, on ₹10 lakh, split into gross and costs.
+
 ### Look-ahead test (ADR-200)
 
 `rule_engine.as_of_open(data, day)` is the data as it stood at `day`'s official
