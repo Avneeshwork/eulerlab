@@ -15,7 +15,7 @@
  * would be a picture of a run that did not happen.
  */
 
-import { Archive, ArchiveRestore } from 'lucide-react';
+import { Archive, ArchiveRestore, ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ASSET_CLASSES, assetClassLabel, homeMarket } from '@/lib/assetClasses';
@@ -29,7 +29,7 @@ import { Bar, Info, Move } from '@/components/terminal/ui';
 import { api } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
-import { belowPaperFloor } from '@/lib/paperFloor';
+import { belowPaperFloor, paperSharpe } from '@/lib/paperFloor';
 import type { Fleet, FleetStrategy, OptimizeRow, Recommended, StrategyVerdict } from '@/lib/api';
 import './strategies.css';
 
@@ -257,7 +257,7 @@ export function Library({
         case 'drawdown':
           return s.result.max_drawdown ?? null;
         case 'sharpe':
-          return s.sharpe;
+          return paperSharpe(s);
         case 'win':
           return s.table?.win_rate ?? null;
         case 'trades':
@@ -273,7 +273,7 @@ export function Library({
       ordered.sort(
         (a, b) =>
           VERDICT_ORDER[verdictOf(a)] - VERDICT_ORDER[verdictOf(b)] ||
-          (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity)
+          (paperSharpe(b) ?? -Infinity) - (paperSharpe(a) ?? -Infinity)
       );
     } else {
       ordered.sort((a, b) => {
@@ -513,7 +513,7 @@ export function Library({
               <SortHead label="Sharpe" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Trades" sort="trades" current={sort} descending={descending} onSort={sortBy} />
-              <th>Source</th>
+              <th className="st-src-h">Source</th>
               <th aria-label="Actions" />
             </tr>
           </thead>
@@ -559,33 +559,41 @@ export function Library({
                     </td>
                     <td className={`num ${strategy.result.max_drawdown ? 'neg' : ''}`}>{pct(strategy.result.max_drawdown ?? null, 0)}</td>
                     <td className="num st-sharpe">
-                      {strategy.sharpe === null ? (
-                        '—'
-                      ) : (
-                        <>
-                          <b>{strategy.sharpe.toFixed(2)}</b>
-                          <Bar
-                            value={strategy.sharpe}
-                            max={Math.max(fleet.bar, 0.01)}
-                            tone={strategy.sharpe >= fleet.bar ? 'up' : strategy.sharpe > 0 ? 'accent' : 'down'}
-                          />
-                        </>
-                      )}
+                      {(() => {
+                        // The Sharpe at fills an order could get where measured (ADR-205).
+                        const sharpe = paperSharpe(strategy);
+                        return sharpe === null ? (
+                          '—'
+                        ) : (
+                          <>
+                            <b>{sharpe.toFixed(2)}</b>
+                            <Bar
+                              value={sharpe}
+                              max={Math.max(fleet.bar, 0.01)}
+                              tone={sharpe >= fleet.bar ? 'up' : sharpe > 0 ? 'accent' : 'down'}
+                            />
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
                     <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
                     <td className="st-src" onClick={(event) => event.stopPropagation()}>
                       {(() => {
                         const src = sourceLink(strategy.source);
+                        // A link button only; an internal research note has no page to open.
                         return src.href ? (
-                          <a href={src.href} target="_blank" rel="noreferrer" title={strategy.source}>
-                            {src.label} ↗
+                          <a
+                            className="ticon sm st-link"
+                            href={src.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={strategy.source}
+                            aria-label={`Open the source: ${src.label}`}
+                          >
+                            <ExternalLink size={14} />
                           </a>
-                        ) : (
-                          <span className="tfine" title={strategy.source}>
-                            {src.label || '—'}
-                          </span>
-                        );
+                        ) : null;
                       })()}
                     </td>
                     <td className="st-act" onClick={(event) => event.stopPropagation()}>

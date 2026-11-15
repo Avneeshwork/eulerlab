@@ -113,3 +113,11 @@
 .st-src { max-width: 15rem; font-size: 12px; }
 .st-src a { color: var(--brand); text-decoration: none; }
 .st-src a:hover { text-decoration: underline; }
+/* Tighter rows (operator, 2026-11-16): two-line titles, smaller padding, icon-only source link. */
+.st-table td { padding-top: 6px; padding-bottom: 6px; }
+.st-name b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+.st-name span { font-size: 11px; }
+.st-src, .st-src-h { width: 56px; text-align: center; }
+.st-link { display: inline-flex; align-items: center; justify-content: center; color: var(--brand); }
+.st-act { width: 1%; }
+.st-act .tbtn, .st-act .ticon { vertical-align: middle; }
