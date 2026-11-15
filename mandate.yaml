@@ -15,7 +15,7 @@
 
 version: 2
 owner: operator
-last_reviewed: 2026-11-06
+last_reviewed: 2026-11-15
 
 # Which bar the gate applies. Changed on the operator's instruction, 2026-11-06
 # (ADR-140): "gate is too hard, make it simple". `simple` checks only the
@@ -36,7 +36,10 @@ simple:
   # Probabilistic Sharpe ratio: the chance the true Sharpe is above zero given
   # the sample's length, skew and tails. Not corrected for how many strategies
   # were tried; that is the deflated Sharpe, which strict mode uses.
-  min_probabilistic_sharpe: 0.95
+  # Lowered from 0.95 on the operator's instruction, 2026-11-15 ("make sharpe
+  # bar to minimum", decision card "Sharpe above zero, keep checks", ADR-198).
+  # A PSR of 0.50 is the same test as a net Sharpe above zero.
+  min_probabilistic_sharpe: 0.50
   # Stability: the share of calendar years (with at least this many trading
   # days in the backtest) whose net return was positive.
   min_positive_year_fraction: 0.6
@@ -52,7 +55,8 @@ paper:
   # Net of costs, the full-sample Sharpe must be above this.
   min_full_sample_sharpe: 0.0
   # The chance the true Sharpe is above zero, from the sample alone.
-  min_probabilistic_sharpe: 0.80
+  # Lowered from 0.80 with the promotion bar, 2026-11-15 (ADR-198).
+  min_probabilistic_sharpe: 0.50
 
 # --- strict mode only (mode: strict) ---
 
