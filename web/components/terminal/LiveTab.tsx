@@ -37,9 +37,27 @@ export function LiveTab({
   const forward = fleet.filter(
     (s) => s.stage === 'forward_testing' || s.stage === 'paper_evaluation'
   );
+  const [showAll, setShowAll] = useState(false);
+  // A row is real when it has a stored backtest report (the report's period is
+  // set) and paper trading can run it. The rest are hidden until they do: a
+  // strategy waiting on its rebacktest shows up by itself once its report lands.
+  const hasReport = (s: FleetStrategy) => !!s.table?.period?.[0];
+  // The Sharpe at fills an order could get when the server has it (ADR-205),
+  // else the stored one. TODO(T-4645): use `headlineSharpe` from lib/api once
+  // agent-realistic-sharpe is merged.
+  const sharpeOf = (s: FleetStrategy) =>
+    (s as FleetStrategy & { realistic?: { sharpe: number } | null }).realistic?.sharpe ?? s.sharpe;
+  const bySharpe = (a: FleetStrategy, b: FleetStrategy) => (sharpeOf(b) ?? -99) - (sharpeOf(a) ?? -99);
   // Passed the gate (PROMOTE or PAPER, ADR-141) and not yet paper-traded.
-  const gated = fleet.filter((s) => s.stage === 'promoted' || s.stage === 'paper_candidate');
-  const candidates = fleet.filter((s) => s.clears_bar && s.runnable);
+  const gatedAll = fleet
+    .filter((s) => s.stage === 'promoted' || s.stage === 'paper_candidate')
+    .sort(bySharpe);
+  const ready = gatedAll.filter((s) => hasReport(s) && !s.deploy_blocker);
+  const noReport = gatedAll.filter((s) => !hasReport(s)).length;
+  const blocked = gatedAll.filter((s) => hasReport(s) && s.deploy_blocker).length;
+  const TOP = 15;
+  const gated = showAll ? gatedAll : ready.slice(0, TOP);
+  const candidates = fleet.filter((s) => s.clears_bar && s.runnable && hasReport(s));
 
   useEffect(() => {
     let alive = true;
@@ -89,9 +107,15 @@ export function LiveTab({
       </section>
 
       <div className="tpanel">
-        <h3>Passed the gate: start a paper book</h3>
+        <h3>
+          Passed the gate: start a paper book{' '}
+          <span className="tfine">
+            {ready.length} ready{ready.length > TOP && !showAll ? `, best ${TOP} shown` : ''}
+            {noReport + blocked > 0 && ` · hidden: ${noReport} without a report, ${blocked} paper can't run`}
+          </span>
+        </h3>
         {gated.length === 0 ? (
-          <div className="tempty">Nothing is waiting: every strategy the gate passed is already on paper.</div>
+          <div className="tempty">Nothing is waiting.</div>
         ) : (
           <table className="ttable">
             <thead>
@@ -99,29 +123,25 @@ export function LiveTab({
                 <th>Strategy</th>
                 <th>Verdict</th>
                 <th className="r">Sharpe</th>
-                <th>Runs on</th>
+                <th>Bars</th>
                 <th className="r" />
               </tr>
             </thead>
             <tbody>
               {gated.map((strategy) => (
                 <tr key={strategy.id}>
-                  <td>
-                    <b>{strategy.title}</b>
-                    <div className="tfine">{strategy.summary}</div>
+                  <td title={strategy.summary}>
+                    <b>{strategy.title.length > 90 ? `${strategy.title.slice(0, 89)}…` : strategy.title}</b>
                   </td>
-                  <td>
-                    <b>{strategy.gate_verdict || '—'}</b>
-                    <div className="tfine">
-                      {strategy.gate_verdict === 'PAPER' ? 'paper only, never live' : 'paper, then live'}
-                    </div>
+                  <td title={strategy.gate_verdict === 'PAPER' ? 'paper only, never live' : 'paper, then live'}>
+                    {strategy.gate_verdict || '—'}
                   </td>
-                  <td className="r">{strategy.sharpe?.toFixed(2) ?? '—'}</td>
-                  <td className="tfine">
-                    {strategy.timeframe === '1m' ? 'minute bars, flat every close' : 'daily close'}
-                  </td>
+                  <td className="r">{sharpeOf(strategy)?.toFixed(2) ?? '—'}</td>
+                  <td className="tfine">{strategy.timeframe === '1m' ? 'minute' : 'daily'}</td>
                   <td className="r">
-                    {strategy.deploy_blocker ? (
+                    {!hasReport(strategy) ? (
+                      <span className="tfine">no report yet</span>
+                    ) : strategy.deploy_blocker ? (
                       <span className="tfine" title={strategy.deploy_blocker}>
                         blocked
                       </span>
@@ -136,6 +156,11 @@ export function LiveTab({
             </tbody>
           </table>
         )}
+        {gatedAll.length > gated.length || showAll ? (
+          <button className="tbtn sm ghost-line" type="button" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? `Show the best ${TOP} ready` : `Show all ${gatedAll.length}`}
+          </button>
+        ) : null}
       </div>
 
       <div className="tpanel">

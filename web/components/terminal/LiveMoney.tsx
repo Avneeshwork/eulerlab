@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Info } from "@/components/terminal/ui";
+
 type Pick = {
   symbol: string;
   side: number;
@@ -298,10 +300,13 @@ export function LiveMoney() {
     <div className="tpanel">
       <h3>Real money · H-0194 gap fade on Angel One</h3>
       <p className="tfine">
-        Fades a 3% opening gap with no NSE filing since 15:30 the day before:
-        short the gap-ups, buy the gap-downs, at 09:20, closed at 15:10 (MIS).
-        ETFs, ASM/GSM and trade-for-trade stocks are skipped. Each Deploy covers
-        one session. The backtest overstates this about 2x (research 180).
+        Fades a 3% gap with no NSE filing: 09:20 in, 15:10 out (MIS), one
+        session per Deploy.
+        <Info>
+          Short the gap-ups, buy the gap-downs. ETFs, ASM/GSM and trade-for-trade
+          stocks are skipped. The backtest overstates this about 2x (research
+          180).
+        </Info>
       </p>
 
       {tripped && (
