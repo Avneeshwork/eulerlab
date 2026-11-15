@@ -2767,3 +2767,15 @@ textarea:focus-visible {
 .tbtn-pair { display: inline-flex; gap: 0.4rem; }
 .lm-killed { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; padding-block: 0.7rem; }
 .lm-killed .tfine { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Trade desk: one row per ticket, detail beneath (ADR-207). */
+.desk-row { cursor: pointer; }
+.desk-row:hover td { background: var(--wash, rgba(255,255,255,0.03)); }
+.desk-row td b { margin-right: 0.4rem; }
+.desk-caret { display: inline-block; width: 1rem; color: var(--ink-3, var(--ink-2)); }
+.desk-detail td { padding-top: 0.2rem; padding-bottom: 0.8rem; }
+.desk-orders { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; align-items: center; margin: 0 0 0.4rem 1rem; font-size: var(--t-small); }
+.desk-checks { margin: 0 0 0.4rem 1rem; }
+.desk-decide { display: flex; gap: 0.5rem; align-items: center; margin-left: 1rem; }
+.desk-decide .tinput { width: 16rem; }
+.desk-table td:nth-child(3) { white-space: nowrap; }
+.desk-table td:nth-child(5) { max-width: 14rem; }

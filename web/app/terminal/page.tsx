@@ -574,7 +574,7 @@ export default function TerminalPage() {
                 onStrategyReport={(id) => setPage('report', id)}
               />
             ) : liveView === 'desk' ? (
-              <DeskTab />
+              <DeskTab titles={Object.fromEntries((fleet?.strategies ?? []).map((s) => [s.id, s.title]))} />
             ) : (
               <RiskTab />
             )}
