@@ -124,3 +124,10 @@
 .st-divider { width: 1px; align-self: stretch; margin: 6px 4px; background: var(--rule-2, var(--line)); }
 .st-table td.st-name { min-width: 0; width: 28%; max-width: 340px; }
 .st-table td.num, .st-table th { padding-left: 12px; padding-right: 12px; }
+/* Centred number columns, a narrow two-line Max drawdown head, spaced actions (operator, 2026-11-16). */
+.st-table th.r, .st-table td.num { text-align: center; }
+.st-table th:nth-child(4) { white-space: normal; width: 76px; line-height: 1.2; }
+.st-table td.st-sharpe .bar, .st-table td.st-sharpe > * { margin-left: auto; margin-right: auto; }
+.st-act-h { text-align: center !important; }
+.st-act { text-align: center; }
+.st-act .tbtn + .tbtn, .st-act .tbtn + .ticon { margin-left: 10px; }

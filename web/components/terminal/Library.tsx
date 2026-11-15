@@ -508,7 +508,7 @@ export function Library({
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Trades" sort="trades" current={sort} descending={descending} onSort={sortBy} />
               <th className="st-src-h">Source</th>
-              <th aria-label="Actions" />
+              <th className="st-act-h">Action</th>
             </tr>
           </thead>
           <tbody>
