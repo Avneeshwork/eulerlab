@@ -2752,3 +2752,53 @@ textarea:focus-visible {
 }
 .terminal .kite-form input:focus { outline: 2px solid var(--neon-deep); outline-offset: 1px; border-color: var(--rule-2); }
 .kite-error { margin: 0; padding: var(--s2) var(--s3); background: var(--fail-wash); border-radius: var(--r-sm); font-size: var(--t-small); overflow-wrap: anywhere; }
+
+/* Real-money panel (LiveMoney): one header line, one row of inputs, one row of actions. */
+.lm-head { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+.lm-head h3 { margin: 0; flex: 1 1 auto; }
+.lm-row { display: flex; align-items: flex-end; gap: 0.6rem; flex-wrap: wrap; margin: 0.6rem 0; }
+.lm-row label { display: flex; flex-direction: column; gap: 0.2rem; font-size: var(--t-small); color: var(--ink-2); }
+.lm-row label .tinput { width: 8.5rem; height: 38px; box-sizing: border-box; }
+.lm-row .lm-confirm { width: 8.5rem; }
+.lm-preview { margin: 0.2rem 0 0.4rem; }
+/* A paper book's link to its strategy's backtest report. */
+.paper-bt { background: none; border: 0; padding: 0; font: inherit; color: var(--brand); cursor: pointer; }
+.paper-bt:hover { text-decoration: underline; }
+.tbtn-pair { display: inline-flex; gap: 0.4rem; }
+.lm-killed { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; padding-block: 0.7rem; }
+.lm-killed .tfine { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Trade desk: one row per ticket, detail beneath (ADR-208). */
+.desk-row { cursor: pointer; }
+.desk-row:hover td { background: var(--wash, rgba(255,255,255,0.03)); }
+.desk-row td b { margin-right: 0.4rem; }
+.desk-caret { display: inline-block; width: 1rem; color: var(--ink-3, var(--ink-2)); }
+.desk-detail td { padding-top: 0.2rem; padding-bottom: 0.8rem; }
+.desk-orders { display: flex; flex-wrap: wrap; gap: 0.4rem 0.9rem; align-items: center; margin: 0 0 0.4rem 1rem; font-size: var(--t-small); }
+.desk-checks { margin: 0 0 0.4rem 1rem; }
+.desk-decide { display: flex; gap: 0.5rem; align-items: center; margin-left: 1rem; }
+.desk-decide .tinput { width: 16rem; }
+.desk-table td:nth-child(3) { white-space: nowrap; }
+.desk-table td:nth-child(5) { max-width: 14rem; }
+.ks-line { padding-block: 0.6rem; margin-bottom: 0.8rem; }
+.ks-head { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.ks-reason { flex: 1 1 auto; }
+/* Macro: one large chart, cards below pick what it shows. */
+.mfocus { margin-bottom: 16px; }
+.mfocus-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.mfocus-head > div:first-child { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mfocus-head b { font-size: 15px; }
+.mfocus-last { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mcards-group { margin-bottom: 14px; }
+.mcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.mcard { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 12px 4px; border: 1px solid var(--line); border-radius: var(--r-xs, 8px); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.mcard:hover { border-color: var(--rule-2, var(--line)); }
+.mcard.on { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand) inset; }
+.mcard-top { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; }
+.mcard-last { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mcard > div { pointer-events: none; }
+/* Charts toolbar: market toggle, interval toggle, search and Load share one height and centre line. */
+.chart-tools { align-items: center; }
+.chart-tools > .mkttoggle, .chart-tools .tsearch, .chart-tools .tbtn { height: 38px; box-sizing: border-box; margin: 0; }
+.chart-tools > .mkttoggle { display: inline-flex; align-items: stretch; }
+.chart-tools > .mkttoggle button { display: inline-flex; align-items: center; }
+.chart-tools form { align-items: center; margin: 0; }

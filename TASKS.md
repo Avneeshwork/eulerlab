@@ -26,6 +26,9 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 | T-4642 | Stop paper books H-0161, H-0175, H-0202, H-0229 (operator, 2026-11-15). Zero trades so far is the warm-up of `LiveData` (no data before the holdout end, 2026-10-17), not a fault | DONE 2026-11-16: all four stopped by the operator's own request; records kept in `data/deployments/` |
 | T-4643 | Unarchive the factor passes once stored (T-4641). H-0001 and H-0020 to H-0029 stay archived (held) | DONE 2026-11-16: H-0249 PROMOTE, H-0208 PAPER, H-0044 PAPER (5 of 9 years positive) gated at 1x, stored, unarchived |
 | T-4644 | Store the reprice's daily series so the realistic headline and the page's luck bar need no constant shift (A-158) | TODO |
+| T-4645 | Deployment page: replace the local realistic-Sharpe read in `LiveTab.tsx` with `headlineSharpe` once `agent-realistic-sharpe` is merged (ADR-208) | DONE 2026-11-16: `paperFloor.paperSharpe` is `headlineSharpe` |
+| T-4646 | Paper floor: enforce backtest Sharpe >= 0.5 in the server's deploy preflight too; today only the workbench refuses (`web/lib/paperFloor.ts`, ADR-208). Hold until the rebacktest thread's gate change lands | TODO |
+| T-4647 | Check every reader of `index_history.jsonl`, `delivery.jsonl` and `nifty_futures.jsonl` for a last-line or sorted-order assumption: the files hold days out of order since the 2026-11-14 backfill (HISTORY 2026-11-15) | TODO |
 | T-4632 | `fill_price.MinuteReference`: price on the raw basis (same-day ratio to the official print), not the vendor's adjusted VWAP (HISTORY #93) | TODO |
 | T-4633 | Add the DP charge per delivery sell to the cost model, from a broker source with a recheck date (HISTORY #94) | TODO |
 | T-4635 | Gate's "drop best 5 names" stress is meaningless for portfolio cards (one `BookDay` series, ADR-203): feed per-name P&L or skip it for them | TODO |

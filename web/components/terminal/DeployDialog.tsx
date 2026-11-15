@@ -16,6 +16,7 @@
 
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
+import { belowPaperFloor } from '@/lib/paperFloor';
 import type { DeployPreview, FleetStrategy, Preflight, RiskWhatIf } from '@/lib/api';
 
 const rupees = (value: number) => `₹${Math.round(value).toLocaleString('en-IN')}`;
@@ -194,6 +195,9 @@ export function DeployDialog({
                 ))}
               </ul>
 
+              {mode === 'paper' && belowPaperFloor(strategy) && (
+                <div className="tnote bad">{belowPaperFloor(strategy)}</div>
+              )}
               <div className="dlg-foot">
                 <div className="verdict" data-ok={report.ok}>
                   {report.ok
@@ -208,12 +212,16 @@ export function DeployDialog({
                 <button
                   className="tbtn go"
                   type="button"
-                  disabled={!report.ok || starting || !!started || mode === 'live' || capital < 1000}
+                  disabled={
+                    !report.ok || starting || !!started || mode === 'live' || capital < 1000 || !!belowPaperFloor(strategy)
+                  }
                   onClick={start}
                   title={
                     mode === 'live'
                       ? 'Live trading is not enabled yet.'
-                      : report.ok
+                      : belowPaperFloor(strategy)
+                        ? belowPaperFloor(strategy)
+                        : report.ok
                         ? 'Start paper trading with this capital.'
                         : 'Blocked by the conditions listed above. Each one is a real check, not a placeholder.'
                   }

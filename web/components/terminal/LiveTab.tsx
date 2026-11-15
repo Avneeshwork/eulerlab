@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { LiveMoney } from '@/components/terminal/LiveMoney';
 import { PaperDeployments } from '@/components/terminal/PaperDeployments';
 import { api } from '@/lib/api';
+import { belowPaperFloor, paperSharpe } from '@/lib/paperFloor';
 import type { FleetStrategy, Preflight } from '@/lib/api';
 
 export function LiveTab({
@@ -26,20 +27,42 @@ export function LiveTab({
   workspace,
   onDeploy,
   onReport,
+  onStrategyReport,
 }: {
   fleet: FleetStrategy[];
   workspace: string;
   onDeploy: (strategy: FleetStrategy) => void;
   onReport?: (deploymentId: string) => void;
+  /** Open a strategy's backtest report. */
+  onStrategyReport?: (strategyId: string) => void;
 }) {
   const [reports, setReports] = useState<Record<string, Preflight>>({});
   const live = fleet.filter((s) => s.stage === 'live');
   const forward = fleet.filter(
     (s) => s.stage === 'forward_testing' || s.stage === 'paper_evaluation'
   );
+  const [showAll, setShowAll] = useState(false);
+  // A row is real when it has a stored backtest report (the report's period is
+  // set) and paper trading can run it. The rest are hidden until they do: a
+  // strategy waiting on its rebacktest shows up by itself once its report lands.
+  const hasReport = (s: FleetStrategy) => !!s.table?.period?.[0];
+  // The Sharpe at fills an order could get when the server has it (ADR-205).
+  const sharpeOf = paperSharpe;
+  const bySharpe = (a: FleetStrategy, b: FleetStrategy) => (sharpeOf(b) ?? -99) - (sharpeOf(a) ?? -99);
   // Passed the gate (PROMOTE or PAPER, ADR-141) and not yet paper-traded.
-  const gated = fleet.filter((s) => s.stage === 'promoted' || s.stage === 'paper_candidate');
-  const candidates = fleet.filter((s) => s.clears_bar && s.runnable);
+  const gatedAll = fleet
+    .filter((s) => s.stage === 'promoted' || s.stage === 'paper_candidate')
+    .sort(bySharpe);
+  const ready = gatedAll.filter((s) => hasReport(s) && !s.deploy_blocker && !belowPaperFloor(s));
+  const weak = gatedAll.filter((s) => hasReport(s) && !s.deploy_blocker && belowPaperFloor(s)).length;
+  const noReport = gatedAll.filter((s) => !hasReport(s)).length;
+  const blocked = gatedAll.filter((s) => hasReport(s) && s.deploy_blocker).length;
+  const TOP = 15;
+  const short = (text: string) => (text.length > 80 ? `${text.slice(0, 79)}…` : text);
+  const yearly = (v: number | null | undefined) =>
+    v === null || v === undefined ? '—' : `${v < 0 ? '−' : '+'}${Math.abs(v * 100).toFixed(1)}%`;
+  const gated = showAll ? gatedAll : ready.slice(0, TOP);
+  const candidates = fleet.filter((s) => s.clears_bar && s.runnable && hasReport(s));
 
   useEffect(() => {
     let alive = true;
@@ -62,8 +85,8 @@ export function LiveTab({
 
   return (
     <>
-      <LiveMoney />
-      <PaperDeployments fleet={fleet} onReport={onReport} />
+      <LiveMoney onReport={onStrategyReport} />
+      <PaperDeployments fleet={fleet} onReport={onReport} onBacktest={onStrategyReport} />
       <section className="thero">
         <div>
           <div className="theyebrow">Trading now</div>
@@ -89,9 +112,16 @@ export function LiveTab({
       </section>
 
       <div className="tpanel">
-        <h3>Passed the gate: start a paper book</h3>
+        <h3>
+          Passed the gate: start a paper book{' '}
+          <span className="tfine">
+            {ready.length} ready{ready.length > TOP && !showAll ? `, best ${TOP} shown` : ''}
+            {noReport + blocked + weak > 0 &&
+              ` · hidden: ${weak} below Sharpe 0.5, ${noReport} without a report, ${blocked} paper can't run`}
+          </span>
+        </h3>
         {gated.length === 0 ? (
-          <div className="tempty">Nothing is waiting: every strategy the gate passed is already on paper.</div>
+          <div className="tempty">Nothing is waiting.</div>
         ) : (
           <table className="ttable">
             <thead>
@@ -99,36 +129,59 @@ export function LiveTab({
                 <th>Strategy</th>
                 <th>Verdict</th>
                 <th className="r">Sharpe</th>
-                <th>Runs on</th>
+                <th className="r">Per year</th>
+                <th className="r">Trades</th>
+                <th>Tested</th>
+                <th>Bars</th>
                 <th className="r" />
               </tr>
             </thead>
             <tbody>
               {gated.map((strategy) => (
                 <tr key={strategy.id}>
-                  <td>
-                    <b>{strategy.title}</b>
-                    <div className="tfine">{strategy.summary}</div>
+                  <td title={strategy.summary}>
+                    {hasReport(strategy) && onStrategyReport ? (
+                      <button className="paper-bt" type="button" onClick={() => onStrategyReport(strategy.id)}>
+                        <b>{short(strategy.title)}</b>
+                      </button>
+                    ) : (
+                      <b>{short(strategy.title)}</b>
+                    )}
                   </td>
-                  <td>
-                    <b>{strategy.gate_verdict || '—'}</b>
-                    <div className="tfine">
-                      {strategy.gate_verdict === 'PAPER' ? 'paper only, never live' : 'paper, then live'}
-                    </div>
+                  <td title={strategy.gate_verdict === 'PAPER' ? 'paper only, never live' : 'paper, then live'}>
+                    {strategy.gate_verdict || '—'}
                   </td>
-                  <td className="r">{strategy.sharpe?.toFixed(2) ?? '—'}</td>
+                  <td className="r">{sharpeOf(strategy)?.toFixed(2) ?? '—'}</td>
+                  <td className="r">{yearly(strategy.table?.annual_return)}</td>
+                  <td className="r">{strategy.table?.trades?.toLocaleString('en-IN') ?? '—'}</td>
                   <td className="tfine">
-                    {strategy.timeframe === '1m' ? 'minute bars, flat every close' : 'daily close'}
+                    {strategy.table?.period?.[0]
+                      ? `${strategy.table.period[0].slice(0, 4)}–${(strategy.table.period[1] ?? '').slice(0, 4)}`
+                      : '—'}
                   </td>
+                  <td className="tfine">{strategy.timeframe === '1m' ? 'minute' : 'daily'}</td>
                   <td className="r">
-                    {strategy.deploy_blocker ? (
+                    {!hasReport(strategy) ? (
+                      <span className="tfine">no report yet</span>
+                    ) : belowPaperFloor(strategy) ? (
+                      <span className="tfine" title={belowPaperFloor(strategy)}>
+                        below 0.5
+                      </span>
+                    ) : strategy.deploy_blocker ? (
                       <span className="tfine" title={strategy.deploy_blocker}>
                         blocked
                       </span>
                     ) : (
-                      <button className="tbtn sm" type="button" onClick={() => onDeploy(strategy)}>
-                        Paper trade
-                      </button>
+                      <span className="tbtn-pair">
+                        {onStrategyReport && (
+                          <button className="tbtn sm" type="button" onClick={() => onStrategyReport(strategy.id)}>
+                            Report
+                          </button>
+                        )}
+                        <button className="tbtn sm" type="button" onClick={() => onDeploy(strategy)}>
+                          Paper trade
+                        </button>
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -136,6 +189,11 @@ export function LiveTab({
             </tbody>
           </table>
         )}
+        {gatedAll.length > gated.length || showAll ? (
+          <button className="tbtn sm ghost-line" type="button" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? `Show the best ${TOP} ready` : `Show all ${gatedAll.length}`}
+          </button>
+        ) : null}
       </div>
 
       <div className="tpanel">

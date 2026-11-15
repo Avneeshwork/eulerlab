@@ -17,10 +17,9 @@
  * against the embed.** Where we hold bars for that venue, our chart sits
  * below it.
  *
- * The macro band below plots our own sweeps (`/api/macro/history`).
+ * The Macro tab plots our own sweeps (`/api/macro/history`) and nothing else.
  */
 
-import { Info } from '@/components/terminal/ui';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import type { MacroReading } from '@/lib/api';
@@ -106,23 +105,10 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
       ['TVC:DXY', 'DOLLAR INDEX'],
     ],
   },
+  // Our own macro sweeps only (MacroBand), no TradingView (operator, 2026-11-16).
   MACRO: {
     label: 'Macro',
-    symbols: [
-      // The band the operator asked for, as charts rather than a single
-      // reading. TVC symbols are TradingView's own aggregates and embed freely
-      // where the underlying exchange feeds do not.
-      ['TVC:US10Y', 'US 10Y YIELD'],
-      ['TVC:US02Y', 'US 2Y YIELD'],
-      ['TVC:US30Y', 'US 30Y YIELD'],
-      ['TVC:IN10Y', 'INDIA 10Y YIELD'],
-      ['TVC:USOIL', 'WTI CRUDE'],
-      ['TVC:UKOIL', 'BRENT CRUDE'],
-      ['TVC:GOLD', 'GOLD'],
-      ['TVC:SILVER', 'SILVER'],
-      ['TVC:VIX', 'VIX'],
-      ['NSE:GOLDBEES', 'GOLDBEES'],
-    ],
+    symbols: [],
   },
 };
 
@@ -188,10 +174,11 @@ export function ChartTab() {
   // answers "only available on TradingView" for NSE listings, NIFTYBEES
   // included (seen on the operator's Mac, 2026-11-01, HISTORY #52).
   const ours = symbol.startsWith('NSE:');
+  const isMacro = market === 'MACRO';
 
   useEffect(() => {
     const node = holder.current;
-    if (!node || ours) return;
+    if (!node || ours || isMacro) return;
 
     // The widget writes into whatever node it is given and does not clean up
     // after itself, so the container is emptied first. Without this, changing
@@ -200,8 +187,7 @@ export function ChartTab() {
 
     const dark =
       document.documentElement.dataset.theme === 'dark' ||
-      (!document.documentElement.dataset.theme &&
-        window.matchMedia('(prefers-color-scheme: dark)').matches);
+      (!document.documentElement.dataset.theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
     const script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
@@ -226,7 +212,7 @@ export function ChartTab() {
     return () => {
       node.innerHTML = '';
     };
-  }, [symbol, interval, ours]);
+  }, [symbol, interval, ours, isMacro]);
 
   function go(next: string) {
     const clean = next.trim().toUpperCase();
@@ -235,43 +221,8 @@ export function ChartTab() {
 
   return (
     <>
-      <section className="thero">
-        <div>
-          <div className="thnum">
-            <b style={{ fontSize: 28 }}>{symbol.split(':').pop()}</b>
-            <span className="unit">{symbol}</span>
-          </div>
-        </div>
-        <div className="tsyncbox">
-          {ours ? (
-            <>
-              <span className="ui-chip">Our own bars</span>
-              <Info align="right">
-                Drawn from the price panel, the same rows a backtest reads. TradingView&rsquo;s free
-                embed refuses NSE listings, so there are no drawing tools here;{' '}
-                <a
-                  href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  open it on TradingView
-                </a>{' '}
-                for those.
-              </Info>
-            </>
-          ) : (
-            <>
-              <span className="ui-chip">TradingView data</span>
-              <Info align="right">
-                Data, drawing tools and indicators are TradingView&rsquo;s. A close here can differ
-                from the panel&rsquo;s: never reconcile a backtest against this chart.
-              </Info>
-            </>
-          )}
-        </div>
-      </section>
 
-      <div className="ttools" style={{ flexWrap: 'wrap', gap: 8 }}>
+      <div className="ttools chart-tools" style={{ flexWrap: 'wrap', gap: 8 }}>
         <div className="mkttoggle">
           {(Object.keys(PRESETS) as Market[]).map((key) => (
             <button
@@ -292,7 +243,7 @@ export function ChartTab() {
         {/* These drive the TradingView embed only. NSE symbols are drawn by
             our own chart, which has its own timeframe buttons; showing both
             left two rows of 1m to 1W where one did nothing (2026-11-01). */}
-        {!ours && (
+        {!ours && !isMacro && (
           <div className="mkttoggle">
             {INTERVALS.map(([value, label]) => (
               <button
@@ -307,66 +258,56 @@ export function ChartTab() {
           </div>
         )}
 
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            go(typed);
-          }}
-          style={{ display: 'flex', gap: 6 }}
-        >
-          <input
-            className="tsearch"
-            style={{ minWidth: 190 }}
-            placeholder="Any symbol — NSE:TITAN, BINANCE:BTCUSDT…"
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-          />
-          <button className="tbtn" type="submit">
-            Load
-          </button>
-        </form>
-      </div>
-
-      {market === 'NSE' && (
-        <p className="tfine mktgap" style={{ marginBottom: 10 }}>
-          <span className="ui-chip">ETFs, not indices</span>
-          <Info>
-            NIFTYBEES, BANKBEES and JUNIORBEES are ETFs, named for the funds they are rather than
-            the indices they track: Nippon India&rsquo;s Nifty 50, Nifty Bank and Nifty Next 50
-            funds, drawn from our own price panel. An ETF is close to its index but not the same
-            instrument: it carries tracking error and trades at its own premium.
-          </Info>
-        </p>
-      )}
-
-      <div className="chipbar">
-        {PRESETS[market].symbols.map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={symbol === value ? 'chip on' : 'chip'}
-            onClick={() => setSymbol(value)}
+        {!isMacro && (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              go(typed);
+            }}
+            style={{ display: 'flex', gap: 6 }}
           >
-            {label}
-          </button>
-        ))}
+            <input
+              className="tsearch"
+              style={{ minWidth: 190 }}
+              placeholder="Any symbol — NSE:TITAN, BINANCE:BTCUSDT…"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+            />
+            <button className="tbtn" type="submit">
+              Load
+            </button>
+          </form>
+        )}
       </div>
+
+      {!isMacro && (
+        <div className="chipbar">
+          {PRESETS[market].symbols.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className={symbol === value ? 'chip on' : 'chip'}
+              onClick={() => setSymbol(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Given a real height rather than a percentage: the widget measures its
           container on mount, and a container that is auto-height at that moment
           measures zero and renders nothing at all. */}
-      {!ours && <div className="chartholder" ref={holder} />}
+      {!ours && !isMacro && <div className="chartholder" ref={holder} />}
 
       {/* The same instrument from our own bars, when we hold them. For NSE it
           is the chart; elsewhere it sits under the embed, which has the
           drawing tools, so a reader can see where a vendor's adjusted close
           differs from the panel's. */}
-      {ownOf(symbol) && (
-        <OwnChart symbol={ownOf(symbol)!.symbol} assetClass={ownOf(symbol)!.assetClass} />
-      )}
+      {!isMacro && ownOf(symbol) && <OwnChart symbol={ownOf(symbol)!.symbol} assetClass={ownOf(symbol)!.assetClass} />}
 
-      {/* Below the chart, as asked: what a trader checks around a price. */}
-      <MacroBand rows={macro} spread={spread} stale={stale} sweptAt={sweptAt} />
+      {/* The Macro tab is our own sweeps and nothing else. */}
+      {isMacro && <MacroBand rows={macro} spread={spread} stale={stale} sweptAt={sweptAt} />}
     </>
   );
 }

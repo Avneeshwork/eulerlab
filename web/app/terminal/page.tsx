@@ -39,8 +39,6 @@ import {
   Boxes,
   CandlestickChart,
   ChevronRight,
-  Database,
-  Info,
   LayoutDashboard,
   ListTree,
   Moon,
@@ -77,7 +75,6 @@ const OptionsTab = dynamic(() => import('@/components/terminal/OptionsTab').then
 const RiskTab = dynamic(() => import('@/components/terminal/RiskTab').then((m) => m.RiskTab), { ssr: false, loading: Loading });
 const RiskBookView = dynamic(() => import('@/components/terminal/RiskBook').then((m) => m.RiskBookView), { ssr: false, loading: Loading });
 const BacktestDialog = dynamic(() => import('@/components/terminal/BacktestDialog').then((m) => m.BacktestDialog), { ssr: false, loading: Loading });
-const DataTab = dynamic(() => import('@/components/terminal/DataTab').then((m) => m.DataTab), { ssr: false, loading: Loading });
 const DeployDialog = dynamic(() => import('@/components/terminal/DeployDialog').then((m) => m.DeployDialog), { ssr: false, loading: Loading });
 const ExplainDialog = dynamic(() => import('@/components/terminal/ExplainDialog').then((m) => m.ExplainDialog), { ssr: false, loading: Loading });
 const BacktestReport = dynamic(() => import('@/components/terminal/BacktestReport').then((m) => m.BacktestReport), { ssr: false, loading: Loading });
@@ -99,7 +96,6 @@ type PageId =
   | 'tools'
   | 'builder'
   | 'instruments'
-  | 'data'
   | 'sip'
   | 'research'
   | 'report'
@@ -151,13 +147,6 @@ const TOOLS: Tool[] = [
       'Invest a fixed amount every month in one instrument and see the value, XIRR and how it compares with investing once.',
     icon: PiggyBank,
   },
-  {
-    id: 'data',
-    title: 'Data Status',
-    description:
-      'What is landed on disk, which universes exist, and which results are mirrored to the cloud.',
-    icon: Database,
-  },
 ];
 
 const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = {
@@ -184,7 +173,6 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
     sub: 'A monthly investment plan over landed closes. A calculator, not an engine run.',
     parent: 'tools',
   },
-  data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
   research: { title: 'Research Library', sub: 'Every paper behind a strategy, and how its strategies did.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
   deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
@@ -384,15 +372,6 @@ export default function TerminalPage() {
           <button
             className="ticon"
             type="button"
-            onClick={() => setExplaining('')}
-            title="What a backtest here actually does, and which asset classes have data."
-            aria-label="How backtests work"
-          >
-            <Info size={16} aria-hidden="true" />
-          </button>
-          <button
-            className="ticon"
-            type="button"
             onClick={() => setDark((value) => (value === null ? true : value ? false : null))}
             title={
               dark === null ? 'Following your system theme' : dark ? 'Dark theme' : 'Light theme'
@@ -411,7 +390,8 @@ export default function TerminalPage() {
       </header>
 
       <div className="tpage">
-        {page !== 'report' && (
+        {/* Charts has no title at all (operator, 2026-11-16): the nav names the page. */}
+        {page !== 'report' && page !== 'charts' && (
           <div className="tpage-head">
             {heading.parent && (
               <nav className="tcrumb" aria-label="Breadcrumb">
@@ -554,16 +534,15 @@ export default function TerminalPage() {
               <button type="button" role="tab" aria-selected={liveView === 'desk'} onClick={() => setLiveView('desk')}>
                 Trade desk
               </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={liveView === 'risk'}
-                onClick={() => setLiveView('risk')}
-              >
-                Risk limits &amp; kill switch
-              </button>
             </div>
-            {liveView === 'overview' || liveView === 'performance' || liveView === 'stress' ? (
+            {/* The limits and kill switch sit on Risk overview as one line (operator,
+                2026-11-16); an old `#live/risk` link lands there too. */}
+            {liveView === 'overview' || liveView === 'risk' ? (
+              <>
+                <RiskTab />
+                <RiskBookView view="overview" onReport={(id) => setPage('deployment', id)} />
+              </>
+            ) : liveView === 'performance' || liveView === 'stress' ? (
               <RiskBookView view={liveView} onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'deploy' ? (
               <LiveTab
@@ -571,12 +550,11 @@ export default function TerminalPage() {
                 workspace={workspace}
                 onDeploy={setDeploying}
                 onReport={(id) => setPage('deployment', id)}
+                onStrategyReport={(id) => setPage('report', id)}
               />
             ) : liveView === 'desk' ? (
-              <DeskTab />
-            ) : (
-              <RiskTab />
-            )}
+              <DeskTab titles={Object.fromEntries((fleet?.strategies ?? []).map((s) => [s.id, s.title]))} />
+            ) : null}
           </>
         )}
 
@@ -621,7 +599,6 @@ export default function TerminalPage() {
         )}
         {page === 'instruments' && <InstrumentsTab />}
         {page === 'sip' && <SipTab />}
-        {page === 'data' && <DataTab workspace={workspace} />}
       </div>
 
       {paletteOpen && (

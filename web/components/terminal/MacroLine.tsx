@@ -18,9 +18,39 @@ import { token } from '@/lib/tokens';
 
 export type MacroPoint = { at: string; value: number };
 
-export function MacroLine({ label, unit, points }: { label: string; unit: string; points: MacroPoint[] }) {
+/** A hex colour with an alpha, as the chart library wants it. */
+function alpha(hex: string, a: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return a === 0 ? 'rgba(0,0,0,0)' : hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+/** Points as the chart wants them: strictly increasing seconds; two sweeps in
+ *  the same second keep the later reading. */
+export function asSeries(points: MacroPoint[]): { time: number; value: number }[] {
+  const byTime = new Map<number, number>();
+  for (const point of points) {
+    const seconds = Math.floor(Date.parse(point.at) / 1000);
+    if (Number.isFinite(seconds)) byTime.set(seconds, point.value);
+  }
+  return [...byTime.entries()].sort((x, y) => x[0] - y[0]).map(([time, value]) => ({ time, value }));
+}
+
+/**
+ * One macro series as an area chart. `compact` draws a sparkline (no axes, no
+ * grid) for a card; otherwise a full chart with its price scale and dates.
+ */
+export function MacroLine({
+  points,
+  height = 150,
+  compact = false,
+}: {
+  points: MacroPoint[];
+  height?: number;
+  compact?: boolean;
+}) {
   const holder = useRef<HTMLDivElement | null>(null);
-  const first = points[0]?.at.slice(0, 10);
   const enough = points.length >= 2;
 
   useEffect(() => {
@@ -30,38 +60,38 @@ export function MacroLine({ label, unit, points }: { label: string; unit: string
     let chart: { remove: () => void } | null = null;
 
     import('lightweight-charts')
-      .then(({ createChart, LineSeries, ColorType }) => {
+      .then(({ createChart, AreaSeries, ColorType }) => {
         if (disposed || !holder.current) return;
-        const grid = token('--rule', '#e2e8f0');
+        const data = asSeries(points);
+        const rising = data.length > 1 && data[data.length - 1].value >= data[0].value;
+        const line = rising ? token('--up', '#16a34a') : token('--down', '#dc2626');
         const made = createChart(holder.current, {
           layout: {
             background: { type: ColorType.Solid, color: 'transparent' },
             textColor: token('--ink-3', '#64748b'),
             attributionLogo: false,
           },
-          grid: { vertLines: { visible: false }, horzLines: { color: grid } },
-          rightPriceScale: { borderVisible: false },
-          timeScale: { borderVisible: false, timeVisible: false },
-          height: 150,
+          grid: { vertLines: { visible: false }, horzLines: { visible: !compact, color: token('--rule', '#e2e8f0') } },
+          rightPriceScale: { visible: !compact, borderVisible: false },
+          leftPriceScale: { visible: false },
+          timeScale: { visible: !compact, borderVisible: false, timeVisible: false },
+          crosshair: compact ? { vertLine: { visible: false }, horzLine: { visible: false } } : undefined,
+          handleScroll: !compact,
+          handleScale: !compact,
+          height,
           autoSize: true,
         });
         chart = made;
-        const series = made.addSeries(LineSeries, {
-          color: token('--accent', '#2563eb'),
+        const series = made.addSeries(AreaSeries, {
+          lineColor: line,
+          topColor: alpha(line, 0.28),
+          bottomColor: alpha(line, 0),
           lineWidth: 2,
-          priceLineVisible: false,
+          priceLineVisible: !compact,
+          lastValueVisible: !compact,
+          crosshairMarkerVisible: !compact,
         });
-        // The chart needs strictly increasing times; two sweeps in the same
-        // second keep the later reading.
-        const byTime = new Map<number, number>();
-        for (const point of points) {
-          const seconds = Math.floor(Date.parse(point.at) / 1000);
-          if (Number.isFinite(seconds)) byTime.set(seconds, point.value);
-        }
-        const data = [...byTime.entries()]
-          .sort((a, b) => a[0] - b[0])
-          .map(([time, value]) => ({ time: time as never, value }));
-        series.setData(data);
+        series.setData(data.map((d) => ({ time: d.time as never, value: d.value })));
         made.timeScale().fitContent();
       })
       .catch(() => undefined);
@@ -70,25 +100,8 @@ export function MacroLine({ label, unit, points }: { label: string; unit: string
       disposed = true;
       chart?.remove();
     };
-  }, [points, enough]);
+  }, [points, enough, height, compact]);
 
-  return (
-    <div className="ownchart">
-      <div className="ownhead">
-        <b>{label}</b>
-        <span className="tfine">
-          {points.length
-            ? `${points.length} readings since ${first}${unit ? ` · ${unit}` : ''}`
-            : 'no readings recorded yet'}
-        </span>
-      </div>
-      {enough ? (
-        <div className="macroline" ref={holder} />
-      ) : (
-        <div className="tempty">
-          {points.length ? 'One reading so far; a line needs two.' : 'Nothing recorded yet.'}
-        </div>
-      )}
-    </div>
-  );
+  if (!enough) return <div className="tempty">{points.length ? 'One reading so far.' : 'Nothing recorded yet.'}</div>;
+  return <div ref={holder} style={{ height, width: '100%' }} />;
 }

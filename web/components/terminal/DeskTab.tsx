@@ -1,5 +1,6 @@
 /**
- * The trade desk (ADR-087): one ticket per active deployment.
+ * The trade desk (ADR-087): one ticket per live deployment, one row each
+ * (ADR-208); a row opens to its orders, failing checks and decision.
  *
  * Each ticket shows what the book will sell and buy at its next rebalance, an
  * estimated cost, why, and the pre-trade checks. A paper ticket's decision is
@@ -19,7 +20,25 @@ function rupees(value: number): string {
   return `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
 }
 
-function TicketCard({ ticket, onDone }: { ticket: DeskTicket; onDone: () => void }) {
+const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+
+/**
+ * One ticket as one row; its orders, checks and decision open beneath it.
+ * Only the failing checks are listed; the passing ones are counted.
+ */
+function TicketRow({
+  ticket,
+  title,
+  open,
+  onToggle,
+  onDone,
+}: {
+  ticket: DeskTicket;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  onDone: () => void;
+}) {
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
   const decide = (decision: 'approved' | 'rejected') =>
@@ -30,95 +49,109 @@ function TicketCard({ ticket, onDone }: { ticket: DeskTicket; onDone: () => void
         onDone();
       })
       .catch((e: unknown) => setError(String(e)));
+  const failing = ticket.checks.filter((c) => !c.ok);
+  const sold = sum(ticket.sells.map((x) => x.value));
+  const bought = sum(ticket.buys.map((x) => x.target_value));
+  const trades = ticket.sells.length + ticket.buys.length;
+  const status = ticket.decision
+    ? { tone: ticket.decision === 'approved' ? 'up' : '', text: ticket.decision }
+    : ticket.blocked
+      ? { tone: 'down', text: `blocked: ${failing[0]?.name ?? 'check'}` }
+      : { tone: 'brand', text: 'ready' };
   return (
-    <div className="tpanel" style={{ padding: 16 }}>
-      <h3>
-        {ticket.deployment} <span className="tchip">{ticket.mode}</span>{' '}
-        {ticket.decision ? <span className="tchip">{ticket.decision}</span> : ticket.blocked ? <span className="tchip">blocked</span> : null}
-      </h3>
-      <p className="tdesc">{ticket.reason}</p>
-      <p className="tfine">
-        Equity {rupees(ticket.equity)} · estimated cost {rupees(ticket.est_cost)} · {ticket.holds.length} names kept
-      </p>
-      <table className="ttable">
-        <thead>
-          <tr>
-            <th>Side</th>
-            <th>Symbol</th>
-            <th style={{ textAlign: 'right' }}>Quantity</th>
-            <th style={{ textAlign: 'right' }}>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {ticket.sells.map((s) => (
-            <tr key={`s-${s.symbol}`}>
-              <td>Sell</td>
-              <td>{s.symbol}</td>
-              <td style={{ textAlign: 'right' }}>{s.quantity}</td>
-              <td style={{ textAlign: 'right' }}>{rupees(s.value)}</td>
-            </tr>
-          ))}
-          {ticket.buys.map((b) => (
-            <tr key={`b-${b.symbol}`}>
-              <td>Buy</td>
-              <td>{b.symbol}</td>
-              <td style={{ textAlign: 'right' }} className="tfine">
-                set at fill
-              </td>
-              <td style={{ textAlign: 'right' }}>{rupees(b.target_value)}</td>
-            </tr>
-          ))}
-          {ticket.sells.length + ticket.buys.length === 0 && (
-            <tr>
-              <td colSpan={4} className="tfine">
-                No trades: the book already holds what it wants.
-              </td>
-            </tr>
+    <>
+      <tr className="desk-row" onClick={onToggle} aria-expanded={open}>
+        <td>
+          <span className="desk-caret">{open ? '▾' : '▸'}</span>
+          <b title={ticket.deployment}>{title}</b>
+          {ticket.mode !== 'paper' && <span className="tbadge" data-tone="caveat">{ticket.mode}</span>}
+        </td>
+        <td className="r">{rupees(ticket.equity)}</td>
+        <td>
+          {trades === 0 ? (
+            <span className="tdim">no trades</span>
+          ) : (
+            <>
+              {ticket.sells.length > 0 && <span className="neg">{ticket.sells.length} sell {rupees(sold)}</span>}
+              {ticket.sells.length > 0 && ticket.buys.length > 0 && ' · '}
+              {ticket.buys.length > 0 && <span className="pos">{ticket.buys.length} buy {rupees(bought)}</span>}
+            </>
           )}
-        </tbody>
-      </table>
-      <h3 style={{ marginTop: 12 }}>Checks</h3>
-      <table className="ttable">
-        <tbody>
-          {ticket.checks.map((c) => (
-            <tr key={c.name}>
-              <td>{c.ok ? 'pass' : <b>block</b>}</td>
-              <td>{c.name}</td>
-              <td className="tfine">{c.detail}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {error && <p className="tnote bad">{error}</p>}
-      {!ticket.decision && (
-        <div style={{ marginTop: 8 }}>
-          <input
-            aria-label="note"
-            placeholder="note (optional)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            style={{ width: 260, font: 'inherit' }}
-          />{' '}
-          <button type="button" className="tbtn sm go" disabled={ticket.blocked} onClick={() => decide('approved')}>
-            Approve
-          </button>{' '}
-          <button type="button" className="tbtn sm" onClick={() => decide('rejected')}>
-            Reject
-          </button>
-        </div>
+        </td>
+        <td className="r">{rupees(ticket.est_cost)}</td>
+        <td className="tfine">{ticket.rebalance || '—'}</td>
+        <td className="r">
+          <span className="tbadge" data-tone={status.tone} title={failing.map((c) => `${c.name}: ${c.detail}`).join('\n')}>
+            {status.text}
+          </span>
+        </td>
+      </tr>
+      {open && (
+        <tr className="desk-detail">
+          <td colSpan={6}>
+            <div className="desk-orders">
+              {ticket.sells.map((x) => (
+                <span key={`s-${x.symbol}`} className="desk-order neg">
+                  Sell <b>{x.symbol}</b> {x.quantity} · {rupees(x.value)}
+                </span>
+              ))}
+              {ticket.buys.map((x) => (
+                <span key={`b-${x.symbol}`} className="desk-order pos">
+                  Buy <b>{x.symbol}</b> {rupees(x.target_value)}
+                </span>
+              ))}
+              {ticket.holds.length > 0 && (
+                <span className="tfine" title={ticket.holds.join(', ')}>
+                  {ticket.holds.length} kept
+                </span>
+              )}
+            </div>
+            <div className="tfine desk-checks">
+              {failing.map((c) => (
+                <div key={c.name} className="neg">
+                  ✕ {c.name}: {c.detail}
+                </div>
+              ))}
+              <span title={ticket.checks.filter((c) => c.ok).map((c) => `${c.name}: ${c.detail}`).join('\n')}>
+                ✓ {ticket.checks.length - failing.length} of {ticket.checks.length} checks pass
+              </span>
+            </div>
+            {error && <div className="tnote bad">{error}</div>}
+            {!ticket.decision && (
+              <div className="desk-decide">
+                <input
+                  className="tinput sm"
+                  aria-label="note"
+                  placeholder="note (optional)"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+                <button type="button" className="tbtn sm go" disabled={ticket.blocked} onClick={() => decide('approved')}>
+                  Approve
+                </button>
+                <button type="button" className="tbtn sm" onClick={() => decide('rejected')}>
+                  Reject
+                </button>
+              </div>
+            )}
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
-export function DeskTab() {
+export function DeskTab({ titles = {} }: { titles?: Record<string, string> }) {
   const [tickets, setTickets] = useState<DeskTicket[] | null>(null);
   const [error, setError] = useState('');
+  const [open, setOpen] = useState('');
   const read = useCallback(() => {
     agentsApi
       .tickets()
       .then((r) => {
-        setTickets(r.tickets);
+        // Live books only (operator, 2026-11-16): a paper ticket's decision is a
+        // record only, so paper books are not shown here.
+        setTickets(r.tickets.filter((t) => t.mode !== 'paper'));
         setError(r.ok ? '' : r.error ?? '');
       })
       .catch((e: unknown) => setError(String(e)));
@@ -127,18 +160,42 @@ export function DeskTab() {
     read();
   }, [read]);
   return (
-    <section className="tsection" style={{ display: 'grid', gap: 16 }}>
-      <p className="tfine">
-        A paper ticket&rsquo;s decision is a record only; paper books keep trading on their own. A live
-        book will not send a day&rsquo;s orders until that day&rsquo;s ticket is approved, and a blocked
-        ticket cannot be approved.
-      </p>
-      {error && <p className="tnote bad">{error}</p>}
-      {tickets === null ? null : tickets.length === 0 ? (
-        <div className="tempty">No active deployments, so no tickets.</div>
+    <div className="tpanel desk">
+      <h3>
+        Live books: next rebalance{' '}
+        <span className="tfine">a live book sends nothing until its ticket is approved</span>
+      </h3>
+      {error && <div className="tnote bad">{error}</div>}
+      {tickets === null ? (
+        <div className="tempty">Reading tickets…</div>
+      ) : tickets.length === 0 ? (
+        <div className="tempty">No live book is running, so nothing waits for approval. Paper books trade on their own.</div>
       ) : (
-        tickets.map((t) => <TicketCard key={t.id} ticket={t} onDone={read} />)
+        <table className="ttable desk-table">
+          <thead>
+            <tr>
+              <th>Book</th>
+              <th className="r">Equity</th>
+              <th>Orders</th>
+              <th className="r">Est. cost</th>
+              <th>Rebalance</th>
+              <th className="r">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map((t) => (
+              <TicketRow
+                key={t.id}
+                ticket={t}
+                title={titles[t.strategy] ?? t.strategy}
+                open={open === t.id}
+                onToggle={() => setOpen(open === t.id ? '' : t.id)}
+                onDone={read}
+              />
+            ))}
+          </tbody>
+        </table>
       )}
-    </section>
+    </div>
   );
 }

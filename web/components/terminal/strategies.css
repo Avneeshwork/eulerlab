@@ -33,7 +33,8 @@
 .st-name b { display: block; font-weight: 600; color: var(--ink); }
 .st-name span { font-size: 12px; color: var(--ink-3); }
 .st-spark { width: 104px; }
-.st-act { text-align: right; }
+.st-act { text-align: right; white-space: nowrap; }
+.st-act .tbtn + .tbtn { margin-left: 0.4rem; }
 
 .st-verdict {
   display: inline-block;
@@ -115,3 +116,24 @@
   flex-wrap: wrap;
 }
 .st-filters .info { align-self: center; }
+.st-src { max-width: 15rem; font-size: 12px; }
+.st-src a { color: var(--brand); text-decoration: none; }
+.st-src a:hover { text-decoration: underline; }
+/* Tighter rows (operator, 2026-11-16): two-line titles, smaller padding, icon-only source link. */
+.st-table td { padding-top: 6px; padding-bottom: 6px; }
+.st-name b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+.st-name span { font-size: 11px; }
+.st-src, .st-src-h { width: 56px; text-align: center; }
+.st-link { display: inline-flex; align-items: center; justify-content: center; color: var(--brand); }
+.st-act { width: 1%; }
+.st-act .tbtn, .st-act .ticon { vertical-align: middle; }
+.st-divider { width: 1px; align-self: stretch; margin: 6px 4px; background: var(--rule-2, var(--line)); }
+.st-table td.st-name { min-width: 0; width: 28%; max-width: 340px; }
+.st-table td.num, .st-table th { padding-left: 12px; padding-right: 12px; }
+/* Centred number columns, a narrow two-line Max drawdown head, spaced actions (operator, 2026-11-16). */
+.st-table th.r, .st-table td.num { text-align: center; }
+.st-table th:nth-child(4) { white-space: normal; width: 76px; line-height: 1.2; }
+.st-table td.st-sharpe .bar, .st-table td.st-sharpe > * { margin-left: auto; margin-right: auto; }
+.st-act-h { text-align: center !important; }
+.st-act { text-align: center; }
+.st-act .tbtn + .tbtn, .st-act .tbtn + .ticon { margin-left: 10px; }

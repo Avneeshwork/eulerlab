@@ -15,6 +15,7 @@
  * would be a picture of a run that did not happen.
  */
 
+import { Archive, ArchiveRestore, ExternalLink } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ASSET_CLASSES, assetClassLabel, homeMarket } from '@/lib/assetClasses';
@@ -28,6 +29,7 @@ import { Bar, Info, Move } from '@/components/terminal/ui';
 import { api, headlineSharpe } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
+import { belowPaperFloor } from '@/lib/paperFloor';
 import type { Fleet, FleetStrategy, OptimizeRow, Recommended, StrategyVerdict } from '@/lib/api';
 import './strategies.css';
 
@@ -81,6 +83,28 @@ function sourceOf(s: FleetStrategy): Exclude<Source, ''> {
   return 'coded';
 }
 
+/**
+ * The paper behind a strategy as a link (operator, 2026-11-16: the Source column
+ * replaces Verdict). `source` is a citation, not a URL, so the link is built from
+ * what it names: an arXiv id, an SSRN id or a GitHub repo go straight there; any
+ * other paper opens a Google Scholar search for it; an internal research note has
+ * no link.
+ */
+function sourceLink(source: string): { label: string; href: string | null } {
+  const tagged = /^\[(paper|github|practitioner|adaptation)\]\s*/i.exec(source);
+  const text = tagged ? source.slice(tagged[0].length) : source;
+  const year = /^(.*?\(\d{4}\))/.exec(text);
+  const label = (year ? year[1] : text).slice(0, 48);
+  const arxiv = /arXiv:?\s*(\d{4}\.\d{4,5})/i.exec(text);
+  if (arxiv) return { label, href: `https://arxiv.org/abs/${arxiv[1]}` };
+  const ssrn = /SSRN\s*(\d{5,8})/i.exec(text);
+  if (ssrn) return { label, href: `https://papers.ssrn.com/sol3/papers.cfm?abstract_id=${ssrn[1]}` };
+  const repo = /([\w.-]+\/[\w.-]+)\s*\(GitHub/i.exec(text);
+  if (repo) return { label, href: `https://github.com/${repo[1]}` };
+  if (tagged || year) return { label, href: `https://scholar.google.com/scholar?q=${encodeURIComponent(text.slice(0, 160))}` };
+  return { label, href: null };
+}
+
 const SOURCE_LABEL: Record<Exclude<Source, ''>, string> = {
   paper: 'From a paper',
   builder: 'My builder',
@@ -110,6 +134,13 @@ const RUNG_ORDER: Record<string, number> = {
   registered: 3,
   retired: 4,
 };
+
+/**
+ * In the archive: put away by the operator, killed by the gate (`isAway`), or no stored backtest report yet
+ * (the report's period is unset). The second comes back to the main list by
+ * itself once a backtest writes its report (ADR-208).
+ */
+const inArchive = (s: FleetStrategy) => isAway(s) || !s.table?.period?.[0];
 
 export function Library({
   fleet,
@@ -159,9 +190,6 @@ export function Library({
   const [sort, setSort] = useState<Sort>('verdict');
   const [descending, setDescending] = useState(true);
   const [style, setStyle] = useState<Style>('');
-  const [source, setSource] = useState<Source>('');
-  const [verdict, setVerdict] = useState<StrategyVerdict | ''>('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
   // What the running job last said, and when it started. A row that only says
@@ -236,11 +264,9 @@ export function Library({
     if (!fleet) return [];
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
-      if (isAway(s) !== showArchived) return false;
+      if (inArchive(s) !== showArchived) return false;
       if (assetClass && homeMarket(s) !== assetClass) return false;
       if (style && styleOf(s) !== style) return false;
-      if (source && sourceOf(s) !== source) return false;
-      if (verdict && verdictOf(s) !== verdict) return false;
       if (!needle) return true;
       return [s.id, s.title, s.kind, s.shape, s.summary, s.source].some((field) =>
         field.toLowerCase().includes(needle)
@@ -284,7 +310,7 @@ export function Library({
       });
     }
     return ordered;
-  }, [fleet, query, assetClass, style, source, verdict, sort, descending, showArchived]);
+  }, [fleet, query, assetClass, style, sort, descending, showArchived]);
 
   const sortBy = useCallback(
     (next: Sort) => {
@@ -310,7 +336,7 @@ export function Library({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openStrategy?.id]);
 
-  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter(isAway).length, [fleet]);
+  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter(inArchive).length, [fleet]);
   // Leaving the archive view when the last one is restored, so the page does
   // not sit on an empty list.
   useEffect(() => {
@@ -329,11 +355,6 @@ export function Library({
         }
         setLastArchive(undo ? null : { ids, archived });
         setNote('');
-        setSelected((prev) => {
-          const next = new Set(prev);
-          for (const id of ids) next.delete(id);
-          return next;
-        });
         setOpen((current) => (current && ids.includes(current) ? null : current));
         onRefresh();
       } catch (error) {
@@ -341,22 +362,6 @@ export function Library({
       }
     },
     [onRefresh]
-  );
-
-  const toggle = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  // A strategy that cannot be run can still be selected, to archive it; only
-  // the runnable part of a selection is offered to the Backtest dialog.
-  const runnableSelected = useMemo(
-    () => (fleet?.strategies ?? []).filter((s) => selected.has(s.id) && s.runnable),
-    [fleet, selected]
   );
 
   const backtest = useCallback(
@@ -446,53 +451,37 @@ export function Library({
             {option.label}
           </button>
         ))}
-      </div>
-
-      <div className="st-filters">
-        <ChipGroup
-          label="Style"
-          value={style}
-          onChange={(v) => setStyle(v as Style)}
-          options={[
-            { value: 'intraday', label: 'Intraday' },
-            { value: 'daily', label: 'Daily' },
-          ]}
-        />
-        <ChipGroup
-          label="Source"
-          value={source}
-          onChange={(v) => setSource(v as Source)}
-          options={(['paper', 'builder', 'coded'] as const).map((v) => ({ value: v, label: SOURCE_LABEL[v] }))}
-        />
-        <ChipGroup
-          label="Verdict"
-          value={verdict}
-          onChange={(v) => setVerdict(v as StrategyVerdict | '')}
-          options={VERDICTS.map((v) => ({ value: v.value, label: v.label }))}
-        />
-        <Info label="What the filters mean">
-          {VERDICTS.map((v) => `${v.label}: ${v.hint}`).join(' ')}{' '}
-          {classes
-            .filter((option) => option.note)
-            .map((option) => `${option.label}: ${option.note}`)
-            .join(' ')}{' '}
-          Archived: strategies you have put away; their results and trials are kept.
-        </Info>
+        {/* Second group, same row (operator, 2026-11-16): bar length and the
+            archive. Click a chip again to clear it. */}
+        <span className="st-divider" aria-hidden="true" />
+        {(
+          [
+            ['intraday', 'Minute level'],
+            ['daily', 'Daily'],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            className="tchip"
+            type="button"
+            aria-pressed={style === value}
+            onClick={() => setStyle(style === value ? '' : value)}
+          >
+            {label}
+          </button>
+        ))}
         {(archivedCount > 0 || showArchived) && (
-          <div className="st-chips" role="group" aria-label="Archive">
-            <button
-              className="tchip sm"
-              type="button"
-              aria-pressed={showArchived}
-              onClick={() => {
-                setShowArchived((v) => !v);
-                setSelected(new Set());
-                setOpen(null);
-              }}
-            >
-              Archived and killed {archivedCount}
-            </button>
-          </div>
+          <button
+            className="tchip"
+            type="button"
+            aria-pressed={showArchived}
+            onClick={() => {
+              setShowArchived((v) => !v);
+              setOpen(null);
+            }}
+          >
+            Archived {archivedCount}
+          </button>
         )}
       </div>
 
@@ -535,24 +524,15 @@ export function Library({
         <table className="st-table">
           <thead>
             <tr>
-              <th className="st-sel" aria-label="Select" />
               <SortHead label="Strategy" sort="name" current={sort} descending={descending} onSort={sortBy} align="left" />
               <th className="st-spark">Equity</th>
               <SortHead label="Annual return" sort="annual" current={sort} descending={descending} onSort={sortBy} />
-              <th>
-                Nifty, same period
-                <Info align="right">
-                  NIFTYBEES held over the same period, before costs. Annual return and Sharpe are the
-                  strategy&apos;s latest run after costs; the bar under Sharpe is drawn against the noise
-                  bar a strategy must clear. Max drawdown is the deepest fall from a peak.
-                </Info>
-              </th>
               <SortHead label="Max drawdown" sort="drawdown" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Sharpe (realistic fills)" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Trades" sort="trades" current={sort} descending={descending} onSort={sortBy} />
-              <SortHead label="Verdict" sort="verdict" current={sort} descending={descending} onSort={sortBy} align="left" />
-              <th aria-label="Actions" />
+              <th className="st-src-h">Source</th>
+              <th className="st-act-h">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -572,16 +552,9 @@ export function Library({
                       if (event.key === 'Enter') setOpen(open === strategy.id ? null : strategy.id);
                     }}
                   >
-                    <td className="st-sel" onClick={(event) => event.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(strategy.id)}
-                        onChange={() => toggle(strategy.id)}
-                        aria-label={`Select ${strategy.title}`}
-                      />
-                    </td>
                     <td className="st-name">
-                      <b>{strategy.title}</b>
+                      {/* No "H-0162 · " prefix in the list (operator, 2026-11-16); the id stays in the hover title. */}
+                      <b title={strategy.title}>{strategy.title.replace(/^H-\d+\s*·\s*/, '')}</b>
                       <span>
                         {assetClassLabel(homeMarket(strategy))} ·{' '}
                         {styleOf(strategy) === 'intraday' ? 'intraday' : 'daily'} · {SOURCE_LABEL[sourceOf(strategy)].toLowerCase()}
@@ -603,7 +576,6 @@ export function Library({
                     <td className="num">
                       <Move value={annualOf(strategy)} text={pct(annualOf(strategy))} />
                     </td>
-                    <td className="num tdim">{pct(t?.nifty_return ?? null, 0)}</td>
                     <td className={`num ${strategy.result.max_drawdown ? 'neg' : ''}`}>{pct(strategy.result.max_drawdown ?? null, 0)}</td>
                     <td className="num st-sharpe" title={sharpeTitle(strategy)}>
                       {(() => {
@@ -625,10 +597,23 @@ export function Library({
                     </td>
                     <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
                     <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
-                    <td>
-                      <span className={`st-verdict v-${v}`}>
-                        {VERDICTS.find((x) => x.value === v)?.label}
-                      </span>
+                    <td className="st-src" onClick={(event) => event.stopPropagation()}>
+                      {(() => {
+                        const src = sourceLink(strategy.source);
+                        // A link button only; an internal research note has no page to open.
+                        return src.href ? (
+                          <a
+                            className="ticon sm st-link"
+                            href={src.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={strategy.source}
+                            aria-label={`Open the source: ${src.label}`}
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        ) : null;
+                      })()}
                     </td>
                     <td className="st-act" onClick={(event) => event.stopPropagation()}>
                       <button
@@ -642,11 +627,24 @@ export function Library({
                       <button
                         className="tbtn sm ghost-line"
                         type="button"
-                        disabled={!!strategy.deploy_blocker}
+                        disabled={!!strategy.deploy_blocker || !!belowPaperFloor(strategy)}
                         onClick={() => onDeploy(strategy)}
-                        title={strategy.deploy_blocker ? `Cannot paper-trade: ${strategy.deploy_blocker}` : 'Put it on paper trading'}
+                        title={
+                          strategy.deploy_blocker
+                            ? `Cannot paper-trade: ${strategy.deploy_blocker}`
+                            : belowPaperFloor(strategy) || 'Put it on paper trading'
+                        }
                       >
                         Deploy
+                      </button>
+                      <button
+                        className="ticon sm st-archive"
+                        type="button"
+                        onClick={() => void setArchived([strategy.id], !showArchived)}
+                        title={showArchived ? 'Restore to the main list' : 'Archive'}
+                        aria-label={showArchived ? `Restore ${strategy.title}` : `Archive ${strategy.title}`}
+                      >
+                        {showArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
                       </button>
                     </td>
                   </tr>
@@ -710,9 +708,13 @@ export function Library({
             <button
               className="tbtn ghost-line"
               type="button"
-              disabled={!!openStrategy.deploy_blocker}
+              disabled={!!openStrategy.deploy_blocker || !!belowPaperFloor(openStrategy)}
               onClick={() => onDeploy(openStrategy)}
-              title={openStrategy.deploy_blocker ? `Cannot paper-trade: ${openStrategy.deploy_blocker}` : 'Put it on paper trading'}
+              title={
+                openStrategy.deploy_blocker
+                  ? `Cannot paper-trade: ${openStrategy.deploy_blocker}`
+                  : belowPaperFloor(openStrategy) || 'Put it on paper trading'
+              }
             >
               Deploy
             </button>
@@ -762,28 +764,6 @@ export function Library({
         </aside>
       )}
 
-      {selected.size > 0 && (
-        <div className="tsel">
-          <b>{selected.size}</b> selected
-          <Info>Instruments, period and capital are chosen in the next step.</Info>
-          <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
-            Clear
-          </button>
-          <button className="tbtn" type="button" onClick={() => void setArchived([...selected], !showArchived)}>
-            {showArchived ? `Restore ${selected.size}` : `Archive ${selected.size}`}
-          </button>
-          {runnableSelected.length > 0 && (
-            <button
-              className="tbtn"
-              type="button"
-              disabled={busy.size > 0}
-              onClick={() => onConfigure(runnableSelected)}
-            >
-              {busy.size > 0 ? 'Running…' : `Backtest ${runnableSelected.length}`}
-            </button>
-          )}
-        </div>
-      )}
     </>
   );
 }
@@ -1328,38 +1308,5 @@ function SortHead({
         <span aria-hidden="true">{active ? (descending ? ' ↓' : ' ↑') : ''}</span>
       </button>
     </th>
-  );
-}
-
-function ChipGroup({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string; title?: string }[];
-}) {
-  return (
-    <div className="st-chips" role="group" aria-label={label}>
-      <span className="st-chips-label">{label}</span>
-      <button className="tchip sm" type="button" aria-pressed={value === ''} onClick={() => onChange('')}>
-        All
-      </button>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          className="tchip sm"
-          type="button"
-          title={option.title}
-          aria-pressed={value === option.value}
-          onClick={() => onChange(value === option.value ? '' : option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
   );
 }

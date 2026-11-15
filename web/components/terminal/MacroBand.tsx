@@ -13,7 +13,6 @@
  * four numbers in a row do not answer that at a glance.
  */
 
-import { Info } from '@/components/terminal/ui';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { MacroReading } from '@/lib/api';
@@ -116,6 +115,36 @@ const GROUPS: [string, string][] = [
   ['risk', 'Risk'],
 ];
 
+const RANGES: [string, number][] = [
+  ['1M', 31],
+  ['3M', 92],
+  ['6M', 183],
+];
+
+const level = (v: number) =>
+  v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: v < 20 ? 3 : 2 });
+
+/** Points within the last `days` of the series' own last reading. */
+function within(points: MacroPoint[], days: number): MacroPoint[] {
+  if (!points.length) return points;
+  const end = Date.parse(points[points.length - 1].at);
+  return points.filter((p) => end - Date.parse(p.at) <= days * 86_400_000);
+}
+
+/** Change over the window, in percent of the first reading (or points for a yield). */
+function change(points: MacroPoint[], unit: string): string {
+  if (points.length < 2) return '—';
+  const first = points[0].value;
+  const last = points[points.length - 1].value;
+  if (unit === '%') {
+    const bp = (last - first) * 100;
+    return `${bp >= 0 ? '+' : '−'}${Math.abs(bp).toFixed(0)} bp`;
+  }
+  if (!first) return '—';
+  const pct = ((last - first) / first) * 100;
+  return `${pct >= 0 ? '+' : '−'}${Math.abs(pct).toFixed(1)}%`;
+}
+
 export function MacroBand({
   rows,
   spread,
@@ -130,6 +159,8 @@ export function MacroBand({
 }) {
   const [view, setView] = useState<'charts' | 'numbers'>('charts');
   const [history, setHistory] = useState<Record<string, MacroPoint[]>>({});
+  const [focus, setFocus] = useState('');
+  const [range, setRange] = useState(92);
   useEffect(() => {
     let live = true;
     api
@@ -141,20 +172,16 @@ export function MacroBand({
     };
   }, []);
   if (!rows.length) return null;
+  const chosen = rows.find((r) => r.name === focus) ?? rows.find((r) => r.name === 'US 10Y') ?? rows[0];
+  const big = within(history[chosen.name] ?? [], range);
   return (
     <section>
       <h3 className="report-h">
         Macro
-        {/* The time of the sweep, not "live": the numbers are one landed
-            snapshot, which on 1 Nov was Friday's mid-session one (T-4345). */}
         <span className="tfine hstat">
           {stale ? 'last good sweep' : 'sweep'}
-          {sweptAt ? ` of ${sweepTime(sweptAt)}` : ''} · {rows.length} series
+          {sweptAt ? ` of ${sweepTime(sweptAt)}` : ''}
         </span>
-        <Info>
-          From TradingView&apos;s public scanner: one request, no key. FMP&apos;s free plan answers 402
-          for WTI, natural gas and the dollar index, and serves no sovereign yields at all.
-        </Info>
       </h3>
 
       <div className="mkttoggle" style={{ marginBottom: 12 }}>
@@ -168,12 +195,6 @@ export function MacroBand({
             {mode === 'charts' ? 'Charts' : 'Numbers'}
           </button>
         ))}
-        {view === 'charts' && (
-          <span className="tfine mktnote">
-            Each series as this platform recorded it, one point per sweep, over the last
-            six months. The scanner returns one reading per symbol, so the history is ours.
-          </span>
-        )}
       </div>
 
       {view === 'numbers' ? (
@@ -195,20 +216,67 @@ export function MacroBand({
           })}
         </div>
       ) : (
-        GROUPS.map(([group, label]) => {
-          const kept = rows.filter((r) => r.group === group);
-          if (!kept.length) return null;
-          return (
-            <div key={group} style={{ marginBottom: 16 }}>
-              <div className="mgrouphead">{label}</div>
-              <div className="minigrid">
-                {kept.map((r) => (
-                  <MacroLine key={r.symbol} label={r.name} unit={r.unit} points={history[r.name] ?? []} />
+        <>
+          <div className="ownchart mfocus">
+            <div className="mfocus-head">
+              <div>
+                <b>{chosen.name}</b>
+                <span className="mfocus-last">
+                  {level(chosen.last)}
+                  {chosen.unit && <i className="munit">{chosen.unit}</i>}
+                </span>
+                <span className={chosen.change_pct >= 0 ? 'mchg up' : 'mchg dn'}>
+                  {pctRaw(chosen.change_pct)} today
+                </span>
+                <span className="tfine">
+                  {change(big, chosen.unit)} over {RANGES.find(([, d]) => d === range)?.[0]}
+                </span>
+              </div>
+              <div className="mkttoggle">
+                {RANGES.map(([label, days]) => (
+                  <button key={label} type="button" className={range === days ? 'on' : ''} onClick={() => setRange(days)}>
+                    {label}
+                  </button>
                 ))}
               </div>
             </div>
-          );
-        })
+            <MacroLine key={`${chosen.name}-${range}`} points={big} height={340} />
+          </div>
+
+          {GROUPS.map(([group, label]) => {
+            const kept = rows.filter((r) => r.group === group);
+            if (!kept.length) return null;
+            return (
+              <div key={group} className="mcards-group">
+                <div className="mgrouphead">{label}</div>
+                <div className="mcards">
+                  {kept.map((r) => {
+                    const pts = within(history[r.name] ?? [], range);
+                    return (
+                      <button
+                        key={r.symbol}
+                        type="button"
+                        className={`mcard${r.name === chosen.name ? ' on' : ''}`}
+                        onClick={() => setFocus(r.name)}
+                      >
+                        <span className="mcard-top">
+                          <b>{r.name}</b>
+                          <span className={r.change_pct >= 0 ? 'mchg up' : 'mchg dn'}>{pctRaw(r.change_pct)}</span>
+                        </span>
+                        <span className="mcard-last">
+                          {level(r.last)}
+                          {r.unit && <i className="munit">{r.unit}</i>}
+                          <span className="tfine"> {change(pts, r.unit)}</span>
+                        </span>
+                        <MacroLine points={pts} height={56} compact />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </>
       )}
     </section>
   );

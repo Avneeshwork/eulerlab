@@ -109,6 +109,41 @@ def last_day_jsonl(path: Path, field: str = "d") -> str:
     return str(value)
 
 
+_MAX_DAY_CACHE: dict[str, tuple[int, str]] = {}
+
+
+def max_day_jsonl(path: Path) -> str:
+    """The latest `"d"` day anywhere in a JSONL table, cached by mtime.
+
+    The market-history tables (index history, delivery, Nifty futures) are
+    extended, not rebuilt: a backfilled older day (a weekend special session,
+    the 2000-2014 history) is appended after the newest one, so their last line
+    is not their last day. Reading the last line made the Data page show
+    "2941 behind" for all three on 2026-11-15 (HISTORY, same date).
+    """
+    if not path.exists():
+        return ""
+    stamp = path.stat().st_mtime_ns
+    cached = _MAX_DAY_CACHE.get(str(path))
+    if cached and cached[0] == stamp:
+        return cached[1]
+    best = ""
+    key = b'"d":'
+    with path.open("rb") as handle:
+        for line in handle:
+            at = line.find(key)
+            if at < 0:
+                continue
+            start = line.find(b'"', at + len(key))
+            if start < 0:
+                continue
+            day = line[start + 1 : start + 11].decode("ascii", "replace")
+            if len(day) == 10 and day[4] == "-" and day > best:
+                best = day
+    _MAX_DAY_CACHE[str(path)] = (stamp, best)
+    return best
+
+
 _SCAN_CACHE: dict[tuple[str, str], tuple[int, dict[str, str]]] = {}
 
 
@@ -446,9 +481,9 @@ def table(now: datetime | None = None) -> list[Row]:
         "nse",
         detail="what backtests and paper trading read",
     )
-    add(built, "Index history", last_day_jsonl(DERIVED / "index_history.jsonl"), "nse")
-    add(built, "Delivery table", last_day_jsonl(DERIVED / "delivery.jsonl"), "nse")
-    add(built, "Nifty futures", last_day_jsonl(DERIVED / "nifty_futures.jsonl"), "nse")
+    add(built, "Index history", max_day_jsonl(DERIVED / "index_history.jsonl"), "nse")
+    add(built, "Delivery table", max_day_jsonl(DERIVED / "delivery.jsonl"), "nse")
+    add(built, "Nifty futures", max_day_jsonl(DERIVED / "nifty_futures.jsonl"), "nse")
     add(built, "Nifty options", last_day_jsonl(DERIVED / "nifty_options.jsonl"), "nse")
     add(built, "US daily panel", last_day_jsonl(DERIVED / "us_panel.jsonl"), "us")
 

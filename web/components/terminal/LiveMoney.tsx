@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Info } from "@/components/terminal/ui";
+
 type Pick = {
   symbol: string;
   side: number;
@@ -225,7 +227,12 @@ function Holdings({
   );
 }
 
-export function LiveMoney() {
+export function LiveMoney({
+  onReport,
+}: {
+  /** Open a strategy's backtest report. */
+  onReport?: (strategyId: string) => void;
+} = {}) {
   const [status, setStatus] = useState<Status | null>(null);
   const [problem, setProblem] = useState("");
   const [capital, setCapital] = useState("1000");
@@ -294,37 +301,67 @@ export function LiveMoney() {
     a < b ? 1 : -1,
   );
 
+  const badge = tripped
+    ? { tone: "down", text: "Kill switch on" }
+    : armed
+      ? { tone: "caveat", text: `Armed for ${deploy.for_session ?? "next session"}` }
+      : { tone: "", text: "Idle" };
+  const held = preview?.what_if.positions.length ?? 0;
+
+  // Killed: one line and nothing else. Nothing can be sent until the switch is
+  // cleared with the separate token, so the form would only be noise (operator, 2026-11-16).
+  if (tripped) {
+    return (
+      <div className="tpanel lm lm-killed">
+        <b>Real money · H-0194 gap fade</b>
+        <span className="tbadge" data-tone="down">
+          Killed
+        </span>
+        <span className="tfine" title={status?.kill_switch.reason}>
+          {status?.kill_switch.reason} · clear with <code>make kill-status</code>
+        </span>
+        {onReport && (
+          <button className="paper-bt" type="button" onClick={() => onReport("H-0194")}>
+            Backtest →
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="tpanel">
-      <h3>Real money · H-0194 gap fade on Angel One</h3>
-      <p className="tfine">
-        Fades a 3% opening gap with no NSE filing since 15:30 the day before:
-        short the gap-ups, buy the gap-downs, at 09:20, closed at 15:10 (MIS).
-        ETFs, ASM/GSM and trade-for-trade stocks are skipped. Each Deploy covers
-        one session. The backtest overstates this about 2x (research 180).
-      </p>
+    <div className="tpanel lm">
+      <div className="lm-head">
+        <h3>
+          Real money · H-0194 gap fade
+          <Info>
+            Fades a 3% opening gap with no NSE filing: short the gap-ups, buy the
+            gap-downs, 09:20 to 15:10 (MIS) on Angel One, one session per Deploy.
+            ETFs, ASM/GSM and trade-for-trade stocks are skipped. The backtest
+            overstates this about 2x (research 180).
+          </Info>
+        </h3>
+        <span className="tbadge" data-tone={badge.tone}>
+          {badge.text}
+        </span>
+        {onReport && (
+          <button className="tbtn sm" type="button" onClick={() => onReport("H-0194")}>
+            Backtest report
+          </button>
+        )}
+      </div>
 
       {tripped && (
-        <div className="tempty" style={{ borderColor: "var(--down)" }}>
-          <b>Kill switch tripped:</b> {status?.kill_switch.reason}. Nothing can
-          be sent until it is cleared with the separate token (
-          <code>make kill-status</code> shows how).
+        <div className="tnote bad">
+          Kill switch tripped ({status?.kill_switch.reason}). Clear it with the
+          separate token: <code>make kill-status</code>.
         </div>
       )}
-      {problem && <div className="tempty">{problem}</div>}
+      {problem && <div className="tnote bad">{problem}</div>}
 
-      <div
-        style={{
-          display: "flex",
-          gap: 16,
-          flexWrap: "wrap",
-          alignItems: "end",
-          margin: "12px 0",
-        }}
-      >
+      <div className="lm-row">
         <label>
-          Amount (₹)
-          <br />
+          <span>Amount ₹</span>
           <input
             className="tinput sm"
             inputMode="decimal"
@@ -333,8 +370,7 @@ export function LiveMoney() {
           />
         </label>
         <label>
-          Leverage
-          <br />
+          <span>Leverage</span>
           <select
             className="tinput sm"
             value={leverage}
@@ -348,8 +384,7 @@ export function LiveMoney() {
           </select>
         </label>
         <label>
-          Daily loss cap (₹)
-          <br />
+          <span>Daily loss cap ₹</span>
           <input
             className="tinput sm"
             inputMode="decimal"
@@ -367,38 +402,35 @@ export function LiveMoney() {
               .catch((e: Error) => setProblem(e.message))
           }
         >
-          Check Angel cash
+          {funds === undefined ? "Check Angel cash" : `Angel cash ${inr(funds)}`}
         </button>
-        {funds !== undefined && (
-          <span className="tfine">Available: {inr(funds)}</span>
-        )}
       </div>
 
       {preview && (
-        <div className="tfine" style={{ marginBottom: 12 }}>
+        <div className="lm-preview tfine">
           {preview.refused ? (
             <b>{preview.refused}</b>
           ) : (
             <>
-              <b>
-                {inr(preview.exposure)} of exposure: {preview.names} name(s) at{" "}
-                {inr(preview.per_name)} each, for the session of{" "}
-                {preview.for_session}.
-              </b>
-              {preview.notes.map((n) => (
-                <div key={n}>{n}</div>
-              ))}
-              <Holdings
-                w={preview.what_if}
-                names={preview.names}
-                perName={preview.per_name}
-              />
+              <b>{inr(preview.exposure)}</b> exposure · {preview.names} name(s) at{" "}
+              {inr(preview.per_name)} · last dry run: {preview.what_if.passed ?? 0} passed,{" "}
+              {held} held
+              <Info>
+                For the session of {preview.for_session}. {preview.notes.join(". ")}.
+              </Info>
+              {held > 0 && (
+                <Holdings
+                  w={preview.what_if}
+                  names={preview.names}
+                  perName={preview.per_name}
+                />
+              )}
               {funds !== undefined &&
                 funds !== null &&
                 funds < Number(capital) && (
-                  <div style={{ color: "var(--down)" }}>
-                    Angel shows {inr(funds)} available, less than the amount:
-                    orders would be rejected.
+                  <div className="neg">
+                    Angel shows {inr(funds)}, less than the amount: orders would
+                    be rejected.
                   </div>
                 )}
             </>
@@ -406,28 +438,19 @@ export function LiveMoney() {
         </div>
       )}
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
+      <div className="lm-row">
         <button
           className="tbtn sm"
           type="button"
           disabled={!!busy || !preview || !!preview.refused}
           onClick={() => act("dry", "/api/live-money/dry-run", sizeBody())}
         >
-          {busy === "dry"
-            ? "Dry run… (about a minute)"
-            : "Dry run now (sends nothing)"}
+          {busy === "dry" ? "Dry run… (about a minute)" : "Dry run"}
         </button>
         {!armed ? (
           <>
             <input
-              className="tinput sm"
+              className="tinput sm lm-confirm"
               placeholder="type DEPLOY"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
@@ -450,7 +473,7 @@ export function LiveMoney() {
                 }).then(() => setConfirm(""))
               }
             >
-              Deploy with real money
+              Deploy real money
             </button>
           </>
         ) : (
@@ -477,7 +500,7 @@ export function LiveMoney() {
             }
           }}
         >
-          Kill: close all now
+          Kill: close all
         </button>
       </div>
 
@@ -495,7 +518,9 @@ export function LiveMoney() {
         {status?.clock ?? "…"} · {status?.now_ist?.slice(11, 16)} IST
       </div>
 
-      {days.map(([day, d]) => (
+      {days
+        .filter(([, d]) => d.plan || d.dry_run || d.open || d.watch || d.close)
+        .map(([day, d]) => (
         <div key={day} style={{ marginTop: 16 }}>
           <h4>{day}</h4>
           {d.plan && (
@@ -598,7 +623,7 @@ export function LiveMoney() {
           )}
           {d.close && <div className="tfine">Exit: {d.close.status}</div>}
         </div>
-      ))}
+        ))}
     </div>
   );
 }

@@ -159,6 +159,22 @@ def test_the_last_line_is_read_from_the_end(tmp_path: Path) -> None:
     assert coverage.last_day_jsonl(tmp_path / "absent.jsonl") == ""
 
 
+def test_an_appended_older_day_does_not_hide_the_latest(tmp_path: Path) -> None:
+    # Market-history tables append backfilled days after the newest one, so the
+    # last line can be years old (2026-11-15: "2941 behind").
+    path = tmp_path / "delivery.jsonl"
+    rows = [
+        {"d": "2026-11-12"},
+        {"stocks": {"A": [1]}, "d": "2026-11-13"},
+        {"d": "2015-02-28"},
+        {"d": "2014-12-31"},
+    ]
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows))
+    assert coverage.last_day_jsonl(path) == "2014-12-31"
+    assert coverage.max_day_jsonl(path) == "2026-11-13"
+    assert coverage.max_day_jsonl(tmp_path / "absent.jsonl") == ""
+
+
 def test_the_census_dates_by_key_not_by_file_name() -> None:
     keys = [
         "crypto/ZRO/ZROUSDT-1m-2026-10-07.jsonl.gz",
