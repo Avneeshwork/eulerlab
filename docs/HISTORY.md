@@ -492,6 +492,8 @@ figure produced outside the result store before this date was frictionless.
 
 **96. Stocks on the Move, Weinstein Stage 2 and volatility targeting are weaker on the years nobody had seen.** (2026-11-15) The 2016-2026 screening runs (research 113) showed Sharpe 1.06 / 1.02 / 0.92. Pre-registered as H-0251 to H-0253 and run from 2005 with the 2000-2014 history and DP charges (ADR-203): 2005-2015 Sharpe 0.52 / 0.29 / 0.71, full window 0.77 / 0.66 / 0.81, max drawdowns -57% / -72% / -52% (all in 2008). Gate: PROMOTE / PAPER (55% positive years) / PROMOTE, with the cards' own red flag that 2016-2024 was seen before they were written. Invalid: the 2016-2026 figures as an estimate of these rules' Sharpe.
 
+**97. LIQUIDBEES earns nothing in every backtest.** (2026-11-15) LIQUIDBEES pays its overnight yield as daily dividends reinvested in units; its price stays at ₹1,000 (2003-2014 rows: 999.95 to 1000.01), and the factor store has no event for it (ISIN INF732E01037). So the "cash" leg of `VolatilityTarget` (H-0253) and `Halloween` earns 0% where it really earned about 5-8% a year. Found while checking H-0253's 2008 drawdown, which is not this: recomputed by hand from the raw rows, the rule's monthly weight was 0.42-1.0 through 2008 (1.0 in May-June, 0.58 in October) and the book fell 51.7%, as the engine says (-51.6%). The rule only cuts exposure when the last month's volatility exceeds the trailing 3-year level, and 2008 raised that level too. Invalid: H-0253's and Halloween's returns and Sharpe are understated by the missing cash yield; drawdowns are about right. Fix: model LIQUIDBEES' yield (T-4638); a rerun is a new trial.
+
 ## What the project has actually concluded
 
 **Nothing has beaten the strict bar.** Under it (deflated Sharpe against the
