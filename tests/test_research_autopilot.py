@@ -106,6 +106,94 @@ def test_fingerprint_ignores_condition_order() -> None:
     assert len({s.fingerprint() for s in engine.reference_specs().values()}) == 10
 
 
+# --- look-ahead: the entries for a day are the same on data cut at its open (ADR-200) ---
+
+
+def _random_data(seed: int, n: int = 80) -> engine.Data:
+    import random
+
+    rng = random.Random(seed)
+    names = [f"S{i:02d}" for i in range(12)]
+    closes, opens = {}, {}
+    for s in names:
+        c, o, price = [], [], 100.0
+        for _ in range(n):
+            o.append(price * (1 + rng.uniform(-0.05, 0.05)))
+            price = o[-1] * (1 + rng.uniform(-0.04, 0.04))
+            c.append(price)
+        closes[s], opens[s] = c, o
+    days = _sessions(n)
+    delivery = {s: {d: rng.uniform(0.3, 2.5) for d in days} for s in names}
+    buys = {s: {d: rng.uniform(1e6, 1e8) for d in days if rng.random() < 0.1} for s in names}
+    data = _data(closes, opens, delivery=delivery, buys=buys)
+    for s in names:  # traded value varies, so the liquid universe has something to rank
+        data.panel[s] = {
+            d: du.Bar(b.open, b.close, rng.uniform(1e7, 1e9)) for d, b in data.panel[s].items()
+        }
+    data.liquid = du.liquid_sets(data.panel, data.sessions)
+    data.end = days[-1]
+    return data
+
+
+LOOKAHEAD_SPECS = [
+    GAP_FADE,
+    {
+        "kind": "intraday",
+        "side": "short",
+        "when": [
+            {"signal": "gap", "op": ">=", "value": 0.01},
+            {"signal": "delivery_ratio", "lag": 1, "op": "<=", "value": 1.0},
+        ],
+        "rank_by": {"signal": "gap", "order": "desc"},
+    },
+    {
+        "kind": "swing",
+        "side": "long",
+        "hold": 5,
+        "when": [{"signal": "ret", "n": 3, "lag": 1, "op": "<", "value": 0.0}],
+        "rank_by": {"signal": "value_ratio", "lag": 1, "order": "desc"},
+    },
+    {
+        "kind": "intraday",
+        "side": "long",
+        "when": [{"signal": "bulk_buy", "op": ">", "value": 0.0}],
+        "rank_by": {"signal": "bulk_buy", "order": "desc"},
+    },
+]
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_a_days_entries_need_nothing_after_its_open(seed: int) -> None:
+    import math
+
+    data = _random_data(seed)
+    full = engine.Engine(data)
+    checked = 0
+    for day in data.sessions[30::7]:
+        cut = engine.as_of_open(data, day)
+        assert max(cut.sessions) == day
+        assert all(max(bars) <= day for bars in cut.panel.values())
+        assert all(math.isnan(bars[day].close) for bars in cut.panel.values() if day in bars)
+        early = engine.Engine(cut)
+        for body in LOOKAHEAD_SPECS:
+            spec = engine.RuleSpec.model_validate(body)
+            want = full.events_on(spec, day)
+            assert early.events_on(spec, day) == want, (day, body)
+            checked += len(want)
+    assert checked > 0  # the test saw entries, not only empty days
+
+
+def test_a_rule_that_read_the_close_would_fail_the_cut() -> None:
+    """The cut must hide what a leak would read: the day's close and traded value."""
+    data = _random_data(3)
+    day = data.sessions[40]
+    cut = engine.as_of_open(data, day)
+    s = next(iter(cut.panel))
+    assert cut.panel[s][day].open == data.panel[s][day].open
+    assert cut.panel[s][day].close != data.panel[s][day].close  # NaN
+    assert day not in next(iter(cut.delivery.values()))
+
+
 # --- the engine -------------------------------------------------------------------------
 
 

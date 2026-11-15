@@ -16,6 +16,14 @@ Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 O
 | T-4607 | Find NSE tokens for HDFC, MINDTREE and TATACOFFEE (left before UDiFF, July 2024) so their minute history can be fetched; ICICIPRULI is not in Angel's master either, so Angel fills skip it | TODO |
 | T-4608 | Upload `angel_minute_history` to B2 with `make upload-verified TREES=angel_minute_history` once T-4604 finishes | DONE 2026-11-14 by the supervisor; local copies verified and deleted |
 
+## Backtest audit (2026-11-15, ADR-200)
+
+| ID | Task | Status |
+|---|---|---|
+| T-4632 | `fill_price.MinuteReference`: price on the raw basis (same-day ratio to the official print), not the vendor's adjusted VWAP (HISTORY #93) | TODO |
+| T-4633 | Add the DP charge per delivery sell to the cost model, from a broker source with a recheck date (HISTORY #94) | TODO |
+| T-4634 | Rebuild `minute_six` snapshots with `store.fetch(history=True)` so minute screens run from 2018-11 (operator, 2026-11-15: "minute data is from 2018") | TODO |
+
 ## The agent fund: foundations (2026-11-13, ADR-171 to ADR-173; issues #134-#149)
 
 Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 is the forward test; no agent acts on the live account; Rs 1,000 a month for AI. "Start working and complete by morning." Built on the server-move branch (PR #133) in a cloud container with no market data: unit tests only.

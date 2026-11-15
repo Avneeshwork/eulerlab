@@ -1,0 +1,7 @@
+# ADR-200 — A look-ahead test that cuts the data at a session's open
+
+**Context.** Operator, 2026-11-15: "i still doubt if backtest is correct not future data is leaked and it can be executed like it is done in regular market hours". The engine refuses lag-0 reads at parse (`RuleSpec`), but nothing checked the data tables (universe, delivery, events) against a cut.
+**Options.** (a) Rebuild the data as it stood at a day's open and compare that day's entries; (b) perturb future values and compare; (c) code review only.
+**Choice.** (a). `rule_engine.as_of_open(data, day)` keeps sessions up to `day`, `day`'s open but NaN close and value, delivery and trade-for-trade lists before `day`, results before 09:15, bulk and promoter events dated up to `day`, and rebuilds the liquid universe from the cut panel. `Engine.events_on(spec, day)` is `events` for one session. `tests/test_research_autopilot.py` checks four rule shapes on random data and that a planted close-peek is caught; `logs/audit-2026-11-15/audit.py lookahead` runs it on the real panel for every engine card on 20 random sessions.
+**Why.** It tests the tables, not only the rule grammar, and it is cheap enough to keep.
+**Cost if wrong.** Bulk-deal and promoter events are cut by the session they are mapped to, so a wrong mapping in `bulk_events` or `session_after` would pass; those were checked by reading (deals go to the next session, SAST to the first session whose 09:15 is after the filing). Bespoke screens outside the engine (H-0161 to H-0173, H-0184 to H-0197, H-0098) are not cut-tested.

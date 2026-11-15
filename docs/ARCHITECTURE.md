@@ -3814,6 +3814,21 @@ An intraday trade is priced at both its open entry and close exit; a swing at
 its entry open and exit close (marks stay at the close). `make reprice`
 compares research 176's rules under both. The default engine is unchanged.
 
+**Caution (HISTORY #93).** Kite and Angel minute prices are adjusted for later
+splits, bonuses and demergers; the panel is raw. `MinuteReference` returns the
+VWAP on the vendor's basis, so for a stock with a later corporate action the
+fill is on the wrong scale. The 2026-11-15 audit uses same-day ratios instead
+(entry = official open x VWAP 09:15-09:20 / 09:15 bar open; exit = official
+close x VWAP 15:10-15:20 / VWAP 15:00-15:30).
+
+### Look-ahead test (ADR-200)
+
+`rule_engine.as_of_open(data, day)` is the data as it stood at `day`'s official
+open: later sessions gone, `day`'s close and traded value NaN, delivery and
+trade-for-trade lists before `day`, results before 09:15, and the liquid
+universe rebuilt from the cut panel. `Engine.events_on(spec, day)` gives one
+session's entries; they must be equal on the cut and the full data.
+
 ### The forward shadow (ADR-193)
 
 `research/forward_shadow.py`, `make forward-shadow` each evening and `make
