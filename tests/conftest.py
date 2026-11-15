@@ -161,7 +161,8 @@ def _private_strategy_reports(
     from eulerlab.validation import search_bar
 
     folder = tmp_path_factory.mktemp("workspaces")
-    monkeypatch.setattr(search_bar.shown_bar, "__kwdefaults__", {"root": folder})
+    defaults = {**(search_bar.shown_bar.__kwdefaults__ or {}), "root": folder}
+    monkeypatch.setattr(search_bar.shown_bar, "__kwdefaults__", defaults)
     search_bar._SHOWN.clear()
 
 

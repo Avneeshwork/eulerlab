@@ -323,8 +323,15 @@ def store(
     setting: dict[str, Any],
     label: str = "",
     marks: dict[str, float] | None = None,
+    *,
+    holdout: str = "read (operator, 2026-11-06)",
+    kind: str = "full-history",
 ) -> None:
-    """The run in the result store, and its full report beside it (`reports.save`)."""
+    """The run in the result store, and its full report beside it (`reports.save`).
+
+    `holdout` and `kind` describe the window: this module's runs read the
+    holdout; `library_reports.store_factor` stops before it (ADR-206).
+    """
     from eulerlab import reports, results, workspace
 
     tenant = workspace.resolve(None)
@@ -333,11 +340,11 @@ def store(
         "end": setting["end"],
         "capital": setting["capital"],
         "configuration": label,
-        "holdout": "read (operator, 2026-11-06)",
+        "holdout": holdout,
     }
     # The configuration label is in the data version so each of a card's
     # configurations is its own stored result, not a recomputation of one.
-    version = f"full-history {setting['start']}..{setting['end']} {label}".strip()
+    version = f"{kind} {setting['start']}..{setting['end']} {label}".strip()
     stored = results.Run(
         strategy_id=hypothesis,
         sharpe=float(run["sharpe"]),

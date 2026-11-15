@@ -15,7 +15,7 @@
 
 version: 2
 owner: operator
-last_reviewed: 2026-11-15
+last_reviewed: 2026-11-16
 
 # Which bar the gate applies. Changed on the operator's instruction, 2026-11-06
 # (ADR-140): "gate is too hard, make it simple". `simple` checks only the
@@ -27,6 +27,11 @@ mode: simple
 simple:
   # Net of costs, the full-sample Sharpe must be above zero.
   require_positive_full_sample: true
+  # ... and above this floor. Operator, 2026-11-15: "less than .5 sharpe should
+  # not be in paper", "in promote also set .5 sharpe as floor", and "Approve
+  # 0.5 Sharpe floor for PAPER and PROMOTE in gates.py and mandate.yaml, on the
+  # gate Sharpe" (ADR-207). The gate's own full-sample net Sharpe.
+  min_full_sample_sharpe: 0.5
   # Each half of the history, split at the midpoint, must be net positive.
   require_positive_each_half: true
   # Still net positive with every charge and slippage doubled.
@@ -52,8 +57,10 @@ simple:
 # evidence and re-gated with it. It may not read the holdout or trade live.
 # Process rules still apply: a PAPER needs sound, pre-registered evidence.
 paper:
-  # Net of costs, the full-sample Sharpe must be above this.
-  min_full_sample_sharpe: 0.0
+  # Net of costs, the full-sample Sharpe must be above this. Raised from 0.0 on
+  # the operator's instruction, 2026-11-15: "less than .5 sharpe should not be
+  # in paper" (ADR-207).
+  min_full_sample_sharpe: 0.5
   # The chance the true Sharpe is above zero, from the sample alone.
   # Lowered from 0.80 with the promotion bar, 2026-11-15 (ADR-198).
   min_probabilistic_sharpe: 0.50

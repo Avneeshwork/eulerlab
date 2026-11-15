@@ -90,6 +90,12 @@ NOTES = {
 """Caveats stored with a report, shown beside its figures."""
 
 
+NO_POSITIONS = (
+    "Equity curve and Sharpe are the gated run's; its individual positions are not rebuilt "
+    "for this report, so the trade and instrument tabs are empty (ADR-206)."
+)
+
+
 def _fills_for(hypothesis: str, run: Any, cut: date | None = None) -> tuple[list[Any], int]:
     """(two fills per position, distinct symbols) for the report; no swing exits on or after `cut`."""
     from eulerlab.backtest.events import Fill
@@ -99,7 +105,14 @@ def _fills_for(hypothesis: str, run: Any, cut: date | None = None) -> tuple[list
     trades = list(run.trades)
     if trades and isinstance(trades[0], cs.Trade):
         return fh.leg_fills(trades), len({t.symbol for t in trades})
-    swings = [s for s in _swings(hypothesis) if cut is None or s.exit_day < cut]
+    try:
+        known = _swings(hypothesis)
+    except KeyError:
+        # No screen rebuilds this card's positions (H-0151, the portfolio cards):
+        # the report keeps the gate's daily curve and Sharpe without per-position
+        # fills, and says so (`NO_POSITIONS`), rather than not existing at all.
+        return [], 0
+    swings = [s for s in known if cut is None or s.exit_day < cut]
     out = []
     for s in swings:
         buy, sell = s.costs_at()
@@ -222,6 +235,8 @@ def store_one(hypothesis: str) -> dict[str, Any]:
     }
     if hypothesis in NOTES:
         params["caveat"] = NOTES[hypothesis]
+    elif not fills:
+        params["caveat"] = NO_POSITIONS
     version = f"research-window {chosen['start']}..{chosen['end']} as gated"
     stored = results.Run(
         strategy_id=hypothesis,
@@ -264,6 +279,82 @@ def store_one(hypothesis: str) -> dict[str, Any]:
     return {"hypothesis": hypothesis, "setting": chosen, **summary, "fills": len(fills)}
 
 
+def is_factor_card(hypothesis: str, root: Path = Path("hypotheses")) -> bool:
+    """A card whose every configuration is a daily rank-and-hold book (idea-lab and factor cards)."""
+    from eulerlab.validation import intraday
+
+    if hypothesis in intraday.SOURCES or _engine_card(hypothesis):
+        return False
+    card = yaml.safe_load((root / f"{hypothesis}.yaml").read_text(encoding="utf-8")) or {}
+    configs = card.get("configurations") or []
+    return bool(configs) and all(
+        c.get("shape") in (None, "rank_and_hold") and c.get("feature") for c in configs
+    )
+
+
+def store_factor(
+    hypothesis: str, rows: Sequence[Any] | None = None, root: Path = Path("hypotheses")
+) -> list[dict[str, Any]]:
+    """Each configuration of a rank-and-hold card, 2016 to its holdout start, stored (ADR-206).
+
+    The same event-driven run `make full-history` stores (`full_history.daily_card`,
+    a year of warm-up from 2015), cut before the card's `holdout.starts`, so the
+    holdout stays unread. One stored result per configuration.
+    """
+    from eulerlab.features.panel import read_panel
+
+    cut = holdout_start(hypothesis, root)
+    if rows is None:
+        rows = [r for r in read_panel() if fh.WARMUP_FROM <= r.day < cut]
+    else:
+        rows = [r for r in rows if r.day < cut]
+    marks: dict[str, float] = {}
+    for row in sorted(rows, key=lambda r: r.day):
+        marks[row.symbol] = row.close
+    out = []
+    for one in fh.daily_card(hypothesis, rows, fh.DEFAULT_CAPITAL, root):
+        days = one["curve_days"]
+        chosen = {
+            "start": days[0].isoformat(),
+            "end": days[-1].isoformat(),
+            "window_days": (days[-1] - days[0]).days,
+            "universe": "all",
+            "tier": "B",
+            "asset_class": "equity",
+            "timeframe": "1d",
+            "capital": fh.DEFAULT_CAPITAL,
+        }
+        fh.store(
+            hypothesis,
+            one,
+            chosen,
+            one["configuration"],
+            marks,
+            holdout=f"unread (research window only, before {cut.isoformat()})",
+            kind="research-window",
+        )
+        out.append(
+            {
+                "hypothesis": hypothesis,
+                "setting": chosen,
+                "configuration": one["configuration"],
+                "sharpe": one["sharpe"],
+                "total_return": one["total_return"],
+                "max_drawdown": one["max_drawdown"],
+                "years_positive": one.get("years_positive"),
+                "fills": one["fills"],
+            }
+        )
+    return out
+
+
+def store_card(hypothesis: str) -> list[dict[str, Any]]:
+    """Any gated card's report: a rank-and-hold card by `store_factor`, the rest by `store_one`."""
+    if is_factor_card(hypothesis):
+        return store_factor(hypothesis)
+    return [store_one(hypothesis)]
+
+
 def add_recommended(found: Sequence[dict[str, Any]]) -> None:
     settings = fh.load_recommended()
     for one in found:
@@ -301,12 +392,12 @@ def main() -> int:
     args = parser.parse_args()
     found = []
     for hypothesis in cards(args.only, args.from_results):
-        one = store_one(hypothesis)
-        found.append(one)
-        print(
-            f"{hypothesis}: stored; Sharpe {one['sharpe']}, total {one['total_return']:.1%}, "
-            f"drawdown {one['max_drawdown']:.1%}, {one['years_positive']} years positive"
-        )
+        for one in store_card(hypothesis):
+            found.append(one)
+            print(
+                f"{hypothesis}: stored; Sharpe {one['sharpe']}, total {one['total_return']:.1%}, "
+                f"drawdown {one['max_drawdown']:.1%}, {one['years_positive']} years positive"
+            )
     add_recommended(found)
     return 0
 

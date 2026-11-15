@@ -279,8 +279,20 @@ export function BacktestReport({
           }
           tone="bad"
         />
+        {!deployment && strategy.realistic && (
+          <Stat
+            label="Sharpe (realistic fills)"
+            value={num(strategy.realistic.sharpe)}
+            sub={
+              strategy.realistic.basis === 'gated'
+                ? `the gate's, ${strategy.realistic.window}`
+                : `09:25 → 15:10 with spread and impact, ${strategy.realistic.window}; official fills ${num(strategy.realistic.official_sharpe)}`
+            }
+            tone={bar !== null && strategy.realistic.sharpe >= bar ? 'clear' : undefined}
+          />
+        )}
         <Stat
-          label="Sharpe"
+          label={!deployment && strategy.realistic && strategy.realistic.basis !== 'gated' ? 'Sharpe (this run, official fills)' : 'Sharpe (this run)'}
           value={num(m.sharpe)}
           sub={bar === null ? undefined : clears ? `clears the bar of ${num(bar)}` : `bar is ${num(bar)}`}
           tone={clears ? 'clear' : undefined}

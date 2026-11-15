@@ -103,6 +103,12 @@
   height: 6px;
   margin-top: 3px;
 }
+.st-sharpe .st-official {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  white-space: nowrap;
+}
 .st-drawer-head h2 {
   display: flex;
   align-items: center;

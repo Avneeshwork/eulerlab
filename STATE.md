@@ -24,6 +24,12 @@ what is open is in `TASKS.md`.*
 
 ## What is true today
 
+- **Strategies page at realistic fills (ADR-205, 2026-11-16).** Daily intraday
+  cards lead with the 09:25 → 15:10 Sharpe with spread and impact; the gate's
+  and the official-fill figures sit under it. The page's luck bar at realistic
+  fills is 1.76 (it was 3.34). KILL cards are off the default list. Every
+  PROMOTE or PAPER now gets a stored report, factor cards included (ADR-206).
+
 - **The gate (ADR-140, 2026-11-06).** The operator switched it to `simple`:
   net positive overall, in each half and at 2x costs; probabilistic Sharpe
   >= 0.95; positive in >= 60% of years. The strict bar (deflated Sharpe

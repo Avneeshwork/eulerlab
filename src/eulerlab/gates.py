@@ -422,13 +422,16 @@ def _check_simple(pack: dict[str, Any], rules: dict[str, Any]) -> list[Finding]:
             if isinstance(c, dict) and c.get("full_sample_sharpe") is not None
         ]
         best = max(sharpes) if sharpes else None
+        # A floor above zero on the operator's instruction, 2026-11-15 (ADR-207);
+        # absent from the mandate it is zero, the bar as it was.
+        floor = float(rules.get("min_full_sample_sharpe", 0.0))
         out.append(
             Finding(
                 "net positive overall",
-                best is not None and best > 0,
+                best is not None and best > floor,
                 "no full-sample Sharpe in the evidence pack"
                 if best is None
-                else f"full-sample net Sharpe {best:.2f}, must be > 0",
+                else f"full-sample net Sharpe {best:.2f}, must be > {floor:g}",
             )
         )
     if rules.get("require_positive_each_half", True):
