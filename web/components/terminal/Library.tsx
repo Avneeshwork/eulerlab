@@ -25,7 +25,7 @@ import { SweepPanel } from '@/components/terminal/SweepPanel';
 import { TuningPanel } from '@/components/terminal/TuningPanel';
 import { WalkPanel } from '@/components/terminal/WalkPanel';
 import { Bar, Info, Move } from '@/components/terminal/ui';
-import { api } from '@/lib/api';
+import { api, headlineSharpe } from '@/lib/api';
 import { currencySymbol, money } from '@/lib/money';
 import { runBatch } from '@/lib/run';
 import type { Fleet, FleetStrategy, OptimizeRow, Recommended, StrategyVerdict } from '@/lib/api';
@@ -44,7 +44,31 @@ const VERDICTS: { value: StrategyVerdict; label: string; hint: string }[] = [
 const VERDICT_ORDER: Record<StrategyVerdict, number> = { beats_bar: 0, positive: 1, loses: 2, not_run: 3 };
 
 function verdictOf(s: FleetStrategy): StrategyVerdict {
-  return s.table?.verdict ?? (s.sharpe === null ? 'not_run' : s.clears_bar ? 'beats_bar' : 'positive');
+  return s.table?.verdict ?? (headlineSharpe(s) === null ? 'not_run' : s.clears_bar ? 'beats_bar' : 'positive');
+}
+
+/** Put away from the default list: archived by the operator, or killed by the gate
+ *  (ADR-205). A KILL card is dead (CLAUDE.md); it stays in the archived view. */
+function isAway(s: FleetStrategy): boolean {
+  return Boolean(s.archived) || (s.gate_verdict ?? '').toUpperCase() === 'KILL';
+}
+
+/** The official-fill Sharpe and its window, shown under a realistic headline. */
+function officialLine(s: FleetStrategy): string {
+  const r = s.realistic;
+  if (!r || r.basis === 'gated' || r.official_sharpe === null) return '';
+  return `official fills ${r.official_sharpe.toFixed(2)} · gate ${r.gate_sharpe?.toFixed(2) ?? '—'}`;
+}
+
+function sharpeTitle(s: FleetStrategy): string {
+  const r = s.realistic;
+  if (!r) return 'Sharpe of the latest stored run (no realistic-fill figure yet)';
+  const cover = r.coverage === null ? '' : `, ${(r.coverage * 100).toFixed(0)}% of trades with minute bars`;
+  const official =
+    r.basis === 'gated'
+      ? ''
+      : ` Official open/close fills on the same trades: ${r.official_sharpe?.toFixed(2) ?? '—'} (${r.official_window}). Gate, ${r.gate_window}: ${r.gate_sharpe?.toFixed(2) ?? '—'}.`;
+  return `Realistic fills: ${r.label}, ${r.window}${cover}.${official} Latest stored run: ${s.sharpe?.toFixed(2) ?? '—'}.`;
 }
 
 function styleOf(s: FleetStrategy): Exclude<Style, ''> {
@@ -212,7 +236,7 @@ export function Library({
     if (!fleet) return [];
     const needle = query.trim().toLowerCase();
     const filtered = fleet.strategies.filter((s) => {
-      if (Boolean(s.archived) !== showArchived) return false;
+      if (isAway(s) !== showArchived) return false;
       if (assetClass && homeMarket(s) !== assetClass) return false;
       if (style && styleOf(s) !== style) return false;
       if (source && sourceOf(s) !== source) return false;
@@ -231,7 +255,7 @@ export function Library({
         case 'drawdown':
           return s.result.max_drawdown ?? null;
         case 'sharpe':
-          return s.sharpe;
+          return headlineSharpe(s);
         case 'win':
           return s.table?.win_rate ?? null;
         case 'trades':
@@ -247,7 +271,7 @@ export function Library({
       ordered.sort(
         (a, b) =>
           VERDICT_ORDER[verdictOf(a)] - VERDICT_ORDER[verdictOf(b)] ||
-          (b.sharpe ?? -Infinity) - (a.sharpe ?? -Infinity)
+          (headlineSharpe(b) ?? -Infinity) - (headlineSharpe(a) ?? -Infinity)
       );
     } else {
       ordered.sort((a, b) => {
@@ -286,7 +310,7 @@ export function Library({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openStrategy?.id]);
 
-  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter((s) => s.archived).length, [fleet]);
+  const archivedCount = useMemo(() => (fleet?.strategies ?? []).filter(isAway).length, [fleet]);
   // Leaving the archive view when the last one is restored, so the page does
   // not sit on an empty list.
   useEffect(() => {
@@ -466,7 +490,7 @@ export function Library({
                 setOpen(null);
               }}
             >
-              Archived {archivedCount}
+              Archived and killed {archivedCount}
             </button>
           </div>
         )}
@@ -524,7 +548,7 @@ export function Library({
                 </Info>
               </th>
               <SortHead label="Max drawdown" sort="drawdown" current={sort} descending={descending} onSort={sortBy} />
-              <SortHead label="Sharpe" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
+              <SortHead label="Sharpe (realistic fills)" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Trades" sort="trades" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Verdict" sort="verdict" current={sort} descending={descending} onSort={sortBy} align="left" />
@@ -581,19 +605,23 @@ export function Library({
                     </td>
                     <td className="num tdim">{pct(t?.nifty_return ?? null, 0)}</td>
                     <td className={`num ${strategy.result.max_drawdown ? 'neg' : ''}`}>{pct(strategy.result.max_drawdown ?? null, 0)}</td>
-                    <td className="num st-sharpe">
-                      {strategy.sharpe === null ? (
-                        '—'
-                      ) : (
-                        <>
-                          <b>{strategy.sharpe.toFixed(2)}</b>
-                          <Bar
-                            value={strategy.sharpe}
-                            max={Math.max(fleet.bar, 0.01)}
-                            tone={strategy.sharpe >= fleet.bar ? 'up' : strategy.sharpe > 0 ? 'accent' : 'down'}
-                          />
-                        </>
-                      )}
+                    <td className="num st-sharpe" title={sharpeTitle(strategy)}>
+                      {(() => {
+                        const headline = headlineSharpe(strategy);
+                        if (headline === null) return '—';
+                        const official = officialLine(strategy);
+                        return (
+                          <>
+                            <b>{headline.toFixed(2)}</b>
+                            <Bar
+                              value={headline}
+                              max={Math.max(fleet.bar, 0.01)}
+                              tone={headline >= fleet.bar ? 'up' : headline > 0 ? 'accent' : 'down'}
+                            />
+                            {official && <span className="tdim st-official">{official}</span>}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="num">{t?.win_rate === null || t?.win_rate === undefined ? '—' : `${(t.win_rate * 100).toFixed(0)}%`}</td>
                     <td className="num">{t?.trades ?? strategy.result.fills ?? '—'}</td>
@@ -653,7 +681,20 @@ export function Library({
             <Fact label="Nifty, same period" value={pct(openStrategy.table?.nifty_return ?? null, 0)} />
             <Fact label="Total return" value={pct(openStrategy.result.total_return ?? null, 0)} />
             <Fact label="Max drawdown" value={pct(openStrategy.result.max_drawdown ?? null, 0)} />
-            <Fact label="Sharpe" value={openStrategy.sharpe === null ? '—' : `${openStrategy.sharpe.toFixed(2)} (bar ${fleet.bar.toFixed(2)})`} />
+            <Fact
+              label="Sharpe (realistic fills)"
+              value={(() => {
+                const headline = headlineSharpe(openStrategy);
+                return headline === null ? '—' : `${headline.toFixed(2)} (${fleet.bar_label ?? 'luck bar'} ${fleet.bar.toFixed(2)})`;
+              })()}
+            />
+            {openStrategy.realistic && openStrategy.realistic.basis !== 'gated' && (
+              <Fact
+                label="Official-fill Sharpe"
+                value={`${openStrategy.realistic.official_sharpe?.toFixed(2) ?? '—'} (${openStrategy.realistic.official_window}); gate ${openStrategy.realistic.gate_sharpe?.toFixed(2) ?? '—'} (${openStrategy.realistic.gate_window})`}
+              />
+            )}
+            {openStrategy.realistic && <Fact label="Realistic basis" value={`${openStrategy.realistic.label}, ${openStrategy.realistic.window}`} />}
             <Fact label="Period" value={openStrategy.table?.period?.[0] ? `${openStrategy.table.period[0]} → ${openStrategy.table.period[1]}` : '—'} />
           </div>
           <div className="st-drawer-actions">
