@@ -39,7 +39,6 @@ import {
   Boxes,
   CandlestickChart,
   ChevronRight,
-  Database,
   LayoutDashboard,
   ListTree,
   Moon,
@@ -76,7 +75,6 @@ const OptionsTab = dynamic(() => import('@/components/terminal/OptionsTab').then
 const RiskTab = dynamic(() => import('@/components/terminal/RiskTab').then((m) => m.RiskTab), { ssr: false, loading: Loading });
 const RiskBookView = dynamic(() => import('@/components/terminal/RiskBook').then((m) => m.RiskBookView), { ssr: false, loading: Loading });
 const BacktestDialog = dynamic(() => import('@/components/terminal/BacktestDialog').then((m) => m.BacktestDialog), { ssr: false, loading: Loading });
-const DataTab = dynamic(() => import('@/components/terminal/DataTab').then((m) => m.DataTab), { ssr: false, loading: Loading });
 const DeployDialog = dynamic(() => import('@/components/terminal/DeployDialog').then((m) => m.DeployDialog), { ssr: false, loading: Loading });
 const ExplainDialog = dynamic(() => import('@/components/terminal/ExplainDialog').then((m) => m.ExplainDialog), { ssr: false, loading: Loading });
 const BacktestReport = dynamic(() => import('@/components/terminal/BacktestReport').then((m) => m.BacktestReport), { ssr: false, loading: Loading });
@@ -98,7 +96,6 @@ type PageId =
   | 'tools'
   | 'builder'
   | 'instruments'
-  | 'data'
   | 'sip'
   | 'research'
   | 'report'
@@ -150,13 +147,6 @@ const TOOLS: Tool[] = [
       'Invest a fixed amount every month in one instrument and see the value, XIRR and how it compares with investing once.',
     icon: PiggyBank,
   },
-  {
-    id: 'data',
-    title: 'Data Status',
-    description:
-      'What is landed on disk, which universes exist, and which results are mirrored to the cloud.',
-    icon: Database,
-  },
 ];
 
 const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = {
@@ -183,7 +173,6 @@ const TITLES: Record<PageId, { title: string; sub: string; parent?: PageId }> = 
     sub: 'A monthly investment plan over landed closes. A calculator, not an engine run.',
     parent: 'tools',
   },
-  data: { title: 'Data Status', sub: 'What data exists, counted rather than claimed.', parent: 'tools' },
   research: { title: 'Research Library', sub: 'Every paper behind a strategy, and how its strategies did.', parent: 'tools' },
   report: { title: 'Backtest Report', sub: '', parent: 'strategies' },
   deployment: { title: 'Deployment Report', sub: '', parent: 'live' },
@@ -610,7 +599,6 @@ export default function TerminalPage() {
         )}
         {page === 'instruments' && <InstrumentsTab />}
         {page === 'sip' && <SipTab />}
-        {page === 'data' && <DataTab workspace={workspace} />}
       </div>
 
       {paletteOpen && (
