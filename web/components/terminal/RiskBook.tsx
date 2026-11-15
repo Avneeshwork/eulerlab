@@ -126,17 +126,10 @@ function Caveats({ risk }: { risk: RiskBook }) {
   }
   if (lines.length === 0) return null;
   return (
-    <div className="rk-note" role="note">
-      <span className="ui-chip warn">
-        {lines.length} data {lines.length === 1 ? 'note' : 'notes'}
-      </span>
-      <Info>
-        {lines.map((line) => (
-          <span key={line} style={{ display: 'block', marginBottom: 4 }}>
-            {line}
-          </span>
-        ))}
-      </Info>
+    <div className="rk-note tfine" role="note">
+      {lines.map((line) => (
+        <div key={line}>{line}</div>
+      ))}
     </div>
   );
 }

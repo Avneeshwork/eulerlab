@@ -23,7 +23,7 @@
   gap: var(--s4);
 }
 
-.rk-note { font-size: 13px; line-height: 1.5; color: var(--ink-2); padding: 10px 14px; border: 1px dashed var(--rule-2); border-radius: var(--r-md); }
+.rk-note { font-size: 13px; line-height: 1.5; color: var(--ink-2); padding: 0 2px; }
 .rk-row { display: flex; flex-wrap: wrap; gap: var(--s4); }
 .rk-card { flex: 1 1 340px; min-width: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--r-lg); padding: var(--s5); box-sizing: border-box; }
 .rk-card.wide { flex: 3 1 520px; }
@@ -135,7 +135,7 @@
 /* UI revamp (ADR-102): explanations live in info buttons. */
 .rk .rk-h { display: flex; align-items: center; flex-wrap: wrap; }
 .rk .rk-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
-.rk .rk-note { display: flex; align-items: center; gap: 4px; }
+.rk .rk-note { display: block; }
 .rk .rk-call { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 /* A deployment's name is what the row is about: never squeezed to "…". */
 .rk-table td.name { width: 260px; min-width: 220px; white-space: nowrap; }
