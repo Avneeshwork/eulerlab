@@ -15,6 +15,7 @@
  * would be a picture of a run that did not happen.
  */
 
+import { Archive, ArchiveRestore } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { ASSET_CLASSES, assetClassLabel, homeMarket } from '@/lib/assetClasses';
@@ -165,7 +166,6 @@ export function Library({
   const [sort, setSort] = useState<Sort>('verdict');
   const [descending, setDescending] = useState(true);
   const [style, setStyle] = useState<Style>('');
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<Set<string>>(new Set());
   // What the running job last said, and when it started. A row that only says
@@ -331,11 +331,6 @@ export function Library({
         }
         setLastArchive(undo ? null : { ids, archived });
         setNote('');
-        setSelected((prev) => {
-          const next = new Set(prev);
-          for (const id of ids) next.delete(id);
-          return next;
-        });
         setOpen((current) => (current && ids.includes(current) ? null : current));
         onRefresh();
       } catch (error) {
@@ -343,22 +338,6 @@ export function Library({
       }
     },
     [onRefresh]
-  );
-
-  const toggle = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
-  // A strategy that cannot be run can still be selected, to archive it; only
-  // the runnable part of a selection is offered to the Backtest dialog.
-  const runnableSelected = useMemo(
-    () => (fleet?.strategies ?? []).filter((s) => selected.has(s.id) && s.runnable),
-    [fleet, selected]
   );
 
   const backtest = useCallback(
@@ -479,7 +458,6 @@ export function Library({
               aria-pressed={showArchived}
               onClick={() => {
                 setShowArchived((v) => !v);
-                setSelected(new Set());
                 setOpen(null);
               }}
             >
@@ -528,18 +506,9 @@ export function Library({
         <table className="st-table">
           <thead>
             <tr>
-              <th className="st-sel" aria-label="Select" />
               <SortHead label="Strategy" sort="name" current={sort} descending={descending} onSort={sortBy} align="left" />
               <th className="st-spark">Equity</th>
               <SortHead label="Annual return" sort="annual" current={sort} descending={descending} onSort={sortBy} />
-              <th>
-                Nifty, same period
-                <Info align="right">
-                  NIFTYBEES held over the same period, before costs. Annual return and Sharpe are the
-                  strategy&apos;s latest run after costs; the bar under Sharpe is drawn against the noise
-                  bar a strategy must clear. Max drawdown is the deepest fall from a peak.
-                </Info>
-              </th>
               <SortHead label="Max drawdown" sort="drawdown" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Sharpe" sort="sharpe" current={sort} descending={descending} onSort={sortBy} />
               <SortHead label="Win rate" sort="win" current={sort} descending={descending} onSort={sortBy} />
@@ -565,14 +534,6 @@ export function Library({
                       if (event.key === 'Enter') setOpen(open === strategy.id ? null : strategy.id);
                     }}
                   >
-                    <td className="st-sel" onClick={(event) => event.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(strategy.id)}
-                        onChange={() => toggle(strategy.id)}
-                        aria-label={`Select ${strategy.title}`}
-                      />
-                    </td>
                     <td className="st-name">
                       <b>{strategy.title}</b>
                       <span>
@@ -596,7 +557,6 @@ export function Library({
                     <td className="num">
                       <Move value={annualOf(strategy)} text={pct(annualOf(strategy))} />
                     </td>
-                    <td className="num tdim">{pct(t?.nifty_return ?? null, 0)}</td>
                     <td className={`num ${strategy.result.max_drawdown ? 'neg' : ''}`}>{pct(strategy.result.max_drawdown ?? null, 0)}</td>
                     <td className="num st-sharpe">
                       {strategy.sharpe === null ? (
@@ -649,6 +609,15 @@ export function Library({
                         }
                       >
                         Deploy
+                      </button>
+                      <button
+                        className="ticon sm st-archive"
+                        type="button"
+                        onClick={() => void setArchived([strategy.id], !showArchived)}
+                        title={showArchived ? 'Restore to the main list' : 'Archive'}
+                        aria-label={showArchived ? `Restore ${strategy.title}` : `Archive ${strategy.title}`}
+                      >
+                        {showArchived ? <ArchiveRestore size={15} /> : <Archive size={15} />}
                       </button>
                     </td>
                   </tr>
@@ -755,28 +724,6 @@ export function Library({
         </aside>
       )}
 
-      {selected.size > 0 && (
-        <div className="tsel">
-          <b>{selected.size}</b> selected
-          <Info>Instruments, period and capital are chosen in the next step.</Info>
-          <button className="tbtn ghost" type="button" onClick={() => setSelected(new Set())}>
-            Clear
-          </button>
-          <button className="tbtn" type="button" onClick={() => void setArchived([...selected], !showArchived)}>
-            {showArchived ? `Restore ${selected.size}` : `Archive ${selected.size}`}
-          </button>
-          {runnableSelected.length > 0 && (
-            <button
-              className="tbtn"
-              type="button"
-              disabled={busy.size > 0}
-              onClick={() => onConfigure(runnableSelected)}
-            >
-              {busy.size > 0 ? 'Running…' : `Backtest ${runnableSelected.length}`}
-            </button>
-          )}
-        </div>
-      )}
     </>
   );
 }
