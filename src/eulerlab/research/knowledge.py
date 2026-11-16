@@ -305,6 +305,115 @@ def failed(
     return [_line(t, held) for t in bad]
 
 
+# --- the replication queue (#159, ADR-215) --------------------------------------------------
+
+INDIAN = re.compile(r"\b(india|indian|nse|bse|nifty|sensex|cnx|niftybees)\b", re.IGNORECASE)
+US_CASH = re.compile(r"\b(us|u\.s\.|american|nyse|nasdaq|amex|crsp|s&p|spy)\b", re.IGNORECASE)
+NOT_CASH = re.compile(
+    r"\b(futures?|options?|currenc\w*|fx|bonds?|crypto\w*|bitcoin|commodit\w*)\b", re.IGNORECASE
+)
+"""A US paper on any of these has no Indian cash-stock twin: the lab trades cash stocks and
+index ETFs only."""
+
+
+@dataclass(frozen=True)
+class Queued:
+    paper: str
+    title: str
+    route: str
+    """`Indian`: the paper's own market is here. `US twin`: a US cash-stock rule whose
+    Indian cash-stock twin can be built from the NSE history here."""
+    sample: str
+    """The paper's own window, as its file states it, or `unstated`."""
+    adaptations: tuple[str, ...]
+    """Cards already built on the paper that are not its own form. A failure of one of
+    these cannot yet say whether the idea or the adaptation was wrong."""
+    path: str
+
+
+HERE = re.compile(r"\(here\)|adaptation|\blocal\b", re.IGNORECASE)
+"""A `markets` entry that describes our adaptation, not the paper's own market."""
+
+
+def route_of(paper: Mapping[str, Any]) -> str:
+    """`Indian`, `US twin` or "" from the paper's own `markets` entries. Nothing else is read.
+
+    Entries that describe our adaptation (`NSE F&O stocks (here)`) are set aside when
+    the paper also names its own market, so a US paper adapted here stays a US paper.
+    """
+    raw = paper.get("markets")
+    entries = [str(m) for m in raw] if isinstance(raw, list) else [_text(raw)]
+    own = [m for m in entries if not HERE.search(m)] or entries
+    markets = "; ".join(own)
+    if INDIAN.search(markets):
+        return "Indian"
+    if US_CASH.search(markets) and not NOT_CASH.search(markets):
+        return "US twin"
+    return ""
+
+
+def replication_queue(papers: Path = PAPERS, cards: Path = HYPOTHESES) -> list[Queued]:
+    """Papers whose data is here and that no card replicates in the paper's own form.
+
+    A report only: it writes no card. Indian papers come first, then US cash-stock rules
+    with an Indian twin; within each, papers that already have adaptations come first,
+    since those are the ones whose failures cannot be read yet.
+    """
+    replicated: set[str] = set()
+    adapted: dict[str, list[str]] = {}
+    for card in _yaml_files(cards):
+        claim = card_claim(card)
+        if not claim.startswith("claim:"):
+            continue
+        pid = claim.removeprefix("claim:")
+        if _source(card).get("replicates") is True:
+            replicated.add(pid)
+        else:
+            adapted.setdefault(pid, []).append(str(card["id"]))
+    out = []
+    for paper in _yaml_files(papers):
+        pid = str(paper["id"])
+        route = route_of(paper)
+        if not route or pid in replicated or paper.get("status") == "rejected":
+            continue
+        out.append(
+            Queued(
+                paper=pid,
+                title=_text(paper.get("title"))[:160],
+                route=route,
+                sample=claim_of(paper).sample,
+                adaptations=tuple(sorted(adapted.get(pid, []))),
+                path=str(paper["_path"]),
+            )
+        )
+    return sorted(out, key=lambda q: (q.route != "Indian", not q.adaptations, q.paper))
+
+
+def render_queue(rows: Sequence[Queued]) -> str:
+    """The queue as plain lines: one per paper, with its file and any adaptations."""
+    if not rows:
+        return "Every paper whose data is here has a card in its own form (source.replicates)."
+    indian = sum(1 for q in rows if q.route == "Indian")
+    lines = [
+        f"{len(rows)} paper(s) to replicate in their own form first: "
+        f"{indian} Indian, {len(rows) - indian} US cash-stock rule(s) with an Indian twin.",
+        "Write the paper's own rule on its own window, marked source.replicates: true;"
+        " adaptations then name it as parent. This report writes no card.",
+        "",
+    ]
+    for q in rows:
+        built = f" Adapted already: {', '.join(q.adaptations)}." if q.adaptations else ""
+        lines.append(f"{q.route:<8} {q.paper} ({q.path}), sample {q.sample}.{built}")
+    return "\n".join(lines)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """`make replication-queue`: print the queue. Reads files only; writes nothing."""
+    del argv
+    print(render_queue(replication_queue()))
+    return 0
+
+
 def _claim_line(cid: str, held: Mapping[str, Claim]) -> dict[str, Any]:
     claim = held.get(cid)
     if claim is None:
@@ -368,3 +477,7 @@ def answer(ask: str, about: str = "") -> str:
     ]
     notes = notes_on(r["card"] for r in rows)
     return "\n".join(lines + (["Notes that name these cards:", *notes] if notes else []))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

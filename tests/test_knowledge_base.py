@@ -163,3 +163,39 @@ def test_one_idea_in_other_words_finds_the_same_card(idea: str) -> None:
     done = knowledge.tried(repo / "hypotheses", verdicts={}, experiments=[])
     found = [r["card"] for r in knowledge.tried_near(idea, done, {})]
     assert "H-0040" in found[:3], found
+
+
+# --- the replication queue (#159, ADR-215) ------------------------------------------------
+
+
+def _paper(lib: Path, pid: str, markets: list[str], **more: Any) -> None:
+    body = {**PAPER, "id": pid, "title": f"paper {pid}", "markets": markets, **more}
+    (lib / "research" / "papers" / f"{pid}.yaml").write_text(yaml.safe_dump(body))
+
+
+def test_the_queue_lists_papers_with_data_here_and_no_card_in_their_own_form(lib: Path) -> None:
+    _paper(lib, "us-2001-momentum", ["US stocks (paper)", "NSE F&O stocks (here)"])
+    _paper(lib, "nse-2020-gap", ["NSE stocks, 2015-2020"])
+    _paper(lib, "ftse-2007-pairs", ["FTSE 100 pairs (source)", "NSE pairs (local adaptation)"])
+    _paper(lib, "us-2010-fx-carry", ["US dollar currencies"])
+    _paper(lib, "nse-2019-dead", ["NSE stocks"], status="rejected")
+    (lib / "hypotheses" / "H-0004.yaml").write_text(
+        yaml.safe_dump(_card("H-0004", source={"paper": "us-2001-momentum"}))
+    )
+    before = sorted(p.name for p in (lib / "hypotheses").iterdir())
+
+    rows = knowledge.replication_queue()
+
+    by = {q.paper: q for q in rows}
+    assert set(by) == {"us-2001-momentum", "nse-2020-gap"}  # PID is replicated by H-0001
+    assert by["us-2001-momentum"].route == "US twin"
+    assert by["us-2001-momentum"].adaptations == ("H-0004",)
+    assert by["nse-2020-gap"].route == "Indian" and by["nse-2020-gap"].sample == "2015-2020"
+    assert [q.paper for q in rows] == ["nse-2020-gap", "us-2001-momentum"]
+    text = knowledge.render_queue(rows)
+    assert "1 Indian, 1 US" in text and "Adapted already: H-0004" in text
+    assert sorted(p.name for p in (lib / "hypotheses").iterdir()) == before  # writes no card
+
+
+def test_an_empty_queue_says_so() -> None:
+    assert "own form" in knowledge.render_queue([])
