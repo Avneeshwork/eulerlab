@@ -86,3 +86,17 @@ def version(found: dict[str, str] | None = None) -> str:
     """One short hash naming the whole manifest."""
     body = json.dumps(found if found is not None else manifest(), sort_keys=True)
     return hashlib.sha256(body.encode()).hexdigest()[:16]
+
+
+def stamp() -> dict[str, Any]:
+    """Which data and which code made a result (#154): enough to say whether a re-run can match.
+
+    Every experiment-store row and every trial-ledger entry carries this (ADR-213, ADR-216).
+    """
+    from eulerlab.reports import code_version
+
+    code = code_version()
+    return {
+        "data_version": version(),
+        "code": {"commit": code["commit"], "dirty": code["dirty"]},
+    }

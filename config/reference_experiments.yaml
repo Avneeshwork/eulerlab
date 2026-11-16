@@ -1,0 +1,19 @@
+# Reference experiment rows for the drift check (#154, ADR-216).
+#
+#   make reproduce-check
+#
+# re-runs each row below with `make reproduce`'s machinery and exits non-zero
+# if any of them no longer gives the stored answer, naming the rule and the
+# first day that moved. Nothing schedules it; run it by hand after a data
+# rebuild or an engine change.
+#
+# To pin a row: find its id in the experiment store (data/derived/experiments.jsonl,
+# or the id `make reproduce` takes), check `make reproduce ID=<id>` says
+# "reproduced", then add it here with one line on why it is a good reference.
+# Prefer rows that carry `data_version`, `code` and stored daily returns
+# (rows made on or after 2026-11-16), so a drift comes with its cause and day.
+#
+# rows:
+#   - id: 0123456789abcdef
+#     why: gap fade screen, stored daily returns, made after the stamps landed
+rows: []

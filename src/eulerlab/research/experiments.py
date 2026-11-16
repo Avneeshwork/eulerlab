@@ -55,6 +55,7 @@ from typing import Any, Literal
 from eulerlab import constitution
 from eulerlab.db.stream import add_row, read_rows
 from eulerlab.paths import data_path
+from eulerlab.research import data_manifest
 
 PATH = "derived/experiments.jsonl"
 RETURNS = "derived/experiment_returns"
@@ -144,7 +145,7 @@ def record(
         "end": end.isoformat(),
         "metrics": dict(metrics),
         "returns": _returns_file(daily, _root(returns_root)) if daily else None,
-        **_stamp(),
+        **data_manifest.stamp(),
     }
     if spec is not None:
         row["spec"] = dict(spec)
@@ -152,18 +153,6 @@ def record(
     row["id"] = hashlib.sha256(body.encode()).hexdigest()[:16]
     add_row(_path(path), KIND, row)
     return str(row["id"])
-
-
-def _stamp() -> dict[str, Any]:
-    """Which data and which code made the row (#154): enough to say whether a re-run can match."""
-    from eulerlab.reports import code_version
-    from eulerlab.research import data_manifest
-
-    code = code_version()
-    return {
-        "data_version": data_manifest.version(),
-        "code": {"commit": code["commit"], "dirty": code["dirty"]},
-    }
 
 
 def rows(path: Path | None = None, *, purpose: Purpose | None = None) -> list[dict[str, Any]]:

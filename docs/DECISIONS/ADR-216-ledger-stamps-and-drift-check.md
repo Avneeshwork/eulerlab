@@ -1,0 +1,7 @@
+# ADR-216 — Ledger entries carry data and code stamps; a drift check re-runs pinned rows
+
+**Context.** Issue #154, task T-4655. ADR-213 stamped every experiment-store row with `data_version` and `code`; trial-ledger entries had neither, and nothing re-ran stored rows to notice when a data rebuild or engine change moved them.
+**Options.** (a) Put the stamps inside each entry's `params`; (b) new optional `data_version` and `code` fields on `LedgerEntry`, hashed only when present; (c) bump every entry to a new format. For the check: (i) a nightly job; (ii) a manual `make reproduce-check` over a committed list of pinned row ids.
+**Choice.** (b) and (ii). `data_manifest.stamp()` is the one function both the experiment store and the ledger call. `make reproduce-check` reads `config/reference_experiments.yaml` (Pydantic-checked, empty at first), runs `reproduce.reproduce` on each pinned row, prints the rule and the first day that moved, and exits 1 on any drift or missing row.
+**Why.** (a) mixes provenance with what was tested; (c) would rewrite an append-only, hash-chained file. Old entries keep their old hash under (b). Scheduling was left out on purpose: the operator decides when and whether it runs.
+**Cost if wrong.** A trial now costs a git call and a manifest read (cached by size and time; the first call after a data rebuild hashes about 1.2 GB). The check finds nothing until rows are pinned, and it re-runs on today's data only: it says that a row moved, not what the old data was.

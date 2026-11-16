@@ -59,10 +59,20 @@ class LedgerEntry:
     outcome: dict[str, object]
     prev_hash: str
     entry_hash: str
+    data_version: str | None = None
+    """The research data's content hash when the trial ran (`data_manifest`, #154).
+    None on entries logged before 2026-11-16."""
+
+    code: dict[str, object] | None = None
+    """The commit and dirty flag that ran the trial (#154). None before 2026-11-16."""
 
     def payload(self) -> dict[str, object]:
-        """Exactly the fields the hash covers."""
-        return {
+        """Exactly the fields the hash covers.
+
+        The stamps are covered only when present, so entries logged before they
+        existed hash as they always did and the chain still verifies (ADR-216).
+        """
+        out: dict[str, object] = {
             "seq": self.seq,
             "logged_at": self.logged_at,
             "kind": self.kind,
@@ -71,6 +81,11 @@ class LedgerEntry:
             "outcome": self.outcome,
             "prev_hash": self.prev_hash,
         }
+        if self.data_version is not None:
+            out["data_version"] = self.data_version
+        if self.code is not None:
+            out["code"] = self.code
+        return out
 
 
 def compute_hash(payload: dict[str, object]) -> str:
@@ -110,6 +125,8 @@ def _entry(line: str) -> LedgerEntry:
         outcome=dict(row["outcome"]),
         prev_hash=str(row["prev_hash"]),
         entry_hash=str(row["entry_hash"]),
+        data_version=row.get("data_version"),
+        code=row.get("code"),
     )
 
 
@@ -127,10 +144,17 @@ def append(
 ) -> LedgerEntry:
     """Add one trial, linked to whatever came before. Returns the new entry.
 
+    Each entry carries the same data and code stamps as an experiment-store row
+    (#154, ADR-216), so a trial can be traced to what it ran on.
+
     There is deliberately no update, no delete, and no way to write a
     `seq` or a `prev_hash` from outside — both are derived from the existing
     chain, so a caller cannot insert a row in the middle even by accident.
     """
+
+    from eulerlab.research import data_manifest
+
+    stamps = data_manifest.stamp()
 
     def build(last: str | None, seq: int) -> LedgerEntry:
         payload: dict[str, object] = {
@@ -141,6 +165,7 @@ def append(
             "params": params,
             "outcome": outcome,
             "prev_hash": _entry(last).entry_hash if last else GENESIS,
+            **stamps,
         }
         return LedgerEntry(**payload, entry_hash=compute_hash(payload))  # type: ignore[arg-type]
 

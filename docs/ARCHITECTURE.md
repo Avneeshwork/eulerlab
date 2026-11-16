@@ -1040,6 +1040,11 @@ Altering or removing any row breaks every link after it. This does not make
 tampering impossible — anyone can rewrite the whole chain — but it makes it
 **detectable and deliberate** rather than quiet.
 
+Since 2026-11-16 each entry also carries `data_version` and `code`, the same
+stamps as an experiment-store row (`data_manifest.stamp()`, ADR-216). They are
+inside the hash when present; entries from before have neither and hash as
+they always did, so the chain still verifies.
+
 **Why this file specifically?** Because every statistic in §5.3–5.5 gets *more
 favourable* as the trial count falls. DSR rises. MinBTL shrinks. The
 multiple-testing correction weakens. The one number the entire battery rests on
@@ -3656,7 +3661,10 @@ made. Every row also carries `data_version`, the hash of a manifest of the
 engine's six input files by content (`research/data_manifest.py`, rehashed
 only when a file's size or time changes), and `code` (commit and dirty flag),
 so `make reproduce ID=` can re-run it and say whether data or code moved
-since (ADR-213). A `screen` or `sweep` row that reads a day after `discovery_end` is
+since (ADR-213). `make reproduce-check` re-runs every row pinned in
+`config/reference_experiments.yaml` (empty until the operator pins some) and
+exits non-zero if any moved, printing the rule and the first day that moved
+(ADR-216). It is run by hand; nothing schedules it. A `screen` or `sweep` row that reads a day after `discovery_end` is
 refused too (#152, ADR-210): what a search ranks, it ranks on discovery data.
 The autopilot, evolve, the research loop and `make combine` screen on data cut
 by `rule_engine.through(data, discovery_end)`, which drops every later bar so
