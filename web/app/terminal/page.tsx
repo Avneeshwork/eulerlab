@@ -390,8 +390,9 @@ export default function TerminalPage() {
       </header>
 
       <div className="tpage">
-        {/* Charts has no title at all (operator, 2026-11-16): the nav names the page. */}
-        {page !== 'report' && page !== 'charts' && (
+        {/* Charts and Options have no title at all (operator, 2026-11-16): the
+            nav names the page. */}
+        {page !== 'report' && page !== 'charts' && page !== 'options' && (
           <div className="tpage-head">
             {heading.parent && (
               <nav className="tcrumb" aria-label="Breadcrumb">
