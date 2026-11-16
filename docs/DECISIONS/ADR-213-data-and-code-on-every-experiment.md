@@ -1,0 +1,7 @@
+# ADR-213 — Every experiment names its data and its code
+
+**Context.** Issue #154. Research 192 found stored results that no longer reproduce (HISTORY #89) and could only guess the cause, because an experiment row kept its spec, window and metrics but not the data or code that made it. The fast evaluator's disk tables were named by the data's shape only (S-064), so a restated history of the same shape would reuse stale tables.
+**Options.** (a) Size and mtime stamps (as `batch.data_version`); (b) content hashes of each input, cached by size and mtime; (c) snapshot the data per experiment.
+**Choice.** (b). `research/data_manifest.py` hashes the six files the rule engine reads and keeps each hash beside its size and time, so a file is rehashed only when it changes. Every experiment row now carries `data_version` (the manifest's hash) and `code` (commit, dirty flag, from `reports.code_version`). The fast evaluator's disk tables are keyed by the manifest too. `make reproduce ID=` re-screens a row on today's data cut at its end, diffs count, net Sharpe and daily returns, and names what changed since (data, code, or neither).
+**Why.** A content hash says whether the data is the same; a size and time stamp only says whether it was touched. Snapshots (c) would copy 1.2 GB per change.
+**Cost if wrong.** A file restated with the same size and time keeps its old hash. The first fast-eval run after this change rebuilds its tables once (minutes). Old data is not kept, so a row made on data since replaced can be shown to have moved but not re-run as it was.

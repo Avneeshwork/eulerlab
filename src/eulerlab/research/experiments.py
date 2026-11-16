@@ -19,6 +19,8 @@ One line per evaluation in `data/derived/experiments.jsonl`, appended only:
     first, end   the window read
     metrics      what came out (count, net Sharpe, ...)
     returns      name of the file holding its daily net returns, or null
+    data_version content hash of the engine's input files (`data_manifest`, #154)
+    code         the commit and whether the tree was edited (`reports.code_version`)
 
 The daily returns are one JSON file per distinct series under
 `data/derived/experiment_returns/`, named by the hash of its content, so the
@@ -142,6 +144,7 @@ def record(
         "end": end.isoformat(),
         "metrics": dict(metrics),
         "returns": _returns_file(daily, _root(returns_root)) if daily else None,
+        **_stamp(),
     }
     if spec is not None:
         row["spec"] = dict(spec)
@@ -149,6 +152,18 @@ def record(
     row["id"] = hashlib.sha256(body.encode()).hexdigest()[:16]
     add_row(_path(path), KIND, row)
     return str(row["id"])
+
+
+def _stamp() -> dict[str, Any]:
+    """Which data and which code made the row (#154): enough to say whether a re-run can match."""
+    from eulerlab.reports import code_version
+    from eulerlab.research import data_manifest
+
+    code = code_version()
+    return {
+        "data_version": data_manifest.version(),
+        "code": {"commit": code["commit"], "dirty": code["dirty"]},
+    }
 
 
 def rows(path: Path | None = None, *, purpose: Purpose | None = None) -> list[dict[str, Any]]:

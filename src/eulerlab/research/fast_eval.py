@@ -82,9 +82,15 @@ class Store:
 
     @cached_property
     def version(self) -> str:
-        """Names the data: its sessions, its stocks and where the window ends."""
+        """Names the data: its sessions, its stocks, where the window ends and, for tables
+        kept on disk, the content hash of the input files (#154, S-064), so a restated
+        history with the same shape builds new tables instead of reusing stale ones."""
+        from eulerlab.research import data_manifest
+
         d = self.engine.data
         body = f"{self.days[0]}|{self.days[-1]}|{len(self.days)}|{len(self.symbols)}|{d.end}"
+        if self._cache is not None:
+            body += f"|{data_manifest.version()}"
         return hashlib.sha256(body.encode()).hexdigest()[:12]
 
     @cached_property
@@ -407,7 +413,7 @@ def evaluate(
                 fingerprint=spec.fingerprint(),
                 family=family,
                 first=spec.first,
-                end=engine.data.end,
+                end=min(engine.data.end, engine.data.sessions[-1]),
                 metrics={
                     "count": found.get("count"),
                     "net_sharpe": (found.get("net") or {}).get("sharpe"),

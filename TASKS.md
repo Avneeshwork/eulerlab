@@ -9,6 +9,8 @@ Operator, 2026-11-16: "start them" — go through the gap audit's issues and bui
 
 | ID | Task | Status |
 |---|---|---|
+| T-4654 | #154: every experiment row carries `data_version` (content hash of the engine's inputs) and `code`; fast-eval disk tables keyed by the content hash; `make reproduce ID=` (`pytest tests/test_reproduce.py`) | DONE 2026-11-16, ADR-213 |
+| T-4655 | #154, the rest: ledger entries carry the same stamps; a nightly re-run of a pinned set of reference rows that alerts on drift (after T-4597 re-stores research 176); key the panel by instrument id (S-064) | TODO |
 | T-4652 | #157, eval part: the generator eval reads a fixed, empty lesson store, so `make agent-evals` scores the same on the Mac and in CI (closes T-4599; `pytest tests/test_agent_evals.py`) | DONE 2026-11-16, ADR-212 |
 | T-4653 | #157, the rest: a per-source scorecard (trials, model rupees, gate passes, forward Sharpe at 20 and 60 sessions) once `make forward-shadow` has rows, then budget by forward survival; the operator reviews a held-out set of paper-to-card pairs once | TODO. Needs forward-shadow rows (T-4624) |
 | T-4651 | #158: robustness battery (neighbours, half universes, placebos, regimes) on every autopilot survivor before the gate, `make robust-battery` (`pytest tests/test_robust_battery.py tests/test_research_autopilot.py`) | DONE 2026-11-16, ADR-211; run on H-0161, H-0168, H-0175, H-0187 in research 198 |

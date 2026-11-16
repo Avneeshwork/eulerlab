@@ -3650,7 +3650,11 @@ the database is on): purpose (`screen`, `sweep`, `selection`, `gate`,
 name of a file under `data/derived/experiment_returns/` holding its daily net
 returns. A row that is not `forward` and reads a day after `backtest_end` is
 refused (`SealedPeriod`): the forward test is sealed where the record is
-made. A `screen` or `sweep` row that reads a day after `discovery_end` is
+made. Every row also carries `data_version`, the hash of a manifest of the
+engine's six input files by content (`research/data_manifest.py`, rehashed
+only when a file's size or time changes), and `code` (commit and dirty flag),
+so `make reproduce ID=` can re-run it and say whether data or code moved
+since (ADR-213). A `screen` or `sweep` row that reads a day after `discovery_end` is
 refused too (#152, ADR-210): what a search ranks, it ranks on discovery data.
 The autopilot, evolve, the research loop and `make combine` screen on data cut
 by `rule_engine.through(data, discovery_end)`, which drops every later bar so
@@ -3683,7 +3687,7 @@ clean autopilot survivor before a gate entry is spent, and by hand with
 | neighbours | each number (constant, window, lag, swing hold) moved 20% either way, one at a time: more than half the neighbours keep half the rule's net Sharpe |
 | halves | 20 random halves of the stock list, fixed by the fingerprint: median net Sharpe above zero |
 | placebos | the entries moved 5-60 sessions later, 20 times: mean net Sharpe under half the rule's |
-| regimes | Nifty 50 above or below its 200-session mean, India VIX terciles (previous close), before or after 2020, before or after peak margin (2021-09-01): no state holds more than 80% of the profit in any split with two readable states |
+| regimes | Nifty 50 above or below its 200-session mean, India VIX terciles (previous close), before or after 2020, before or after peak margin (2021-09-01): no state holds more than 80% of the profit a session (mean daily return per state, so a longer state is not favoured) in any split with two readable states |
 
 A test that cannot be read (too few sessions, no index file) does not fail
 the rule. A survivor that fails any test is not gated, and its card's result

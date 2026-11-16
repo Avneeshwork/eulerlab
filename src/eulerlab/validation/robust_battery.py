@@ -18,7 +18,8 @@ the same four questions of every survivor:
                  below its 200-session mean, India VIX terciles, before or
                  after 2020, before or after the September 2021 peak-margin
                  rules): no split may have one state hold more than 80% of
-                 the profit
+                 the profit a session (each state's mean daily return, so a
+                 long state is not favoured for being long)
 
 Every run is on data cut at `discovery_end` (ADR-210) and is one `robust` row
 in the experiment store, so the search it adds is counted. It spends no ledger
@@ -220,7 +221,9 @@ def _regime_test(daily: Mapping[date, float], labels: Mapping[str, Mapping[date,
             if d in states:
                 sums[states[d]] += v
                 days[states[d]] += 1
-        read = {s: round(v, 6) for s, v in sums.items() if days[s] >= MIN_DAYS}
+        # Per session, not summed: 2005-2021 has seven times the sessions of 2021-2023,
+        # so a summed share would fail an edge that is the same every day.
+        read = {s: round(v / days[s], 8) for s, v in sums.items() if days[s] >= MIN_DAYS}
         profit = sum(v for v in read.values() if v > 0)
         if len(read) < 2 or profit <= 0:
             continue
@@ -231,7 +234,7 @@ def _regime_test(daily: Mapping[date, float], labels: Mapping[str, Mapping[date,
     if worst is None:
         return Test("regimes", None, "no split has two states with enough sessions")
     share, split = worst
-    detail = f"largest share of profit in one state: {share:.0%} ({split})"
+    detail = f"largest share of the profit a session in one state: {share:.0%} ({split})"
     return Test("regimes", share <= REGIME_SHARE, detail, {"by_split": table})
 
 
