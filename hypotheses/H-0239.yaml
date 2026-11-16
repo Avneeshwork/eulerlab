@@ -53,4 +53,5 @@ holdout:
   starts: '2024-12-01'
   status: unread
 result: 'Autopilot screen 2026-11-12: 4086 trades 2016-01-01 to 2024-11-30; net 103.22 bps each; net Sharpe
-  4.592, halves 4.752 / 4.479, 4.114 at 2x costs. Clean survivor; waiting for the week''s gate allowance.'
+  4.592, halves 4.752 / 4.479, 4.114 at 2x costs. Clean survivor; waiting for the week''s gate allowance.
+  Gate 2026-11-16: PROMOTE.'
