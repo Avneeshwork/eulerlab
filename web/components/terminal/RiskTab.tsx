@@ -1,5 +1,5 @@
 /**
- * Limits, breaches and the kill switch: one line on Risk overview, the limits
+ * Limits, breaches and the kill switch: one line on Deployment, the limits
  * one click away (operator, 2026-11-16; it was its own tab).
  *
  * The architecture document puts risk on the home screen, one click away. It

@@ -536,23 +536,24 @@ export default function TerminalPage() {
                 Trade desk
               </button>
             </div>
-            {/* The limits and kill switch sit on Risk overview as one line (operator,
-                2026-11-16); an old `#live/risk` link lands there too. */}
+            {/* The kill switch line sits on Deployment only, where trading is
+                started and stopped (operator, 2026-11-16); an old `#live/risk`
+                link lands on Risk overview. */}
             {liveView === 'overview' || liveView === 'risk' ? (
-              <>
-                <RiskTab />
-                <RiskBookView view="overview" onReport={(id) => setPage('deployment', id)} />
-              </>
+              <RiskBookView view="overview" onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'performance' || liveView === 'stress' ? (
               <RiskBookView view={liveView} onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'deploy' ? (
-              <LiveTab
-                fleet={fleet?.strategies ?? []}
-                workspace={workspace}
-                onDeploy={setDeploying}
-                onReport={(id) => setPage('deployment', id)}
-                onStrategyReport={(id) => setPage('report', id)}
-              />
+              <>
+                <RiskTab />
+                <LiveTab
+                  fleet={fleet?.strategies ?? []}
+                  workspace={workspace}
+                  onDeploy={setDeploying}
+                  onReport={(id) => setPage('deployment', id)}
+                  onStrategyReport={(id) => setPage('report', id)}
+                />
+              </>
             ) : liveView === 'desk' ? (
               <DeskTab titles={Object.fromEntries((fleet?.strategies ?? []).map((s) => [s.id, s.title]))} />
             ) : null}
