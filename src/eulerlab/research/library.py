@@ -51,6 +51,11 @@ class Paper(BaseModel):
     source_url: str = Field(default="", max_length=500)
     pdf: str = Field(default="", max_length=300)
     """Repo-relative path to a local copy, when there is one."""
+    version_read: Literal["", "full text", "abstract"] = ""
+    """Which version the summary was written from (ADR-215). Empty on papers
+    added before 2026-11-16, which did not record it."""
+    open_access_url: str = Field(default="", max_length=500)
+    """OpenAlex's `open_access.oa_url` for the paper, when it listed one."""
 
     added: str = Field(default_factory=lambda: datetime.now(UTC).date().isoformat())
     status: Status = "idea"

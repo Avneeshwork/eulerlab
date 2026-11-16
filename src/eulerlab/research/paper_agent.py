@@ -5,7 +5,9 @@ drafts strategy cards in this repository's format, and stops for human
 approval before any backtest or trial-ledger entry. ADR-084.
 
     topic -> price the search -> arXiv + OpenAlex -> drop known papers
-          -> read (arXiv HTML, else the abstract) -> model drafts JSON
+          -> read (arXiv HTML, else the open-access HTML copy, else the
+             abstract; the version read is on the paper record, ADR-215)
+          -> model drafts JSON
           -> library.Paper + card.validate + critic.review
           -> research/papers/<id>.yaml   every paper it read, even one judged
                                          not a trading idea (status rejected)
@@ -45,7 +47,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -222,11 +224,17 @@ Rules:
 # --- one draft --------------------------------------------------------------
 
 
+Version = Literal["", "full text", "abstract"]
+"""`library.Paper.version_read`: which version of a paper was read."""
+
+
 @dataclass
 class Draft:
     candidate: paper_search.Candidate
     read: str
     """`full text (N characters)` or `abstract only`."""
+    version: Version = ""
+    """`full text` or `abstract` once the paper is read; empty if it was not."""
     provider: str = ""
     model: str = ""
     outcome: str = ""
@@ -260,6 +268,7 @@ def build(
     *,
     read: str,
     model: str,
+    version: Version = "",
 ) -> tuple[library.Paper, card.Card | None]:
     """The library entry and card, with every factual field set by code."""
     assert reply.paper is not None
@@ -274,6 +283,8 @@ def build(
         year=candidate.year,
         kind="paper",
         source_url=candidate.url,
+        version_read=version,
+        open_access_url=candidate.oa_url[:500],
         status="idea",
         markets=reply.paper.markets[:10],
         summary=reply.paper.summary,
@@ -301,7 +312,12 @@ def build(
 
 
 def build_rejected(
-    candidate: paper_search.Candidate, reply: Reply, *, read: str, model: str
+    candidate: paper_search.Candidate,
+    reply: Reply,
+    *,
+    read: str,
+    model: str,
+    version: Version = "",
 ) -> library.Paper:
     """A library entry for a paper read and judged not a testable trading idea.
 
@@ -323,6 +339,8 @@ def build_rejected(
         year=candidate.year,
         kind="paper",
         source_url=candidate.url,
+        version_read=version,
+        open_access_url=candidate.oa_url[:500],
         status="rejected",
         markets=(fields.markets if fields else [])[:10],
         summary=(fields.summary if fields and fields.summary else "")
@@ -402,6 +420,8 @@ def _stage(draft: Draft, run_dir: Path, *, years: float) -> Path:
         "url": draft.candidate.url,
         "fetched_at": draft.candidate.fetched_at,
         "read": draft.read,
+        "version": draft.version,
+        "open_access_url": draft.candidate.oa_url,
         "provider": draft.provider,
         "model": draft.model,
         "relevance": draft.relevance,
@@ -532,6 +552,14 @@ class Run:
             out[key] = out.get(key, 0) + 1
         return out
 
+    def versions(self) -> dict[str, int]:
+        """How many papers sent to the model were read as full text, and how many as abstracts."""
+        out = {"full text": 0, "abstract": 0}
+        for d in self.drafts:
+            if d.version:
+                out[d.version] += 1
+        return out
+
     def render(self) -> str:
         lines = [self.cost.render(), "", f"topic: {self.topic}"]
         for failure in self.failures:
@@ -548,8 +576,10 @@ class Run:
             if d.path:
                 lines.append(f"      {d.path}")
         drafted = sum(1 for d in self.drafts if d.outcome == "drafted")
+        read = self.versions()
         lines += [
             "",
+            f"read: {read['full text']} full text(s), {read['abstract']} abstract(s) only.",
             f"{drafted} draft(s) in {self.folder}. Nothing was registered, backtested or logged.",
             "Read each paper.yaml, card.yaml and review.txt, then for one you accept:",
             "  make paper-agent-approve DRAFT=<folder>",
@@ -616,8 +646,9 @@ def run(
         if score == 0:
             draft.outcome = "off topic"
             continue
-        text = paper_search.full_text(candidate, get=get)
-        if text:
+        reading = paper_search.read(candidate, get=get)
+        text = reading.text
+        if reading.where == "arXiv HTML":
             sleep(paper_search.ARXIV_SPACING)
         if not text and len(candidate.abstract) < paper_search.MIN_ABSTRACT and candidate.doi:
             fuller, where = paper_search.fuller_abstract(candidate.doi, get=get)
@@ -629,10 +660,11 @@ def run(
             draft.outcome = "nothing to read"
             continue
         draft.read = (
-            f"first {len(text):,} characters of the arXiv HTML"
+            f"first {len(text):,} characters of the {reading.where}"
             if text
-            else (draft.read or "abstract only")
+            else (draft.read or "abstract only") + (f" ({reading.where})" if reading.where else "")
         )
+        draft.version = reading.version
         if made:
             sleep(spacing)
         log(f"reading: {candidate.title[:70]} ({draft.read})")
@@ -660,14 +692,16 @@ def run(
         if not reply.relevant or reply.paper is None:
             draft.outcome = "not relevant"
             try:
-                draft.paper = build_rejected(candidate, reply, read=draft.read, model=answer.model)
+                draft.paper = build_rejected(
+                    candidate, reply, read=draft.read, model=answer.model, version=draft.version
+                )
                 _keep(draft.paper, library_root, known)
             except (ValidationError, ValueError) as exc:
                 log(f"not kept in the library: {str(exc)[:120]}")
             continue
         try:
             draft.paper, draft.hypothesis = build(
-                candidate, reply, read=draft.read, model=answer.model
+                candidate, reply, read=draft.read, model=answer.model, version=draft.version
             )
         except ValidationError as exc:
             draft.outcome = f"failed: {str(exc)[:120]}"
@@ -688,6 +722,7 @@ def run(
             "not_searched": result.failures,
             "bar_now": round(cost.bar_now, 4),
             "trials_already": cost.trials_already,
+            "read": result.versions(),
             "papers": [
                 {
                     "title": d.candidate.title,
@@ -695,6 +730,8 @@ def run(
                     "outcome": d.outcome,
                     "why": d.relevance,
                     "read": d.read,
+                    "version": d.version,
+                    "open_access_url": d.candidate.oa_url,
                     "library": d.paper.id if d.paper is not None else "",
                     "folder": d.path.name if d.path else "",
                 }

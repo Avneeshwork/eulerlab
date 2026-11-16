@@ -1770,10 +1770,11 @@ to the one cost path; until 2026-10-07 they charged ETFs the share rate
 `research/paper_search.py`) goes from a topic to drafts the operator reads.
 Cards stop there; papers go into the library (ADR-126).
 
-    price the search -> the sources in research.yaml (arXiv q-fin, OpenAlex, SSRN, NBER, CORE, Semantic Scholar)
+    price the search -> the sources in research.yaml (arXiv q-fin, OpenAlex, SSRN, NBER, CORE, Semantic Scholar, India)
       -> one per paper across sources -> closest to the topic first, sources taking turns
       -> drop papers already known by any name, and ones sharing no topic word
-      -> read arXiv HTML (first 16,000 chars), the abstract, or Crossref's, else OpenAlex's
+      -> read arXiv HTML (first 16,000 chars), else OpenAlex's open-access HTML copy,
+         else the abstract, or Crossref's, else OpenAlex's; record which (version_read)
       -> research_agent model (one retry) -> JSON reply -> library.Paper + Card
       -> research/papers/<id>.yaml for every paper judged, even "not a trading idea"
       -> card.validate + critic.review
@@ -1806,6 +1807,25 @@ normalised title, and the title's significant
 words; a candidate sharing a name, or 85% of a title of five or more words
 (A-099), is `known`. A paper whose read failed is not, so it is tried again.
 `make papers-duplicates` lists library pairs that look like one paper.
+
+**Indian papers and full texts (ADR-215, research 199).** `india` is OpenAlex
+limited to works with an author at an Indian institution
+(`authorships.institutions.country_code:IN`), which reaches IIMA, ISB and RBI
+authors. NSE's, SEBI's, RBI's, ISB's and RePEc's own listings are not searched:
+none has both a listing a program may read and terms that allow it. When
+OpenAlex lists `open_access.oa_url`, `paper_search.read` tries that copy after
+arXiv's HTML: only an HTML page, only if the host's robots.txt allows it, at most
+3 MB read, and only if its text is at least 8,000 characters and four times the
+abstract (A-161). A PDF is not read; there is no PDF reader. The paper record
+keeps `version_read` (`full text` or `abstract`) and `open_access_url`; the
+run's summary and `run.json` count full texts against abstracts.
+
+**Replication queue (#159).** `make replication-queue` (`knowledge.replication_queue`)
+lists library papers, not rejected, whose own market is Indian or is US cash
+stocks (an Indian cash-stock twin), with no card marked `source.replicates: true`.
+Indian first; within each, papers that already have adaptations first. The route
+is read from the paper's `markets` entries, setting aside ones that describe our
+adaptation (`(here)`, `adaptation`, `local`). It writes no card.
 
 **Which papers are read.** Candidates are sorted by the share of the topic's
 content words (first five letters, so "momentum" meets "moment") their title and

@@ -19,8 +19,9 @@ options:
   limit: 5
   # Where it looks, in this order (ADR-129). SSRN through OpenAlex (its own site
   # blocks robots), NBER through Crossref. A new source is a function in
-  # research/paper_search.SOURCES and a line here.
-  sources: [arxiv, openalex, ssrn, nber, core, semantic_scholar]
+  # research/paper_search.SOURCES and a line here. `india` is OpenAlex limited to
+  # authors at Indian institutions (ADR-215, research 199).
+  sources: [arxiv, openalex, ssrn, nber, core, semantic_scholar, india]
   topic: "Indian equities cross-sectional anomalies with low turnover"
   # Research goes first and picks its own topic (ADR-128): one a day from this
   # list, in turn, unless a task or your brief names one. The lab no longer chooses.
