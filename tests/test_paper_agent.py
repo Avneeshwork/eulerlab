@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import json
+import urllib.parse
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -132,6 +133,10 @@ def _get(url: str) -> bytes:
         return (
             b"<html><body><nav>menu</nav><p>" + b"Paper body text. " * 300 + b"</p></body></html>"
         )
+    if url.startswith(paper_search.CORE_API):
+        return b'{"results": []}'
+    if url.startswith(paper_search.S2_PAPER):
+        raise paper_search.SearchFailed("not found", 404)
     raise AssertionError(f"unexpected fetch {url}")
 
 
@@ -717,6 +722,10 @@ def _oa_get(
         fetched.append(url)
         if url in (extra or {}):
             return (extra or {})[url]
+        if url.startswith(paper_search.CORE_API):
+            return b'{"results": []}'  # CORE holds no full text unless a test says so
+        if url.startswith(paper_search.S2_PAPER):
+            raise paper_search.SearchFailed("not found", 404)
         if url.startswith(paper_search.OPENALEX_API):
             return OA_PAGE
         if url == "https://journal.example/robots.txt":
@@ -807,6 +816,47 @@ def test_a_landing_page_names_its_pdf_and_the_pdf_is_read() -> None:
     get = _oa_get(page=page, extra={"https://journal.example/files/p.pdf": PAPER_PDF})
     reading = paper_search.read(_oa_candidate(), get=get)
     assert reading.version == "full text" and "linked from its landing page" in reading.where
+
+
+def test_cores_harvested_full_text_is_read_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Operator, 2026-11-16: "we have api": CORE's API returns the paper's text itself."""
+    body = json.dumps(
+        {"results": [{"title": "Overnight returns reverse intraday on the NSE",
+                      "fullText": "The paper's text from CORE. " * 600}]}
+    ).encode()  # fmt: skip
+    candidate = _oa_candidate()
+    query = urllib.parse.urlencode({"q": f'title:"{candidate.title}"', "limit": "3"})
+    get = _oa_get(extra={f"{paper_search.CORE_API}?{query}": body})
+    reading = paper_search.read(candidate, get=get)
+    assert reading.version == "full text" and reading.where == "CORE full text"
+    assert OA_HTML not in get.fetched  # no copy fetched from the publisher
+
+
+def test_a_core_hit_with_another_title_is_not_taken() -> None:
+    body = json.dumps({"results": [{"title": "Another paper", "fullText": "x " * 9000}]}).encode()
+    candidate = _oa_candidate()
+    query = urllib.parse.urlencode({"q": f'title:"{candidate.title}"', "limit": "3"})
+    assert (
+        paper_search.core_full_text(
+            candidate, get=_oa_get(extra={f"{paper_search.CORE_API}?{query}": body})
+        )
+        == ""
+    )
+
+
+def test_semantic_scholars_open_pdf_is_tried() -> None:
+    candidate = replace(_oa_candidate(""), doi="10.1/oa", pdf_url="")
+    s2 = f"{paper_search.S2_PAPER}DOI%3A10.1/oa?fields=openAccessPdf"
+    pdf = "https://repository.example/oa.pdf"
+    get = _oa_get(
+        extra={
+            s2: json.dumps({"openAccessPdf": {"url": pdf}}).encode(),
+            "https://repository.example/robots.txt": b"",
+            pdf: PAPER_PDF,
+        }
+    )
+    reading = paper_search.read(candidate, get=get)
+    assert reading.version == "full text" and reading.where == "open-access PDF"
 
 
 def test_a_pdf_with_no_text_falls_back_to_the_abstract() -> None:

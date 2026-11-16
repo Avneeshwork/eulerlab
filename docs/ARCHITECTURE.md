@@ -1813,9 +1813,11 @@ limited to works with an author at an Indian institution
 (`authorships.institutions.country_code:IN`), which reaches IIMA, ISB and RBI
 authors. NSE's, SEBI's, RBI's, ISB's and RePEc's own listings are not searched:
 none has both a listing a program may read and terms that allow it. After
-arXiv's HTML, `paper_search.read` tries every free copy in turn (ADR-218): the
-arXiv PDF, OpenAlex's `oa_url`, the service's PDF link and every open location
-OpenAlex lists for the DOI. PDFs are read with pypdf; a landing page's
+arXiv's HTML, `paper_search.read` asks CORE's API for its harvested full text
+(by DOI, then exact title), then tries every free copy in turn (ADR-218): the
+arXiv PDF, OpenAlex's `oa_url`, the service's PDF link, every open location
+OpenAlex lists for the DOI, Semantic Scholar's `openAccessPdf`, and free copies
+of other OpenAlex records with the same title (a working-paper version). PDFs are read with pypdf; a landing page's
 `citation_pdf_url` is followed once. Each host's robots.txt is obeyed, at most
 25 MB is read, and an HTML page counts only if its text is at least 8,000
 characters and four times the abstract (A-161). The abstract is read only when

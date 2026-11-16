@@ -42,9 +42,11 @@ Sources, their limits and their terms: research 124.
   SEBI's, RBI's, ISB's and RePEc's own listings were checked and are not used
   (research 199).
 - **Free copies, read in full** (ADR-215, ADR-218): after arXiv's HTML, `read`
+  asks CORE's API for the full text it harvested (by DOI or exact title), then
   tries every free copy in turn (`open_copies`): the arXiv PDF, OpenAlex's
-  `oa_url`, the service's PDF link and every open location OpenAlex lists for
-  the DOI. PDFs are read with pypdf; a landing page's `citation_pdf_url` is
+  `oa_url`, the service's PDF link, every open location OpenAlex lists for
+  the DOI, Semantic Scholar's `openAccessPdf`, and the free copies of other
+  OpenAlex records with the same title (a working-paper version). PDFs are read with pypdf; a landing page's `citation_pdf_url` is
   followed once. Each host's robots.txt is obeyed and at most
   `OPEN_ACCESS_MAX_BYTES` is read. The abstract is read only when no copy reads.
 - **Crossref** (`api.crossref.org/works/<doi>`): no key. Asked only for a paper
@@ -844,6 +846,77 @@ def _copy_text(url: str, abstract: str, get: Fetch, *, follow: bool = True) -> t
     return "", "open copy looked like a landing page, not read"
 
 
+S2_PAPER = "https://api.semanticscholar.org/graph/v1/paper/"
+
+
+def core_full_text(candidate: Candidate, *, get: Fetch = fetch) -> str:
+    """The full text CORE holds for the paper (by DOI, then exact title), or "". Never raises.
+
+    CORE's API hands back the text of the repository copy it harvested, so no
+    PDF is fetched from the repository itself (key `CORE_API_KEY`, ADR-218).
+    The title search also finds a working-paper version under another DOI."""
+    key = api_key(CORE_KEYS)
+    look = with_headers(get, {"Authorization": f"Bearer {key}"} if key else {})
+    queries = [f'doi:"{candidate.doi}"'] if candidate.doi else []
+    queries += [f'title:"{candidate.title}"'] if candidate.title else []
+    for query in queries:
+        params = {"q": query, "limit": "3"}
+        try:
+            body = json.loads(look(f"{CORE_API}?{urllib.parse.urlencode(params)}"))
+        except (SearchFailed, ValueError):
+            continue
+        rows = body.get("results") if isinstance(body, dict) else None
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            title = normalise_title(str(row.get("title") or ""))
+            if query.startswith("title:") and title != normalise_title(candidate.title):
+                continue  # a title search's hit must be the same paper
+            text = _clean(str(row.get("fullText") or ""))
+            if len(text) >= max(OPEN_ACCESS_MIN_CHARS, 4 * len(candidate.abstract)):
+                return text[:FULL_TEXT_CHARS]
+    return ""
+
+
+def same_title_copies(candidate: Candidate, *, get: Fetch = fetch) -> list[str]:
+    """Free copies of other OpenAlex records with the same title: a paper's working-paper
+    version (NBER, SSRN, a university repository) is often a separate record."""
+    if not candidate.title:
+        return []
+    params = {"filter": f"title.search:{candidate.title},is_oa:true", "per_page": "5"}
+    try:
+        body = json.loads(get(f"{OPENALEX_API}?{urllib.parse.urlencode(params)}"))
+    except (SearchFailed, ValueError):
+        return []
+    out: list[str] = []
+    rows = body.get("results") if isinstance(body, dict) else None
+    for row in rows if isinstance(rows, list) else []:
+        if not isinstance(row, dict):
+            continue
+        if normalise_title(str(row.get("display_name") or "")) != normalise_title(candidate.title):
+            continue
+        for place in row.get("locations") or []:
+            if isinstance(place, dict) and place.get("is_oa"):
+                out += [str(place.get("pdf_url") or ""), str(place.get("landing_page_url") or "")]
+    return out
+
+
+def s2_pdf(candidate: Candidate, *, get: Fetch = fetch) -> str:
+    """Semantic Scholar's open-access PDF link for the paper's DOI or arXiv number, or ""."""
+    ident = f"DOI:{candidate.doi}" if candidate.doi else ""
+    ident = ident or (f"ARXIV:{candidate.arxiv_id}" if candidate.arxiv_id else "")
+    if not ident:
+        return ""
+    key = api_key(S2_KEYS)
+    look = with_headers(get, {"x-api-key": key} if key else {})
+    try:
+        row = json.loads(look(f"{S2_PAPER}{urllib.parse.quote(ident)}?fields=openAccessPdf"))
+    except (SearchFailed, ValueError):
+        return ""
+    pdf = row.get("openAccessPdf") if isinstance(row, dict) else None
+    return str(pdf.get("url") or "") if isinstance(pdf, dict) else ""
+
+
 def open_copies(candidate: Candidate, *, get: Fetch = fetch) -> list[str]:
     """Every free copy known for the paper, best first, without duplicates.
 
@@ -861,6 +934,8 @@ def open_copies(candidate: Candidate, *, get: Fetch = fetch) -> list[str]:
         for place in (row.get("locations") or []) if isinstance(row, dict) else []:
             if isinstance(place, dict) and place.get("is_oa"):
                 out += [str(place.get("pdf_url") or ""), str(place.get("landing_page_url") or "")]
+    out.append(s2_pdf(candidate, get=get))
+    out += same_title_copies(candidate, get=get)
     return [u for u in dict.fromkeys(out) if u]
 
 
@@ -888,6 +963,9 @@ def read(candidate: Candidate, *, get: Fetch = fetch) -> Reading:
     text = full_text(candidate, get=get)
     if text:
         return Reading(text, "full text", "arXiv HTML", f"{ARXIV_HTML}{candidate.arxiv_id}")
+    text = core_full_text(candidate, get=get)
+    if text:
+        return Reading(text, "full text", "CORE full text", candidate.url)
     text, note = open_access_text(candidate, get=get)
     if text:
         return Reading(text, "full text", note, candidate.oa_url)
