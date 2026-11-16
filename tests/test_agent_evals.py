@@ -242,3 +242,21 @@ def test_the_trend_marks_a_run_below_its_baseline_or_floor(
         and "down from baseline 100%" in marked[0]
     )
     assert any("scout" in line and "no runs recorded yet" in line for line in lines)
+
+
+def test_the_code_roles_score_the_same_whatever_the_live_lesson_store_holds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#157, T-4599: an eval that read data/agents/ passed in CI and failed on the Mac."""
+    from eulerlab.agents import lessons, spec
+
+    monkeypatch.chdir(REPO)
+    live = tmp_path / "data" / "agents"
+    monkeypatch.setenv("EULERLAB_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr(spec, "ROOT", live)
+    lessons.seed_checks()  # what the Mac's store holds: lessons that drop some cases' rules
+    assert {x.check for x in lessons.load()} >= {"price_only_intraday"}
+    for role in sorted(evals.SOLVERS):
+        for held in (False, True):
+            result = evals.score(role, evals.SOLVERS[role], held_out=held)
+            assert result.share == 1.0, (role, result.failures)

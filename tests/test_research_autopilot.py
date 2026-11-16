@@ -475,6 +475,20 @@ def test_a_failed_commit_stops_the_run_before_the_screen(
     assert "nothing screened" in result.summary
 
 
+def _battery(monkeypatch: pytest.MonkeyPatch, *, passed: bool = True) -> list[str]:
+    """Stand the robustness battery (#158) in with one made-up test; returns the cards it ran on."""
+    from eulerlab.validation import robust_battery as rb
+
+    ran: list[str] = []
+
+    def fake(spec: Any, _engine: Any, **kw: Any) -> rb.Battery:
+        ran.append(kw["hypothesis"])
+        return rb.Battery(spec.fingerprint(), 1.0, (rb.Test("halves", passed, "made up"),))
+
+    monkeypatch.setattr(rb, "run", fake)
+    return ran
+
+
 def test_the_gate_stops_at_the_weeks_allowance(
     folder: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -503,6 +517,7 @@ def test_the_gate_stops_at_the_weeks_allowance(
         return {"hypothesis": h, "verdict": "KILL", "entries": 2}
 
     monkeypatch.setattr(engine.Engine, "screen", fake_screen)
+    _battery(monkeypatch)
     monkeypatch.setattr(autopilot, "gate_one", fake_gate)
     monkeypatch.setattr("eulerlab.agents.runtime.outputs", lambda *a, **k: [])
     ctx = _Ctx(folder / "agents", _answer(), {"gate_entries_per_week": 2})
@@ -564,6 +579,7 @@ def test_a_run_killed_mid_batch_resumes_without_screening_or_gating_twice(
         return {"hypothesis": h, "verdict": "KILL", "entries": 2}
 
     monkeypatch.setattr(engine.Engine, "screen", fake_screen)
+    _battery(monkeypatch)
     monkeypatch.setattr(autopilot, "gate_one", fake_gate)
     monkeypatch.setattr(autopilot, "gate_settled", lambda h, since: None)
     monkeypatch.setattr("eulerlab.agents.runtime.outputs", lambda *a, **k: [])
@@ -621,6 +637,7 @@ def test_a_pass_reaches_the_inbox_as_a_decision(
         }
 
     monkeypatch.setattr(engine.Engine, "screen", fake_screen)
+    _battery(monkeypatch)
     monkeypatch.setattr(autopilot, "same_bet", lambda *a: None)
     monkeypatch.setattr(autopilot, "peers", lambda *a: {})
     monkeypatch.setattr(
@@ -713,3 +730,41 @@ def test_a_cut_drops_every_later_session_and_leaves_the_data_whole() -> None:
     assert cut.promoters == {"AAA": {data.sessions[10]: 1.0}}
     assert len(data.sessions) == 60 and len(data.panel["AAA"]) == 60
     assert data.promoters["AAA"][data.sessions[40]] == 2.0
+
+
+def test_a_survivor_that_fails_the_robustness_battery_is_not_gated(
+    folder: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab.research import autopilot
+
+    def fake_screen(self: engine.Engine, spec: engine.RuleSpec) -> dict[str, Any]:
+        return {
+            "clean": True,
+            "passes_screen": True,
+            "kind": spec.kind,
+            "rule": spec.describe(),
+            "count": 500,
+            "first": "2016-01-01",
+            "per_bps": {"net_mean": 10.0},
+            "net": {"sharpe": 1.0},
+            "halves": {"first": {"sharpe": 1.0}, "second": {"sharpe": 1.0}},
+            "net_at_2x_costs": {"sharpe": 0.5},
+            "checks": [],
+        }
+
+    gated: list[str] = []
+    monkeypatch.setattr(engine.Engine, "screen", fake_screen)
+    ran = _battery(monkeypatch, passed=False)
+
+    def fake_gate(h: str, out_dir: Path) -> dict[str, Any]:
+        gated.append(h)
+        return {}
+
+    monkeypatch.setattr(autopilot, "gate_one", fake_gate)
+    monkeypatch.setattr("eulerlab.agents.runtime.outputs", lambda *a, **k: [])
+    ctx = _Ctx(folder / "agents", _answer(), {"gate_entries_per_week": 10})
+    autopilot.pipeline(ctx, run_git=lambda a: (0, ""), data=_gappy())  # type: ignore[arg-type]
+    assert ran == ["H-0174", "H-0175"] and gated == []
+    assert any("H-0174 failed the robustness battery" in n for n in ctx.notes)
+    card = yaml.safe_load((folder / "hypotheses" / "H-0174.yaml").read_text())
+    assert "Robustness battery: failed halves." in card["result"]

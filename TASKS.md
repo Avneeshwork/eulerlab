@@ -9,6 +9,9 @@ Operator, 2026-11-16: "start them" — go through the gap audit's issues and bui
 
 | ID | Task | Status |
 |---|---|---|
+| T-4652 | #157, eval part: the generator eval reads a fixed, empty lesson store, so `make agent-evals` scores the same on the Mac and in CI (closes T-4599; `pytest tests/test_agent_evals.py`) | DONE 2026-11-16, ADR-212 |
+| T-4653 | #157, the rest: a per-source scorecard (trials, model rupees, gate passes, forward Sharpe at 20 and 60 sessions) once `make forward-shadow` has rows, then budget by forward survival; the operator reviews a held-out set of paper-to-card pairs once | TODO. Needs forward-shadow rows (T-4624) |
+| T-4651 | #158: robustness battery (neighbours, half universes, placebos, regimes) on every autopilot survivor before the gate, `make robust-battery` (`pytest tests/test_robust_battery.py tests/test_research_autopilot.py`) | DONE 2026-11-16, ADR-211; run on H-0161, H-0168, H-0175, H-0187 in research 198 |
 | T-4650 | #152: evolve, the autopilot's screen, the research loop and `make combine` rank on data cut at `discovery_end`; screen and sweep rows past it are refused; the selection period answers once through `firewall.look` (`pytest tests/test_experiments.py tests/test_research_autopilot.py tests/test_evolve.py`) | DONE 2026-11-16, ADR-210 |
 
 ## New ideas only (2026-11-16, ADR-209)
@@ -87,7 +90,7 @@ Operator, 2026-11-13: Rs 1 lakh test capital; backtest to the end of 2025, 2026 
 | T-4596 | Operator: acknowledge commit 09a0024 (ADR-163's one-line path change in `gates.py`) with `make agents-resume REASON=...`; every agent, the autopilot included, is halted until then | TODO. Operator only |
 | T-4597 | Re-store research 176's reference results after ADR-157 (or confirm another cause), so `make rule-engine-check` passes; set `EULERLAB_NO_CLOUD=0` in that target | TODO (HISTORY #89) |
 | T-4598 | The ladder's decay check reads backtests only from the experiment store, which is empty; fall back to the stored gate report | TODO (research 192) |
-| T-4599 | The generator eval reads the Mac's live lesson store: three cases fail there and pass in CI. Isolate it, or change the cases' expectations | TODO (research 192) |
+| T-4599 | The generator eval reads the Mac's live lesson store: three cases fail there and pass in CI. Isolate it, or change the cases' expectations | DONE 2026-11-16: isolated (T-4652, ADR-212) |
 | T-4610 | Daily NSE history 2000-2014: cm, fo, delivery, indices, corporate actions landed and in B2 (research 194) | DONE 2026-11-14 — `make check-landing` (24,695 files confirmed in B2), ADR-186 |
 | T-4611 | Rebuild price and total-return factors and the price panel from 2000; check 2015 onward unchanged and jumps over 40% with no corporate action (A-143) | DOING 2026-11-14 — built into `data/derived/rebuild-2026-11-14/` with own ids for companies without an ISIN (ADR-187) and bhavcopy checks on unusual prices (ADR-188: 208 rows excluded, 2,648 flagged); 2015 onward byte-identical. Research-only history file, not appended to `price_panel.jsonl` (ADR-189); swap of the factor files waits for the operator |
 | T-4612 | Index closes before 2012 and corporate actions before 2005: find a free source, or accept the gap (research 194) | TODO |

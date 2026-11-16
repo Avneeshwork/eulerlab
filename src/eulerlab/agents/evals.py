@@ -42,6 +42,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -108,9 +109,19 @@ def red_team(case: Mapping[str, Any]) -> str:
 
 
 def generator(case: Mapping[str, Any]) -> str:
+    """Whether the card writer keeps the case's rule, against a fixed, empty lesson store.
+
+    The cases were written for a platform with no lessons. Reading the agents'
+    live store made three cases fail on the Mac and pass in CI (T-4599, #157);
+    the lessons' own checks are tested in `tests/test_agent_lessons_guardian.py`."""
     from eulerlab.agents.workers import autopilot as writer
 
-    kept, _ = writer.accept([{"title": "case", "engine": case["engine"]}], dict(case["known"]))
+    with tempfile.TemporaryDirectory(prefix="agent-eval-") as world:
+        kept, _ = writer.accept(
+            [{"title": "case", "engine": case["engine"]}],
+            dict(case["known"]),
+            lessons_root=Path(world),
+        )
     return "kept" if kept else "dropped"
 
 

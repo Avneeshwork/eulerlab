@@ -3674,6 +3674,21 @@ only the yes or no comes back, so the answer is too coarse to tune against
 read by earlier research (ADR-143); only 2026 is unseen, and only for rules
 made from now.
 
+**The robustness battery** (`validation/robust_battery.py`, ADR-211), on every
+clean autopilot survivor before a gate entry is spent, and by hand with
+`make robust-battery CARDS=...`. On discovery data; each run is a `robust` row.
+
+| Test | Pass when |
+|---|---|
+| neighbours | each number (constant, window, lag, swing hold) moved 20% either way, one at a time: more than half the neighbours keep half the rule's net Sharpe |
+| halves | 20 random halves of the stock list, fixed by the fingerprint: median net Sharpe above zero |
+| placebos | the entries moved 5-60 sessions later, 20 times: mean net Sharpe under half the rule's |
+| regimes | Nifty 50 above or below its 200-session mean, India VIX terciles (previous close), before or after 2020, before or after peak margin (2021-09-01): no state holds more than 80% of the profit in any split with two readable states |
+
+A test that cannot be read (too few sessions, no index file) does not fail
+the rule. A survivor that fails any test is not gated, and its card's result
+line says which test.
+
 The selection period reaches a search only through `firewall.look`
 (ADR-210): after the search has ranked, a clean autopilot screen or an evolve
 survivor is run once on the full research data, only its selection-period

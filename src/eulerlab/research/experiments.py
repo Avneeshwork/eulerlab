@@ -9,7 +9,8 @@ One line per evaluation in `data/derived/experiments.jsonl`, appended only:
 
     id           hash of the line's content
     at           when it ran (UTC)
-    purpose      screen | sweep | selection | gate | forward
+    purpose      screen | sweep | robust | selection | gate | forward
+                 (`robust`: a robustness-battery run on a rule's own spec, #158)
     hypothesis   H-NNNN, or "" for a candidate that has no card
     fingerprint  the rule's own fingerprint (same rule, same fingerprint)
     family       the card's family, for the coverage map
@@ -58,11 +59,11 @@ RETURNS = "derived/experiment_returns"
 """Under the data directory, looked up on every call so a test or a server can move it."""
 KIND = "experiments"
 
-Purpose = Literal["screen", "sweep", "selection", "gate", "forward"]
-PURPOSES: tuple[Purpose, ...] = ("screen", "sweep", "selection", "gate", "forward")
+Purpose = Literal["screen", "sweep", "robust", "selection", "gate", "forward"]
+PURPOSES: tuple[Purpose, ...] = ("screen", "sweep", "robust", "selection", "gate", "forward")
 
 
-FINDING: tuple[Purpose, ...] = ("screen", "sweep")
+FINDING: tuple[Purpose, ...] = ("screen", "sweep", "robust")
 """Purposes that rank rules for a search: they read discovery data only."""
 
 

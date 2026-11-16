@@ -325,17 +325,23 @@ def result_line(screen: dict[str, Any], gate: dict[str, Any] | None, day: date) 
     text = (
         f"Autopilot screen {day.isoformat()}: {screen['count']} "
         f"{'trades' if screen['kind'] == 'intraday' else 'positions'} "
-        f"{screen['first']} to {rule_engine.END}; net {per.get('net_mean')} bps each; net Sharpe "
+        f"{screen['first']} to {constitution.load().periods.discovery_end}; net {per.get('net_mean')} bps each; net Sharpe "
         f"{screen['net']['sharpe']}, halves {screen['halves']['first']['sharpe']} / "
         f"{screen['halves']['second']['sharpe']}, {screen['net_at_2x_costs']['sharpe']} at 2x "
         f"costs. "
     )
     if flags:
         text += f"Flagged: {', '.join(flags)}. "
+    robust = screen.get("robust")
+    failed = [t["name"] for t in (robust or {}).get("tests", []) if t["passed"] is False]
+    if robust is not None:
+        text += "Robustness battery: " + (f"failed {', '.join(failed)}. " if failed else "passed. ")
     if not screen["passes_screen"]:
         text += "Screen fail; not gated."
     elif flags:
         text += "Not gated (bias check)."
+    elif failed:
+        text += "Not gated (robustness battery)."
     elif gate is None:
         text += "Clean survivor; waiting for the week's gate allowance."
     else:
@@ -549,6 +555,31 @@ def pipeline(
             ctx.step("Checking each clean rule against the bets already passed")
         screens = job.do("same_bet", lambda: compare(screens))
     survivors = [h for h in ids if screens[h]["clean"]]
+
+    def battery(hypothesis: str) -> dict[str, Any]:
+        """The robustness battery (#158) on discovery data, before a gate entry is spent."""
+        from eulerlab.research import fast_eval, lang
+        from eulerlab.validation import robust_battery
+
+        if "fast" not in engines:
+            store = None if data is None else fast_eval.Store(engine())
+            engines["fast"] = fast_eval.FastEngine(engine().data, store)
+        rule = rule_engine.card_spec(hypothesis)
+        spec = lang.from_rule(rule) if isinstance(rule, rule_engine.RuleSpec) else rule
+        assert isinstance(spec, lang.Spec)
+        found = robust_battery.run(
+            spec, engines["fast"], hypothesis=hypothesis, asked_by=NAME, now=ctx.now
+        )
+        return found.as_dict()
+
+    for h in survivors:
+        if f"robust:{h}" not in job.done:
+            ctx.step(f"Robustness battery on {h}: neighbours, half universes, placebos, regimes")
+        screens[h]["robust"] = job.do(f"robust:{h}", partial(battery, h))
+    stopped = [h for h in survivors if not screens[h]["robust"]["passed"]]
+    for h in stopped:
+        ctx.notes.append(f"{h} failed the robustness battery; not gated")
+    survivors = [h for h in survivors if h not in stopped]
 
     allowance = min(
         int(ctx.options.get("gate_entries_per_week", DEFAULT_ENTRIES_PER_WEEK)),

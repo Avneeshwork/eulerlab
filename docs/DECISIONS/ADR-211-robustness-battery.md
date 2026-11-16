@@ -1,0 +1,7 @@
+# ADR-211 — A coded robustness battery before the gate
+
+**Context.** Issue #158. A screen survivor had to pass halves, 2x costs, the five-best-stocks cut, 60% of years and the best-1%-of-days check (ADR-150). Nothing asked whether it was a lucky point among its own numbers, a lucky set of stocks, a leak, or a single market state, so the gate spent trials on rules that a code check could have stopped.
+**Options.** (a) Let the red-team agent judge robustness; (b) a fixed battery in code, run by the autopilot before it spends a gate entry; (c) add the checks to `gates.py` (operator-owned).
+**Choice.** (b). `validation/robust_battery.py`: every number moved 20% either way (most neighbours keep half the Sharpe), 20 random half universes (median Sharpe above zero), 20 placebos with entries moved 5-60 sessions later (mean under half the rule's Sharpe), and four regime splits (no state over 80% of the profit). It runs on discovery data (ADR-210), records each run as a `robust` row in the experiment store, and the autopilot does not gate a survivor that fails it. `make robust-battery CARDS=...` runs it by hand.
+**Why.** Code is repeatable and cheap; an agent's judgment is neither, and the gate is the operator's.
+**Cost if wrong.** The thresholds are the issue's, not fitted (A-159): too strict stops real edges before the gate, too loose lets lucky points through as before. A long-only swing rule in a rising market fails the placebo by design, since random timing earns the same; that is a rule with no timing edge, but an operator may still want it as beta.

@@ -707,9 +707,12 @@ class Engine:
             p for s in dm.swing_book(self.data, events, spec.hold, self.prices) for p in s.pieces()
         ]
 
-    def screen(self, spec: Rule) -> dict[str, Any]:
-        """Research 176's screen figures plus the bias checks (`checks`)."""
-        events = self.events(spec)
+    def screen(self, spec: Rule, events: Sequence[Event] | None = None) -> dict[str, Any]:
+        """Research 176's screen figures plus the bias checks (`checks`).
+
+        `events` replaces the rule's own entries: the robustness battery's half
+        universes and shifted-date placebos (#158) are screened this way."""
+        events = self.events(spec) if events is None else list(events)
         window = self.window(spec)
         if spec.kind == "intraday":
             trades = dm.day_book(self.data, events, self.prices)

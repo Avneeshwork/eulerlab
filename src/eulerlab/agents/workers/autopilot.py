@@ -165,12 +165,18 @@ def spec_of(card: dict[str, Any]) -> engine.Rule:
 
 
 def accept(
-    raw: list[dict[str, Any]], known: dict[str, str], ideas: novelty.Seen | None = None
+    raw: list[dict[str, Any]],
+    known: dict[str, str],
+    ideas: novelty.Seen | None = None,
+    *,
+    lessons_root: Path | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """(cards whose spec parses and is a new idea, why each other was dropped).
 
     `ideas` holds the idea keys already tried; a card whose key is in it, or
-    that shares one with an earlier card of this answer, is dropped (ADR-209)."""
+    that shares one with an earlier card of this answer, is dropped (ADR-209).
+    `lessons_root` is the lesson store read (the agents' own by default); the
+    generator eval passes a fixed one so it scores the same everywhere (#157)."""
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
     seen = dict(known)
@@ -185,7 +191,7 @@ def accept(
         except ValueError as exc:  # a formula that does not compile or reads ahead
             dropped.append(f"{title}: {str(exc)[:200]}")
             continue
-        broken = lessons.violations(spec)
+        broken = lessons.violations(spec, root=lessons_root)
         if broken:
             dropped.append(f"{title}: breaks a lesson: {broken[0]}")
             continue
