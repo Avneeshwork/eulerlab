@@ -95,7 +95,8 @@ def test_has_reversal_after_results_been_tried_and_how_did_it_do(lib: Path) -> N
     by = {r["card"]: r for r in near}
     assert by["H-0001"]["outcome"] == "failed" and by["H-0002"]["outcome"] == "passed"
     assert by["H-0001"]["paper"] == f"research/papers/{PAPER['id']}.yaml"
-    assert "H-0003" not in by
+    # A gap fade is a reversal too (#159), so it is near, but below both results cards.
+    assert [r["card"] for r in near].index("H-0003") >= 2 if "H-0003" in by else True
 
     (rep,) = knowledge.replicated(done, held)
     assert rep["claim"] == knowledge.claim_id(PID) and rep["held_up"] is False
@@ -146,3 +147,19 @@ def test_only_a_paper_card_can_say_it_replicates() -> None:
     card["paper"] = "p-2020"
     raw = yaml.safe_load(writer.card_yaml("H-0503", card, day=day, model="", tried_count=0))
     assert raw["source"]["replicates"] is True
+
+
+@pytest.mark.parametrize(
+    "idea",
+    [
+        "short-term reversal after quarterly results announcement",
+        "fade results gap reversal",
+        "mean reversion after quarterly earnings",
+    ],
+)
+def test_one_idea_in_other_words_finds_the_same_card(idea: str) -> None:
+    """#159: research 192 asked in the first wording and found nothing."""
+    repo = Path(__file__).parents[1]
+    done = knowledge.tried(repo / "hypotheses", verdicts={}, experiments=[])
+    found = [r["card"] for r in knowledge.tried_near(idea, done, {})]
+    assert "H-0040" in found[:3], found

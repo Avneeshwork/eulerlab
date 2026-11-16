@@ -206,8 +206,28 @@ def load(base: Path = Path(), root: Path | None = None) -> list[Entry]:
     return [Entry(**row) for row in raw]
 
 
+SAME: dict[str, tuple[str, ...]] = {
+    "reversal": (
+        "reversal", "reversals", "reverse", "reverses", "reversion", "fade", "fades",
+        "fading", "faded", "contrarian", "bounce", "bounces", "rebound", "rebounds",
+    ),
+    "results": (
+        "results", "result", "earnings", "earning", "quarterly", "eps", "pead",
+    ),
+    "momentum": ("momentum", "continuation", "drift", "persistence", "trend"),
+    "gap": ("gap", "gaps", "gapped", "overnight"),
+    "volume": ("volume", "volumes", "turnover"),
+    "promoter": ("promoter", "promoters", "insider", "insiders", "sast"),
+    "bulk": ("bulk", "block"),
+}  # fmt: skip
+"""Words that name one idea, searched as one (#159): "fade results gap" finds a card
+written as "reversal after quarterly earnings". Plain, small and checked by hand: no
+embeddings and no new dependency."""
+_CANONICAL = {word: head for head, words in SAME.items() for word in words}
+
+
 def _terms(text: str) -> list[str]:
-    return [w for w in WORD.findall(text.lower()) if w not in STOP]
+    return [_CANONICAL.get(w, w) for w in WORD.findall(text.lower()) if w not in STOP]
 
 
 def search(query: str, entries: list[Entry], limit: int = 8) -> list[dict[str, Any]]:

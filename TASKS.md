@@ -9,6 +9,8 @@ Operator, 2026-11-16: "start them" — go through the gap audit's issues and bui
 
 | ID | Task | Status |
 |---|---|---|
+| T-4658 | #159, search part: one synonym table for the knowledge search, so the two wordings of research 192 both find H-0040 (`pytest tests/test_knowledge_base.py`) | DONE 2026-11-16, ADR-214 |
+| T-4659 | #159, the rest: a replication queue (a paper's own form first, `source.replicates: true`, adaptations name it as parent), full texts from OpenAlex `open_access.oa_url` with the version read recorded, and Indian sources (NSE working papers, IIMA, ISB, SEBI, RBI) in `paper_search` after checking their terms | TODO |
 | T-4657 | #153: every screen, the engine's gate run and the selection check charge DP (₹23.60, A-156) on each delivery sell; the fill cache keeps it out so a paper book never inherits it (`pytest tests/test_robust_battery.py -k dp`) | DONE 2026-11-16, research 198. Paper books still without DP (T-4633) |
 | T-4656 | Operator: H-0168 (all profit with the Nifty above its 200-day mean) and H-0175 (84% of profit a session before peak margin) fail the robustness battery (research 198). Keep their verdicts, or re-gate them | TODO. Operator decision |
 | T-4654 | #154: every experiment row carries `data_version` (content hash of the engine's inputs) and `code`; fast-eval disk tables keyed by the content hash; `make reproduce ID=` (`pytest tests/test_reproduce.py`) | DONE 2026-11-16, ADR-213 |
