@@ -30,11 +30,11 @@ import hashlib
 import random
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from eulerlab import constitution
-from eulerlab.research import strategy_map
+from eulerlab.research import experiments, strategy_map
 from eulerlab.validation import search_bar
 from eulerlab.validation.statistics import deflated_sharpe, sharpe_stats
 
@@ -116,3 +116,40 @@ def assess(
         selection_days=days,
         holds_on_selection=kept,
     )
+
+
+def look(
+    discovery: Mapping[date, float],
+    selection: Mapping[date, float],
+    fingerprint: str,
+    *,
+    first: date,
+    asked_by: str,
+    hypothesis: str = "",
+    family: str = "",
+    now: datetime | None = None,
+) -> tuple[int, bool | None]:
+    """(selection sessions, the one bit) for a rule a search found on discovery data (#152).
+
+    `discovery` is the rule's daily returns on data cut at `discovery_end` (what
+    the search ranked it by); `selection` is a run on the full research data, of
+    which only the selection period's days are read. The answer is
+    `holds`'s coarse bit, and the look is one `selection` row in the experiment
+    store with no returns, so the selection Sharpe is never kept where a search
+    could read it."""
+    periods = constitution.load().periods
+    later = {d: v for d, v in selection.items() if periods.part(d) == "selection"}
+    early = {d: v for d, v in discovery.items() if periods.part(d) == "discovery"}
+    _, days, kept = holds({**early, **later}, fingerprint)
+    experiments.record(
+        purpose="selection",
+        fingerprint=fingerprint,
+        hypothesis=hypothesis,
+        family=family,
+        first=first,
+        end=max(later) if later else periods.discovery_end,
+        metrics={"holds_on_selection": kept, "selection_days": days},
+        asked_by=asked_by,
+        now=now,
+    )
+    return days, kept

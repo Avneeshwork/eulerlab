@@ -3,6 +3,14 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Agent research quality, issues #151 to #161 (2026-11-16)
+
+Operator, 2026-11-16: "start them" — go through the gap audit's issues and build the ones that matter most.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4650 | #152: evolve, the autopilot's screen, the research loop and `make combine` rank on data cut at `discovery_end`; screen and sweep rows past it are refused; the selection period answers once through `firewall.look` (`pytest tests/test_experiments.py tests/test_research_autopilot.py tests/test_evolve.py`) | DONE 2026-11-16, ADR-210 |
+
 ## New ideas only (2026-11-16, ADR-209)
 
 Operator, 2026-11-16: the idea lab and the autopilot must propose new ideas, not re-tuned ones, because each variant spends a trial of the multiple-testing budget.

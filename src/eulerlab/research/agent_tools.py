@@ -75,21 +75,10 @@ _OBJECT = {"type": "object", "properties": {}}
 
 
 def discovery_engine(end: date) -> rule_engine.Engine:
-    """The research data with every bar after `end` dropped, scored by the fast evaluator.
-
-    Cutting only the entry window would still let a swing entered in December
-    2023 exit on a 2024 price, so the panel itself stops at `end`."""
+    """The research data with every bar after `end` dropped, scored by the fast evaluator."""
     from eulerlab.research import fast_eval
 
-    data = rule_engine.Data()
-    data.panel = {
-        symbol: {d: bar for d, bar in bars.items() if d <= end}
-        for symbol, bars in data.panel.items()
-    }
-    data.sessions = [d for d in data.sessions if d <= end]
-    data.index = {d: i for i, d in enumerate(data.sessions)}
-    data.end = min(data.end, end)
-    return fast_eval.FastEngine(data)
+    return fast_eval.FastEngine(rule_engine.through(rule_engine.Data(), end))
 
 
 def _sharpe(block: Mapping[str, Any] | None) -> Any:

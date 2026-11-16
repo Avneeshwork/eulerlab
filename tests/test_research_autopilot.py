@@ -698,3 +698,18 @@ def test_a_lost_card_is_asked_for_again_within_the_days_requests(folder: Path) -
     assert len(prompts) == 2
     assert "Write 1 new rules: 0 intraday and 1 swing" in prompts[1]
     assert "repeats" in prompts[1]
+
+
+# --- a search's data stops at the discovery end (#152) ----------------------------------
+
+
+def test_a_cut_drops_every_later_session_and_leaves_the_data_whole() -> None:
+    data = _data({"AAA": [100.0 + i for i in range(60)]})
+    late = data.sessions[30]
+    data.__dict__["promoters"] = {"AAA": {data.sessions[10]: 1.0, data.sessions[40]: 2.0}}
+    cut = engine.through(data, late)
+    assert cut.sessions == data.sessions[:31] and cut.end == late
+    assert max(cut.panel["AAA"]) == late and set(cut.index) == set(cut.sessions)
+    assert cut.promoters == {"AAA": {data.sessions[10]: 1.0}}
+    assert len(data.sessions) == 60 and len(data.panel["AAA"]) == 60
+    assert data.promoters["AAA"][data.sessions[40]] == 2.0

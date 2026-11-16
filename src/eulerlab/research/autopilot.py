@@ -443,7 +443,8 @@ def note(
         "**Sources.** No web source: the rules come from the library papers named in each "
         "card's `rationale` and `source.paper`. Screen code: `intraday/rule_engine.py`.",
         "",
-        "**Confidence.** A screen is one look at 2016-2024 (2021-07 on for deals and results). "
+        "**Confidence.** A screen is one look at the discovery period (2021-07 on for deals and "
+        "results); a clean rule then gets one yes/no from the selection period (#152). "
         "Every card here adds to the search the simple gate does not correct for.",
     ]
     text = "\n".join(lines) + "\n"
@@ -488,23 +489,50 @@ def pipeline(
         job.finish("no new cards and no survivors waiting")
         return WorkerResult("no new cards and no survivors waiting", data={"cards": []})
 
-    engines: list[rule_engine.Engine] = []
+    loaded: list[rule_engine.Data] = []
+    engines: dict[str, rule_engine.Engine] = {}
+
+    def research_data() -> rule_engine.Data:
+        if not loaded:
+            loaded.append(data or rule_engine.Data())
+            if loaded[0].end > rules.periods.backtest_end:
+                msg = f"the screen's data ends {loaded[0].end}, inside the forward test"
+                raise experiments.SealedPeriod(msg)
+        return loaded[0]
 
     def engine() -> rule_engine.Engine:
-        if not engines:
-            engines.append(rule_engine.Engine(data or rule_engine.Data()))
-        return engines[0]
+        """The screen's engine: data cut at `discovery_end`, so a card is judged on it only (#152)."""
+        if "discovery" not in engines:
+            cut = rule_engine.through(research_data(), rules.periods.discovery_end)
+            engines["discovery"] = rule_engine.Engine(cut)
+        return engines["discovery"]
+
+    def checker() -> rule_engine.Engine:
+        """The full research data, read only for the selection period's one bit."""
+        if "full" not in engines:
+            engines["full"] = rule_engine.Engine(research_data())
+        return engines["full"]
 
     def screen_one(hypothesis: str) -> dict[str, Any]:
         spec = rule_engine.card_spec(hypothesis)
         assert spec is not None
-        if engine().data.end > rules.periods.backtest_end:
-            msg = f"the screen's data ends {engine().data.end}, inside the forward test"
-            raise experiments.SealedPeriod(msg)
         out = engine().screen(spec)
         returns = engine().returns.pop(spec.fingerprint(), None)
         if returns:
             remember(hypothesis, spec, out, returns, engine().data.end, ctx.now)
+        if returns and out["clean"]:
+            later = rule_engine.daily(checker().pieces(spec), checker().window(spec))
+            days, kept = firewall.look(
+                returns,
+                later,
+                spec.fingerprint(),
+                first=spec.first,
+                asked_by=NAME,
+                hypothesis=hypothesis,
+                family=family_of(spec),
+                now=ctx.now,
+            )
+            out["firewall"].update(selection_days=days, holds_on_selection=kept)
         return out
 
     def compare(found: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:

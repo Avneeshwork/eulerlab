@@ -517,12 +517,16 @@ def card_yaml(hypothesis: str, member: Member, *, day: date, tried: int) -> str:
             "correct for that. The firewall figures in the experiment store do.",
             "Written after it was screened: the search itself is the record of what was tried.",
             "Daily bars: the official open and close stand in for real fills.",
+            f"Ranked on {constitution.load().periods.discovery_end.year} and earlier only "
+            "(#152). The selection period answered one yes/no after it was ranked, and "
+            "that answer did not choose between rules.",
         ],
         "holdout": {
             "starts": constitution.load().periods.forward_start.isoformat(),
             "status": "unread",
         },
-        "result": f"Screen net Sharpe {member.sharpe:+.2f}; fitness {member.fitness:+.2f}.",
+        "result": f"Discovery-period screen net Sharpe {member.sharpe:+.2f}; "
+        f"fitness {member.fitness:+.2f}.",
     }
     return yaml.safe_dump(body, sort_keys=False, allow_unicode=True, width=100)
 
@@ -555,10 +559,13 @@ def pipeline(ctx: Any, *, data: Any = None, run_git: Any = None) -> Any:
 
     rules = constitution.load()
     constitution.require("register_hypothesis", who="the evolutionary search")
-    engine = fast_eval.FastEngine(data or rule_engine.Data())
-    if engine.data.end > rules.periods.backtest_end:
-        msg = f"the search's data ends {engine.data.end}, inside the forward test"
+    full = data or rule_engine.Data()
+    if full.end > rules.periods.backtest_end:
+        msg = f"the search's data ends {full.end}, inside the forward test"
         raise experiments.SealedPeriod(msg)
+    # Fitness, parents and likeness all come from discovery data only (#152).
+    engine = fast_eval.FastEngine(rule_engine.through(full, rules.periods.discovery_end))
+    checkers: list[fast_eval.FastEngine] = []
     by_id = {str(r["id"]): r for r in experiments.rows()}
 
     def evaluate(spec: lang.Spec, island: str, parents: Sequence[str]) -> dict[str, Any]:
@@ -592,8 +599,20 @@ def pipeline(ctx: Any, *, data: Any = None, run_git: Any = None) -> Any:
     after = {str(r["id"]): r for r in experiments.rows()}
 
     def held(member: Member) -> bool | None:
+        """The selection period's one bit, asked only after the search has ranked."""
+        if not checkers:
+            checkers.append(fast_eval.FastEngine(full))
+        (later,) = fast_eval.evaluate([member.spec], checkers[0], asked_by="evolve", record=False)
         daily = experiments.returns_of(after[member.id]) if member.id in after else {}
-        return firewall.holds(daily, member.spec.fingerprint())[2]
+        return firewall.look(
+            daily,
+            later["daily"],
+            member.spec.fingerprint(),
+            first=member.spec.first,
+            asked_by="evolve",
+            family=member.island,
+            now=ctx.now,
+        )[1]
 
     chosen = survivors(night, held)
     ids = writer.next_ids(len(chosen)) if chosen else []

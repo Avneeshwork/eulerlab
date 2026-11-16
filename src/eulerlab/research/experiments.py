@@ -29,6 +29,12 @@ constitution's `backtest_end` is refused unless its purpose is `forward`
 leave a record of reading 2026, and a caller that tries is stopped before it
 can use the answer.
 
+**The selection period reaches a search as one bit (#152).** A `screen` or
+`sweep` row whose window ends after `discovery_end` is refused too: the rules
+a search ranks are ranked on discovery data only. The selection period is read
+by a `selection` row, which keeps the firewall's coarse answer and no returns
+(`validation.firewall.look`), and every such look is counted.
+
 With `EULERLAB_DATABASE_URL` set the lines live in Postgres's `append_log`
 (ADR-165), like the trials counter. The returns stay files.
 """
@@ -56,8 +62,12 @@ Purpose = Literal["screen", "sweep", "selection", "gate", "forward"]
 PURPOSES: tuple[Purpose, ...] = ("screen", "sweep", "selection", "gate", "forward")
 
 
+FINDING: tuple[Purpose, ...] = ("screen", "sweep")
+"""Purposes that rank rules for a search: they read discovery data only."""
+
+
 class SealedPeriod(PermissionError):
-    """A test that is not the forward test tried to read the forward period."""
+    """A test read a period its purpose may not: the forward test, or a search the selection."""
 
 
 def _path(path: Path | None) -> Path:
@@ -108,6 +118,14 @@ def record(
         msg = (
             f"a {purpose} read {last}, after {sealed}: that is the forward test, which "
             "nothing that finds or tunes a rule may read (config/constitution.yaml)"
+        )
+        raise SealedPeriod(msg)
+    found_by = constitution.load().periods.discovery_end
+    if purpose in FINDING and last > found_by:
+        msg = (
+            f"a {purpose} read {last}, after the discovery end {found_by}: a search ranks "
+            "rules on discovery data only, and hears of the selection period through "
+            "`firewall.look` (#152)"
         )
         raise SealedPeriod(msg)
     at = (now or datetime.now(UTC)).isoformat(timespec="seconds")

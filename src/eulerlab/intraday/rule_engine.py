@@ -28,6 +28,7 @@ test holds the engine to their published numbers.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import statistics
@@ -442,6 +443,31 @@ class Data(dm.Context):
                     found[days[k]] = values[k] / mean
             out[symbol] = found
         return out
+
+
+def through(data: Data, end: date) -> Data:
+    """`data` with every session after `end` dropped; `data` itself is not changed (#152).
+
+    Cutting only the entry window would still let a swing entered in December
+    2023 exit on a 2024 price, so the panel itself stops at `end`. Lazily built
+    tables are dropped from the copy, so none of them was computed on the
+    sessions cut away, except promoter buys, which are dated events and are cut
+    by date. Delivery, deals and results after `end` stay, but no rule can
+    trade on them: a day with no bar is not tradable.
+    """
+    cut = copy.copy(data)
+    lazy = [k for k in vars(cut) if isinstance(getattr(type(cut), k, None), cached_property)]
+    for name in lazy:
+        del cut.__dict__[name]
+    if "promoters" in vars(data):
+        cut.__dict__["promoters"] = {
+            s: {d: v for d, v in m.items() if d <= end} for s, m in data.promoters.items()
+        }
+    cut.panel = {s: {d: b for d, b in bars.items() if d <= end} for s, bars in data.panel.items()}
+    cut.sessions = [d for d in data.sessions if d <= end]
+    cut.index = {d: i for i, d in enumerate(cut.sessions)}
+    cut.end = min(data.end, end)
+    return cut
 
 
 def as_of_open(data: Data, day: date) -> Data:

@@ -136,3 +136,41 @@ def test_the_same_rule_always_gets_the_same_answer() -> None:
     rule = _series(1, LONG, drift=0.001)
     others = [_series(s, LONG) for s in range(2, 8)]
     assert firewall.assess(rule, "abc", others) == firewall.assess(rule, "abc", others)
+
+
+# --- a search ranks on discovery data; the selection period answers once (#152) --------
+
+
+def test_a_search_that_reads_the_selection_period_is_refused(tmp_path: Path) -> None:
+    daily = _series(1, _days(date(2023, 11, 1), 60))  # runs into 2024
+    for purpose in ("screen", "sweep"):
+        with pytest.raises(experiments.SealedPeriod, match="discovery end"):
+            _record(tmp_path, "abc", daily, purpose=purpose)
+    assert not (tmp_path / "experiments.jsonl").exists()
+    _record(tmp_path, "abc", daily, purpose="gate")  # the gate reads to backtest_end
+    _record(tmp_path, "abc", daily, purpose="selection")
+
+
+def test_a_look_keeps_one_bit_and_no_selection_returns(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eulerlab import paths
+
+    monkeypatch.setenv(paths.ENV_VAR, str(tmp_path))
+    alive = _series(1, LONG, drift=0.002)
+    found = {d: v for d, v in alive.items() if d <= date(2023, 12, 31)}
+    dead = {d: (v if d <= date(2023, 12, 31) else -abs(v)) for d, v in alive.items()}
+    # Only the selection days of the full run are read: its discovery days are ignored.
+    days, kept = firewall.look(
+        found,
+        {d: -1.0 if d.year < 2024 else v for d, v in alive.items()},
+        "abc",
+        first=min(found),
+        asked_by="test",
+        now=NOW,
+    )
+    assert kept is True and days >= firewall.MIN_DAYS
+    assert firewall.look(found, dead, "abc", first=min(found), asked_by="test", now=NOW)[1] is False
+    looks = experiments.rows(purpose="selection")
+    assert len(looks) == 2 and all(r["returns"] is None for r in looks)
+    assert looks[0]["metrics"] == {"holds_on_selection": True, "selection_days": days}

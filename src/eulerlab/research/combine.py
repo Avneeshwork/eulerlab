@@ -427,9 +427,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--hold", type=int, default=5)
     parser.add_argument("--method", choices=["ic", "ridge"], default="ic")
     args = parser.parse_args(argv)
-    from eulerlab.research import fast_eval
+    from eulerlab import constitution
+    from eulerlab.research import agent_tools
 
-    engine = fast_eval.FastEngine(rule_engine.Data())
+    # Recorded as a screen, so the book is built on discovery data only (#152).
+    engine = agent_tools.discovery_engine(constitution.load().periods.discovery_end)
     hold = 0 if args.kind == "intraday" else args.hold
     found = combine(engine, args.formula, kind=args.kind, hold=hold, method=args.method)
     row = record(found, asked_by="operator")

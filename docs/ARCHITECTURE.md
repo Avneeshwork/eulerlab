@@ -3650,8 +3650,12 @@ the database is on): purpose (`screen`, `sweep`, `selection`, `gate`,
 name of a file under `data/derived/experiment_returns/` holding its daily net
 returns. A row that is not `forward` and reads a day after `backtest_end` is
 refused (`SealedPeriod`): the forward test is sealed where the record is
-made. Today the autopilot's screens and gate runs write here; sweeps, the
-idea lab and `make validate` do not yet (T-4576).
+made. A `screen` or `sweep` row that reads a day after `discovery_end` is
+refused too (#152, ADR-210): what a search ranks, it ranks on discovery data.
+The autopilot, evolve, the research loop and `make combine` screen on data cut
+by `rule_engine.through(data, discovery_end)`, which drops every later bar so
+a swing cannot exit on a 2024 price either. Today the autopilot's screens and
+gate runs write here; the idea lab and `make validate` do not yet (T-4576).
 
 **The firewall figures** (`validation/firewall.py`), on every autopilot
 screen and in its research note. Information only: they change no verdict.
@@ -3669,6 +3673,13 @@ only the yes or no comes back, so the answer is too coarse to tune against
 (the reusable holdout, research 189; constants are A-136). Both periods were
 read by earlier research (ADR-143); only 2026 is unseen, and only for rules
 made from now.
+
+The selection period reaches a search only through `firewall.look`
+(ADR-210): after the search has ranked, a clean autopilot screen or an evolve
+survivor is run once on the full research data, only its selection-period
+days are read, and the one bit is recorded as a `selection` row with no
+returns. So no selection Sharpe sits in the store for a later search, a
+prompt or a lesson to read, and every look is a counted row.
 
 **The scorecard.** `make scorecard` prints the month's spend against the
 budget and per agent, tests recorded and their families, the noise bar, the
