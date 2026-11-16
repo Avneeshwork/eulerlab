@@ -2912,6 +2912,17 @@ each job's latest slot against its run, the live book's clock, and the kill
 switch. It exits 1 when anything is red, so it is also the containers' health
 check, and `GET /api/health` carries it under `ops`.
 
+It also says whether the research is alive (ADR-217, issue #160):
+
+| Line | Red when |
+|---|---|
+| `agents_halt` | the guardian's halt is on (with its age), until `make agents-resume` |
+| `autopilot_rows` | the autopilot has run but wrote no experiment row in the last 26 h |
+| `experiments_today` | after 21:00 IST, no experiment row today, once anything has ever run |
+| `agent <name>` | the agent's last `ok` run is older than its `expect` hours in `config/agents/watchdog.yaml` (+48 h at the weekend for weekday-only agents) |
+
+An agent, or the autopilot, with no run recorded at all is not red yet, as with a job.
+
 **The dead-man switch** (`oms/deadman.py`) closes the gap that the live book's
 clock (`deploy/live_money.Clock`) was a thread inside the API process with
 nothing watching it. The clock now writes `live_money/heartbeat.json` on every
@@ -3614,6 +3625,22 @@ make feedback TEXT=... / Telegram "feedback ..."
 
 The guardian's thresholds are A-125. It reads the autopilot's own gate log as a
 file, so nothing the runtime loads reaches the gating code.
+
+**A planned edit to a protected file is not a halt (ADR-217).** The commit-msg
+hook `operator-ack` (`eulerlab.operator_ack`) refuses a commit whose staged
+files include any of `guardian.PROTECTED` unless its message has a trailer
+`Operator-Ack: <reason>` (five characters or more, in the last paragraph with
+`Co-Authored-By:`). Merges are not checked; their commits were. The guardian
+then accepts a changed protected file when the last commit touching it carries
+the trailer **and** the file on disk is exactly that commit's version: it logs
+`acked_change` (hold, no Telegram) and re-baselines that file. Any other
+change, or a later edit on top of an acked commit, halts as before.
+
+**A halt stays loud.** `act` sends the first Telegram line when a halt starts;
+`guardian.escalate`, run every hour by the `halt-watch` job
+(`make agents-halt-watch`), sends one more at 2 h and one at 8 h, recorded in
+`data/agents/guardian/escalation.json` so none repeats. A halt written by hand
+is dated by the file's time. `make agents-resume` deletes the record.
 
 ### The constitution, the monthly budget, the experiment store and the scorecard (ADR-171 to ADR-173)
 

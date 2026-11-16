@@ -85,6 +85,16 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # A commit to an operator-owned file (guardian.PROTECTED: gates.py,
+      # mandate.yaml, the constitution, the held-out evals) needs an
+      # `Operator-Ack: <reason>` trailer, or the guardian halts every agent
+      # (2026-11-13, ADR-217). It reads the message, so it runs at commit-msg.
+      - id: operator-ack
+        name: operator-ack (protected files need an Operator-Ack trailer)
+        entry: uv run python -m eulerlab.operator_ack check-msg
+        language: system
+        always_run: true
+        stages: [commit-msg]
       # git runs commit-msg only after every pre-commit hook passed, and
       # --no-verify skips both, so this records the tree the hooks approved.
       - id: hook-witness-mark

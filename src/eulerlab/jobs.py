@@ -285,4 +285,21 @@ JOBS = {
             "re-runs it the same night instead of waiting for 06:00."
         ),
     ),
+    "halt-watch": Job(
+        name="halt-watch",
+        label="com.eulerlab.haltwatch",
+        command="cd {repo} && make agents-halt-watch",
+        hour=0,
+        minute=7,
+        weekdays=(),
+        hours=tuple(range(24)),
+        log="halt_watch",
+        what="the guardian's halt escalation, every hour",
+        why_then=(
+            "Every hour (ADR-217): a halt stops every agent, so no agent run is left to say\n"
+            "it is still on. This sends the Telegram line at 2 h and at 8 h (the first is\n"
+            "sent when the halt starts) and does nothing when there is no halt. Cheap: it\n"
+            "reads two files and asks no model."
+        ),
+    ),
 }

@@ -9,6 +9,10 @@ Operator, 2026-11-16: "start them" — go through the gap audit's issues and bui
 
 | ID | Task | Status |
 |---|---|---|
+| T-4670 | #160: commit-msg hook `operator-ack` refuses a commit to a `guardian.PROTECTED` file without an `Operator-Ack: <reason>` trailer; the guardian logs an acked change and does not halt (`pytest tests/test_operator_ack.py`) | DONE 2026-11-16, ADR-217. Takes effect after `make install` re-installs the hooks |
+| T-4671 | #160: halt escalation, Telegram at start, 2 h and 8 h, hourly `halt-watch` job; the halt on `make health` (`pytest tests/test_operator_ack.py tests/test_health.py`) | DONE 2026-11-16, ADR-217. Operator: load the job on the Mac (`make schedule JOB=halt-watch`) |
+| T-4672 | #160: liveness lines on `make health`: each agent's last successful run against the watchdog's `expect`, the autopilot's rows in 26 h, experiment rows today by 21:00 IST (`pytest tests/test_health.py`) | DONE 2026-11-16, ADR-217 |
+| T-4673 | #160, the rest: the halt on the dashboard banner; reference-rule reproduction on `make health` (with T-4655); a weekly self-audit job that runs research 192's checks (stores empty, evals passing, ladder rungs moving) and opens a task per failure | TODO |
 | T-4658 | #159, search part: one synonym table for the knowledge search, so the two wordings of research 192 both find H-0040 (`pytest tests/test_knowledge_base.py`) | DONE 2026-11-16, ADR-214 |
 | T-4659 | #159, the rest: a replication queue (a paper's own form first, `source.replicates: true`, adaptations name it as parent), full texts from OpenAlex `open_access.oa_url` with the version read recorded, and Indian sources (NSE working papers, IIMA, ISB, SEBI, RBI) in `paper_search` after checking their terms | TODO |
 | T-4657 | #153: every screen, the engine's gate run and the selection check charge DP (₹23.60, A-156) on each delivery sell; the fill cache keeps it out so a paper book never inherits it (`pytest tests/test_robust_battery.py -k dp`) | DONE 2026-11-16, research 198. Paper books still without DP (T-4633) |
