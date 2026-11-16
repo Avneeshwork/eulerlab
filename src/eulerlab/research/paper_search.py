@@ -41,10 +41,12 @@ Sources, their limits and their terms: research 124.
   reaches IIM Ahmedabad, ISB and RBI authors under OpenAlex's CC0 terms. NSE's,
   SEBI's, RBI's, ISB's and RePEc's own listings were checked and are not used
   (research 199).
-- **Open-access copies** (ADR-215): when OpenAlex lists `open_access.oa_url`,
-  the candidate keeps it, and `read` tries it after arXiv's HTML: an HTML page
-  the host's robots.txt allows, cut at `OPEN_ACCESS_MAX_BYTES`. A PDF is not
-  read (there is no PDF reader here), and the draft says the abstract was read.
+- **Free copies, read in full** (ADR-215, ADR-218): after arXiv's HTML, `read`
+  tries every free copy in turn (`open_copies`): the arXiv PDF, OpenAlex's
+  `oa_url`, the service's PDF link and every open location OpenAlex lists for
+  the DOI. PDFs are read with pypdf; a landing page's `citation_pdf_url` is
+  followed once. Each host's robots.txt is obeyed and at most
+  `OPEN_ACCESS_MAX_BYTES` is read. The abstract is read only when no copy reads.
 - **Crossref** (`api.crossref.org/works/<doi>`): no key. Asked only for a paper
   OpenAlex found with no usable abstract, one request each (research 144). Some
   abstracts there are the publisher's copyright, so a fetched abstract is only
@@ -103,9 +105,9 @@ FULL_TEXT_CHARS = 16_000
 tokens a minute on `openai/gpt-oss-120b`; 16,000 characters is about 4,000
 tokens, leaving room for the instructions and the reply (research 123)."""
 
-OPEN_ACCESS_MAX_BYTES = 3_000_000
-"""Most bytes read from an open-access copy. A paper's HTML is well under this;
-a bigger answer is cut there, never downloaded whole."""
+OPEN_ACCESS_MAX_BYTES = 25_000_000
+"""Most bytes read from a free copy. A paper's PDF is usually 0.5-5 MB; a bigger
+answer is cut there (and a cut PDF does not parse, so it reads as the abstract)."""
 # ASSUMPTION: a page whose visible text is at least this long, and four times
 # the abstract, is the paper and not a landing page (A-161).
 OPEN_ACCESS_MIN_CHARS = 8_000
@@ -786,18 +788,39 @@ def robots_allow(url: str, *, get: Fetch = fetch) -> bool:
     return rules.can_fetch(USER_AGENT, url)
 
 
-def open_access_text(candidate: Candidate, *, get: Fetch = fetch) -> tuple[str, str]:
-    """The open-access copy's text, cut to `FULL_TEXT_CHARS`, and a note: (text, note).
+PDF_LINK = re.compile(
+    rb"""<meta[^>]+name=["']citation_pdf_url["'][^>]+content=["']([^"']+)["']""", re.IGNORECASE
+)
+"""The tag publishers and repositories put on a landing page to name its PDF."""
 
-    Tried only when OpenAlex listed `oa_url`. The text is "" and the note says
-    why when the copy is a PDF, robots.txt refuses it, or the page is too short
-    to be more than a landing page. Never stored: only sent to the model.
-    """
-    url = candidate.oa_url
+
+def pdf_text(body: bytes) -> str:
+    """The text of a PDF, page by page until `FULL_TEXT_CHARS`, or "" if it cannot be read."""
+    import io
+    import logging
+
+    from pypdf import PdfReader
+    from pypdf.errors import PyPdfError
+
+    logging.getLogger("pypdf").setLevel(logging.ERROR)  # font notes, not failures
+    out: list[str] = []
+    size = 0
+    try:
+        for page in PdfReader(io.BytesIO(body)).pages:
+            text = page.extract_text() or ""
+            out.append(text)
+            size += len(text)
+            if size >= FULL_TEXT_CHARS:
+                break
+    except (PyPdfError, ValueError, KeyError, TypeError, OSError):
+        return ""
+    return _clean(" ".join(out))
+
+
+def _copy_text(url: str, abstract: str, get: Fetch, *, follow: bool = True) -> tuple[str, str]:
+    """One free copy's text, PDF or HTML, and a note: (text, note). Robots.txt is obeyed."""
     if not url.startswith(("https://", "http://")):
         return "", ""
-    if urllib.parse.urlsplit(url).path.lower().endswith(".pdf"):
-        return "", "open PDF listed, not read (no PDF reader)"
     if not robots_allow(url, get=get):
         return "", "open copy refused by its robots.txt"
     try:
@@ -805,15 +828,63 @@ def open_access_text(candidate: Candidate, *, get: Fetch = fetch) -> tuple[str, 
     except SearchFailed as exc:
         return "", f"open copy not reached ({exc})"
     if body.lstrip()[:5] == b"%PDF-":
-        return "", "open PDF listed, not read (no PDF reader)"
+        text = pdf_text(body)
+        if len(text) >= OPEN_ACCESS_MIN_CHARS:
+            return text[:FULL_TEXT_CHARS], "open-access PDF"
+        return "", "open PDF had no readable text (a scan or cut short)"
     text = html_text(body)
-    if len(text) < max(OPEN_ACCESS_MIN_CHARS, 4 * len(candidate.abstract)):
-        return "", "open copy looked like a landing page, not read"
-    return text[:FULL_TEXT_CHARS], "open-access copy"
+    if len(text) >= max(OPEN_ACCESS_MIN_CHARS, 4 * len(abstract)):
+        return text[:FULL_TEXT_CHARS], "open-access copy"
+    link = PDF_LINK.search(body) if follow else None
+    if link:
+        pdf = urllib.parse.urljoin(url, link.group(1).decode("utf-8", errors="replace"))
+        found, note = _copy_text(pdf, abstract, get, follow=False)
+        if found:
+            return found, f"{note} (linked from its landing page)"
+    return "", "open copy looked like a landing page, not read"
+
+
+def open_copies(candidate: Candidate, *, get: Fetch = fetch) -> list[str]:
+    """Every free copy known for the paper, best first, without duplicates.
+
+    The arXiv PDF, OpenAlex's `oa_url`, the service's own PDF link, then every
+    location OpenAlex lists for the DOI with a PDF or landing page."""
+    out: list[str] = []
+    if candidate.arxiv_id:
+        out.append(f"https://arxiv.org/pdf/{candidate.arxiv_id}")
+    out += [candidate.oa_url, candidate.pdf_url]
+    if candidate.doi:
+        try:
+            row = json.loads(get(f"{OPENALEX_API}/doi:{urllib.parse.quote(candidate.doi)}"))
+        except (SearchFailed, ValueError):
+            row = {}
+        for place in (row.get("locations") or []) if isinstance(row, dict) else []:
+            if isinstance(place, dict) and place.get("is_oa"):
+                out += [str(place.get("pdf_url") or ""), str(place.get("landing_page_url") or "")]
+    return [u for u in dict.fromkeys(out) if u]
+
+
+def open_access_text(candidate: Candidate, *, get: Fetch = fetch) -> tuple[str, str]:
+    """The first free copy that reads as the paper, cut to `FULL_TEXT_CHARS`: (text, note).
+
+    PDFs are read with pypdf, and a landing page's `citation_pdf_url` is
+    followed once. Each copy's host's robots.txt is obeyed. When none reads,
+    the text is "" and the note gives the last reason. Never stored: only
+    sent to the model."""
+    note = ""
+    for url in open_copies(candidate, get=get):
+        text, why = _copy_text(url, candidate.abstract, get)
+        if text:
+            return text, why
+        note = why or note
+    return "", note
 
 
 def read(candidate: Candidate, *, get: Fetch = fetch) -> Reading:
-    """The fullest version this module may read: arXiv's HTML, then the open-access copy."""
+    """The fullest version this module may read: arXiv's HTML, then any free copy.
+
+    The abstract is read only when no free copy of the paper reads (operator,
+    2026-11-16: "read full always instead of abstract")."""
     text = full_text(candidate, get=get)
     if text:
         return Reading(text, "full text", "arXiv HTML", f"{ARXIV_HTML}{candidate.arxiv_id}")

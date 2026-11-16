@@ -1812,11 +1812,14 @@ words; a candidate sharing a name, or 85% of a title of five or more words
 limited to works with an author at an Indian institution
 (`authorships.institutions.country_code:IN`), which reaches IIMA, ISB and RBI
 authors. NSE's, SEBI's, RBI's, ISB's and RePEc's own listings are not searched:
-none has both a listing a program may read and terms that allow it. When
-OpenAlex lists `open_access.oa_url`, `paper_search.read` tries that copy after
-arXiv's HTML: only an HTML page, only if the host's robots.txt allows it, at most
-3 MB read, and only if its text is at least 8,000 characters and four times the
-abstract (A-161). A PDF is not read; there is no PDF reader. The paper record
+none has both a listing a program may read and terms that allow it. After
+arXiv's HTML, `paper_search.read` tries every free copy in turn (ADR-218): the
+arXiv PDF, OpenAlex's `oa_url`, the service's PDF link and every open location
+OpenAlex lists for the DOI. PDFs are read with pypdf; a landing page's
+`citation_pdf_url` is followed once. Each host's robots.txt is obeyed, at most
+25 MB is read, and an HTML page counts only if its text is at least 8,000
+characters and four times the abstract (A-161). The abstract is read only when
+no copy reads (a paywalled paper, or a scanned PDF). The paper record
 keeps `version_read` (`full text` or `abstract`) and `open_access_url`; the
 run's summary and `run.json` count full texts against abstracts.
 

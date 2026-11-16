@@ -1,0 +1,7 @@
+# ADR-218 — The paper agent reads the full paper whenever any free copy exists
+
+**Context.** Operator, 2026-11-16: "add pypdf and make it read full always instead of abstract". ADR-215 read only arXiv HTML and open-access HTML pages; most free copies are PDFs, so most papers were still drafted from the abstract, which cannot recover a rule's exact definition (#159).
+**Options.** (a) pypdf (pure Python, BSD); (b) pdfminer.six (heavier, slower); (c) an external tool such as pdftotext (a system binary, not reproducible through uv).
+**Choice.** (a). `paper_search.read` tries arXiv HTML, then every free copy in turn (`open_copies`: the arXiv PDF, OpenAlex's `oa_url`, the service's PDF link, every open location OpenAlex lists for the DOI); PDFs are read with pypdf, and a landing page's `citation_pdf_url` is followed once. Robots.txt is still obeyed on every host, and at most 25 MB is read. The abstract is read only when no copy reads.
+**Why.** The rule's exact definition is in the paper body; free copies exist for most finance working papers.
+**Cost if wrong.** One small dependency (pypdf, no compiled parts). Up to a few more requests per paper (one OpenAlex lookup by DOI, one robots.txt per host). Scanned PDFs have no text and still fall back to the abstract. Paywalled papers with no free copy still read as abstracts: "always" is every paper with a lawful free copy, not every paper.

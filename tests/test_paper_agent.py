@@ -705,12 +705,18 @@ OA_PAGE = json.dumps(
 PAPER_HTML = b"<html><nav>menu</nav><p>" + b"The paper's own words. " * 1000 + b"</p></html>"
 
 
-def _oa_get(robots: bytes = b"User-agent: *\nAllow: /\n", page: bytes = PAPER_HTML) -> Any:
-    """Recorded answers for OpenAlex, the journal's robots.txt and its HTML copy."""
+def _oa_get(
+    robots: bytes = b"User-agent: *\nAllow: /\n",
+    page: bytes = PAPER_HTML,
+    extra: dict[str, bytes] | None = None,
+) -> Any:
+    """Recorded answers for OpenAlex, the journal's robots.txt, its HTML copy and `extra`."""
     fetched: list[str] = []
 
     def get(url: str) -> bytes:
         fetched.append(url)
+        if url in (extra or {}):
+            return (extra or {})[url]
         if url.startswith(paper_search.OPENALEX_API):
             return OA_PAGE
         if url == "https://journal.example/robots.txt":
@@ -756,15 +762,55 @@ def test_an_open_html_copy_is_read_as_full_text_when_robots_allow() -> None:
     assert len(reading.text) <= paper_search.FULL_TEXT_CHARS
 
 
-def test_an_open_pdf_is_not_downloaded_and_the_abstract_is_read() -> None:
-    get = _oa_get()
-    reading = paper_search.read(_oa_candidate("https://journal.example/paper.pdf"), get=get)
-    assert reading.version == "abstract" and "PDF" in reading.where
-    assert get.fetched == []
+def _pdf(line: str, lines: int = 400) -> bytes:
+    """A small, valid one-page PDF holding `line` `lines` times, built by hand."""
+    body = "BT /F1 6 Tf 10 790 Td 8 TL " + " ".join(f"({line}) '" for _ in range(lines)) + " ET"
+    objects = [
+        "<< /Type /Catalog /Pages 2 0 R >>",
+        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 3400] /Contents 4 0 R "
+        "/Resources << /Font << /F1 5 0 R >> >> >>",
+        f"<< /Length {len(body)} >>\nstream\n{body}\nendstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = "%PDF-1.4\n"
+    offsets = []
+    for i, obj in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{i} 0 obj\n{obj}\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n"
+    out += "".join(f"{o:010d} 00000 n \n" for o in offsets)
+    out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n"
+    return out.encode("latin-1")
 
 
-def test_a_pdf_behind_an_html_link_is_not_read() -> None:
-    reading = paper_search.read(_oa_candidate(), get=_oa_get(page=b"%PDF-1.7 binary"))
+PAPER_PDF = _pdf("The paper's own words in its PDF.")
+
+
+def test_an_open_pdf_is_read_in_full() -> None:
+    """Operator, 2026-11-16: read the full paper, not the abstract, whenever a copy is free."""
+    url = "https://journal.example/paper.pdf"
+    get = _oa_get(extra={url: PAPER_PDF})
+    reading = paper_search.read(_oa_candidate(url), get=get)
+    assert reading.version == "full text" and reading.where == "open-access PDF"
+    assert "own words in its PDF." in reading.text
+
+
+def test_a_pdf_behind_an_html_link_is_read() -> None:
+    reading = paper_search.read(_oa_candidate(), get=_oa_get(page=PAPER_PDF))
+    assert reading.version == "full text" and "PDF" in reading.where
+
+
+def test_a_landing_page_names_its_pdf_and_the_pdf_is_read() -> None:
+    page = b'<html><meta name="citation_pdf_url" content="/files/p.pdf"><p>Abstract.</p></html>'
+    get = _oa_get(page=page, extra={"https://journal.example/files/p.pdf": PAPER_PDF})
+    reading = paper_search.read(_oa_candidate(), get=get)
+    assert reading.version == "full text" and "linked from its landing page" in reading.where
+
+
+def test_a_pdf_with_no_text_falls_back_to_the_abstract() -> None:
+    reading = paper_search.read(_oa_candidate(), get=_oa_get(page=b"%PDF-1.7 not really"))
     assert reading.version == "abstract" and "PDF" in reading.where
 
 
