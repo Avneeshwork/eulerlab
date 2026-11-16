@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import ast
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -680,3 +680,143 @@ def test_sources_take_turns_so_one_with_abstracts_cannot_take_every_read() -> No
               (0.4, c("ssrn", 4)), (0.3, c("nber", 5)), (0.0, c("ssrn", 6))]  # fmt: skip
     order = [p[1].source_id for p in paper_agent.take_turns(scored)]
     assert order == ["1", "4", "5", "2", "3", "6"]
+
+
+# --- full texts from open-access copies (#159, ADR-215) ------------------------
+
+OA_HTML = "https://journal.example/article/overnight"
+OA_PAGE = json.dumps(
+    {
+        "results": [
+            {
+                "id": "https://openalex.org/W9",
+                "display_name": "Overnight returns reverse intraday on the NSE",
+                "publication_year": 2023,
+                "primary_location": {"landing_page_url": "https://doi.org/10.1/oa"},
+                "open_access": {"is_oa": True, "oa_url": OA_HTML},
+                "authorships": [{"author": {"display_name": "C. Writer"}}],
+                "abstract_inverted_index": {
+                    f"{w}{i}": [i] for i, w in enumerate(["overnight reversal intraday"] * 20)
+                },
+            }
+        ]
+    }
+).encode()
+PAPER_HTML = b"<html><nav>menu</nav><p>" + b"The paper's own words. " * 1000 + b"</p></html>"
+
+
+def _oa_get(robots: bytes = b"User-agent: *\nAllow: /\n", page: bytes = PAPER_HTML) -> Any:
+    """Recorded answers for OpenAlex, the journal's robots.txt and its HTML copy."""
+    fetched: list[str] = []
+
+    def get(url: str) -> bytes:
+        fetched.append(url)
+        if url.startswith(paper_search.OPENALEX_API):
+            return OA_PAGE
+        if url == "https://journal.example/robots.txt":
+            return robots
+        if url == OA_HTML:
+            return page
+        raise AssertionError(f"unexpected fetch {url}")
+
+    get.fetched = fetched  # type: ignore[attr-defined]
+    return get
+
+
+def _oa_candidate(oa_url: str = OA_HTML) -> paper_search.Candidate:
+    [c] = paper_search.parse_openalex(OA_PAGE, fetched_at="t")
+    return replace(c, oa_url=oa_url)
+
+
+def _oa_run(tmp_path: Path, get: Any) -> paper_agent.Run:
+    return paper_agent.run(
+        "overnight reversal",
+        limit=3,
+        years=11.0,
+        ask=_ask(RELEVANT),
+        get=get,
+        sources=["openalex"],
+        drafts=tmp_path / "drafts-oa",
+        papers=tmp_path / "papers",
+        spacing=0,
+        sleep=lambda _s: None,
+        log=lambda _m: None,
+    )
+
+
+def test_openalex_oa_url_is_kept_on_the_candidate() -> None:
+    [c] = paper_search.parse_openalex(OA_PAGE, fetched_at="t")
+    assert c.oa_url == OA_HTML
+
+
+def test_an_open_html_copy_is_read_as_full_text_when_robots_allow() -> None:
+    reading = paper_search.read(_oa_candidate(), get=_oa_get())
+    assert reading.version == "full text" and reading.where == "open-access copy"
+    assert reading.url == OA_HTML and "menu" not in reading.text
+    assert len(reading.text) <= paper_search.FULL_TEXT_CHARS
+
+
+def test_an_open_pdf_is_not_downloaded_and_the_abstract_is_read() -> None:
+    get = _oa_get()
+    reading = paper_search.read(_oa_candidate("https://journal.example/paper.pdf"), get=get)
+    assert reading.version == "abstract" and "PDF" in reading.where
+    assert get.fetched == []
+
+
+def test_a_pdf_behind_an_html_link_is_not_read() -> None:
+    reading = paper_search.read(_oa_candidate(), get=_oa_get(page=b"%PDF-1.7 binary"))
+    assert reading.version == "abstract" and "PDF" in reading.where
+
+
+def test_robots_txt_refusal_means_the_copy_is_not_fetched() -> None:
+    get = _oa_get(robots=b"User-agent: *\nDisallow: /article/\n")
+    reading = paper_search.read(_oa_candidate(), get=get)
+    assert reading.version == "abstract" and "robots" in reading.where
+    assert OA_HTML not in get.fetched
+
+
+def test_a_landing_page_is_not_taken_for_the_paper() -> None:
+    reading = paper_search.read(_oa_candidate(), get=_oa_get(page=b"<p>Abstract only.</p>"))
+    assert reading.version == "abstract" and "landing page" in reading.where
+
+
+def test_the_run_records_the_version_read_and_counts_full_texts(tmp_path: Path) -> None:
+    arxiv = [d for d in _run(tmp_path).drafts if d.candidate.source == "arxiv"]
+    assert arxiv[0].version == "full text" and arxiv[0].paper is not None
+    assert arxiv[0].paper.version_read == "full text"
+
+    result = _oa_run(tmp_path, _oa_get())
+    [oa] = [d for d in result.drafts if d.outcome == "drafted"]
+    assert oa.paper is not None and oa.paper.open_access_url == OA_HTML
+    assert oa.paper.version_read == "full text" and "open-access copy" in oa.read
+    saved = yaml.safe_load(next((tmp_path / "drafts-oa").glob("*/*/paper.yaml")).read_text())
+    assert saved["version_read"] == "full text" and saved["open_access_url"] == OA_HTML
+    assert result.versions() == {"full text": 1, "abstract": 0}
+    assert "read: 1 full text(s), 0 abstract(s) only." in result.render()
+    manifest = json.loads(next((tmp_path / "drafts-oa").glob("*/run.json")).read_text())
+    assert manifest["read"] == {"full text": 1, "abstract": 0}
+    assert manifest["papers"][0]["version"] == "full text"
+
+
+def test_an_abstract_read_is_counted_as_an_abstract(tmp_path: Path) -> None:
+    result = _oa_run(tmp_path, _oa_get(robots=b"User-agent: *\nDisallow: /\n"))
+    [d] = [d for d in result.drafts if d.outcome == "drafted"]
+    assert d.paper is not None and d.paper.version_read == "abstract"
+    assert result.versions() == {"full text": 0, "abstract": 1}
+    assert "robots" in d.read
+
+
+# --- Indian sources (research 199) ----------------------------------------------
+
+
+def test_the_india_source_is_openalex_limited_to_indian_institutions() -> None:
+    asked: list[str] = []
+
+    def get(url: str) -> bytes:
+        asked.append(url)
+        return OA_PAGE
+
+    [c] = paper_search.search_india("overnight reversal", get=get)
+    assert c.source == "india" and c.oa_url == OA_HTML
+    assert "authorships.institutions.country_code%3AIN" in asked[0]
+    assert "india" in paper_search.SOURCES

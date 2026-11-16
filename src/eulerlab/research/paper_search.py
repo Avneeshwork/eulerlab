@@ -1,4 +1,4 @@
-"""Finding papers: arXiv, OpenAlex, SSRN, NBER, CORE and Semantic Scholar, all free, all read-only.
+"""Finding papers: arXiv, OpenAlex, SSRN, NBER, CORE, Semantic Scholar and India, free, read-only.
 
 The paper agent (`paper_agent.py`) starts here. This module only answers
 "which papers match this topic, and what does each one say about itself" —
@@ -36,6 +36,15 @@ Sources, their limits and their terms: research 124.
   ADR-131): key `SEMANTIC_SCHOLAR_API_KEY` or `Semantic_API`, sent as
   `x-api-key`, 1 request a second. Its relevance search answers HTTP 429 now and
   then even with a key (2026-11-03), so a 429 is retried twice after a pause.
+- **India** (`india`, ADR-215): OpenAlex again, limited to works with an author
+  at an Indian institution (`authorships.institutions.country_code:IN`). It
+  reaches IIM Ahmedabad, ISB and RBI authors under OpenAlex's CC0 terms. NSE's,
+  SEBI's, RBI's, ISB's and RePEc's own listings were checked and are not used
+  (research 199).
+- **Open-access copies** (ADR-215): when OpenAlex lists `open_access.oa_url`,
+  the candidate keeps it, and `read` tries it after arXiv's HTML: an HTML page
+  the host's robots.txt allows, cut at `OPEN_ACCESS_MAX_BYTES`. A PDF is not
+  read (there is no PDF reader here), and the draft says the abstract was read.
 - **Crossref** (`api.crossref.org/works/<doi>`): no key. Asked only for a paper
   OpenAlex found with no usable abstract, one request each (research 144). Some
   abstracts there are the publisher's copyright, so a fetched abstract is only
@@ -54,12 +63,13 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import urllib.robotparser
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
-from typing import Any
+from typing import Any, Literal
 
 ARXIV_API = "https://export.arxiv.org/api/query"
 ARXIV_HTML = "https://arxiv.org/html/"
@@ -92,6 +102,15 @@ FULL_TEXT_CHARS = 16_000
 """How much of a paper's text goes to the model. Groq's free tier allows 8,000
 tokens a minute on `openai/gpt-oss-120b`; 16,000 characters is about 4,000
 tokens, leaving room for the instructions and the reply (research 123)."""
+
+OPEN_ACCESS_MAX_BYTES = 3_000_000
+"""Most bytes read from an open-access copy. A paper's HTML is well under this;
+a bigger answer is cut there, never downloaded whole."""
+# ASSUMPTION: a page whose visible text is at least this long, and four times
+# the abstract, is the paper and not a landing page (A-161).
+OPEN_ACCESS_MIN_CHARS = 8_000
+INDIA_COUNTRY = "IN"
+"""OpenAlex's institution country code for India (research 199, checked 2026-11-16)."""
 
 _ATOM = {"a": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
 
@@ -129,7 +148,7 @@ class Candidate:
     """One paper as a search service described it. Nothing here is inferred."""
 
     source: str
-    """A name in `SOURCES`: `arxiv`, `openalex`, `ssrn`, `nber`, `core`, `semantic_scholar`."""
+    """A name in `SOURCES`: `arxiv`, `openalex`, `ssrn`, `nber`, `core`, `semantic_scholar`, `india`."""
     source_id: str
     title: str
     authors: list[str]
@@ -145,6 +164,8 @@ class Candidate:
     """`10.2139/ssrn.123`, when the service gave one. Used to find a missing abstract."""
     arxiv: str = ""
     """The arXiv number a non-arXiv service says this paper also has."""
+    oa_url: str = ""
+    """OpenAlex's `open_access.oa_url`: where a free copy is, when it knows one."""
 
     @property
     def arxiv_id(self) -> str:
@@ -163,6 +184,21 @@ def fetch(url: str, headers: dict[str, str] | None = None) -> bytes:
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
             body: bytes = response.read()
+            return body
+    except urllib.error.HTTPError as exc:
+        raise SearchFailed(
+            f"{urllib.parse.urlsplit(url).hostname} returned HTTP {exc.code}", exc.code
+        ) from exc
+    except (urllib.error.URLError, TimeoutError) as exc:
+        raise SearchFailed(f"could not reach {urllib.parse.urlsplit(url).hostname}: {exc}") from exc
+
+
+def fetch_capped(url: str) -> bytes:
+    """GET one URL, reading at most `OPEN_ACCESS_MAX_BYTES`. For open-access copies."""
+    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+            body: bytes = response.read(OPEN_ACCESS_MAX_BYTES)
             return body
     except urllib.error.HTTPError as exc:
         raise SearchFailed(
@@ -310,6 +346,7 @@ def parse_openalex(body: bytes, *, fetched_at: str) -> list[Candidate]:
                 fetched_at=fetched_at,
                 pdf_url=str(location.get("pdf_url") or open_access.get("oa_url") or ""),
                 doi=doi_of(str(row.get("doi") or "")),
+                oa_url=str(open_access.get("oa_url") or ""),
             )
         )
     return out
@@ -503,6 +540,34 @@ def search_openalex(
     return parse_openalex(get(url), fetched_at=_now())
 
 
+def search_india(
+    topic: str, *, limit: int = 10, since_year: int = 2010, get: Fetch = fetch
+) -> list[Candidate]:
+    """Papers on the topic with an author at an Indian institution, through OpenAlex.
+
+    The one Indian route with a machine-readable listing whose terms allow
+    this use (research 199): IIMA, ISB and RBI are OpenAlex institutions.
+    NSE's working-paper page, SEBI's research pages, RBI's own site, ISB's
+    repository and RePEc's IIMA series were checked and are not searched.
+    """
+    # ASSUMPTION: the Indian sources' terms as read on 2026-11-16 (A-162).
+    params = {
+        "search": topic,
+        "filter": (
+            f"authorships.institutions.country_code:{INDIA_COUNTRY},"
+            f"publication_year:>{since_year - 1},type:article|preprint"
+        ),
+        "per_page": str(min(limit, MAX_RESULTS)),
+    }
+    key = api_key(OPENALEX_KEYS)
+    if key:
+        params["api_key"] = key
+    found = parse_openalex(
+        get(f"{OPENALEX_API}?{urllib.parse.urlencode(params)}"), fetched_at=_now()
+    )
+    return [replace(c, source="india") for c in found]
+
+
 # --- CORE and Semantic Scholar (ADR-131) ----------------------------------
 
 
@@ -693,6 +758,71 @@ def full_text(candidate: Candidate, *, get: Fetch = fetch) -> str:
     return text[:FULL_TEXT_CHARS]
 
 
+@dataclass(frozen=True)
+class Reading:
+    """What was read of one paper, and which version it was (ADR-215)."""
+
+    text: str
+    """The full text sent to the model, or "" when only the abstract is read."""
+    version: Literal["full text", "abstract"]
+    """The field written on the paper record as `version_read`."""
+    where: str
+    """`arXiv HTML`, `open-access copy`, or why an open copy was not read."""
+    url: str = ""
+    """The copy that was read, or the open-access link that was not."""
+
+
+def robots_allow(url: str, *, get: Fetch = fetch) -> bool:
+    """Whether the host's robots.txt lets this agent fetch `url`. No robots.txt means yes."""
+    parts = urllib.parse.urlsplit(url)
+    try:
+        body = get(f"{parts.scheme}://{parts.netloc}/robots.txt")
+    except SearchFailed as exc:
+        # The robots convention: a missing file (4xx) allows everything; a
+        # host that cannot be reached is not fetched at all.
+        return exc.status is not None and 400 <= exc.status < 500
+    rules = urllib.robotparser.RobotFileParser()
+    rules.parse(body.decode("utf-8", errors="replace").splitlines())
+    return rules.can_fetch(USER_AGENT, url)
+
+
+def open_access_text(candidate: Candidate, *, get: Fetch = fetch) -> tuple[str, str]:
+    """The open-access copy's text, cut to `FULL_TEXT_CHARS`, and a note: (text, note).
+
+    Tried only when OpenAlex listed `oa_url`. The text is "" and the note says
+    why when the copy is a PDF, robots.txt refuses it, or the page is too short
+    to be more than a landing page. Never stored: only sent to the model.
+    """
+    url = candidate.oa_url
+    if not url.startswith(("https://", "http://")):
+        return "", ""
+    if urllib.parse.urlsplit(url).path.lower().endswith(".pdf"):
+        return "", "open PDF listed, not read (no PDF reader)"
+    if not robots_allow(url, get=get):
+        return "", "open copy refused by its robots.txt"
+    try:
+        body = (fetch_capped if get is fetch else get)(url)[:OPEN_ACCESS_MAX_BYTES]
+    except SearchFailed as exc:
+        return "", f"open copy not reached ({exc})"
+    if body.lstrip()[:5] == b"%PDF-":
+        return "", "open PDF listed, not read (no PDF reader)"
+    text = html_text(body)
+    if len(text) < max(OPEN_ACCESS_MIN_CHARS, 4 * len(candidate.abstract)):
+        return "", "open copy looked like a landing page, not read"
+    return text[:FULL_TEXT_CHARS], "open-access copy"
+
+
+def read(candidate: Candidate, *, get: Fetch = fetch) -> Reading:
+    """The fullest version this module may read: arXiv's HTML, then the open-access copy."""
+    text = full_text(candidate, get=get)
+    if text:
+        return Reading(text, "full text", "arXiv HTML", f"{ARXIV_HTML}{candidate.arxiv_id}")
+    text, note = open_access_text(candidate, get=get)
+    if text:
+        return Reading(text, "full text", note, candidate.oa_url)
+    return Reading("", "abstract", note, candidate.oa_url)
+
+
 # --- the combined search ---------------------------------------------------
 
 
@@ -809,6 +939,7 @@ SOURCES: dict[str, Search] = {
     "nber": search_nber,
     "core": search_core,
     "semantic_scholar": search_semantic_scholar,
+    "india": search_india,
 }
 """Every source the research agent may search, by the name `config/agents/research.yaml`
 lists. A new source is one function here and one line there (ADR-129)."""
