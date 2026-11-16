@@ -388,10 +388,20 @@ def proof(
     connect: Callable[[], tuple[Any, str]] = login,
     make_broker: Callable[[Any, Mapping[str, str]], Any] | None = None,
     timeout: float = 30.0,
+    governor: Any | None = None,
 ) -> dict[str, Any]:
-    """Buy 1 share MIS at market, wait for the fill, sell it back. Real money."""
+    """Buy 1 share MIS at market, wait for the fill, sell it back. Real money.
+
+    Each leg takes a slot in the machine's shared send window first, like
+    every other live order, so the proof can never add to a burst from a
+    live book running at the same moment.
+    """
     from eulerlab.backtest.events import Order
     from eulerlab.costs.schedule import Side
+    from eulerlab.oms import ems
+
+    if governor is None:
+        governor = ems.live_governor()
 
     if tripped is None:
         from eulerlab.oms.killswitch import KillSwitch
@@ -426,6 +436,7 @@ def proof(
             side=side,
             quantity=1,
         )
+        governor.acquire()
         broker_id = broker.place(order)
         view = _wait_fill(broker, coid, timeout)
         status = str(getattr(view, "status", "unknown")).lower()

@@ -1299,6 +1299,8 @@ The limit is per client at the exchange, not per process. `ems.live_governor()`
 keeps the window in `data/oms/rate_window.json` behind an exclusive file lock,
 with wall-clock times, so every live sender on the machine shares one window
 (T-4350). Paper books keep a window each; their orders never reach an exchange.
+Every real-money send takes a slot first: the live-money desk and the Angel
+one-share proof both go through `live_governor()`.
 
 ## 6.4 Reconciliation: the broker is right
 

@@ -189,7 +189,22 @@ def _proof(tmp_path: Path, client: FakeClient, confirm: str = "SEND", **kw: Any)
         connect=lambda: (client, "r"),
         make_broker=lambda c, t: SmartAPIBroker(c, symbol_tokens=t),
         timeout=kw.pop("timeout", 1.0),
+        governor=kw.pop("governor", None) or _window(tmp_path),
     )
+
+
+def _window(tmp_path: Path) -> Any:
+    from eulerlab.oms import ems
+
+    return ems.Governor(5, window_file=tmp_path / "rate_window.json")
+
+
+def test_proof_legs_take_slots_in_the_shared_send_window(tmp_path: Path) -> None:
+    """The proof is a live order like any other: each leg is counted in the
+    machine's one send window, so it cannot add to a live book's burst."""
+    governor = _window(tmp_path)
+    _proof(tmp_path, FakeClient(), governor=governor)
+    assert governor.recent() == 2
 
 
 def test_proof_without_confirm_sends_nothing(tmp_path: Path) -> None:
