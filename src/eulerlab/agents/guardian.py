@@ -22,12 +22,19 @@ too good to believe. It never edits code, deletes data or touches orders.
 
 It must never break the run it inspects: `after_run` swallows its own errors
 and records them.
+
+**A planned edit is not a halt (ADR-217).** A protected file whose last commit
+carries an `Operator-Ack:` trailer, and which is on disk exactly as that commit
+left it, is logged as `acked_change` and joins the baseline; the commit-msg
+hook (`eulerlab.operator_ack`) refuses a commit to these files without one.
+**A halt is loud until lifted:** a Telegram line when it starts, and again at
+2 h and 8 h (`escalate`, run hourly by the `halt-watch` job), and `make health`
+is red while it lasts.
 """
 
 from __future__ import annotations
 
 import contextlib
-import hashlib
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
@@ -192,6 +199,15 @@ def protected_changed(f: Facts) -> Trip | None:
         # ADR-171) joins it as it stands; only a later change to it is a trip.
         _write_baseline(f.root, {**base, **added}, why=f"now protected: {', '.join(added)}")
     changed = [p for p, h in now.items() if p in base and base[p] != h]
+    acks = {p: why for p in changed if (why := _acked(f.repo, p, now[p]))}
+    if acks:
+        # A commit carrying `Operator-Ack:` (ADR-217): logged and accepted, not a halt.
+        _write_baseline(
+            f.root, {**_baseline(f.root), **{p: now[p] for p in acks}}, why="operator-acked commit"
+        )
+        for p, why in acks.items():
+            _log(f.root, Trip("acked_change", "all", "hold", f"{p}: {why}"[:300]))
+    changed = [p for p in changed if p not in acks]
     if not changed:
         return None
     return Trip(
@@ -199,7 +215,8 @@ def protected_changed(f: Facts) -> Trip | None:
         "all",
         "halt",
         f"operator-owned file changed without acknowledgement: {', '.join(changed)}. "
-        "If you changed it, run `make agents-resume REASON=...`",
+        "If you changed it, run `make agents-resume REASON=...`; next time commit it "
+        "with an `Operator-Ack:` trailer",
     )
 
 
@@ -230,12 +247,31 @@ def _allowance() -> int:
 
 
 def fingerprints(repo: Path) -> dict[str, str]:
+    from eulerlab.operator_ack import digest
+
     out = {}
     for rel in PROTECTED:
         path = repo / rel
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()[:16] if path.exists() else "absent"
-        out[str(rel)] = digest
+        out[str(rel)] = digest(path.read_bytes()) if path.exists() else "absent"
     return out
+
+
+def _acked(repo: Path, rel: str, current: str) -> str:
+    """Why the operator acked this exact change in a commit, or '' (ADR-217)."""
+    from eulerlab.operator_ack import acked
+
+    return acked(repo, rel, current)
+
+
+def _log(root: Path, trip: Trip) -> Trip:
+    stamped = Trip(
+        **{**asdict(trip), "at": trip.at or datetime.now(UTC).isoformat(timespec="seconds")}
+    )
+    path = _dir(root) / "log.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(asdict(stamped)) + "\n")
+    return stamped
 
 
 def _baseline(root: Path) -> dict[str, str]:
@@ -293,10 +329,7 @@ def act(trip: Trip, root: Path, *, tell: Callable[[str], None] | None = None) ->
             spec.write_setting(trip.agent, enabled=False, root=root)
     elif trip.action == "halt":
         (root / HALT_FILE).write_text(f"{trip.rule}: {trip.why}\n", encoding="utf-8")
-    path = _dir(root) / "log.jsonl"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(asdict(stamped)) + "\n")
+    _log(root, stamped)
     lessons.add(
         f"Guardian {trip.action} ({trip.rule}): {trip.why}",
         source="guardian",
@@ -306,7 +339,81 @@ def act(trip: Trip, root: Path, *, tell: Callable[[str], None] | None = None) ->
     )
     message = f"Guardian {trip.action}: {trip.agent} — {trip.why}"
     (tell or _tell)(message)
+    if trip.action == "halt":
+        _write_escalation(root, {"since": stamped.at, "sent": [0]})
     return stamped
+
+
+# --- halt escalation (ADR-217) -----------------------------------------------------------
+
+# ASSUMPTION: A-125 — chosen by hand, like the thresholds above.
+ESCALATE_HOURS = (2, 8)
+"""A halt is told when it starts (hour 0) and again at these ages; then `make health` shows it."""
+
+
+def _escalation_path(root: Path) -> Path:
+    return _dir(root) / "escalation.json"
+
+
+def _write_escalation(root: Path, body: dict[str, Any]) -> None:
+    path = _escalation_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(body), encoding="utf-8")
+
+
+def halt_state(root: Path | None = None) -> dict[str, Any]:
+    """{"why", "since", "sent"} of the current halt, or {} when there is none."""
+    root = home(root)
+    why = halted(root)
+    if not why:
+        return {}
+    try:
+        body = dict(json.loads(_escalation_path(root).read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        body = {}
+    if not body.get("since"):
+        # a halt written by hand, or before escalation existed: dated by the file
+        mtime = (root / HALT_FILE).stat().st_mtime
+        since = datetime.fromtimestamp(mtime, UTC).isoformat(timespec="seconds")
+        body = {"since": since, "sent": []}
+    return {"why": why, "since": str(body["since"]), "sent": [int(h) for h in body.get("sent", [])]}
+
+
+def escalate(
+    root: Path | None = None,
+    now: datetime | None = None,
+    *,
+    tell: Callable[[str], None] | None = None,
+) -> list[str]:
+    """Send the halt's next due line (start, 2 h, 8 h); return what was sent.
+
+    The hourly `halt-watch` job runs it: a halted runtime starts no agent, so
+    no run would reach the guardian to say the halt is still on."""
+    root = home(root)
+    state = halt_state(root)
+    if not state:
+        _escalation_path(root).unlink(missing_ok=True)
+        return []
+    now = now or datetime.now(UTC)
+    hours = (now - datetime.fromisoformat(state["since"])).total_seconds() / 3600
+    sent: list[int] = state["sent"]
+    lines: list[str] = []
+    if 0 not in sent:
+        lines.append(f"Guardian halt: all — {state['why']}")
+        sent.append(0)
+    due = [h for h in ESCALATE_HOURS if h <= hours and h not in sent]
+    if due:
+        # one line for the age reached, even when the job missed an earlier one
+        lines.append(
+            f"Guardian halt still on after {int(hours)} h (since {state['since'][:16]} UTC): "
+            f"{state['why'][:300]}. No agent has run since. Lift it with "
+            "`make agents-resume REASON=...` once the change is understood."
+        )
+        sent.extend(due)
+    for line in lines:
+        (tell or _tell)(line)
+    _write_escalation(root, {"since": state["since"], "sent": sorted(sent)})
+    return lines
 
 
 def _tell(text: str) -> None:
@@ -369,30 +476,26 @@ def clear(reason: str, root: Path | None = None, repo: Path = Path(".")) -> str:
     was = halted(root)
     (root / HALT_FILE).unlink(missing_ok=True)
     _write_baseline(root, fingerprints(repo), why=reason.strip()[:300])
-    path = _dir(root) / "log.jsonl"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    row = {
-        "rule": "cleared",
-        "agent": "all",
-        "action": "hold",
-        "why": reason.strip()[:300],
-        "at": datetime.now(UTC).isoformat(timespec="seconds"),
-    }
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row) + "\n")
+    _escalation_path(root).unlink(missing_ok=True)
+    _log(root, Trip("cleared", "all", "hold", reason.strip()[:300]))
     return was
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Operator commands: `status`, and `clear --reason` (lift a halt)."""
+    """Operator commands: `status`, `escalate` (the hourly job), and `clear --reason`."""
     import argparse
 
     parser = argparse.ArgumentParser(description="The agents' guardian (ADR-152).")
     sub = parser.add_subparsers(dest="cmd", required=True)
     sub.add_parser("status")
+    sub.add_parser("escalate", help="send a halt's start, 2 h and 8 h lines when due")
     c = sub.add_parser("clear")
     c.add_argument("--reason", required=True)
     args = parser.parse_args(argv)
+    if args.cmd == "escalate":
+        for line in escalate():
+            print(line)
+        return 0
     if args.cmd == "clear":
         was = clear(args.reason)
         print(f"halt lifted ({was or 'none was set'}); protected files re-baselined")

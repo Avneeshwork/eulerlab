@@ -84,3 +84,93 @@ def test_a_tripped_switch_is_red(data_dir: Path) -> None:
     body = health.summary(at("2026-11-12T12:00"))
     assert "kill_switch" in body["red"]
     assert body["kill_switch"]["status"] == "bad"
+
+
+# --- the halt and liveness lines (ADR-217) ----------------------------------------------
+
+
+@pytest.fixture
+def no_db(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("EULERLAB_DATABASE_URL", raising=False)
+
+
+def _run(data_dir: Path, agent: str, started: str, status: str = "ok") -> None:
+    from eulerlab.agents.runtime import Output
+
+    out = Output(
+        agent=agent, run_id=started, started=started, finished=started, status=status, summary="s"
+    )
+    folder = data_dir / "agents" / agent / started.replace(":", "")
+    folder.mkdir(parents=True)
+    (folder / "output.json").write_text(out.model_dump_json())
+
+
+def _experiment(asked_by: str, now: datetime) -> None:
+    from datetime import date
+
+    from eulerlab.research import experiments
+
+    experiments.record(
+        purpose="screen",
+        fingerprint=f"f-{asked_by}-{now.isoformat()}",
+        first=date(2020, 1, 1),
+        end=date(2020, 6, 1),
+        metrics={"count": 1},
+        asked_by=asked_by,
+        now=now,
+    )
+
+
+def test_a_halt_is_red_with_its_age(data_dir: Path) -> None:
+    (data_dir / "agents").mkdir()
+    (data_dir / "agents" / "HALT").write_text("protected_changed: gates.py\n")
+    body = health.summary(at("2026-11-12T12:00"))
+    assert "agents_halt" in body["red"]
+    assert "gates.py" in body["agents_halt"]["why"]
+    assert "agents_halt" in health.render(body)
+
+
+def test_nothing_ever_run_is_not_red_yet(data_dir: Path, no_db: None) -> None:
+    body = health.summary(at("2026-11-12T22:00"))
+    assert body["agents_halt"]["status"] == "ok"
+    assert body["autopilot_rows"]["why"] == "no run recorded yet"
+    assert body["experiments_today"]["status"] == "ok"
+    assert all(row["status"] == "ok" for row in body["agent_runs"])
+
+
+def test_an_agent_past_its_deadline_is_red(data_dir: Path, no_db: None) -> None:
+    # research has 26 h in the watchdog's `expect`; a failed run does not count
+    _run(data_dir, "research", "2026-11-10T11:30:00+00:00")
+    _run(data_dir, "research", "2026-11-12T01:00:00+00:00", status="failed")
+    _run(data_dir, "lab", "2026-11-12T03:00:00+00:00")
+    body = health.summary(at("2026-11-12T12:00"))
+    rows = {row["agent"]: row for row in body["agent_runs"]}
+    assert rows["research"]["status"] == "bad"
+    assert "last ok 2026-11-10T11:30" in rows["research"]["why"]
+    assert rows["lab"]["status"] == "ok"
+    assert "agent research" in body["red"] and "agent lab" not in body["red"]
+    assert "agent research" in health.render(body)
+
+
+def test_autopilot_rows_and_todays_experiments(data_dir: Path, no_db: None) -> None:
+    _run(data_dir, "autopilot", "2026-11-10T11:30:00+00:00")
+    _experiment("autopilot", at("2026-11-10T17:20"))
+    late = health.summary(at("2026-11-12T21:30"))
+    assert late["autopilot_rows"]["status"] == "bad"
+    assert late["experiments_today"]["status"] == "bad"
+    assert {"autopilot_rows", "experiments_today"} <= set(late["red"])
+    # before 21:00 IST today's rows are not due yet
+    assert health.summary(at("2026-11-12T15:00"))["experiments_today"]["status"] == "ok"
+    _experiment("autopilot", at("2026-11-12T17:20"))
+    _experiment("operator", at("2026-11-12T18:00"))
+    fresh = health.summary(at("2026-11-12T21:30"))
+    assert fresh["autopilot_rows"]["status"] == "ok"
+    assert "1 rows in 26 h" in fresh["autopilot_rows"]["why"]
+    assert fresh["experiments_today"]["why"] == "2 rows today"
+
+
+def test_an_autopilot_that_ran_but_wrote_nothing_is_red(data_dir: Path, no_db: None) -> None:
+    _run(data_dir, "autopilot", "2026-11-12T11:30:00+00:00")
+    body = health.summary(at("2026-11-12T18:00"))
+    assert body["autopilot_rows"]["status"] == "bad"
+    assert "none ever" in body["autopilot_rows"]["why"]
