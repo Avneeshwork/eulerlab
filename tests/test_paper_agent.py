@@ -16,7 +16,21 @@ from typing import Any
 import pytest
 import yaml
 
-from eulerlab.research import card, library, paper_agent, paper_search
+from eulerlab.research import budget, card, library, paper_agent, paper_search
+
+# The trial count the search is priced against, fixed for this module. Read
+# live, it is the operator's own ledger, and on 2026-11-16 it reached 1342: past
+# about 1290 an 11-year window cannot afford a 3-paper search, so every drafting
+# test here broke on research nobody ran in a test. Refusal is still tested by
+# `test_an_unaffordable_search_reads_nothing` (no history), and the count
+# itself by `test_evidence_census.py`.
+TRIALS_ALREADY = 100
+
+
+@pytest.fixture(autouse=True)
+def _fixed_trial_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(budget, "searches_run", lambda: TRIALS_ALREADY)
+
 
 ARXIV_FEED = b"""<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom" xmlns:arxiv="http://arxiv.org/schemas/atom">

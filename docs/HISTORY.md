@@ -630,3 +630,7 @@ Believed: the library's Sharpe is the strategy's. True: for daily intraday cards
 ## 2026-11-16 — the strategy caveat said "1 of those runs are" about a single run
 
 Believed: `results.summarise` words the unrecorded-runs caveat correctly. True: with one run and no earlier sentence it read "1 of those runs are not in the trial ledger", naming runs it never introduced and with the wrong verb (seen on H-0162). It now says "This run is not in the trial ledger" for a single run, "None of the N runs" when all are missing, and agrees the verb otherwise. Wording only; no numbers change.
+
+## 2026-11-16 — the paper agent's tests priced their search against the real ledger
+
+Believed: `tests/test_paper_agent.py` is hermetic (no network, no model). True: `paper_agent.run` prices the search with `budget.searches_run()`, which read the operator's own trial ledgers. When those reached 1342 trials (760 validated + 582 swept), a 3-paper search no longer fit the tests' 11-year window (it needs about 11.15 years past roughly 1290 trials), so the agent refused and 13 drafting tests failed with no code change; the pre-push hook blocked the push. The module now fixes the count at 100; the refusal path is still tested with no history. No numbers change.
