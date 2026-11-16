@@ -711,7 +711,15 @@ class Engine:
         """Research 176's screen figures plus the bias checks (`checks`).
 
         `events` replaces the rule's own entries: the robustness battery's half
-        universes and shifted-date placebos (#158) are screened this way."""
+        universes and shifted-date placebos (#158) are screened this way. Every
+        delivery sell pays the DP charge (#153); the paper books, which build
+        their positions without `screen`, do not yet (T-4633)."""
+        from eulerlab.costs import router
+
+        with router.dp_charges():
+            return self._screen(spec, events)
+
+    def _screen(self, spec: Rule, events: Sequence[Event] | None) -> dict[str, Any]:
         events = self.events(spec) if events is None else list(events)
         window = self.window(spec)
         if spec.kind == "intraday":
@@ -891,5 +899,9 @@ def validation_run(hypothesis: str, data: Data | None = None) -> IntradayRun:
     if spec is None:
         msg = f"{hypothesis} has no engine block"
         raise KeyError(msg)
+    from eulerlab.costs import router
+
     engine = Engine(data or Data())
-    return IntradayRun(engine.pieces(spec), [], engine.window(spec), dm.CAPITAL)
+    with router.dp_charges():  # a swing card's delivery sells pay DP at the gate too (#153)
+        pieces = engine.pieces(spec)
+    return IntradayRun(pieces, [], engine.window(spec), dm.CAPITAL)

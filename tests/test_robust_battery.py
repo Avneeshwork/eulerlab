@@ -119,3 +119,26 @@ def test_a_placebo_enters_later_and_only_on_tradable_days(lag: int) -> None:
     assert shifted == [(data.sessions[lag], "S00", -1, 0.0)]
     assert rb._shift(data, [(data.sessions[-1], "S00", -1, 0.0)], lag) == []
     assert _fast(data).screen(FADE, [])["count"] == 0  # the entries given replace the rule's
+
+
+# --- the DP charge on a screen's delivery sells (#153) -----------------------------------
+
+
+def test_a_swing_screen_pays_dp_on_each_sell_and_an_intraday_one_does_not() -> None:
+    from eulerlab.costs import router
+    from eulerlab.intraday import daily_more_screen as dm
+    from eulerlab.intraday import rule_engine as engine
+
+    data = _panel(fade=True)
+    fast = _fast(data)
+    swing = lang.Spec(shape="event", kind="swing", hold=5, when="ge(gap, 0.02)", score="gap")
+    with_dp = fast.screen(swing)
+    swings = dm.swing_book(data, fast.events(swing), swing.hold)
+    without = sum(s.costs_at()[1] for s in swings)  # outside a screen: no DP (paper books)
+    with router.dp_charges():
+        again = dm.swing_book(data, fast.events(swing), swing.hold)
+        paid = sum(s.costs_at()[1] for s in again)
+    assert paid - without == pytest.approx(router.DP_CHARGE_INR * len(swings))
+    assert with_dp["count"] == len(swings)
+    trades = dm.day_book(data, fast.events(FADE))
+    assert trades and engine.Engine(data).screen(FADE) == engine.Engine(data).screen(FADE)

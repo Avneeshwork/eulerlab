@@ -56,8 +56,19 @@ DELIVERY = data_path("derived/delivery.jsonl")
 EARNINGS = data_path("derived/nse_earnings_announcements.jsonl")
 
 
-@lru_cache(maxsize=1 << 20)  # pure, and the same fill recurs across a population (#167)
 def delivery_fee(price: float, quantity: int, side: Side, day: date) -> float:
+    """A delivery fill's charges, with the DP charge on a sell inside `router.dp_charges()`.
+
+    The DP charge is added outside the cache: cached inside, a fill first
+    priced in a screen would carry DP into a paper book later, and the
+    reverse (#153)."""
+    from eulerlab.costs.router import dp_fee
+
+    return _delivery_fee(price, quantity, side, day) + dp_fee(side)
+
+
+@lru_cache(maxsize=1 << 20)  # pure, and the same fill recurs across a population (#167)
+def _delivery_fee(price: float, quantity: int, side: Side, day: date) -> float:
     from eulerlab.costs.router import fill_cost
 
     return fill_cost(
@@ -67,6 +78,7 @@ def delivery_fee(price: float, quantity: int, side: Side, day: date) -> float:
         side=side,
         day=day,
         segment=Segment.EQUITY_DELIVERY,
+        dp=False,
     )
 
 

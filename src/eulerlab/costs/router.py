@@ -91,8 +91,12 @@ def fill_cost(
     day: date,
     segment: Segment,
     fund_unit: bool = False,
+    dp: bool = True,
 ) -> float:
     """The charge for one fill. Zero for venues that are deliberately uncosted.
+
+    `dp=False` leaves out the DP charge even inside `dp_charges()`: a caller
+    that caches fills adds it outside its cache with `dp_fee` (#153).
 
     `segment` applies to NSE only and distinguishes an intraday trade from a
     delivery one — the two pay different STT and the difference is large. It is
@@ -148,8 +152,8 @@ def fill_cost(
             fund_unit=fund_unit,
         ).total
     )
-    if _DP.get() and segment is Segment.EQUITY_DELIVERY and side is Side.SELL:
-        charge += DP_CHARGE_INR
+    if dp and segment is Segment.EQUITY_DELIVERY:
+        charge += dp_fee(side)
     return charge
 
 
@@ -172,6 +176,11 @@ def dp_charges() -> Iterator[None]:
         yield
     finally:
         _DP.reset(token)
+
+
+def dp_fee(side: Side) -> float:
+    """The DP charge on one NSE delivery fill: `DP_CHARGE_INR` on a sell inside `dp_charges()`."""
+    return DP_CHARGE_INR if _DP.get() and side is Side.SELL else 0.0
 
 
 def is_costed(venue: str) -> bool:

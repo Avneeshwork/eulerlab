@@ -47,6 +47,7 @@ from eulerlab import constitution, jobrun
 from eulerlab.agents import runtime
 from eulerlab.agents.runtime import Context, Item, WorkerResult
 from eulerlab.agents.workers import autopilot as writer
+from eulerlab.costs import router
 from eulerlab.intraday import rule_engine
 from eulerlab.research import experiments
 from eulerlab.validation import firewall
@@ -527,7 +528,8 @@ def pipeline(
         if returns:
             remember(hypothesis, spec, out, returns, engine().data.end, ctx.now)
         if returns and out["clean"]:
-            later = rule_engine.daily(checker().pieces(spec), checker().window(spec))
+            with router.dp_charges():  # as the screen pays it (#153)
+                later = rule_engine.daily(checker().pieces(spec), checker().window(spec))
             days, kept = firewall.look(
                 returns,
                 later,
