@@ -3,6 +3,16 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## Make the repo public safely (2026-11-16)
+
+Operator, 2026-11-16: "I am making this project public ensure no api and data leak happens". Audit of the whole GitHub history (868 commits, all branches, tags and 119 refs including pull requests) against every `.env` value and common key patterns. The current tree is clean; history still holds the 2026-08-18 leak (S-031).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4675 | Ignore session caches, local databases, dumps, logs and git bundles; scripts find the repo root instead of a committed home path | DONE 2026-11-16 |
+| T-4676 | Operator: regenerate the Zerodha Kite api_key (a new Kite app) and decide whether the Telegram chat id matters. Both are in history at `5b55779`, `afaf099` (`.env.example`) and `docs/RUNBOOKS/kite-login.md` before `d17bff9` | TODO |
+| T-4677 | Operator decision: purge `.env.example` history with `git filter-repo` before going public. Pull-request refs on GitHub (`refs/pull/*`) are read-only and keep the old commits even after a purge, so a full purge needs GitHub Support or a fresh repo pushed from the cleaned history | TODO |
+
 ## Agent research quality, issues #151 to #161 (2026-11-16)
 
 Operator, 2026-11-16: "start them" — go through the gap audit's issues and build the ones that matter most.
