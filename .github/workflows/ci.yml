@@ -26,8 +26,10 @@ jobs:
         # imports fastapi. Without it the import is unresolved, every route
         # decorator becomes untyped, and the type gate fails on code that is
         # perfectly fine. Installing the extra is what lets mypy check that file
-        # properly rather than what lets it skip it.
-        run: uv sync --extra dev --extra web
+        # properly rather than what lets it skip it. `db` is there for the same
+        # reason: src/eulerlab/db and accounts/store.py import psycopg, and
+        # without it mypy cannot resolve the import (the same set as make install-lite).
+        run: uv sync --extra dev --extra web --extra db
 
       - name: Lint
         run: |
