@@ -217,11 +217,41 @@ export function OptionsTab() {
 
   return (
     <section className="tsection">
-      <h2 className="thero">
-        {chain?.ok ? chain.underlying : underlying} <i>chain</i>
-      </h2>
+      {/* The view tabs sit first, above the underlying row (operator,
+          2026-11-16). No page title: the nav names the page. */}
+      {chain?.ok && (
+        <div className="ttools" style={{ marginTop: 4 }}>
+          {VIEWS.map((name) => (
+            <button
+              key={name}
+              className="tchip"
+              type="button"
+              aria-pressed={view === name}
+              onClick={() => setView(name)}
+            >
+              {name}
+            </button>
+          ))}
+          <div className="ttools-actions">
+            <span className="tfine" style={{ marginRight: 6 }}>
+              strikes
+            </span>
+            {RANGES.map((n) => (
+              <button
+                key={n}
+                className="tchip sm"
+                type="button"
+                aria-pressed={range === n}
+                onClick={() => setRange(n)}
+              >
+                {n === 0 ? 'all' : `±${n}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-      <div className="ttools" style={{ marginTop: 20, marginBottom: 20 }}>
+      <div className="ttools" style={{ marginTop: 12, marginBottom: 20 }}>
         {UNDERLYINGS.map((name) => (
           <button
             key={name}
@@ -271,37 +301,6 @@ export function OptionsTab() {
         )}
       </div>
 
-      {chain?.ok && (
-        <div className="ttools" style={{ marginBottom: 20 }}>
-          {VIEWS.map((name) => (
-            <button
-              key={name}
-              className="tchip"
-              type="button"
-              aria-pressed={view === name}
-              onClick={() => setView(name)}
-            >
-              {name}
-            </button>
-          ))}
-          <div className="ttools-actions">
-            <span className="tfine" style={{ marginRight: 6 }}>
-              strikes
-            </span>
-            {RANGES.map((n) => (
-              <button
-                key={n}
-                className="tchip sm"
-                type="button"
-                aria-pressed={range === n}
-                onClick={() => setRange(n)}
-              >
-                {n === 0 ? 'all' : `±${n}`}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {busy && <p className="tdesc">Reading the chain…</p>}
 
