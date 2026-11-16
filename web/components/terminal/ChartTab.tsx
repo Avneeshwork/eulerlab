@@ -51,7 +51,6 @@ const PRESETS: Record<Market, { label: string; symbols: [string, string][] }> = 
       ['NSE:TATAMOTORS', 'TATA MOTORS'],
       ['NSE:AXISBANK', 'AXIS BANK'],
       ['NSE:MARUTI', 'MARUTI'],
-      ['NSE:SUNPHARMA', 'SUN PHARMA'],
     ],
   },
   US: {
