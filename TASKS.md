@@ -10,7 +10,7 @@ Operator, 2026-11-16: the idea lab and the autopilot must propose new ideas, not
 | ID | Task | Status |
 |---|---|---|
 | T-4648 | Idea key (`research/novelty.py`) checked by the autopilot's card writer, its research-loop screen tool and the idea lab; lab window variants and flips removed (`pytest tests/test_novelty.py tests/test_research_loop.py tests/test_research_autopilot.py tests/test_idea_lab.py`) | DONE 2026-11-16 |
-| T-4649 | `research/evolve.py` (manual, ADR-177) still breeds number changes by design. Decide whether it should use the idea key too | TODO |
+| T-4649 | `research/evolve.py` (manual, ADR-177) still breeds number changes by design. Decide whether it should use the idea key too | DONE 2026-11-16: operator said block it; number, window and hold moves removed, tried ideas refused before evaluation (`pytest tests/test_evolve.py`) |
 
 ## Minute history from Angel One (2026-11-13, research 193)
 
