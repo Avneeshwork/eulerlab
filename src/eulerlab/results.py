@@ -444,10 +444,24 @@ def summary(workspace: Workspace, strategy_id: str) -> dict[str, Any]:
             )
         )
     if unrecorded:
-        caveat += (
-            f" {unrecorded} of those runs are not in the trial ledger, so the noise "
-            f"bar does not know that search happened."
-        )
+        # Agree the verb with the count, and do not say "those runs" when
+        # nothing before it named any runs (one run, no "most recent of" line).
+        if runs == 1:
+            missing = (
+                "This run is not in the trial ledger, so the noise bar does not know it happened."
+            )
+        elif unrecorded == runs:
+            missing = (
+                f"None of the {runs} runs are in the trial ledger, so the noise bar "
+                "does not know that search happened."
+            )
+        else:
+            verb = "is" if unrecorded == 1 else "are"
+            missing = (
+                f"{unrecorded} of those runs {verb} not in the trial ledger, so the noise "
+                "bar does not know that search happened."
+            )
+        caveat = f"{caveat} {missing}".strip()
     return {
         "sharpe": round(recent.sharpe, 4),
         "total_return": round(recent.total_return, 6),

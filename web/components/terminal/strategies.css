@@ -61,6 +61,8 @@
   border-left: 1px solid var(--rule);
   box-shadow: var(--shadow-lift, 0 0 24px rgba(0, 0, 0, 0.25));
   padding: var(--s5);
+  /* Room under the last card so the floating assistant button never sits on it. */
+  padding-bottom: 96px;
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -74,7 +76,11 @@
 .st-rules h3 { margin: 0 0 6px; font-size: 13px; color: var(--ink-3); }
 .st-rules ol { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 14px; line-height: 1.5; }
 .st-detail { border: none; background: none; }
-.st-detail .tdetail { grid-template-columns: minmax(0, 1fr); padding: 0; }
+.st-detail .tdetail { grid-template-columns: minmax(0, 1fr); padding: var(--s4); border-top: none; }
+/* Three columns in the 560px drawer, and long values (a universe name) wrap
+   inside their cell instead of running into the next one. */
+.st-detail .tfacts { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 0; }
+.st-detail .tfact b { overflow-wrap: anywhere; }
 
 .st-headline { margin: 0 0 var(--s4); font-size: 15px; color: var(--ink-2); }
 .st-headline b { color: var(--ink); }

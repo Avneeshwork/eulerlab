@@ -1173,8 +1173,9 @@ function Row({
               )}
               <Fact label="Engine" value={strategy.engine} />
               <Fact label="Lookback" value={`${strategy.lookback}d`} />
-              <Fact label="Risk manager" value={strategy.risk_manager || '—'} />
-              <Fact label="Trade manager" value={strategy.trade_manager || '—'} />
+              {/* Empty managers are clutter, not information (operator, 2026-11-16). */}
+              {strategy.risk_manager && <Fact label="Risk manager" value={strategy.risk_manager} />}
+              {strategy.trade_manager && <Fact label="Trade manager" value={strategy.trade_manager} />}
             </div>
           </div>
           <div className="tside">
