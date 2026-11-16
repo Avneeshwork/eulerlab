@@ -57,7 +57,7 @@ from eulerlab.assistant import tools as assistant_tools
 from eulerlab.assistant.tools import Tool
 from eulerlab.features.formula import FormulaError, text_of
 from eulerlab.intraday import rule_engine
-from eulerlab.research import agenda, combine, experiments, feature_registry, lang
+from eulerlab.research import agenda, combine, experiments, feature_registry, lang, novelty
 
 DEFAULT_SCREENS = 8
 """Screens one run may take. Each is a row in the store and so a little more bar."""
@@ -129,8 +129,11 @@ class ResearchTools:
         max_screens: int = DEFAULT_SCREENS,
         max_looks: int = DEFAULT_LOOKS,
         engine: EngineFactory = discovery_engine,
+        ideas: novelty.Seen | None = None,
     ) -> None:
         self.asked_by = asked_by
+        self._ideas = ideas
+        """Idea keys tried before this run (ADR-209); read at the first screen when not given."""
         self.discovery_end = discovery_end
         self.now = now
         self.max_screens = max_screens
@@ -593,6 +596,22 @@ class ResearchTools:
                     + json.dumps(row.get("metrics") or {}, default=str)[:1500]
                     + "\nNot screened again. Try a different rule."
                 )
+        key = novelty.rule_key(spec)
+        if self._ideas is None:
+            self._ideas = novelty.seen()
+        twin = self._ideas.keys.get(key)
+        if twin is not None:
+            return (
+                f"Not screened: the same idea as {twin} with other numbers. A different "
+                "threshold, window, lag or hold is tuning and spends a trial on nothing new. "
+                "Try a different idea."
+            )
+        mine = next((s for s in self.screened if s.get("idea") == key), None)
+        if mine is not None:
+            return (
+                f"Not screened: you screened this idea this run already ({mine['rule']}). "
+                "Screening it again with other numbers is tuning. Try a different idea."
+            )
         if len(self.screened) >= self.max_screens:
             return f"This run has used its {self.max_screens} screens. Write the cards now."
         engine = self.engine()
@@ -615,7 +634,13 @@ class ResearchTools:
             spec=spec.model_dump(mode="json") if isinstance(spec, BaseModel) else None,
         )
         self.screened.append(
-            {"fingerprint": fp, "rule": spec.describe(), "family": family_of(spec), **figures}
+            {
+                "fingerprint": fp,
+                "rule": spec.describe(),
+                "family": family_of(spec),
+                "idea": key,
+                **figures,
+            }
         )
         left = self.max_screens - len(self.screened)
         return (

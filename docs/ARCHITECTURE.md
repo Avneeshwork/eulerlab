@@ -855,7 +855,9 @@ end only) take an engine card with no new code.
 **The nightly loop** (`make agents-autopilot`, part of `make agents-ideas`):
 
     autopilot agent writes ~10 specs (Claude Sonnet -> Groq -> fixed rules), half intraday
-      -> parse; drop repeats by fingerprint (every engine card and research 176's ten)
+      -> parse; drop repeats by fingerprint (every engine card and research 176's ten),
+         and by idea key: the same idea with other numbers (ADR-209, `research/novelty.py`)
+      -> too few new ideas: write fewer cards, never a variant to make up ten
       -> hypotheses/H-NNNN.yaml, committed alone: the pre-registration
       -> one screen pass (no trial) -> bias checks
       -> "a new bet": daily returns correlating 0.5 or more with any pass (H-0161,
@@ -3727,7 +3729,9 @@ cards as JSON ──► the same parse, lesson and repeat checks ──► hypot
 
 `research/agent_tools.py` holds the tools; none writes anything but a screen row,
 and none reaches the gate, the ledger or the order path. A rule already in the
-store is not screened again. The full-window screen in `research/autopilot.py`
+store is not screened again, nor is a rule whose idea key (ADR-209) was tried
+before the run, nor a second screen of one idea in a run: a different number is
+tuning, and every screen raises the bar. The full-window screen in `research/autopilot.py`
 then runs on every card as before, so the firewall counts both the loop's looks
 and the card's own screen. If the loop fails (no tool support, an outage), the
 one-shot prompt writes the night's cards.
@@ -3988,11 +3992,12 @@ memory to B2.
       │        prompt carries the lab's lessons; buildable drafts never "wait for data"
       ▼ drafts
    lab ── every untested draft from the last 50 research runs (up to max_cards)
-      │ + its own plan for the day (max_ideas, default 30):
-      │     flips of signals with t <= -2      ─┐
-      │     combinations of two passers         ├ a third of the slots while fresh
-      │     window variants (halved, doubled)  ─┘ templates last; all slots after
-      │     fresh templates, family by Thompson sampling on Beta(1+pass+2·survive, 1+fail)
+      │ + its own plan for the day (max_ideas, default 30), new ideas only (ADR-209):
+      │     combinations of two passers         ─ a third of the slots while fresh
+      │                                           templates last; all slots after
+      │     fresh templates, one formula per template, family by Thompson sampling
+      │     on Beta(1+pass+2·survive, 1+fail)
+      │     (window variants and flips were dropped 2026-11-16: same idea, another trial)
       │ + up to model_ideas formulas from the model, parsed by the formula language
       ▼ one card each under research/lab_ideas/<day>/, one configuration, written before testing
    panel read once, cut at the card's holdout
@@ -4008,9 +4013,10 @@ memory to B2.
 | Piece | Where | What it holds |
 |---|---|---|
 | Families | `config/idea_families.yaml` | 13 reasons, each with formula templates, windows, rebalance, a paper-search phrase (A-088) |
-| Planner | `research/idea_generator.py` | Dedupes by canonical formula; the ten library features count under their own names; seeded by the date |
+| Planner | `research/idea_generator.py` | Dedupes by idea key (`research/novelty.py`): other windows, lags or the exact reverse of a tested formula are the same idea; the ten library features count under their own names; seeded by the date |
+| Idea key | `research/novelty.py` | One key per idea whatever its numbers (ADR-209): thresholds, windows, lags, hold, top N and an event rule's ranking left out; kind, shape, side, fields, operators and comparison direction kept. `Seen` reads every card, the reference rules, the experiment store's screens and the lab memory. Used by the autopilot's card writer, its research-loop screen tool and the lab |
 | Memory | `data/agents/memory/lab_ideas.jsonl` | One line per card tested: family, source, features, IC and t, best robust Sharpe, survived |
-| Lessons | `idea_memory.lessons` | Computed rules, each citing experience ids: survivors, families passing, families dead (4 tries, none through), signals worth reversing |
+| Lessons | `idea_memory.lessons` | Computed rules, each citing experience ids: survivors, families passing, families dead (4 tries, none through), signals that predicted the other way (their reverse is not tested again) |
 | Feedback | `idea_memory.feedback` | Families working / dead / untried, features drafts lacked, paper topics in order |
 
 Only one lab run tests at a time: it holds `data/agents/lab.running` (taken over after 4 hours).

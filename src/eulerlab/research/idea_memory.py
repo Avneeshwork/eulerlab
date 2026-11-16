@@ -250,7 +250,7 @@ def lessons(experiences: Sequence[Experience], *, limit: int = 12) -> list[Lesso
         out.append(
             Lesson(
                 f"{f} predicted returns the wrong way (IC {e.ic.get(f, 0.0):+.3f}, t {e.t.get(f, 0.0):.1f}): "
-                "its reverse is worth one test.",
+                "it predicts the other way, and its reverse is the same test, so it is not run again.",
                 (e.id,),
             )
         )

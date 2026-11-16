@@ -38,7 +38,7 @@ import yaml
 from eulerlab.agents import doctor
 from eulerlab.agents.runtime import Context, Item, WorkerResult, ist_day, outputs
 from eulerlab.features import formula
-from eulerlab.research import idea_generator, idea_memory
+from eulerlab.research import idea_generator, idea_memory, novelty
 from eulerlab.research.idea_memory import Experience, Source
 
 DEFAULT_IDEAS = 30
@@ -250,8 +250,16 @@ def _run(ctx: Context) -> WorkerResult:
     queue: list[tuple[Path, str, Source, str]] = []
     missing: set[str] = set()
     unbuildable: list[dict[str, Any]] = []
+    tried = novelty.Seen()
+    for f in sorted(idea_memory.tested_features(everything)):
+        tried.add_feature(f, "the idea lab's memory")
+    repeats: list[str] = []
     for card_path in candidates(ctx):
         if str(card_path) in tested_before:
+            continue
+        named = _card_features(card_path)
+        if named and all(formula.is_known(f) and tried.feature(f) for f in named):
+            repeats.append(str(card_path))  # every signal it ranks by is an idea tested (ADR-209)
             continue
         unknown = [f for f in _card_features(card_path) if not formula.is_known(f)]
         missing.update(unknown)
@@ -272,10 +280,14 @@ def _run(ctx: Context) -> WorkerResult:
             continue
         if len([q for q in queue if q[2] == "research"]) < max_drafts:
             queue.append((card_path, "research", "research", ""))
+    if repeats:
+        ctx.notes.append(
+            f"{len(repeats)} research draft(s) skipped: each ranks only by ideas already tested"
+        )
     plan = idea_generator.Plan()
     if not ctx.args.get("card"):
         n = option("max_ideas", DEFAULT_IDEAS)
-        plan = idea_generator.plan(families, memory, n=n, day=day, min_t=allowance.min_t)
+        plan = idea_generator.plan(families, memory, n=n, day=day)
         taken = idea_memory.tested_features(memory) | {i.feature for i in plan.ideas}
         lessons_text = idea_memory.guidance(
             idea_memory.feedback(memory, {k: f.search for k, f in families.families.items()})
@@ -512,6 +524,7 @@ def _run(ctx: Context) -> WorkerResult:
         data={
             "tested": tested,
             "unbuildable": unbuildable,
+            "repeats": repeats,
             "results": results,
             "allowance": allowance.per_week,
             "planned": [i.feature for i in plan.ideas],

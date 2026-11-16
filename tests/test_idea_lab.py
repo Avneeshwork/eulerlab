@@ -20,7 +20,7 @@ from eulerlab.agents import runtime
 from eulerlab.agents.spec import AgentSpec, all_effective, effective
 from eulerlab.features import formula
 from eulerlab.features.panel import PanelRow
-from eulerlab.research import codegen, idea_generator, idea_memory
+from eulerlab.research import codegen, idea_generator, idea_memory, novelty
 from eulerlab.research.idea_memory import Experience
 from eulerlab.validation import holdout
 
@@ -110,22 +110,33 @@ def test_a_template_that_copies_a_library_feature_is_named_after_it() -> None:
 
 def test_the_same_day_plans_the_same_ideas_and_none_is_repeated() -> None:
     fams = _families()
-    a = idea_generator.plan(fams, [], n=20, day=DAY)
-    b = idea_generator.plan(fams, [], n=20, day=DAY)
+    a = idea_generator.plan(fams, [], n=12, day=DAY)
+    b = idea_generator.plan(fams, [], n=12, day=DAY)
     assert [i.feature for i in a.ideas] == [i.feature for i in b.ideas]
-    assert len({i.feature for i in a.ideas}) == 20
+    assert len({novelty.formula_key(i.feature) for i in a.ideas}) == 12  # twelve ideas, not windows
     assert len({i.family for i in a.ideas}) >= 5  # an empty memory explores widely
 
 
-def test_nothing_already_tested_is_planned_again() -> None:
+def test_a_template_gives_one_formula_per_idea_not_every_window() -> None:
     fams = _families()
-    first = idea_generator.plan(fams, [], n=15, day=DAY)
+    every = [f for fam in fams.families.values() for f in idea_generator.expand(fam)]
+    out = idea_generator.plan(fams, [], n=len(every), day=DAY)
+    keys = [novelty.formula_key(i.feature) for i in out.ideas]
+    assert len(keys) == len(set(keys)) < len(every)
+    assert "every family template is already tested" in out.skipped
+
+
+def test_nothing_already_tested_is_planned_again_with_other_windows() -> None:
+    fams = _families()
+    first = idea_generator.plan(fams, [], n=8, day=DAY)
     memory = [_exp(i.feature, i.family) for i in first.ideas]
-    second = idea_generator.plan(fams, memory, n=15, day=DAY)
-    assert not {i.feature for i in first.ideas} & {i.feature for i in second.ideas}
+    second = idea_generator.plan(fams, memory, n=8, day=DAY)
+    before = {novelty.formula_key(i.feature) for i in first.ideas}
+    assert second.ideas
+    assert not before & {novelty.formula_key(i.feature) for i in second.ideas}
 
 
-def test_memory_turns_into_flips_combinations_and_window_variants() -> None:
+def test_memory_gives_combinations_never_window_variants_or_reverses() -> None:
     fams = _families()
     memory = [
         _exp("formula:neg(ts_std(ret(1), 63))", "low_volatility", ic=0.04, t=3.0, passed=True),
@@ -133,32 +144,25 @@ def test_memory_turns_into_flips_combinations_and_window_variants() -> None:
         _exp("formula:neg(ret(5))", "short_term_reversal", ic=-0.03, t=-3.0),
     ]
     out = idea_generator.plan(fams, memory, n=12, day=DAY)
-    kinds = {i.source for i in out.ideas}
-    assert {"flip", "combo", "mutation", "template"} <= kinds
-    flips = [i.feature for i in out.ideas if i.source == "flip"]
-    assert flips == ["formula:ret(5)"]
-    assert "formula:neg(ts_std(ret(1), 126))" in {i.feature for i in out.ideas}
+    assert {i.source for i in out.ideas} == {"combo", "template"}
+    planned = {i.feature for i in out.ideas}
+    assert "formula:ret(5)" not in planned  # the reverse reads the same IC upside down
+    assert "formula:neg(ts_std(ret(1), 126))" not in planned  # the same idea, another window
+    tested = {novelty.formula_key(e.features[0]) for e in memory}
+    assert not tested & {novelty.formula_key(f) for f in planned}
 
 
-def test_when_templates_run_out_the_memory_fills_the_day() -> None:
+def test_when_templates_run_out_combinations_fill_the_day() -> None:
     fams = _families()
     everything = [f for fam in fams.families.values() for f in idea_generator.expand(fam)]
     memory = [_exp(f, "momentum") for f in everything]
-    memory.append(
-        _exp("formula:neg(ts_std(ret(1), 63))", "low_volatility", ic=0.04, t=3.0, passed=True)
-    )
+    memory += [
+        _exp("formula:neg(ts_std(ret(1), 63))", "low_volatility", ic=0.04, t=3.0, passed=True),
+        _exp("formula:delay(ret(126), 21)", "momentum", ic=0.03, t=2.5, passed=True),
+    ]
     out = idea_generator.plan(fams, memory, n=6, day=DAY)
-    assert out.ideas and all(i.source != "template" for i in out.ideas)
+    assert [i.source for i in out.ideas] == ["combo"]
     assert "every family template is already tested" in out.skipped
-
-
-def test_neighbours_vary_windows_but_not_the_one_day_return() -> None:
-    near = idea_generator.neighbours("formula:neg(ts_std(ret(1), 63))")
-    assert near == ["formula:neg(ts_std(ret(1), 31))", "formula:neg(ts_std(ret(1), 126))"]
-    assert idea_generator.flip("formula:neg(ret(5))") == "formula:ret(5)"
-
-
-# --- cards ---
 
 
 def test_a_written_card_builds_from_the_library_and_keeps_its_holdout(tmp_path: Path) -> None:

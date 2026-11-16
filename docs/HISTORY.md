@@ -634,3 +634,8 @@ Believed: `results.summarise` words the unrecorded-runs caveat correctly. True: 
 ## 2026-11-16 — the paper agent's tests priced their search against the real ledger
 
 Believed: `tests/test_paper_agent.py` is hermetic (no network, no model). True: `paper_agent.run` prices the search with `budget.searches_run()`, which read the operator's own trial ledgers. When those reached 1342 trials (760 validated + 582 swept), a 3-paper search no longer fit the tests' 11-year window (it needs about 11.15 years past roughly 1290 trials), so the agent refused and 13 drafting tests failed with no code change; the pre-push hook blocked the push. The module now fixes the count at 100; the refusal path is still tested with no history. No numbers change.
+
+## 2026-11-16 — the idea generators spent trials on ideas already tested
+
+Believed (ADR-111, ADR-150): nothing already tested is planned or written again. True: the check compared exact text or fingerprints, so the same idea with other numbers counted as new. The lab gave about a third of each day's slots to window variants of passers and reverses of signals that predicted the wrong way (the reverse reads the same IC), and its 13 family templates expand to over 60 formulas that hold only 15 distinct ideas; the autopilot dropped only exact repeats, and four pairs of its cards are the same idea (H-0180/H-0247, H-0182/H-0206, H-0204/H-0215, H-0226/H-0244). Each spent a trial in the multiple-testing count. Fixed by the idea key (ADR-209). No result is invalid, but those pairs and the lab's variants overstate how many different ideas were tried.
+

@@ -3,6 +3,15 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## New ideas only (2026-11-16, ADR-209)
+
+Operator, 2026-11-16: the idea lab and the autopilot must propose new ideas, not re-tuned ones, because each variant spends a trial of the multiple-testing budget.
+
+| ID | Task | Status |
+|---|---|---|
+| T-4648 | Idea key (`research/novelty.py`) checked by the autopilot's card writer, its research-loop screen tool and the idea lab; lab window variants and flips removed (`pytest tests/test_novelty.py tests/test_research_loop.py tests/test_research_autopilot.py tests/test_idea_lab.py`) | DONE 2026-11-16 |
+| T-4649 | `research/evolve.py` (manual, ADR-177) still breeds number changes by design. Decide whether it should use the idea key too | TODO |
+
 ## Minute history from Angel One (2026-11-13, research 193)
 
 Operator, 2026-11-13: "minute files 8 year". Angel's stock minute bars start 3 Oct 2016, so 8 years needs no other source.

@@ -76,8 +76,19 @@ def test_the_same_rule_is_not_screened_twice(folder: Path) -> None:
 def test_screens_stop_at_the_runs_allowance(folder: Path) -> None:
     tools = _tools(max_screens=1)
     tools.call("screen_rule", json.dumps({"spec": GAP_FADE}))
-    other = {**GAP_FADE, "when": [{"signal": "gap", "op": ">=", "value": 0.02, "absolute": True}]}
+    other = {**GAP_FADE, "side": "with"}  # follow the gap instead of fading it: another idea
     assert "used its 1 screens" in tools.call("screen_rule", json.dumps({"spec": other}))
+
+
+def test_a_screen_with_other_numbers_is_tuning_and_is_refused(folder: Path) -> None:
+    tools = _tools()
+    tools.call("screen_rule", json.dumps({"spec": GAP_FADE}))
+    tuned = {**GAP_FADE, "when": [{"signal": "gap", "op": ">=", "value": 0.02, "absolute": True}]}
+    out = tools.call("screen_rule", json.dumps({"spec": tuned}))
+    assert "screened this idea this run already" in out
+    later = _tools().call("screen_rule", json.dumps({"spec": tuned}))  # the next night
+    assert "the same idea as" in later
+    assert len(experiments.rows(purpose="screen")) == 1  # neither spent a screen
 
 
 def test_an_engine_reading_past_the_discovery_end_is_refused(folder: Path) -> None:

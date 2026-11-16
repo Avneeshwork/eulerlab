@@ -5,7 +5,8 @@
            if Claude cannot answer), each with a reason and red flags
         -> each spec is parsed by `intraday/rule_engine.py` (no lookahead, long-only
            swings, a window it cannot choose); a spec that fails is dropped, with why
-        -> a repeat of any rule already tried (same fingerprint) is dropped
+        -> a repeat of any rule already tried is dropped: the same fingerprint, or
+           the same idea with other numbers (`research/novelty.py`, ADR-209)
         -> too few left: fixed-rule specs fill the gap from the signal vocabulary
         -> written to `hypotheses/H-NNNN.yaml` as drafts, unscreened
 
@@ -31,7 +32,7 @@ from eulerlab.agents import lessons
 from eulerlab.agents.runtime import BudgetSpent, Context, Item, WorkerResult, model_asker, untrusted
 from eulerlab.intraday import rule_engine as engine
 from eulerlab.llm.spend import MonthBudgetSpent
-from eulerlab.research import knowledge
+from eulerlab.research import knowledge, novelty
 
 HYPOTHESES = Path("hypotheses")
 PAPERS = Path("research/papers")
@@ -56,7 +57,8 @@ SYSTEM = (
     "rule is pre-registered and tested once, with no tuning afterwards. Prefer rules with an "
     "economic reason (who is forced to trade, who under-reacts, what information arrives) over "
     "chart patterns: price-only stock rules have repeatedly died on the 12 bps intraday round "
-    "trip here. Each rule must be different from every rule already tried. Answer with JSON only."
+    "trip here. Each rule must be a different idea from every rule already tried, not the same "
+    "rule with other numbers. Answer with JSON only."
 )
 
 
@@ -124,8 +126,8 @@ def prompt(day: date, count: int, *, intraday: int | None = None, retry: str = "
     )
     return (
         f"{SCOPE}\n\nSignals you may use:\n{vocabulary()}\n\n{SPEC_HELP}\n\n"
-        f"Rules already tried (do not repeat them or trivially vary a threshold):\n"
-        f"{untrusted('tried', tried())}\n\n"
+        f"Rules already tried (do not repeat them or vary their numbers):\n"
+        f"{untrusted('tried', tried())}\n\n{novelty.REPEAT_RULE}\n\n"
         f"Papers in the library:\n{untrusted('papers', papers(day))}\n\n"
         f"Write {count} new rules: {half} intraday and {count - half} swing. Answer with "
         '{"cards": [{"title": "<under 90 characters>", "claim": "<one sentence a test can '
@@ -163,12 +165,16 @@ def spec_of(card: dict[str, Any]) -> engine.Rule:
 
 
 def accept(
-    raw: list[dict[str, Any]], known: dict[str, str]
+    raw: list[dict[str, Any]], known: dict[str, str], ideas: novelty.Seen | None = None
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """(cards whose spec parses and is new, why each other was dropped)."""
+    """(cards whose spec parses and is a new idea, why each other was dropped).
+
+    `ideas` holds the idea keys already tried; a card whose key is in it, or
+    that shares one with an earlier card of this answer, is dropped (ADR-209)."""
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
     seen = dict(known)
+    taken = ideas.copy() if ideas is not None else novelty.Seen()
     for card in raw:
         title = str(card.get("title") or "untitled")[:120]
         try:
@@ -187,7 +193,14 @@ def accept(
         if fp in seen:
             dropped.append(f"{title}: repeats {seen[fp]}")
             continue
+        twin = taken.rule(spec)
+        if twin is not None:
+            dropped.append(
+                f"{title}: the same idea as {twin} with other numbers (a variant, not a new rule)"
+            )
+            continue
         seen[fp] = title
+        taken.add(novelty.rule_key(spec), title)
         kept.append({**card, "title": title, "spec": spec})
     return kept, dropped
 
@@ -216,9 +229,10 @@ EXPLORE_SYSTEM = (
     "`feature_ic` for a score, `event_study` for an event, then `screen_formula` or "
     "`screen_rule` a few drafts and read the figures (net bps against the 12 bps intraday "
     "round trip, both halves, 2x costs, years positive, flags). Change your idea when they say "
-    "it is weak. Signals too weak to pay costs alone can be tested together with "
-    "`combine_signals`. Every look and screen is recorded and raises the bar every rule must clear, "
-    "so test only what is worth it and never tune a number to fit. Before you answer, write "
+    "it is weak. The screen tool refuses an idea already tried with other numbers, and a "
+    "second screen of one idea in a run, because changing a number is tuning. Signals too "
+    "weak to pay costs alone can be tested together with `combine_signals`. Every look and "
+    "screen is recorded and raises the bar every rule must clear, so test only what is worth it and never tune a number to fit. Before you answer, write "
     "what you learned with `record_finding`, so the next night starts there. Rules you write "
     "are then tested on the whole window with no further changes. Price-only stock rules have "
     "repeatedly died here. When you are done, answer with the JSON the user message asks for, "
@@ -238,9 +252,15 @@ EXPLORE_ASK = (
 )
 
 
-def fallback(count: int, seed: int, known: dict[str, str]) -> list[dict[str, Any]]:
-    """Pairs of grid conditions, half intraday and half swing, new fingerprints only."""
+def fallback(
+    count: int, seed: int, known: dict[str, str], ideas: novelty.Seen | None = None
+) -> list[dict[str, Any]]:
+    """Pairs of grid conditions, half intraday and half swing, new ideas only.
+
+    Fewer than `count` come back once the grid's ideas are used up: a variant
+    of a tried rule is not written to make up the number (ADR-209)."""
     rng = random.Random(seed)
+    taken = ideas.copy() if ideas is not None else novelty.Seen()
     out: list[dict[str, Any]] = []
     tries = 0
     while len(out) < count and tries < 500:
@@ -269,9 +289,10 @@ def fallback(count: int, seed: int, known: dict[str, str]) -> list[dict[str, Any
             spec = engine.RuleSpec.model_validate(body)
         except ValidationError:
             continue
-        if spec.fingerprint() in known:
+        if spec.fingerprint() in known or taken.rule(spec) is not None:
             continue
         known = {**known, spec.fingerprint(): "fallback"}
+        taken.add(novelty.rule_key(spec), "fallback")
         out.append(
             {
                 "title": f"Fixed-rule combination: {spec.describe()[:80]}",
@@ -366,7 +387,9 @@ def card_yaml(h: str, card: dict[str, Any], *, day: date, model: str, tried_coun
     return yaml.safe_dump(body, sort_keys=False, allow_unicode=True, width=100)
 
 
-def explore(ctx: Context, count: int, day: date) -> tuple[str, dict[str, Any]]:
+def explore(
+    ctx: Context, count: int, day: date, ideas: novelty.Seen | None = None
+) -> tuple[str, dict[str, Any]]:
     """The research loop: the model looks things up and screens drafts, then writes cards.
 
     Returns (answer, record): the record holds the screens it took and the traces
@@ -382,6 +405,7 @@ def explore(ctx: Context, count: int, day: date) -> tuple[str, dict[str, Any]]:
         max_screens=int(ctx.options.get("explore_screens", EXPLORE_SCREENS)),
         max_looks=int(ctx.options.get("explore_looks", EXPLORE_LOOKS)),
         engine=agent_tools.discovery_engine,
+        ideas=ideas,
     )
     user = prompt(day, count) + EXPLORE_ASK
     answer = ctx.converse(
@@ -419,6 +443,9 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
     count = int(ctx.options.get("cards", DEFAULT_CARDS))
     day = ctx.now.date()
     known = engine.known_fingerprints(root)
+    # Taken before the research loop screens anything, so a card may be a rule it
+    # screened tonight; its other screens of that idea are refused by the tool.
+    ideas = novelty.seen(root)
     model = ""
     kept: list[dict[str, Any]] = []
     dropped: list[str] = []
@@ -426,9 +453,9 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
     explored: dict[str, Any] = {}
     if ctx.options.get("explore") and ctx.can_ask():
         try:
-            answer, explored = explore(ctx, count, day)
+            answer, explored = explore(ctx, count, day, ideas)
             model = ctx.model
-            new, lost = accept(parse(answer), dict(known))
+            new, lost = accept(parse(answer), dict(known), ideas)
             dropped += lost
             for card in new:
                 card["exploration"] = explored
@@ -462,16 +489,21 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
             break
         raw = parse(answer)
         taken = {**known, **{c["spec"].fingerprint(): c["title"] for c in kept}}
-        new, lost = accept(raw, taken)
+        new, lost = accept(raw, taken, _with(ideas, kept))
         dropped += lost
         kept = _balance(kept + new, count)
         ctx.step(f"Request {asks}: the model wrote {len(raw)} card(s), {len(kept)} of {count} kept")
     if len(kept) < count:
         taken = {**known, **{c["spec"].fingerprint(): c["title"] for c in kept}}
-        extra = fallback(count - len(kept), day.toordinal(), taken)
+        extra = fallback(count - len(kept), day.toordinal(), taken, _with(ideas, kept))
         if extra:
             ctx.notes.append(f"{len(extra)} card(s) written by fixed rules to make up {count}")
         kept += extra
+    if len(kept) < count:
+        ctx.notes.append(
+            f"{len(kept)} new idea(s) tonight, not {count}: variants of tried rules are not "
+            "written to make up the number (ADR-209)"
+        )
     ids = next_ids(len(kept), root)
     tried_count = len(list(root.glob("H-*.yaml")))
     written = []
@@ -499,6 +531,14 @@ def write_cards(ctx: Context, root: Path = HYPOTHESES) -> dict[str, Any]:
         "model": model,
         "explored": {k: v for k, v in explored.items() if k != "traces"} if explored else {},
     }
+
+
+def _with(ideas: novelty.Seen, kept: list[dict[str, Any]]) -> novelty.Seen:
+    """The ideas tried, plus tonight's kept cards."""
+    out = ideas.copy()
+    for c in kept:
+        out.add(novelty.rule_key(c["spec"]), c["title"])
+    return out
 
 
 def _balance(cards: list[dict[str, Any]], count: int) -> list[dict[str, Any]]:

@@ -21,6 +21,7 @@ from pydantic import ValidationError
 from eulerlab.agents.workers import autopilot as writer
 from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import rule_engine as engine
+from eulerlab.research import novelty
 
 # --- synthetic data ---------------------------------------------------------------------
 
@@ -286,6 +287,36 @@ def test_accept_drops_invalid_specs_and_repeats() -> None:
     assert [c["title"] for c in kept] == ["new"]
     assert any("repeats H-0168" in d for d in dropped)
     assert any("lookahead" in d for d in dropped)
+
+
+def test_accept_drops_a_tried_idea_with_other_numbers() -> None:
+    tried = novelty.Seen()
+    tried.add(novelty.rule_key(engine.RuleSpec.model_validate(GAP_FADE)), "H-0900")
+    tuned = {
+        **GAP_FADE,
+        "when": [{"signal": "gap", "op": ">", "value": 0.045, "absolute": True}],
+        "rank_by": {"signal": "gap", "absolute": False, "order": "asc"},
+    }
+    other = {**GAP_FADE, "side": "with"}
+    raw = [
+        {"title": "tuned", "engine": tuned},
+        {"title": "follow", "engine": other},
+        {"title": "follow again", "engine": {**other, "when": tuned["when"]}},
+    ]
+    kept, dropped = writer.accept(raw, {}, tried)
+    assert [c["title"] for c in kept] == ["follow"]
+    assert any(d.startswith("tuned: the same idea as H-0900") for d in dropped)
+    assert any(d.startswith("follow again: the same idea as follow") for d in dropped)
+
+
+def test_fallback_writes_no_variant_to_make_up_the_number() -> None:
+    known = engine.known_fingerprints(Path("/nonexistent"))
+    first = writer.fallback(6, 7, known)
+    tried = novelty.Seen()
+    for c in first:
+        tried.add(novelty.rule_key(c["spec"]), c["title"])
+    again = writer.fallback(6, 7, known, tried)
+    assert not {novelty.rule_key(c["spec"]) for c in again} & set(tried.keys)
 
 
 def test_fallback_writes_new_rules_half_intraday_half_swing() -> None:

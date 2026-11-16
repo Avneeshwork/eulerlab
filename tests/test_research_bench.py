@@ -7,6 +7,7 @@ import json
 import random
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -63,7 +64,7 @@ def _fast(data: engine.Data) -> fast_eval.FastEngine:
     return fast_eval.FastEngine(data, fast_eval.Store(engine.Engine(data)))
 
 
-def _tools(data: engine.Data | None = None, **extra: int) -> agent_tools.ResearchTools:
+def _tools(data: engine.Data | None = None, **extra: Any) -> agent_tools.ResearchTools:
     fast = _fast(data or _panel())
     return agent_tools.ResearchTools(
         asked_by="autopilot", discovery_end=END, now=NOW, engine=lambda end: fast, **extra
