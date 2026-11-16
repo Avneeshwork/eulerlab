@@ -21,9 +21,10 @@ exception is the idea lab's exact reverse: ranking by `neg(x)` after `x` reads
 the same IC with its sign changed, so it is a repeat.
 
 `Seen` holds the key of everything already tried: every card in `hypotheses/`,
-research 176's reference rules, every screen in the experiment store that kept
-its spec, and the idea lab's memory. The autopilot, the research loop's screen
-tool and the idea lab ask it before they spend a trial.
+research 176's reference rules, every screen or sweep in the experiment store
+that kept its spec, and the idea lab's memory. The autopilot, the research
+loop's screen tool, the idea lab and the evolutionary search ask it before they
+spend a trial.
 """
 
 from __future__ import annotations
@@ -176,7 +177,8 @@ def seen(
 ) -> Seen:
     """The keys of every card in `root`, the reference rules, `screens` and `features`.
 
-    `screens` defaults to the experiment store's screen rows; pass `()` to skip it.
+    `screens` defaults to the experiment store's screen and sweep rows (the
+    evolutionary search's candidates are sweeps); pass `()` to skip it.
     `features` are formulas the idea lab has tested (its memory)."""
     out = Seen()
     for h, ref in engine.reference_specs().items():
@@ -198,7 +200,7 @@ def seen(
     if screens is None:
         from eulerlab.research import experiments
 
-        screens = experiments.rows(purpose="screen")
+        screens = [*experiments.rows(purpose="screen"), *experiments.rows(purpose="sweep")]
     for row in screens:
         raw_spec = row.get("spec")
         rule = _spec_from(raw_spec) if isinstance(raw_spec, Mapping) else None

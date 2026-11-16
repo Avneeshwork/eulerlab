@@ -11,10 +11,13 @@ of candidates, each a small change to a rule that already did something:
     parent      drawn from the island's pool: better rules more often, and a
                 bonus for lineages that have had few children
     child       the model proposes changes to the parent (given its results and
-                its lineage), or code does: nudge a number, change a window, swap
-                a field, add or drop a condition, change the holding period, or
-                cross two parents
-    judge       code only. The child must compile (no look-ahead), be new, pass
+                its lineage), or code does: swap a field, add or drop a condition,
+                flip an intraday side, change the shape, or cross two parents.
+                Changing only a number, a window or the hold is not a move: it
+                is the same idea (ADR-209)
+    judge       code only. The child must be a new idea (`research/novelty.py`;
+                refused before it is screened, so it spends nothing), compile
+                (no look-ahead), be new, pass
                 the engine's screen and bias checks, not move with a strategy
                 already passed (0.5), and not move with a pool member (0.7).
                 Fitness is net Sharpe less a charge for size and for likeness.
@@ -49,7 +52,7 @@ from eulerlab.db.stream import add_row, read_rows
 from eulerlab.features import formula
 from eulerlab.features.formula import Node
 from eulerlab.paths import data_path
-from eulerlab.research import idea_memory, lang
+from eulerlab.research import idea_memory, lang, novelty
 from eulerlab.validation import firewall
 
 KIND = "evolve"
@@ -73,8 +76,6 @@ NEGLECT = 1.0
 SATURATED = 60
 MODEL_SHARE = 0.25
 PER_ISLAND = 1
-WINDOWS = (1, 2, 3, 5, 10, 20, 60)
-FACTORS = (0.5, 0.8, 1.25, 2.0)
 CONDITIONS = (
     "ge(abs(gap), 0.02)",
     "le(delay(ret(5), 1), -0.05)",
@@ -194,30 +195,17 @@ def _group_of(name: str) -> tuple[str, ...]:
 def mutate(
     parent: lang.Spec, rng: random.Random, other: lang.Spec | None = None
 ) -> lang.Spec | None:
-    """One small change to `parent`, or None when the change does not make a valid rule."""
+    """One small change to `parent`, or None when it makes no valid rule or no new idea."""
     body = parent.model_dump(mode="json")
-    moves = ["number", "window", "field", "add", "drop", "hold", "shape"]
+    # No number, window or hold moves: each gives the parent's idea back (ADR-209).
+    moves = ["field", "add", "drop", "shape"]
+    if parent.kind == "intraday":
+        moves.append("side")
     if other is not None and other.kind == parent.kind:
         moves.append("cross")
     move = rng.choice(moves)
     key = rng.choice(["when", "score"])
-    if move == "number":
-        factor = rng.choice(FACTORS)
-        body["when"] = _edit(
-            parent.when,
-            lambda n: n.op == "const" and n.value not in (0.0, 1.0),
-            lambda n: n.model_copy(update={"value": round((n.value or 0.0) * factor, 6)}),
-            rng,
-        )
-    elif move == "window":
-        window = rng.choice(WINDOWS)
-        body[key] = _edit(
-            body[key],
-            lambda n: bool(n.params),
-            lambda n: n.model_copy(update={"params": (window,)}),
-            rng,
-        )
-    elif move == "field":
+    if move == "field":
 
         def swap(n: Node) -> Node:
             choices = [
@@ -233,11 +221,8 @@ def mutate(
         if tree.op != "and":
             return None
         body["when"] = formula.text_of(rng.choice(tree.args))
-    elif move == "hold":
-        if parent.kind == "swing":
-            body["hold"] = rng.choice([h for h in (3, 5, 10, 20) if h != parent.hold])
-        else:
-            body["side"] = {"long": "short", "short": "long"}.get(parent.side, parent.side)
+    elif move == "side":
+        body["side"] = {"long": "short", "short": "long"}.get(parent.side, parent.side)
     elif move == "shape":
         body["shape"] = "cross_section" if parent.shape == "event" else "event"
         body["top"] = rng.choice((3, 5, 10))
@@ -246,9 +231,11 @@ def mutate(
         assert other is not None
         body["score"] = other.score
     try:
-        return lang.Spec.model_validate(body)
+        child = lang.Spec.model_validate(body)
     except (ValidationError, formula.FormulaError):
         return None
+    # A swap that lands on the same field, or a new score on an event rule, is the parent's idea.
+    return None if novelty.rule_key(child) == novelty.rule_key(parent) else child
 
 
 def choose_parent(
@@ -279,6 +266,8 @@ def prompt(parent: Member, line: Sequence[Member], count: int) -> str:
         f"{json.dumps(parent.spec.model_dump(mode='json'))}\n\nIts lineage so far:\n{history}\n\n"
         f"Propose {count} different changed rules. Each must keep kind '{parent.spec.kind}', "
         "change one or two things, and say in one sentence why the change should help. "
+        "Change what the rule reads or how (a field, a condition, the side, the shape), never "
+        f"only a number, window or hold. {novelty.REPEAT_RULE} "
         'Answer as {"cards": [{"spec": {...}, "why": "..."}]}.'
     )
 
@@ -381,8 +370,13 @@ def run(
     path: Path | None = None,
     returns: Callable[[str], dict[date, float]] | None = None,
     now: datetime | None = None,
+    ideas: novelty.Seen | None = None,
 ) -> Night:
-    """One night of search. Everything it does is appended to the file at `path`."""
+    """One night of search. Everything it does is appended to the file at `path`.
+
+    `ideas` holds the ideas tried before tonight (ADR-209). A child whose idea is
+    among them, or tried earlier tonight, is refused before it is evaluated; a
+    seed (no parents) is where an island starts and is not checked."""
     path = path or path_for()
     rng = random.Random(idea_memory.seed_for(day, "evolve"))
     pool = load(path, returns)
@@ -392,12 +386,20 @@ def run(
     ]
     stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
     waiting: dict[str, list[lang.Spec]] = {}
+    taken = ideas.copy() if ideas is not None else novelty.Seen()
+    for m in pool.members.values():
+        taken.add(novelty.rule_key(m.spec), m.id)
 
     def consider(spec: lang.Spec, parents: Sequence[Member]) -> None:
         island = island_of(spec)
         if spec.fingerprint() in pool.seen:
             night.refused["a repeat"] = night.refused.get("a repeat", 0) + 1
             return
+        if parents and taken.rule(spec) is not None:
+            why = "a tried idea with other numbers"
+            night.refused[why] = night.refused.get(why, 0) + 1
+            return
+        taken.add(novelty.rule_key(spec), "tonight")
         found = evaluate(spec, island, [p.id for p in parents])
         root = parents[0].root if parents else str(found["id"])
         base = {"at": stamp, "island": island, "fingerprint": spec.fingerprint(), "root": root}
@@ -472,7 +474,11 @@ def run(
         other = rng.choice(members) if len(members) > 1 else None
         for _ in range(5):
             child = mutate(parent.spec, rng, other.spec if other else None)
-            if child is not None and child.fingerprint() not in pool.seen:
+            if (
+                child is not None
+                and child.fingerprint() not in pool.seen
+                and taken.rule(child) is None
+            ):
                 used_other = (
                     other is not None and child.score == other.spec.score != parent.spec.score
                 )
@@ -594,6 +600,7 @@ def pipeline(ctx: Any, *, data: Any = None, run_git: Any = None) -> Any:
         ask=ask if ctx.can_ask() else None,
         returns=lambda i: experiments.returns_of(by_id[i]) if i in by_id else {},
         now=ctx.now,
+        ideas=novelty.seen(),
     )
     pool = load()
     after = {str(r["id"]): r for r in experiments.rows()}

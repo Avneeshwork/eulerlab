@@ -10,6 +10,7 @@ import json
 import multiprocessing
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from eulerlab.backtest.events import Order, client_order_id
 from eulerlab.costs.schedule import Side
@@ -146,8 +147,18 @@ def test_a_shared_window_refuses_when_asked_not_to_wait(tmp_path: Path) -> None:
         raise AssertionError("the third send in one second was allowed")
 
 
-def _claim(path: str, out: multiprocessing.Queue) -> None:  # type: ignore[type-arg]
-    governor = ems.Governor(5, window_file=Path(path), sleep=lambda s: None)
+FROZEN_NOW = 1_000_000.0
+"""Every child reads this as the time. The lock is under test, not the clock:
+on wall-clock time a child that starts more than a second after the first is
+allowed a slot because the window has slid, so the test failed under machine
+load (6 taken on 2026-11-15) with the limiter working as designed."""
+
+
+def _claim(path: str, go: Any, out: multiprocessing.Queue) -> None:  # type: ignore[type-arg]
+    governor = ems.Governor(
+        5, clock=lambda: FROZEN_NOW, window_file=Path(path), sleep=lambda s: None
+    )
+    go.wait(30)  # start together, so the claims really contend for the lock
     try:
         governor.acquire(block=False)
         out.put(1)
@@ -156,16 +167,43 @@ def _claim(path: str, out: multiprocessing.Queue) -> None:  # type: ignore[type-
 
 
 def test_real_processes_cannot_both_take_the_last_slot(tmp_path: Path) -> None:
-    """The lock is what makes this hold: eight processes at once, five slots."""
+    """The lock is what makes this hold: eight processes at once, five slots.
+
+    All eight share one frozen instant, so exactly five may succeed however
+    slowly the machine starts them.
+    """
     window = tmp_path / "window.json"
+    go = multiprocessing.Event()
     out: multiprocessing.Queue = multiprocessing.Queue()  # type: ignore[type-arg]
-    workers = [multiprocessing.Process(target=_claim, args=(str(window), out)) for _ in range(8)]
+    workers = [
+        multiprocessing.Process(target=_claim, args=(str(window), go, out)) for _ in range(8)
+    ]
     for worker in workers:
         worker.start()
+    go.set()
+    taken = sum(out.get(timeout=30) for _ in workers)
     for worker in workers:
         worker.join(timeout=20)
-    taken = sum(out.get(timeout=5) for _ in workers)
-    assert taken <= 5
+    assert taken == 5
+
+
+def test_a_slot_frees_only_after_a_full_second(tmp_path: Path) -> None:
+    """The legitimate way a sixth order goes through: the window slid. Just
+    under a second is still refused; a full second later is allowed."""
+    window = tmp_path / "window.json"
+    now = [500.0]
+    governor = ems.Governor(5, clock=lambda: now[0], window_file=window)
+    for _ in range(5):
+        governor.acquire(block=False)
+    now[0] += 0.999
+    try:
+        governor.acquire(block=False)
+    except ems.RateLimitExceeded:
+        pass
+    else:
+        raise AssertionError("a sixth order inside one second was allowed")
+    now[0] += 0.001
+    assert governor.acquire(block=False) == 0.0
 
 
 def test_the_live_governor_uses_the_one_shared_window() -> None:

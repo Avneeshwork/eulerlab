@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from eulerlab.db.stream import read_rows
-from eulerlab.research import evolve, lang
+from eulerlab.research import evolve, lang, novelty
 
 DAYS = [date(2022, 1, 3) + timedelta(days=i) for i in range(400)]
 
@@ -76,11 +76,20 @@ def test_every_mutation_is_a_valid_rule_with_no_look_ahead() -> None:
     )
     made = [evolve.mutate(parent, rng, other) for _ in range(300)]
     children = [c for c in made if c is not None]
-    assert len(children) > 200
-    assert len({c.fingerprint() for c in children}) > 20
+    assert len(children) > 100
+    assert len({c.fingerprint() for c in children}) > 10
     for child in children:
         assert child.kind == "swing" and child.side == "long"
         lang.Spec.model_validate(child.model_dump(mode="json"))  # compiles: no look-ahead
+
+
+def test_no_move_only_changes_a_number_window_or_hold() -> None:
+    rng = random.Random(3)
+    parent = _spec("swing", when="and(ge(abs(gap), 0.03), ge(delay(ret(5), 1), 0.1))")
+    for _ in range(300):
+        child = evolve.mutate(parent, rng)
+        if child is not None:
+            assert novelty.rule_key(child) != novelty.rule_key(parent), child.describe()
 
 
 def test_a_night_keeps_half_its_budget_on_each_side_and_tracks_lineages(tmp_path: Path) -> None:
@@ -195,8 +204,11 @@ def test_the_model_proposes_and_code_validates(
 
     assert [s.when for s in evolve.proposals(ask("", ""))] == ["ge(abs(gap), 0.05)"]
     monkeypatch.setattr(evolve, "MODEL_SHARE", 1.0)
-    night = _night(tmp_path, World(), ask=ask)
+    tried = novelty.Seen()
+    tried.add(novelty.rule_key(SEEDS[0]), "H-0900")
+    night = _night(tmp_path, World(), ask=ask, ideas=tried)
     assert night.from_model >= 1
+    assert night.refused.get("a tried idea with other numbers", 0) >= 1  # gap at 5%, not 3%
     assert "never see prices" in evolve.SYSTEM and "net Sharpe" in asked[-1]
 
 
