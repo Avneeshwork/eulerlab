@@ -2779,9 +2779,6 @@ textarea:focus-visible {
 .desk-decide .tinput { width: 16rem; }
 .desk-table td:nth-child(3) { white-space: nowrap; }
 .desk-table td:nth-child(5) { max-width: 14rem; }
-.ks-line { padding-block: 0.6rem; margin-bottom: 0.8rem; }
-.ks-head { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
-.ks-reason { flex: 1 1 auto; }
 /* Macro: one large chart, cards below pick what it shows. */
 .mfocus { margin-bottom: 16px; }
 .mfocus-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }

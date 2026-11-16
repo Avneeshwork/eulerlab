@@ -2023,15 +2023,6 @@ export const api = {
     }>('/api/mode'),
   riskBook: () => get<RiskBookResponse>('/api/risk/book'),
   riskWhatIf: (strategy: string, capital: number) => post<RiskWhatIf>('/api/risk/what-if', { strategy, capital }),
-  risk: () =>
-    get<{
-      ok: boolean;
-      tripped: boolean;
-      reason: string;
-      limits: { name: string; value: number; unit: string; note: string }[];
-      reset_note: string;
-      error?: string;
-    }>('/api/risk'),
   explain: (strategy = '') => get<Explain>(`/api/explain?strategy=${encodeURIComponent(strategy)}`),
   optimize: () => get<Optimize>('/api/optimize'),
   tuning: (strategy: string) =>

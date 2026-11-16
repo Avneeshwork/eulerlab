@@ -72,7 +72,6 @@ const AgentsTab = dynamic(() => import('@/components/terminal/AgentsTab').then((
 const ResearchLibrary = dynamic(() => import('@/components/terminal/ResearchLibrary').then((m) => m.ResearchLibrary), { ssr: false, loading: Loading });
 const StrategyBuilder = dynamic(() => import('@/components/terminal/StrategyBuilder').then((m) => m.StrategyBuilder), { ssr: false, loading: Loading });
 const OptionsTab = dynamic(() => import('@/components/terminal/OptionsTab').then((m) => m.OptionsTab), { ssr: false, loading: Loading });
-const RiskTab = dynamic(() => import('@/components/terminal/RiskTab').then((m) => m.RiskTab), { ssr: false, loading: Loading });
 const RiskBookView = dynamic(() => import('@/components/terminal/RiskBook').then((m) => m.RiskBookView), { ssr: false, loading: Loading });
 const BacktestDialog = dynamic(() => import('@/components/terminal/BacktestDialog').then((m) => m.BacktestDialog), { ssr: false, loading: Loading });
 const DeployDialog = dynamic(() => import('@/components/terminal/DeployDialog').then((m) => m.DeployDialog), { ssr: false, loading: Loading });
@@ -536,24 +535,21 @@ export default function TerminalPage() {
                 Trade desk
               </button>
             </div>
-            {/* The kill switch line sits on Deployment only, where trading is
-                started and stopped (operator, 2026-11-16); an old `#live/risk`
+            {/* No kill switch line on any tab (operator, 2026-11-16); the
+                header chip still says when it is tripped. An old `#live/risk`
                 link lands on Risk overview. */}
             {liveView === 'overview' || liveView === 'risk' ? (
               <RiskBookView view="overview" onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'performance' || liveView === 'stress' ? (
               <RiskBookView view={liveView} onReport={(id) => setPage('deployment', id)} />
             ) : liveView === 'deploy' ? (
-              <>
-                <RiskTab />
-                <LiveTab
-                  fleet={fleet?.strategies ?? []}
-                  workspace={workspace}
-                  onDeploy={setDeploying}
-                  onReport={(id) => setPage('deployment', id)}
-                  onStrategyReport={(id) => setPage('report', id)}
-                />
-              </>
+              <LiveTab
+                fleet={fleet?.strategies ?? []}
+                workspace={workspace}
+                onDeploy={setDeploying}
+                onReport={(id) => setPage('deployment', id)}
+                onStrategyReport={(id) => setPage('report', id)}
+              />
             ) : liveView === 'desk' ? (
               <DeskTab titles={Object.fromEntries((fleet?.strategies ?? []).map((s) => [s.id, s.title]))} />
             ) : null}
