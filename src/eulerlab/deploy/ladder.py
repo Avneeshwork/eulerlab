@@ -180,8 +180,9 @@ def backtest_returns(strategy: str) -> list[float]:
 
 def facts_for(strategy: str, stage: Stage, verdict: str) -> Facts:
     from eulerlab import forward
-    from eulerlab.deploy import decay, deployments, live_shadow, loss_limits, readiness
+    from eulerlab.deploy import decay, deployments, live_shadow, readiness
     from eulerlab.research import experiments
+    from eulerlab.risk.limits import loss_limits
 
     book = next(
         (

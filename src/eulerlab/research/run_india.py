@@ -34,13 +34,11 @@ START, END = "2016-01-01", "2026-09-30"
 def run_one(strategy_id: str, *, start: str, end: str, tier: str) -> dict[str, Any]:
     from eulerlab.api import server
     from eulerlab.api.requests import BatchRunRequest
-    from eulerlab.backtest import (
-        events_daily,
-        evidence_daily,
-        github_daily,
-        india_papers,
-        screener_models,
-    )
+    from eulerlab.strategies.daily import events as events_daily
+    from eulerlab.strategies.daily import evidence as evidence_daily
+    from eulerlab.strategies.daily import github as github_daily
+    from eulerlab.strategies.daily import india_papers
+    from eulerlab.strategies.daily import screener as screener_models
 
     spec = {
         **india_papers.BY_ID,
@@ -91,8 +89,8 @@ def run_one(strategy_id: str, *, start: str, end: str, tier: str) -> dict[str, A
 
 def benchmark(start: str, end: str) -> dict[str, Any]:
     """NIFTYBEES bought and held over the same window, before costs."""
-    from eulerlab.backtest.india_papers import INDEX_ETF
     from eulerlab.features.panel import PANEL_PATH
+    from eulerlab.strategies.daily.india_papers import INDEX_ETF
 
     closes: list[tuple[str, float]] = []
     marker = f'"s": "{INDEX_ETF}"'
@@ -115,13 +113,11 @@ def benchmark(start: str, end: str) -> dict[str, Any]:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    from eulerlab.backtest import (
-        events_daily,
-        evidence_daily,
-        github_daily,
-        india_papers,
-        screener_models,
-    )
+    from eulerlab.strategies.daily import events as events_daily
+    from eulerlab.strategies.daily import evidence as evidence_daily
+    from eulerlab.strategies.daily import github as github_daily
+    from eulerlab.strategies.daily import india_papers
+    from eulerlab.strategies.daily import screener as screener_models
 
     parser = argparse.ArgumentParser(prog="india-papers")
     parser.add_argument("--only", default="", help="comma-separated strategy ids")

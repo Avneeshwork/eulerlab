@@ -9,10 +9,10 @@ from itertools import pairwise
 
 import pytest
 
-from eulerlab.intraday import index_futures_screen as fut
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import nse_reports_screen as rep
 from eulerlab.options import index_expiry_screen as ix
+from eulerlab.strategies.studies import index_futures as fut
+from eulerlab.strategies.studies import nse_reports as rep
 from eulerlab.validation import intraday
 
 
@@ -165,8 +165,8 @@ def test_battery_reads_a_straddle_like_a_stock_trade() -> None:
 
 from array import array  # noqa: E402
 
-from eulerlab.intraday import minute_six_screen as six  # noqa: E402
-from eulerlab.intraday import nse_query_screen as q  # noqa: E402
+from eulerlab.strategies.studies import minute_six as six  # noqa: E402
+from eulerlab.strategies.studies import nse_query as q  # noqa: E402
 
 
 def _snap(last_close: float, closes_at: float = 100.0) -> six.Snap:
@@ -224,7 +224,7 @@ def test_a_small_move_is_not_traded_and_in_hours_events_skip_next_session_rules(
 
 # --- research 168: MFT scalps on 5-minute closes -----------------------------------------
 
-from eulerlab.intraday import mft_screen as mft  # noqa: E402
+from eulerlab.strategies.studies import mft as mft  # noqa: E402
 
 
 def _path_snap(closes: list[float], last_close: float = 100.0) -> six.Snap:
@@ -314,7 +314,7 @@ def test_tight_range_break_follows_the_morning_move() -> None:
 
 # --- research 170: paper-backed long/short books -------------------------------------------
 
-from eulerlab.intraday import quant_screen as qs  # noqa: E402
+from eulerlab.strategies.studies import quant as qs  # noqa: E402
 
 
 def test_long_short_takes_five_each_side_from_the_ranks() -> None:
@@ -370,7 +370,7 @@ def test_the_stricter_screen_needs_both_halves_and_2x_costs() -> None:
 
 from datetime import datetime  # noqa: E402
 
-from eulerlab.intraday import onex_screen as onex  # noqa: E402
+from eulerlab.strategies.studies import onex as onex  # noqa: E402
 
 
 def test_news_excludes_administrative_filings() -> None:
@@ -408,7 +408,7 @@ def test_no_news_gap_is_faded_and_news_gap_followed() -> None:
 
 # --- research 172: non-price data, swing and intraday ----------------------------------------
 
-from eulerlab.intraday import other_data_screen as od  # noqa: E402
+from eulerlab.strategies.studies import other_data as od  # noqa: E402
 
 
 def test_a_swing_books_its_pnl_day_by_day_and_pays_both_legs() -> None:
@@ -445,7 +445,7 @@ def test_participant_report_is_read_per_category() -> None:
 
 # --- research 175: tug of war on daily bars ---------------------------------------------------
 
-from eulerlab.intraday import daily_universe_screen as dus  # noqa: E402
+from eulerlab.strategies.studies import daily_universe as dus  # noqa: E402
 
 
 def test_daily_tug_of_war_shorts_high_overnight_and_buys_low() -> None:
@@ -467,7 +467,7 @@ def test_daily_tug_of_war_shorts_high_overnight_and_buys_low() -> None:
 
 from datetime import time as clock  # noqa: E402
 
-from eulerlab.intraday import daily_more_screen as dms  # noqa: E402
+from eulerlab.strategies.studies import daily_more as dms  # noqa: E402
 
 
 def test_results_mornings_are_disclosed_between_the_close_and_the_open() -> None:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from eulerlab.backtest.india_papers import YEAR, sharpe_momentum, sharpe_momentum_over
 from eulerlab.research import tune_sharpe_momentum as tune
+from eulerlab.strategies.daily.india_papers import YEAR, sharpe_momentum, sharpe_momentum_over
 
 
 def test_grid_contains_the_paper_setting() -> None:

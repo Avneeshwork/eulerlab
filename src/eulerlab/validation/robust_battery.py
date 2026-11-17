@@ -324,7 +324,7 @@ def run(
 
 def default_labels(data: rule_engine.Data) -> dict[str, dict[date, str]]:
     """The regime splits from NSE's official Nifty 50 and India VIX closes."""
-    from eulerlab.intraday import mft_screen as mft
+    from eulerlab.strategies.studies import mft as mft
 
     try:
         nifty, vix = mft._official_closes("Nifty 50"), mft._official_closes("India VIX")

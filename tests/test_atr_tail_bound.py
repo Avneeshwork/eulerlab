@@ -19,8 +19,8 @@ import datetime as dt
 import random
 
 from eulerlab.features.indicators import atr
-from eulerlab.intraday.papers import ATR_TAIL_PERIODS, _atr_now
 from eulerlab.intraday.tweezer import Candle
+from eulerlab.strategies.intraday.papers import ATR_TAIL_PERIODS, _atr_now
 
 
 def _walk(count: int, seed: int = 7) -> list[Candle]:

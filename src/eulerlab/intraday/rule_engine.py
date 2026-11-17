@@ -42,9 +42,9 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from eulerlab.filecache import FileMemo, read_yaml
-from eulerlab.intraday import daily_more_screen as dm
-from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import screen_common as sc
+from eulerlab.strategies.studies import daily_more as dm
+from eulerlab.strategies.studies import daily_universe as du
 
 if TYPE_CHECKING:
     from eulerlab.validation.intraday import IntradayRun
@@ -376,7 +376,7 @@ class Data(dm.Context):
 
     @cached_property
     def promoters(self) -> Mapping[str, Mapping[date, float]]:
-        from eulerlab.intraday import nse_reports_screen as rep
+        from eulerlab.strategies.studies import nse_reports as rep
 
         sast = [x for _, found in rep._parsed("sast", rep.promoter_buys) for x in found]
         return rep.promoter_events(sast, self.sessions)
@@ -521,8 +521,8 @@ class LiveData(Data):
 
         from eulerlab.deploy import daily_books
         from eulerlab.ingest import trade_for_trade
-        from eulerlab.intraday import nse_reports_screen as rep
-        from eulerlab.intraday import other_data_screen as od
+        from eulerlab.strategies.studies import nse_reports as rep
+        from eulerlab.strategies.studies import other_data as od
 
         trade_for_trade.build()
         self.end = through
@@ -548,7 +548,7 @@ class LiveData(Data):
 
     @cached_property
     def promoters(self) -> Mapping[str, Mapping[date, float]]:
-        from eulerlab.intraday import nse_reports_screen as rep
+        from eulerlab.strategies.studies import nse_reports as rep
 
         sast = [x for _, found in rep._parsed("sast", rep.promoter_buys) for x in found]
         return rep.promoter_events([x for x in sast if x[1].date() > self.since], self.sessions)

@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import minute_six_screen as six
-from eulerlab.intraday import nse_reports_screen as rep
+from eulerlab.strategies.studies import minute_six as six
+from eulerlab.strategies.studies import nse_reports as rep
 
 N = 375
 SESSIONS = [date(2023, 3, 20), date(2023, 3, 21), date(2023, 3, 22), date(2023, 3, 24)]

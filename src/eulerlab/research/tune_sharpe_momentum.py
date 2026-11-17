@@ -99,12 +99,12 @@ def _load_runs(path: Path = RUNS) -> dict[str, dict[str, Any]]:
 def _run_one(params: Params, *, cost_multiplier: float) -> dict[str, Any]:
     from eulerlab.api.panels import PANEL
     from eulerlab.backtest import event_driven
-    from eulerlab.backtest.india_papers import (
+    from eulerlab.strategies import AssetClass
+    from eulerlab.strategies.daily.india_papers import (
         LIQUID_TOP,
         RankTop,
         sharpe_momentum_over,
     )
-    from eulerlab.strategies import AssetClass
 
     window, top, rebalance = params
     rows = PANEL.rows(0)

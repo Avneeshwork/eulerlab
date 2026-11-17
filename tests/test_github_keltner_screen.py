@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_keltner_screen import _run
 from eulerlab.intraday.india_papers import Day
+from eulerlab.strategies.studies.github_keltner import _run
 
 
 def test_keltner_close_break_enters_next_bar_and_flattens_intraday() -> None:

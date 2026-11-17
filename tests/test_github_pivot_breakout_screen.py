@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_pivot_breakout_screen import _pivot_levels, _run
 from eulerlab.intraday.india_papers import Day
+from eulerlab.strategies.studies.github_pivot_breakout import _pivot_levels, _run
 
 
 def _day(when: date, *, breakout: bool = False) -> Day:

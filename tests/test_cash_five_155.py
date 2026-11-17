@@ -6,8 +6,8 @@ from datetime import date, timedelta
 
 import pytest
 
-from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import india_papers as ip
+from eulerlab.strategies.studies import cash_five as five
 
 N = 375
 

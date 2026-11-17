@@ -7,7 +7,7 @@ import pytest
 pytest.importorskip("sklearn")
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday.cost_aware_ml_screen import _records
+from eulerlab.strategies.studies.cost_aware_ml import _records
 
 
 def _day(session: date) -> ip.Day:

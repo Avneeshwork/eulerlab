@@ -241,8 +241,9 @@ def reconcile_books(
     runbooks: Path = RUNBOOKS,
 ) -> list[dict[str, Any]]:
     """Each active paper book's journal against its broker. A break means reduce-only and a page."""
-    from eulerlab.deploy import deployments, loss_limits, runner
+    from eulerlab.deploy import deployments, runner
     from eulerlab.oms import reconcile
+    from eulerlab.risk.limits import loss_limits
 
     at = now or datetime.now(UTC)
     day = today or at.date()

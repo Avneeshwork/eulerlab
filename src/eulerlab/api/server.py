@@ -85,7 +85,6 @@ from eulerlab.api import (
 from eulerlab.authoring import translate
 from eulerlab.authoring.sandbox import EXAMPLE, UnsafeStrategy
 from eulerlab.backtest import event_driven, vector
-from eulerlab.backtest.published import BUILDERS as PUBLISHED
 from eulerlab.backtest.strategies import BuyAndHold
 from eulerlab.backtest.strategy import Strategy
 from eulerlab.batch import Item as _BatchItem
@@ -112,6 +111,7 @@ from eulerlab.strategies import REGISTRY, AssetClass, Timeframe, catalog, paper_
 from eulerlab.strategies import archive as strategy_archive
 from eulerlab.strategies import fleet as strategy_fleet
 from eulerlab.strategies import studies as strategy_studies
+from eulerlab.strategies.daily.published import BUILDERS as PUBLISHED
 from eulerlab.validation import montecarlo, search_bar
 from eulerlab.validation.ledger import count as trial_count
 from eulerlab.validation.ledger import sharpe_dispersion

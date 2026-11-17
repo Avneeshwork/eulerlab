@@ -25,8 +25,9 @@ LINES = 8
 
 def build(now: datetime | None = None) -> dict[str, Any]:
     from eulerlab import constitution, oncall
-    from eulerlab.deploy import deployments, ladder, loss_limits
+    from eulerlab.deploy import deployments, ladder
     from eulerlab.llm import spend
+    from eulerlab.risk.limits import loss_limits
 
     at = now or datetime.now(UTC)
     rungs = ladder.stages()

@@ -12,7 +12,7 @@
     "backtest/event_driven.py::_view_history = backtest/vector.py::_view_history",
     "ingest/alpaca.py::_env = notify.py::_env",
     "intraday/adopted.py::_read = us_all_run.py::read",
-    "intraday/cash_events_screen.py::_book = intraday/cash_volume_screen.py::_book"
+    "strategies/studies/cash_events.py::_book = strategies/studies/cash_volume.py::_book"
   ],
   "research-number": [
     "024-alpaca.md = 024-daily-gap-sources.md"

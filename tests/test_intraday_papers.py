@@ -12,8 +12,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from eulerlab.intraday.papers import SIGNALS, PaperRules
 from eulerlab.intraday.tweezer import Candle, Plan, Rejected
+from eulerlab.strategies.intraday.papers import SIGNALS, PaperRules
 
 
 def _candles(

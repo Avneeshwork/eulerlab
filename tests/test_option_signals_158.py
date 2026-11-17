@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import option_signal_screen as sig
+from eulerlab.strategies.studies import option_signal as sig
 
 N = 375
 

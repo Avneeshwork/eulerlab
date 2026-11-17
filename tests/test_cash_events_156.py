@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday import cash_events_screen as events
 from eulerlab.intraday import india_papers as ip
+from eulerlab.strategies.studies import cash_events as events
 
 N = 375
 

@@ -6,12 +6,12 @@ from collections.abc import Callable
 from datetime import date, timedelta
 
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import delivery_spike_screen as delivery
-from eulerlab.intraday import earnings_reaction_screen as earnings
-from eulerlab.intraday import expiry_pinning_screen as pinning
-from eulerlab.intraday import nr7_breakout_screen as nr7
-from eulerlab.intraday import overnight_reversal_screen as overnight
 from eulerlab.intraday.india_papers import MINUTES, Day
+from eulerlab.strategies.studies import delivery_spike as delivery
+from eulerlab.strategies.studies import earnings_reaction as earnings
+from eulerlab.strategies.studies import expiry_pinning as pinning
+from eulerlab.strategies.studies import nr7_breakout as nr7
+from eulerlab.strategies.studies import overnight_reversal as overnight
 
 
 def _day(when: date, price: Callable[[int], float] = lambda m: 100.0, spread: float = 0.5) -> Day:

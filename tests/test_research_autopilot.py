@@ -19,9 +19,9 @@ import yaml
 from pydantic import ValidationError
 
 from eulerlab.agents.workers import autopilot as writer
-from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.intraday import rule_engine as engine
 from eulerlab.research import novelty
+from eulerlab.strategies.studies import daily_universe as du
 
 # --- synthetic data ---------------------------------------------------------------------
 

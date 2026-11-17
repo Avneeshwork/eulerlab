@@ -163,175 +163,20 @@ class Declaration:
     ledger_subjects: list[str] = field(default_factory=list)
 
 
-RESEARCH: dict[str, tuple[str, str, str, list[str]]] = {
-    # id -> (citation, what the source reported, what the source tested, steps)
-    #
-    # The steps describe what the code does, not what the paper proposes. Where
-    # the two differ the difference is stated in the step itself, because the
-    # console presents these as "the steps as coded" and a reader comparing
-    # them against the citation has no other way to see the gap.
-    "momentum_12_1": (
-        "Jegadeesh & Titman (1993)",
-        "Winners minus losers earned about 1% a month over 1965-1989, "
-        "before costs and before the crash risk later work identified.",
-        "NYSE and AMEX common stocks, monthly, 1965-1989",
-        [
-            "Score each name by its total return from 252 trading days ago to "
-            "21 days ago — twelve months, skipping the most recent one.",
-            "The skip is the construction, not a detail: 12-month momentum and "
-            "1-month reversal point opposite ways, so an unskipped return "
-            "averages a signal with its own opposite.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-            "Needs 263 days of history per name, so the first 263 days of any "
-            "window produce no position at all.",
-        ],
-    ),
-    "momentum_6_1": (
-        "Jegadeesh & Titman (1993)",
-        "The same paper's shorter formation window; weaker than 12-1 in their own results.",
-        "NYSE and AMEX common stocks, monthly, 1965-1989",
-        [
-            "Score each name by its total return from 126 trading days ago to "
-            "21 days ago — six months, skipping the most recent one.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-            "Needs 158 days of history per name.",
-        ],
-    ),
-    "short_term_reversal": (
-        "Jegadeesh (1990)",
-        "Last month's losers outperformed last month's winners over 1934-1987 "
-        "— the opposite sign to momentum at a longer horizon.",
-        "NYSE common stocks, monthly, 1934-1987",
-        [
-            "Score each name by its last 21 trading days' return, negated, so "
-            "the worst recent performer ranks highest.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-            "Needs 32 days of history per name.",
-        ],
-    ),
-    "low_volatility": (
-        "Baker, Bradley & Wurgler (2011)",
-        "The lowest-volatility quintile beat the highest over 1968-2008, "
-        "which is the opposite of what a risk premium predicts.",
-        "US equities, monthly, 1968-2008",
-        [
-            "Score each name by the median absolute deviation of its daily "
-            "returns over the last 63 trading days, negated — quietest ranks "
-            "highest.",
-            "Median absolute deviation rather than standard deviation: one "
-            "spike dominates a stdev, so the score would describe a single day "
-            "rather than the stock.",
-            "Needs at least 20 usable returns, or the name is unscored.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-        ],
-    ),
-    "fifty_two_week_high": (
-        "George & Hwang (2004)",
-        "Nearness to the 52-week high forecast returns and, unlike momentum, "
-        "the forecasts did not reverse over the long run.",
-        "US equities, monthly, 1963-2001",
-        [
-            "Score each name by its last close divided by the highest close in "
-            "the last 252 trading days — 1.0 means sitting at its 52-week high.",
-            "Needs at least 200 rows in that window, or the name is unscored.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-        ],
-    ),
-    "illiquidity_premium": (
-        "Amihud (2002)",
-        "Illiquid stocks earned a premium for being illiquid, over 1964-1997.",
-        "NYSE common stocks, 1964-1997",
-        [
-            "Score each name by the median of |daily return| / turnover over "
-            "the last 63 trading days, negated.",
-            "The negation makes the *most liquid* name score highest, and the "
-            "engine holds the highest — so as coded this buys the most liquid "
-            "names, which is the opposite end from the premium Amihud "
-            "measured. Recorded as S-032; not silently flipped, because "
-            "turning it round changes what the strategy trades.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-            "Market impact is not modelled anywhere in this engine, so a real "
-            "illiquidity premium would be collected here without paying the "
-            "cost that is the whole reason it exists.",
-        ],
-    ),
-    "small_size": (
-        "Banz (1981)",
-        "Small firms outearned large ones over 1936-1975 after adjusting for beta.",
-        "NYSE common stocks, 1936-1975",
-        [
-            "Score each name by the negated log of its last close, so a "
-            "low-priced name ranks highest.",
-            "This is a weak proxy and is here to be measured, not believed: "
-            "size is price times shares outstanding, and the share count is "
-            "not in the bhavcopy. A low price is not a small company — it is "
-            "often a normal one after a split.",
-            "Sit the day out unless at least 50 names can be scored.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-        ],
-    ),
-    "quality_composite": (
-        "",
-        "",
-        "",
-        [
-            "Not from a paper. The three components each have their own "
-            "literature; combining them is a choice made here, and it is the "
-            "kind of choice the trial ledger exists to count.",
-            "Score each name three times — negated return dispersion over 63 "
-            "days, negated worst 6-month drawdown, and log median turnover "
-            "over 63 days.",
-            "Convert each score to a within-feature percentile rank, then average the three.",
-            "Drop any name not scored by all three: a name ranked on two "
-            "features is not comparable to one ranked on three.",
-            "Sit the day out unless at least 20 names survive.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-        ],
-    ),
-    "momentum_quality": (
-        "",
-        "",
-        "",
-        [
-            "Not from a paper. Momentum's known failure is the crash — winners "
-            "are high-beta going into a reversal — and averaging its rank with "
-            "drawdown and volatility is the standard response to that. Whether "
-            "it helps on this data is an open question.",
-            "Score each name on 12-1 momentum, negated worst 6-month drawdown, "
-            "and negated 63-day return dispersion.",
-            "Convert each to a percentile rank within its feature and average "
-            "the three; drop names missing any of them.",
-            "Sit the day out unless at least 20 names survive.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-        ],
-    ),
-    "value_reversal": (
-        "",
-        "",
-        "",
-        [
-            "Not from a paper. Reversal is strongest in illiquid names and most "
-            "expensive to trade there; this pairing exposes that tension rather "
-            "than resolving it.",
-            "Score each name on negated 21-day return and on log median turnover over 63 days.",
-            "Convert each to a percentile rank within its feature and average "
-            "the two; drop names missing either.",
-            "Sit the day out unless at least 20 names survive.",
-            "Hold the top 30 equally weighted, rebalancing every 21 trading days.",
-        ],
-    ),
-}
-"""Citation, published result, tested universe and coded steps, per strategy.
+def _research() -> dict[str, tuple[str, str, str, list[str]]]:
+    """id -> (citation, what the source reported, what the source tested, steps).
 
-Separate from the `_published` spec because that tuple is positional and
-already long enough that a seventh field would be read by counting commas.
-"""
+    Each published strategy's file holds its own entry (`RESEARCH`), beside the
+    code it describes (ADR-219).
+
+    The steps describe what the code does, not what the paper proposes. Where
+    the two differ the difference is stated in the step itself, because the
+    console presents these as "the steps as coded" and a reader comparing
+    them against the citation has no other way to see the gap.
+    """
+    from eulerlab.strategies.daily.published import MODULES
+
+    return {module.__name__.rsplit(".", 1)[1]: module.RESEARCH for module in MODULES}
 
 
 def _published() -> dict[str, Declaration]:
@@ -340,97 +185,10 @@ def _published() -> dict[str, Declaration]:
     Declared here and built by `backtest.published.BUILDERS`, so a strategy
     cannot appear in the console without something able to run it.
     """
+    from eulerlab.strategies.daily.published import MODULES
+
     spec: list[tuple[str, str, str, str, str, int, list[str]]] = [
-        (
-            "momentum_12_1",
-            "Momentum 12-1",
-            "Buy 12-month winners, skipping the last month. Jegadeesh & Titman (1993).",
-            "technical",
-            "cross-section",
-            263,
-            ["H-0001", "momentum_12_1"],
-        ),
-        (
-            "momentum_6_1",
-            "Momentum 6-1",
-            "The shorter formation window Jegadeesh & Titman (1993) also test.",
-            "technical",
-            "cross-section",
-            158,
-            ["momentum_6_1"],
-        ),
-        (
-            "short_term_reversal",
-            "Short-term reversal",
-            "Last month's losers outperform. Jegadeesh (1990), Lehmann (1990).",
-            "technical",
-            "cross-section",
-            32,
-            ["reversal_1m"],
-        ),
-        (
-            "low_volatility",
-            "Low-volatility anomaly",
-            "Low-volatility stocks outperformed over 41 years. Baker, Bradley & Wurgler (2011).",
-            "quant",
-            "cross-section",
-            73,
-            ["low_volatility"],
-        ),
-        (
-            "fifty_two_week_high",
-            "52-week high",
-            "Nearness to the 52-week high forecasts returns, and does not reverse. George & Hwang (2004).",
-            "technical",
-            "cross-section",
-            210,
-            ["price_to_52w_high"],
-        ),
-        (
-            "illiquidity_premium",
-            "Illiquidity premium",
-            "Illiquid stocks earn a premium. Amihud (2002). Market impact is NOT modelled here (T-907).",
-            "quant",
-            "cross-section",
-            73,
-            ["illiquidity_amihud"],
-        ),
-        (
-            "small_size",
-            "Size effect",
-            "Small firms outearned large. Banz (1981). Proxied by negated log price, which is weak.",
-            "fundamental",
-            "cross-section",
-            11,
-            ["small_size"],
-        ),
-        (
-            "quality_composite",
-            "Quality composite",
-            "Low volatility, shallow drawdowns and liquidity ranked together. No single paper.",
-            "quant",
-            "cross-section",
-            136,
-            [],
-        ),
-        (
-            "momentum_quality",
-            "Momentum, crash-filtered",
-            "Momentum averaged with drawdown and volatility — the standard answer to momentum crashes.",
-            "quant",
-            "cross-section",
-            263,
-            ["momentum_12_1"],
-        ),
-        (
-            "value_reversal",
-            "Reversal, liquidity-filtered",
-            "Reversal is strongest where it is most expensive to trade. This pairing exposes that.",
-            "quant",
-            "cross-section",
-            73,
-            ["reversal_1m"],
-        ),
+        (module.__name__.rsplit(".", 1)[1], *module.SPEC) for module in MODULES
     ]
     return {
         key: Declaration(
@@ -649,7 +407,7 @@ def _paper_signals() -> dict[str, Declaration]:
     expressed as target weights over a daily panel (ADR-037). They run through
     the intraday scanner instead.
     """
-    from eulerlab.intraday.papers import SIGNALS
+    from eulerlab.strategies.intraday.papers import SIGNALS
 
     return {
         signal.id: Declaration(
@@ -686,7 +444,7 @@ def _india_signals() -> dict[str, Declaration]:
     one subject where two were tested, which is the denominator the
     deflated-Sharpe correction uses.
     """
-    from eulerlab.intraday.india import INDIA_SIGNALS
+    from eulerlab.strategies.intraday.india import INDIA_SIGNALS
 
     return {
         signal.id: Declaration(
@@ -718,6 +476,7 @@ def _india_signals() -> dict[str, Declaration]:
 
 # The published set joins the hand-written ones. `rank_and_hold` is dropped in
 # favour of `momentum_12_1`, which is the same strategy under its paper's name.
+RESEARCH = _research()
 REGISTRY.pop("rank_and_hold", None)
 REGISTRY.update(_published())
 
@@ -731,7 +490,7 @@ def _crypto_signals() -> dict[str, Declaration]:
     academic validation found. A library that presented them identically would
     be flattering seven of them.
     """
-    from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
+    from eulerlab.strategies.intraday.crypto import CRYPTO_SIGNALS
 
     return {
         signal.id: Declaration(
@@ -766,7 +525,7 @@ def _crypto_signals() -> dict[str, Declaration]:
 def _india_papers() -> dict[str, Declaration]:
     """Strategies from papers on Indian equities, one per paper in
     `research/papers/`, built by `backtest.india_papers`."""
-    from eulerlab.backtest.india_papers import STRATEGIES
+    from eulerlab.strategies.daily.india_papers import STRATEGIES
 
     return {
         s.id: Declaration(
@@ -792,7 +551,7 @@ def _india_papers() -> dict[str, Declaration]:
 def _screener_models() -> dict[str, Declaration]:
     """The stock screener's long-term and swing models (ADR-136), built by
     `backtest.screener_models`, on the same engine and universe as the India papers."""
-    from eulerlab.backtest.screener_models import STRATEGIES
+    from eulerlab.strategies.daily.screener import STRATEGIES
 
     return {
         s.id: Declaration(
@@ -820,7 +579,9 @@ def _github_daily() -> dict[str, Declaration]:
     `backtest.github_daily`, and the published momentum and reversal
     refinements of its batch 3 (`backtest.evidence_daily`), on the same engine
     and universe as the India papers."""
-    from eulerlab.backtest import events_daily, evidence_daily, github_daily
+    from eulerlab.strategies.daily import events as events_daily
+    from eulerlab.strategies.daily import evidence as evidence_daily
+    from eulerlab.strategies.daily import github as github_daily
 
     # A GitHub rule is cited as one wherever it is coded (`nse_github_*`).
     tagged = [("[GitHub]", s) for s in github_daily.STRATEGIES] + [

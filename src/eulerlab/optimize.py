@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING
 from eulerlab.features import trials
 
 if TYPE_CHECKING:
-    from eulerlab.intraday.papers import PaperRules as PaperRulesLike
+    from eulerlab.strategies.intraday.papers import PaperRules as PaperRulesLike
 else:
     PaperRulesLike = object
 
@@ -128,7 +128,7 @@ def _rules(params: dict[str, float]) -> PaperRulesLike:
     """
     from dataclasses import fields, replace
 
-    from eulerlab.intraday.papers import PaperRules
+    from eulerlab.strategies.intraday.papers import PaperRules
 
     rules = PaperRules()
     declared = {f.name: str(f.type) for f in fields(PaperRules)}

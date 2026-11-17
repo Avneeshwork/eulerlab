@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.fii_participant_oi_screen import (
+from eulerlab.intraday.india_papers import Day
+from eulerlab.strategies.studies.fii_participant_oi import (
     backtest,
     parse_report,
     volatility_moderation,
 )
-from eulerlab.intraday.india_papers import Day
 
 
 def test_parse_report_reads_fii_and_dii_index_futures_net_positions() -> None:

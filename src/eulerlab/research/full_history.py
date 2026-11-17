@@ -212,9 +212,9 @@ def daily_card(
 
 def ban_short(end: date, capital: float, *, daily: bool) -> dict[str, Any]:
     from eulerlab.deploy import rule_book
-    from eulerlab.intraday import cash_five_screen as five
     from eulerlab.intraday import cross_section as cs
-    from eulerlab.intraday import nse_reports_screen as rep
+    from eulerlab.strategies.studies import cash_five as five
+    from eulerlab.strategies.studies import nse_reports as rep
 
     first = DAILY_FIRST if daily else MINUTE_FIRST
     lists = dict(rep._parsed("fo_ban", rep.ban_list, first - timedelta(days=10), end))
@@ -267,8 +267,8 @@ def ban_short(end: date, capital: float, *, daily: bool) -> dict[str, Any]:
 def overnight_reversal(end: date, capital: float, sessions: Sequence[date]) -> dict[str, Any]:
     from eulerlab.deploy import rule_book
     from eulerlab.intraday import cross_section as cs
-    from eulerlab.intraday import overnight_reversal_screen as overnight
-    from eulerlab.intraday import research_screen as rs
+    from eulerlab.strategies.studies import overnight_reversal as overnight
+    from eulerlab.strategies.studies import research as rs
 
     marks: dict[str, dict[date, Any]] = {}
     for symbol in cs.universe():
@@ -289,8 +289,8 @@ def overnight_reversal(end: date, capital: float, sessions: Sequence[date]) -> d
 
 def pre_holiday(end: date, capital: float, calendar: Sequence[date]) -> dict[str, Any]:
     from eulerlab.deploy import rule_book
-    from eulerlab.intraday import cash_events_screen as events
-    from eulerlab.intraday import research_screen as rs
+    from eulerlab.strategies.studies import cash_events as events
+    from eulerlab.strategies.studies import research as rs
 
     holidays = set(events.pre_holiday_days(calendar))
     etf = rs.load_days(rule_book.ETF, cutoff=end, cache=False)

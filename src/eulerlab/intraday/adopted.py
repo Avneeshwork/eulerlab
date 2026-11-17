@@ -112,7 +112,7 @@ def compute(
     """
     from eulerlab.intraday import tuned
     from eulerlab.intraday.paper_scan import ALL_SIGNALS, scan_symbol
-    from eulerlab.intraday.papers import PaperRules
+    from eulerlab.strategies.intraday.papers import PaperRules
 
     if strategy_id not in ALL_SIGNALS:
         return None

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from eulerlab.backtest import screener_models as sm
 from eulerlab.backtest import topdown
 from eulerlab.backtest.strategy import MarketView
 from eulerlab.features.panel import PanelRow
 from eulerlab.fundamentals import sectors
+from eulerlab.strategies.daily import screener as sm
 
 START = date(2024, 1, 1)
 

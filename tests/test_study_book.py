@@ -169,11 +169,11 @@ def test_a_study_that_fails_still_has_its_window_put_back() -> None:
 
 
 def test_which_studies_the_book_runs() -> None:
-    assert study_book.module_of("nse_github_donchian_breakout") == "github_donchian_screen"
-    assert study_book.module_of("nse_initial_balance_failure") == "company_github_screen"
+    assert study_book.module_of("nse_github_donchian_breakout") == "github_donchian"
+    assert study_book.module_of("nse_initial_balance_failure") == "company_github"
     assert study_book.module_of("gao_last_half_hour") is None
 
 
 def test_the_research_112_screens_run_through_their_own_runner() -> None:
     for strategy_id in study_book.FIVE:
-        assert study_book.module_of(strategy_id) == "india_five_screen"
+        assert study_book.module_of(strategy_id) == "india_five"

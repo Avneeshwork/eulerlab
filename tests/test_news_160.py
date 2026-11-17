@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import news_screen as news
+from eulerlab.strategies.studies import news as news
 
 IST = news.IST
 

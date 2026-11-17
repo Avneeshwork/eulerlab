@@ -42,19 +42,19 @@ from eulerlab.oms.killswitch import KillSwitchTripped
 from eulerlab.oms.states import OrderState
 
 MODULES = {
-    "company_github_stock_strategies": "company_github_screen",
-    "github_donchian_stock_strategies": "github_donchian_screen",
-    "github_ema_crossover_stock_strategies": "github_ema_crossover_screen",
-    "github_engulfing_stock_strategies": "github_engulfing_screen",
-    "github_followup_stock_strategies": "github_followup_screen",
-    "github_keltner_stock_strategies": "github_keltner_screen",
-    "github_momentum_burst_stock_strategies": "github_momentum_burst_screen",
-    "github_momentum_pullback_stock_strategies": "github_momentum_pullback_screen",
-    "github_pivot_stock_strategies": "github_pivot_breakout_screen",
-    "github_rsi2_pullback_stock_strategies": "github_rsi2_pullback_screen",
-    "hikkake_stock_strategies": "hikkake_screen",
-    "inside_bar_stock_strategies": "inside_bar_screen",
-    "supertrend_alignment_stock_strategies": "supertrend_alignment_screen",
+    "company_github_stock_strategies": "company_github",
+    "github_donchian_stock_strategies": "github_donchian",
+    "github_ema_crossover_stock_strategies": "github_ema_crossover",
+    "github_engulfing_stock_strategies": "github_engulfing",
+    "github_followup_stock_strategies": "github_followup",
+    "github_keltner_stock_strategies": "github_keltner",
+    "github_momentum_burst_stock_strategies": "github_momentum_burst",
+    "github_momentum_pullback_stock_strategies": "github_momentum_pullback",
+    "github_pivot_stock_strategies": "github_pivot_breakout",
+    "github_rsi2_pullback_stock_strategies": "github_rsi2_pullback",
+    "hikkake_stock_strategies": "hikkake",
+    "inside_bar_stock_strategies": "inside_bar",
+    "supertrend_alignment_stock_strategies": "supertrend_alignment",
 }
 """Study output name (`studies.py`'s `study`) to the module that computes it."""
 
@@ -75,7 +75,7 @@ def module_of(strategy_id: str) -> str | None:
     from eulerlab.strategies import studies
 
     if strategy_id in FIVE:
-        return "india_five_screen"
+        return "india_five"
     for entry in studies.ENTRIES:
         if (
             strategy_id in (entry.get("configurations") or {}).values()
@@ -147,7 +147,7 @@ def study_trades(
         if name is None:
             msg = f"{strategy_id} is not a study this book runs"
             raise KeyError(msg)
-        module = importlib.import_module(f"eulerlab.intraday.{name}")
+        module = importlib.import_module(f"eulerlab.strategies.studies.{name}")
     with _window(module, start, through, since) as loader:
         result = module.run_all()
     runs = result.get("runs") or []
@@ -173,11 +173,11 @@ def five_trades(
     """
     from eulerlab.ingest import nse_earnings_announcements as announcements
     from eulerlab.intraday import cross_section as cs
-    from eulerlab.intraday import delivery_spike_screen as delivery
-    from eulerlab.intraday import earnings_reaction_screen as earnings
-    from eulerlab.intraday import expiry_pinning_screen as pinning
-    from eulerlab.intraday import nr7_breakout_screen as nr7
-    from eulerlab.intraday import overnight_reversal_screen as overnight
+    from eulerlab.strategies.studies import delivery_spike as delivery
+    from eulerlab.strategies.studies import earnings_reaction as earnings
+    from eulerlab.strategies.studies import expiry_pinning as pinning
+    from eulerlab.strategies.studies import nr7_breakout as nr7
+    from eulerlab.strategies.studies import overnight_reversal as overnight
 
     screen = FIVE[strategy_id]
     symbols = cs.universe()
@@ -310,7 +310,7 @@ def replay(
             # A delivery (CNC) position, e.g. H-0162's 20-day hold, pays delivery
             # charges; everything else here is intraday (ADR-149).
             if trade.get("segment") == "delivery":
-                from eulerlab.intraday import other_data_screen as od
+                from eulerlab.strategies.studies import other_data as od
 
                 charge = od.delivery_fee(filled, quantity, side, day)
             else:

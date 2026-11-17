@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_followup_screen import _exit
 from eulerlab.intraday.india_papers import Day
 from eulerlab.intraday.screen_common import ema as _ema
+from eulerlab.strategies.studies.github_followup import _exit
 
 
 def test_ema_is_deterministic_and_has_expected_first_value() -> None:

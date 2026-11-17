@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_momentum_pullback_screen import _exit, _positive_macd, _signal
 from eulerlab.intraday.india_papers import Day
+from eulerlab.strategies.studies.github_momentum_pullback import _exit, _positive_macd, _signal
 
 
 def _day_with_surge_pullback_breakout() -> Day:

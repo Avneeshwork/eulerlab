@@ -126,8 +126,8 @@ def test_a_placebo_enters_later_and_only_on_tradable_days(lag: int) -> None:
 
 def test_a_swing_screen_pays_dp_on_each_sell_and_an_intraday_one_does_not() -> None:
     from eulerlab.costs import router
-    from eulerlab.intraday import daily_more_screen as dm
     from eulerlab.intraday import rule_engine as engine
+    from eulerlab.strategies.studies import daily_more as dm
 
     data = _panel(fade=True)
     fast = _fast(data)

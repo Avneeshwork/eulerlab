@@ -70,7 +70,7 @@ def _trade(
 
 
 def _days(symbol: str, *, since: date, through: date) -> list[Any]:
-    from eulerlab.intraday import research_screen as rs
+    from eulerlab.strategies.studies import research as rs
 
     return rs.load_days(symbol, cutoff=through, cache=False, since=since)
 
@@ -90,7 +90,7 @@ def ban_lists(*, since: date, through: date, path: Path = REPORTS) -> dict[date,
     for the session before `since` is read too, so the first day's entries are
     known; a ban list is a report, not price data."""
     from eulerlab.ingest import landing_reader
-    from eulerlab.intraday import nse_reports_screen as rep
+    from eulerlab.strategies.studies import nse_reports as rep
 
     out: dict[date, set[str]] = {}
     if not path.exists():
@@ -190,7 +190,7 @@ def overnight_trades(
     days_by_symbol: dict[str, list[Any]], *, start: date, capital: float
 ) -> tuple[list[Trade], list[date]]:
     """Rank on the mean of the previous 20 overnight moves; short the top decile, buy the bottom."""
-    from eulerlab.intraday import overnight_reversal_screen as overnight
+    from eulerlab.strategies.studies import overnight_reversal as overnight
 
     sessions: set[date] = set()
     marks: dict[str, dict[date, Any]] = {}

@@ -25,9 +25,9 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from eulerlab.intraday import cash_five_screen as five
 from eulerlab.intraday import cross_section as cs
 from eulerlab.paths import data_path
+from eulerlab.strategies.studies import cash_five as five
 from eulerlab.validation.statistics import expected_max_sharpe
 
 OUT = data_path("derived/in_play_variants.json")

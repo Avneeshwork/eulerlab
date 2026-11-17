@@ -132,9 +132,9 @@ def _engine_card(hypothesis: str) -> bool:
 
 def _swings(hypothesis: str) -> list[Any]:
     """The positions behind a swing card's daily pieces, from the screen that made them."""
-    from eulerlab.intraday import daily_more_screen as dm
-    from eulerlab.intraday import more_signals_screen as ms
-    from eulerlab.intraday import new_signals_screen as ns
+    from eulerlab.strategies.studies import daily_more as dm
+    from eulerlab.strategies.studies import more_signals as ms
+    from eulerlab.strategies.studies import new_signals as ns
 
     if _engine_card(hypothesis):
         from eulerlab.intraday import rule_engine
@@ -143,7 +143,7 @@ def _swings(hypothesis: str) -> list[Any]:
         assert spec is not None
         return rule_engine.Engine(rule_engine.Data()).swings(spec)
     if hypothesis == "H-0162":
-        from eulerlab.intraday import daily_universe_screen as du
+        from eulerlab.strategies.studies import daily_universe as du
 
         ctx = du.Context()
         return du.h0162_positions(ctx.panel, ctx.sessions, ctx.liquid, ctx.promoters)
@@ -158,7 +158,7 @@ def _swings(hypothesis: str) -> list[Any]:
     if hypothesis == "H-0196":
         return list(ms.dividend_book(ms.Context()))
     if hypothesis == "H-0153":
-        from eulerlab.intraday import other_data_screen as od
+        from eulerlab.strategies.studies import other_data as od
 
         return list(od.h0153(od._context()))
     msg = f"{hypothesis}: no swing positions known for its trades"

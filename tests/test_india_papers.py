@@ -7,11 +7,11 @@ from datetime import date, timedelta
 
 import pytest
 
-from eulerlab.backtest import india_papers as ip
 from eulerlab.backtest.strategy import MarketView
 from eulerlab.features.panel import PanelRow
 from eulerlab.research import library
 from eulerlab.strategies import REGISTRY
+from eulerlab.strategies.daily import india_papers as ip
 
 
 def weekdays(start: date, n: int, skip: frozenset[date] = frozenset()) -> list[date]:

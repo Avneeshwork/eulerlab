@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from eulerlab.intraday import cash_volume_screen as vol
 from eulerlab.intraday import india_papers as ip
+from eulerlab.strategies.studies import cash_volume as vol
 
 N = 375
 

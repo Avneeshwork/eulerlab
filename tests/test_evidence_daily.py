@@ -6,8 +6,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from eulerlab.backtest import evidence_daily as ev
 from eulerlab.features.panel import PanelRow
+from eulerlab.strategies.daily import evidence as ev
+from eulerlab.strategies.daily.evidence import common as ev_common
 
 
 def _rows(closes: list[float]) -> list[PanelRow]:
@@ -94,7 +95,7 @@ def test_dividend_yield_counts_the_last_year(monkeypatch: pytest.MonkeyPatch) ->
     rows = _rows([100.0] * 400)
     today = rows[-1].day
     monkeypatch.setattr(
-        ev,
+        ev_common,
         "dividends",
         lambda: {"X": ((today - timedelta(days=400), 9.0), (today - timedelta(days=100), 2.0))},
     )

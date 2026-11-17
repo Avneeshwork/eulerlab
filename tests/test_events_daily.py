@@ -6,9 +6,12 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from eulerlab.backtest import events_daily as ev
 from eulerlab.backtest.strategy import MarketView
 from eulerlab.features.panel import PanelRow
+from eulerlab.strategies.daily import events as ev
+from eulerlab.strategies.daily.events import common as ev_common
+from eulerlab.strategies.daily.events import india_announcement_drift as drift
+from eulerlab.strategies.daily.events import india_earnings_announcement_premium as premium
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -16,7 +19,7 @@ IST = timezone(timedelta(hours=5, minutes=30))
 @pytest.fixture
 def known(monkeypatch: pytest.MonkeyPatch) -> dict[str, tuple[datetime, ...]]:
     table: dict[str, tuple[datetime, ...]] = {}
-    monkeypatch.setattr(ev, "announcements", lambda: table)
+    monkeypatch.setattr(ev_common, "announcements", lambda: table)
     return table
 
 
@@ -43,7 +46,7 @@ def test_a_stock_due_to_report_is_held(
     today = date(2024, 5, 6)
     known["DUE"] = (datetime(2023, 5, 10, 11, 0, tzinfo=IST),)  # expected 2024-05-08
     known["LATER"] = (datetime(2023, 7, 10, 11, 0, tzinfo=IST),)
-    monkeypatch.setattr(ev, "liquid_universe", lambda view: ["DUE", "LATER"])
+    monkeypatch.setattr(premium, "liquid_universe", lambda view: ["DUE", "LATER"])
     view = MarketView(as_of=today, history={})
     held = ev.AnnouncementPremium("x").target_weights(view)
     assert set(held) == {"DUE"}
@@ -60,7 +63,7 @@ def test_drift_buys_the_best_reaction(
         closes = [100.0] * 10 + [100.0 + i] * 30  # reaction of i% on day 10
         history[name] = _rows(name, start, closes)
         known[name] = (datetime(2024, 1, 11, 11, 0, tzinfo=IST),)
-    monkeypatch.setattr(ev, "liquid_universe", lambda view: names)
+    monkeypatch.setattr(drift, "liquid_universe", lambda view: names)
     view = MarketView(as_of=start + timedelta(days=39), history=history)
     held = ev.AnnouncementDrift("x").target_weights(view)
     assert set(held) == {"S9", "S8"}, "the top fifth of ten"

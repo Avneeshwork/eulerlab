@@ -44,11 +44,11 @@ import numpy as np
 
 from eulerlab.features.formula import text_of
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import daily_more_screen as dm
-from eulerlab.intraday import daily_universe_screen as du
-from eulerlab.intraday import other_data_screen as od
 from eulerlab.intraday import rule_engine
 from eulerlab.research import feature_registry, lang
+from eulerlab.strategies.studies import daily_more as dm
+from eulerlab.strategies.studies import daily_universe as du
+from eulerlab.strategies.studies import other_data as od
 
 MIN_CROSS = 20
 """Stocks a session needs for its IC or its sums to count."""

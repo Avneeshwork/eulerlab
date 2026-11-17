@@ -61,7 +61,7 @@ def _intraday() -> list[Entry]:
 
 
 def _daily() -> list[Entry]:
-    from eulerlab.backtest.published import BUILDERS
+    from eulerlab.strategies.daily.published import BUILDERS
 
     return [
         Entry(

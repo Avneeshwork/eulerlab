@@ -52,8 +52,6 @@ from eulerlab.backtest.strategy import MarketView, Strategy, decide, normalise
 from eulerlab.backtest.vector import fund_symbols, fx_spreads
 from eulerlab.costs.model import Brokerage
 from eulerlab.costs.schedule import Side
-from eulerlab.deploy.sizing import fit_to_capital
-from eulerlab.deploy.sizing_models import fit_by_order
 from eulerlab.features.panel import (
     PanelRow,
     assert_adjustable,
@@ -62,6 +60,7 @@ from eulerlab.features.panel import (
     trading_days,
 )
 from eulerlab.master.sessions import regular_days, short_sessions
+from eulerlab.risk.sizing import fit_by_order, fit_to_capital
 
 IST = ZoneInfo("Asia/Kolkata")
 FAR_FUTURE = datetime(2999, 1, 1, tzinfo=IST)

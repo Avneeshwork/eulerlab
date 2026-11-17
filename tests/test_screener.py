@@ -10,10 +10,11 @@ from typing import Any
 import pytest
 
 from eulerlab import screener
-from eulerlab.backtest import screener_models as sm
 from eulerlab.backtest.strategy import MarketView, Strategy
 from eulerlab.features.panel import PanelRow
 from eulerlab.fundamentals import annual
+from eulerlab.strategies.daily import screener as sm
+from eulerlab.strategies.daily.screener import common as sm_common
 
 
 def _year(fy: date, **v: float) -> annual.Year:
@@ -141,7 +142,7 @@ def test_per_share_values_are_put_into_the_decision_dates_units(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # A 10-for-1 split on 2022-07-28: EPS shown today in post-split units is 10x too small for 2021.
-    monkeypatch.setattr(sm, "_factors", lambda: {"INE1": ([date(2022, 7, 28)], [10.0, 1.0])})
+    monkeypatch.setattr(sm_common, "_factors", lambda: {"INE1": ([date(2022, 7, 28)], [10.0, 1.0])})
     assert sm.units("INE1", date(2021, 9, 1)) == 10.0
     assert sm.units("INE1", date(2022, 8, 1)) == 1.0
     assert sm.units("OTHER", date(2021, 9, 1)) == 1.0

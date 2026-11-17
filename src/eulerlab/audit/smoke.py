@@ -48,10 +48,10 @@ def _candles() -> list[Candle]:
 
 def run() -> tuple[list[Finding], int]:
     """Invoke every registered strategy once."""
-    from eulerlab.backtest.published import BUILDERS
     from eulerlab.intraday.paper_scan import ALL_SIGNALS
-    from eulerlab.intraday.papers import PaperRules
     from eulerlab.intraday.tweezer import Plan, Rejected
+    from eulerlab.strategies.daily.published import BUILDERS
+    from eulerlab.strategies.intraday.papers import PaperRules
 
     findings: list[Finding] = []
     candles = _candles()

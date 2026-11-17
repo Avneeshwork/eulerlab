@@ -50,9 +50,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from eulerlab.features.formula import FormulaError, Node, Op, parse, text_of
 from eulerlab.features.formula import _walk as walk
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import daily_more_screen as dm
 from eulerlab.intraday import india_papers as ip
 from eulerlab.intraday import rule_engine
+from eulerlab.strategies.studies import daily_more as dm
 
 Matrix = NDArray[np.float64]
 

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from eulerlab.backtest import github_daily as gd
 from eulerlab.backtest.strategy import MarketView
 from eulerlab.features.panel import PanelRow
+from eulerlab.strategies.daily import github as gd
 
 
 def _rows(
@@ -86,9 +86,9 @@ def test_dual_momentum_falls_back_to_the_better_safe_asset() -> None:
 
 
 def test_all_five_are_registered_and_deployable() -> None:
-    from eulerlab.backtest.published import BUILDERS
     from eulerlab.deploy.runner import paper_blocker
     from eulerlab.strategies import REGISTRY
+    from eulerlab.strategies.daily.published import BUILDERS
 
     for spec in gd.STRATEGIES:
         assert spec.id in BUILDERS and REGISTRY[spec.id].source.startswith("[GitHub]")

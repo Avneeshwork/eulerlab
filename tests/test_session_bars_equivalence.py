@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import datetime as dt
 
-from eulerlab.intraday.papers import _session_bars
 from eulerlab.intraday.tweezer import Candle
+from eulerlab.strategies.intraday.papers import _session_bars
 
 
 def _old_session_bars(window: list[Candle]) -> list[Candle]:

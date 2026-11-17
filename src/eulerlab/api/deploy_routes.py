@@ -74,7 +74,7 @@ def _rows() -> list[Any]:
 
 
 def _summary(deployment: store.Deployment) -> dict[str, Any]:
-    from eulerlab.deploy import loss_limits
+    from eulerlab.risk.limits import loss_limits
 
     state = store.read_state(deployment) or {}
     limits = loss_limits.for_deployment(deployment)
@@ -440,8 +440,8 @@ def reduce_only(deployment_id: str, request: ReduceRequest) -> dict[str, Any]:
     """
     from datetime import date, timedelta
 
-    from eulerlab.deploy import loss_limits
     from eulerlab.ingest.filelock import exclusive
+    from eulerlab.risk.limits import loss_limits
 
     try:
         with RUN_LOCK, exclusive("paper_daily"):

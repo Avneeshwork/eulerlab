@@ -23,11 +23,11 @@ from typing import Protocol
 
 from eulerlab.intraday import bracket, store
 from eulerlab.intraday.bracket import Trade
-from eulerlab.intraday.crypto_signals import CRYPTO_SIGNALS
-from eulerlab.intraday.crypto_signals import Detect as Detect
-from eulerlab.intraday.india import INDIA_SIGNALS
-from eulerlab.intraday.papers import SIGNALS, PaperRules
 from eulerlab.intraday.tweezer import Candle, Plan, Rejected, Rules
+from eulerlab.strategies.intraday.crypto import CRYPTO_SIGNALS
+from eulerlab.strategies.intraday.crypto import Detect as Detect
+from eulerlab.strategies.intraday.india import INDIA_SIGNALS
+from eulerlab.strategies.intraday.papers import SIGNALS, PaperRules
 
 
 class _Signal(Protocol):

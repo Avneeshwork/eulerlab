@@ -201,8 +201,8 @@ def _rank_pct(values: Mapping[str, float]) -> dict[str, float]:
 
 def reasons(view: MarketView, names: Sequence[str]) -> dict[str, dict[str, Any]]:
     """The facts a trader reads for each stock, from the same view the models saw."""
-    from eulerlab.backtest import screener_models as sm
-    from eulerlab.backtest.india_papers import MONTH, YEAR, nearness_to_52w_high
+    from eulerlab.strategies.daily import screener as sm
+    from eulerlab.strategies.daily.india_papers import MONTH, YEAR, nearness_to_52w_high
 
     out: dict[str, dict[str, Any]] = {}
     facts: dict[str, dict[str, float]] = {}
@@ -413,8 +413,8 @@ def _news_tone() -> dict[str, Any]:
 
 
 def _models(cfg: Mapping[str, Any]) -> list[tuple[str, str, str, Strategy]]:
-    from eulerlab.backtest import screener_models as sm
-    from eulerlab.backtest.published import BUILDERS
+    from eulerlab.strategies.daily import screener as sm
+    from eulerlab.strategies.daily.published import BUILDERS
 
     out = [(s.id, sm.KIND[s.id], s.title, s.build()) for s in sm.STRATEGIES]
     for e in cfg.get("existing") or []:
@@ -428,9 +428,9 @@ def _models(cfg: Mapping[str, Any]) -> list[tuple[str, str, str, Strategy]]:
 
 def build(*, now: datetime | None = None, out: Path | None = None) -> dict[str, Any]:
     """Today's lists. Loads the panel (about 1.8 GB in memory)."""
-    from eulerlab.backtest import screener_models as sm
-    from eulerlab.backtest.india_papers import liquid_universe
     from eulerlab.features.panel import by_symbol, read_panel, trading_days
+    from eulerlab.strategies.daily import screener as sm
+    from eulerlab.strategies.daily.india_papers import liquid_universe
 
     now = now or datetime.now(UTC)
     cfg = config()

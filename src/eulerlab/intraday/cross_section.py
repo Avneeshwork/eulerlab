@@ -24,8 +24,8 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import screen_common as sc
+from eulerlab.strategies.studies import research as rs
 
 RESEARCH_START, DATA_END = rs.RESEARCH_START, rs.DATA_END
 """The research window's end, the constitution's `backtest_end` (ADR-184).

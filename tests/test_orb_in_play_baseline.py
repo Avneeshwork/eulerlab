@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import datetime as dt
 
-from eulerlab.intraday import papers
-from eulerlab.intraday.papers import PaperRules
 from eulerlab.intraday.tweezer import Candle
+from eulerlab.strategies.intraday import papers
+from eulerlab.strategies.intraday.papers import PaperRules
 
 
 def _session(day: dt.date, *, volume: float, bars: int = 12) -> list[Candle]:

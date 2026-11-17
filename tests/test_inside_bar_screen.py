@@ -1,7 +1,7 @@
 from datetime import date
 
-from eulerlab.intraday import inside_bar_screen as screen
 from eulerlab.intraday.india_papers import Day
+from eulerlab.strategies.studies import inside_bar as screen
 
 
 def test_inside_bar_close_break_enters_next_bar_with_two_r_target() -> None:

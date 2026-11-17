@@ -7,8 +7,8 @@ from datetime import date
 import numpy as np
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import minute_scalp_screen as scalp
 from eulerlab.intraday import move_cost_map as moves
+from eulerlab.strategies.studies import minute_scalp as scalp
 
 N = 375
 

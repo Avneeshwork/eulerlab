@@ -11,9 +11,9 @@ import yaml
 
 from eulerlab import constitution
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import daily_more_screen as dm
-from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import rule_engine
+from eulerlab.strategies.studies import daily_more as dm
+from eulerlab.strategies.studies import research as rs
 from tools import hygiene
 
 FILE = Path(__file__).parents[1] / "config" / "constitution.yaml"

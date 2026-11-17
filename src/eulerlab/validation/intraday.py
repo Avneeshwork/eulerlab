@@ -63,15 +63,15 @@ class IntradayRun:
 
 
 def _h0096() -> IntradayRun:
-    from eulerlab.intraday import nse_reports_screen
+    from eulerlab.strategies.studies import nse_reports as nse_reports_screen
 
     return nse_reports_screen.ban_short_run()
 
 
 def _h0098() -> IntradayRun:
     """H-0096's rule on daily bars, 2015-2024: official open to close (research 164)."""
-    from eulerlab.intraday import cash_five_screen as five
-    from eulerlab.intraday import nse_reports_screen as rep
+    from eulerlab.strategies.studies import cash_five as five
+    from eulerlab.strategies.studies import nse_reports as rep
 
     bans = rep.ban_events(dict(rep._parsed("fo_ban", rep.ban_list, rep.DAILY_FIRST)))
     bars = rep.daily_bars(set(bans))
@@ -85,10 +85,10 @@ def _h0065() -> IntradayRun:
     """Short the top decile of 20-session mean overnight moves, buy the bottom (research 158)."""
     import pickle
 
-    from eulerlab.intraday import cash_five_screen as five
-    from eulerlab.intraday import india_five_screen as india_five
-    from eulerlab.intraday import option_signal_screen as sig
-    from eulerlab.intraday import stock_fo_screen as fo
+    from eulerlab.strategies.studies import cash_five as five
+    from eulerlab.strategies.studies import india_five as india_five
+    from eulerlab.strategies.studies import option_signal as sig
+    from eulerlab.strategies.studies import stock_fo as fo
 
     cache = {}
     for symbol in cs.universe():
@@ -113,10 +113,10 @@ def _h0065() -> IntradayRun:
 
 def _h0052() -> IntradayRun:
     """Buy NIFTYBEES 09:20-15:10 on the session before a market holiday (research 156)."""
-    from eulerlab.intraday import cash_events_screen as events
-    from eulerlab.intraday import cash_five_screen as five
-    from eulerlab.intraday import research_screen as rs
-    from eulerlab.intraday import stock_fo_screen as fo
+    from eulerlab.strategies.studies import cash_events as events
+    from eulerlab.strategies.studies import cash_five as five
+    from eulerlab.strategies.studies import research as rs
+    from eulerlab.strategies.studies import stock_fo as fo
 
     _, window = fo.load_snaps()
     holidays = set(events.pre_holiday_days(window))
@@ -135,7 +135,7 @@ def _h0052() -> IntradayRun:
 
 def _index_futures(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import index_futures_screen as fut
+        from eulerlab.strategies.studies import index_futures as fut
 
         result: IntradayRun = fut.validation_run(hypothesis)
         return result
@@ -155,7 +155,7 @@ def _index_expiry(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _mft(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import mft_screen
+        from eulerlab.strategies.studies import mft as mft_screen
 
         return mft_screen.validation_run(hypothesis)
 
@@ -164,7 +164,7 @@ def _mft(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _quant(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import quant_screen
+        from eulerlab.strategies.studies import quant as quant_screen
 
         return quant_screen.validation_run(hypothesis)
 
@@ -173,7 +173,7 @@ def _quant(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _onex(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import onex_screen
+        from eulerlab.strategies.studies import onex as onex_screen
 
         return onex_screen.validation_run(hypothesis)
 
@@ -182,7 +182,7 @@ def _onex(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _other(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import other_data_screen
+        from eulerlab.strategies.studies import other_data as other_data_screen
 
         return other_data_screen.validation_run(hypothesis)
 
@@ -191,7 +191,7 @@ def _other(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _daily_universe(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import daily_universe_screen
+        from eulerlab.strategies.studies import daily_universe as daily_universe_screen
 
         return daily_universe_screen.validation_run(hypothesis)
 
@@ -200,7 +200,7 @@ def _daily_universe(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _daily_more(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import daily_more_screen
+        from eulerlab.strategies.studies import daily_more as daily_more_screen
 
         return daily_more_screen.validation_run(hypothesis)
 
@@ -209,7 +209,7 @@ def _daily_more(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _new_signals(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import new_signals_screen
+        from eulerlab.strategies.studies import new_signals as new_signals_screen
 
         return new_signals_screen.validation_run(hypothesis)
 
@@ -218,7 +218,7 @@ def _new_signals(hypothesis: str) -> Callable[[], IntradayRun]:
 
 def _more_signals(hypothesis: str) -> Callable[[], IntradayRun]:
     def run() -> IntradayRun:
-        from eulerlab.intraday import more_signals_screen
+        from eulerlab.strategies.studies import more_signals as more_signals_screen
 
         return more_signals_screen.validation_run(hypothesis)
 
@@ -226,7 +226,7 @@ def _more_signals(hypothesis: str) -> Callable[[], IntradayRun]:
 
 
 def _h0106() -> IntradayRun:
-    from eulerlab.intraday import nse_reports_screen
+    from eulerlab.strategies.studies import nse_reports as nse_reports_screen
 
     return nse_reports_screen.ban_exit_long_run()
 
@@ -295,10 +295,11 @@ def _portfolio(hypothesis_id: str) -> IntradayRun:
     Each session's net return on the previous equity becomes one `BookDay` on
     `PORTFOLIO_CAPITAL`, so the battery's fixed-capital returns are the book's
     own compounding daily returns."""
-    from eulerlab.backtest import event_driven, evidence_daily
+    from eulerlab.backtest import event_driven
     from eulerlab.costs import router
     from eulerlab.features.panel import read_panel_with_history, with_cash_yield
     from eulerlab.research import library_reports as lr
+    from eulerlab.strategies.daily import evidence as evidence_daily
 
     name = portfolio_strategy(hypothesis_id)
     if name is None or name not in evidence_daily.BY_ID:

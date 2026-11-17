@@ -15,7 +15,7 @@ from eulerlab.backtest.strategy import MarketView, Strategy
 from eulerlab.backtest.vector import run
 from eulerlab.features import panel_mask as pm
 from eulerlab.features.panel import PanelRow
-from eulerlab.intraday import daily_universe_screen as du
+from eulerlab.strategies.studies import daily_universe as du
 
 FILE = Path(__file__).parents[1] / "config" / "constitution.yaml"
 

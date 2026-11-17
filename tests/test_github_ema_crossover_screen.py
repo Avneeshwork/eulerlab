@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from eulerlab.intraday import github_ema_crossover_screen as screen
+from eulerlab.strategies.studies import github_ema_crossover as screen
 
 
 def test_cross_signal_ignores_unwarmed_and_flat_ema_spread() -> None:

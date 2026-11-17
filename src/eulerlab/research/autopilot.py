@@ -210,7 +210,7 @@ def peers(engine: rule_engine.Engine, root: Path) -> dict[str, dict[date, float]
     H-0161 and H-0162 are research 173's own code; H-0168 and every engine card the
     autopilot gated PROMOTE or PAPER run through the engine.
     """
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     data = engine.data
     out: dict[str, dict[date, float]] = {}

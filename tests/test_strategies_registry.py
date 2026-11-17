@@ -173,7 +173,7 @@ def test_every_registered_strategy_can_actually_be_built() -> None:
     The registry and the builders are separate structures, so nothing but this
     stops one gaining an entry the other lacks.
     """
-    from eulerlab.backtest.published import BUILDERS
+    from eulerlab.strategies.daily.published import BUILDERS
 
     runnable = set(BUILDERS) | {"buy_and_hold"}
     declared = {d.id for d in REGISTRY.values() if d.is_strategy_subclass}
@@ -182,12 +182,12 @@ def test_every_registered_strategy_can_actually_be_built() -> None:
 
 
 def test_ten_published_strategies_are_registered() -> None:
-    from eulerlab.backtest.events_daily import BUILDERS as EVENTS
-    from eulerlab.backtest.evidence_daily import BUILDERS as EVIDENCE
-    from eulerlab.backtest.github_daily import BUILDERS as GITHUB
-    from eulerlab.backtest.india_papers import BUILDERS as INDIA
-    from eulerlab.backtest.published import BUILDERS
-    from eulerlab.backtest.screener_models import BUILDERS as SCREENER
+    from eulerlab.strategies.daily.events import BUILDERS as EVENTS
+    from eulerlab.strategies.daily.evidence import BUILDERS as EVIDENCE
+    from eulerlab.strategies.daily.github import BUILDERS as GITHUB
+    from eulerlab.strategies.daily.india_papers import BUILDERS as INDIA
+    from eulerlab.strategies.daily.published import BUILDERS
+    from eulerlab.strategies.daily.screener import BUILDERS as SCREENER
 
     # The ten from docs/RESEARCH/017, one per Indian-equity paper (064), the
     # daily GitHub rules (113) and the screener's models (ADR-136).
@@ -233,7 +233,7 @@ def test_a_validation_trial_does_make_it_backtested(tmp_path: Path) -> None:
 def test_the_composite_drops_symbols_not_scored_by_every_feature() -> None:
     """A symbol ranked by two of three features is not comparable to one ranked
     by all three, so averaging over fewer would flatter it."""
-    from eulerlab.backtest.published import Composite
+    from eulerlab.strategies.daily.published import Composite
 
     composite = Composite(["low_volatility", "max_drawdown"], top_n=5)
     # `lookback` is Optional on the base class; a Composite always sets one.

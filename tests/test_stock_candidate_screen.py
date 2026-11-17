@@ -1,7 +1,7 @@
 from datetime import date
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import stock_candidate_screen as screen
+from eulerlab.strategies.studies import stock_candidate as screen
 
 
 def _day(prices: list[float]) -> ip.Day:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import supertrend_alignment_screen as screen
+from eulerlab.strategies.studies import supertrend_alignment as screen
 
 
 def _bar(index: int, close: float, *, volume: float = 10.0) -> screen.Bar:

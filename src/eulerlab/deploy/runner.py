@@ -49,8 +49,6 @@ from eulerlab.backtest.events import Fill, Order, Rejection
 from eulerlab.costs.schedule import Side
 from eulerlab.deploy import deployments as store
 from eulerlab.deploy.deployments import Deployment
-from eulerlab.deploy.sizing import fit_to_capital
-from eulerlab.deploy.sizing_models import fit_by_order
 from eulerlab.features.panel import PanelRow, by_symbol, trading_days
 from eulerlab.oms import ems
 from eulerlab.oms.journal import Journal
@@ -58,6 +56,7 @@ from eulerlab.oms.killswitch import KillSwitch, KillSwitchTripped
 from eulerlab.oms.oms import OMS
 from eulerlab.oms.paper_broker import PaperBroker
 from eulerlab.paper.runner import OMSExecutor
+from eulerlab.risk.sizing import fit_by_order, fit_to_capital
 
 GROSS = 0.99
 """Invested share of equity. Costs are paid in cash on top of each buy; at
@@ -184,9 +183,9 @@ def paper_blocker(strategy_id: str) -> str:
     2026-10-17 the preflight passed `buy_and_hold`, which the route rejected.
     """
     from eulerlab import forward
-    from eulerlab.backtest.published import BUILDERS
     from eulerlab.deploy import overnight, rule_book
     from eulerlab.strategies import REGISTRY
+    from eulerlab.strategies.daily.published import BUILDERS
 
     if rule_book.is_rule(strategy_id):
         # A gated intraday rule trades through its own book (ADR-142).
@@ -226,7 +225,7 @@ def paper_blocker(strategy_id: str) -> str:
 
 def _strategy(strategy_id: str) -> Any:
     from eulerlab import forward
-    from eulerlab.backtest.published import BUILDERS
+    from eulerlab.strategies.daily.published import BUILDERS
 
     if forward.is_hypothesis(strategy_id):
         try:
@@ -287,7 +286,7 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
         store.write_state(deployment, state)
     # Loss limits act after the day is traded (ADR-092): reduce-only from the
     # next session, or a halt through the deployment's own kill switch.
-    from eulerlab.deploy import loss_limits
+    from eulerlab.risk.limits import loss_limits
 
     deployment, state = loss_limits.apply(store.load(deployment.id), state)
     signals.announce(deployment, previous, state)
@@ -295,7 +294,7 @@ def run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
 
 
 def _run(deployment: Deployment, rows: Sequence[PanelRow]) -> dict[str, Any]:
-    from eulerlab.deploy import loss_limits
+    from eulerlab.risk.limits import loss_limits
 
     began = time.monotonic()
     previous = store.read_state(deployment) or {}

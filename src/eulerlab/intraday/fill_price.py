@@ -35,8 +35,8 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any, Literal
 
-from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.paths import data_path
+from eulerlab.strategies.studies import daily_universe as du
 
 At = Literal["open", "close"]
 CHARGED_BPS = 2.0

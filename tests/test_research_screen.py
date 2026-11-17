@@ -8,8 +8,8 @@ from pathlib import Path
 import pytest
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import research_screen as rs
 from eulerlab.intraday import strategy_optimizer as optimizer
+from eulerlab.strategies.studies import research as rs
 
 
 def test_archive_file_crossing_cutoff_is_not_opened(tmp_path: Path) -> None:
@@ -168,7 +168,7 @@ def test_history_adds_rescaled_angel_bars_before_kite(monkeypatch: pytest.Monkey
 def test_index_history_is_opt_in_and_stops_at_kite(monkeypatch: pytest.MonkeyPatch) -> None:
     """ADR-201: Angel's NIFTY50 minutes before Kite's index start, only when asked."""
     from eulerlab.ingest import landing_reader
-    from eulerlab.intraday import cash_five_screen as five
+    from eulerlab.strategies.studies import cash_five as five
 
     def session(day: str, price: float) -> list[tuple[str, float]]:
         return [
@@ -202,7 +202,7 @@ def test_the_research_1x_switch_sizes_the_mft_screens_at_1x(
     """ADR-202: ₹1 lakh a position with the switch, ₹5 lakh (5x MIS, as registered) without."""
     import importlib
 
-    from eulerlab.intraday import mft_screen
+    from eulerlab.strategies.studies import mft as mft_screen
 
     monkeypatch.delenv(rs.ONE_X_ENV, raising=False)
     assert importlib.reload(mft_screen).TRADE == 500_000.0

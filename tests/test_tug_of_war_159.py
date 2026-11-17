@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import tug_of_war_screen as tug
-from eulerlab.intraday.overnight_reversal_screen import Mark
+from eulerlab.strategies.studies import tug_of_war as tug
+from eulerlab.strategies.studies.overnight_reversal import Mark
 
 N = 375
 

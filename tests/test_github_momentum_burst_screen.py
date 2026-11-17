@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_momentum_burst_screen import _atr, _burst, _exit, _run
 from eulerlab.intraday.india_papers import Day
-from eulerlab.intraday.inside_bar_screen import Bar
+from eulerlab.strategies.studies.github_momentum_burst import _atr, _burst, _exit, _run
+from eulerlab.strategies.studies.inside_bar import Bar
 
 
 def test_atr_warmup_and_three_interval_burst() -> None:

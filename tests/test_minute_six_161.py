@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 from eulerlab.corp_actions.parse import CorporateAction, Kind, ParsedComponent
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import minute_six_screen as six
+from eulerlab.strategies.studies import minute_six as six
 
 N = 375
 DAY = date(2023, 5, 4)

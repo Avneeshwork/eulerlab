@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from eulerlab.intraday import hikkake_screen as hs
-from eulerlab.intraday.inside_bar_screen import BAR_MINUTES, Bar
+from eulerlab.strategies.studies import hikkake as hs
+from eulerlab.strategies.studies.inside_bar import BAR_MINUTES, Bar
 
 
 def _bar(start: int, high: float, low: float, *, open_: float | None = None) -> Bar:

@@ -76,8 +76,8 @@ def drift_picks(
     The same reading as `events_daily.recent_reaction`: the reaction session is the first
     on or after the disclosure's effective day (after 15:30 counts from the next day),
     the reaction is its next close over the close before it, less NIFTYBEES."""
-    from eulerlab.backtest.evidence_daily import clenow_score
-    from eulerlab.backtest.india_papers import INDEX_ETF
+    from eulerlab.strategies.daily.evidence import clenow_score
+    from eulerlab.strategies.daily.india_papers import INDEX_ETF
 
     market = view.history.get(INDEX_ETF) or []
     mdays = [r.day for r in market]
@@ -136,7 +136,7 @@ def _recent_times(today: date) -> dict[str, list[datetime]]:
 
 def _past_times() -> dict[str, tuple[datetime, ...]]:
     try:
-        from eulerlab.backtest.events_daily import announcements
+        from eulerlab.strategies.daily.events import announcements
 
         return announcements()
     except (OSError, ValueError):

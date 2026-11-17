@@ -9,8 +9,9 @@ import pytest
 
 from eulerlab.backtest.strategy import MarketView, Strategy
 from eulerlab.deploy import deployments as store
-from eulerlab.deploy import loss_limits, runner
+from eulerlab.deploy import runner
 from eulerlab.features.panel import PanelRow
+from eulerlab.risk.limits import loss_limits
 
 
 class TopTwo(Strategy):

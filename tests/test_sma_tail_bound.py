@@ -18,8 +18,8 @@ import datetime as dt
 import random
 
 from eulerlab.features.indicators import sma
-from eulerlab.intraday.papers import _closes, _sma_tail
 from eulerlab.intraday.tweezer import Candle
+from eulerlab.strategies.intraday.papers import _closes, _sma_tail
 
 
 def _walk(count: int, seed: int = 5) -> list[Candle]:

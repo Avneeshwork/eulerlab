@@ -116,7 +116,7 @@ def test_fingerprints_do_not_change_between_python_processes() -> None:
 
     script = (
         "import json\n"
-        "from eulerlab.backtest.published import BUILDERS\n"
+        "from eulerlab.strategies.daily.published import BUILDERS\n"
         "from eulerlab.deploy.version_lock import fingerprint\n"
         "print(json.dumps({k: fingerprint(k) for k in BUILDERS}))\n"
     )

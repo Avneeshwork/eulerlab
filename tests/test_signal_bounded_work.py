@@ -17,8 +17,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from eulerlab.intraday.papers import PaperRules, ou_mean_reversion
 from eulerlab.intraday.tweezer import Candle
+from eulerlab.strategies.intraday.papers import PaperRules, ou_mean_reversion
 
 
 class Watched(Sequence[Candle]):

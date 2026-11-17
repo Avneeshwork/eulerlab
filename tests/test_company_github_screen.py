@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
-from eulerlab.intraday import company_github_screen as screen
 from eulerlab.intraday import india_papers as ip
+from eulerlab.strategies.studies import company_github as screen
 
 
 def _day(day_offset: int, close: list[float], volume: list[float]) -> ip.Day:

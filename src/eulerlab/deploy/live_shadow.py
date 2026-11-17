@@ -134,7 +134,7 @@ def _at_open(signal: Any) -> bool:
 def fund_symbols(panel: Path | None = None) -> frozenset[str]:
     """ETFs and fund units (INF ISINs), never shadowed: their official opening print is
     often stale (research 180), so a gap from it is not a real gap."""
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     return du.fund_symbols(panel or du.PANEL)
 
@@ -507,7 +507,7 @@ def reconcile(
 
 
 def official_closes(day: date) -> dict[str, float]:
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     panel = du.load_panel(start=day, end=day)
     return {s: bars[day].close for s, bars in panel.items() if day in bars}

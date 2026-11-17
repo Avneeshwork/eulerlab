@@ -11,7 +11,8 @@ import pytest
 from eulerlab import fund_report, jobrun, oncall
 from eulerlab.agents import jobs
 from eulerlab.costs.schedule import Side
-from eulerlab.deploy import deployments, loss_limits, runner
+from eulerlab.deploy import deployments, runner
+from eulerlab.risk.limits import loss_limits
 
 NOW = datetime(2026, 11, 13, 11, tzinfo=UTC)
 RULES = Path(__file__).parents[1] / "config" / "constitution.yaml"

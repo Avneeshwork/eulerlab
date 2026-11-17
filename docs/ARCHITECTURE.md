@@ -285,7 +285,7 @@ changes.
 **Where the old years live (ADR-189).** The 2000-2014 rows sit in
 `price_panel_2000_2014.jsonl` with their mask, not in `price_panel.jsonl`, so
 the API and the paper books load what they always did. Research reads them
-through `daily_universe_screen.load_panel` when its window starts before 2015;
+through `daily_universe.load_panel` when its window starts before 2015;
 the window's start is `periods.research_start` in the constitution, 2016-01-01
 when the file names none. `vector.run` never fills or marks at a row the
 checks proved wrong.
@@ -613,7 +613,7 @@ runner alike. `equal`, the default, splits the strategy's gross exposure
 equally, so a slot strategy that fills 4 of 10 slots stays 40% invested.
 `strategy` keeps the weights as returned (Clenow's inverse ATR,
 betting-against-beta, Faber TAA, the Nifty volatility target, sandbox code).
-The models (`deploy/sizing_models.py`) use 126 days of daily returns:
+The models (`risk/sizing/`) use 126 days of daily returns:
 
 - `inverse_vol`: weight proportional to 1/σ.
 - `hrp`: López de Prado's hierarchical risk parity. Single-linkage clusters on
@@ -645,6 +645,36 @@ There is also a **mutation suite**: deliberate bugs are injected to confirm the
 tests actually catch them. This found a real hole — the zero-alpha identity
 does *not* catch double-charged costs, because both sides of the identity
 double. An independent recomputation was added to catch it.
+
+### Where a strategy lives (ADR-219)
+
+One strategy, one file. A developer who wants to read, change or add a
+strategy opens `src/eulerlab/strategies/`:
+
+| folder | one file is | the file ends with |
+|---|---|---|
+| `daily/published/` | a classic factor from the literature | its builder, `SPEC`, `RESEARCH` |
+| `daily/india_papers/`, `evidence/`, `github/`, `events/` | one daily rule from one source | `STRATEGIES` (its library entry) |
+| `daily/screener/` | one screener model | `SPECS` (entry and kind) |
+| `intraday/papers/`, `india/`, `crypto/` | one minute signal | `SIGNALS` |
+| `studies/` | one screen study (several rules from one research note) | its `main` and make target |
+
+Each family's `common.py` holds what more than one of its strategies uses
+(`RankTop`, `liquid_universe`, `PaperStrategy`), and its `__init__.py` lists the
+files in library order. **To add a strategy:** write the file, add one import
+line to the family's `__init__.py`. `daily/published.BUILDERS` is every daily
+builder and is what the registry and the batch runner read.
+
+How much to hold is in `src/eulerlab/risk/sizing/`, one file per rule:
+`equal`, `inverse_vol`, `hrp`, `min_variance` (with `covariance` for the
+estimates), then `caps` (the most one name may weigh) and `capital_fit`
+(dropping names the capital cannot buy). `size_book` in its `__init__` picks
+the rule a strategy declares. Loss limits are `risk/limits/loss_limits.py`,
+and the book's risk figures are `risk/book/`, one file per measure.
+
+The old paths (`backtest/india_papers.py`, `intraday/papers.py`,
+`deploy/sizing_models.py` and the rest) are shims for code written before the
+move; new code imports the new path.
 
 ### Where a backtest result is stored
 
@@ -805,9 +835,9 @@ and is 0 over 0 paths.
 From 2026-11-07 (ADR-145, ADR-146) the battery reads any trade through the
 `DayTrade` protocol (symbol, day, gross, costs), so `SOURCES` also holds
 index-option straddles (`options/index_expiry_screen.py`, H-0041, H-0103 to
-H-0105), index-futures rules on index minutes (`intraday/index_futures_screen.py`,
+H-0105), index-futures rules on index minutes (`strategies/studies/index_futures.py`,
 H-0099 to H-0102), the F&O ban exit (H-0106) and the MFT stock scalps
-(`intraday/mft_screen.py`, H-0111 to H-0130; `intraday/quant_screen.py`, H-0131 to H-0140, five long and five short chosen at 09:20; `intraday/onex_screen.py`, H-0141 to H-0150 at 1x, ₹1 lakh a position, with NSE filings as news; `intraday/other_data_screen.py`, H-0151 to H-0160, whose swing rules are delivery holds marked to market each session as `Piece`s so a day's P&L lands on that day; `intraday/daily_universe_screen.py`, H-0161 and H-0162 on daily bars of the 500 most traded NSE stocks each day, free of today's F&O list; `intraday/daily_more_screen.py`, H-0164 to H-0173 in the same frame; `intraday/new_signals_screen.py`, H-0184 to H-0193, with price-limit closes, India VIX, institutional bulk-deal clients and multi-day delivery). H-0187's paper book is `daily_books.h0187`. H-0161's paper book (`deploy/delivery_fade_book.py`, ADR-148) reads daily bars after the holdout end and skips stocks on the previous evening's ASM/GSM snapshot (`nse_reports` `asm`, `gsm`) or in series BE/BZ (`ingest/trade_for_trade`). H-0168's and H-0162's books (`deploy/daily_books.py`, ADR-149) read results announcements landed one finished day at a time and SAST after the holdout end; a 20-session hold is booked on its exit day with `segment: delivery`, which `study_book.replay` charges at delivery rates. `research/library_reports.py` stores each gated card's research-window run and report in the result store, so the library and Report page show it; it cuts every trade, session and swing at the card's `holdout.starts`, takes any card with a trade source (`--only`, or `--from-results` for a rebacktest's log), and a new store replaces the old report on screen because the library shows the latest run (ADR-199). The scalps decide on the
+(`strategies/studies/mft.py`, H-0111 to H-0130; `strategies/studies/quant.py`, H-0131 to H-0140, five long and five short chosen at 09:20; `strategies/studies/onex.py`, H-0141 to H-0150 at 1x, ₹1 lakh a position, with NSE filings as news; `strategies/studies/other_data.py`, H-0151 to H-0160, whose swing rules are delivery holds marked to market each session as `Piece`s so a day's P&L lands on that day; `strategies/studies/daily_universe.py`, H-0161 and H-0162 on daily bars of the 500 most traded NSE stocks each day, free of today's F&O list; `strategies/studies/daily_more.py`, H-0164 to H-0173 in the same frame; `strategies/studies/new_signals.py`, H-0184 to H-0193, with price-limit closes, India VIX, institutional bulk-deal clients and multi-day delivery). H-0187's paper book is `daily_books.h0187`. H-0161's paper book (`deploy/delivery_fade_book.py`, ADR-148) reads daily bars after the holdout end and skips stocks on the previous evening's ASM/GSM snapshot (`nse_reports` `asm`, `gsm`) or in series BE/BZ (`ingest/trade_for_trade`). H-0168's and H-0162's books (`deploy/daily_books.py`, ADR-149) read results announcements landed one finished day at a time and SAST after the holdout end; a 20-session hold is booked on its exit day with `segment: delivery`, which `study_book.replay` charges at delivery rates. `research/library_reports.py` stores each gated card's research-window run and report in the result store, so the library and Report page show it; it cuts every trade, session and swing at the card's `holdout.starts`, takes any card with a trade source (`--only`, or `--from-results` for a rebacktest's log), and a new store replaces the old report on screen because the library shows the latest run (ADR-199). The scalps decide on the
 5-minute closes of research 161's snapshots, fill at the next minute's open,
 trade ₹5 lakh (₹1 lakh of margin at 5x MIS), at most ten open, and return on
 ₹10 lakh of margin; their late-entry stress fills five minutes after the
@@ -837,7 +867,7 @@ ends at `DATA_END`, the constitution's `backtest_end` (2025-12-31) read by
 window may reach 2026: `constitution.sealed()` refuses it whatever the file
 says. `EULERLAB_RESEARCH_END=YYYY-MM-DD` moves the end earlier, never later,
 to reproduce a result made on a shorter window. The universe, costs, sizing
-and books are research 173's (`daily_more_screen.day_book`/`swing_book`).
+and books are research 173's (`daily_more.day_book`/`swing_book`).
 Research 176's ten rules, written as specs (`REFERENCE`), reproduce its
 published counts and Sharpes exactly (`make rule-engine-check`).
 
@@ -1729,7 +1759,7 @@ side panel.
 
 ### Indian-equity paper strategies
 
-`backtest/india_papers.py` holds one strategy per paper in `research/papers/`
+`strategies/daily/india_papers/` holds one file per paper in `research/papers/`
 on Indian equities, registered as `india_*` and built through
 `published.BUILDERS`. Cross-sectional ones (`RankTop`, `LowBeta`) take the
 whole panel and keep the 250 most-traded stocks by median turnover over the
@@ -2012,8 +2042,9 @@ what it is for; this is the map that tells you which one to open.
 | package | what lives there | start at |
 |---|---|---|
 | `features/` | the daily panel, indicators, the feature library, IC | `panel`, `alt_panel`, `us_panel` |
-| `strategies/` | the registry: every strategy declared, and the capability catalog | `__init__`, `catalog` |
-| `intraday/` | the minute-bar engine — signals, the bracket executor, and one store per market. Every `*_screen` takes its daily summary, intraday charges, EMA and RSI from `screen_common`; a screen keeps only its own rule | `paper_scan`, `bracket`, `us_store`, `screen_common` |
+| `strategies/` | every strategy, one file each (ADR-219): `daily/<family>/` (published, india_papers, evidence, github, events, screener), `intraday/<family>/` (papers, india, crypto), `studies/` (one screen study per file); the registry and the capability catalog | `__init__`, `daily/published`, `studies`, `catalog` |
+| `risk/` | how much to hold and what it risks: `sizing/` (one file per sizing model, the caps and the capital fit), `limits/` (loss limits), `book/` (VaR, stress, exposure: one file per measure) | `sizing`, `book` |
+| `intraday/` | the minute-bar engine — the scanner, the bracket executor, and one store per market. Every study in `strategies/studies/` takes its daily summary, intraday charges, EMA and RSI from `screen_common`; a screen keeps only its own rule | `paper_scan`, `bracket`, `us_store`, `screen_common` |
 | `backtest/` | Tier A vectorised and Tier B event-driven, plus the self-tests that check they agree | `vector`, `event_driven`, `selftest` |
 | `costs/` | what a fill costs, on the venue it would actually trade on | **`router`**, `model`, `us_equity`, `delta_exchange` |
 | `authoring/`, `llm/` | turning a description into a strategy, and the provider layer under it | `translate` |
@@ -2798,7 +2829,7 @@ traded through without a signal now shows one.
 
 ## Risk on the deployed book (ADR-071)
 
-`risk/book.py` is arithmetic on values handed in; `api/risk_routes.py`
+`risk/book/` is arithmetic on values handed in; `api/risk_routes.py`
 gathers them; `GET /api/risk/book` returns one payload for three views under
 Live & Risk. It reads and never acts.
 
@@ -2870,7 +2901,7 @@ strategy at a stated capital, sized as equal amounts of today's names (A-060).
 
 ### Loss limits that act (ADR-092)
 
-After every run, `deploy/loss_limits.apply` reads the deployment's drawdown
+After every run, `risk.limits.loss_limits.apply` reads the deployment's drawdown
 from its own high on the time-weighted curve (`risk.book.growth`, so moving
 money is not a loss) and compares it with two levels:
 
@@ -3937,7 +3968,7 @@ close x VWAP 15:10-15:20 / VWAP 15:00-15:30).
 ### Portfolio cards through the gate (ADR-203)
 
 A card whose first configuration is `shape: portfolio_strategy` names a
-`backtest/evidence_daily` strategy. `validation.intraday.source` runs it once
+`strategies.daily.evidence` strategy. `validation.intraday.source` runs it once
 on the event engine over `features.panel.read_panel_with_history(2002-01-01)`
 (the 2000-2014 history joined by ISIN, trading from 2005-01-01, rows before the
 card's holdout only) inside `costs.router.dp_charges()` (₹23.60 a delivery
@@ -4228,9 +4259,9 @@ The fixer runs only fixed commands with fixed arguments; the model's text is wri
            20 Aug-15 Sep 2021 and refuses a symbol whose daily ratio drifts over 0.5% or whose
            scaled seam return misses NSE's bhavcopy by over 0.5%; `intraday/store.fetch(history=True)`
            serves the bars before 19 Aug 2021 times that factor, passing symbols only
-           (`research_screen.load_days(history=True)` does the same from 1 Nov 2018 for the
+           (`research.load_days(history=True)` does the same from 1 Nov 2018 for the
            minute screens; `make minute-six` snapshots built with `--history`, T-4634; with
-           `EULERLAB_MINUTE_HISTORY=1` the Nifty index minutes and `mft_screen.START` also
+           `EULERLAB_MINUTE_HISTORY=1` the Nifty index minutes and `mft.START` also
            start 2018-11-01, research runs only, ADR-201)
            (`EULERLAB_RESEARCH_1X=1` sizes the 5x MFT and quant screens and H-0163 at
            ₹1 lakh a position, research runs only, ADR-202)
@@ -4378,7 +4409,7 @@ Screener draws it.
 
 ### Blends and the pre-registered choice (ADR-137, research 151)
 
-`screener_models.Blend(name, parts, rebalance_every)` builds each part from
+`strategies.daily.screener.Blend(name, parts, rebalance_every)` builds each part from
 `published.BUILDERS`, lets each decide on the view narrowed to its own lookback
 (`decide`), and returns Σ share × weight per stock; its lookback is the longest
 part's. Four are declared: `screen_long_blend` (quality momentum 0.7, tree
@@ -4393,7 +4424,7 @@ tab of the page opens on its main or chosen list.
 
 ### The consensus list (ADR-138, research 152)
 
-`screener_models.Consensus(name, parts, min_votes, rebalance_every)`: `picks(view)`
+`strategies.daily.screener.Consensus(name, parts, min_votes, rebalance_every)`: `picks(view)`
 runs each part on the view narrowed to its lookback and returns its long names;
 `votes(view)` counts, per stock, the parts picking it; `target_weights` holds the
 stocks with votes ≥ `min_votes`, equally (none: cash). `screen_consensus_3of5`
@@ -4424,14 +4455,14 @@ score. The top 5 sectors are kept; an industry is strong when its score is above
 the median of the industries scored on their own. `Ranking.passes(s)` = in a top
 sector and a strong industry.
 
-**Models** (`screener_models`, kinds long/swing): `screen_topdown_sectors` (every
+**Models** (`strategies.daily.screener`, kinds long/swing): `screen_topdown_sectors` (every
 liquid stock in the top 5, a fifth per sector), `screen_topdown_quality_momentum`
 (passes, quality ≥ median, top 20 by Sharpe momentum, at most 6 per sector,
 `_capped`), `screen_topdown_discount` (passes, positive earnings yield, mean rank
 of Sharpe momentum and of earnings yield less its industry median,
 `industry_relative`), and `TopSectorsOnly` wrapping the trend pullback and the
 52-week breakout (targets kept only in the top 5 sectors, weights unchanged).
-`events_daily.DriftMomentum(topdown=True)` ranks only top-sector stocks.
+`strategies.daily.events.DriftMomentum(topdown=True)` ranks only top-sector stocks.
 `research.topdown_run` runs each through `api.server._engine_run` (which now
 takes `cost_multiplier`) on 2016-2026, each half and at 2x costs, with each
 calendar year's return from the equity curve (`make topdown-screen`).
@@ -4439,7 +4470,7 @@ calendar year's return from the equity curve (`make topdown-screen`).
 **Likely movers.** `movers.build(view, names, table)`: the reaction session of a
 results disclosure is the first session whose close follows it (before 15:30 on
 a session day: that day; else the next). Typical results-day move = median
-absolute close-to-close return over 3 or more past reactions (`events_daily.
+absolute close-to-close return over 3 or more past reactions (`strategies.daily.events.
 announcements`, 2021-2024, plus the last 90 days from `daily_books.results_times`).
 Lists: results due in 7 days among the liquid 250 (`board_meetings.upcoming`)
 with that typical move; reactions of 5% or more within 60 sessions, tagged H-0187

@@ -107,7 +107,7 @@ def load() -> dict[str, Adoption]:
     the denominator that corrects for it.
     """
     from eulerlab import optimize_store
-    from eulerlab.intraday.papers import PaperRules
+    from eulerlab.strategies.intraday.papers import PaperRules
 
     # The path is read from the module at call time rather than taken from the
     # function's default, which binds once at import and cannot be redirected.
@@ -199,7 +199,7 @@ def rules_for(strategy_id: str) -> object:
     """
     from dataclasses import replace
 
-    from eulerlab.intraday.papers import PaperRules
+    from eulerlab.strategies.intraday.papers import PaperRules
 
     rules = PaperRules()
     adoption = for_strategy(strategy_id)

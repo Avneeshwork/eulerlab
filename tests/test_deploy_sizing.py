@@ -7,7 +7,7 @@ from itertools import pairwise
 
 import pytest
 
-from eulerlab.deploy.sizing import capped, fit_to_capital, max_weight, ranked
+from eulerlab.risk.sizing import capped, fit_to_capital, max_weight, ranked
 
 
 def test_everything_affordable_is_unchanged() -> None:

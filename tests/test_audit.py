@@ -136,8 +136,8 @@ def test_an_alias_is_not_reported_as_a_mismatch() -> None:
 
 
 def test_every_registered_strategy_appears_in_the_inventory() -> None:
-    from eulerlab.backtest.published import BUILDERS
     from eulerlab.intraday.paper_scan import ALL_SIGNALS
+    from eulerlab.strategies.daily.published import BUILDERS
 
     ids = {entry.strategy_id for entry in inventory()}
     assert set(ALL_SIGNALS) <= ids

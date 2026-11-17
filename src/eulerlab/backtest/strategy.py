@@ -198,7 +198,7 @@ def decide(strategy: Strategy, view: MarketView) -> tuple[dict[str, float], list
     The one path from a strategy to its book, shared by Tier A, Tier B and the
     paper/live runner, so a sizing rule cannot hold in one and not another.
     """
-    from eulerlab.deploy.sizing_models import rule_of, size_book
+    from eulerlab.risk.sizing import rule_of, size_book
 
     longs, refused = long_only(strategy.target_weights(view))
     return size_book(longs, view, rule_of(strategy)), refused

@@ -840,76 +840,76 @@ stock-intraday:
 
 # Research 087: price-only tests of three non-duplicate Indian stock ideas.
 stock-intraday-candidates:
-	@uv run python -m eulerlab.intraday.stock_candidate_screen
+	@uv run python -m eulerlab.strategies.studies.stock_candidate
 
 # Research 088: public company/GitHub candidates screened on the fixed NSE
 # minute universe. Volume-profile results are HLC3-weighted OHLCV proxies.
 company-github-intraday:
-	@uv run python -m eulerlab.intraday.company_github_screen
+	@uv run python -m eulerlab.strategies.studies.company_github
 
 # Research 089: additional GitHub strategy screen; one new price-data rule.
 github-followup-intraday:
-	@uv run python -m eulerlab.intraday.github_followup_screen
+	@uv run python -m eulerlab.strategies.studies.github_followup
 
 # Research 090: GitHub surge/pullback continuation, using frozen code defaults.
 github-momentum-pullback-intraday:
-	@uv run python -m eulerlab.intraday.github_momentum_pullback_screen
+	@uv run python -m eulerlab.strategies.studies.github_momentum_pullback
 
 # Research 093: 5-minute inside-bar breakout on fixed NSE stocks.
 inside-bar-intraday:
-	@uv run python -m eulerlab.intraday.inside_bar_screen
+	@uv run python -m eulerlab.strategies.studies.inside_bar
 
 # Research 094: source-defined Hikkake false-breakout pattern on NSE minutes.
 hikkake-intraday:
-	@uv run python -m eulerlab.intraday.hikkake_screen
+	@uv run python -m eulerlab.strategies.studies.hikkake
 
 # Research 095: price-only 5/15 EMA crossover adaptation from a GitHub repo.
 github-ema-crossover-intraday:
-	@uv run python -m eulerlab.intraday.github_ema_crossover_screen
+	@uv run python -m eulerlab.strategies.studies.github_ema_crossover
 
 # Research 096: hourly trend-aligned 15-minute Supertrend re-entry.
 supertrend-alignment-intraday:
-	@uv run python -m eulerlab.intraday.supertrend_alignment_screen
+	@uv run python -m eulerlab.strategies.studies.supertrend_alignment
 
 # Research 097: lagged NSE participant-wise FII index-futures positioning.
 fii-positioning-intraday:
-	@uv run python -m eulerlab.intraday.fii_participant_oi_screen
+	@uv run python -m eulerlab.strategies.studies.fii_participant_oi
 
 # Research 103: cost-aware 30-minute Random Forest signal adapted to NSE stocks.
 cost-aware-ml-intraday:
-	@uv run --extra research-ml python -m eulerlab.intraday.cost_aware_ml_screen
+	@uv run --extra research-ml python -m eulerlab.strategies.studies.cost_aware_ml
 
 # Research 106: simple GitHub Keltner Channel close breakout.
 github-keltner-intraday:
-	@uv run python -m eulerlab.intraday.github_keltner_screen
+	@uv run python -m eulerlab.strategies.studies.github_keltner
 
 # Research 107: simple GitHub Turtle/Donchian 5-minute channel breakout.
 github-donchian-intraday:
-	@uv run python -m eulerlab.intraday.github_donchian_screen
+	@uv run python -m eulerlab.strategies.studies.github_donchian
 
 # Research 108: simple GitHub prior-day pivot breakout.
 github-pivot-intraday:
-	@uv run python -m eulerlab.intraday.github_pivot_breakout_screen
+	@uv run python -m eulerlab.strategies.studies.github_pivot_breakout
 
 # Research 109: GitHub engulfing + volume + RSI screen, adapted to NSE.
 github-engulfing-intraday:
-	@uv run python -m eulerlab.intraday.github_engulfing_screen
+	@uv run python -m eulerlab.strategies.studies.github_engulfing
 
 # Research 110: GitHub 3-bar ATR momentum burst with volume confirmation.
 github-momentum-burst-intraday:
-	@uv run python -m eulerlab.intraday.github_momentum_burst_screen
+	@uv run python -m eulerlab.strategies.studies.github_momentum_burst
 
 # Research 111: GitHub Connors RSI(2) pullback with SMA trend and exit.
 github-rsi2-intraday:
-	@uv run python -m eulerlab.intraday.github_rsi2_pullback_screen
+	@uv run python -m eulerlab.strategies.studies.github_rsi2_pullback
 
 # Research 112: five Indian intraday rules over every F&O stock, one pass (~15 min).
 india-five-intraday:
-	@uv run python -m eulerlab.intraday.india_five_screen
+	@uv run python -m eulerlab.strategies.studies.india_five
 
 # Research 153 (H-0040): fade the results-morning gap, from the india-five cache.
 results-gap-fade:
-	@uv run python -m eulerlab.intraday.results_gap_fade_screen
+	@uv run python -m eulerlab.strategies.studies.results_gap_fade
 
 # Research 153 (H-0041): sell the Nifty straddle at the open on expiry day.
 expiry-straddle:
@@ -918,7 +918,7 @@ expiry-straddle:
 # Research 166: four Nifty/BankNifty futures rules on 15-minute bars, and four
 # index-option expiry-day straddles (H-0041, H-0103 to H-0105). No trial spent.
 index-futures:
-	@uv run python -m eulerlab.intraday.index_futures_screen
+	@uv run python -m eulerlab.strategies.studies.index_futures
 
 index-expiry:
 	@uv run python -m eulerlab.options.index_expiry_screen
@@ -930,11 +930,11 @@ library-reports:
 
 # Research 178: ten rules on signals the rule engine lacks (H-0184 to H-0193).
 new-signals:
-	@uv run python -m eulerlab.intraday.new_signals_screen
+	@uv run python -m eulerlab.strategies.studies.new_signals
 
 # Research 176: ten more rules on every liquid NSE stock, daily bars (H-0164 to H-0173).
 daily-more:
-	@uv run python -m eulerlab.intraday.daily_more_screen
+	@uv run python -m eulerlab.strategies.studies.daily_more
 
 # Research 174: which stocks were trade-for-trade each day, from the cash bhavcopies.
 trade-for-trade:
@@ -942,27 +942,27 @@ trade-for-trade:
 
 # Research 173: research 172's PROMOTEs on every liquid NSE stock, daily bars (H-0161, H-0162).
 daily-universe:
-	@uv run python -m eulerlab.intraday.daily_universe_screen $(ARGS)
+	@uv run python -m eulerlab.strategies.studies.daily_universe $(ARGS)
 
 # Research 172: five swing and five intraday rules on non-price data (H-0151 to H-0160).
 other-data-screen:
-	@uv run python -m eulerlab.intraday.other_data_screen
+	@uv run python -m eulerlab.strategies.studies.other_data
 
 # Research 171: ten stock day trades at 1x (H-0141 to H-0150).
 onex-screen:
-	@uv run python -m eulerlab.intraday.onex_screen
+	@uv run python -m eulerlab.strategies.studies.onex
 
 # Research 170: ten paper-backed, market-neutral stock day trades (H-0131 to H-0140).
 quant-screen:
-	@uv run python -m eulerlab.intraday.quant_screen
+	@uv run python -m eulerlab.strategies.studies.quant
 
 # Research 168: ten MFT-style stock scalps on 5-minute closes at Zerodha MIS size (H-0111 to H-0120).
 mft-screen:
-	@uv run python -m eulerlab.intraday.mft_screen
+	@uv run python -m eulerlab.strategies.studies.mft
 
 # Research 167: four stock fades after NSE clarification queries (H-0107 to H-0110).
 nse-queries:
-	@uv run python -m eulerlab.intraday.nse_query_screen
+	@uv run python -m eulerlab.strategies.studies.nse_query
 
 # Research 154: how far stocks move in minutes, against a round trip's cost.
 move-cost-map:
@@ -970,11 +970,11 @@ move-cost-map:
 
 # Research 154 (H-0042, H-0043): two minute-level scalps on F&O stocks.
 minute-scalps:
-	@uv run python -m eulerlab.intraday.minute_scalp_screen
+	@uv run python -m eulerlab.strategies.studies.minute_scalp
 
 # Research 155 (H-0045 to H-0049): five minute-level cash rules at 1x.
 cash-five:
-	@uv run python -m eulerlab.intraday.cash_five_screen
+	@uv run python -m eulerlab.strategies.studies.cash_five
 
 # Research 155 (H-0050): the in-play ORB with fewer trades, chosen on 2021-2023, tested on 2024.
 in-play-variants:
@@ -982,39 +982,39 @@ in-play-variants:
 
 # Research 156 (H-0051 to H-0055): drift bursts and calendar days, cash, 1x.
 cash-events:
-	@uv run python -m eulerlab.intraday.cash_events_screen
+	@uv run python -m eulerlab.strategies.studies.cash_events
 
 # Research 157 (H-0056 to H-0060): intraday persistence, volume and attention, cash, 1x.
 cash-volume:
-	@uv run python -m eulerlab.intraday.cash_volume_screen
+	@uv run python -m eulerlab.strategies.studies.cash_volume
 
 # Research 158 (H-0061 to H-0065): option-signal, half-hour and overnight-winner cash rules, 1x.
 option-signals:
-	@uv run python -m eulerlab.intraday.option_signal_screen
+	@uv run python -m eulerlab.strategies.studies.option_signal
 
 # Research 159 (H-0066 to H-0070): overnight-daytime tug-of-war cash rules, 1x.
 tug-of-war:
-	@uv run python -m eulerlab.intraday.tug_of_war_screen $(if $(DAILY),--daily,)
+	@uv run python -m eulerlab.strategies.studies.tug_of_war $(if $(DAILY),--daily,)
 
 # Research 160 (H-0072 to H-0076): intraday news rules from NSE corporate announcements.
 news-intraday:
-	@uv run python -m eulerlab.intraday.news_screen
+	@uv run python -m eulerlab.strategies.studies.news
 
 # Research 161 (H-0077 to H-0082): laggards, intraday pairs, ex-dates, VWAP stretch, 1x.
 minute-six:
-	@uv run python -m eulerlab.intraday.minute_six_screen
+	@uv run python -m eulerlab.strategies.studies.minute_six
 
 # Research 162 (H-0083 to H-0087): beta, MAX, illiquid last half-hour, pinning, OI build-up. Needs `make minute-six` first.
 stock-fo:
-	@uv run python -m eulerlab.intraday.stock_fo_screen
+	@uv run python -m eulerlab.strategies.studies.stock_fo
 
 # Research 163 (H-0088 to H-0092): skew, call-put IV, IV changes, put-call volume, RV minus IV. Needs `make minute-six` first.
 option-iv:
-	@uv run python -m eulerlab.intraday.option_iv_screen
+	@uv run python -m eulerlab.strategies.studies.option_iv
 
 # Research 164 (H-0093 to H-0097): bulk deals, SAST promoter buying, F&O ban entry, SLBM borrowing. Needs `make minute-six` and the reports backfilled from 2021-07-01.
 nse-reports-intraday:
-	@uv run python -m eulerlab.intraday.nse_reports_screen
+	@uv run python -m eulerlab.strategies.studies.nse_reports
 
 # ADR-143: the gate's PROMOTE and PAPER strategies from 2016 to the holdout end. READS THE HOLDOUT.
 full-history:
@@ -1048,7 +1048,7 @@ nse-earnings-announcements:
 
 # Research 084: fixed Gold ETF moving-average and Indian stock reversal screens.
 gold-stock-intraday-screen:
-	@uv run --extra research-ml python -m eulerlab.intraday.research_screen
+	@uv run --extra research-ml python -m eulerlab.strategies.studies.research
 
 gold-stock-intraday-optimize:
 	@uv run --extra research-ml python -m eulerlab.intraday.strategy_optimizer

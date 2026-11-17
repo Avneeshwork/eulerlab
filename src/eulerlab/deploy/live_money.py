@@ -272,8 +272,8 @@ def armed_for(session: date, root: Path = ROOT) -> Settings | None:
 def plan(session: date, per_name: float, *, root: Path = ROOT) -> dict[str, Any]:
     """Candidates for `session` from data through the session before it. Places nothing."""
     from eulerlab.deploy import delivery_fade_book as fade
-    from eulerlab.intraday import daily_universe_screen as du
     from eulerlab.intraday import rule_engine
+    from eulerlab.strategies.studies import daily_universe as du
 
     data = rule_engine.LiveData(
         since=session - timedelta(days=60), through=session - timedelta(days=1)
@@ -320,7 +320,7 @@ def plan(session: date, per_name: float, *, root: Path = ROOT) -> dict[str, Any]
 
 def data_ready_for(session: date) -> bool:
     """True when the daily panel holds the session before `session`."""
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     prev = session - timedelta(days=1)
     while not is_session(prev):
@@ -338,7 +338,7 @@ def filed_symbols(prev: date, session: date, symbols: Iterable[str]) -> frozense
     """Symbols with a non-administrative NSE filing from 15:30 on `prev` to 09:15 on
     `session` (research 179's rule). Raises when NSE does not answer: fail closed."""
     from eulerlab.ingest import nse_earnings_announcements as ann
-    from eulerlab.intraday import onex_screen as onex
+    from eulerlab.strategies.studies import onex as onex
 
     opener = ann._opener()
     rows = json.loads(ann._download(opener, prev, session))

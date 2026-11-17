@@ -100,8 +100,8 @@ def sources(strategy_id: str) -> list[str]:
     if name is not None:
         import importlib
 
-        return [_source(importlib.import_module(f"eulerlab.intraday.{name}"))]
-    from eulerlab.backtest.published import BUILDERS
+        return [_source(importlib.import_module(f"eulerlab.strategies.studies.{name}"))]
+    from eulerlab.strategies.daily.published import BUILDERS
 
     builder = BUILDERS.get(strategy_id)
     if builder is None:

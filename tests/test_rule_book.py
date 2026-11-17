@@ -156,8 +156,8 @@ def test_mis_book_sizes_half_the_margin_a_position() -> None:
     from array import array
 
     from eulerlab.deploy import mis_book
-    from eulerlab.intraday import mft_screen as mft
-    from eulerlab.intraday import minute_six_screen as six
+    from eulerlab.strategies.studies import mft as mft
+    from eulerlab.strategies.studies import minute_six as six
 
     def snap(closes: list[float], last: float) -> six.Snap:
         n = len(six.CHECKPOINTS)
@@ -204,7 +204,7 @@ def test_h0146_is_a_paper_book_at_one_x() -> None:
 
 
 def _panel_for_fade(symbols: list[str]) -> tuple[dict[str, Any], list[date]]:
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     days: list[date] = []
     d = date(2026, 9, 1)
@@ -335,7 +335,7 @@ def test_h0168_fades_a_results_gap_and_skips_a_watched_short() -> None:
     from datetime import datetime, time
 
     from eulerlab.deploy import daily_books as books
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     panel, days = _panel_for_fade(["AAA", "BBB"])
     p, today = days[-2], days[-1]
@@ -357,7 +357,7 @@ def test_h0168_fades_a_results_gap_and_skips_a_watched_short() -> None:
 
 def test_h0162_books_a_closed_twenty_session_hold_on_its_exit_day() -> None:
     from eulerlab.deploy import daily_books as books
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     days: list[date] = []
     d = date(2026, 9, 1)
@@ -384,7 +384,7 @@ def test_h0187_follows_a_results_reaction_the_next_session() -> None:
     from zoneinfo import ZoneInfo
 
     from eulerlab.deploy import daily_books as books
-    from eulerlab.intraday import daily_universe_screen as du
+    from eulerlab.strategies.studies import daily_universe as du
 
     days: list[date] = []
     d = date(2026, 9, 1)

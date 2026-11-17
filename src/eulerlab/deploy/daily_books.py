@@ -28,7 +28,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import daily_universe_screen as du
+from eulerlab.strategies.studies import daily_universe as du
 
 SLOTS = 10
 HOLD = 20
@@ -199,7 +199,7 @@ def promoter_trades(
 def h0162(
     *, start: date, through: date, since: date, capital: float
 ) -> tuple[list[Trade], list[date]]:
-    from eulerlab.intraday import nse_reports_screen as rep
+    from eulerlab.strategies.studies import nse_reports as rep
 
     panel = du.load_panel(start=since + timedelta(days=1), end=through)
     sessions = sorted({d for bars in panel.values() for d in bars})

@@ -32,8 +32,8 @@ from pathlib import Path
 from typing import Any
 
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import daily_universe_screen as du
 from eulerlab.paths import data_path
+from eulerlab.strategies.studies import daily_universe as du
 
 REPORTS = data_path("landing/nse_reports/manifest.jsonl")
 SLOTS = 10
@@ -129,7 +129,7 @@ def h0161(
     from datetime import timedelta
 
     from eulerlab.ingest import trade_for_trade
-    from eulerlab.intraday import other_data_screen as od
+    from eulerlab.strategies.studies import other_data as od
 
     trade_for_trade.build()
     panel = du.load_panel(start=since + timedelta(days=1), end=through)

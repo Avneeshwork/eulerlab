@@ -19,8 +19,8 @@ from typing import Any
 
 from eulerlab.costs.schedule import Segment, Side
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import research_screen as rs
 from eulerlab.paths import data_path
+from eulerlab.strategies.studies import research as rs
 
 DEV_START = date(2024, 1, 1)
 DEV_END = date(2024, 11, 30)

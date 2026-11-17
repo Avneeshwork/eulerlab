@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from eulerlab.intraday import tuned
-from eulerlab.intraday.papers import PaperRules
+from eulerlab.strategies.intraday.papers import PaperRules
 
 
 def _sweep(tmp_path: Path, *, dry_run: bool, rows: list[dict[str, object]]) -> Path:

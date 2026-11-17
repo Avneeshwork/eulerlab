@@ -28,7 +28,7 @@ from datetime import date
 from itertools import pairwise
 from typing import Any
 
-from eulerlab.intraday import mft_screen as mft
+from eulerlab.strategies.studies import mft as mft
 
 POSITION_SHARE = 0.5
 """A position's notional as a share of the margin: ₹5 lakh on ₹10 lakh (research 168)."""
@@ -41,7 +41,7 @@ Rule = Callable[..., Iterator[mft.Signal]]
 
 def _onex(hypothesis: str) -> Rule:
     """A research-171 rule in the shape the book calls: (market, day, delay)."""
-    from eulerlab.intraday import onex_screen as onex
+    from eulerlab.strategies.studies import onex as onex
 
     _, rule = onex.RULES[hypothesis]
 
@@ -53,7 +53,7 @@ def _onex(hypothesis: str) -> Rule:
 
 
 def rules() -> dict[str, Rule]:
-    from eulerlab.intraday import quant_screen as quant
+    from eulerlab.strategies.studies import quant as quant
 
     return {
         "H-0146": _onex("H-0146"),
@@ -75,7 +75,7 @@ def _nifty_minutes(*, since: date, through: date) -> dict[date, tuple[float, ...
 
     from eulerlab.ingest import landing_reader
     from eulerlab.intraday import india_papers as ip
-    from eulerlab.intraday import research_screen as rs
+    from eulerlab.strategies.studies import research as rs
 
     rows: dict[str, dict[int, tuple[float, float, float, float, float]]] = {}
     for name in sorted(landing_reader.available("kite_index_minute", "NIFTY50/*.parquet")):
@@ -142,7 +142,7 @@ def generator(strategy_id: str) -> Callable[..., tuple[list[Trade], list[date]]]
     ) -> tuple[list[Trade], list[date]]:
         from eulerlab.deploy import rule_book
         from eulerlab.intraday import cross_section as cs
-        from eulerlab.intraday import minute_six_screen as six
+        from eulerlab.strategies.studies import minute_six as six
 
         snaps: dict[str, dict[date, Any]] = {}
         for symbol in cs.universe():

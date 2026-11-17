@@ -7,9 +7,9 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from eulerlab.intraday import results_gap_fade_screen as fade
-from eulerlab.intraday.overnight_reversal_screen import Mark
 from eulerlab.options import expiry_straddle_screen as straddle
+from eulerlab.strategies.studies import results_gap_fade as fade
+from eulerlab.strategies.studies.overnight_reversal import Mark
 
 IST = ZoneInfo("Asia/Kolkata")
 SESSIONS = [date(2023, 5, 4), date(2023, 5, 5), date(2023, 5, 8)]  # Thu, Fri, Mon

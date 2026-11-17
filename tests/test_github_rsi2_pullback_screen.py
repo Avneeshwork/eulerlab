@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from eulerlab.intraday.github_rsi2_pullback_screen import RSI_PERIOD, _run, _sma
 from eulerlab.intraday.india_papers import Day
 from eulerlab.intraday.screen_common import rsi as _rsi
+from eulerlab.strategies.studies.github_rsi2_pullback import RSI_PERIOD, _run, _sma
 
 
 def _day(when: date, closes: list[float] | None = None) -> Day:

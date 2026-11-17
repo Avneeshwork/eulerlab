@@ -24,7 +24,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from eulerlab.intraday import cross_section as cs
-from eulerlab.intraday import daily_universe_screen as du
+from eulerlab.strategies.studies import daily_universe as du
 
 SLOTS = 10
 Trade = dict[str, Any]

@@ -203,7 +203,7 @@ def market_series(sessions: Sequence[date]) -> dict[str, dict[date, float]]:
     import bisect
 
     from eulerlab.ingest import fii_dii_cash
-    from eulerlab.intraday import fii_participant_oi_screen as oi
+    from eulerlab.strategies.studies import fii_participant_oi as oi
 
     out: dict[str, dict[date, float]] = {
         name: {} for name, f in lang.FIELDS.items() if f.market_wide

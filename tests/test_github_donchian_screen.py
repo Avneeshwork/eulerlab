@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from eulerlab.intraday.github_donchian_screen import _run
 from eulerlab.intraday.india_papers import Day
+from eulerlab.strategies.studies.github_donchian import _run
 
 
 def _day(when: date, *, breakout: bool = False) -> Day:

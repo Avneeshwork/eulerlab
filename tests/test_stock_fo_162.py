@@ -8,8 +8,8 @@ import zipfile
 from datetime import date, timedelta
 
 from eulerlab.intraday import india_papers as ip
-from eulerlab.intraday import minute_six_screen as six
-from eulerlab.intraday import stock_fo_screen as fo
+from eulerlab.strategies.studies import minute_six as six
+from eulerlab.strategies.studies import stock_fo as fo
 
 N = 375
 START = date(2023, 1, 2)

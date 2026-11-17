@@ -9,11 +9,11 @@ from datetime import date, timedelta
 import numpy as np
 import pytest
 
-from eulerlab.backtest.published import BUILDERS
 from eulerlab.backtest.strategy import MarketView, Strategy, decide
-from eulerlab.deploy import sizing_models as sm
-from eulerlab.deploy.sizing import max_weight
 from eulerlab.features.panel import PanelRow
+from eulerlab.risk import sizing as sm
+from eulerlab.risk.sizing import max_weight
+from eulerlab.strategies.daily.published import BUILDERS
 
 
 def _view(vols: dict[str, float], days: int = 140, seed: int = 7) -> MarketView:
