@@ -3,6 +3,17 @@
 Every task, its status, and the command that proves it. Statuses:
 **TODO** · **DOING** · **DONE** · **BLOCKED** · **KILLED**
 
+## One file per strategy and per sizing model (2026-11-17, ADR-219)
+
+Operator, 2026-11-17: "in one strategy folder we have separate files for all strategies, similarly in risk model all separate files for position sizing models".
+
+| ID | Task | Status |
+|---|---|---|
+| T-4677 | Move the nine strategy modules to `strategies/daily/` and `strategies/intraday/` (one file per strategy), the 45 screens to `strategies/studies/`, sizing and loss limits to `risk/sizing/` and `risk/limits/`, `risk/book.py` to `risk/book/`; shims at the old paths (`pytest tests/test_moved_import_paths.py`; `make check`) | DONE 2026-11-17, ADR-219. Registry, weights, signals, studies and sizing byte-identical before and after |
+| T-4676 | Operator, once after merging: `make relock-moved` (report) then `make relock-moved APPLY=1`. Relocks the deployments whose lock matched the code just before the move (33 intraday cards on 2026-11-17); any other "changed" lock is left for review | TODO |
+| T-4675 | Delete the shims at the old paths (`backtest/india_papers.py`, `evidence_daily.py`, `github_daily.py`, `events_daily.py`, `screener_models.py`, `published.py`, `intraday/papers.py`, `india.py`, `crypto_signals.py`, `deploy/sizing.py`, `sizing_models.py`, `loss_limits.py`) and `tests/test_moved_import_paths.py` once no open branch imports them | TODO |
+| T-4678 | Not moved: the registry's own declarations (`strategies/__init__.py`, 1,000 lines), the calm-rise gap study (`research/gap_forecast.py`) and the option strategies (`options/`). Split if they get in the way | TODO |
+
 ## Agent research quality, issues #151 to #161 (2026-11-16)
 
 Operator, 2026-11-16: "start them" — go through the gap audit's issues and build the ones that matter most.
