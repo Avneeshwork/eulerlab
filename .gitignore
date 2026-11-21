@@ -14,6 +14,23 @@ data/
 *.key
 secrets/
 .kite_session.json
+# Any broker or API session cache, and Claude's per-machine settings.
+*_session.json
+.*_session*
+*.cookies
+cookies.txt
+.claude/settings.local.json
+# Data dumps and local databases outside data/ (repo going public, 2026-11-16).
+*.db
+*.sqlite
+*.sqlite3
+*.pkl
+*.feather
+*.arrow
+*.xlsx
+*.log
+# Git bundles are whole-history backups; they hold everything ever committed.
+*.bundle
 
 # Python
 __pycache__/

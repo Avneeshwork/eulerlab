@@ -11,7 +11,8 @@
 # message rather than a line in a file nobody opens.
 
 set -u
-ROOT="/Users/avneesh/EulerLab"
+# The repo root is this script's parent folder, so no home path is committed.
+ROOT="${0:A:h:h}"
 LOG="$ROOT/data/logs/daily.log"
 ERR="$ROOT/data/logs/daily.err"
 

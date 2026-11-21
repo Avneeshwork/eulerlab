@@ -9,10 +9,20 @@ Operator, 2026-11-17: "in one strategy folder we have separate files for all str
 
 | ID | Task | Status |
 |---|---|---|
-| T-4677 | Move the nine strategy modules to `strategies/daily/` and `strategies/intraday/` (one file per strategy), the 45 screens to `strategies/studies/`, sizing and loss limits to `risk/sizing/` and `risk/limits/`, `risk/book.py` to `risk/book/`; shims at the old paths (`pytest tests/test_moved_import_paths.py`; `make check`) | DONE 2026-11-17, ADR-219. Registry, weights, signals, studies and sizing byte-identical before and after |
-| T-4676 | Operator, once after merging: `make relock-moved` (report) then `make relock-moved APPLY=1`. Relocks the deployments whose lock matched the code just before the move (33 intraday cards on 2026-11-17); any other "changed" lock is left for review | TODO |
-| T-4675 | Delete the shims at the old paths (`backtest/india_papers.py`, `evidence_daily.py`, `github_daily.py`, `events_daily.py`, `screener_models.py`, `published.py`, `intraday/papers.py`, `india.py`, `crypto_signals.py`, `deploy/sizing.py`, `sizing_models.py`, `loss_limits.py`) and `tests/test_moved_import_paths.py` once no open branch imports them | TODO |
-| T-4678 | Not moved: the registry's own declarations (`strategies/__init__.py`, 1,000 lines), the calm-rise gap study (`research/gap_forecast.py`) and the option strategies (`options/`). Split if they get in the way | TODO |
+| T-4681 | Move the nine strategy modules to `strategies/daily/` and `strategies/intraday/` (one file per strategy), the 45 screens to `strategies/studies/`, sizing and loss limits to `risk/sizing/` and `risk/limits/`, `risk/book.py` to `risk/book/`; shims at the old paths (`pytest tests/test_moved_import_paths.py`; `make check`) | DONE 2026-11-17, ADR-219. Registry, weights, signals, studies and sizing byte-identical before and after |
+| T-4680 | Operator, once after merging: `make relock-moved` (report) then `make relock-moved APPLY=1`. Relocks the deployments whose lock matched the code just before the move (33 intraday cards on 2026-11-17); any other "changed" lock is left for review | DONE 2026-11-21 (26 relocked, 12 left for review) |
+| T-4679 | Delete the shims at the old paths (`backtest/india_papers.py`, `evidence_daily.py`, `github_daily.py`, `events_daily.py`, `screener_models.py`, `published.py`, `intraday/papers.py`, `india.py`, `crypto_signals.py`, `deploy/sizing.py`, `sizing_models.py`, `loss_limits.py`) and `tests/test_moved_import_paths.py` once no open branch imports them | TODO |
+| T-4682 | Not moved: the registry's own declarations (`strategies/__init__.py`, 1,000 lines), the calm-rise gap study (`research/gap_forecast.py`) and the option strategies (`options/`). Split if they get in the way | TODO |
+
+## Make the repo public safely (2026-11-16)
+
+Operator, 2026-11-16: "I am making this project public ensure no api and data leak happens". Audit of the whole GitHub history (868 commits, all branches, tags and 119 refs including pull requests) against every `.env` value and common key patterns. The current tree is clean; history still holds the 2026-08-18 leak (S-031).
+
+| ID | Task | Status |
+|---|---|---|
+| T-4675 | Ignore session caches, local databases, dumps, logs and git bundles; scripts find the repo root instead of a committed home path | DONE 2026-11-16 |
+| T-4676 | Operator: regenerate the Zerodha Kite api_key (a new Kite app) and decide whether the Telegram chat id matters. Both are in history at `5b55779`, `afaf099` (`.env.example`) and `docs/RUNBOOKS/kite-login.md` before `d17bff9` | TODO |
+| T-4677 | Operator decision: purge `.env.example` history with `git filter-repo` before going public. Pull-request refs on GitHub (`refs/pull/*`) are read-only and keep the old commits even after a purge, so a full purge needs GitHub Support or a fresh repo pushed from the cleaned history | TODO |
 
 ## Agent research quality, issues #151 to #161 (2026-11-16)
 

@@ -13,7 +13,8 @@
 # the ui-revamp branch and never pushes. Output: data/cache/ui-revamp-logs/.
 
 set -u
-REPO="/Users/avneesh/EulerLab"
+# The repo root is this script's parent folder, so no home path is committed.
+REPO="${0:A:h:h}"
 FLAG="$REPO/data/cache/ui-revamp.active"
 LOCK="$REPO/data/cache/ui-revamp.lock"
 LOGS="$REPO/data/cache/ui-revamp-logs"
