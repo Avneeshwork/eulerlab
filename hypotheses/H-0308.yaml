@@ -1,0 +1,50 @@
+id: H-0308
+title: 'Fixed-rule combination: swing: when promoter_buy > 0 and value_ratio[lag 1] >= 3; long; hold 5
+  sessions;'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: 'swing: when promoter_buy > 0 and value_ratio[lag 1] >= 3; long; hold 5 sessions; rank by promoter_buy
+  desc earns more than costs in both halves and at 2x costs.'
+rationale: Written by fixed rules from the signal vocabulary, because the model could not answer. No paper
+  behind it.
+source:
+  research: autopilot
+  paper: ''
+  claim: agent:H-0308
+  replicates: false
+  written_by: the research autopilot (fixed rules), ADR-150
+  day: '2026-11-21'
+configurations:
+- shape: engine_rule
+  rule: 'swing: when promoter_buy > 0 and value_ratio[lag 1] >= 3; long; hold 5 sessions; rank by promoter_buy
+    desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: delivery charges plus 2 bps a side, Rs 1 lakh a position, at most ten open
+  window: 2021-07-01 to 2025-12-31
+engine:
+  kind: swing
+  hold: 5
+  side: long
+  when:
+  - signal: promoter_buy
+    op: '>'
+    value: 0.0
+  - signal: value_ratio
+    lag: 1
+    op: '>='
+    value: 3.0
+  rank_by:
+    signal: promoter_buy
+red_flags:
+- No economic reason was written before the test.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 304 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''

@@ -1,0 +1,53 @@
+id: H-0309
+title: 'Fixed-rule combination: intraday: when ret(5)[lag 1] <= -0.08 and at_low(60)[lag 1]; long; open
+  to close'
+status: draft
+family: autopilot_event_rules
+source_kind: agent
+parent: ''
+claim: 'intraday: when ret(5)[lag 1] <= -0.08 and at_low(60)[lag 1]; long; open to close; rank by ret(5)[lag
+  1] desc earns more than costs in both halves and at 2x costs.'
+rationale: Written by fixed rules from the signal vocabulary, because the model could not answer. No paper
+  behind it.
+source:
+  research: autopilot
+  paper: ''
+  claim: agent:H-0309
+  replicates: false
+  written_by: the research autopilot (fixed rules), ADR-150
+  day: '2026-11-21'
+configurations:
+- shape: engine_rule
+  rule: 'intraday: when ret(5)[lag 1] <= -0.08 and at_low(60)[lag 1]; long; open to close; rank by ret(5)[lag
+    1] desc'
+  universe: the 500 most traded NSE stocks by 20-session traded value each day; stocks in series BE/BZ
+    the previous session skipped (research 173, 174)
+  costs: cash intraday charges plus 2 bps a side, Rs 1 lakh a position, at most ten a day, official open
+    to close
+  window: 2005-01-01 to 2025-12-31
+engine:
+  kind: intraday
+  side: long
+  when:
+  - signal: ret
+    lag: 1
+    n: 5
+    op: <=
+    value: -0.08
+  - signal: at_low
+    lag: 1
+    n: 60
+  rank_by:
+    signal: ret
+    lag: 1
+    n: 5
+red_flags:
+- No economic reason was written before the test.
+- 'Daily bars: the official open and close stand in for real fills.'
+- Written by the autopilot after 304 cards were tried; the simple gate does not correct for that search.
+- 'Screen as research 176: gated only if net positive in both halves, at twice the costs, and clean on
+  the engine''s bias checks.'
+holdout:
+  starts: '2024-12-01'
+  status: unread
+result: ''
