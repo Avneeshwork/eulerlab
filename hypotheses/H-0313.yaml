@@ -50,4 +50,6 @@ red_flags:
 holdout:
   starts: '2024-12-01'
   status: unread
-result: ''
+result: 'Autopilot screen 2026-11-21: 0 trades 2005-01-01 to 2023-12-31; net None bps each; net Sharpe
+  None, halves None / None, None at 2x costs. Flagged: enough trades, positive in most years. Screen fail;
+  not gated.'
